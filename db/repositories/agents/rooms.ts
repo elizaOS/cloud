@@ -1,6 +1,7 @@
 /**
- * Repository for ElizaOS Rooms table
- * Handles all database operations for rooms without spinning up runtime
+ * Repository for ElizaOS rooms table.
+ * 
+ * Handles all database operations for rooms without spinning up runtime.
  */
 
 import { db } from "@/db/client";
@@ -8,12 +9,15 @@ import { roomTable, participantTable, memoryTable } from "@/db/schemas/eliza";
 import { eq, inArray, sql, desc, and } from "drizzle-orm";
 import type { Room as BaseRoom } from "@elizaos/core";
 
-// Use core Room type directly
+/**
+ * Room type from ElizaOS core.
+ */
 export type Room = BaseRoom;
 
 /**
- * Room with last message preview - for sidebar/list views
- * All data comes from a single optimized query
+ * Room with last message preview for sidebar/list views.
+ * 
+ * All data comes from a single optimized query.
  */
 export interface RoomWithPreview {
   id: string;
@@ -24,6 +28,9 @@ export interface RoomWithPreview {
   lastMessageText: string | null;
 }
 
+/**
+ * Input for creating a new room.
+ */
 export interface CreateRoomInput {
   id: string;
   agentId?: string; // Optional - can be set later when runtime initializes
@@ -36,15 +43,21 @@ export interface CreateRoomInput {
   metadata?: Record<string, unknown>;
 }
 
+/**
+ * Input for updating a room.
+ */
 export interface UpdateRoomInput {
   name?: string;
   agentId?: string;
   metadata?: Record<string, unknown>;
 }
 
+/**
+ * Repository for ElizaOS room database operations.
+ */
 export class RoomsRepository {
   /**
-   * Get room by ID
+   * Gets a room by ID.
    */
   async findById(roomId: string): Promise<Room | null> {
     const result = await db
@@ -57,7 +70,7 @@ export class RoomsRepository {
   }
 
   /**
-   * Get multiple rooms by IDs
+   * Gets multiple rooms by IDs.
    */
   async findByIds(roomIds: string[]): Promise<Room[]> {
     if (roomIds.length === 0) return [];
@@ -71,7 +84,7 @@ export class RoomsRepository {
   }
 
   /**
-   * Find rooms by agent ID, sorted by last activity
+   * Finds rooms by agent ID, sorted by last activity.
    */
   async findByAgentId(agentId: string, limit = 50): Promise<Room[]> {
     const results = await db
@@ -90,8 +103,9 @@ export class RoomsRepository {
   }
 
   /**
-   * Create a new room
-   * Note: source and type are required in the database (notNull, no defaults)
+   * Creates a new room.
+   * 
+   * Note: source and type are required in the database (notNull, no defaults).
    */
   async create(input: CreateRoomInput): Promise<Room> {
     const [room] = await db
@@ -114,7 +128,7 @@ export class RoomsRepository {
   }
 
   /**
-   * Update room
+   * Updates a room.
    */
   async update(roomId: string, input: UpdateRoomInput): Promise<Room> {
     const [room] = await db
@@ -127,14 +141,14 @@ export class RoomsRepository {
   }
 
   /**
-   * Delete room
+   * Deletes a room.
    */
   async delete(roomId: string): Promise<void> {
     await db.delete(roomTable).where(eq(roomTable.id, roomId));
   }
 
   /**
-   * Check if room exists
+   * Checks if a room exists.
    */
   async exists(roomId: string): Promise<boolean> {
     const result = await db
@@ -147,7 +161,7 @@ export class RoomsRepository {
   }
 
   /**
-   * Count rooms by agent
+   * Counts rooms for an agent.
    */
   async countByAgentId(agentId: string): Promise<number> {
     const results = await db
@@ -159,7 +173,7 @@ export class RoomsRepository {
   }
 
   /**
-   * Update room metadata (merge with existing)
+   * Updates room metadata by merging with existing metadata.
    */
   async updateMetadata(
     roomId: string,
@@ -184,11 +198,11 @@ export class RoomsRepository {
   }
 
   /**
-   * Get all rooms for an entity (user) with last message preview
-   * Uses a single optimized query with joins
+   * Gets all rooms for an entity (user) with last message preview.
    * 
-   * @param entityId - The user's ID (from auth)
-   * @returns Rooms with preview data, sorted by most recent activity
+   * Uses a single optimized query with joins. Returns rooms sorted by most recent activity.
+   * 
+   * @param entityId - The user's ID (from auth).
    */
   async findRoomsWithPreviewForEntity(entityId: string): Promise<RoomWithPreview[]> {
     // Use a subquery to get the latest message per room
@@ -236,4 +250,7 @@ export class RoomsRepository {
   }
 }
 
+/**
+ * Singleton instance of RoomsRepository.
+ */
 export const roomsRepository = new RoomsRepository();

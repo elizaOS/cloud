@@ -5,7 +5,12 @@ import { logger } from "@/lib/utils/logger";
 
 /**
  * POST /api/v1/apps/[id]/regenerate-api-key
- * Regenerate the API key for an app
+ * Regenerates the API key for an app, invalidating the old key.
+ * The new key is only returned once. Requires ownership verification.
+ *
+ * @param request - The Next.js request object.
+ * @param params - Route parameters containing the app ID.
+ * @returns New API key (only shown once).
  */
 export async function POST(
   request: NextRequest,

@@ -113,10 +113,9 @@ export const proposeCharacterChangesAction = {
     _options: Record<string, unknown>,
     callback: HandlerCallback,
   ): Promise<void> => {
-    try {
-      logger.info(
-        "[PROPOSE_CHARACTER_CHANGES] 🎨 Generating conversational proposal",
-      );
+    logger.info(
+      "[PROPOSE_CHARACTER_CHANGES] 🎨 Generating conversational proposal",
+    );
 
       state = await runtime.composeState(message, [
         "SUMMARIZED_CONTEXT",
@@ -169,22 +168,7 @@ export const proposeCharacterChangesAction = {
       }
 
       // Parse the character JSON
-      let updatedCharacter: Record<string, unknown> = {};
-      try {
-        updatedCharacter = JSON.parse(parsedResponse.character);
-      } catch (parseError) {
-        const errorMsg =
-          parseError instanceof Error ? parseError.message : String(parseError);
-        logger.error(
-          "[PROPOSE_CHARACTER_CHANGES] Failed to parse character JSON:",
-          errorMsg,
-        );
-        await callback({
-          text: `Failed to parse character JSON: ${errorMsg}`,
-          error: true,
-        });
-        return;
-      }
+      const updatedCharacter: Record<string, unknown> = JSON.parse(parsedResponse.character);
 
       logger.info(
         "[PROPOSE_CHARACTER_CHANGES] ✅ Proposal generated successfully with full character JSON",
@@ -199,20 +183,6 @@ export const proposeCharacterChangesAction = {
           updatedCharacter,
         },
       });
-    } catch (error) {
-      const err = error as Error;
-      logger.error(
-        {
-          message: err.message,
-          stack: err.stack,
-        },
-        "[PROPOSE_CHARACTER_CHANGES] Exception during proposal",
-      );
-      await callback({
-        text: `Exception during proposal generation: ${err.message}`,
-        error: true,
-      });
-    }
   },
   examples: [
     [

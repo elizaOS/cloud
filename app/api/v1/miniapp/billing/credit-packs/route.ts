@@ -1,10 +1,3 @@
-/**
- * /api/v1/miniapp/billing/credit-packs
- *
- * GET - List available credit packs
- * Returns active credit packs for display in miniapp billing UI
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { creditsService } from "@/lib/services";
 import {
@@ -20,11 +13,26 @@ import {
 } from "@/lib/middleware/miniapp-rate-limit";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * OPTIONS /api/v1/miniapp/billing/credit-packs
+ * CORS preflight handler for miniapp credit packs endpoint.
+ *
+ * @param request - The Next.js request object.
+ * @returns Preflight response with CORS headers.
+ */
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
   return createPreflightResponse(origin, ["GET", "OPTIONS"]);
 }
 
+/**
+ * GET /api/v1/miniapp/billing/credit-packs
+ * Lists all active credit packs available for purchase.
+ * Returns credit packs formatted for display in miniapp billing UI.
+ *
+ * @param request - The Next.js request object.
+ * @returns Array of active credit packs with pricing and bonus information.
+ */
 export async function GET(request: NextRequest) {
   const corsResult = await validateOrigin(request);
 

@@ -29,7 +29,7 @@ import type { AgentModeConfig } from "./agent-mode-types";
 import { DEFAULT_AGENT_MODE } from "./agent-mode-types";
 
 /**
- * Usage information for token tracking and billing
+ * Usage information for token tracking and billing.
  */
 export interface UsageInfo {
   inputTokens: number;
@@ -37,11 +37,17 @@ export interface UsageInfo {
   model: string;
 }
 
+/**
+ * Result of processing a message through the agent runtime.
+ */
 export interface MessageResult {
   message: Memory;
   usage?: UsageInfo;
 }
 
+/**
+ * Options for processing a message.
+ */
 export interface MessageOptions {
   roomId: string;
   text: string;
@@ -51,6 +57,9 @@ export interface MessageOptions {
   agentModeConfig?: AgentModeConfig;
 }
 
+/**
+ * Message handler for processing messages through the ElizaOS runtime.
+ */
 export class MessageHandler {
   constructor(
     private runtime: AgentRuntime,
@@ -416,9 +425,6 @@ export class MessageHandler {
       logger.info(
         `[MessageHandler] Deducted credits - tokens: ${usage.inputTokens}/${usage.outputTokens}, cost: ${costResult.totalCost}, balance: ${deductResult.newBalance}`,
       );
-    } catch (error) {
-      logger.error("[MessageHandler] ❌ Error tracking usage:", error);
-    }
   }
 
   /**
@@ -459,9 +465,6 @@ export class MessageHandler {
       } else {
         logger.warn("[MessageHandler] ⚠️ No session found for token:", (this.userContext.sessionToken?.slice(0, 8) ?? "") + "...");
       }
-    } catch (error) {
-      logger.error("[MessageHandler] ❌ Error incrementing message count:", error);
-    }
   }
 
   /**

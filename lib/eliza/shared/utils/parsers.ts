@@ -5,7 +5,7 @@
  */
 
 /**
- * Parsed plan from planning phase
+ * Parsed plan from planning phase.
  */
 export interface ParsedPlan {
   canRespondNow?: string;
@@ -16,7 +16,7 @@ export interface ParsedPlan {
 }
 
 /**
- * Parsed response from LLM
+ * Parsed response from LLM.
  */
 export interface ParsedResponse {
   thought?: string;
@@ -24,8 +24,11 @@ export interface ParsedResponse {
 }
 
 /**
- * Parse planned items (providers or actions) from XML response
- * Handles both array and comma-separated string formats
+ * Parses planned items (providers or actions) from XML response.
+ * Handles both array and comma-separated string formats.
+ *
+ * @param items - Items to parse (string, array, or undefined).
+ * @returns Array of parsed item strings.
  */
 export function parsePlannedItems(items: string | string[] | undefined): string[] {
   if (!items) return [];
@@ -38,7 +41,10 @@ export function parsePlannedItems(items: string | string[] | undefined): string[
 }
 
 /**
- * Check if plan indicates immediate response capability
+ * Checks if plan indicates immediate response capability.
+ *
+ * @param plan - Parsed plan or null.
+ * @returns True if plan indicates immediate response.
  */
 export function canRespondImmediately(plan: ParsedPlan | null): boolean {
   return (

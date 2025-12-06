@@ -1,3 +1,14 @@
+/**
+ * Build mode assistant component for AI-assisted character building.
+ * Provides chat interface for refining character properties with markdown support and quick prompts.
+ *
+ * @param props - Build mode assistant configuration
+ * @param props.character - Character being edited
+ * @param props.onCharacterUpdate - Callback when character is updated
+ * @param props.onCharacterRefresh - Optional callback to refresh character from database
+ * @param props.userId - User ID for conversation management
+ */
+
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -67,44 +78,39 @@ export function BuildModeAssistant({
       // Clear messages when switching characters
       setMessages([]);
 
-      try {
-        // The title used to identify builder rooms - MUST include character ID for uniqueness
-        const builderTitle = `[BUILD] ${character.name || "New Character"} (${character.id})`;
+      // The title used to identify builder rooms - MUST include character ID for uniqueness
+      const builderTitle = `[BUILD] ${character.name || "New Character"} (${character.id})`;
 
-        // Try to find existing builder room by matching the character ID in title
-        const { success, conversations } = await listUserConversationsAction();
+      // Try to find existing builder room by matching the character ID in title
+      const { success, conversations } = await listUserConversationsAction();
 
-        if (success && conversations) {
-          // Look for existing build room for THIS specific character
-          // Match either the full title or just the pattern with character ID
-          const existingRoom = conversations.find(
-            (conv) =>
-              conv.title === builderTitle ||
-              (conv.title.includes(`[BUILD]`) &&
-                conv.title.includes(`(${character.id})`)),
-          );
+      if (success && conversations) {
+        // Look for existing build room for THIS specific character
+        // Match either the full title or just the pattern with character ID
+        const existingRoom = conversations.find(
+          (conv) =>
+            conv.title === builderTitle ||
+            (conv.title.includes(`[BUILD]`) &&
+              conv.title.includes(`(${character.id})`)),
+        );
 
-          if (existingRoom) {
-            setBuilderRoomId(existingRoom.id);
-            return;
-          }
+        if (existingRoom) {
+          setBuilderRoomId(existingRoom.id);
+          return;
         }
+      }
 
-        // Create new builder room for this specific character
-        const { success: createSuccess, conversation } =
-          await createConversationAction({
-            title: builderTitle,
-            model: "gpt-4o", // Default model for builder
-          });
+      // Create new builder room for this specific character
+      const { success: createSuccess, conversation } =
+        await createConversationAction({
+          title: builderTitle,
+          model: "gpt-4o", // Default model for builder
+        });
 
-        if (createSuccess && conversation) {
-          setBuilderRoomId(conversation.id);
-        } else {
-          toast.error("Failed to create builder room");
-        }
-      } catch (error) {
-        console.error("Error initializing builder room:", error);
-        toast.error("Failed to initialize build mode");
+      if (createSuccess && conversation) {
+        setBuilderRoomId(conversation.id);
+      } else {
+        toast.error("Failed to create builder room");
       }
     };
 
@@ -118,12 +124,11 @@ export function BuildModeAssistant({
     const loadMessages = async () => {
       if (!builderRoomId) return;
 
-      try {
-        const response = await fetch(`/api/eliza/rooms/${builderRoomId}`);
+      const response = await fetch(`/api/eliza/rooms/${builderRoomId}`);
 
-        if (response.ok) {
-          const data = await response.json();
-          const loadedMessages = data.messages || [];
+      if (response.ok) {
+        const data = await response.json();
+        const loadedMessages = data.messages || [];
 
           // Convert Eliza messages to our Message format
           // The API returns messages with isAgent boolean and content as an object with source field
@@ -174,9 +179,6 @@ export function BuildModeAssistant({
             setMessages(convertedMessages);
           }
         }
-      } catch (error) {
-        console.error("[BuildMode] Error loading messages:", error);
-      }
     };
 
     loadMessages();
@@ -254,24 +256,23 @@ Tell me about your vision!`;
     };
     setMessages((prev) => [...prev, userMessage]);
 
-    try {
-      const response = await fetch(`/api/eliza/rooms/${builderRoomId}/messages/stream`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text,
-          agentMode: {
-            mode: AgentMode.BUILD,
-            metadata: {
-              targetCharacterId: character.id,
-            },
+    const response = await fetch(`/api/eliza/rooms/${builderRoomId}/messages/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        agentMode: {
+          mode: AgentMode.BUILD,
+          metadata: {
+            targetCharacterId: character.id,
           },
-        }),
-      });
+        },
+      }),
+    });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
@@ -398,12 +399,7 @@ Tell me about your vision!`;
           }
         }
       }
-    } catch (error) {
-      console.error("Error sending message:", error);
-      toast.error("Failed to send message");
-    } finally {
-      setIsLoading(false);
-    }
+    setIsLoading(false);
   };
 
   // Robust scroll to bottom function
@@ -512,16 +508,11 @@ Tell me about your vision!`;
   };
 
   const copyToClipboard = async (text: string, messageId: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedMessageId(messageId);
-      toast.success("Message copied to clipboard");
-      // Reset after 2 seconds
-      setTimeout(() => setCopiedMessageId(null), 2000);
-    } catch (error) {
-      console.error("Failed to copy:", error);
-      toast.error("Failed to copy message");
-    }
+    await navigator.clipboard.writeText(text);
+    setCopiedMessageId(messageId);
+    toast.success("Message copied to clipboard");
+    // Reset after 2 seconds
+    setTimeout(() => setCopiedMessageId(null), 2000);
   };
 
   const pathname = usePathname();

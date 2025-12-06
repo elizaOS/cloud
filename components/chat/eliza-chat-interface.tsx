@@ -70,7 +70,13 @@ interface Message {
   createdAt: number;
 }
 
-interface AgentInfo {
+import type { AgentInfo } from "@/db/repositories/agents";
+
+/**
+ * Display version of AgentInfo with UI-specific fields.
+ * Used for chat interface display (simplified from full AgentInfo).
+ */
+interface AgentInfoDisplay {
   id?: string;
   name?: string;
   avatarUrl?: string;
@@ -119,7 +125,7 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
   const { authenticated } = usePrivy();
   
   const [messages, setMessages] = useState<Message[]>([]);
-  const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
+  const [agentInfo, setAgentInfo] = useState<AgentInfoDisplay | null>(null);
   const [inputText, setInputText] = useState("");
   const isPendingMessageProcessingRef = useRef(false);
   const pendingMessageToSendRef = useRef<string | null>(null);
@@ -174,20 +180,15 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
 
   const loadMessages = useCallback(async (targetRoomId: string) => {
     setLoadingState(prev => ({ ...prev, isLoadingMessages: true }));
-    try {
-      const response = await fetch(`/api/eliza/rooms/${targetRoomId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setMessages(data.messages || []);
-        if (data.agent) {
-          setAgentInfo(data.agent);
-        }
+    const response = await fetch(`/api/eliza/rooms/${targetRoomId}`);
+    if (response.ok) {
+      const data = await response.json();
+      setMessages(data.messages || []);
+      if (data.agent) {
+        setAgentInfo(data.agent);
       }
-    } catch (err) {
-      console.error("Error loading messages:", err);
-    } finally {
-      setLoadingState(prev => ({ ...prev, isLoadingMessages: false }));
     }
+    setLoadingState(prev => ({ ...prev, isLoadingMessages: false }));
   }, []);
 
   // Load messages when roomId from context changes
@@ -209,25 +210,19 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
         characterId !== undefined ? characterId : selectedCharacterId;
       setLoadingState(prev => ({ ...prev, isInitializing: true }));
       setError(null);
-      try {
-        // Use store's createRoom which handles the API call
-        const newRoomId = await createRoomInStore(charIdToUse);
+      // Use store's createRoom which handles the API call
+      const newRoomId = await createRoomInStore(charIdToUse);
 
-        if (!newRoomId) {
-          throw new Error("Failed to create room");
-        }
-
-        // Load initial messages for the new room
-        await loadMessages(newRoomId);
-
-        return newRoomId;
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to create room");
-        console.error("[ElizaChat] Error creating room:", err);
-        throw err; // Re-throw so caller can handle
-      } finally {
+      if (!newRoomId) {
         setLoadingState(prev => ({ ...prev, isInitializing: false }));
+        throw new Error("Failed to create room");
       }
+
+      // Load initial messages for the new room
+      await loadMessages(newRoomId);
+      setLoadingState(prev => ({ ...prev, isInitializing: false }));
+
+      return newRoomId;
     },
     [createRoomInStore, loadMessages, selectedCharacterId],
   );
@@ -262,14 +257,6 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
           // Room creation will update roomId, which will trigger sending logic
           console.log("[ElizaChat] Room created for pending message");
         })
-        .catch((err) => {
-          console.error(
-            "[ElizaChat] Failed to create room for pending message:",
-            err,
-          );
-          isPendingMessageProcessingRef.current = false;
-          pendingMessageToSendRef.current = null;
-        });
       return;
     }
 
@@ -297,37 +284,32 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
 
   const generateSpeech = useCallback(
     async (text: string, messageId: string) => {
-      try {
-        const currentVoiceId = audioState.selectedVoiceId;
-        const requestBody: { text: string; voiceId?: string } = { text };
-        if (currentVoiceId) {
-          requestBody.voiceId = currentVoiceId;
-        }
-
-        const response = await fetch("/api/elevenlabs/tts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody),
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to generate speech");
-        }
-
-        const audioBlob = await response.blob();
-        const audioUrl = URL.createObjectURL(audioBlob);
-        messageAudioUrls.current.set(messageId, audioUrl);
-
-        if (audioState.autoPlayTTS) {
-          setAudioState(prev => ({ ...prev, currentPlayingId: messageId }));
-          await player.playAudio(audioUrl);
-        }
-
-        return audioUrl;
-      } catch (error) {
-        console.error("TTS error:", error);
-        toast.error("Failed to generate speech");
+      const currentVoiceId = audioState.selectedVoiceId;
+      const requestBody: { text: string; voiceId?: string } = { text };
+      if (currentVoiceId) {
+        requestBody.voiceId = currentVoiceId;
       }
+
+      const response = await fetch("/api/elevenlabs/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate speech");
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      messageAudioUrls.current.set(messageId, audioUrl);
+
+      if (audioState.autoPlayTTS) {
+        setAudioState(prev => ({ ...prev, currentPlayingId: messageId }));
+        await player.playAudio(audioUrl);
+      }
+
+      return audioUrl;
     },
     [audioState.autoPlayTTS, audioState.selectedVoiceId, player],
   );
@@ -341,18 +323,14 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
     }
 
     const fetchCustomVoices = async () => {
-      try {
-        const response = await fetch("/api/elevenlabs/voices/user");
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && Array.isArray(data.voices)) {
-            setAudioState(prev => ({ ...prev, customVoices: data.voices }));
-          }
+      const response = await fetch("/api/elevenlabs/voices/user");
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && Array.isArray(data.voices)) {
+          setAudioState(prev => ({ ...prev, customVoices: data.voices }));
         }
-        // Silently ignore 401 errors - user may not have voice features
-      } catch (error) {
-        console.error("Failed to load custom voices:", error);
       }
+      // 401 errors are expected for users without voice features
     };
 
     fetchCustomVoices();
@@ -377,48 +355,45 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
 
       setLoadingState(prev => ({ ...prev, isProcessingSTT: true }));
 
-      try {
-        // Ensure the blob is in proper audio format (fix Safari/macOS video/webm issue)
-        const audioBlob = await ensureAudioFormat(recorder.audioBlob);
+      // Ensure the blob is in proper audio format (fix Safari/macOS video/webm issue)
+      const audioBlob = await ensureAudioFormat(recorder.audioBlob);
 
-        // Create FormData with audio file
-        const formData = new FormData();
-        const audioFile = new File([audioBlob], "recording.webm", {
-          type: audioBlob.type || "audio/webm",
-        });
-        formData.append("audio", audioFile);
+      // Create FormData with audio file
+      const formData = new FormData();
+      const audioFile = new File([audioBlob], "recording.webm", {
+        type: audioBlob.type || "audio/webm",
+      });
+      formData.append("audio", audioFile);
 
-        // Call STT API
-        const response = await fetch("/api/elevenlabs/stt", {
-          method: "POST",
-          body: formData,
-        });
+      // Call STT API
+      const response = await fetch("/api/elevenlabs/stt", {
+        method: "POST",
+        body: formData,
+      });
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Failed to transcribe audio");
-        }
-
-        const { transcript } = await response.json();
-
-        if (!transcript || transcript.trim().length === 0) {
-          toast.error("No speech detected. Please try again.");
-          console.warn("[ElizaChat STT] Empty transcript received");
-          return;
-        }
-
-        // Auto-send the transcribed message (will create room if needed)
-        await sendMessage(transcript);
-      } catch (error) {
-        console.error("[ElizaChat STT] Error:", error);
-        toast.error(
-          error instanceof Error ? error.message : "Failed to transcribe audio",
-        );
-      } finally {
-        // Cleanup: Clear recording and reset processing state
+      if (!response.ok) {
+        const error = await response.json();
         recorder.clearRecording();
         setLoadingState(prev => ({ ...prev, isProcessingSTT: false }));
+        throw new Error(error.error || "Failed to transcribe audio");
       }
+
+      const { transcript } = await response.json();
+
+      if (!transcript || transcript.trim().length === 0) {
+        recorder.clearRecording();
+        setLoadingState(prev => ({ ...prev, isProcessingSTT: false }));
+        toast.error("No speech detected. Please try again.");
+        console.warn("[ElizaChat STT] Empty transcript received");
+        return;
+      }
+
+      // Auto-send the transcribed message (will create room if needed)
+      await sendMessage(transcript);
+      
+      // Cleanup: Clear recording and reset processing state
+      recorder.clearRecording();
+      setLoadingState(prev => ({ ...prev, isProcessingSTT: false }));
     };
 
     processAudioBlob();
@@ -439,7 +414,7 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
 
     newAgentMessages.forEach((msg) => {
       if (msg.content.text) {
-        generateSpeech(msg.content.text, msg.id).catch(console.error);
+        void generateSpeech(msg.content.text, msg.id);
       }
     });
   }, [messages, generateSpeech, audioState.autoPlayTTS]);
@@ -547,124 +522,95 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
     setLoadingState(prev => ({ ...prev, isSending: true }));
     setError(null);
 
-    try {
-      // If no room exists, create one first
-      let currentRoomId = roomId;
-      if (!currentRoomId) {
-        console.log("[ElizaChat] No room selected, creating new room...");
-        try {
-          // Prevent duplicate room creation attempts
-          if (isCreatingRoomRef.current) {
-            console.log(
-              "[ElizaChat] Room creation already in progress, waiting...",
-            );
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-            currentRoomId = roomId; // Use the room that was just created
-            if (!currentRoomId) {
-              throw new Error("Room creation timed out");
-            }
-          } else {
-            isCreatingRoomRef.current = true;
-            try {
-              const newRoomId = await createRoom(selectedCharacterId);
-              if (!newRoomId) {
-                throw new Error("Room creation returned empty ID");
-              }
-              currentRoomId = newRoomId;
-              console.log("[ElizaChat] Created new room:", newRoomId);
-
-              // Wait briefly for room to be fully initialized
-              // createRoom already loaded messages, just give it a moment
-              await new Promise((resolve) => setTimeout(resolve, 300));
-            } finally {
-              isCreatingRoomRef.current = false;
-            }
-          }
-        } catch (createError) {
-          console.error("[ElizaChat] Failed to create room:", createError);
-          isCreatingRoomRef.current = false;
-          const errorMsg =
-            createError instanceof Error
-              ? createError.message
-              : "Unable to create conversation. Please try again.";
-          setError(errorMsg);
-          toast.error(errorMsg);
+    // If no room exists, create one first
+    let currentRoomId = roomId;
+    if (!currentRoomId) {
+      console.log("[ElizaChat] No room selected, creating new room...");
+      // Prevent duplicate room creation attempts
+      if (isCreatingRoomRef.current) {
+        console.log(
+          "[ElizaChat] Room creation already in progress, waiting...",
+        );
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        currentRoomId = roomId; // Use the room that was just created
+        if (!currentRoomId) {
+          setError("Room creation timed out");
+          setLoadingState(prev => ({ ...prev, isSending: false }));
           return;
         }
+      } else {
+        isCreatingRoomRef.current = true;
+        const newRoomId = await createRoom(selectedCharacterId);
+        isCreatingRoomRef.current = false;
+        if (!newRoomId) {
+          setError("Room creation returned empty ID");
+          setLoadingState(prev => ({ ...prev, isSending: false }));
+          return;
+        }
+        currentRoomId = newRoomId;
+        console.log("[ElizaChat] Created new room:", newRoomId);
+
+        // Wait briefly for room to be fully initialized
+        // createRoom already loaded messages, just give it a moment
+        await new Promise((resolve) => setTimeout(resolve, 300));
       }
-
-      // Add optimistic temp user message
-      const clientMessageId = `temp-${Date.now()}`;
-      const now = Date.now();
-      const tempUserMessage: Message = {
-        id: clientMessageId,
-        content: { text: messageText },
-        isAgent: false,
-        createdAt: now,
-      };
-      setMessages((prev) => [...prev, tempUserMessage]);
-
-      // Safety timeout: remove thinking indicator after 30 seconds if no response
-      thinkingTimeoutRef.current = setTimeout(() => {
-        setMessages((prev) =>
-          prev.filter((m) => !m.id.startsWith("thinking-")),
-        );
-        console.warn(
-          "[Chat] Thinking indicator timeout - agent took too long to respond",
-        );
-      }, 30000);
-
-      // Stream the response using single endpoint
-      await sendStreamingMessage({
-        roomId: currentRoomId,
-        text: messageText,
-        model: selectedModelId, // Pass selected model from tier
-        sessionToken: anonymousSessionToken || undefined, // Pass session token for anonymous users
-        onMessage: handleStreamMessage,
-        onError: (errorMsg) => {
-          setError(errorMsg);
-          toast.error(errorMsg);
-          // Remove temp and thinking messages on error
-          setMessages((prev) =>
-            prev.filter(
-              (msg) =>
-                msg.id !== tempUserMessage.id &&
-                !msg.id.startsWith("thinking-"),
-            ),
-          );
-          if (thinkingTimeoutRef.current) {
-            clearTimeout(thinkingTimeoutRef.current);
-            thinkingTimeoutRef.current = null;
-          }
-        },
-        onComplete: () => {
-          loadRooms();
-          // Notify parent that a message was sent successfully (for anonymous message counting)
-          if (onMessageSent) {
-            onMessageSent();
-          }
-        },
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send message");
-      console.error("Error sending message:", err);
-      toast.error(
-        err instanceof Error ? err.message : "Failed to send message",
-      );
-      // Remove temp and thinking messages on error
-      setMessages((prev) =>
-        prev.filter(
-          (msg) =>
-            !msg.id.startsWith("temp-") && !msg.id.startsWith("thinking-"),
-        ),
-      );
-      if (thinkingTimeoutRef.current) {
-        clearTimeout(thinkingTimeoutRef.current);
-        thinkingTimeoutRef.current = null;
-      }
-    } finally {
-      setLoadingState(prev => ({ ...prev, isSending: false }));
     }
+
+    // Add optimistic temp user message
+    const clientMessageId = `temp-${Date.now()}`;
+    const now = Date.now();
+    const tempUserMessage: Message = {
+      id: clientMessageId,
+      content: { text: messageText },
+      isAgent: false,
+      createdAt: now,
+    };
+    setMessages((prev) => [...prev, tempUserMessage]);
+
+    // Safety timeout: remove thinking indicator after 30 seconds if no response
+    thinkingTimeoutRef.current = setTimeout(() => {
+      setMessages((prev) =>
+        prev.filter((m) => !m.id.startsWith("thinking-")),
+      );
+      console.warn(
+        "[Chat] Thinking indicator timeout - agent took too long to respond",
+      );
+    }, 30000);
+
+    // Stream the response using single endpoint
+    // Errors are handled via onError callback
+    await sendStreamingMessage({
+      roomId: currentRoomId,
+      text: messageText,
+      model: selectedModelId, // Pass selected model from tier
+      sessionToken: anonymousSessionToken || undefined, // Pass session token for anonymous users
+      onMessage: handleStreamMessage,
+      onError: (errorMsg) => {
+        setError(errorMsg);
+        toast.error(errorMsg);
+        // Remove temp and thinking messages on error
+        setMessages((prev) =>
+          prev.filter(
+            (msg) =>
+              msg.id !== tempUserMessage.id &&
+              !msg.id.startsWith("thinking-"),
+          ),
+        );
+        if (thinkingTimeoutRef.current) {
+          clearTimeout(thinkingTimeoutRef.current);
+          thinkingTimeoutRef.current = null;
+        }
+        setLoadingState(prev => ({ ...prev, isSending: false }));
+      },
+      onComplete: () => {
+        loadRooms();
+        // Notify parent that a message was sent successfully (for anonymous message counting)
+        if (onMessageSent) {
+          onMessageSent();
+        }
+        setLoadingState(prev => ({ ...prev, isSending: false }));
+      },
+    });
   };
 
   const formatTimestamp = (timestamp: number): string => {
@@ -689,55 +635,41 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
       contentType: string;
     }>,
   ) => {
-    try {
-      // Check if there are image attachments
-      const imageAttachment = attachments?.find(
-        (att) =>
-          att.contentType === "IMAGE" ||
-          att.contentType === "image" ||
-          att.contentType.startsWith("image/"),
-      );
+    // Check if there are image attachments
+    const imageAttachment = attachments?.find(
+      (att) =>
+        att.contentType === "IMAGE" ||
+        att.contentType === "image" ||
+        att.contentType.startsWith("image/"),
+    );
 
-      if (imageAttachment) {
-        // Copy the actual image to clipboard
-        try {
-          const response = await fetch(imageAttachment.url);
-          const blob = await response.blob();
+    if (imageAttachment) {
+      // Copy the actual image to clipboard
+      const response = await fetch(imageAttachment.url);
+      const blob = await response.blob();
 
-          // Ensure the blob is an image type
-          const imageBlob = blob.type.startsWith("image/")
-            ? blob
-            : new Blob([blob], { type: "image/png" });
+      // Ensure the blob is an image type
+      const imageBlob = blob.type.startsWith("image/")
+        ? blob
+        : new Blob([blob], { type: "image/png" });
 
-          const clipboardItem = new ClipboardItem({
-            [imageBlob.type]: imageBlob,
-          });
+      const clipboardItem = new ClipboardItem({
+        [imageBlob.type]: imageBlob,
+      });
 
-          await navigator.clipboard.write([clipboardItem]);
-          setCopiedMessageId(messageId);
-          toast.success("Image copied to clipboard");
-          setTimeout(() => setCopiedMessageId(null), 2000);
-          return;
-        } catch (imageError) {
-          console.error(
-            "Failed to copy image, falling back to text:",
-            imageError,
-          );
-          toast.error("Failed to copy image, try downloading instead");
-          return;
-        }
-      }
-
-      // Fall back to copying text if no image
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.write([clipboardItem]);
       setCopiedMessageId(messageId);
-      toast.success("Message copied to clipboard");
-      // Reset after 2 seconds
+      toast.success("Image copied to clipboard");
       setTimeout(() => setCopiedMessageId(null), 2000);
-    } catch (error) {
-      console.error("Failed to copy:", error);
-      toast.error("Failed to copy message");
+      return;
     }
+
+    // Fall back to copying text if no image
+    await navigator.clipboard.writeText(text);
+    setCopiedMessageId(messageId);
+    toast.success("Message copied to clipboard");
+    // Reset after 2 seconds
+    setTimeout(() => setCopiedMessageId(null), 2000);
   };
 
   if (loadingState.isInitializing) {

@@ -167,40 +167,38 @@ export class PurchasesService {
           `[PurchasesService] Payment succeeded immediately, adding ${amount} credits synchronously for org ${organizationId}`,
         );
 
-        try {
-          await creditsService.addCredits({
-            organizationId,
-            amount,
-            description: `One-time purchase - $${amount.toFixed(2)}`,
-            metadata: {
-              type: "one_time_purchase",
-              payment_intent_id: paymentIntent.id,
-            },
-            stripePaymentIntentId: paymentIntent.id,
-          });
+        await creditsService.addCredits({
+          organizationId,
+          amount,
+          description: `One-time purchase - $${amount.toFixed(2)}`,
+          metadata: {
+            type: "one_time_purchase",
+            payment_intent_id: paymentIntent.id,
+          },
+          stripePaymentIntentId: paymentIntent.id,
+        });
 
-          console.log(
-            `[PurchasesService] ✓ Credits added synchronously for payment ${paymentIntent.id}`,
-          );
+        console.log(
+          `[PurchasesService] ✓ Credits added synchronously for payment ${paymentIntent.id}`,
+        );
 
-          // Create invoice record synchronously to prevent race condition
-          // The invoice list will be empty if we wait for webhook to fire
-          try {
-            // Type-safe handling of invoice property
-            // PaymentIntent.invoice can be string | Stripe.Invoice | null when expanded
-            // Check if the property exists first
-            const invoiceIdOrObject = (
-              paymentIntent as Stripe.PaymentIntent & {
-                invoice?: string | Stripe.Invoice | null;
-              }
-            ).invoice;
+        // Create invoice record synchronously to prevent race condition
+        // The invoice list will be empty if we wait for webhook to fire
+        // Type-safe handling of invoice property
+        // PaymentIntent.invoice can be string | Stripe.Invoice | null when expanded
+        // Check if the property exists first
+        const invoiceIdOrObject = (
+          paymentIntent as Stripe.PaymentIntent & {
+            invoice?: string | Stripe.Invoice | null;
+          }
+        ).invoice;
 
-            if (invoiceIdOrObject) {
-              // Extract the invoice ID - it's either the string itself or the ID from the object
-              const invoiceId =
-                typeof invoiceIdOrObject === "string"
-                  ? invoiceIdOrObject
-                  : invoiceIdOrObject.id;
+        if (invoiceIdOrObject) {
+          // Extract the invoice ID - it's either the string itself or the ID from the object
+          const invoiceId =
+            typeof invoiceIdOrObject === "string"
+              ? invoiceIdOrObject
+              : invoiceIdOrObject.id;
 
               const existingInvoice =
                 await invoicesService.getByStripeInvoiceId(invoiceId);
@@ -261,12 +259,6 @@ export class PurchasesService {
                 `[PurchasesService] ✓ Created invoice record for direct payment ${paymentIntent.id}`,
               );
             }
-          } catch (invoiceError) {
-            console.error(
-              `[PurchasesService] Failed to create invoice record:`,
-              invoiceError,
-            );
-          }
 
           // Send purchase confirmation email
           this.sendPurchaseConfirmationEmail(
@@ -275,16 +267,6 @@ export class PurchasesService {
             paymentIntent.id,
             paymentMethodId,
           );
-        } catch (error) {
-          // Log error but don't fail the purchase - webhook will add credits as backup
-          console.error(
-            `[PurchasesService] Failed to add credits synchronously for payment ${paymentIntent.id}:`,
-            error,
-          );
-          console.error(
-            `[PurchasesService] Webhook will add credits as backup`,
-          );
-        }
       }
 
       return {
@@ -327,26 +309,18 @@ export class PurchasesService {
     paymentIntentId: string,
     organizationId: string,
   ): Promise<Stripe.PaymentIntent | null> {
-    try {
-      const paymentIntent =
-        await stripe.paymentIntents.retrieve(paymentIntentId);
+    const paymentIntent =
+      await stripe.paymentIntents.retrieve(paymentIntentId);
 
-      // Verify the payment intent belongs to this organization
-      if (paymentIntent.metadata?.organization_id !== organizationId) {
-        console.warn(
-          `Unauthorized access attempt to payment intent ${paymentIntentId} by org ${organizationId}`,
-        );
-        return null;
-      }
-
-      return paymentIntent;
-    } catch (error) {
-      console.error(
-        `Failed to retrieve payment intent ${paymentIntentId}:`,
-        error,
+    // Verify the payment intent belongs to this organization
+    if (paymentIntent.metadata?.organization_id !== organizationId) {
+      console.warn(
+        `Unauthorized access attempt to payment intent ${paymentIntentId} by org ${organizationId}`,
       );
       return null;
     }
+
+    return paymentIntent;
   }
 
   /**
@@ -427,17 +401,9 @@ export class PurchasesService {
       return existingPaymentIntent;
     }
 
-    try {
-      const cancelledIntent =
-        await stripe.paymentIntents.cancel(paymentIntentId);
-      return cancelledIntent;
-    } catch (error) {
-      console.error(
-        `Failed to cancel payment intent ${paymentIntentId}:`,
-        error,
-      );
-      return null;
-    }
+    const cancelledIntent =
+      await stripe.paymentIntents.cancel(paymentIntentId);
+    return cancelledIntent;
   }
 
   private async sendPurchaseConfirmationEmail(
@@ -450,54 +416,46 @@ export class PurchasesService {
       `[PurchasesService] sendPurchaseConfirmationEmail START for org ${organizationId}`,
     );
 
-    try {
-      const org = await organizationsRepository.findById(organizationId);
-      if (!org) {
-        console.error(
-          `[PurchasesService] CRITICAL: Cannot send email - org ${organizationId} not found`,
-        );
-        return;
-      }
-      console.log(`[PurchasesService] Organization found: ${org.name}`);
-
-      console.log(
-        `[PurchasesService] Fetching users for org ${organizationId}`,
+    const org = await organizationsRepository.findById(organizationId);
+    if (!org) {
+      console.error(
+        `[PurchasesService] CRITICAL: Cannot send email - org ${organizationId} not found`,
       );
-      const users = await usersRepository.listByOrganization(organizationId);
-      console.log(`[PurchasesService] Found ${users.length} users`);
+      return;
+    }
+    console.log(`[PurchasesService] Organization found: ${org.name}`);
 
-      if (!users || users.length === 0) {
-        console.error(
-          `[PurchasesService] CRITICAL: No users found for org ${organizationId} - EMAIL NOT SENT`,
-        );
-        return;
+    console.log(
+      `[PurchasesService] Fetching users for org ${organizationId}`,
+    );
+    const users = await usersRepository.listByOrganization(organizationId);
+    console.log(`[PurchasesService] Found ${users.length} users`);
+
+    if (!users || users.length === 0) {
+      console.error(
+        `[PurchasesService] CRITICAL: No users found for org ${organizationId} - EMAIL NOT SENT`,
+      );
+      return;
+    }
+
+    const userEmail = users[0].email;
+    console.log(`[PurchasesService] User email: ${userEmail || "NONE"}`);
+
+    if (!userEmail) {
+      console.error(
+        `[PurchasesService] CRITICAL: No email for user in org ${organizationId} - EMAIL NOT SENT`,
+      );
+      return;
+    }
+
+    let paymentMethodDisplay = "Card";
+    if (paymentMethodId) {
+      const paymentMethod =
+        await stripe.paymentMethods.retrieve(paymentMethodId);
+      if (paymentMethod.card) {
+        paymentMethodDisplay = `${paymentMethod.card.brand} ••••${paymentMethod.card.last4}`;
       }
-
-      const userEmail = users[0].email;
-      console.log(`[PurchasesService] User email: ${userEmail || "NONE"}`);
-
-      if (!userEmail) {
-        console.error(
-          `[PurchasesService] CRITICAL: No email for user in org ${organizationId} - EMAIL NOT SENT`,
-        );
-        return;
-      }
-
-      let paymentMethodDisplay = "Card";
-      if (paymentMethodId) {
-        try {
-          const paymentMethod =
-            await stripe.paymentMethods.retrieve(paymentMethodId);
-          if (paymentMethod.card) {
-            paymentMethodDisplay = `${paymentMethod.card.brand} ••••${paymentMethod.card.last4}`;
-          }
-        } catch (error) {
-          console.error(
-            `[PurchasesService] Failed to retrieve payment method details:`,
-            error,
-          );
-        }
-      }
+    }
 
       const currentBalance = Number(org.credit_balance);
       const previousBalance = currentBalance - amount;
@@ -538,12 +496,6 @@ export class PurchasesService {
       console.log(
         `[PurchasesService] ✓ Purchase confirmation email sent to ${userEmail}`,
       );
-    } catch (error) {
-      console.error(
-        `[PurchasesService] ERROR in sendPurchaseConfirmationEmail:`,
-        error,
-      );
-    }
   }
 }
 

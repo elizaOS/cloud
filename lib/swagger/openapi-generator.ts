@@ -11,6 +11,9 @@ import {
   type EndpointResponse,
 } from "./endpoint-discovery";
 
+/**
+ * OpenAPI schema definition.
+ */
 export interface OpenAPISchema {
   type?: string;
   format?: string;
@@ -25,6 +28,9 @@ export interface OpenAPISchema {
   description?: string;
 }
 
+/**
+ * OpenAPI parameter definition.
+ */
 interface OpenAPIParameter {
   name: string;
   in: "path" | "query" | "header";
@@ -33,6 +39,9 @@ interface OpenAPIParameter {
   schema: OpenAPISchema;
 }
 
+/**
+ * OpenAPI request body definition.
+ */
 interface OpenAPIRequestBody {
   description?: string;
   required?: boolean;
@@ -43,6 +52,9 @@ interface OpenAPIRequestBody {
   };
 }
 
+/**
+ * OpenAPI response definition.
+ */
 interface OpenAPIResponse {
   description: string;
   content?: {
@@ -53,6 +65,9 @@ interface OpenAPIResponse {
   };
 }
 
+/**
+ * OpenAPI operation definition.
+ */
 interface OpenAPIOperation {
   operationId: string;
   summary: string;
@@ -64,10 +79,16 @@ interface OpenAPIOperation {
   responses: Record<string, OpenAPIResponse>;
 }
 
+/**
+ * OpenAPI path definition with HTTP methods.
+ */
 interface OpenAPIPath {
   [method: string]: OpenAPIOperation;
 }
 
+/**
+ * Complete OpenAPI 3.0.3 specification.
+ */
 export interface OpenAPISpec {
   openapi: string;
   info: {
@@ -108,6 +129,12 @@ export interface OpenAPISpec {
   }>;
 }
 
+/**
+ * Converts an endpoint parameter to an OpenAPI schema.
+ *
+ * @param param - Endpoint parameter definition.
+ * @returns OpenAPI schema object.
+ */
 function convertParameterToSchema(param: EndpointParameter): OpenAPISchema {
   const schema: OpenAPISchema = {
     type: param.type,
@@ -128,6 +155,13 @@ function convertParameterToSchema(param: EndpointParameter): OpenAPISchema {
   return schema;
 }
 
+/**
+ * Converts endpoint parameters to OpenAPI parameters.
+ *
+ * @param params - Array of endpoint parameters.
+ * @param location - Parameter location (path, query, or header).
+ * @returns Array of OpenAPI parameters.
+ */
 function convertParametersToOpenAPI(
   params: EndpointParameter[],
   location: "path" | "query" | "header",
@@ -141,6 +175,12 @@ function convertParametersToOpenAPI(
   }));
 }
 
+/**
+ * Creates an OpenAPI request body from endpoint parameters.
+ *
+ * @param params - Array of endpoint parameters.
+ * @returns OpenAPI request body definition.
+ */
 function createRequestBodyFromParameters(
   params: EndpointParameter[],
 ): OpenAPIRequestBody {
@@ -169,6 +209,12 @@ function createRequestBodyFromParameters(
   };
 }
 
+/**
+ * Converts endpoint responses to OpenAPI responses.
+ *
+ * @param responses - Array of endpoint responses.
+ * @returns Record of status codes to OpenAPI responses.
+ */
 function convertResponsesToOpenAPI(
   responses: EndpointResponse[],
 ): Record<string, OpenAPIResponse> {
@@ -194,6 +240,12 @@ function convertResponsesToOpenAPI(
   return result;
 }
 
+/**
+ * Converts an API endpoint to an OpenAPI operation.
+ *
+ * @param endpoint - API endpoint definition.
+ * @returns OpenAPI operation object.
+ */
 function convertEndpointToOperation(endpoint: ApiEndpoint): OpenAPIOperation {
   const operation: OpenAPIOperation = {
     operationId: endpoint.id,
@@ -240,6 +292,12 @@ function convertEndpointToOperation(endpoint: ApiEndpoint): OpenAPIOperation {
   return operation;
 }
 
+/**
+ * Generates a complete OpenAPI 3.0.3 specification from the endpoint catalog.
+ *
+ * @param baseUrl - Optional base URL for the API (defaults to current app URL).
+ * @returns Complete OpenAPI specification.
+ */
 export function generateOpenAPISpec(baseUrl?: string): OpenAPISpec {
   const paths: Record<string, OpenAPIPath> = {};
 

@@ -4,11 +4,26 @@ import { socialRewardsService, referralsService, REWARDS } from "@/lib/services"
 import { addCorsHeaders, validateOrigin, createPreflightResponse } from "@/lib/middleware/cors-apps";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * OPTIONS /api/v1/miniapp/rewards
+ * CORS preflight handler for miniapp rewards endpoint.
+ *
+ * @param request - The Next.js request object.
+ * @returns Preflight response with CORS headers.
+ */
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
   return createPreflightResponse(origin, ["GET", "OPTIONS"]);
 }
 
+/**
+ * GET /api/v1/miniapp/rewards
+ * Gets the authenticated user's rewards status including sharing and referral earnings.
+ * Includes available rewards, claimed status, and reward rates for different platforms.
+ *
+ * @param request - The Next.js request object.
+ * @returns Rewards status including sharing earnings, referral statistics, and reward rates.
+ */
 export async function GET(request: NextRequest) {
   const corsResult = await validateOrigin(request);
 

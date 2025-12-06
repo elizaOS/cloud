@@ -6,6 +6,15 @@ import type { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * GET /api/v1/models/[...model]
+ * Gets details for a specific model by its identifier.
+ * Supports both slash-separated and URL-encoded model names (e.g., "openai/gpt-4o-mini").
+ *
+ * @param request - The Next.js request object.
+ * @param context - Route context containing model segments as an array.
+ * @returns Model details from the provider gateway.
+ */
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ model: string[] }> },

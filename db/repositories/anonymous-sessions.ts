@@ -3,14 +3,14 @@ import { anonymousSessions, type AnonymousSession } from "@/db/schemas";
 import { eq, and, lt, gte, sql } from "drizzle-orm";
 
 /**
- * Anonymous Sessions Repository
+ * Repository for anonymous session database operations.
  *
  * Handles CRUD operations for anonymous user sessions.
  * Used for tracking free tier usage and rate limiting.
  */
 export class AnonymousSessionsRepository {
   /**
-   * Get session by token
+   * Gets an active, non-expired session by token.
    */
   async getByToken(sessionToken: string): Promise<AnonymousSession | null> {
     const [session] = await db
@@ -29,7 +29,7 @@ export class AnonymousSessionsRepository {
   }
 
   /**
-   * Get session by user ID
+   * Gets a session by user ID.
    */
   async getByUserId(userId: string): Promise<AnonymousSession | null> {
     const [session] = await db
@@ -42,7 +42,7 @@ export class AnonymousSessionsRepository {
   }
 
   /**
-   * Create new anonymous session
+   * Creates a new anonymous session.
    */
   async create(data: {
     session_token: string;
@@ -70,14 +70,14 @@ export class AnonymousSessionsRepository {
   }
 
   /**
-   * Increment message count for a session using atomic update
-   * Returns updated session
-   *
+   * Atomically increments message count for a session.
+   * 
    * Uses SQL increment to prevent race conditions when multiple
    * requests try to increment simultaneously.
+   * 
+   * @throws Error if session not found.
    */
   async incrementMessageCount(sessionId: string): Promise<AnonymousSession> {
-    // Use atomic increment to prevent race conditions
     const [session] = await db
       .update(anonymousSessions)
       .set({
@@ -95,10 +95,12 @@ export class AnonymousSessionsRepository {
   }
 
   /**
-   * Increment hourly message count (for rate limiting)
-   * Resets hourly counter if hour has passed
-   *
-   * Uses atomic operations where possible to minimize race conditions.
+   * Atomically increments hourly message count for rate limiting.
+   * 
+   * Resets hourly counter if hour has passed. Uses atomic operations
+   * to minimize race conditions.
+   * 
+   * @throws Error if session not found.
    */
   async incrementHourlyCount(
     sessionId: string
@@ -152,8 +154,9 @@ export class AnonymousSessionsRepository {
   }
 
   /**
-   * Track token usage (for analytics, not billing)
-   * Uses atomic increment to prevent race conditions.
+   * Atomically tracks token usage for analytics (not billing).
+   * 
+   * @throws Error if session not found.
    */
   async addTokenUsage(sessionId: string, tokens: number): Promise<void> {
     const result = await db
@@ -170,8 +173,9 @@ export class AnonymousSessionsRepository {
   }
 
   /**
-   * Mark that user was prompted to sign up
-   * Uses atomic increment to prevent race conditions.
+   * Atomically increments signup prompt count and updates timestamp.
+   * 
+   * @throws Error if session not found.
    */
   async incrementSignupPrompt(sessionId: string): Promise<void> {
     const result = await db
@@ -189,7 +193,7 @@ export class AnonymousSessionsRepository {
   }
 
   /**
-   * Mark session as converted (user signed up)
+   * Marks session as converted (user signed up) and deactivates it.
    */
   async markConverted(sessionId: string): Promise<void> {
     await db
@@ -202,7 +206,7 @@ export class AnonymousSessionsRepository {
   }
 
   /**
-   * Deactivate session
+   * Deactivates a session.
    */
   async deactivate(sessionId: string): Promise<void> {
     await db
@@ -214,7 +218,9 @@ export class AnonymousSessionsRepository {
   }
 
   /**
-   * Delete expired sessions (cleanup job)
+   * Deletes expired sessions (cleanup job).
+   * 
+   * @returns Number of sessions deleted.
    */
   async deleteExpired(): Promise<number> {
     const now = new Date();
@@ -226,7 +232,7 @@ export class AnonymousSessionsRepository {
   }
 
   /**
-   * Get all sessions by IP address (abuse detection)
+   * Gets all active sessions by IP address (for abuse detection).
    */
   async getByIpAddress(ipAddress: string): Promise<AnonymousSession[]> {
     return await db
@@ -241,7 +247,7 @@ export class AnonymousSessionsRepository {
   }
 
   /**
-   * Count active sessions by IP (abuse detection)
+   * Counts active sessions by IP address (for abuse detection).
    */
   async countActiveSessionsByIp(ipAddress: string): Promise<number> {
     const sessions = await this.getByIpAddress(ipAddress);
@@ -249,5 +255,7 @@ export class AnonymousSessionsRepository {
   }
 }
 
-// Export singleton instance
+/**
+ * Singleton instance of AnonymousSessionsRepository.
+ */
 export const anonymousSessionsRepository = new AnonymousSessionsRepository();

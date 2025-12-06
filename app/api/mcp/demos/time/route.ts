@@ -4,7 +4,13 @@ const RECIPIENT_WALLET = (process.env.X402_RECIPIENT_WALLET ||
   process.env.CDP_WALLET_ADDRESS ||
   "0x0000000000000000000000000000000000000000") as `0x${string}`;
 
-// Metadata endpoint for Time & Date MCP
+/**
+ * GET /api/mcp/demos/time
+ * Metadata endpoint for Time & Date MCP server.
+ * Returns information about available tools, pricing, and features.
+ *
+ * @returns MCP server metadata including tools, pricing, and feature list.
+ */
 export async function GET() {
   return NextResponse.json({
     name: "Time & Date MCP",

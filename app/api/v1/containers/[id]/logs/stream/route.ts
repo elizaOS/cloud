@@ -10,18 +10,16 @@ import {
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-type LogLevel = "error" | "warn" | "info" | "debug";
-
-interface ParsedLogEntry {
-  timestamp: string;
-  level: LogLevel;
-  message: string;
-  metadata?: Record<string, unknown>;
-}
+import type { LogLevel, ParsedLogEntry } from "@/lib/types/containers";
 
 /**
  * GET /api/v1/containers/[id]/logs/stream
- * Stream container logs in real-time using Server-Sent Events
+ * Streams container logs in real-time using Server-Sent Events (SSE).
+ * Polls CloudWatch logs every 2 seconds and sends new entries to the client.
+ *
+ * @param request - Request with optional level query parameter for log filtering.
+ * @param params - Route parameters containing the container ID.
+ * @returns SSE stream with log entries and keepalive messages.
  */
 export async function GET(
   request: NextRequest,

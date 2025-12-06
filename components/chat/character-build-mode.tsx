@@ -1,3 +1,12 @@
+/**
+ * Character build mode component with split-pane layout.
+ * Combines build mode assistant and character editor in resizable panels.
+ * Supports mobile responsive view switching.
+ *
+ * @param props - Character build mode configuration
+ * @param props.initialCharacters - Initial list of characters
+ */
+
 "use client";
 
 import { useState, useCallback, useEffect, useMemo } from "react";
@@ -74,32 +83,23 @@ export function CharacterBuildMode({
       return;
     }
 
-    try {
-      if (selectedCharacterId && character.id) {
-        // Update existing character
-        await updateCharacter(selectedCharacterId, character);
-        toast.success("Character updated successfully!");
-      } else {
-        // Create new character
-        const saved = await createCharacter(character);
+    if (selectedCharacterId && character.id) {
+      // Update existing character
+      await updateCharacter(selectedCharacterId, character);
+      toast.success("Character updated successfully!");
+    } else {
+      // Create new character
+      const saved = await createCharacter(character);
 
-        // Update selection to the newly created character
-        if (saved.id) {
-          setSelectedCharacterId(saved.id);
-        }
-
-        toast.success("Character created successfully!", {
-          description: "You can now chat with your new character!",
-          duration: 4000,
-        });
+      // Update selection to the newly created character
+      if (saved.id) {
+        setSelectedCharacterId(saved.id);
       }
-    } catch (error) {
-      console.error("Error saving character:", error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to save character. Please try again."
-      );
+
+      toast.success("Character created successfully!", {
+        description: "You can now chat with your new character!",
+        duration: 4000,
+      });
     }
   }, [character, selectedCharacterId, setSelectedCharacterId]);
 
@@ -109,15 +109,10 @@ export function CharacterBuildMode({
       return;
     }
 
-    try {
-      const refreshedCharacter = await getCharacter(character.id);
+    const refreshedCharacter = await getCharacter(character.id);
 
-      // Update local state with fresh data from database
-      setCharacter(refreshedCharacter);
-    } catch (error) {
-      console.error("[CharacterBuildMode] Error refreshing character:", error);
-      toast.error("Failed to refresh character data");
-    }
+    // Update local state with fresh data from database
+    setCharacter(refreshedCharacter);
   }, [character.id]);
 
   return (

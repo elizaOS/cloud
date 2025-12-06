@@ -1,3 +1,14 @@
+/**
+ * Voice clone form component for creating voice clones.
+ * Supports instant and professional cloning modes with audio upload or recording.
+ * Includes advanced settings for stability, similarity, and style.
+ *
+ * @param props - Voice clone form configuration
+ * @param props.creditBalance - Current credit balance
+ * @param props.onSuccess - Callback when voice is successfully created
+ * @param props.onCreditBalanceChange - Callback when credit balance changes
+ */
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -116,19 +127,15 @@ export function VoiceCloneForm({
   // Fetch professional voice count on mount
   useEffect(() => {
     const fetchVoiceCount = async () => {
-      try {
-        const response = await fetch("/api/elevenlabs/voices/user");
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.voices) {
-            const proCount = data.voices.filter(
-              (v: Voice) => v.cloneType === "professional",
-            ).length;
-            setProfessionalVoiceCount(proCount);
-          }
+      const response = await fetch("/api/elevenlabs/voices/user");
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.voices) {
+          const proCount = data.voices.filter(
+            (v: Voice) => v.cloneType === "professional",
+          ).length;
+          setProfessionalVoiceCount(proCount);
         }
-      } catch (error) {
-        console.error("Failed to fetch voice count:", error);
       }
     };
 
@@ -266,70 +273,69 @@ export function VoiceCloneForm({
 
     setIsUploading(true);
 
-    try {
-      const submitData = new FormData();
-      submitData.append("name", formData.name.trim());
-      submitData.append("cloneType", formData.cloneType);
-      if (formData.description.trim()) {
-        submitData.append("description", formData.description.trim());
-      }
-
-      // Add advanced settings
-      submitData.append("settings", JSON.stringify(settings));
-
-      // Add files
-      files.forEach((f, index) => {
-        submitData.append(`file${index + 1}`, f.file);
-      });
-
-      const response = await fetch("/api/elevenlabs/voices/clone", {
-        method: "POST",
-        body: submitData,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        // Check for service unavailable (quota issues)
-        if (response.status === 503 || data.type === "service_unavailable") {
-          const friendlyError =
-            data.error ||
-            "Voice service is temporarily unavailable. Please try again in a few minutes.";
-          throw new Error(friendlyError);
-        }
-        throw new Error(data.error || "Failed to create voice clone");
-      }
-
-      // Show appropriate success message based on clone type
-      if (formData.cloneType === "professional") {
-        toast.success(
-          `Voice "${formData.name}" is being created. Professional cloning takes 30-60 minutes. Check back later!`,
-          { duration: 10000 },
-        );
-      } else {
-        toast.success(`Voice "${formData.name}" created successfully and ready to use!`);
-      }
-
-      // Update credit balance
-      if (data.newBalance !== undefined) {
-        onCreditBalanceChange(data.newBalance);
-      }
-
-      // Reset form
-      setFormData(DEFAULT_FORM_DATA);
-      setSettings(DEFAULT_SETTINGS);
-      setFiles([]);
-
-      // Notify parent
-      onSuccess(data.voice);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to create voice clone";
-      setError(message);
-      toast.error(message);
-    } finally {
-      setIsUploading(false);
+    const submitData = new FormData();
+    submitData.append("name", formData.name.trim());
+    submitData.append("cloneType", formData.cloneType);
+    if (formData.description.trim()) {
+      submitData.append("description", formData.description.trim());
     }
+
+    // Add advanced settings
+    submitData.append("settings", JSON.stringify(settings));
+
+    // Add files
+    files.forEach((f, index) => {
+      submitData.append(`file${index + 1}`, f.file);
+    });
+
+    const response = await fetch("/api/elevenlabs/voices/clone", {
+      method: "POST",
+      body: submitData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Check for service unavailable (quota issues)
+      if (response.status === 503 || data.type === "service_unavailable") {
+        const friendlyError =
+          data.error ||
+          "Voice service is temporarily unavailable. Please try again in a few minutes.";
+        setError(friendlyError);
+        toast.error(friendlyError);
+        setIsUploading(false);
+        return;
+      }
+      const errorMsg = data.error || "Failed to create voice clone";
+      setError(errorMsg);
+      toast.error(errorMsg);
+      setIsUploading(false);
+      return;
+    }
+
+    // Show appropriate success message based on clone type
+    if (formData.cloneType === "professional") {
+      toast.success(
+        `Voice "${formData.name}" is being created. Professional cloning takes 30-60 minutes. Check back later!`,
+        { duration: 10000 },
+      );
+    } else {
+      toast.success(`Voice "${formData.name}" created successfully and ready to use!`);
+    }
+
+    // Update credit balance
+    if (data.newBalance !== undefined) {
+      onCreditBalanceChange(data.newBalance);
+    }
+
+    // Reset form
+    setFormData(DEFAULT_FORM_DATA);
+    setSettings(DEFAULT_SETTINGS);
+    setFiles([]);
+
+    // Notify parent
+    onSuccess(data.voice);
+    setIsUploading(false);
   };
 
   const formatFileSize = (bytes: number) => {

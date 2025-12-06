@@ -264,59 +264,51 @@ export class CharactersService {
       previousOwnerId,
     });
 
-    try {
-      // Transfer character ownership
-      const updated = await userCharactersRepository.update(characterId, {
-        user_id: userId,
-        organization_id: organizationId,
-      });
+    // Transfer character ownership
+    const updated = await userCharactersRepository.update(characterId, {
+      user_id: userId,
+      organization_id: organizationId,
+    });
 
-      if (!updated) {
-        return { success: false, message: "Failed to update character" };
-      }
-
-      // Transfer room associations from the previous owner to the new owner
-      if (previousOwnerId) {
-        const roomUpdateResult = await db
-          .update(elizaRoomCharactersTable)
-          .set({
-            user_id: userId,
-            updated_at: new Date(),
-          })
-          .where(
-            and(
-              eq(elizaRoomCharactersTable.character_id, characterId),
-              eq(elizaRoomCharactersTable.user_id, previousOwnerId)
-            )
-          )
-          .returning({ room_id: elizaRoomCharactersTable.room_id });
-
-        if (roomUpdateResult.length > 0) {
-          logger.info(`[Characters] Transferred ${roomUpdateResult.length} room association(s)`, {
-            characterId,
-            fromUserId: previousOwnerId,
-            toUserId: userId,
-          });
-        }
-      }
-
-      logger.info(`[Characters] ✅ Successfully claimed character ${characterId}`, {
-        characterName: updated.name,
-        newOwnerId: userId,
-        newOrgId: organizationId,
-      });
-
-      return {
-        success: true,
-        message: `Character "${updated.name}" has been added to your account`
-      };
-    } catch (error) {
-      logger.error(`[Characters] ❌ Failed to claim character:`, error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : "Failed to claim character"
-      };
+    if (!updated) {
+      return { success: false, message: "Failed to update character" };
     }
+
+    // Transfer room associations from the previous owner to the new owner
+    if (previousOwnerId) {
+      const roomUpdateResult = await db
+        .update(elizaRoomCharactersTable)
+        .set({
+          user_id: userId,
+          updated_at: new Date(),
+        })
+        .where(
+          and(
+            eq(elizaRoomCharactersTable.character_id, characterId),
+            eq(elizaRoomCharactersTable.user_id, previousOwnerId)
+          )
+        )
+        .returning({ room_id: elizaRoomCharactersTable.room_id });
+
+      if (roomUpdateResult.length > 0) {
+        logger.info(`[Characters] Transferred ${roomUpdateResult.length} room association(s)`, {
+          characterId,
+          fromUserId: previousOwnerId,
+          toUserId: userId,
+        });
+      }
+    }
+
+    logger.info(`[Characters] ✅ Successfully claimed character ${characterId}`, {
+      characterName: updated.name,
+      newOwnerId: userId,
+      newOrgId: organizationId,
+    });
+
+    return {
+      success: true,
+      message: `Character "${updated.name}" has been added to your account`
+    };
   }
 }
 

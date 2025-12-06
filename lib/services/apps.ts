@@ -1,8 +1,15 @@
+/**
+ * Service for managing apps and app-related operations.
+ */
+
 import { appsRepository, type App, type NewApp, type AppUser, type AppAnalytics } from "@/db/repositories/apps";
 import { apiKeysService } from "./api-keys";
 import { logger } from "@/lib/utils/logger";
 import crypto from "crypto";
 
+/**
+ * Service for app CRUD operations and app management.
+ */
 export class AppsService {
   private generateSlug(name: string): string {
     return name

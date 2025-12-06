@@ -1,12 +1,3 @@
-/**
- * /api/v1/miniapp/billing
- * 
- * GET - Get billing/credits info for the authenticated user's organization
- * 
- * Query parameters:
- * - appId (optional): If provided, returns app-specific credit balance for monetized apps
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { organizationsService, creditsService, usageService, appCreditsService, appsService } from "@/lib/services";
@@ -19,6 +10,13 @@ import {
 } from "@/lib/middleware/miniapp-rate-limit";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * OPTIONS /api/v1/miniapp/billing
+ * CORS preflight handler for miniapp billing endpoint.
+ *
+ * @param request - The Next.js request object.
+ * @returns Preflight response with CORS headers.
+ */
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
   return createPreflightResponse(origin, ["GET", "OPTIONS"]);
@@ -26,7 +24,14 @@ export async function OPTIONS(request: NextRequest) {
 
 /**
  * GET /api/v1/miniapp/billing
- * Get billing and credits info
+ * Gets billing and credits information for the authenticated user's organization.
+ * Optionally includes app-specific billing if appId is provided (for monetized apps).
+ *
+ * Query Parameters:
+ * - `appId` (optional): Returns app-specific credit balance for monetized apps.
+ *
+ * @param request - Request with optional appId query parameter or X-App-Id header.
+ * @returns Billing information including credit balance, usage stats, and recent transactions.
  */
 export async function GET(request: NextRequest) {
   const corsResult = await validateOrigin(request);

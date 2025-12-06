@@ -14,12 +14,18 @@ import { logger } from "@/lib/utils/logger";
  * @see https://discord.js.org/docs/packages/rest/2.6.0
  */
 
+/**
+ * Discord embed field structure.
+ */
 export interface DiscordEmbedField {
   name: string;
   value: string;
   inline?: boolean;
 }
 
+/**
+ * Discord embed structure.
+ */
 export interface DiscordEmbed {
   title?: string;
   description?: string;
@@ -43,11 +49,17 @@ export interface DiscordEmbed {
   };
 }
 
+/**
+ * Options for Discord message.
+ */
 export interface DiscordMessageOptions {
   content?: string;
   embeds?: DiscordEmbed[];
 }
 
+/**
+ * Discord embed color constants.
+ */
 export enum DiscordColor {
   SUCCESS = 0x00ff00, // Green
   INFO = 0x0099ff, // Blue
@@ -56,6 +68,9 @@ export enum DiscordColor {
   DEFAULT = 0x5865f2, // Discord Blurple
 }
 
+/**
+ * Discord notification service for sending messages and embeds to Discord channels.
+ */
 class DiscordService {
   private rest: REST | null = null;
   private defaultChannelId: string | null = null;

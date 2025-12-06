@@ -1,3 +1,12 @@
+/**
+ * Character form component for editing character properties.
+ * Supports name, bio, personality, topics, adjectives, post examples, and avatar management.
+ *
+ * @param props - Character form configuration
+ * @param props.character - Character data to edit
+ * @param props.onChange - Callback when character data changes
+ */
+
 "use client";
 
 import { useState } from "react";

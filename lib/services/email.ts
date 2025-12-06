@@ -1,3 +1,7 @@
+/**
+ * Email service for sending transactional emails via SendGrid or SMTP.
+ */
+
 import sgMail from "@sendgrid/mail";
 import nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
@@ -13,6 +17,9 @@ import type {
   PurchaseConfirmationEmailData,
 } from "@/lib/email/types";
 
+/**
+ * Email service supporting SendGrid API and SMTP.
+ */
 class EmailService {
   private initialized = false;
   private fromEmail: string | null = null;
@@ -61,6 +68,12 @@ class EmailService {
     logger.info("[EmailService] Initialized with SendGrid API");
   }
 
+  /**
+   * Sends an email using the configured provider (SendGrid or SMTP).
+   *
+   * @param options - Email options including recipient, subject, and content.
+   * @returns True if sent successfully, false otherwise.
+   */
   async send(options: EmailOptions): Promise<boolean> {
     this.initialize();
 
@@ -112,6 +125,12 @@ class EmailService {
     }
   }
 
+  /**
+   * Sends a welcome email to new users.
+   *
+   * @param data - Welcome email data.
+   * @returns True if sent successfully.
+   */
   async sendWelcomeEmail(data: WelcomeEmailData): Promise<boolean> {
     const { renderWelcomeTemplate } =
       await import("@/lib/email/utils/template-renderer");
@@ -125,6 +144,12 @@ class EmailService {
     });
   }
 
+  /**
+   * Sends a low credits warning email.
+   *
+   * @param data - Low credits email data.
+   * @returns True if sent successfully.
+   */
   async sendLowCreditsEmail(data: LowCreditsEmailData): Promise<boolean> {
     const { renderLowCreditsTemplate } =
       await import("@/lib/email/utils/template-renderer");
@@ -138,6 +163,12 @@ class EmailService {
     });
   }
 
+  /**
+   * Sends an organization invite email.
+   *
+   * @param data - Invite email data.
+   * @returns True if sent successfully.
+   */
   async sendInviteEmail(data: InviteEmailData): Promise<boolean> {
     const { renderInviteTemplate } =
       await import("@/lib/email/utils/template-renderer");
@@ -151,6 +182,12 @@ class EmailService {
     });
   }
 
+  /**
+   * Sends an auto top-up success notification email.
+   *
+   * @param data - Auto top-up success email data.
+   * @returns True if sent successfully.
+   */
   async sendAutoTopUpSuccessEmail(
     data: AutoTopUpSuccessEmailData,
   ): Promise<boolean> {
@@ -166,6 +203,12 @@ class EmailService {
     });
   }
 
+  /**
+   * Sends an auto top-up disabled notification email.
+   *
+   * @param data - Auto top-up disabled email data.
+   * @returns True if sent successfully.
+   */
   async sendAutoTopUpDisabledEmail(
     data: AutoTopUpDisabledEmailData,
   ): Promise<boolean> {
@@ -181,6 +224,12 @@ class EmailService {
     });
   }
 
+  /**
+   * Sends a purchase confirmation email.
+   *
+   * @param data - Purchase confirmation email data.
+   * @returns True if sent successfully.
+   */
   async sendPurchaseConfirmationEmail(
     data: PurchaseConfirmationEmailData,
   ): Promise<boolean> {

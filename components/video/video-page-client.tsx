@@ -49,22 +49,7 @@ const THUMBNAIL_FALLBACKS = [
 const MOCK_VIDEO_BASE_URL = "https://video-placeholder.eliza.ai";
 const TIMING_KEYS_IN_PRIORITY = ["inference", "total", "duration"] as const;
 
-type FalVideoResponse = {
-  video?: {
-    url?: string;
-    width?: number;
-    height?: number;
-    file_name?: string;
-    file_size?: number;
-    content_type?: string;
-  };
-  seed?: number;
-  has_nsfw_concepts?: boolean[];
-  timings?: Record<string, number> | null;
-  requestId?: string;
-  isFallback?: boolean;
-  originalError?: string;
-};
+import type { FalVideoResponse } from "@/lib/types/video";
 
 const parseDurationEstimate = (estimate?: string): number | undefined => {
   if (!estimate) {
@@ -297,95 +282,70 @@ export function VideoPageClient({
           "Your video is being generated. This may take a few minutes.",
       });
 
-      try {
-        const response = await fetch("/api/v1/generate-video", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            prompt: trimmedPrompt,
-            model: chosenModel,
-          }),
-        });
+      const response = await fetch("/api/v1/generate-video", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt: trimmedPrompt,
+          model: chosenModel,
+        }),
+      });
 
-        if (!response.ok) {
-          const errorBody = await response.json().catch(() => null);
-          const message =
-            typeof errorBody?.error === "string"
-              ? errorBody.error
-              : `Request failed (${response.status})`;
-          throw new Error(message);
-        }
-
-        const payload: FalVideoResponse = await response.json();
-        const durationFromTimings = getDurationFromTimings(payload.timings);
-        const resolution = getResolutionLabel(
-          payload.video?.width,
-          payload.video?.height,
-        );
-
-        const completed: GeneratedVideo = {
-          ...draft,
-          id: payload.requestId ?? draft.id,
-          requestId: payload.requestId ?? draft.id,
-          status: "completed",
-          videoUrl:
-            payload.video?.url ?? draft.videoUrl ?? buildMockVideoUrl(draft.id),
-          thumbnailUrl: draft.thumbnailUrl,
-          seed: payload.seed ?? draft.seed,
-          hasNsfwConcepts: payload.has_nsfw_concepts,
-          timings: payload.timings ?? null,
-          durationSeconds:
-            durationFromTimings ??
-            parseDurationEstimate(selectedPreset?.durationEstimate),
-          resolution: resolution ?? draft.resolution,
-          failureReason: undefined,
-          isMock: false,
-        };
-
-        replaceVideoEntry(draft.id, completed);
-        updateUsageAfterCompletion(completed.durationSeconds);
-        setStatusMessage(
-          "Video ready — open it in a new tab or copy the link.",
-        );
-        setReferenceUrl("");
-
-        if (payload.isFallback) {
-          toast.warning("Fallback video generated", {
-            description: "Using a sample video due to service unavailability.",
-          });
-        } else {
-          toast.success("Video generated successfully!", {
-            description: `Your video is ready. Duration: ${completed.durationSeconds || "N/A"}s`,
-          });
-        }
-      } catch (error) {
+      if (!response.ok) {
+        const errorBody = await response.json();
         const message =
-          error instanceof Error && error.message
-            ? error.message
-            : "Video generation failed.";
-
-        const failedDraft: GeneratedVideo = {
-          ...draft,
-          status: "failed",
-          failureReason: message,
-        };
-
-        replaceVideoEntry(draft.id, failedDraft);
-        setFormError(message);
-        setStatusMessage(
-          "Generation failed — displaying a mock render as a placeholder.",
-        );
-
-        toast.error("Video generation failed", {
-          description: message,
-        });
-
-        simulateMockCompletion(failedDraft);
-      } finally {
-        setIsGenerating(false);
+          typeof errorBody?.error === "string"
+            ? errorBody.error
+            : `Request failed (${response.status})`;
+        throw new Error(message);
       }
+
+      const payload: FalVideoResponse = await response.json();
+      const durationFromTimings = getDurationFromTimings(payload.timings);
+      const resolution = getResolutionLabel(
+        payload.video?.width,
+        payload.video?.height,
+      );
+
+      const completed: GeneratedVideo = {
+        ...draft,
+        id: payload.requestId ?? draft.id,
+        requestId: payload.requestId ?? draft.id,
+        status: "completed",
+        videoUrl:
+          payload.video?.url ?? draft.videoUrl ?? buildMockVideoUrl(draft.id),
+        thumbnailUrl: draft.thumbnailUrl,
+        seed: payload.seed ?? draft.seed,
+        hasNsfwConcepts: payload.has_nsfw_concepts,
+        timings: payload.timings ?? null,
+        durationSeconds:
+          durationFromTimings ??
+          parseDurationEstimate(selectedPreset?.durationEstimate),
+        resolution: resolution ?? draft.resolution,
+        failureReason: undefined,
+        isMock: false,
+      };
+
+      replaceVideoEntry(draft.id, completed);
+      updateUsageAfterCompletion(completed.durationSeconds);
+      setStatusMessage(
+        "Video ready — open it in a new tab or copy the link.",
+      );
+      setReferenceUrl("");
+
+      if (payload.isFallback) {
+        toast.warning("Fallback video generated", {
+          description: "Using a sample video due to service unavailability.",
+        });
+      } else {
+        toast.success("Video generated successfully!", {
+          description: `Your video is ready. Duration: ${completed.durationSeconds || "N/A"}s`,
+        });
+      }
+      
+      setIsGenerating(false);
     },
     [
       currentVideo?.resolution,

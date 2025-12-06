@@ -1,3 +1,7 @@
+/**
+ * Toolbar component wrapping React Flow node toolbar with custom styling.
+ * Provides toolbar overlay for flow diagram nodes.
+ */
 import { cn } from "@/lib/utils";
 import { NodeToolbar, Position } from "@xyflow/react";
 import type { ComponentProps } from "react";

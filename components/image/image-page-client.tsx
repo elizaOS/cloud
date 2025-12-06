@@ -1,3 +1,8 @@
+/**
+ * Image page client component wrapping the advanced image generator.
+ * Sets page header context for the image studio page.
+ */
+
 "use client";
 
 import { ImageGeneratorAdvanced } from "./image-generator-advanced";

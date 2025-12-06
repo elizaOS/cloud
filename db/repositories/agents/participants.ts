@@ -1,6 +1,7 @@
 /**
- * Repository for ElizaOS Participants table
- * Handles all database operations for participants without spinning up runtime
+ * Repository for ElizaOS participants table.
+ * 
+ * Handles all database operations for participants without spinning up runtime.
  */
 
 import { db } from "@/db/client";
@@ -8,6 +9,9 @@ import { participantTable } from "@/db/schemas/eliza";
 import { eq, and, inArray, sql } from "drizzle-orm";
 import type { Participant } from "@elizaos/core";
 
+/**
+ * Input for creating a new participant.
+ */
 export interface CreateParticipantInput {
   roomId: string;
   entityId: string;
@@ -15,9 +19,12 @@ export interface CreateParticipantInput {
   roomState?: Record<string, unknown>;
 }
 
+/**
+ * Repository for ElizaOS participant database operations.
+ */
 export class ParticipantsRepository {
   /**
-   * Get all participants for a room
+   * Gets all participants for a room.
    */
   async findByRoomId(roomId: string): Promise<Participant[]> {
     const results = await db
@@ -29,8 +36,9 @@ export class ParticipantsRepository {
   }
 
   /**
-   * Get all rooms for an entity (user)
-   * entityId should be the user's database ID (already a UUID)
+   * Gets all room IDs for an entity (user).
+   * 
+   * @param entityId - User's database ID (UUID).
    */
   async findRoomsByEntityId(entityId: string): Promise<string[]> {
     const results = await db
@@ -42,7 +50,9 @@ export class ParticipantsRepository {
   }
 
   /**
-   * Get all rooms for multiple entities
+   * Gets all room IDs for multiple entities.
+   * 
+   * @returns Map of entity ID to array of room IDs.
    */
   async findRoomsByEntityIds(entityIds: string[]): Promise<Map<string, string[]>> {
     if (entityIds.length === 0) return new Map();
@@ -66,7 +76,7 @@ export class ParticipantsRepository {
   }
 
   /**
-   * Check if entity is participant in room
+   * Checks if an entity is a participant in a room.
    */
   async isParticipant(roomId: string, entityId: string): Promise<boolean> {
     const result = await db
@@ -84,8 +94,10 @@ export class ParticipantsRepository {
   }
 
   /**
-   * Add participant to room
-   * entityId should be the user's database ID (already a UUID)
+   * Adds a participant to a room.
+   * 
+   * @param input - Participant creation input (entityId should be user's database UUID).
+   * @returns Existing participant if already present, otherwise new participant.
    */
   async create(input: CreateParticipantInput): Promise<Participant> {
     // Check if already exists
@@ -120,7 +132,9 @@ export class ParticipantsRepository {
   }
 
   /**
-   * Remove participant from room
+   * Removes a participant from a room.
+   * 
+   * @returns True if participant was removed, false if not found.
    */
   async delete(roomId: string, entityId: string): Promise<boolean> {
     const result = await db
@@ -137,7 +151,9 @@ export class ParticipantsRepository {
   }
 
   /**
-   * Delete all participants for a room (when deleting room)
+   * Deletes all participants for a room (when deleting room).
+   * 
+   * @returns Number of participants deleted.
    */
   async deleteByRoomId(roomId: string): Promise<number> {
     const result = await db
@@ -149,7 +165,7 @@ export class ParticipantsRepository {
   }
 
   /**
-   * Update participant's room state
+   * Updates a participant's room state.
    */
   async updateRoomState(
     roomId: string,
@@ -171,7 +187,7 @@ export class ParticipantsRepository {
   }
 
   /**
-   * Count participants in a room
+   * Counts participants in a room.
    */
   async countByRoomId(roomId: string): Promise<number> {
     const result = await db
@@ -183,7 +199,7 @@ export class ParticipantsRepository {
   }
 
   /**
-   * Get all entity IDs for a room
+   * Gets all entity IDs for a room.
    */
   async getEntityIdsByRoomId(roomId: string): Promise<string[]> {
     const results = await db
@@ -195,5 +211,8 @@ export class ParticipantsRepository {
   }
 }
 
+/**
+ * Singleton instance of ParticipantsRepository.
+ */
 export const participantsRepository = new ParticipantsRepository();
 

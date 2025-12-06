@@ -26,7 +26,15 @@ import type { AnonymousSession } from "@/db/schemas";
 
 export const maxDuration = 60;
 
-// POST /api/eliza/rooms/[roomId]/messages - Send a message
+/**
+ * POST /api/eliza/rooms/[roomId]/messages
+ * Sends a message to a room and processes it through the Eliza agent runtime.
+ * Supports both authenticated and anonymous users with rate limiting.
+ *
+ * @param request - Request body with text and optional attachments.
+ * @param ctx - Route context containing the room ID parameter.
+ * @returns Created message and polling hints for response.
+ */
 export async function POST(
   request: NextRequest,
   ctx: { params: Promise<{ roomId: string }> },
@@ -451,7 +459,14 @@ export async function POST(
   }
 }
 
-// GET /api/eliza/rooms/[roomId]/messages - Get messages (for polling)
+/**
+ * GET /api/eliza/rooms/[roomId]/messages
+ * Retrieves messages from a room, optionally filtered by timestamp for polling.
+ *
+ * @param request - Request with optional limit and afterTimestamp query parameters.
+ * @param ctx - Route context containing the room ID parameter.
+ * @returns Array of messages with pagination metadata.
+ */
 export async function GET(
   request: NextRequest,
   ctx: { params: Promise<{ roomId: string }> },

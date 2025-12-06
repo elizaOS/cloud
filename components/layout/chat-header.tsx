@@ -1,6 +1,9 @@
 /**
- * Chat Header Component
- * Special header for the /chat page with agent picker and mode toggle
+ * Chat header component for the /chat page with agent picker and mode toggle.
+ * Supports switching between chat and build modes, character selection, and sidebar toggle.
+ *
+ * @param props - Chat header configuration
+ * @param props.onToggleSidebar - Optional callback to toggle sidebar visibility
  */
 
 "use client";

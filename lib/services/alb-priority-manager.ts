@@ -29,65 +29,60 @@ export class DatabasePriorityManager {
     const { albPriorities } = await import("@/db/schemas/alb-priorities");
     const { eq, sql } = await import("drizzle-orm");
 
-    try {
-      return await db.transaction(async (tx) => {
-        console.log(
-          `[ALB allocatePriority] Inside transaction for user ${userId}`,
-        );
+    return await db.transaction(async (tx) => {
+      console.log(
+        `[ALB allocatePriority] Inside transaction for user ${userId}`,
+      );
 
-        // Check if user already has an active priority
-        const existing = await tx.query.albPriorities.findFirst({
-          where: eq(albPriorities.userId, userId),
-        });
-
-        if (existing && !existing.expiresAt) {
-          console.log(
-            `[ALB allocatePriority] User ${userId} already has priority ${existing.priority}`,
-          );
-          return existing.priority;
-        }
-
-        // Get the maximum priority (including expired ones to avoid conflicts)
-        const [maxResult] = await tx
-          .select({
-            maxPriority: sql<number>`COALESCE(MAX(${albPriorities.priority}), 0)`,
-          })
-          .from(albPriorities);
-
-        const nextPriority = (maxResult?.maxPriority || 0) + 1;
-
-        // Validate we haven't exceeded ALB limit
-        if (nextPriority > 50000) {
-          throw new Error(
-            "ALB priority limit exceeded - too many containers created (max 50,000)",
-          );
-        }
-
-        console.log(
-          `[ALB] Attempting to allocate priority ${nextPriority} for user ${userId}`,
-        );
-
-        // Create new priority record
-        // Note: priority column has unique constraint, so this will fail if there's a conflict
-        const [inserted] = await tx
-          .insert(albPriorities)
-          .values({
-            userId,
-            priority: nextPriority,
-            createdAt: new Date(),
-            // expiresAt is omitted - will default to NULL in the database
-          })
-          .returning();
-
-        console.log(
-          `✅ Allocated ALB priority ${nextPriority} for user ${userId}`,
-        );
-        return inserted.priority;
+      // Check if user already has an active priority
+      const existing = await tx.query.albPriorities.findFirst({
+        where: eq(albPriorities.userId, userId),
       });
-    } catch (error) {
-      console.error(`[ALB] Failed to allocate priority for user ${userId}:`, error);
-      throw error;
-    }
+
+      if (existing && !existing.expiresAt) {
+        console.log(
+          `[ALB allocatePriority] User ${userId} already has priority ${existing.priority}`,
+        );
+        return existing.priority;
+      }
+
+      // Get the maximum priority (including expired ones to avoid conflicts)
+      const [maxResult] = await tx
+        .select({
+          maxPriority: sql<number>`COALESCE(MAX(${albPriorities.priority}), 0)`,
+        })
+        .from(albPriorities);
+
+      const nextPriority = (maxResult?.maxPriority || 0) + 1;
+
+      // Validate we haven't exceeded ALB limit
+      if (nextPriority > 50000) {
+        throw new Error(
+          "ALB priority limit exceeded - too many containers created (max 50,000)",
+        );
+      }
+
+      console.log(
+        `[ALB] Attempting to allocate priority ${nextPriority} for user ${userId}`,
+      );
+
+      // Create new priority record
+      // Note: priority column has unique constraint, so this will fail if there's a conflict
+      const [inserted] = await tx
+        .insert(albPriorities)
+        .values({
+          userId,
+          priority: nextPriority,
+          createdAt: new Date(),
+          // expiresAt is omitted - will default to NULL in the database
+        })
+        .returning();
+
+      console.log(
+        `✅ Allocated ALB priority ${nextPriority} for user ${userId}`,
+      );
+      return inserted.priority;
+    });
   }
 
   /**

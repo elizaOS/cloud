@@ -1,3 +1,8 @@
+/**
+ * Page header context provider and hooks for managing page header information.
+ * Provides centralized header state management across the application.
+ */
+
 "use client";
 
 import {

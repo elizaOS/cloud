@@ -24,6 +24,14 @@ import type { AnonymousSession } from "@/db/schemas";
 
 export const maxDuration = 60;
 
+/**
+ * POST /api/v1/chat
+ * Chat completion endpoint supporting both authenticated and anonymous users.
+ * Processes chat messages and returns AI responses with credit deduction.
+ *
+ * @param req - Request body with messages array and optional conversation ID.
+ * @returns Streaming text response or JSON error.
+ */
 async function handlePOST(req: NextRequest) {
   try {
     let user: UserWithOrganization;

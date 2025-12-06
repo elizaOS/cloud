@@ -5,6 +5,14 @@ import { requireAuth } from "@/lib/auth";
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
 
+/**
+ * POST /api/v1/generate-prompts
+ * Generates 4 short, practical AI agent concept prompts using GPT-4o.
+ * Uses high temperature and randomness for diverse, utility-focused concepts.
+ *
+ * @param req - Request body with optional seed for reproducibility.
+ * @returns Streaming text response with JSON array of 4 agent concepts.
+ */
 export async function POST(req: Request) {
   try {
     await requireAuth();

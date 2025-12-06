@@ -325,7 +325,12 @@ async function getStackStatusByName(
 
 /**
  * GET /api/v1/cron/deployment-monitor
- * Vercel cron jobs use GET by default
+ * Cron job endpoint for monitoring container deployment status.
+ * Checks CloudFormation stacks and updates container status accordingly.
+ * Protected by CRON_SECRET. Can be called via GET (Vercel cron) or POST (manual testing).
+ *
+ * @param request - Request with Bearer token authorization header.
+ * @returns Deployment monitoring results with updated container statuses.
  */
 export async function GET(request: NextRequest) {
   return handleDeploymentMonitor(request);
@@ -333,7 +338,11 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/v1/cron/deployment-monitor
- * Support POST for manual testing
+ * Cron job endpoint for monitoring container deployment status (POST variant).
+ * Protected by CRON_SECRET.
+ *
+ * @param request - Request with Bearer token authorization header.
+ * @returns Deployment monitoring results with updated container statuses.
  */
 export async function POST(request: NextRequest) {
   return handleDeploymentMonitor(request);

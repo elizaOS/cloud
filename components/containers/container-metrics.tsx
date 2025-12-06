@@ -39,29 +39,23 @@ export function ContainerMetrics({
   const [autoRefresh, setAutoRefresh] = useState(false);
 
   const fetchMetrics = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(
-        `/api/v1/containers/${containerId}/metrics?period=60`,
-      );
+    setLoading(true);
+    const response = await fetch(
+      `/api/v1/containers/${containerId}/metrics?period=60`,
+    );
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch metrics");
-      }
-
-      const data = await response.json();
-      if (data.success) {
-        setMetrics(data.data.metrics);
-        setError(null);
-      } else {
-        setError(data.error || "Failed to load metrics");
-      }
-    } catch (err) {
-      console.error("Error fetching metrics:", err);
-      setError(err instanceof Error ? err.message : "Failed to load metrics");
-    } finally {
-      setLoading(false);
+    if (!response.ok) {
+      throw new Error("Failed to fetch metrics");
     }
+
+    const data = await response.json();
+    if (data.success) {
+      setMetrics(data.data.metrics);
+      setError(null);
+    } else {
+      setError(data.error || "Failed to load metrics");
+    }
+    setLoading(false);
   }, [containerId]);
 
   useEffect(() => {

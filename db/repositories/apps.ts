@@ -4,27 +4,42 @@ import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
 
 export type { App, NewApp, AppUser, NewAppUser, AppAnalytics, NewAppAnalytics };
 
+/**
+ * Repository for app database operations.
+ * 
+ * Handles CRUD operations for apps, app users, and app analytics.
+ */
 export class AppsRepository {
-  // ==================== Apps CRUD ====================
-  
+  /**
+   * Finds an app by ID.
+   */
   async findById(id: string): Promise<App | undefined> {
     return await db.query.apps.findFirst({
       where: eq(apps.id, id),
     });
   }
 
+  /**
+   * Finds an app by slug.
+   */
   async findBySlug(slug: string): Promise<App | undefined> {
     return await db.query.apps.findFirst({
       where: eq(apps.slug, slug),
     });
   }
 
+  /**
+   * Finds an app by affiliate code.
+   */
   async findByAffiliateCode(code: string): Promise<App | undefined> {
     return await db.query.apps.findFirst({
       where: eq(apps.affiliate_code, code),
     });
   }
 
+  /**
+   * Lists all apps for an organization, ordered by creation date.
+   */
   async listByOrganization(organizationId: string): Promise<App[]> {
     return await db.query.apps.findMany({
       where: eq(apps.organization_id, organizationId),
@@ -32,6 +47,9 @@ export class AppsRepository {
     });
   }
 
+  /**
+   * Lists all apps with optional filters.
+   */
   async listAll(filters?: {
     isActive?: boolean;
     isApproved?: boolean;
@@ -52,11 +70,17 @@ export class AppsRepository {
     });
   }
 
+  /**
+   * Creates a new app.
+   */
   async create(data: NewApp): Promise<App> {
     const [app] = await db.insert(apps).values(data).returning();
     return app;
   }
 
+  /**
+   * Updates an existing app.
+   */
   async update(id: string, data: Partial<NewApp>): Promise<App | undefined> {
     const [updated] = await db
       .update(apps)
@@ -69,10 +93,16 @@ export class AppsRepository {
     return updated;
   }
 
+  /**
+   * Deletes an app by ID.
+   */
   async delete(id: string): Promise<void> {
     await db.delete(apps).where(eq(apps.id, id));
   }
 
+  /**
+   * Atomically increments app usage statistics.
+   */
   async incrementUsage(id: string, creditsUsed: string = "0.00"): Promise<void> {
     await db
       .update(apps)
@@ -85,8 +115,9 @@ export class AppsRepository {
       .where(eq(apps.id, id));
   }
 
-  // ==================== App Users CRUD ====================
-
+  /**
+   * Finds an app user by app ID and user ID.
+   */
   async findAppUser(appId: string, userId: string): Promise<AppUser | undefined> {
     return await db.query.appUsers.findFirst({
       where: and(
@@ -96,6 +127,9 @@ export class AppsRepository {
     });
   }
 
+  /**
+   * Lists app users for an app, ordered by first seen date.
+   */
   async listAppUsers(appId: string, limit?: number): Promise<AppUser[]> {
     return await db.query.appUsers.findMany({
       where: eq(appUsers.app_id, appId),
@@ -104,10 +138,12 @@ export class AppsRepository {
     });
   }
 
+  /**
+   * Creates a new app user and increments the app's total user count.
+   */
   async createAppUser(data: NewAppUser): Promise<AppUser> {
     const [appUser] = await db.insert(appUsers).values(data).returning();
     
-    // Increment the app's total_users count
     await db
       .update(apps)
       .set({
@@ -119,6 +155,9 @@ export class AppsRepository {
     return appUser;
   }
 
+  /**
+   * Updates an existing app user.
+   */
   async updateAppUser(
     appId: string,
     userId: string,
@@ -140,6 +179,9 @@ export class AppsRepository {
     return updated;
   }
 
+  /**
+   * Atomically increments app user usage statistics.
+   */
   async incrementAppUserUsage(
     appId: string,
     userId: string,
@@ -160,20 +202,22 @@ export class AppsRepository {
       );
   }
 
+  /**
+   * Tracks app user activity, creating or updating the app user record as needed.
+   * 
+   * Also increments the app's overall usage statistics.
+   */
   async trackAppUserActivity(
     appId: string,
     userId: string,
     creditsUsed: string = "0.00",
     metadata?: Record<string, unknown>
   ): Promise<void> {
-    // Check if app user record exists
     const existingAppUser = await this.findAppUser(appId, userId);
 
     if (existingAppUser) {
-      // Update existing record
       await this.incrementAppUserUsage(appId, userId, creditsUsed);
     } else {
-      // Create new app user record
       await this.createAppUser({
         app_id: appId,
         user_id: userId,
@@ -183,17 +227,20 @@ export class AppsRepository {
       });
     }
 
-    // Also increment the app's usage
     await this.incrementUsage(appId, creditsUsed);
   }
 
-  // ==================== App Analytics CRUD ====================
-
+  /**
+   * Creates a new app analytics record.
+   */
   async createAnalytics(data: NewAppAnalytics): Promise<AppAnalytics> {
     const [analytics] = await db.insert(appAnalytics).values(data).returning();
     return analytics;
   }
 
+  /**
+   * Gets app analytics within a date range for a specific period type.
+   */
   async getAnalytics(
     appId: string,
     periodType: string,
@@ -211,6 +258,9 @@ export class AppsRepository {
     });
   }
 
+  /**
+   * Gets the latest app analytics records.
+   */
   async getLatestAnalytics(appId: string, limit: number = 30): Promise<AppAnalytics[]> {
     return await db.query.appAnalytics.findMany({
       where: eq(appAnalytics.app_id, appId),
@@ -219,6 +269,9 @@ export class AppsRepository {
     });
   }
 
+  /**
+   * Gets aggregated statistics for an app.
+   */
   async getTotalStats(appId: string): Promise<{
     totalRequests: number;
     totalUsers: number;
@@ -242,6 +295,8 @@ export class AppsRepository {
   }
 }
 
-// Export singleton instance
+/**
+ * Singleton instance of AppsRepository.
+ */
 export const appsRepository = new AppsRepository();
 

@@ -32,34 +32,28 @@ function MiniappLoginContent() {
 
     setStatus("completing");
 
-    try {
-      const response = await fetch(
-        `/api/auth/miniapp-session/${sessionId}/complete`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to complete authentication");
+    const response = await fetch(
+      `/api/auth/miniapp-session/${sessionId}/complete`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
       }
+    );
 
-      const data = await response.json();
-      setStatus("redirecting");
-
-      // Build callback URL and redirect
-      const callbackUrl = new URL(data.callbackUrl);
-      callbackUrl.searchParams.set("session", sessionId);
-      window.location.href = callbackUrl.toString();
-    } catch (error) {
-      console.error("Error completing miniapp login:", error);
+    if (!response.ok) {
+      const errorData = await response.json();
       setStatus("error");
-      setErrorMessage(
-        error instanceof Error ? error.message : "Failed to complete authentication"
-      );
+      setErrorMessage(errorData.error || "Failed to complete authentication");
+      return;
     }
+
+    const data = await response.json();
+    setStatus("redirecting");
+
+    // Build callback URL and redirect
+    const callbackUrl = new URL(data.callbackUrl);
+    callbackUrl.searchParams.set("session", sessionId);
+    window.location.href = callbackUrl.toString();
   }, [sessionId]);
 
   useEffect(() => {
@@ -181,6 +175,10 @@ function MiniappLoginContent() {
   return null;
 }
 
+/**
+ * Miniapp login page for authenticating miniapp users.
+ * Handles Privy authentication and redirects back to the miniapp callback URL.
+ */
 export default function MiniappLoginPage() {
   return (
     <Suspense

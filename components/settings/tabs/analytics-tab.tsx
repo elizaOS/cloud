@@ -1,3 +1,11 @@
+/**
+ * Analytics settings tab component displaying usage analytics and statistics.
+ * Supports time range selection, cadence filtering, and focus metric switching.
+ *
+ * @param props - Analytics tab configuration
+ * @param props.user - User data with organization information
+ */
+
 "use client";
 
 import { useState, useEffect } from "react";

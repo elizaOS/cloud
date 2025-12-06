@@ -36,6 +36,15 @@ async function verifyWebhookSignature(
   );
 }
 
+/**
+ * POST /api/privy/webhook
+ * Privy webhook endpoint for handling user authentication events.
+ * Verifies webhook signatures and syncs user data from Privy.
+ * Handles anonymous session migration when users sign up.
+ *
+ * @param request - Request containing Privy webhook payload with signature header.
+ * @returns Webhook processing result.
+ */
 export async function POST(request: NextRequest) {
   try {
     // Get the raw body

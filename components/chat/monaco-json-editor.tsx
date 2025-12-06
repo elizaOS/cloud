@@ -1,3 +1,13 @@
+/**
+ * Monaco JSON editor component with custom theme and syntax highlighting.
+ * Provides JSON editing with validation feedback and custom color scheme.
+ *
+ * @param props - Monaco JSON editor configuration
+ * @param props.value - JSON string value
+ * @param props.onChange - Callback when editor content changes
+ * @param props.isValid - Whether current JSON is valid
+ */
+
 "use client";
 
 import { useRef, useEffect } from "react";

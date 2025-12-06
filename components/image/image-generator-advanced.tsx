@@ -1,3 +1,9 @@
+/**
+ * Advanced image generator component with full-featured controls.
+ * Supports prompt input, advanced settings (width, height, steps, guidance scale),
+ * image history, favorites, and carousel display of generated images.
+ */
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -108,24 +114,24 @@ export function ImageGeneratorAdvanced() {
 
     setRequestState({ isLoading: true, error: null });
 
-    try {
-      const response = await fetch("/api/v1/generate-image", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          prompt,
-          ...settings,
-          numImages,
-        }),
-      });
+    const response = await fetch("/api/v1/generate-image", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        prompt,
+        ...settings,
+        numImages,
+      }),
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to generate image");
-      }
+    if (!response.ok) {
+      setRequestState({ isLoading: false, error: data.error || "Failed to generate image" });
+      return;
+    }
 
       // Handle multiple images array response
       if (Array.isArray(data.images) && data.images.length > 0) {
@@ -179,11 +185,7 @@ export function ImageGeneratorAdvanced() {
           history: [newImage, ...prev.history].slice(0, 12),
         }));
       }
-    } catch (err) {
-      setRequestState(prev => ({ ...prev, error: err instanceof Error ? err.message : "An error occurred" }));
-    } finally {
-      setRequestState(prev => ({ ...prev, isLoading: false }));
-    }
+    setRequestState(prev => ({ ...prev, isLoading: false }));
   };
 
   const handleDownload = (image: GeneratedImage) => {

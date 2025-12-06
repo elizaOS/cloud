@@ -1,6 +1,7 @@
 /**
- * Repository for ElizaOS Memories table (non-message memories)
- * Handles all database operations for memories without spinning up runtime
+ * Repository for ElizaOS memories table (non-message memories).
+ * 
+ * Handles all database operations for memories without spinning up runtime.
  */
 
 import { db } from "@/db/client";
@@ -8,6 +9,9 @@ import { memoryTable } from "@/db/schemas/eliza";
 import { eq, and, sql, desc, inArray } from "drizzle-orm";
 import type { Memory } from "@elizaos/core";
 
+/**
+ * Input for creating a new memory.
+ */
 export interface CreateMemoryInput {
   id: string;
   roomId: string;
@@ -19,6 +23,9 @@ export interface CreateMemoryInput {
   worldId?: string;
 }
 
+/**
+ * Options for searching memories.
+ */
 export interface SearchMemoriesOptions {
   roomId?: string;
   agentId: string;
@@ -28,9 +35,12 @@ export interface SearchMemoriesOptions {
   offset?: number;
 }
 
+/**
+ * Repository for ElizaOS memory database operations.
+ */
 export class MemoriesRepository {
   /**
-   * Get messages for a room (type='messages')
+   * Gets messages for a room (type='messages').
    */
   async findMessages(
     roomId: string,
@@ -71,7 +81,7 @@ export class MemoriesRepository {
   }
 
   /**
-   * Get messages for multiple rooms
+   * Gets messages for multiple rooms.
    */
   async findMessagesByRoomIds(
     roomIds: string[],
@@ -100,7 +110,7 @@ export class MemoriesRepository {
   }
 
   /**
-   * Count messages in a room
+   * Counts messages in a room.
    */
   async countMessages(roomId: string, agentId?: string): Promise<number> {
     const conditions = [
@@ -121,7 +131,7 @@ export class MemoriesRepository {
   }
 
   /**
-   * Count messages by agent across all rooms
+   * Counts messages by agent across all rooms.
    */
   async countMessagesByAgent(agentId: string): Promise<number> {
     const result = await db
@@ -138,7 +148,7 @@ export class MemoriesRepository {
   }
 
   /**
-   * Get last message timestamp for an agent
+   * Gets the last message timestamp for an agent.
    */
   async getLastMessageTime(agentId: string): Promise<Date | null> {
     const result = await db
@@ -157,7 +167,9 @@ export class MemoriesRepository {
   }
 
   /**
-   * Delete messages in a room
+   * Deletes all messages in a room.
+   * 
+   * @returns Number of messages deleted.
    */
   async deleteMessages(roomId: string): Promise<number> {
     const result = await db
@@ -174,7 +186,7 @@ export class MemoriesRepository {
   }
 
   /**
-   * Get memories for a room (excluding messages)
+   * Gets memories for a room (excluding messages).
    */
   async findByRoomId(
     roomId: string,
@@ -200,7 +212,7 @@ export class MemoriesRepository {
   }
 
   /**
-   * Get memories by agent (across all rooms)
+   * Gets memories by agent across all rooms (excluding messages).
    */
   async findByAgentId(
     agentId: string,
@@ -224,7 +236,7 @@ export class MemoriesRepository {
   }
 
   /**
-   * Get memory by ID
+   * Gets a memory by ID.
    */
   async findById(memoryId: string): Promise<Memory | null> {
     const result = await db
@@ -237,7 +249,7 @@ export class MemoriesRepository {
   }
 
   /**
-   * Search memories with filters
+   * Searches memories with filters (excluding messages).
    */
   async search(options: SearchMemoriesOptions): Promise<Memory[]> {
     const { roomId, agentId, type, types, limit = 50, offset = 0 } = options;
@@ -269,7 +281,7 @@ export class MemoriesRepository {
   }
 
   /**
-   * Create a new memory
+   * Creates a new memory.
    */
   async create(input: CreateMemoryInput): Promise<Memory> {
     const [memory] = await db
@@ -291,7 +303,9 @@ export class MemoriesRepository {
   }
 
   /**
-   * Delete a memory
+   * Deletes a memory.
+   * 
+   * @returns True if memory was deleted, false if not found.
    */
   async delete(memoryId: string): Promise<boolean> {
     const result = await db
@@ -303,7 +317,11 @@ export class MemoriesRepository {
   }
 
   /**
-   * Delete memories by room (when deleting room)
+   * Deletes memories by room (when deleting room).
+   * 
+   * Only deletes non-message memories. Messages are preserved.
+   * 
+   * @returns Number of memories deleted.
    */
   async deleteByRoomId(roomId: string): Promise<number> {
     const result = await db
@@ -320,7 +338,9 @@ export class MemoriesRepository {
   }
 
   /**
-   * Delete memories by agent
+   * Deletes memories by agent (excluding messages).
+   * 
+   * @returns Number of memories deleted.
    */
   async deleteByAgentId(agentId: string): Promise<number> {
     const result = await db
@@ -337,7 +357,7 @@ export class MemoriesRepository {
   }
 
   /**
-   * Count memories
+   * Counts memories for a room and agent (excluding messages).
    */
   async countByRoomId(roomId: string, agentId: string): Promise<number> {
     const result = await db
@@ -355,7 +375,7 @@ export class MemoriesRepository {
   }
 
   /**
-   * Count memories by type
+   * Counts memories by type.
    */
   async countByType(
     agentId: string,
@@ -380,7 +400,7 @@ export class MemoriesRepository {
   }
 
   /**
-   * Get memory types for an agent
+   * Gets distinct memory types for an agent (excluding messages).
    */
   async getTypes(agentId: string): Promise<string[]> {
     const result = await db
@@ -397,7 +417,12 @@ export class MemoriesRepository {
   }
 
   /**
-   * Delete old memories (retention policy)
+   * Deletes old memories based on retention policy.
+   * 
+   * @param agentId - Agent ID to delete memories for.
+   * @param days - Minimum age in days for memories to be deleted.
+   * @param types - Optional array of memory types to delete (all types if not specified).
+   * @returns Number of memories deleted.
    */
   async deleteOlderThan(
     agentId: string,
@@ -426,8 +451,9 @@ export class MemoriesRepository {
   }
 
   /**
-   * Get the last message for a single room
-   * Returns raw Memory object
+   * Gets the last message for a single room.
+   * 
+   * @returns Raw Memory object or null if no messages found.
    */
   async findLastMessageForRoom(roomId: string): Promise<Memory | null> {
     const result = await db
@@ -446,4 +472,7 @@ export class MemoriesRepository {
   }
 }
 
+/**
+ * Singleton instance of MemoriesRepository.
+ */
 export const memoriesRepository = new MemoriesRepository();

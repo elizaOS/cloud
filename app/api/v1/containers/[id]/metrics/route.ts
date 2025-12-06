@@ -25,7 +25,11 @@ interface ContainerMetrics {
 
 /**
  * GET /api/v1/containers/[id]/metrics
- * Get CloudWatch metrics for a container
+ * Retrieves CloudWatch metrics for a container including CPU, memory, network, and task counts.
+ *
+ * @param request - Request with optional period query parameter (minutes, default: 60).
+ * @param params - Route parameters containing the container ID.
+ * @returns Container metrics with utilization data.
  */
 export async function GET(
   request: NextRequest,

@@ -1,3 +1,11 @@
+/**
+ * Empty state component for voice studio when no voices exist.
+ * Displays call-to-action to create first voice clone with pricing information.
+ *
+ * @param props - Voice empty state configuration
+ * @param props.onCreateClick - Callback when create button is clicked
+ */
+
 "use client";
 
 import { Mic } from "lucide-react";

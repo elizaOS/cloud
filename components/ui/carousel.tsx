@@ -1,3 +1,8 @@
+/**
+ * Carousel component using Embla Carousel for slide-based content display.
+ * Supports horizontal and vertical orientations with navigation controls.
+ */
+
 "use client";
 
 import * as React from "react";

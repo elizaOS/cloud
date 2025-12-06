@@ -88,31 +88,22 @@ export function CharacterCreatorClient({
       return;
     }
 
-    try {
-      let savedCharacterId: string | null = selectedId;
+    let savedCharacterId: string | null = selectedId;
 
-      if (selectedId) {
-        await updateCharacter(selectedId, character);
-        toast.success("Character updated successfully!");
-      } else {
-        const saved = await createCharacter(character);
-        savedCharacterId = saved.id || null;
-        setSelectedId(savedCharacterId);
+    if (selectedId) {
+      await updateCharacter(selectedId, character);
+      toast.success("Character updated successfully!");
+    } else {
+      const saved = await createCharacter(character);
+      savedCharacterId = saved.id || null;
+      setSelectedId(savedCharacterId);
 
-        // Show simple success toast
-        toast.success("Character created successfully!", {
-          description:
-            "You can now test your character in chat or continue editing.",
-          duration: 4000,
-        });
-      }
-    } catch (error) {
-      console.error("Error saving character:", error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to save character. Please try again.",
-      );
+      // Show simple success toast
+      toast.success("Character created successfully!", {
+        description:
+          "You can now test your character in chat or continue editing.",
+        duration: 4000,
+      });
     }
   }, [character, selectedId]);
 
@@ -140,41 +131,32 @@ export function CharacterCreatorClient({
     if (isInitializingCharacter) return;
 
     setIsInitializingCharacter(true);
-    try {
-      // Create a character with a random friendly name and auto-generated avatar
-      const newCharacter = createDefaultCharacter();
-      // Add a default bio for build mode
-      newCharacter.bio = "Character being created with AI assistance";
+    // Create a character with a random friendly name and auto-generated avatar
+    const newCharacter = createDefaultCharacter();
+    // Add a default bio for build mode
+    newCharacter.bio = "Character being created with AI assistance";
 
-      const saved = await createCharacter(newCharacter);
+    const saved = await createCharacter(newCharacter);
 
-      if (saved.id) {
-        setCharacter(saved);
-        setSelectedId(saved.id);
-      } else {
-        throw new Error("Character created but no ID returned");
-      }
-    } catch (error) {
-      console.error("Error initializing character:", error);
-      toast.error("Failed to initialize character for chat");
-    } finally {
+    if (saved.id) {
+      setCharacter(saved);
+      setSelectedId(saved.id);
+    } else {
       setIsInitializingCharacter(false);
+      throw new Error("Character created but no ID returned");
     }
+    setIsInitializingCharacter(false);
   }, [isInitializingCharacter]);
 
   // Refresh character data from database
   const handleCharacterRefresh = useCallback(async () => {
     if (!selectedId) return;
 
-    try {
-      // Fetch updated character from server
-      const response = await fetch(`/api/my-agents/${selectedId}`);
-      if (response.ok) {
-        const updatedChar = await response.json();
-        setCharacter(updatedChar);
-      }
-    } catch (error) {
-      console.error("Error refreshing character:", error);
+    // Fetch updated character from server
+    const response = await fetch(`/api/my-agents/${selectedId}`);
+    if (response.ok) {
+      const updatedChar = await response.json();
+      setCharacter(updatedChar);
     }
   }, [selectedId]);
 

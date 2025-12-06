@@ -1,3 +1,8 @@
+/**
+ * Suggestions component displaying suggestion buttons in a horizontal scrollable area.
+ * Provides clickable suggestion buttons for quick input.
+ */
+
 "use client";
 
 import { Button } from "@/components/ui/button";

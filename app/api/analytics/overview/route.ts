@@ -6,6 +6,13 @@ import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 export const maxDuration = 60;
 
+/**
+ * GET /api/analytics/overview
+ * Gets analytics overview for the authenticated user's organization.
+ *
+ * @param req - Request with optional timeRange query parameter (daily, weekly, monthly).
+ * @returns Analytics summary including requests, costs, tokens, and success rates.
+ */
 async function handleGET(req: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);

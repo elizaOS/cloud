@@ -1,3 +1,14 @@
+/**
+ * Styled JSON editor component for editing character data.
+ * Provides syntax highlighting, validation, and error display.
+ *
+ * @param props - JSON editor configuration
+ * @param props.character - Character data to edit
+ * @param props.onChange - Callback when character data changes
+ * @param props.isValid - Whether current JSON is valid
+ * @param props.error - Error message if JSON is invalid
+ */
+
 "use client";
 
 import { useState, useEffect } from "react";

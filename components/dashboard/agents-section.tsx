@@ -29,7 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import { isBuiltInAvatar, ensureAvatarUrl } from "@/lib/utils/default-avatar";
 
-import type { AgentStats } from "@/lib/actions/dashboard";
+import type { DashboardAgentStats as AgentStats } from "@/lib/actions/dashboard";
 
 interface Agent {
   id: string;

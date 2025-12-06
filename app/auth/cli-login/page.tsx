@@ -34,35 +34,27 @@ function CliLoginContent() {
 
     setStatus("completing");
 
-    try {
-      const response = await fetch(
-        `/api/auth/cli-session/${sessionId}/complete`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+    const response = await fetch(
+      `/api/auth/cli-session/${sessionId}/complete`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+      },
+    );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to complete authentication");
-      }
-
-      const data = await response.json();
-
-      setApiKeyPrefix(data.keyPrefix);
-      setStatus("success");
-    } catch (error) {
-      console.error("Error completing CLI login:", error);
+    if (!response.ok) {
+      const errorData = await response.json();
       setStatus("error");
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Failed to complete authentication",
-      );
+      setErrorMessage(errorData.error || "Failed to complete authentication");
+      return;
     }
+
+    const data = await response.json();
+
+    setApiKeyPrefix(data.keyPrefix);
+    setStatus("success");
   }, [sessionId]);
 
   useEffect(() => {
@@ -141,11 +133,8 @@ function CliLoginContent() {
             <Button
               onClick={async () => {
                 setIsLoggingIn(true);
-                try {
-                  await login();
-                } finally {
-                  setTimeout(() => setIsLoggingIn(false), 1000);
-                }
+                await login();
+                setTimeout(() => setIsLoggingIn(false), 1000);
               }}
               className="w-full"
               disabled={!ready || isLoggingIn}
@@ -232,6 +221,10 @@ function CliLoginContent() {
   return null;
 }
 
+/**
+ * CLI login page for authenticating command-line tool users.
+ * Handles Privy authentication and generates API keys for CLI access.
+ */
 export default function CliLoginPage() {
   return (
     <Suspense

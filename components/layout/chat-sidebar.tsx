@@ -1,6 +1,11 @@
 /**
- * Chat Sidebar Component
- * Special sidebar for the /chat page showing rooms/conversations
+ * Chat sidebar component for the /chat page displaying rooms and conversations.
+ * Supports room creation, deletion, editing, and navigation.
+ *
+ * @param props - Chat sidebar configuration
+ * @param props.className - Additional CSS classes
+ * @param props.isOpen - Whether sidebar is open (mobile)
+ * @param props.onToggle - Callback to toggle sidebar visibility
  */
 
 "use client";
@@ -113,24 +118,19 @@ export function ChatSidebar({
     if (operationState.isCreatingRoom) return; // Prevent double-clicking
 
     updateOperation({ isCreatingRoom: true });
-    try {
-      // Create room with currently selected character
-      const newRoomId = await createRoom(selectedCharacterId);
-      if (newRoomId) {
-        setRoomId(newRoomId);
-        // Update URL with new room ID and current character
-        const params = new URLSearchParams();
-        params.set("roomId", newRoomId);
-        if (selectedCharacterId) {
-          params.set("characterId", selectedCharacterId);
-        }
-        router.push(`/dashboard/chat?${params.toString()}`);
+    // Create room with currently selected character
+    const newRoomId = await createRoom(selectedCharacterId);
+    if (newRoomId) {
+      setRoomId(newRoomId);
+      // Update URL with new room ID and current character
+      const params = new URLSearchParams();
+      params.set("roomId", newRoomId);
+      if (selectedCharacterId) {
+        params.set("characterId", selectedCharacterId);
       }
-    } catch (error) {
-      console.error("Error creating room:", error);
-    } finally {
-      updateOperation({ isCreatingRoom: false });
+      router.push(`/dashboard/chat?${params.toString()}`);
     }
+    updateOperation({ isCreatingRoom: false });
   };
 
   const handleSelectRoom = (selectedRoomId: string) => {

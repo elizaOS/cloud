@@ -29,30 +29,23 @@ interface PageProps {
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
-  try {
-    const user = await requireAuthWithOrg();
-    const { id } = await params;
-    const container = await getContainer(id, user.organization_id);
+  const user = await requireAuthWithOrg();
+  const { id } = await params;
+  const container = await getContainer(id, user.organization_id);
 
-    if (!container) {
-      return {
-        title: "Container Not Found",
-        robots: { index: false, follow: false },
-      };
-    }
-
-    return generateContainerMetadata(
-      id,
-      container.name,
-      container.description,
-      null,
-    );
-  } catch (error) {
+  if (!container) {
     return {
-      title: "Container Details",
+      title: "Container Not Found",
       robots: { index: false, follow: false },
     };
   }
+
+  return generateContainerMetadata(
+    id,
+    container.name,
+    container.description,
+    null,
+  );
 }
 
 export default async function ContainerDetailsPage({ params }: PageProps) {

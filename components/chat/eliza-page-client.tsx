@@ -1,3 +1,14 @@
+/**
+ * Eliza page client component for the main chat interface.
+ * Initializes chat store, handles anonymous sessions, and displays chat interface with signup prompts.
+ *
+ * @param props - Eliza page client configuration
+ * @param props.initialCharacters - Initial list of characters
+ * @param props.isAuthenticated - Whether user is authenticated
+ * @param props.initialRoomId - Optional initial room ID
+ * @param props.initialCharacterId - Optional initial character ID
+ */
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -81,10 +92,6 @@ export function ElizaPageClient({
           }
           setIsLoadingSession(false);
         })
-        .catch((error) => {
-          console.error("Failed to create anonymous session:", error);
-          setIsLoadingSession(false);
-        });
     }
   }, [isAuthenticated, anonymousSession]);
 

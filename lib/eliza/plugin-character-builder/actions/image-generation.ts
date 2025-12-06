@@ -54,8 +54,7 @@ export const generateImageAction = {
     callback: HandlerCallback,
     responses?: Memory[],
   ): Promise<ActionResult> => {
-    try {
-      const allProviders =
+    const allProviders =
         responses?.flatMap((res) => res.content?.providers ?? []) ?? [];
 
       state = await runtime.composeState(message, [
@@ -176,28 +175,6 @@ export const generateImageAction = {
         },
         success: true,
       };
-    } catch (error) {
-      const err = error as Error;
-      logger.error(
-        {
-          message: err.message,
-          stack: err.stack,
-        },
-        "generateImageAction: Exception during image generation",
-      );
-      return {
-        text: "Image generation failed",
-        values: {
-          success: false,
-          error: "IMAGE_GENERATION_FAILED",
-        },
-        data: {
-          actionName: "GENERATE_IMAGE",
-          errorMessage: err.message,
-        },
-        success: false,
-      };
-    }
   },
   examples: [
     [

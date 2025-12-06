@@ -1,3 +1,8 @@
+/**
+ * Open in chat component providing dropdown menu to open content in external chat providers.
+ * Supports GitHub and Scira providers with URL generation.
+ */
+
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,

@@ -1,3 +1,16 @@
+/**
+ * Members list component displaying organization members with role management.
+ * Supports role updates and member removal with permission checks.
+ *
+ * @param props - Members list configuration
+ * @param props.members - Array of member objects
+ * @param props.currentUserId - Current user's ID
+ * @param props.currentUserRole - Current user's role
+ * @param props.isOwner - Whether current user is organization owner
+ * @param props.onUpdateRole - Callback when member role is updated
+ * @param props.onRemove - Callback when member is removed
+ */
+
 "use client";
 
 import { Card } from "@/components/ui/card";

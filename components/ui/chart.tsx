@@ -1,3 +1,8 @@
+/**
+ * Chart components wrapping Recharts with theme support.
+ * Provides chart container, legend, tooltip, and axis components with light/dark theme support.
+ */
+
 "use client";
 
 import * as React from "react";

@@ -1,3 +1,15 @@
+/**
+ * Character details modal component displaying full character information.
+ * Shows bio, stats, topics, and provides actions for chatting and cloning.
+ *
+ * @param props - Character details modal configuration
+ * @param props.character - Character data to display
+ * @param props.isOpen - Whether modal is open
+ * @param props.onClose - Callback when modal closes
+ * @param props.onStartChat - Callback when chat button is clicked
+ * @param props.onClone - Callback when clone button is clicked
+ */
+
 "use client";
 
 import Image from "next/image";

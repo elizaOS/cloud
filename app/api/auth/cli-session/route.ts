@@ -3,7 +3,10 @@ import { cliAuthSessionsService } from "@/lib/services";
 
 /**
  * POST /api/auth/cli-session
- * Create a new CLI authentication session
+ * Creates a new CLI authentication session for command-line tool authentication.
+ *
+ * @param request - Request body with sessionId.
+ * @returns Created session details with status and expiration.
  */
 export async function POST(request: NextRequest) {
   try {

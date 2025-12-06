@@ -126,31 +126,23 @@ export class UserContextService {
       return null;
     }
 
-    try {
-      const apiKeys = await apiKeysService.listByOrganization(orgId);
+    const apiKeys = await apiKeysService.listByOrganization(orgId);
 
-      // Find user's first active API key
-      const userKey = apiKeys.find(
-        (key) => key.user_id === userId && key.is_active,
-      );
+    // Find user's first active API key
+    const userKey = apiKeys.find(
+      (key) => key.user_id === userId && key.is_active,
+    );
 
-      if (!userKey) {
-        logger.warn(`[UserContext] No API key found for user ${userId}`);
-        return null;
-      }
-
-      // Return the full key from the database
-      logger.info(
-        `[UserContext] Retrieved key for user ${userId}: ${userKey.key_prefix}***`,
-      );
-      return userKey.key;
-    } catch (error) {
-      logger.error(
-        `[UserContext] Error getting API key for user ${userId}:`,
-        error,
-      );
+    if (!userKey) {
+      logger.warn(`[UserContext] No API key found for user ${userId}`);
       return null;
     }
+
+    // Return the full key from the database
+    logger.info(
+      `[UserContext] Retrieved key for user ${userId}: ${userKey.key_prefix}***`,
+    );
+    return userKey.key;
   }
 
   /**

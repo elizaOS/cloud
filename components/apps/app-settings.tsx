@@ -1,3 +1,11 @@
+/**
+ * App settings component for editing app configuration.
+ * Supports updating app details, allowed origins, and app deletion.
+ *
+ * @param props - App settings configuration
+ * @param props.app - App data to edit
+ */
+
 "use client";
 
 import { useState } from "react";

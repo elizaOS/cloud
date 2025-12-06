@@ -1,3 +1,13 @@
+/**
+ * Create app dialog component for creating new applications.
+ * Supports app name, description, URLs, and allowed origins configuration.
+ * Displays created app details with API key after successful creation.
+ *
+ * @param props - Create app dialog configuration
+ * @param props.open - Whether dialog is open
+ * @param props.onOpenChange - Callback when dialog open state changes
+ */
+
 "use client";
 
 import { useState } from "react";

@@ -11,25 +11,20 @@ interface PageProps {
 }
 
 async function getPublicCharacter(id: string) {
-  try {
-    // Only return cloud-created public characters - miniapp agents should never appear in marketplace
-    const [character] = await db
-      .select()
-      .from(userCharacters)
-      .where(
-        and(
-          eq(userCharacters.id, id),
-          eq(userCharacters.is_public, true),
-          eq(userCharacters.source, "cloud")
-        )
+  // Only return cloud-created public characters - miniapp agents should never appear in marketplace
+  const [character] = await db
+    .select()
+    .from(userCharacters)
+    .where(
+      and(
+        eq(userCharacters.id, id),
+        eq(userCharacters.is_public, true),
+        eq(userCharacters.source, "cloud")
       )
-      .limit(1);
+    )
+    .limit(1);
 
-    return character;
-  } catch (error) {
-    console.error("Error fetching public character:", error);
-    return null;
-  }
+  return character;
 }
 
 export async function generateMetadata({
@@ -56,6 +51,13 @@ export async function generateMetadata({
   );
 }
 
+/**
+ * Public character detail page for marketplace characters.
+ * Displays character information and allows users to start chatting or clone the character.
+ *
+ * @param params - Route parameters containing the character ID.
+ * @returns Character detail page component.
+ */
 export default async function CharacterPublicPage({ params }: PageProps) {
   const { id } = await params;
   const character = await getPublicCharacter(id);

@@ -10,6 +10,13 @@ import { organizationsService } from "@/lib/services";
 
 export const maxDuration = 60;
 
+/**
+ * GET /api/analytics/projections
+ * Generates usage and cost projections based on historical data.
+ *
+ * @param req - Request with optional timeRange and periods query parameters.
+ * @returns Historical data, projections, and alerts based on credit balance.
+ */
 export async function GET(req: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);

@@ -22,8 +22,14 @@ import type { NextRequest } from "next/server";
 
 export const maxDuration = 60;
 
-// Using shared OpenAI embeddings types
-
+/**
+ * POST /api/v1/embeddings
+ * OpenAI-compatible embeddings endpoint.
+ * Generates vector embeddings for text input with credit deduction.
+ *
+ * @param req - OpenAI-format request with model and input (string or array).
+ * @returns Embeddings response with vector arrays.
+ */
 async function handlePOST(req: NextRequest) {
   try {
     const { user, apiKey, session_token } =

@@ -41,19 +41,7 @@ const McpSettingsSchema = z.object({
   maxRetries: z.number().int().min(0).max(10).optional(),
 });
 
-/**
- * MCP Server Configuration
- */
-interface McpServerConfig {
-  type: "http" | "sse" | "streamable-http";
-  url: string;
-  timeout?: number;
-}
-
-interface McpSettings {
-  servers: Record<string, McpServerConfig>;
-  maxRetries?: number;
-}
+import type { McpServerConfig, McpSettings } from "@/lib/types/mcp";
 
 /**
  * SECURITY: Safe JSON parsing with depth and size limits

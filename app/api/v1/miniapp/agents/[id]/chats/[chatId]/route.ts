@@ -1,10 +1,3 @@
-/**
- * /api/v1/miniapp/agents/[id]/chats/[chatId]
- * 
- * GET    - Get chat history (messages)
- * DELETE - Delete a chat
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { charactersService } from "@/lib/services";
@@ -21,13 +14,27 @@ import { roomTable, memoryTable, participantTable } from "@/db/schemas/eliza";
 import { eq, and, asc } from "drizzle-orm";
 import type { UUID } from "@elizaos/core";
 
+/**
+ * OPTIONS /api/v1/miniapp/agents/[id]/chats/[chatId]
+ * CORS preflight handler for miniapp chat management endpoint.
+ *
+ * @param request - The Next.js request object.
+ * @returns Preflight response with CORS headers.
+ */
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
   return createPreflightResponse(origin, ["GET", "DELETE", "OPTIONS"]);
 }
 
 /**
- * Verify user has access to the chat
+ * Verifies that a user has access to a specific chat.
+ * Checks agent ownership, room existence, and user participation/creation.
+ *
+ * @param chatId - The chat/room ID.
+ * @param agentId - The agent ID.
+ * @param userId - The user ID.
+ * @param organizationId - The organization ID.
+ * @returns Access verification result with error details if denied.
  */
 async function verifyAccess(
   chatId: string,
@@ -80,7 +87,17 @@ async function verifyAccess(
 
 /**
  * GET /api/v1/miniapp/agents/[id]/chats/[chatId]
- * Get chat history (messages)
+ * Gets chat history (messages) for a specific chat.
+ * Supports pagination via limit and before cursor parameters.
+ * Includes message attachments if present.
+ *
+ * Query Parameters:
+ * - `limit`: Maximum number of messages to return (default: 50, max: 100).
+ * - `before`: Cursor for pagination (message ID).
+ *
+ * @param request - Request with optional pagination query parameters.
+ * @param params - Route parameters containing the agent ID and chat ID.
+ * @returns Chat messages with role, content, attachments, and metadata.
  */
 export async function GET(
   request: NextRequest,
@@ -185,7 +202,12 @@ export async function GET(
 
 /**
  * DELETE /api/v1/miniapp/agents/[id]/chats/[chatId]
- * Delete a chat
+ * Deletes a chat and all associated messages and participants.
+ * Requires ownership verification. Rate limited with stricter limits for write operations.
+ *
+ * @param request - The Next.js request object.
+ * @param params - Route parameters containing the agent ID and chat ID.
+ * @returns Success confirmation.
  */
 export async function DELETE(
   request: NextRequest,

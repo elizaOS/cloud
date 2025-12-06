@@ -1,3 +1,11 @@
+/**
+ * My agents client component displaying user's characters with filtering and sorting.
+ * Supports search, view mode switching (grid/list), and character management.
+ *
+ * @param props - My agents client configuration
+ * @param props.initialCharacters - Initial list of characters to display
+ */
+
 "use client";
 
 import { useState, useCallback } from "react";

@@ -1,3 +1,12 @@
+/**
+ * Account settings tab component displaying account information and statistics.
+ * Shows user ID, account stats, and provides logout functionality.
+ *
+ * @param props - Account tab configuration
+ * @param props.user - User data with organization information
+ * @param props.onTabChange - Callback to switch to other settings tabs
+ */
+
 "use client";
 
 import { useState, useEffect } from "react";

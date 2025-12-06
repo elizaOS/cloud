@@ -107,8 +107,7 @@ export const buildChatAction = {
     _options: Record<string, unknown>,
     callback: HandlerCallback,
   ): Promise<void> => {
-    try {
-      logger.info("[BUILD_CHAT] 💬 Generating conversational response");
+    logger.info("[BUILD_CHAT] 💬 Generating conversational response");
 
       state = await runtime.composeState(message, [
         "SUMMARIZED_CONTEXT",
@@ -161,20 +160,6 @@ export const buildChatAction = {
           thought: parsed.thought,
         },
       });
-    } catch (error) {
-      const err = error as Error;
-      logger.error(
-        {
-          message: err.message,
-          stack: err.stack,
-        },
-        "[BUILD_CHAT] Exception during chat response",
-      );
-      await callback({
-        text: `Exception during chat response: ${err.message}`,
-        error: true,
-      });
-    }
   },
   examples: [
     [

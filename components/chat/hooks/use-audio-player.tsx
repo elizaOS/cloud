@@ -114,10 +114,7 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
 
   const resumeAudio = useCallback(() => {
     if (audioRef.current?.paused) {
-      audioRef.current.play().catch(() => {
-        setError("Failed to resume audio");
-        setIsPlaying(false);
-      });
+      await audioRef.current.play();
       setIsPlaying(true);
     }
   }, []);

@@ -1,3 +1,9 @@
+/**
+ * Plugins tab component for managing MCP (Model Context Protocol) servers.
+ * Displays available plugins, allows enabling/disabling, and shows plugin details.
+ * Supports search, filtering, and plugin configuration.
+ */
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -26,14 +32,7 @@ import { toast } from "sonner";
 import type { ElizaCharacter } from "@/lib/types";
 
 // Types for MCP configuration
-interface McpServerConfig {
-  type: "http" | "sse" | "streamable-http";
-  url: string;
-}
-
-interface McpSettings {
-  servers: Record<string, McpServerConfig>;
-}
+import type { McpServerConfig, McpSettings } from "@/lib/types/mcp";
 
 interface McpRegistryEntry {
   id: string;
@@ -126,19 +125,13 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
 
   const fetchRegistry = async () => {
     setIsLoading(true);
-    try {
-      const response = await fetch("/api/mcp/registry");
-      if (!response.ok) throw new Error("Failed to fetch registry");
+    const response = await fetch("/api/mcp/registry");
+    if (!response.ok) throw new Error("Failed to fetch registry");
 
-      const data = await response.json();
-      setRegistry(data.registry || []);
-      setCategories(data.categories || []);
-    } catch (error) {
-      console.error("Error fetching registry:", error);
-      toast.error("Failed to load MCP registry");
-    } finally {
-      setIsLoading(false);
-    }
+    const data = await response.json();
+    setRegistry(data.registry || []);
+    setCategories(data.categories || []);
+    setIsLoading(false);
   };
 
   // Check if an MCP is enabled

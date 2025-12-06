@@ -1,3 +1,11 @@
+/**
+ * Video preview component displaying generated video with playback controls.
+ * Supports video playback, download, URL copying, and moderation flag display.
+ *
+ * @param props - Video preview configuration
+ * @param props.video - Generated video data to display
+ */
+
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";

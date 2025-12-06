@@ -17,8 +17,7 @@ export const currentRunContextProvider: Provider = {
   name: "CURRENT_RUN_CONTEXT",
   description: "Action results and context for the current agent run",
   get: async (runtime: IAgentRuntime, message: Memory, _state: State) => {
-    try {
-      const runId = runtime.getCurrentRunId();
+    const runId = runtime.getCurrentRunId();
       const actionsResults = runtime.getActionResults(message.id as UUID);
 
       // If no run or no action results, return empty
@@ -88,24 +87,5 @@ export const currentRunContextProvider: Provider = {
         },
         text: currentRunActionResults,
       };
-    } catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error);
-      runtime.logger?.error(
-        "[Current Run Context Provider] Failed to format action results:",
-        errMsg,
-      );
-
-      return {
-        values: {
-          currentRunActionResults: "",
-        },
-        data: {
-          error: errMsg,
-          actionCount: 0,
-          actions: [],
-        },
-        text: "",
-      };
-    }
   },
 };

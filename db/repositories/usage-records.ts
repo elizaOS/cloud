@@ -10,8 +10,14 @@ import { organizations } from "../schemas/organizations";
 
 export type { UsageRecord, NewUsageRecord };
 
+/**
+ * Time granularity for usage time series queries.
+ */
 export type TimeGranularity = "hour" | "day" | "week" | "month";
 
+/**
+ * Aggregated usage statistics.
+ */
 export interface UsageStats {
   totalRequests: number;
   totalInputTokens: number;
@@ -20,6 +26,9 @@ export interface UsageStats {
   successRate: number;
 }
 
+/**
+ * Single data point in a usage time series.
+ */
 export interface TimeSeriesDataPoint {
   timestamp: Date;
   totalRequests: number;
@@ -29,6 +38,9 @@ export interface TimeSeriesDataPoint {
   successRate: number;
 }
 
+/**
+ * Usage breakdown by user.
+ */
 export interface UserUsageBreakdown {
   userId: string;
   userName: string | null;
@@ -40,6 +52,9 @@ export interface UserUsageBreakdown {
   lastActive: Date | null;
 }
 
+/**
+ * Cost trending analysis data.
+ */
 export interface CostTrending {
   currentDailyBurn: number;
   previousDailyBurn: number;
@@ -48,6 +63,9 @@ export interface CostTrending {
   daysUntilBalanceZero: number | null;
 }
 
+/**
+ * Usage breakdown by provider.
+ */
 export interface ProviderBreakdown {
   provider: string;
   totalRequests: number;
@@ -57,6 +75,9 @@ export interface ProviderBreakdown {
   percentage: number;
 }
 
+/**
+ * Usage breakdown by model.
+ */
 export interface ModelBreakdown {
   model: string;
   provider: string;
@@ -67,6 +88,9 @@ export interface ModelBreakdown {
   successRate: number;
 }
 
+/**
+ * Trend comparison data between two periods.
+ */
 export interface TrendData {
   requestsChange: number;
   costChange: number;
@@ -75,6 +99,9 @@ export interface TrendData {
   period: string;
 }
 
+/**
+ * Cost breakdown item for a specific dimension (model, provider, user, etc.).
+ */
 export interface CostBreakdownItem {
   dimension: string;
   value: string;
@@ -85,13 +112,22 @@ export interface CostBreakdownItem {
   totalCount: number;
 }
 
+/**
+ * Repository for usage record database operations and analytics.
+ */
 export class UsageRecordsRepository {
+  /**
+   * Finds a usage record by ID.
+   */
   async findById(id: string): Promise<UsageRecord | undefined> {
     return await db.query.usageRecords.findFirst({
       where: eq(usageRecords.id, id),
     });
   }
 
+  /**
+   * Lists usage records for an organization, ordered by creation date.
+   */
   async listByOrganization(
     organizationId: string,
     limit?: number,
@@ -103,6 +139,9 @@ export class UsageRecordsRepository {
     });
   }
 
+  /**
+   * Lists usage records for an organization within a date range.
+   */
   async listByOrganizationAndDateRange(
     organizationId: string,
     startDate: Date,
@@ -118,6 +157,9 @@ export class UsageRecordsRepository {
     });
   }
 
+  /**
+   * Gets aggregated usage statistics for an organization within an optional date range.
+   */
   async getStatsByOrganization(
     organizationId: string,
     startDate?: Date,
@@ -158,11 +200,17 @@ export class UsageRecordsRepository {
     };
   }
 
+  /**
+   * Creates a new usage record.
+   */
   async create(data: NewUsageRecord): Promise<UsageRecord> {
     const [record] = await db.insert(usageRecords).values(data).returning();
     return record;
   }
 
+  /**
+   * Gets usage breakdown by model for an organization.
+   */
   async getByModel(
     organizationId: string,
     startDate?: Date,
@@ -204,6 +252,9 @@ export class UsageRecordsRepository {
     }));
   }
 
+  /**
+   * Gets usage time series data for an organization with specified granularity.
+   */
   async getUsageTimeSeries(
     organizationId: string,
     options: {
@@ -255,6 +306,9 @@ export class UsageRecordsRepository {
     }));
   }
 
+  /**
+   * Gets usage breakdown by user for an organization.
+   */
   async getUsageByUser(
     organizationId: string,
     options?: {
@@ -312,6 +366,9 @@ export class UsageRecordsRepository {
       }));
   }
 
+  /**
+   * Gets cost trending analysis comparing current and previous day burn rates.
+   */
   async getCostTrending(organizationId: string): Promise<CostTrending> {
     const now = new Date();
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -349,6 +406,9 @@ export class UsageRecordsRepository {
     };
   }
 
+  /**
+   * Gets usage breakdown by provider for an organization.
+   */
   async getProviderBreakdown(
     organizationId: string,
     options?: { startDate?: Date; endDate?: Date },
@@ -401,6 +461,9 @@ export class UsageRecordsRepository {
     }));
   }
 
+  /**
+   * Gets usage breakdown by model for an organization.
+   */
   async getModelBreakdown(
     organizationId: string,
     options?: { startDate?: Date; endDate?: Date; limit?: number },
@@ -453,6 +516,9 @@ export class UsageRecordsRepository {
     }));
   }
 
+  /**
+   * Gets trend comparison data between two time periods.
+   */
   async getTrendData(
     organizationId: string,
     currentPeriod: { startDate: Date; endDate: Date },
@@ -502,6 +568,9 @@ export class UsageRecordsRepository {
     };
   }
 
+  /**
+   * Gets cost breakdown by dimension (model, provider, user, or API key).
+   */
   async getCostBreakdown(
     organizationId: string,
     dimension: "model" | "provider" | "user" | "apiKey",
@@ -577,5 +646,7 @@ export class UsageRecordsRepository {
   }
 }
 
-// Export singleton instance
+/**
+ * Singleton instance of UsageRecordsRepository.
+ */
 export const usageRecordsRepository = new UsageRecordsRepository();

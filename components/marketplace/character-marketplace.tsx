@@ -72,33 +72,28 @@ export function MyAgentsView({
 
   const handleStartChat = useCallback(
     async (character: ExtendedCharacter) => {
-      try {
-        // Track interaction
-        await fetch(
-          `/api/my-agents/characters/${character.id}/track-interaction`,
-          { method: "POST" },
-        );
+      // Track interaction (fire-and-forget)
+      fetch(
+        `/api/my-agents/characters/${character.id}/track-interaction`,
+        { method: "POST" },
+      ).catch(() => {
+        // Ignore tracking errors
+      });
 
-        onSelectCharacter(character);
-        // Note: Toast is shown in my-agents.tsx to avoid duplicate
-      } catch (error) {
-        console.error("Error tracking interaction:", error);
-        onSelectCharacter(character);
-      }
+      onSelectCharacter(character);
+      // Note: Toast is shown in my-agents.tsx to avoid duplicate
     },
     [onSelectCharacter],
   );
 
   const handleViewDetails = useCallback(
     async (character: ExtendedCharacter) => {
-      try {
-        // Track view
-        await fetch(`/api/my-agents/characters/${character.id}/track-view`, {
-          method: "POST",
-        });
-      } catch (error) {
-        console.error("Error tracking view:", error);
-      }
+      // Track view (fire-and-forget)
+      fetch(`/api/my-agents/characters/${character.id}/track-view`, {
+        method: "POST",
+      }).catch(() => {
+        // Ignore tracking errors
+      });
 
       setSelectedCharacter(character);
     },
@@ -107,16 +102,9 @@ export function MyAgentsView({
 
   const handleClone = useCallback(
     async (character: ExtendedCharacter) => {
-      try {
-        await onCloneCharacter(character);
-        toast.success(`Cloned ${character.name} to your library`);
-        refetch();
-      } catch (error) {
-        console.error("Error cloning character:", error);
-        toast.error(
-          error instanceof Error ? error.message : "Failed to clone character",
-        );
-      }
+      await onCloneCharacter(character);
+      toast.success(`Cloned ${character.name} to your library`);
+      refetch();
     },
     [onCloneCharacter, refetch],
   );

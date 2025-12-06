@@ -91,12 +91,7 @@ class AgentsService {
    * Check if agent exists
    */
   async exists(agentId: string): Promise<boolean> {
-    try {
-      return await agentsRepository.exists(agentId);
-    } catch (error) {
-      logger.error(`[Agents Service] Error checking agent existence:`, error);
-      return false;
-    }
+    return await agentsRepository.exists(agentId);
   }
 
   /**

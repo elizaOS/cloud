@@ -59,47 +59,39 @@ export function KnowledgePageClient({
   };
 
   const fetchDocuments = useCallback(async () => {
-    try {
-      updatePageState({ loading: true, error: null });
+    updatePageState({ loading: true, error: null });
 
-      // Include characterId in query params
-      const url = new URL("/api/v1/knowledge", window.location.origin);
-      if (pageState.selectedCharacterId) {
-        url.searchParams.set("characterId", pageState.selectedCharacterId);
-      }
+    // Include characterId in query params
+    const url = new URL("/api/v1/knowledge", window.location.origin);
+    if (pageState.selectedCharacterId) {
+      url.searchParams.set("characterId", pageState.selectedCharacterId);
+    }
 
-      const response = await fetch(url.toString());
+    const response = await fetch(url.toString());
 
-      if (response.status === 503) {
-        const data = await response.json();
-        updatePageState({
-          error: data.error || "Knowledge service is not available",
-          serviceAvailable: false,
-          loading: false,
-        });
-        return;
-      }
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(
-          data.details || data.error || "Failed to fetch documents",
-        );
-      }
-
+    if (response.status === 503) {
       const data = await response.json();
       updatePageState({
-        documents: data.documents || [],
-        serviceAvailable: true,
+        error: data.error || "Knowledge service is not available",
+        serviceAvailable: false,
+        loading: false,
       });
-    } catch (err) {
-      updatePageState({
-        error: err instanceof Error ? err.message : "Failed to load documents",
-      });
-      console.error("Error fetching documents:", err);
-    } finally {
-      updatePageState({ loading: false });
+      return;
     }
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(
+        data.details || data.error || "Failed to fetch documents",
+      );
+    }
+
+    const data = await response.json();
+    updatePageState({
+      documents: data.documents || [],
+      serviceAvailable: true,
+      loading: false,
+    });
   }, [pageState.selectedCharacterId]);
 
   useEffect(() => {
@@ -114,30 +106,25 @@ export function KnowledgePageClient({
   };
 
   const handleDelete = async (documentId: string) => {
-    try {
-      // Include characterId in query params
-      const url = new URL(
-        `/api/v1/knowledge/${documentId}`,
-        window.location.origin,
-      );
-      if (pageState.selectedCharacterId) {
-        url.searchParams.set("characterId", pageState.selectedCharacterId);
-      }
-
-      const response = await fetch(url.toString(), {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete document");
-      }
-
-      // Refresh the list
-      fetchDocuments();
-    } catch (err) {
-      console.error("Error deleting document:", err);
-      alert(err instanceof Error ? err.message : "Failed to delete document");
+    // Include characterId in query params
+    const url = new URL(
+      `/api/v1/knowledge/${documentId}`,
+      window.location.origin,
+    );
+    if (pageState.selectedCharacterId) {
+      url.searchParams.set("characterId", pageState.selectedCharacterId);
     }
+
+    const response = await fetch(url.toString(), {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to delete document");
+    }
+
+    // Refresh the list
+    fetchDocuments();
   };
 
   if (!pageState.serviceAvailable && !pageState.loading) {

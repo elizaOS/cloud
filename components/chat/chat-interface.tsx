@@ -84,44 +84,39 @@ export function ChatInterface({
 
     const fetchLatestSessionData = async () => {
       setIsLoadingSessionData(true);
-      try {
-        console.log("[ChatInterface] 🔄 Fetching latest session data from server...");
-        const response = await fetch(`/api/anonymous-session?token=${sessionTokenFromUrl}`);
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.session) {
-            const serverCount = data.session.message_count;
-            
-            // Use functional update to compare against current state value
-            // This avoids stale closure issues with messageCount
-            setMessageCount((currentCount) => {
-              console.log("[ChatInterface] ✅ Server session data:", {
-                serverCount,
-                currentLocalCount: currentCount,
-                willUpdate: serverCount > currentCount,
-              });
-              
-              // Only update if server has a higher count
-              // This ensures we don't overwrite local increments that haven't synced yet
-              if (serverCount > currentCount) {
-                console.log(
-                  "[ChatInterface] 📊 Updated message count from server:",
-                  serverCount
-                );
-                return serverCount;
-              }
-              return currentCount;
+      console.log("[ChatInterface] 🔄 Fetching latest session data from server...");
+      const response = await fetch(`/api/anonymous-session?token=${sessionTokenFromUrl}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.session) {
+          const serverCount = data.session.message_count;
+          
+          // Use functional update to compare against current state value
+          // This avoids stale closure issues with messageCount
+          setMessageCount((currentCount) => {
+            console.log("[ChatInterface] ✅ Server session data:", {
+              serverCount,
+              currentLocalCount: currentCount,
+              willUpdate: serverCount > currentCount,
             });
-          }
-        } else {
-          console.warn("[ChatInterface] ⚠️ Failed to fetch session data:", response.status);
+            
+            // Only update if server has a higher count
+            // This ensures we don't overwrite local increments that haven't synced yet
+            if (serverCount > currentCount) {
+              console.log(
+                "[ChatInterface] 📊 Updated message count from server:",
+                serverCount
+              );
+              return serverCount;
+            }
+            return currentCount;
+          });
         }
-      } catch (error) {
-        console.error("[ChatInterface] ❌ Error fetching session data:", error);
-      } finally {
-        setIsLoadingSessionData(false);
+      } else {
+        console.warn("[ChatInterface] ⚠️ Failed to fetch session data:", response.status);
       }
+      setIsLoadingSessionData(false);
     };
 
     // Fetch immediately on mount
@@ -136,21 +131,17 @@ export function ChatInterface({
     if (isAnonymous && sessionTokenFromUrl) {
       console.log("[ChatInterface] 📊 Message sent, fetching latest count for token:", sessionTokenFromUrl.slice(0, 8) + "...");
 
-      try {
-        const response = await fetch(`/api/anonymous-session?token=${sessionTokenFromUrl}`);
+      const response = await fetch(`/api/anonymous-session?token=${sessionTokenFromUrl}`);
 
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.session) {
-            const serverCount = data.session.message_count;
-            console.log("[ChatInterface] ✅ Fetched latest count from server:", serverCount);
-            setMessageCount(serverCount);
-          }
-        } else {
-          console.warn("[ChatInterface] ⚠️ Failed to fetch session data:", response.status);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.session) {
+          const serverCount = data.session.message_count;
+          console.log("[ChatInterface] ✅ Fetched latest count from server:", serverCount);
+          setMessageCount(serverCount);
         }
-      } catch (error) {
-        console.error("[ChatInterface] ❌ Error fetching session data:", error);
+      } else {
+        console.warn("[ChatInterface] ⚠️ Failed to fetch session data:", response.status);
       }
     }
   }, [isAnonymous, sessionTokenFromUrl]);
@@ -231,33 +222,26 @@ export function ChatInterface({
       const currentEntityId = useChatStore.getState().entityId;
       console.log("[ChatInterface] 🔄 Initializing room for character:", character.id, "entityId:", currentEntityId);
       
-      try {
-        // Load rooms (this uses internal deduplication)
-        await loadRooms(true);
-        
-        // Get the current rooms from store
-        const currentRooms = useChatStore.getState().rooms;
-        console.log("[ChatInterface] Loaded rooms:", currentRooms.length, "rooms:", currentRooms.map(r => ({ id: r.id, characterId: r.characterId })));
-        
-        // Find an existing room for this character
-        const existingRoom = currentRooms.find(room => room.characterId === character.id);
-        
-        if (existingRoom) {
-          console.log("[ChatInterface] ✅ Found existing room:", existingRoom.id);
-          setRoomId(existingRoom.id);
-        } else {
-          console.log("[ChatInterface] No existing room found for character:", character.id);
-        }
-        
-        // Mark as initialized so we don't try again
-        roomInitializedRef.current = true;
-      } catch (error) {
-        console.error("[ChatInterface] Error initializing room:", error);
-        // Still mark as initialized to prevent retry loops
-        roomInitializedRef.current = true;
-      } finally {
-        roomInitializingRef.current = false;
+      // Load rooms (this uses internal deduplication)
+      await loadRooms(true);
+      
+      // Get the current rooms from store
+      const currentRooms = useChatStore.getState().rooms;
+      console.log("[ChatInterface] Loaded rooms:", currentRooms.length, "rooms:", currentRooms.map(r => ({ id: r.id, characterId: r.characterId })));
+      
+      // Find an existing room for this character
+      const existingRoom = currentRooms.find(room => room.characterId === character.id);
+      
+      if (existingRoom) {
+        console.log("[ChatInterface] ✅ Found existing room:", existingRoom.id);
+        setRoomId(existingRoom.id);
+      } else {
+        console.log("[ChatInterface] No existing room found for character:", character.id);
       }
+      
+      // Mark as initialized so we don't try again
+      roomInitializedRef.current = true;
+      roomInitializingRef.current = false;
     };
     
     initializeRoom();
@@ -274,12 +258,8 @@ export function ChatInterface({
       console.log("[ChatInterface] Setting anonymous session cookie from URL:", sessionTokenFromUrl.slice(0, 8) + "...");
 
       // Store in localStorage as backup (httpOnly cookies can't be read by JS)
-      try {
-        localStorage.setItem("eliza-anon-session-token", sessionTokenFromUrl);
-        console.log("[ChatInterface] ✅ Session token stored in localStorage");
-      } catch (e) {
-        console.warn("[ChatInterface] Failed to store session in localStorage:", e);
-      }
+      localStorage.setItem("eliza-anon-session-token", sessionTokenFromUrl);
+      console.log("[ChatInterface] ✅ Session token stored in localStorage");
 
       fetch("/api/set-anonymous-session", {
         method: "POST",
@@ -292,19 +272,13 @@ export function ChatInterface({
               "[ChatInterface] ✅ Anonymous session cookie set successfully",
             );
           } else {
-            const errorData = await res.json().catch(() => ({}));
+            const errorData = await res.json();
             console.error(
               "[ChatInterface] ❌ Failed to set session cookie:",
               res.status,
               errorData,
             );
           }
-        })
-        .catch((err) => {
-          console.error(
-            "[ChatInterface] ❌ Error setting session cookie:",
-            err,
-          );
         });
     }
   }, [sessionTokenFromUrl, user]);
@@ -326,12 +300,10 @@ export function ChatInterface({
   };
 
   const handleSignup = async () => {
-    try {
-      // Open Privy login modal
-      await login();
-      toast.success("Welcome! Your chat is now unlimited.");
-      // Page will refresh after successful auth via Privy
-    } catch (error) {
+    // Open Privy login modal
+    await login();
+    toast.success("Welcome! Your chat is now unlimited.");
+    // Page will refresh after successful auth via Privy
       console.error("[ChatInterface] Signup error:", error);
       toast.error("Failed to open signup. Please try again.");
     }

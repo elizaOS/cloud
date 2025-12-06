@@ -1,3 +1,11 @@
+/**
+ * Members tab component for managing organization members and invites.
+ * Displays current members, pending invites, and provides invite functionality.
+ *
+ * @param props - Members tab configuration
+ * @param props.user - User data with organization information
+ */
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -44,41 +52,29 @@ export function MembersTab({ user }: MembersTabProps) {
   const [isLoadingInvites, setIsLoadingInvites] = useState(true);
 
   const fetchMembers = async () => {
-    try {
-      setIsLoadingMembers(true);
-      const response = await fetch("/api/organizations/members");
-      const data = await response.json();
+    setIsLoadingMembers(true);
+    const response = await fetch("/api/organizations/members");
+    const data = await response.json();
 
-      if (data.success) {
-        setMembers(data.data);
-      } else {
-        toast.error("Failed to load members");
-      }
-    } catch (error) {
-      console.error("Error fetching members:", error);
+    if (data.success) {
+      setMembers(data.data);
+    } else {
       toast.error("Failed to load members");
-    } finally {
-      setIsLoadingMembers(false);
     }
+    setIsLoadingMembers(false);
   };
 
   const fetchInvites = async () => {
-    try {
-      setIsLoadingInvites(true);
-      const response = await fetch("/api/organizations/invites");
-      const data = await response.json();
+    setIsLoadingInvites(true);
+    const response = await fetch("/api/organizations/invites");
+    const data = await response.json();
 
-      if (data.success) {
-        setInvites(data.data);
-      } else {
-        toast.error("Failed to load invites");
-      }
-    } catch (error) {
-      console.error("Error fetching invites:", error);
+    if (data.success) {
+      setInvites(data.data);
+    } else {
       toast.error("Failed to load invites");
-    } finally {
-      setIsLoadingInvites(false);
     }
+    setIsLoadingInvites(false);
   };
 
   useEffect(() => {
@@ -93,44 +89,34 @@ export function MembersTab({ user }: MembersTabProps) {
   };
 
   const handleRevokeInvite = async (inviteId: string) => {
-    try {
-      const response = await fetch(`/api/organizations/invites/${inviteId}`, {
-        method: "DELETE",
-      });
+    const response = await fetch(`/api/organizations/invites/${inviteId}`, {
+      method: "DELETE",
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (data.success) {
-        toast.success("Invitation revoked");
-        fetchInvites();
-      } else {
-        toast.error(data.error || "Failed to revoke invitation");
-      }
-    } catch (error) {
-      console.error("Error revoking invite:", error);
-      toast.error("Failed to revoke invitation");
+    if (data.success) {
+      toast.success("Invitation revoked");
+      fetchInvites();
+    } else {
+      toast.error(data.error || "Failed to revoke invitation");
     }
   };
 
   const handleUpdateMemberRole = async (userId: string, newRole: string) => {
-    try {
-      const response = await fetch(`/api/organizations/members/${userId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: newRole }),
-      });
+    const response = await fetch(`/api/organizations/members/${userId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: newRole }),
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (data.success) {
-        toast.success("Member role updated");
-        fetchMembers();
-      } else {
-        toast.error(data.error || "Failed to update member role");
-      }
-    } catch (error) {
-      console.error("Error updating member role:", error);
-      toast.error("Failed to update member role");
+    if (data.success) {
+      toast.success("Member role updated");
+      fetchMembers();
+    } else {
+      toast.error(data.error || "Failed to update member role");
     }
   };
 
@@ -139,22 +125,17 @@ export function MembersTab({ user }: MembersTabProps) {
       return;
     }
 
-    try {
-      const response = await fetch(`/api/organizations/members/${userId}`, {
-        method: "DELETE",
-      });
+    const response = await fetch(`/api/organizations/members/${userId}`, {
+      method: "DELETE",
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (data.success) {
-        toast.success("Member removed");
-        fetchMembers();
-      } else {
-        toast.error(data.error || "Failed to remove member");
-      }
-    } catch (error) {
-      console.error("Error removing member:", error);
-      toast.error("Failed to remove member");
+    if (data.success) {
+      toast.success("Member removed");
+      fetchMembers();
+    } else {
+      toast.error(data.error || "Failed to remove member");
     }
   };
 

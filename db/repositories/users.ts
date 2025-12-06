@@ -40,31 +40,14 @@ export class UsersRepository {
   async findByPrivyIdWithOrganization(
     privyUserId: string,
   ): Promise<UserWithOrganization | undefined> {
-    try {
-      const user = await db.query.users.findFirst({
-        where: eq(users.privy_user_id, privyUserId),
-        with: {
-          organization: true,
-        },
-      });
+    const user = await db.query.users.findFirst({
+      where: eq(users.privy_user_id, privyUserId),
+      with: {
+        organization: true,
+      },
+    });
 
-      return user as UserWithOrganization | undefined;
-    } catch (error) {
-      console.error(
-        "[UsersRepository] Error in findByPrivyIdWithOrganization:",
-        {
-          privyUserId,
-          error,
-          errorMessage: error instanceof Error ? error.message : String(error),
-          errorStack: error instanceof Error ? error.stack : undefined,
-          errorCause:
-            error instanceof Error
-              ? (error as Error & { cause?: unknown }).cause
-              : undefined,
-        },
-      );
-      throw error;
-    }
+    return user as UserWithOrganization | undefined;
   }
 
   /**

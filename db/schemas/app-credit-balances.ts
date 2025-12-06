@@ -11,6 +11,11 @@ import { apps } from "./apps";
 import { users } from "./users";
 import { organizations } from "./organizations";
 
+/**
+ * App credit balances table schema.
+ * 
+ * Tracks credit balances for users within third-party apps.
+ */
 export const appCreditBalances = pgTable(
   "app_credit_balances",
   {

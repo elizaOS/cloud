@@ -1,3 +1,11 @@
+/**
+ * APIs settings tab component for managing API keys.
+ * Supports creating, viewing, copying, and deleting API keys with visibility toggle.
+ *
+ * @param props - APIs tab configuration
+ * @param props.user - User data with organization information
+ */
+
 "use client";
 
 import { BrandCard, CornerBrackets } from "@/components/brand";

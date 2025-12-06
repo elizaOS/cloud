@@ -36,6 +36,9 @@ function getRedisClient(): Redis | null {
   return redis;
 }
 
+/**
+ * Result of a rate limit check.
+ */
 export interface RateLimitResult {
   allowed: boolean;
   remaining: number;
@@ -133,6 +136,13 @@ export async function checkRateLimitRedis(
 /**
  * Clear rate limit for a specific key (useful for testing or admin actions)
  */
+/**
+ * Clears rate limit for a specific key.
+ *
+ * Useful for testing or admin actions.
+ *
+ * @param key - Rate limit key to clear.
+ */
 export async function clearRateLimit(key: string): Promise<void> {
   const client = getRedisClient();
   if (!client) return;
@@ -147,6 +157,14 @@ export async function clearRateLimit(key: string): Promise<void> {
 
 /**
  * Get current rate limit status without incrementing counter
+ */
+/**
+ * Gets current rate limit status without incrementing counter.
+ *
+ * @param key - Rate limit key.
+ * @param windowMs - Time window in milliseconds.
+ * @param maxRequests - Maximum requests allowed.
+ * @returns Current rate limit status.
  */
 export async function getRateLimitStatus(
   key: string,

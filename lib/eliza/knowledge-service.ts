@@ -1,10 +1,15 @@
-// Knowledge service helper for accessing the knowledge plugin
+/**
+ * Knowledge service helper for accessing the knowledge plugin.
+ */
+
 import type { AgentRuntime } from "@elizaos/core";
 import type { KnowledgeService as KnowledgeServiceType } from "@elizaos/plugin-knowledge";
 
 /**
- * Get the knowledge service from runtime, with retry logic
- * Returns null if the plugin is not loaded after retries
+ * Gets the knowledge service from runtime with retry logic.
+ *
+ * @param runtime - Agent runtime instance.
+ * @returns Knowledge service or null if not available after retries.
  */
 export async function getKnowledgeService(
   runtime: AgentRuntime,
@@ -36,7 +41,10 @@ export async function getKnowledgeService(
 }
 
 /**
- * Check if knowledge service is available in the runtime
+ * Checks if knowledge service is available in the runtime.
+ *
+ * @param runtime - Agent runtime instance.
+ * @returns True if knowledge service is available.
  */
 export async function hasKnowledgeService(
   runtime: AgentRuntime,

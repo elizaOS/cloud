@@ -128,6 +128,9 @@ export class UserSessionsRepository {
     return updated;
   }
 
+  /**
+   * Atomically increments session metrics for an active session.
+   */
   async incrementMetrics(
     sessionToken: string,
     increments: {
@@ -167,6 +170,9 @@ export class UserSessionsRepository {
     return updated;
   }
 
+  /**
+   * Ends a session by setting ended_at timestamp.
+   */
   async endSession(sessionToken: string): Promise<UserSession | undefined> {
     const [updated] = await db
       .update(userSessions)
@@ -179,6 +185,11 @@ export class UserSessionsRepository {
     return updated;
   }
 
+  /**
+   * Ends all active sessions for a user.
+   * 
+   * @returns Number of sessions ended.
+   */
   async endAllUserSessions(userId: string): Promise<number> {
     const result = await db
       .update(userSessions)
@@ -193,6 +204,12 @@ export class UserSessionsRepository {
     return result.rowCount || 0;
   }
 
+  /**
+   * Deletes sessions that ended more than specified days ago.
+   * 
+   * @param daysOld - Minimum age in days for sessions to be deleted (default: 30).
+   * @returns Number of sessions deleted.
+   */
   async cleanupOldSessions(daysOld: number = 30): Promise<number> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
@@ -204,6 +221,11 @@ export class UserSessionsRepository {
     return result.rowCount || 0;
   }
 
+  /**
+   * Gets aggregated stats across all active sessions for a user.
+   * 
+   * @returns Aggregated stats or null if no active sessions.
+   */
   async getCurrentSessionStats(userId: string): Promise<{
     credits_used: number;
     requests_made: number;
@@ -233,4 +255,7 @@ export class UserSessionsRepository {
   }
 }
 
+/**
+ * Singleton instance of UserSessionsRepository.
+ */
 export const userSessionsRepository = new UserSessionsRepository();

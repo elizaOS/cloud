@@ -1,3 +1,11 @@
+/**
+ * App monetization settings component for configuring app revenue sharing.
+ * Supports enabling monetization, setting markup percentages, and platform offset amounts.
+ *
+ * @param props - App monetization settings configuration
+ * @param props.appId - App ID to configure monetization for
+ */
+
 "use client";
 
 import { useState, useEffect } from "react";

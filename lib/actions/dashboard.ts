@@ -16,20 +16,14 @@ import {
 import { cache as cacheClient } from "@/lib/cache/client";
 import { CacheKeys, CacheStaleTTL } from "@/lib/cache/keys";
 import { cache } from "react";
+import type { AgentStats } from "@/lib/cache/agent-state-cache";
 
 /**
- * Statistics for an agent/character.
+ * Display version of AgentStats for dashboard (without cache-specific fields).
  */
-export interface AgentStats {
-  /** Number of rooms this agent is in. */
-  roomCount: number;
-  /** Total number of messages sent by this agent. */
-  messageCount: number;
-  /** Current deployment status. */
-  deploymentStatus: "deployed" | "stopped" | "draft";
-  /** Timestamp of last activity. */
-  lastActiveAt: Date | null;
-}
+export type DashboardAgentStats = Omit<AgentStats, "agentId" | "uptime"> & {
+  deploymentStatus: AgentStats["status"];
+};
 
 /**
  * Complete dashboard data for a user's organization.
@@ -56,7 +50,7 @@ export interface DashboardData {
     avatarUrl: string | null;
     category: string | null;
     isPublic: boolean;
-    stats?: AgentStats;
+    stats?: DashboardAgentStats;
   }>;
   containers: Array<{
     id: string;
@@ -109,7 +103,7 @@ async function fetchDashboardDataInternal(
 
   // Fetch agent stats in batch
   const characterIds = userCharacters.map((c) => c.id);
-  const agentStatsMap = new Map<string, AgentStats>();
+  const agentStatsMap = new Map<string, DashboardAgentStats>();
   
   if (characterIds.length > 0) {
     const statsMap = await agentDiscoveryService.getCharacterStatisticsBatch(characterIds);

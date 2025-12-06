@@ -1,3 +1,8 @@
+/**
+ * Main landing page component.
+ * Redirects authenticated users to dashboard and displays landing sections for anonymous users.
+ */
+
 "use client";
 
 import LandingHeader from "@/components/layout/landing-header";
@@ -43,9 +48,6 @@ export function LandingPage() {
 
       {/* Hero Section */}
       <TopHero />
-
-      {/* Agents Section */}
-      {/* <Agents /> */}
 
       {/* Router Section */}
       <RouterSection />

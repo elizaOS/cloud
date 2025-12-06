@@ -1,11 +1,11 @@
 /**
- * Signup Prompt Banner for Anonymous Users
+ * Signup prompt banner component for anonymous users.
+ * Shows progressive signup prompts based on message count with different urgency levels.
  *
- * Shows progressive signup prompts based on message count
- * - After 1 message: Encourage to save character
- * - After 3 messages: Show remaining count
- * - After 4 messages: Urgent prompt
- * - At 5 messages: Final prompt (handled in chat API)
+ * @param props - Signup prompt banner configuration
+ * @param props.messageCount - Current number of messages sent
+ * @param props.messagesLimit - Maximum messages allowed for anonymous users
+ * @param props.onDismiss - Optional callback when banner is dismissed
  */
 
 "use client";

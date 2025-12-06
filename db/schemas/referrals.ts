@@ -13,6 +13,9 @@ import {
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { users } from "./users";
 
+/**
+ * Social platform enum for referral sharing.
+ */
 export const socialPlatformEnum = pgEnum("social_platform", [
   "x",
   "farcaster",
@@ -20,12 +23,20 @@ export const socialPlatformEnum = pgEnum("social_platform", [
   "discord",
 ]);
 
+/**
+ * Share type enum for referral sharing.
+ */
 export const shareTypeEnum = pgEnum("share_type", [
   "app_share",
   "character_share",
   "invite_share",
 ]);
 
+/**
+ * Referral codes table schema.
+ * 
+ * Stores user referral codes with earnings tracking.
+ */
 export const referralCodes = pgTable(
   "referral_codes",
   {
@@ -62,6 +73,11 @@ export const referralCodes = pgTable(
   })
 );
 
+/**
+ * Referral signups table schema.
+ * 
+ * Tracks referral signups and associated bonuses and commissions.
+ */
 export const referralSignups = pgTable(
   "referral_signups",
   {
@@ -110,6 +126,11 @@ export const referralSignups = pgTable(
   })
 );
 
+/**
+ * Social share rewards table schema.
+ * 
+ * Tracks social media shares and associated credit rewards.
+ */
 export const socialShareRewards = pgTable(
   "social_share_rewards",
   {

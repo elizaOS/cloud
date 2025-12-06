@@ -1,3 +1,8 @@
+/**
+ * Database relations definitions.
+ * 
+ * Defines relationships between tables for Drizzle ORM query building.
+ */
 import { relations } from "drizzle-orm";
 import { organizations } from "./organizations";
 import { organizationInvites } from "./organization-invites";
@@ -9,12 +14,18 @@ import { apiKeys } from "./api-keys";
 import { appCreditBalances } from "./app-credit-balances";
 import { appEarnings, appEarningsTransactions } from "./app-earnings";
 
+/**
+ * Organizations table relations.
+ */
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   users: many(users),
   invites: many(organizationInvites),
   apps: many(apps),
 }));
 
+/**
+ * Users table relations.
+ */
 export const usersRelations = relations(users, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [users.organization_id],
@@ -23,6 +34,9 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   conversations: many(conversations),
 }));
 
+/**
+ * Conversations table relations.
+ */
 export const conversationsRelations = relations(
   conversations,
   ({ many, one }) => ({
@@ -38,6 +52,9 @@ export const conversationsRelations = relations(
   }),
 );
 
+/**
+ * Conversation messages table relations.
+ */
 export const conversationMessagesRelations = relations(
   conversationMessages,
   ({ one }) => ({
@@ -48,6 +65,9 @@ export const conversationMessagesRelations = relations(
   }),
 );
 
+/**
+ * User characters table relations.
+ */
 export const userCharactersRelations = relations(userCharacters, ({ one }) => ({
   user: one(users, {
     fields: [userCharacters.user_id],
@@ -59,6 +79,9 @@ export const userCharactersRelations = relations(userCharacters, ({ one }) => ({
   }),
 }));
 
+/**
+ * Organization invites table relations.
+ */
 export const organizationInvitesRelations = relations(
   organizationInvites,
   ({ one }) => ({
@@ -77,6 +100,9 @@ export const organizationInvitesRelations = relations(
   }),
 );
 
+/**
+ * Apps table relations.
+ */
 export const appsRelations = relations(apps, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [apps.organization_id],
@@ -96,6 +122,9 @@ export const appsRelations = relations(apps, ({ one, many }) => ({
   earningsTransactions: many(appEarningsTransactions),
 }));
 
+/**
+ * App users table relations.
+ */
 export const appUsersRelations = relations(appUsers, ({ one }) => ({
   app: one(apps, {
     fields: [appUsers.app_id],
@@ -107,6 +136,9 @@ export const appUsersRelations = relations(appUsers, ({ one }) => ({
   }),
 }));
 
+/**
+ * App analytics table relations.
+ */
 export const appAnalyticsRelations = relations(appAnalytics, ({ one }) => ({
   app: one(apps, {
     fields: [appAnalytics.app_id],
@@ -114,7 +146,9 @@ export const appAnalyticsRelations = relations(appAnalytics, ({ one }) => ({
   }),
 }));
 
-// App Credit Balances Relations
+/**
+ * App credit balances table relations.
+ */
 export const appCreditBalancesRelations = relations(appCreditBalances, ({ one }) => ({
   app: one(apps, {
     fields: [appCreditBalances.app_id],
@@ -130,7 +164,9 @@ export const appCreditBalancesRelations = relations(appCreditBalances, ({ one })
   }),
 }));
 
-// App Earnings Relations
+/**
+ * App earnings table relations.
+ */
 export const appEarningsRelations = relations(appEarnings, ({ one }) => ({
   app: one(apps, {
     fields: [appEarnings.app_id],
@@ -138,7 +174,9 @@ export const appEarningsRelations = relations(appEarnings, ({ one }) => ({
   }),
 }));
 
-// App Earnings Transactions Relations
+/**
+ * App earnings transactions table relations.
+ */
 export const appEarningsTransactionsRelations = relations(appEarningsTransactions, ({ one }) => ({
   app: one(apps, {
     fields: [appEarningsTransactions.app_id],

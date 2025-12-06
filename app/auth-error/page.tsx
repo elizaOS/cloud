@@ -2,6 +2,10 @@ import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
+/**
+ * Authentication error page displayed when Privy authentication succeeds
+ * but account sync to database fails.
+ */
 export default function AuthErrorPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">

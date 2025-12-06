@@ -1,3 +1,11 @@
+/**
+ * App users component displaying users who have used the app.
+ * Shows user statistics including request counts, credits used, and activity timestamps.
+ *
+ * @param props - App users configuration
+ * @param props.appId - App ID to fetch users for
+ */
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -5,8 +13,12 @@ import { BrandCard, CornerBrackets } from "@/components/brand";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Loader2, Users as UsersIcon, DollarSign, Activity } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import type { AppUser } from "@/lib/types";
 
-interface AppUser {
+/**
+ * Display version of AppUser with formatted fields for UI.
+ */
+interface AppUserDisplay {
   id: string;
   user_id: string;
   total_requests: number;
@@ -21,7 +33,7 @@ interface AppUsersProps {
 
 export function AppUsers({ appId }: AppUsersProps) {
   const [isLoading, setIsLoading] = useState(true);
-  const [users, setUsers] = useState<AppUser[]>([]);
+  const [users, setUsers] = useState<AppUserDisplay[]>([]);
 
   const fetchUsers = async () => {
     setIsLoading(true);

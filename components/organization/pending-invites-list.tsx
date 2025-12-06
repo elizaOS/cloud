@@ -1,3 +1,12 @@
+/**
+ * Pending invites list component displaying organization invitation status.
+ * Shows invite details, expiration, and supports invitation revocation.
+ *
+ * @param props - Pending invites list configuration
+ * @param props.invites - Array of invitation objects
+ * @param props.onRevoke - Callback when invitation is revoked
+ */
+
 "use client";
 
 import { useState } from "react";

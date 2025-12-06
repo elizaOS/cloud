@@ -240,15 +240,7 @@ export class RoomsService {
    * Check if entity has access to room
    */
   async hasAccess(roomId: string, entityId: string): Promise<boolean> {
-    try {
-      return await participantsRepository.isParticipant(roomId, entityId);
-    } catch (error) {
-      logger.error(
-        `[Rooms Service] Error checking access for room ${roomId}:`,
-        error,
-      );
-      return false;
-    }
+    return await participantsRepository.isParticipant(roomId, entityId);
   }
 
   /**

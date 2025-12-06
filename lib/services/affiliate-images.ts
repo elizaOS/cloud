@@ -53,49 +53,41 @@ async function uploadSingleImage(
   const prefix = isAvatar ? "avatar" : `ref-${index}`;
   const filename = `${prefix}-${Date.now()}.png`;
 
-  try {
-    if (isBase64DataUrl(imageData)) {
-      logger.debug(
-        `[AffiliateImages] Uploading base64 image ${index} to blob storage`,
-      );
-      const result = await uploadWithTimeout(
-        uploadBase64Image(imageData, {
-          filename,
-          folder: `affiliate/${characterId}`,
-        }),
-        UPLOAD_TIMEOUT_MS,
-      );
-      logger.info(
-        `[AffiliateImages] Uploaded base64 image ${index}: ${result.url.substring(0, 60)}...`,
-      );
-      return result.url;
-    } else if (isValidHttpUrl(imageData)) {
-      if (isVercelBlobUrl(imageData)) {
-        logger.debug(`[AffiliateImages] URL image ${index} already on Vercel Blob`);
-        return imageData;
-      }
-
-      logger.info(`[AffiliateImages] Re-uploading external URL ${index} to blob storage`);
-      const result = await uploadWithTimeout(
-        uploadFromUrl(imageData, {
-          filename,
-          folder: `affiliate/${characterId}`,
-        }),
-        UPLOAD_TIMEOUT_MS,
-      );
-      logger.info(
-        `[AffiliateImages] Re-uploaded URL image ${index}: ${result.url.substring(0, 60)}...`,
-      );
-      return result.url;
-    } else {
-      logger.warn(`[AffiliateImages] Invalid image data at index ${index}`);
-      return null;
-    }
-  } catch (error) {
-    const errMsg = error instanceof Error ? error.message : String(error);
-    logger.error(
-      `[AffiliateImages] Failed to upload image ${index}: ${errMsg}`,
+  if (isBase64DataUrl(imageData)) {
+    logger.debug(
+      `[AffiliateImages] Uploading base64 image ${index} to blob storage`,
     );
+    const result = await uploadWithTimeout(
+      uploadBase64Image(imageData, {
+        filename,
+        folder: `affiliate/${characterId}`,
+      }),
+      UPLOAD_TIMEOUT_MS,
+    );
+    logger.info(
+      `[AffiliateImages] Uploaded base64 image ${index}: ${result.url.substring(0, 60)}...`,
+    );
+    return result.url;
+  } else if (isValidHttpUrl(imageData)) {
+    if (isVercelBlobUrl(imageData)) {
+      logger.debug(`[AffiliateImages] URL image ${index} already on Vercel Blob`);
+      return imageData;
+    }
+
+    logger.info(`[AffiliateImages] Re-uploading external URL ${index} to blob storage`);
+    const result = await uploadWithTimeout(
+      uploadFromUrl(imageData, {
+        filename,
+        folder: `affiliate/${characterId}`,
+      }),
+      UPLOAD_TIMEOUT_MS,
+    );
+    logger.info(
+      `[AffiliateImages] Re-uploaded URL image ${index}: ${result.url.substring(0, 60)}...`,
+    );
+    return result.url;
+  } else {
+    logger.warn(`[AffiliateImages] Invalid image data at index ${index}`);
     return null;
   }
 }

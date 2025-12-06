@@ -88,42 +88,38 @@ export function ImageGenerator() {
 
     updateGeneration({ isLoading: true, error: null });
 
-    try {
-      const response = await fetch("/api/v1/generate-image", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          prompt: formState.prompt,
-          numImages: formState.numImages,
-          aspectRatio: formState.aspectRatio,
-          stylePreset: formState.stylePreset !== "none" ? formState.stylePreset : undefined,
-        }),
-      });
+    const response = await fetch("/api/v1/generate-image", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        prompt: formState.prompt,
+        numImages: formState.numImages,
+        aspectRatio: formState.aspectRatio,
+        stylePreset: formState.stylePreset !== "none" ? formState.stylePreset : undefined,
+      }),
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to generate image");
-      }
-
-      // Handle multiple images response
-      if (data.images && Array.isArray(data.images)) {
-        const processedImages = data.images.map((img: GeneratedImage) => ({
-          image: img.image.startsWith("data:")
-            ? img.image
-            : `data:image/png;base64,${img.image}`,
-          url: img.url,
-          text: img.text || "",
-        }));
-        updateGeneration({ images: processedImages });
-      }
-    } catch (err) {
-      updateGeneration({ error: err instanceof Error ? err.message : "An error occurred" });
-    } finally {
+    if (!response.ok) {
       updateGeneration({ isLoading: false });
+      throw new Error(data.error || "Failed to generate image");
     }
+
+    // Handle multiple images response
+    if (data.images && Array.isArray(data.images)) {
+      const processedImages = data.images.map((img: GeneratedImage) => ({
+        image: img.image.startsWith("data:")
+          ? img.image
+          : `data:image/png;base64,${img.image}`,
+        url: img.url,
+        text: img.text || "",
+      }));
+      updateGeneration({ images: processedImages });
+    }
+    updateGeneration({ isLoading: false });
   };
 
   const handleDownload = (imageData: string, index: number) => {

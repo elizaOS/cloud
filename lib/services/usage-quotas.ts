@@ -1,6 +1,13 @@
+/**
+ * Service for managing usage quotas and limits.
+ */
+
 import { usageQuotasRepository } from "@/db/repositories";
 import type { UsageQuota, NewUsageQuota } from "@/db/schemas/usage-quotas";
 
+/**
+ * Parameters for creating a usage quota.
+ */
 export interface CreateQuotaParams {
   organization_id: string;
   quota_type: "global" | "model_specific";
@@ -8,6 +15,9 @@ export interface CreateQuotaParams {
   credits_limit: number;
 }
 
+/**
+ * Result of checking a quota.
+ */
 export interface QuotaCheckResult {
   allowed: boolean;
   reason?: string;
@@ -16,6 +26,9 @@ export interface QuotaCheckResult {
   remaining: number;
 }
 
+/**
+ * Service for managing usage quotas and checking quota limits.
+ */
 class UsageQuotasService {
   async getById(id: string): Promise<UsageQuota | undefined> {
     return await usageQuotasRepository.findById(id);

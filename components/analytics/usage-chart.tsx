@@ -1,3 +1,12 @@
+/**
+ * Usage chart component displaying time-series analytics data.
+ * Supports multiple metrics (requests, cost, success rate) with toggleable display.
+ *
+ * @param props - Usage chart configuration
+ * @param props.data - Time-series data array
+ * @param props.granularity - Time granularity (hour, day, week, month)
+ */
+
 "use client";
 
 import { useMemo, useState } from "react";

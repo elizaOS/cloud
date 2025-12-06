@@ -26,17 +26,16 @@ export function useAvailableModels() {
 
   useEffect(() => {
     async function fetchModels() {
-      try {
-        setIsLoading(true);
-        const response = await fetch("/api/v1/models", {
-          credentials: "include", // Include session cookies for auth
-        });
+      setIsLoading(true);
+      const response = await fetch("/api/v1/models", {
+        credentials: "include", // Include session cookies for auth
+      });
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch models");
-        }
+      if (!response.ok) {
+        throw new Error("Failed to fetch models");
+      }
 
-        const data: ModelsResponse = await response.json();
+      const data: ModelsResponse = await response.json();
 
         // Filter to only allowed models
         const filteredModels = (data.data || []).filter((model) =>

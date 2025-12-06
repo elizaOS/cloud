@@ -1,3 +1,13 @@
+/**
+ * App details tabs component organizing app management views.
+ * Provides tabs for overview, analytics, earnings, users, monetization, and settings.
+ * Syncs active tab with URL search parameters.
+ *
+ * @param props - App details tabs configuration
+ * @param props.app - App data
+ * @param props.showApiKey - Optional API key to display in overview
+ */
+
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";

@@ -1,3 +1,11 @@
+/**
+ * App analytics component displaying usage statistics and charts.
+ * Supports hourly, daily, and monthly period views with request and user metrics.
+ *
+ * @param props - App analytics configuration
+ * @param props.appId - App ID to fetch analytics for
+ */
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -30,21 +38,16 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
 
   const fetchAnalytics = async () => {
     setIsLoading(true);
-    try {
-      const response = await fetch(
-        `/api/v1/apps/${appId}/analytics?period=${period}`
-      );
-      const data = await response.json();
-      
-      if (data.success) {
-        setAnalytics(data.analytics);
-        setTotalStats(data.totalStats);
-      }
-    } catch (error) {
-      console.error("Failed to fetch analytics:", error);
-    } finally {
-      setIsLoading(false);
+    const response = await fetch(
+      `/api/v1/apps/${appId}/analytics?period=${period}`
+    );
+    const data = await response.json();
+    
+    if (data.success) {
+      setAnalytics(data.analytics);
+      setTotalStats(data.totalStats);
     }
+    setIsLoading(false);
   };
 
   useEffect(() => {

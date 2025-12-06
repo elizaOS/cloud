@@ -1,3 +1,7 @@
+/**
+ * Empty state component for image generator when no prompt has been entered.
+ */
+
 "use client";
 
 import { Image as ImageIcon } from "lucide-react";

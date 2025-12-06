@@ -12,7 +12,13 @@ import {
   type NewSocialShareReward,
 } from "@/db/schemas/referrals";
 
+/**
+ * Repository for referral code database operations.
+ */
 class ReferralCodesRepository {
+  /**
+   * Finds a referral code by ID.
+   */
   async findById(id: string): Promise<ReferralCode | null> {
     const [result] = await db
       .select()
@@ -22,6 +28,9 @@ class ReferralCodesRepository {
     return result || null;
   }
 
+  /**
+   * Finds a referral code by user ID.
+   */
   async findByUserId(userId: string): Promise<ReferralCode | null> {
     const [result] = await db
       .select()
@@ -31,6 +40,9 @@ class ReferralCodesRepository {
     return result || null;
   }
 
+  /**
+   * Finds a referral code by code string (case-insensitive, converted to uppercase).
+   */
   async findByCode(code: string): Promise<ReferralCode | null> {
     const [result] = await db
       .select()
@@ -40,11 +52,17 @@ class ReferralCodesRepository {
     return result || null;
   }
 
+  /**
+   * Creates a new referral code.
+   */
   async create(data: NewReferralCode): Promise<ReferralCode> {
     const [result] = await db.insert(referralCodes).values(data).returning();
     return result;
   }
 
+  /**
+   * Atomically increments the referral count for a code.
+   */
   async incrementReferrals(id: string): Promise<void> {
     await db
       .update(referralCodes)
@@ -54,6 +72,9 @@ class ReferralCodesRepository {
       .where(eq(referralCodes.id, id));
   }
 
+  /**
+   * Atomically adds signup earnings to a referral code.
+   */
   async addSignupEarnings(id: string, amount: number): Promise<void> {
     await db
       .update(referralCodes)
@@ -63,6 +84,9 @@ class ReferralCodesRepository {
       .where(eq(referralCodes.id, id));
   }
 
+  /**
+   * Atomically adds commission earnings to a referral code.
+   */
   async addCommissionEarnings(id: string, amount: number): Promise<void> {
     await db
       .update(referralCodes)
@@ -72,6 +96,9 @@ class ReferralCodesRepository {
       .where(eq(referralCodes.id, id));
   }
 
+  /**
+   * Atomically adds qualified referral earnings to a referral code.
+   */
   async addQualifiedEarnings(id: string, amount: number): Promise<void> {
     await db
       .update(referralCodes)
@@ -82,7 +109,13 @@ class ReferralCodesRepository {
   }
 }
 
+/**
+ * Repository for referral signup database operations.
+ */
 class ReferralSignupsRepository {
+  /**
+   * Finds a referral signup by ID.
+   */
   async findById(id: string): Promise<ReferralSignup | null> {
     const [result] = await db
       .select()
@@ -92,6 +125,9 @@ class ReferralSignupsRepository {
     return result || null;
   }
 
+  /**
+   * Finds a referral signup by referred user ID.
+   */
   async findByReferredUserId(userId: string): Promise<ReferralSignup | null> {
     const [result] = await db
       .select()
@@ -101,6 +137,9 @@ class ReferralSignupsRepository {
     return result || null;
   }
 
+  /**
+   * Lists referral signups for a referrer, ordered by creation date.
+   */
   async listByReferrerId(referrerId: string, limit = 50): Promise<ReferralSignup[]> {
     return db
       .select()
@@ -110,11 +149,17 @@ class ReferralSignupsRepository {
       .limit(limit);
   }
 
+  /**
+   * Creates a new referral signup record.
+   */
   async create(data: NewReferralSignup): Promise<ReferralSignup> {
     const [result] = await db.insert(referralSignups).values(data).returning();
     return result;
   }
 
+  /**
+   * Marks signup bonus as credited for a referral signup.
+   */
   async markBonusCredited(
     id: string,
     amount: number
@@ -130,6 +175,9 @@ class ReferralSignupsRepository {
     return result || null;
   }
 
+  /**
+   * Atomically adds commission earnings to a referral signup.
+   */
   async addCommission(id: string, amount: number): Promise<void> {
     await db
       .update(referralSignups)
@@ -139,6 +187,9 @@ class ReferralSignupsRepository {
       .where(eq(referralSignups.id, id));
   }
 
+  /**
+   * Marks a referral as qualified and credits the qualified bonus.
+   */
   async markQualified(id: string, amount: number): Promise<ReferralSignup | null> {
     const [result] = await db
       .update(referralSignups)
@@ -152,6 +203,9 @@ class ReferralSignupsRepository {
     return result || null;
   }
 
+  /**
+   * Finds an unqualified referral signup for a user.
+   */
   async findUnqualifiedByReferredUserId(userId: string): Promise<ReferralSignup | null> {
     const [result] = await db
       .select()
@@ -167,7 +221,13 @@ class ReferralSignupsRepository {
   }
 }
 
+/**
+ * Repository for social share reward database operations.
+ */
 class SocialShareRewardsRepository {
+  /**
+   * Creates a new social share reward record.
+   */
   async create(data: NewSocialShareReward): Promise<SocialShareReward> {
     const [result] = await db
       .insert(socialShareRewards)
@@ -179,6 +239,56 @@ class SocialShareRewardsRepository {
     return result;
   }
 
+  /**
+   * Atomically checks if user has claimed today and creates a new share record if not.
+   * Prevents race conditions by doing check-and-insert in a single transaction.
+   * 
+   * @returns The created share record, or null if already claimed today
+   */
+  async createIfNotClaimedToday(
+    userId: string,
+    platform: "x" | "farcaster" | "telegram" | "discord",
+    data: Omit<NewSocialShareReward, "user_id" | "platform">
+  ): Promise<SocialShareReward | null> {
+    return await db.transaction(async (tx) => {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+
+      // Check inside transaction to prevent race conditions
+      const [existing] = await tx
+        .select()
+        .from(socialShareRewards)
+        .where(
+          and(
+            eq(socialShareRewards.user_id, userId),
+            eq(socialShareRewards.platform, platform),
+            gte(socialShareRewards.created_at, startOfDay)
+          )
+        )
+        .limit(1);
+
+      if (existing) {
+        return null; // Already claimed today
+      }
+
+      // Create the record
+      const [result] = await tx
+        .insert(socialShareRewards)
+        .values({
+          ...data,
+          user_id: userId,
+          platform,
+          share_intent_at: new Date(),
+        })
+        .returning();
+
+      return result;
+    });
+  }
+
+  /**
+   * Marks a social share reward as verified.
+   */
   async markVerified(id: string): Promise<SocialShareReward | null> {
     const [result] = await db
       .update(socialShareRewards)
@@ -188,6 +298,9 @@ class SocialShareRewardsRepository {
     return result || null;
   }
 
+  /**
+   * Lists social share rewards for a user, ordered by creation date.
+   */
   async listByUserId(userId: string, limit = 50): Promise<SocialShareReward[]> {
     return db
       .select()
@@ -197,6 +310,9 @@ class SocialShareRewardsRepository {
       .limit(limit);
   }
 
+  /**
+   * Checks if user has claimed a reward for the specified platform today.
+   */
   async hasClaimedToday(
     userId: string,
     platform: "x" | "farcaster" | "telegram" | "discord"
@@ -219,6 +335,9 @@ class SocialShareRewardsRepository {
     return !!result;
   }
 
+  /**
+   * Gets total credits earned from social shares for a user.
+   */
   async getTotalEarnings(userId: string): Promise<number> {
     const [result] = await db
       .select({
@@ -231,8 +350,19 @@ class SocialShareRewardsRepository {
   }
 }
 
+/**
+ * Singleton instance of ReferralCodesRepository.
+ */
 export const referralCodesRepository = new ReferralCodesRepository();
+
+/**
+ * Singleton instance of ReferralSignupsRepository.
+ */
 export const referralSignupsRepository = new ReferralSignupsRepository();
+
+/**
+ * Singleton instance of SocialShareRewardsRepository.
+ */
 export const socialShareRewardsRepository = new SocialShareRewardsRepository();
 
 export {

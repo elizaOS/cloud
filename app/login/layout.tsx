@@ -9,6 +9,12 @@ export const metadata: Metadata = generatePageMetadata({
   keywords: ["login", "sign in", "authentication", "elizaOS", "AI platform"],
 });
 
+/**
+ * Layout component for the login page.
+ * Provides SEO metadata for the login route.
+ *
+ * @param children - The login page content.
+ */
 export default function LoginLayout({
   children,
 }: {

@@ -7,12 +7,12 @@ import { roomsService } from "@/lib/services/agents/rooms";
 import { anonymousSessionsService, usersService } from "@/lib/services";
 
 /**
- * GET /api/eliza/rooms - Get user's rooms with last message preview
+ * GET /api/eliza/rooms
+ * Gets all rooms for the authenticated or anonymous user with last message preview.
+ * Returns rooms sorted by most recent activity.
  *
- * Single optimized query - no runtime needed
- * Returns rooms sorted by most recent activity
- * 
- * Security: entityId is derived from authenticated user, not client-supplied
+ * @param request - The Next.js request object.
+ * @returns Array of rooms with last message preview.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -61,13 +61,12 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/eliza/rooms - Create new room
+ * POST /api/eliza/rooms
+ * Creates a new chat room for the authenticated or anonymous user.
+ * Supports both authenticated and anonymous users via session tokens.
  *
- * Minimal room creation - just creates room record in database
- * The runtime will handle entity/participant setup when first message is sent
- * via ensureConnection in message-handler.ts
- * 
- * Security: entityId is derived from authenticated user, not client-supplied
+ * @param request - Request body with characterId and optional sessionToken.
+ * @returns Created room ID, character ID, and creation timestamp.
  */
 export async function POST(request: NextRequest) {
   try {

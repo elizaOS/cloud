@@ -245,7 +245,12 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
 
 /**
  * GET /api/mcp/registry
- * Returns the catalog of available MCP servers
+ * Returns the catalog of available MCP (Model Context Protocol) servers.
+ * Supports filtering by category, status, search term, and pagination.
+ * Authentication is optional - allows browsing without auth.
+ *
+ * @param request - Request with optional category, status, limit, and search query parameters.
+ * @returns Filtered registry entries with categories, statuses, and pagination info.
  */
 export async function GET(request: NextRequest) {
   try {

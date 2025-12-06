@@ -7,12 +7,12 @@ export const dynamic = "force-dynamic";
 
 /**
  * POST /api/v1/containers/credentials
- * Request ECR repository and authentication token for building and pushing Docker images
+ * Requests ECR repository and authentication token for building and pushing Docker images.
+ * Provides temporary ECR credentials for the CLI to push Docker images.
+ * Rate limited: 10 requests per minute.
  *
- * This endpoint provides temporary ECR credentials for the CLI to push Docker images.
- * The images are tracked via the containers table using ecr_image_uri.
- *
- * Rate limited: 10 requests per minute
+ * @param request - Request body with projectId and version.
+ * @returns ECR repository URI, image URI, authentication token, and registry endpoint.
  */
 async function handleECRCredentials(request: NextRequest) {
   try {

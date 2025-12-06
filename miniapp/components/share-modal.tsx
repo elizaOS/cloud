@@ -2,16 +2,21 @@
 
 import {
   Check,
+  CheckCircle2,
   Copy,
   Gift,
   Loader2,
   Share2,
+  Sparkles,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { claimShareReward, getReferralInfo, getRewardsStatus } from "@/lib/cloud-api";
+
+// Default share text - makes it clear what the app is
+const DEFAULT_SHARE_TEXT = "I'm chatting with AI friends on Eliza! Create your own AI companion 🤖✨";
 
 // Platform icons as simple components
 function XIcon({ className }: { className?: string }) {
@@ -40,11 +45,51 @@ interface ShareModalProps {
   };
 }
 
+/**
+ * Hook to fetch and cache share/rewards status.
+ * Can be used by other components to check if user has claimed shares today.
+ */
+export function useShareStatus() {
+  const [shareStatus, setShareStatus] = useState<{
+    x: { claimed: boolean; amount: number };
+    farcaster: { claimed: boolean; amount: number };
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchStatus() {
+      try {
+        const rewardsStatus = await getRewardsStatus();
+        setShareStatus({
+          x: rewardsStatus.sharing.status.x,
+          farcaster: rewardsStatus.sharing.status.farcaster,
+        });
+      } catch (error) {
+        console.error("[useShareStatus] Error fetching share status", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchStatus();
+  }, []);
+
+  // While loading, use undefined to avoid showing wrong values
+  const allClaimedToday = loading ? undefined : (shareStatus?.x.claimed && shareStatus?.farcaster.claimed);
+  const anyClaimedToday = loading ? undefined : (shareStatus?.x.claimed || shareStatus?.farcaster.claimed);
+  const availableToday = loading ? 0.50 : // Show reasonable default while loading
+    (shareStatus?.x.claimed ? 0 : shareStatus?.x.amount || 0) +
+    (shareStatus?.farcaster.claimed ? 0 : shareStatus?.farcaster.amount || 0);
+
+  return { shareStatus, loading, allClaimedToday, anyClaimedToday, availableToday };
+}
+
 export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string>("");
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [shareStatus, setShareStatus] = useState<{
     x: { claimed: boolean; amount: number };
     farcaster: { claimed: boolean; amount: number };
@@ -55,30 +100,49 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
   } | null>(null);
   const [claiming, setClaiming] = useState<string | null>(null);
 
+  // Load data when modal opens
   useEffect(() => {
     if (isOpen) {
       loadData();
     }
   }, [isOpen]);
 
+  // Handle escape key to close modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen) {
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [isOpen, onClose]);
+
   const loadData = async () => {
     setLoading(true);
-    const [referralInfo, rewardsStatus] = await Promise.all([
-      getReferralInfo(),
-      getRewardsStatus(),
-    ]);
+    setError(null);
+    try {
+      const [referralInfo, rewardsStatus] = await Promise.all([
+        getReferralInfo(),
+        getRewardsStatus(),
+      ]);
 
-    setReferralCode(referralInfo.code);
-    setShareUrl(referralInfo.shareUrl);
-    setShareStatus({
-      x: rewardsStatus.sharing.status.x,
-      farcaster: rewardsStatus.sharing.status.farcaster,
-    });
-    setStats({
-      totalReferrals: referralInfo.stats.totalReferrals,
-      totalEarnings: referralInfo.stats.totalEarnings,
-    });
-    setLoading(false);
+      setReferralCode(referralInfo.code);
+      setShareUrl(referralInfo.shareUrl);
+      setShareStatus({
+        x: rewardsStatus.sharing.status.x,
+        farcaster: rewardsStatus.sharing.status.farcaster,
+      });
+      setStats({
+        totalReferrals: referralInfo.stats.totalReferrals,
+        totalEarnings: referralInfo.stats.totalEarnings,
+      });
+    } catch (err) {
+      console.error("[ShareModal] Error loading data", err);
+      setError("Failed to load sharing info. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const copyCode = async () => {
@@ -89,60 +153,104 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const copyLink = async () => {
+  const copyLink = useCallback(async () => {
     await navigator.clipboard.writeText(shareUrl);
-    toast.success("Share link copied!");
-  };
+    setLinkCopied(true);
+    toast.success("Share link copied to clipboard!");
+    setTimeout(() => setLinkCopied(false), 2500);
+  }, [shareUrl]);
 
   const shareOnX = async () => {
-    const text = shareContent?.text || "Check out this awesome AI chat app!";
+    // Prevent double clicks and already claimed shares
+    if (shareStatus?.x.claimed || claiming === "x") {
+      return;
+    }
+
+    const text = shareContent?.text || DEFAULT_SHARE_TEXT;
     const url = shareContent?.url || shareUrl;
     
     // Claim reward immediately (server-side tracking)
-    if (!shareStatus?.x.claimed) {
-      setClaiming("x");
+    setClaiming("x");
+    try {
       const result = await claimShareReward("x", "app_share", url);
       if (result.success) {
-        toast.success(result.message);
+        toast.success(`🎉 +$${result.amount?.toFixed(2)} earned!`, {
+          description: "Thanks for sharing on X!",
+        });
         setShareStatus(prev => prev ? { ...prev, x: { ...prev.x, claimed: true } } : null);
+        // Open share window only after successful claim
+        const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+        window.open(tweetUrl, "_blank", "width=550,height=420");
       } else if (result.alreadyAwarded) {
+        // Not an error - just informational
+        toast.info("X share already claimed today", {
+          description: "Come back tomorrow for more rewards!",
+        });
         setShareStatus(prev => prev ? { ...prev, x: { ...prev.x, claimed: true } } : null);
+      } else {
+        toast.error(result.message || "Failed to claim reward");
       }
+    } catch (err) {
+      toast.error("Something went wrong. Please try again.");
+      console.error("[ShareModal] Error claiming X share reward", err);
+    } finally {
       setClaiming(null);
     }
-
-    // Open share window
-    const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
-    window.open(tweetUrl, "_blank", "width=550,height=420");
   };
 
   const shareOnFarcaster = async () => {
-    const text = shareContent?.text || "Check out this awesome AI chat app!";
+    // Prevent double clicks and already claimed shares
+    if (shareStatus?.farcaster.claimed || claiming === "farcaster") {
+      return;
+    }
+
+    const text = shareContent?.text || DEFAULT_SHARE_TEXT;
     const url = shareContent?.url || shareUrl;
     
     // Claim reward immediately (server-side tracking)
-    if (!shareStatus?.farcaster.claimed) {
-      setClaiming("farcaster");
+    setClaiming("farcaster");
+    try {
       const result = await claimShareReward("farcaster", "app_share", url);
       if (result.success) {
-        toast.success(result.message);
+        toast.success(`🎉 +$${result.amount?.toFixed(2)} earned!`, {
+          description: "Thanks for sharing on Farcaster!",
+        });
         setShareStatus(prev => prev ? { ...prev, farcaster: { ...prev.farcaster, claimed: true } } : null);
+        // Open share window only after successful claim
+        const castUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(url)}`;
+        window.open(castUrl, "_blank", "width=550,height=420");
       } else if (result.alreadyAwarded) {
+        // Not an error - just informational
+        toast.info("Farcaster share already claimed today", {
+          description: "Come back tomorrow for more rewards!",
+        });
         setShareStatus(prev => prev ? { ...prev, farcaster: { ...prev.farcaster, claimed: true } } : null);
+      } else {
+        toast.error(result.message || "Failed to claim reward");
       }
+    } catch (err) {
+      toast.error("Something went wrong. Please try again.");
+      console.error("[ShareModal] Error claiming Farcaster share reward", err);
+    } finally {
       setClaiming(null);
     }
+  };
 
-    // Open share window
-    const castUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(url)}`;
-    window.open(castUrl, "_blank", "width=550,height=420");
+  // Handle backdrop click to close
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="relative w-full max-w-md mx-4 overflow-hidden rounded-2xl bg-[#0f0a18] border border-white/10 shadow-2xl">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+      onClick={handleBackdropClick}
+    >
+      <div className="relative w-full max-w-md mx-4 overflow-hidden rounded-2xl bg-[#0f0a18] border border-white/10 shadow-2xl animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <div className="flex items-center gap-2">
@@ -151,43 +259,156 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-white/10 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+            aria-label="Close modal"
           >
             <X className="h-5 w-5 text-white/60" />
           </button>
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-16">
+          <div className="flex flex-col items-center justify-center py-16 gap-3">
             <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
+            <p className="text-sm text-white/40">Loading your rewards...</p>
+          </div>
+        ) : error ? (
+          <div className="p-6 text-center space-y-4">
+            <p className="text-red-400">{error}</p>
+            <button
+              onClick={loadData}
+              className="px-4 py-2 rounded-lg bg-white/10 text-white text-sm hover:bg-white/20 transition-colors"
+            >
+              Try Again
+            </button>
           </div>
         ) : (
-          <div className="p-6 space-y-6">
-            {/* Stats */}
-            {stats && stats.totalEarnings > 0 && (
-              <div className="flex items-center justify-center gap-6 p-4 rounded-xl bg-gradient-to-r from-pink-500/10 to-purple-500/10 border border-pink-500/20">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-white">{stats.totalReferrals}</p>
-                  <p className="text-xs text-white/60">Referrals</p>
+          <div className="p-6 space-y-5">
+            {/* Stats - Always show, with zero state */}
+            <div className="flex items-center justify-center gap-6 p-4 rounded-xl bg-gradient-to-r from-pink-500/10 to-purple-500/10 border border-pink-500/20">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-white">{stats?.totalReferrals || 0}</p>
+                <p className="text-xs text-white/60">Referrals</p>
+              </div>
+              <div className="h-8 w-px bg-white/20" />
+              <div className="text-center">
+                <p className="text-2xl font-bold text-emerald-400">${(stats?.totalEarnings || 0).toFixed(2)}</p>
+                <p className="text-xs text-white/60">Total Earned</p>
+              </div>
+            </div>
+
+            {/* Share Buttons Section */}
+            {shareStatus?.x.claimed && shareStatus?.farcaster.claimed ? (
+              // All shares claimed today - show success message
+              <div className="space-y-3">
+                <div className="flex items-center justify-center gap-2 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                  <Sparkles className="h-5 w-5 text-emerald-400" />
+                  <span className="text-sm font-medium text-emerald-400">
+                    Today&apos;s share rewards collected!
+                  </span>
                 </div>
-                <div className="h-8 w-px bg-white/20" />
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-emerald-400">${stats.totalEarnings.toFixed(2)}</p>
-                  <p className="text-xs text-white/60">Earned</p>
+                <p className="text-xs text-white/40 text-center">
+                  Come back tomorrow for $0.50 more. Your referral link always works!
+                </p>
+              </div>
+            ) : (
+              // Show share buttons for unclaimed platforms
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-white/60">Share to earn</p>
+                  <span className="text-xs font-medium px-2 py-1 rounded-full bg-emerald-500/20 text-emerald-400">
+                    ${(
+                      (shareStatus?.x.claimed ? 0 : shareStatus?.x.amount || 0) +
+                      (shareStatus?.farcaster.claimed ? 0 : shareStatus?.farcaster.amount || 0)
+                    ).toFixed(2)} available
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {/* X/Twitter Button */}
+                  <button
+                    onClick={shareOnX}
+                    disabled={claiming === "x" || shareStatus?.x.claimed === true}
+                    className={`flex flex-col items-center justify-center gap-1.5 px-4 py-4 rounded-xl border transition-all ${
+                      shareStatus?.x.claimed
+                        ? "bg-emerald-500/10 border-emerald-500/30"
+                        : claiming === "x"
+                        ? "bg-white/5 border-white/10 opacity-60 cursor-not-allowed"
+                        : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-pink-500/30 hover:scale-[1.02] active:scale-[0.98]"
+                    }`}
+                  >
+                    {claiming === "x" ? (
+                      <Loader2 className="h-6 w-6 animate-spin text-pink-400" />
+                    ) : shareStatus?.x.claimed ? (
+                      <>
+                        <div className="flex items-center gap-1.5">
+                          <XIcon className="h-5 w-5 text-emerald-400" />
+                          <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                        </div>
+                        <span className="text-xs text-emerald-400">Claimed</span>
+                      </>
+                    ) : (
+                      <>
+                        <XIcon className="h-6 w-6 text-white" />
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-white/60">X</span>
+                          <span className="text-xs font-semibold text-emerald-400">+${shareStatus?.x.amount.toFixed(2)}</span>
+                        </div>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Farcaster Button */}
+                  <button
+                    onClick={shareOnFarcaster}
+                    disabled={claiming === "farcaster" || shareStatus?.farcaster.claimed === true}
+                    className={`flex flex-col items-center justify-center gap-1.5 px-4 py-4 rounded-xl border transition-all ${
+                      shareStatus?.farcaster.claimed
+                        ? "bg-emerald-500/10 border-emerald-500/30"
+                        : claiming === "farcaster"
+                        ? "bg-white/5 border-white/10 opacity-60 cursor-not-allowed"
+                        : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-purple-500/30 hover:scale-[1.02] active:scale-[0.98]"
+                    }`}
+                  >
+                    {claiming === "farcaster" ? (
+                      <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
+                    ) : shareStatus?.farcaster.claimed ? (
+                      <>
+                        <div className="flex items-center gap-1.5">
+                          <FarcasterIcon className="h-5 w-5 text-emerald-400" />
+                          <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                        </div>
+                        <span className="text-xs text-emerald-400">Claimed</span>
+                      </>
+                    ) : (
+                      <>
+                        <FarcasterIcon className="h-6 w-6 text-white" />
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-white/60">Farcaster</span>
+                          <span className="text-xs font-semibold text-emerald-400">+${shareStatus?.farcaster.amount.toFixed(2)}</span>
+                        </div>
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             )}
 
-            {/* Referral Code */}
-            <div className="space-y-2">
-              <p className="text-sm text-white/60">Your referral code</p>
+            {/* Divider */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-white/10" />
+              <span className="text-xs text-white/40">or share your link</span>
+              <div className="flex-1 h-px bg-white/10" />
+            </div>
+
+            {/* Referral Code & Link */}
+            <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <div className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 font-mono text-lg text-white text-center tracking-wider">
-                  {referralCode}
+                <div className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 font-mono text-sm text-white text-center tracking-wider overflow-hidden">
+                  <span className="block truncate">{referralCode}</span>
                 </div>
                 <button
                   onClick={copyCode}
-                  className="p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                  className="p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors flex-shrink-0"
+                  title="Copy referral code"
                 >
                   {copied ? (
                     <Check className="h-5 w-5 text-emerald-400" />
@@ -196,65 +417,31 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
                   )}
                 </button>
               </div>
-              <p className="text-xs text-white/40">
-                Friends get $0.50 • You get $1.00 (+$0.50 when they link social) + 5% of their purchases
+              <p className="text-xs text-white/40 text-center">
+                Friends get $0.50 • You get $1.00 (+$0.50 when they link) + 5% forever
               </p>
             </div>
 
-            {/* Share Buttons */}
-            <div className="space-y-2">
-              <p className="text-sm text-white/60">Share to earn credits daily</p>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={shareOnX}
-                  disabled={claiming === "x"}
-                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all ${
-                    shareStatus?.x.claimed
-                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                      : "bg-white/5 border-white/10 hover:bg-white/10 text-white"
-                  }`}
-                >
-                  {claiming === "x" ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <>
-                      <XIcon className="h-5 w-5" />
-                      <span className="font-medium">
-                        {shareStatus?.x.claimed ? "Claimed" : `+$${shareStatus?.x.amount.toFixed(2)}`}
-                      </span>
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={shareOnFarcaster}
-                  disabled={claiming === "farcaster"}
-                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all ${
-                    shareStatus?.farcaster.claimed
-                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                      : "bg-white/5 border-white/10 hover:bg-white/10 text-white"
-                  }`}
-                >
-                  {claiming === "farcaster" ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <>
-                      <FarcasterIcon className="h-5 w-5" />
-                      <span className="font-medium">
-                        {shareStatus?.farcaster.claimed ? "Claimed" : `+$${shareStatus?.farcaster.amount.toFixed(2)}`}
-                      </span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Copy Link */}
+            {/* Copy Link - Primary CTA */}
             <button
               onClick={copyLink}
-              className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 text-white font-medium hover:opacity-90 transition-opacity"
+              className={`flex items-center justify-center gap-2 w-full px-4 py-3.5 rounded-xl font-medium transition-all ${
+                linkCopied
+                  ? "bg-emerald-500/20 border border-emerald-500/30 text-emerald-400"
+                  : "bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:opacity-90 hover:scale-[1.01] active:scale-[0.99]"
+              }`}
             >
-              <Share2 className="h-4 w-4" />
-              Copy Share Link
+              {linkCopied ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  Link Copied!
+                </>
+              ) : (
+                <>
+                  <Share2 className="h-4 w-4" />
+                  Copy Referral Link
+                </>
+              )}
             </button>
           </div>
         )}

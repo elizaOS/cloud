@@ -1,5 +1,6 @@
 /**
- * Sidebar Chat Rooms Section - Shows in sidebar when on chat page
+ * Sidebar chat rooms section component displayed in sidebar on chat page.
+ * Shows filtered rooms for selected character with creation and deletion support.
  */
 
 "use client";
@@ -57,18 +58,13 @@ export function SidebarChatRooms() {
   };
 
   const handleCreateRoom = async () => {
-    try {
-      const newRoomId = await createRoom(selectedCharacterId);
-      if (newRoomId) {
-        // Update URL with new room ID
-        const params = new URLSearchParams(searchParams.toString());
-        params.set("roomId", newRoomId);
-        router.push(`/dashboard/chat?${params.toString()}`);
-        toast.success("New conversation started");
-      }
-    } catch (error) {
-      console.error("Error creating room:", error);
-      toast.error("Failed to create conversation");
+    const newRoomId = await createRoom(selectedCharacterId);
+    if (newRoomId) {
+      // Update URL with new room ID
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("roomId", newRoomId);
+      router.push(`/dashboard/chat?${params.toString()}`);
+      toast.success("New conversation started");
     }
   };
 
@@ -77,13 +73,7 @@ export function SidebarChatRooms() {
 
     if (!confirm("Delete this conversation?")) return;
 
-    try {
-      await deleteRoom(roomId);
-    } catch (error) {
-      console.error("Error deleting room:", error);
-      toast.error("Failed to delete conversation");
-      return;
-    }
+    await deleteRoom(roomId);
 
     // If deleted room was selected, clear URL params
     if (roomId === selectedRoomId) {
