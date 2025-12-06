@@ -50,7 +50,7 @@ export async function sendMessageWithSideEffects(
     roomId,
     content: {
       ...content,
-      source: content.source || "cloud",
+      source: content.source || "client_chat",
     },
   });
 

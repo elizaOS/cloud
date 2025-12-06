@@ -136,30 +136,6 @@ async function forwardRequest(
     if (contentType.includes("application/json")) {
       const data = await response.json();
 
-      // Debug: log chat messages response to understand content structure
-      if (path.includes("chats") && path.length >= 4 && data.messages) {
-        // Find first user and first assistant message
-        const userMsg = data.messages?.find((m: { role: string }) => m.role === "user");
-        const assistantMsg = data.messages?.find((m: { role: string }) => m.role === "assistant");
-
-        console.log("[Proxy Debug] Chat messages response:", {
-          messageCount: data.messages?.length,
-          userMessage: userMsg ? {
-            id: userMsg.id,
-            role: userMsg.role,
-            contentLength: userMsg.content?.length,
-            contentPreview: userMsg.content?.substring?.(0, 100) || "(no content)",
-          } : null,
-          assistantMessage: assistantMsg ? {
-            id: assistantMsg.id,
-            role: assistantMsg.role,
-            contentLength: assistantMsg.content?.length,
-            contentPreview: assistantMsg.content?.substring?.(0, 100) || "(no content)",
-            rawMessage: JSON.stringify(assistantMsg).substring(0, 500),
-          } : "(no assistant messages)",
-        });
-      }
-
       return NextResponse.json(data, {
         status: response.status,
         headers: {

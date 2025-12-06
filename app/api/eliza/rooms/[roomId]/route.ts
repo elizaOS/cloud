@@ -106,7 +106,7 @@ export async function GET(
       id: msg.id,
       entityId: msg.entityId,
       agentId: msg.agentId,
-      content: parsedContent,
+      content,
       createdAt: msg.createdAt || Date.now(),
       isAgent,
     };
