@@ -26,8 +26,7 @@ import { nanoid } from "nanoid";
 import { createHash } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { usersService, anonymousSessionsService } from "@/lib/services";
-import { db } from "@/db/client";
-import { users } from "@/db/schemas";
+import { createAnonymousUserAndSession } from "@/lib/services/anonymous-session-creator";
 import { logger } from "@/lib/utils/logger";
 import type { UserWithOrganization, User } from "@/lib/types";
 import { migrateAnonymousSession } from "@/lib/session";
@@ -164,25 +163,12 @@ export async function getOrCreateAnonymousUser(): Promise<{
     }
   }
 
-  const [newUser] = await db
-    .insert(users)
-    .values({
-      is_anonymous: true,
-      anonymous_session_id: newSessionToken,
-      organization_id: null,
-      is_active: true,
-      expires_at: expiresAt,
-      role: "member",
-    })
-    .returning();
-
-  const newSession = await anonymousSessionsService.create({
-    session_token: newSessionToken,
-    user_id: newUser.id,
-    expires_at: expiresAt,
-    ip_address: ipAddress,
-    user_agent: userAgent,
-    messages_limit: ANON_MESSAGE_LIMIT,
+  const { newUser, newSession } = await createAnonymousUserAndSession({
+    sessionToken: newSessionToken,
+    expiresAt,
+    ipAddress,
+    userAgent,
+    messagesLimit: ANON_MESSAGE_LIMIT,
   });
 
   cookieStore.set(ANON_SESSION_COOKIE, newSessionToken, {
@@ -191,12 +177,6 @@ export async function getOrCreateAnonymousUser(): Promise<{
     sameSite: "strict",
     path: "/",
     expires: expiresAt,
-  });
-
-  logger.info("[auth-anonymous] Created new anonymous session", {
-    userId: newUser.id,
-    sessionId: newSession.id,
-    expiresAt,
   });
 
   const anonymousUser: AnonymousUserWithOrganization = {

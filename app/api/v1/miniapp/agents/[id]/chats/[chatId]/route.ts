@@ -243,6 +243,18 @@ export async function GET(
         }
       }
 
+      // Debug log to understand content structure (only in development or when DEBUG_MESSAGE_PARSING is enabled)
+      if (process.env.NODE_ENV !== "production" || process.env.DEBUG_MESSAGE_PARSING === "true") {
+        logger.debug("[Miniapp API] Message content structure", {
+          msgId: msg.id,
+          entityId: msg.entityId,
+          isAgent: msg.entityId === agentId,
+          rawContentType: typeof rawContent,
+          parsedContentKeys: typeof content === "object" && content ? Object.keys(content) : [],
+          extractedText: textContent ? textContent.substring(0, 100) : "(EMPTY - extraction failed)",
+        });
+      }
+
       // Extract attachments from content if present
       const attachments: MessageAttachment[] | undefined =
         Array.isArray(content.attachments) && content.attachments.length > 0
