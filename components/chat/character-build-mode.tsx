@@ -33,10 +33,12 @@ import { createDefaultCharacter } from "@/lib/utils/character-names";
 
 interface CharacterBuildModeProps {
   initialCharacters: ElizaCharacter[];
+  onUnsavedChanges?: (hasChanges: boolean) => void;
 }
 
 export function CharacterBuildMode({
   initialCharacters,
+  onUnsavedChanges,
 }: CharacterBuildModeProps) {
   const { selectedCharacterId, setSelectedCharacterId } = useChatStore();
   const { user } = usePrivy();
@@ -59,6 +61,13 @@ export function CharacterBuildMode({
   }, [selectedCharacterId, initialCharacters]);
 
   const [character, setCharacter] = useState<ElizaCharacter>(initialCharacter);
+
+  // Track unsaved changes
+  useEffect(() => {
+    const hasChanges =
+      JSON.stringify(character) !== JSON.stringify(initialCharacter);
+    onUnsavedChanges?.(hasChanges);
+  }, [character, initialCharacter, onUnsavedChanges]);
 
   // Update local state when derived character changes
   useEffect(() => {
@@ -101,7 +110,10 @@ export function CharacterBuildMode({
         duration: 4000,
       });
     }
-  }, [character, selectedCharacterId, setSelectedCharacterId]);
+
+    // Mark changes as saved after successful save
+    onUnsavedChanges?.(false);
+  }, [character, selectedCharacterId, setSelectedCharacterId, onUnsavedChanges]);
 
   const handleCharacterRefresh = useCallback(async () => {
     if (!character.id) {
