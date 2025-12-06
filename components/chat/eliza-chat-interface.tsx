@@ -130,6 +130,7 @@ export function ElizaChatInterface({
   const [messages, setMessages] = useState<Message[]>([]);
   const [agentInfo, setAgentInfo] = useState<AgentInfoDisplay | null>(null);
   const [inputText, setInputText] = useState("");
+  const inputTextRef = useRef(inputText);
   const isPendingMessageProcessingRef = useRef(false);
   const pendingMessageToSendRef = useRef<string | null>(null);
   const isCreatingRoomRef = useRef(false);
@@ -552,6 +553,11 @@ export function ElizaChatInterface({
     }
   }, []);
 
+  // Keep inputTextRef in sync with inputText
+  useEffect(() => {
+    inputTextRef.current = inputText;
+  }, [inputText]);
+
   // Auto-scroll to bottom when messages change (with delayed scroll for late-loading content)
   useEffect(() => {
     scrollToBottom();
@@ -561,7 +567,7 @@ export function ElizaChatInterface({
 
   const sendMessage = useCallback(
     async (textOverride?: string) => {
-      const messageText = textOverride?.trim() || inputText.trim();
+      const messageText = textOverride?.trim() || inputTextRef.current.trim();
       if (!messageText || loadingState.isSending) return;
 
       if (!textOverride) {
@@ -684,7 +690,6 @@ export function ElizaChatInterface({
       }
     },
     [
-      inputText,
       loadingState.isSending,
       roomId,
       createRoom,
