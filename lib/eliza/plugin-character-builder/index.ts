@@ -12,6 +12,7 @@ import { proposeCharacterChangesAction } from "./actions/propose-character-chang
 import { applyCharacterChangesAction } from "./actions/apply-character-changes";
 import { buildChatAction } from "./actions/build-chat";
 import { handleMessage } from "./handler";
+import { roomTitleEvaluator } from "../shared/evaluators";
 import type { IAgentRuntime, Memory, HandlerCallback } from "@elizaos/core";
 
 /**
@@ -85,9 +86,9 @@ const events = {
  * Assistant Plugin Export
  */
 export const characterBuilderPlugin: Plugin = {
-  name: "eliza-assistant",
+  name: "eliza-character-builder",
   description:
-    "Core assistant plugin with message handling and workflow routing",
+    "Character builder plugin with message handling and workflow routing",
   events,
   providers: [
     actionsProvider,
@@ -100,6 +101,7 @@ export const characterBuilderPlugin: Plugin = {
     applyCharacterChangesAction,
     buildChatAction,
   ],
+  evaluators: [roomTitleEvaluator],
   services: [],
 };
 

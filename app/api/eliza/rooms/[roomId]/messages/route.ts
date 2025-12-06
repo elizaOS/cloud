@@ -247,23 +247,8 @@ export async function POST(
       });
     }
 
-    // Generate title if this is first message
-    const roomMessages = await db.execute<{ count: number }>(
-      sql`SELECT COUNT(*) as count FROM memories WHERE room_id = ${roomId}::uuid AND type = 'messages'`,
-    );
-    const messageCount = roomMessages.rows[0]?.count || 0;
-
-    if (messageCount <= 2 && !room?.name) {
-      logger.info(
-        "[Eliza Messages API] First message in room, generating title...",
-      );
-
-      const { generateRoomTitle } = await import("@/lib/ai/generate-room-title");
-      const title = await generateRoomTitle(text);
-
-      await roomsRepository.update(roomId, { name: title });
-      logger.info("[Eliza Messages API] Generated room title:", title);
-    }
+    // Note: Room title generation is now handled by roomTitleEvaluator
+    // It will automatically generate a title after 4+ messages
 
     // Send to Discord thread if configured
     const discordThreadId = room?.metadata?.discordThreadId as
