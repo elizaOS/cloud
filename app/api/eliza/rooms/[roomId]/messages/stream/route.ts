@@ -289,9 +289,18 @@ export async function POST(
         // Send connection confirmation
         sendEvent("connected", { roomId, timestamp: Date.now() });
 
-        // STEP 1: Store user message FIRST (explicit storage for reliability)
-        // Use characterId (room's agentId) for consistency with miniapp queries
+        // Determine consistent agent ID - prefer room's characterId, validate against runtime
+        // This ensures messages are stored with the correct agent ID for queries
         const roomAgentId = characterId || agentRuntime.agentId;
+        if (characterId && characterId !== agentRuntime.agentId) {
+          logger.warn("[Stream] Agent ID mismatch detected", {
+            roomCharacterId: characterId,
+            runtimeAgentId: agentRuntime.agentId,
+            usingAgentId: roomAgentId,
+          });
+        }
+
+        // STEP 1: Store user message FIRST (explicit storage for reliability)
         logger.info(`[Stream] Storing user message with agentId: ${roomAgentId}`);
         const storedUserMessage = await messageStorage.storeUserMessage({
           roomId,
@@ -372,12 +381,11 @@ export async function POST(
         }
 
         // STEP 3: Store agent message EXPLICITLY (critical for persistence)
-        // Use characterId (room's agentId) for consistency with miniapp queries
-        const agentEntityId = characterId || agentRuntime.agentId;
-        logger.info(`[Stream] Storing agent message with entityId: ${agentEntityId}`);
+        // Use the same roomAgentId for consistency across user and agent messages
+        logger.info(`[Stream] Storing agent message with entityId: ${roomAgentId}`);
         const storedAgentMessage = await messageStorage.storeAgentMessage({
           roomId,
-          agentId: agentEntityId,
+          agentId: roomAgentId,
           content: {
             text: responseText,
             source: "agent",
@@ -392,8 +400,8 @@ export async function POST(
         // Send agent response with stored ID
         sendEvent("message", {
           id: storedAgentMessage.id,
-          entityId: agentEntityId,
-          agentId: agentEntityId,
+          entityId: roomAgentId,
+          agentId: roomAgentId,
           content: responseContentPayload,
           createdAt: storedAgentMessage.createdAt,
           isAgent: true,

@@ -23,10 +23,19 @@ export function safeToISOString(value: unknown): string {
     }
 
     // For numbers (timestamps) or Date-like objects
-    const timestamp =
-      typeof value === "number"
-        ? value
-        : ((value as { getTime?: () => number })?.getTime?.() ?? Date.now());
+    let timestamp: number;
+    if (typeof value === "number") {
+      timestamp = value;
+    } else {
+      // Try to get timestamp from Date-like object
+      const getTimeResult = (value as { getTime?: () => number })?.getTime?.();
+      // Validate the returned timestamp is a valid number
+      if (typeof getTimeResult === "number" && !Number.isNaN(getTimeResult)) {
+        timestamp = getTimeResult;
+      } else {
+        timestamp = Date.now();
+      }
+    }
 
     const date = new Date(timestamp);
     return Number.isNaN(date.getTime())
