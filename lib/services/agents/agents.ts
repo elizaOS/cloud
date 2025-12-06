@@ -104,6 +104,42 @@ class AgentsService {
   }
 
   /**
+   * Ensure the default Eliza agent exists in the database.
+   * This is the built-in Eliza character that's always available.
+   */
+  async ensureDefaultAgentExists(): Promise<void> {
+    const DEFAULT_AGENT_ID = "b850bc30-45f8-0041-a00a-83df46d8555d";
+    
+    // Check if default agent already exists
+    const exists = await agentsRepository.exists(DEFAULT_AGENT_ID);
+    if (exists) {
+      logger.debug(`[Agents Service] Default Eliza agent already exists`);
+      return;
+    }
+
+    // Import default character from agent-loader
+    const defaultAgent = await import("@/lib/eliza/agent");
+    const character = defaultAgent.default.character;
+
+    // Create default agent in database
+    const avatarUrl = character.settings?.avatarUrl as string | undefined;
+    const created = await agentsRepository.create({
+      id: DEFAULT_AGENT_ID as `${string}-${string}-${string}-${string}-${string}`,
+      name: character.name,
+      bio: character.bio,
+      system: character.system,
+      settings: avatarUrl ? { avatarUrl } : {},
+      enabled: true,
+    });
+
+    if (created) {
+      logger.info(`[Agents Service] Created default Eliza agent ${DEFAULT_AGENT_ID}`);
+    } else {
+      logger.debug(`[Agents Service] Default Eliza agent already exists (race condition)`);
+    }
+  }
+
+  /**
    * Ensure agent exists in database, creating from character if needed.
    * 
    * @param characterId - Character ID to ensure exists as an agent
@@ -130,11 +166,11 @@ class AgentsService {
     
     // Create agent from character
     const created = await agentsRepository.create({
-      id: characterId,
+      id: characterId as `${string}-${string}-${string}-${string}-${string}`,
       name: character.name,
       bio: characterData?.bio as string | string[] | undefined,
       settings: {
-        avatarUrl: character.avatar_url,
+        ...(character.avatar_url ? { avatarUrl: character.avatar_url } : {}),
         ...(characterData?.settings as Record<string, unknown> | undefined),
       },
       enabled: true,
