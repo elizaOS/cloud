@@ -29,6 +29,7 @@ import { executeSideEffects } from "./side-effects";
 export interface SendMessageResult {
   messageId: UUID;
   userMessage: Memory;
+  responseMessageId?: UUID;
   result?: {
     responseContent?: Content;
   };
@@ -80,6 +81,7 @@ export async function sendMessageWithSideEffects(
 
   // Track response from plugin handlers
   let responseContent: Content | undefined;
+  let responseMessageId: UUID | undefined;
 
   // Emit MESSAGE_RECEIVED to trigger plugin-specific handlers
   // The appropriate plugin (assistant, chat-playground, character-builder) will handle it
@@ -116,6 +118,7 @@ export async function sendMessageWithSideEffects(
         };
 
         await runtime.createMemory(responseMemory, "messages");
+        responseMessageId = responseMemory.id as UUID;
         elizaLogger.info(`[sendMessage] Stored response memory: ${responseMemory.id}`);
       } else {
         elizaLogger.warn("[sendMessage] Callback received but no text in content");
@@ -137,6 +140,7 @@ export async function sendMessageWithSideEffects(
   return {
     messageId: userMessage.id as UUID,
     userMessage,
+    responseMessageId,
     result: {
       responseContent: responseContent || { text: "", source: "agent" },
     },
