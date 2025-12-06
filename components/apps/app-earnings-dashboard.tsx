@@ -1,3 +1,11 @@
+/**
+ * App earnings dashboard component displaying earnings statistics and charts.
+ * Shows lifetime earnings, breakdowns by period, and withdrawal information.
+ *
+ * @param props - App earnings dashboard configuration
+ * @param props.appId - App ID to fetch earnings for
+ */
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -95,36 +103,31 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
   const fetchEarnings = async () => {
     setIsLoading(true);
     setError(null);
-    try {
-      const url = new URL(`/api/v1/apps/${appId}/earnings`, window.location.origin);
-      url.searchParams.set("days", period);
-      
-      // Pass testData param to API if present in the page URL
-      if (testDataParam) {
-        url.searchParams.set("testData", "true");
-      }
-      
-      const response = await fetch(url.toString());
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      const data = await response.json();
-
-      if (data.success) {
-        setSummary(data.earnings.summary);
-        setBreakdown(data.earnings.breakdown);
-        setChartData(data.earnings.chartData);
-        setTransactions(data.earnings.recentTransactions);
-        setIsTestData(data.testData === true);
-      } else {
-        setError(data.error || "Failed to load earnings data");
-      }
-    } catch (error) {
-      console.error("Failed to fetch earnings:", error);
-      setError(error instanceof Error ? error.message : "Failed to load earnings");
-    } finally {
-      setIsLoading(false);
+    
+    const url = new URL(`/api/v1/apps/${appId}/earnings`, window.location.origin);
+    url.searchParams.set("days", period);
+    
+    // Pass testData param to API if present in the page URL
+    if (testDataParam) {
+      url.searchParams.set("testData", "true");
     }
+    
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    const data = await response.json();
+
+    if (data.success) {
+      setSummary(data.earnings.summary);
+      setBreakdown(data.earnings.breakdown);
+      setChartData(data.earnings.chartData);
+      setTransactions(data.earnings.recentTransactions);
+      setIsTestData(data.testData === true);
+    } else {
+      setError(data.error || "Failed to load earnings data");
+    }
+    setIsLoading(false);
   };
 
   useEffect(() => {

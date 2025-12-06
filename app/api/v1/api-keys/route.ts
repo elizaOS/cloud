@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { apiKeysService } from "@/lib/services";
 
+/**
+ * GET /api/v1/api-keys
+ * Lists all API keys for the authenticated user's organization.
+ *
+ * @returns Array of API key objects.
+ */
 export async function GET() {
   try {
     const user = await requireAuthWithOrg();
@@ -18,6 +24,13 @@ export async function GET() {
   }
 }
 
+/**
+ * POST /api/v1/api-keys
+ * Creates a new API key for the authenticated user's organization.
+ *
+ * @param request - Request body with name, optional description, permissions, rate_limit, and expires_at.
+ * @returns Created API key details including the plain key (only shown once).
+ */
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuthWithOrg();

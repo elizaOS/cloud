@@ -118,29 +118,12 @@ function checkRateLimit(
 }
 
 /**
- * Affiliate API Endpoint for Character Creation
- *
- * This endpoint allows external affiliates (like CloneUrCrush) to create characters
- * in ElizaOS Cloud without requiring users to sign up first.
- *
  * POST /api/affiliate/create-character
- * Authorization: Bearer <affiliate_api_key>
+ * Affiliate API endpoint for creating characters without requiring user signup.
+ * Requires affiliate API key with "affiliate:create-character" permission.
  *
- * Request Body:
- * {
- *   character: ElizaCharacter object,
- *   affiliateId: string (e.g., "clone-your-crush"),
- *   sessionId?: string (optional, for session continuity),
- *   metadata?: { source, vibe, backstory, instagram, twitter, socialContent, imageUrls }
- * }
- *
- * Response:
- * {
- *   success: true,
- *   characterId: string (UUID),
- *   sessionId: string (UUID),
- *   redirectUrl: string (full URL to redirect user)
- * }
+ * @param request - Request body with character data, affiliateId, optional sessionId, and metadata.
+ * @returns Created character ID, session ID, and redirect URL.
  */
 export async function POST(request: NextRequest) {
   const startTime = Date.now();

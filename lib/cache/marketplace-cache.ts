@@ -1,3 +1,7 @@
+/**
+ * Marketplace cache for character search results and category data.
+ */
+
 import { cache as cacheClient } from "./client";
 import { logger } from "@/lib/utils/logger";
 import type {
@@ -7,6 +11,9 @@ import type {
 } from "@/lib/types/marketplace";
 import { createHash } from "node:crypto";
 
+/**
+ * Cache manager for marketplace data including search results and character details.
+ */
 export class MarketplaceCache {
   private readonly MARKETPLACE_PREFIX = "marketplace";
   private readonly DEFAULT_TTL = 300; // 5 minutes

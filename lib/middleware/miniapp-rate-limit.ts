@@ -29,6 +29,9 @@ setInterval(() => {
 /**
  * Rate limit configuration for miniapp APIs
  */
+/**
+ * Rate limit configuration for miniapp APIs.
+ */
 export interface MiniappRateLimitConfig {
   // User-level limits (per API key or user)
   userWindowMs: number;
@@ -149,6 +152,9 @@ function addRateLimitHeaders(
 /**
  * Rate limit result with both user and app status
  */
+/**
+ * Rate limit result with both user and app status.
+ */
 export interface RateLimitResult {
   allowed: boolean;
   userRemaining: number;
@@ -211,6 +217,13 @@ export async function checkMiniappRateLimit(
 /**
  * Create rate limit error response
  */
+/**
+ * Creates a rate limit error response.
+ *
+ * @param result - Rate limit result.
+ * @param corsOrigin - Optional CORS origin for headers.
+ * @returns NextResponse with 429 status.
+ */
 export function createRateLimitErrorResponse(
   result: RateLimitResult,
   corsOrigin?: string
@@ -244,6 +257,14 @@ export function createRateLimitErrorResponse(
 
 /**
  * Add rate limit info to a successful response
+ */
+/**
+ * Adds rate limit info headers to a successful response.
+ *
+ * @param response - Response to add headers to.
+ * @param result - Rate limit result.
+ * @param config - Rate limit configuration.
+ * @returns Response with rate limit headers.
  */
 export function addRateLimitInfoToResponse(
   response: NextResponse,

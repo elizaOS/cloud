@@ -16,13 +16,22 @@ export type {
   NewAppEarningsTransaction,
 };
 
+/**
+ * Repository for app earnings database operations.
+ */
 export class AppEarningsRepository {
+  /**
+   * Finds app earnings record by app ID.
+   */
   async findByAppId(appId: string): Promise<AppEarnings | undefined> {
     return await db.query.appEarnings.findFirst({
       where: eq(appEarnings.app_id, appId),
     });
   }
 
+  /**
+   * Gets existing earnings record or creates a new one if it doesn't exist.
+   */
   async getOrCreate(appId: string): Promise<AppEarnings> {
     const existing = await this.findByAppId(appId);
     if (existing) {
@@ -46,6 +55,9 @@ export class AppEarningsRepository {
     return created;
   }
 
+  /**
+   * Atomically adds inference earnings to app earnings.
+   */
   async addInferenceEarnings(
     appId: string,
     amount: number
@@ -66,6 +78,9 @@ export class AppEarningsRepository {
     return updated;
   }
 
+  /**
+   * Atomically adds purchase earnings to app earnings.
+   */
   async addPurchaseEarnings(
     appId: string,
     amount: number
@@ -86,6 +101,11 @@ export class AppEarningsRepository {
     return updated;
   }
 
+  /**
+   * Moves pending balance to withdrawable balance.
+   * 
+   * @throws Error if earnings record not found.
+   */
   async releasePendingToWithdrawable(appId: string): Promise<AppEarnings> {
     const earnings = await this.findByAppId(appId);
     if (!earnings) {
@@ -110,6 +130,12 @@ export class AppEarningsRepository {
     return updated;
   }
 
+  /**
+   * Processes a withdrawal request atomically in a transaction.
+   * 
+   * Uses row-level locking (FOR UPDATE) to prevent race conditions.
+   * Validates amount meets threshold and balance is sufficient.
+   */
   async processWithdrawal(
     appId: string,
     amount: number
@@ -171,6 +197,9 @@ export class AppEarningsRepository {
     });
   }
 
+  /**
+   * Updates the payout threshold for an app.
+   */
   async updatePayoutThreshold(
     appId: string,
     threshold: number
@@ -187,6 +216,9 @@ export class AppEarningsRepository {
     return updated;
   }
 
+  /**
+   * Creates a new earnings transaction record.
+   */
   async createTransaction(
     data: NewAppEarningsTransaction
   ): Promise<AppEarningsTransaction> {
@@ -197,6 +229,9 @@ export class AppEarningsRepository {
     return transaction;
   }
 
+  /**
+   * Lists earnings transactions for an app, ordered by creation date.
+   */
   async listTransactions(
     appId: string,
     limit: number = 50,
@@ -210,6 +245,9 @@ export class AppEarningsRepository {
     });
   }
 
+  /**
+   * Lists earnings transactions filtered by type.
+   */
   async listTransactionsByType(
     appId: string,
     type: string,
@@ -225,11 +263,15 @@ export class AppEarningsRepository {
     });
   }
 
+  /**
+   * Finds an earnings transaction by Stripe payment intent ID.
+   * 
+   * Uses JSONB containment query for efficient lookup.
+   */
   async findTransactionByPaymentIntent(
     appId: string,
     paymentIntentId: string
   ): Promise<AppEarningsTransaction | undefined> {
-    // Use SQL JSONB containment for efficient query
     const result = await db
       .select()
       .from(appEarningsTransactions)
@@ -244,6 +286,9 @@ export class AppEarningsRepository {
     return result[0];
   }
 
+  /**
+   * Gets transaction totals grouped by type within a date range.
+   */
   async getTransactionTotalsByType(
     appId: string,
     startDate: Date,
@@ -285,6 +330,9 @@ export class AppEarningsRepository {
     return totals;
   }
 
+  /**
+   * Gets daily earnings breakdown within a date range.
+   */
   async getDailyEarnings(
     appId: string,
     startDate: Date,
@@ -347,6 +395,8 @@ export class AppEarningsRepository {
   }
 }
 
-// Export singleton instance
+/**
+ * Singleton instance of AppEarningsRepository.
+ */
 export const appEarningsRepository = new AppEarningsRepository();
 

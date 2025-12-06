@@ -25,19 +25,7 @@ interface VideoGenerationRequest {
   model?: string;
 }
 
-interface FalVideoData {
-  video: {
-    url: string;
-    content_type?: string;
-    file_name?: string;
-    file_size?: number;
-    width?: number;
-    height?: number;
-  };
-  seed?: number;
-  has_nsfw_concepts?: boolean[];
-  timings?: Record<string, number>;
-}
+import type { FalVideoData } from "@/lib/types/video";
 
 const VALID_MODELS = [
   "fal-ai/veo3",
@@ -49,6 +37,14 @@ const VALID_MODELS = [
   "fal-ai/minimax/hailuo-02/pro/text-to-video",
 ];
 
+/**
+ * POST /api/v1/generate-video
+ * Generates videos using Fal.ai video generation models.
+ * Requires authentication with organization.
+ *
+ * @param request - Request body with prompt and optional model selection.
+ * @returns Video generation job details and status.
+ */
 async function handlePOST(request: NextRequest) {
   let generationId: string | undefined;
   try {

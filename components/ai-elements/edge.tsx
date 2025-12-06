@@ -1,3 +1,8 @@
+/**
+ * Edge components for React Flow diagrams.
+ * Provides temporary and permanent edge rendering with bezier path calculations.
+ */
+
 import {
   BaseEdge,
   type EdgeProps,

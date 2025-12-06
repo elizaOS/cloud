@@ -4,7 +4,13 @@ const RECIPIENT_WALLET = (process.env.X402_RECIPIENT_WALLET ||
   process.env.CDP_WALLET_ADDRESS ||
   "0x0000000000000000000000000000000000000000") as `0x${string}`;
 
-// Metadata endpoint for Weather MCP
+/**
+ * GET /api/mcp/demos/weather
+ * Metadata endpoint for Weather MCP server.
+ * Returns information about available weather tools, pricing, and data sources.
+ *
+ * @returns MCP server metadata including tools, pricing, and feature list.
+ */
 export async function GET() {
   return NextResponse.json({
     name: "Weather MCP",

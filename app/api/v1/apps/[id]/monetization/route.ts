@@ -10,6 +10,15 @@ const UpdateMonetizationSchema = z.object({
   purchaseSharePercentage: z.number().min(0).max(100).optional(),
 });
 
+/**
+ * GET /api/v1/apps/[id]/monetization
+ * Gets monetization settings for a specific app.
+ * Requires ownership verification.
+ *
+ * @param request - The Next.js request object.
+ * @param params - Route parameters containing the app ID.
+ * @returns Monetization settings including markup percentages and enabled status.
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -49,6 +58,20 @@ export async function GET(
   }
 }
 
+/**
+ * PUT /api/v1/apps/[id]/monetization
+ * Updates monetization settings for a specific app.
+ * Requires ownership verification.
+ *
+ * Request Body (all fields optional):
+ * - `monetizationEnabled`: Boolean to enable/disable monetization.
+ * - `inferenceMarkupPercentage`: Percentage markup for inference calls (0-1000).
+ * - `purchaseSharePercentage`: Percentage share of credit purchases (0-100).
+ *
+ * @param request - Request body with monetization settings to update.
+ * @param params - Route parameters containing the app ID.
+ * @returns Updated monetization settings.
+ */
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

@@ -340,11 +340,4 @@ async function checkAndRunMcpAction(
       "[ChatPlayground] MCP action did not succeed, falling back to regular response",
     );
     return false;
-  } catch (error) {
-    logger.error(
-      "[ChatPlayground] Error checking/running MCP action:",
-      String(error),
-    );
-    return false;
-  }
 }

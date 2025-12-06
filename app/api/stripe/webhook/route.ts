@@ -30,6 +30,15 @@ function parseAndValidateCredits(creditsStr: string): number | null {
   return Math.round(credits * 100) / 100;
 }
 
+/**
+ * POST /api/stripe/webhook
+ * Stripe webhook endpoint for processing payment events.
+ * Handles checkout sessions, payment intents, invoices, and subscription events.
+ * Verifies webhook signatures for security.
+ *
+ * @param req - Request containing Stripe webhook event data.
+ * @returns Webhook processing result.
+ */
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const headersList = await headers();

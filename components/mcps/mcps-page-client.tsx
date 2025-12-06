@@ -1,3 +1,11 @@
+/**
+ * MCPs page client component displaying available MCP servers.
+ * Supports server browsing, filtering, and integration with pricing information.
+ *
+ * @param props - MCPs page client configuration
+ * @param props.servers - Array of MCP server configurations
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -20,28 +28,10 @@ import { BrandCard, CornerBrackets } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-interface MCPServer {
-  id: string;
-  name: string;
-  description: string;
-  endpoint: string;
-  version: string;
-  category: string;
-  status: "live" | "coming_soon" | "maintenance";
-  pricing: {
-    type: "free" | "credits" | "x402";
-    description: string;
-    pricePerRequest?: string;
-  };
-  x402Enabled: boolean;
-  toolCount: number;
-  icon: string;
-  color: string;
-  features: string[];
-}
+import type { McpRegistryEntry } from "@/app/api/mcp/registry/route";
 
 interface MCPsPageClientProps {
-  servers: MCPServer[];
+  servers: McpRegistryEntry[];
 }
 
 const iconMap: Record<string, typeof Puzzle> = {
@@ -52,7 +42,7 @@ const iconMap: Record<string, typeof Puzzle> = {
 };
 
 export function MCPsPageClient({ servers }: MCPsPageClientProps) {
-  const [selectedServer, setSelectedServer] = useState<MCPServer | null>(null);
+  const [selectedServer, setSelectedServer] = useState<McpRegistryEntry | null>(null);
   const [copiedEndpoint, setCopiedEndpoint] = useState<string | null>(null);
   const [testingServer, setTestingServer] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<string | null>(null);
@@ -77,34 +67,26 @@ export function MCPsPageClient({ servers }: MCPsPageClientProps) {
     }
   };
 
-  const testMcpServer = async (server: MCPServer) => {
+  const testMcpServer = async (server: McpRegistryEntry) => {
     setTestingServer(server.id);
     setTestResult(null);
 
-    try {
-      const response = await fetch(server.endpoint, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-        },
-      });
+    const response = await fetch(server.endpoint, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    });
 
-      if (response.ok) {
-        const data = await response.json();
-        setTestResult(JSON.stringify(data, null, 2));
-        toast.success(`${server.name} is responding`);
-      } else {
-        setTestResult(`Error: ${response.status} ${response.statusText}`);
-        toast.error(`Server returned ${response.status}`);
-      }
-    } catch (error) {
-      setTestResult(
-        `Connection error: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-      toast.error("Failed to connect to server");
-    } finally {
-      setTestingServer(null);
+    if (response.ok) {
+      const data = await response.json();
+      setTestResult(JSON.stringify(data, null, 2));
+      toast.success(`${server.name} is responding`);
+    } else {
+      setTestResult(`Error: ${response.status} ${response.statusText}`);
+      toast.error(`Server returned ${response.status}`);
     }
+    setTestingServer(null);
   };
 
   return (

@@ -1,3 +1,12 @@
+/**
+ * Usage settings tab component displaying credit usage and quota information.
+ * Shows daily burn rate, session statistics, and quota usage by model.
+ *
+ * @param props - Usage tab configuration
+ * @param props.user - User data with organization information
+ * @param props.onTabChange - Callback to switch to other settings tabs
+ */
+
 "use client";
 
 import { useState, useEffect } from "react";

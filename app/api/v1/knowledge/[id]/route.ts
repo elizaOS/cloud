@@ -9,7 +9,13 @@ import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
 export const maxDuration = 60;
 
 /**
- * DELETE /api/v1/knowledge/[id] - Delete a knowledge document
+ * DELETE /api/v1/knowledge/[id]
+ * Deletes a knowledge document by ID.
+ * Supports optional characterId query parameter for character-specific knowledge.
+ *
+ * @param req - Request with optional characterId query parameter.
+ * @param context - Route context containing the document ID parameter.
+ * @returns Success status.
  */
 async function handleDELETE(
   req: NextRequest,

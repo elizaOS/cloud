@@ -1,5 +1,12 @@
+/**
+ * SEO type definitions for metadata and structured data.
+ */
+
 import type { Metadata } from "next";
 
+/**
+ * Parameters for generating Open Graph images.
+ */
 export interface OGImageParams {
   type: "default" | "character" | "chat" | "container" | "marketplace";
   title?: string;
@@ -11,6 +18,9 @@ export interface OGImageParams {
   avatarUrl?: string;
 }
 
+/**
+ * Options for generating page metadata.
+ */
 export interface PageMetadataOptions {
   title: string;
   description: string;
@@ -21,12 +31,18 @@ export interface PageMetadataOptions {
   noIndex?: boolean;
 }
 
+/**
+ * Options for generating dynamic metadata for entity pages.
+ */
 export interface DynamicMetadataOptions extends PageMetadataOptions {
   entityId: string;
   entityType: "character" | "container" | "chat" | "generation";
   updatedAt?: Date;
 }
 
+/**
+ * Options for generating structured data (JSON-LD).
+ */
 export interface StructuredDataOptions {
   type:
     | "Organization"
@@ -41,6 +57,9 @@ export interface StructuredDataOptions {
   additionalProperties?: Record<string, unknown>;
 }
 
+/**
+ * Function type for generating metadata.
+ */
 export type MetadataGenerator = (
   options: PageMetadataOptions | DynamicMetadataOptions,
 ) => Metadata;

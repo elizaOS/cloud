@@ -12,6 +12,11 @@ import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { apps } from "./apps";
 import { users } from "./users";
 
+/**
+ * App earnings table schema.
+ * 
+ * Tracks earnings for third-party apps from inference markup and purchase shares.
+ */
 export const appEarnings = pgTable(
   "app_earnings",
   {
@@ -61,6 +66,11 @@ export const appEarnings = pgTable(
   })
 );
 
+/**
+ * App earnings transactions table schema.
+ * 
+ * Records individual earnings transactions including inference markup, purchase shares, and withdrawals.
+ */
 export const appEarningsTransactions = pgTable(
   "app_earnings_transactions",
   {

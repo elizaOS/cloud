@@ -1,3 +1,8 @@
+/**
+ * Credit balance display component showing current credit balance.
+ * Fetches and displays balance with loading state.
+ */
+
 "use client";
 
 import { useEffect, useState } from "react";

@@ -111,15 +111,8 @@ function LoginPageContent() {
   ) => {
     setLoadingButton(provider);
     const toastId = toast.loading(`Redirecting to ${provider}...`);
-    try {
-      await initOAuth({ provider });
-      // This will redirect to OAuth provider
-    } catch (error) {
-      console.error(`Error logging in with ${provider}:`, error);
-      toast.dismiss(toastId);
-      toast.error(`Failed to log in with ${provider}`);
-      setLoadingButton(null);
-    }
+    await initOAuth({ provider });
+    // This will redirect to OAuth provider
   };
 
   const handleWalletConnect = async () => {
@@ -144,28 +137,21 @@ function LoginPageContent() {
     lastLoginAttemptRef.current = now;
     setLoadingButton("wallet");
 
-    try {
-      // Use login() instead of connectWallet() for authentication
-      // This opens the Privy modal (non-blocking, returns immediately)
-      // Authentication state changes are handled via the authenticated state in useEffect
-      login();
+    // Use login() instead of connectWallet() for authentication
+    // This opens the Privy modal (non-blocking, returns immediately)
+    // Authentication state changes are handled via the authenticated state in useEffect
+    login();
 
-      // Reset the guard after a short delay to allow modal to open
-      // If authentication succeeds, the useEffect will handle redirect
-      // If user closes modal, this timeout resets the guard for retry
-      setTimeout(() => {
-        // Only reset if still in progress (not authenticated yet)
-        if (loginInProgressRef.current) {
-          loginInProgressRef.current = false;
-          setLoadingButton(null);
-        }
-      }, 2000); // 2 second timeout
-    } catch (error) {
-      console.error("[LoginPage] Error opening login modal:", error);
-      toast.error("Failed to open login modal");
-      loginInProgressRef.current = false;
-      setLoadingButton(null);
-    }
+    // Reset the guard after a short delay to allow modal to open
+    // If authentication succeeds, the useEffect will handle redirect
+    // If user closes modal, this timeout resets the guard for retry
+    setTimeout(() => {
+      // Only reset if still in progress (not authenticated yet)
+      if (loginInProgressRef.current) {
+        loginInProgressRef.current = false;
+        setLoadingButton(null);
+      }
+    }, 2000); // 2 second timeout
   };
 
   const handleBackToEmail = () => {
@@ -513,7 +499,11 @@ function LoginPageFallback() {
   );
 }
 
-// Main page component with Suspense boundary
+/**
+ * Login page component with authentication options.
+ * Supports email verification, OAuth (Google, Discord, GitHub), and wallet connection.
+ * Wrapped in Suspense for client-side navigation.
+ */
 export default function LoginPage() {
   return (
     <Suspense fallback={<LoginPageFallback />}>

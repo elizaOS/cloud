@@ -1,9 +1,11 @@
 /**
  * POST /api/auth/miniapp-session
- * Create a new miniapp authentication session
- * 
- * Called by the miniapp when user wants to login.
- * Returns a session ID that the miniapp uses to redirect to Cloud for auth.
+ * Creates a new miniapp authentication session.
+ * Called by miniapps when a user wants to log in.
+ * Returns a session ID and login URL for redirecting to Cloud authentication.
+ *
+ * @param request - Request body with callbackUrl and optional appId.
+ * @returns Session ID, expiration, and login URL for redirect.
  */
 
 import { NextRequest, NextResponse } from "next/server";

@@ -10,7 +10,10 @@ import { userContextService, type UserContext } from "./user-context";
 import { AgentMode } from "./agent-mode-types";
 import { logger } from "@/lib/utils/logger";
 
-// Legacy compatibility layer
+/**
+ * Agent runtime manager for backward compatibility.
+ * Delegates to RuntimeFactory and MessageHandler.
+ */
 class AgentRuntimeManager {
   private static instance: AgentRuntimeManager;
   

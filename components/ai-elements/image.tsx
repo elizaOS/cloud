@@ -1,3 +1,12 @@
+/**
+ * Image component for displaying AI-generated images from base64 data.
+ * Wraps Next.js Image component with optimized rendering for generated images.
+ *
+ * @param props - Image props including base64 data and media type
+ * @param props.base64 - Base64 encoded image data
+ * @param props.mediaType - MIME type of the image
+ * @param props.alt - Alt text for accessibility
+ */
 import NextImage from "next/image";
 import { cn } from "@/lib/utils";
 import type { Experimental_GeneratedImage } from "ai";

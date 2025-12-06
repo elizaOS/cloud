@@ -1,3 +1,18 @@
+/**
+ * Credit pack card component displaying credit pack information and purchase button.
+ * Shows credits, price, price per credit, and popular badge.
+ *
+ * @param props - Credit pack card configuration
+ * @param props.id - Credit pack ID
+ * @param props.name - Credit pack name
+ * @param props.description - Credit pack description
+ * @param props.credits - Number of credits in pack
+ * @param props.priceCents - Price in cents
+ * @param props.isPopular - Whether pack is marked as popular
+ * @param props.onPurchase - Callback when purchase button is clicked
+ * @param props.loading - Whether purchase is in progress
+ */
+
 "use client";
 
 import { Check, Sparkles } from "lucide-react";

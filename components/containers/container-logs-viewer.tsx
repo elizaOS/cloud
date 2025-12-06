@@ -1,3 +1,12 @@
+/**
+ * Container logs viewer component displaying container logs with streaming support.
+ * Supports log filtering, search, download, auto-refresh, and streaming mode.
+ *
+ * @param props - Container logs viewer configuration
+ * @param props.containerId - Container ID to fetch logs for
+ * @param props.containerName - Container name for display
+ */
+
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
@@ -24,12 +33,10 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
-interface LogEntry {
-  timestamp: string;
-  level: "error" | "warn" | "info" | "debug";
-  message: string;
-  metadata?: Record<string, unknown>;
-}
+import type { ParsedLogEntry } from "@/lib/types/containers";
+
+// Alias for component usage
+type LogEntry = ParsedLogEntry;
 
 interface ContainerLogsViewerProps {
   containerId: string;
@@ -93,41 +100,35 @@ export function ContainerLogsViewer({
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchLogs = useCallback(async () => {
-    try {
-      updateLogs({ loading: true });
-      const params = new URLSearchParams({
-        limit: "100",
-        ...(filterState.level !== "all" && { level: filterState.level }),
-      });
+    updateLogs({ loading: true });
+    const params = new URLSearchParams({
+      limit: "100",
+      ...(filterState.level !== "all" && { level: filterState.level }),
+    });
 
-      const response = await fetch(
-        `/api/v1/containers/${containerId}/logs?${params}`,
-      );
+    const response = await fetch(
+      `/api/v1/containers/${containerId}/logs?${params}`,
+    );
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch logs");
-      }
-
-      const data = await response.json();
-      if (data.success) {
-        updateLogs({
-          logs: data.data.logs || [],
-          infoMessage: data.data.message || null,
-          error: null,
-        });
-      } else {
-        updateLogs({
-          error: data.error || "Failed to load logs",
-          infoMessage: null,
-        });
-      }
-    } catch (err) {
-      console.error("Error fetching logs:", err);
-      updateLogs({
-        error: err instanceof Error ? err.message : "Failed to load logs",
-      });
-    } finally {
+    if (!response.ok) {
       updateLogs({ loading: false });
+      throw new Error("Failed to fetch logs");
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      updateLogs({
+        logs: data.data.logs || [],
+        infoMessage: data.data.message || null,
+        error: null,
+        loading: false,
+      });
+    } else {
+      updateLogs({
+        error: data.error || "Failed to load logs",
+        infoMessage: null,
+        loading: false,
+      });
     }
   }, [containerId, filterState.level]);
 

@@ -1,3 +1,12 @@
+/**
+ * API keys page client component for managing API keys.
+ * Displays key summary, table, and creation dialog with rate limit and permission configuration.
+ *
+ * @param props - API keys page client configuration
+ * @param props.keys - Array of API key display objects
+ * @param props.summary - API keys summary data
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -103,50 +112,39 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
 
   const handleCreateKey = async () => {
     setIsCreating(true);
-    try {
-      const rateLimit =
-        rateLimitPreset === "standard"
-          ? 1000
-          : rateLimitPreset === "high"
-            ? 5000
-            : formData.rate_limit;
+    const rateLimit =
+      rateLimitPreset === "standard"
+        ? 1000
+        : rateLimitPreset === "high"
+          ? 5000
+          : formData.rate_limit;
 
-      const response = await fetch("/api/v1/api-keys", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formData.name,
-          description: formData.description,
-          permissions: selectedPermissions,
-          rate_limit: rateLimit,
-        }),
-      });
+    const response = await fetch("/api/v1/api-keys", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: formData.name,
+        description: formData.description,
+        permissions: selectedPermissions,
+        rate_limit: rateLimit,
+      }),
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to create API key");
-      }
-
-      setCreatedKey({ plainKey: data.plainKey, name: data.apiKey.name });
-      setFormData({ name: "", description: "", rate_limit: 1000 });
-      setSelectedPermissions([]);
-      setRateLimitPreset("standard");
-      toast.success("API key created successfully", {
-        description: `${data.apiKey.name} has been created and is ready to use.`,
-      });
-      router.refresh();
-    } catch (error) {
-      console.error("Error creating API key:", error);
-      toast.error("Failed to create API key", {
-        description:
-          error instanceof Error
-            ? error.message
-            : "An unexpected error occurred.",
-      });
-    } finally {
-      setIsCreating(false);
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to create API key");
     }
+
+    setCreatedKey({ plainKey: data.plainKey, name: data.apiKey.name });
+    setFormData({ name: "", description: "", rate_limit: 1000 });
+    setSelectedPermissions([]);
+    setRateLimitPreset("standard");
+    toast.success("API key created successfully", {
+      description: `${data.apiKey.name} has been created and is ready to use.`,
+    });
+    router.refresh();
+    setIsCreating(false);
   };
 
   const handleCopyKey = (plainKey: string) => {
@@ -165,33 +163,23 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
       return;
     }
 
-    try {
-      const response = await fetch(`/api/v1/api-keys/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          is_active: !isCurrentlyActive,
-        }),
-      });
+    const response = await fetch(`/api/v1/api-keys/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        is_active: !isCurrentlyActive,
+      }),
+    });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || `Failed to ${action} API key`);
-      }
-
-      toast.success(`API key ${action}d`, {
-        description: `The API key has been ${action}d successfully.`,
-      });
-      router.refresh();
-    } catch (error) {
-      console.error(`Error ${action}ing API key:`, error);
-      toast.error(`Failed to ${action} API key`, {
-        description:
-          error instanceof Error
-            ? error.message
-            : "An unexpected error occurred.",
-      });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || `Failed to ${action} API key`);
     }
+
+    toast.success(`API key ${action}d`, {
+      description: `The API key has been ${action}d successfully.`,
+    });
+    router.refresh();
   };
 
   const handleDeleteKey = async (id: string) => {
@@ -203,29 +191,19 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
       return;
     }
 
-    try {
-      const response = await fetch(`/api/v1/api-keys/${id}`, {
-        method: "DELETE",
-      });
+    const response = await fetch(`/api/v1/api-keys/${id}`, {
+      method: "DELETE",
+    });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to delete API key");
-      }
-
-      toast.success("API key deleted", {
-        description: "The API key has been permanently deleted.",
-      });
-      router.refresh();
-    } catch (error) {
-      console.error("Error deleting API key:", error);
-      toast.error("Failed to delete API key", {
-        description:
-          error instanceof Error
-            ? error.message
-            : "An unexpected error occurred.",
-      });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || "Failed to delete API key");
     }
+
+    toast.success("API key deleted", {
+      description: "The API key has been permanently deleted.",
+    });
+    router.refresh();
   };
 
   const handleRegenerateKey = async (id: string) => {
@@ -237,31 +215,21 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
       return;
     }
 
-    try {
-      const response = await fetch(`/api/v1/api-keys/${id}/regenerate`, {
-        method: "POST",
-      });
+    const response = await fetch(`/api/v1/api-keys/${id}/regenerate`, {
+      method: "POST",
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to regenerate API key");
-      }
-
-      setCreatedKey({ plainKey: data.plainKey, name: data.apiKey.name });
-      toast.success("API key regenerated", {
-        description: `${data.apiKey.name} has been regenerated. The old key is no longer valid.`,
-      });
-      router.refresh();
-    } catch (error) {
-      console.error("Error regenerating API key:", error);
-      toast.error("Failed to regenerate API key", {
-        description:
-          error instanceof Error
-            ? error.message
-            : "An unexpected error occurred.",
-      });
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to regenerate API key");
     }
+
+    setCreatedKey({ plainKey: data.plainKey, name: data.apiKey.name });
+    toast.success("API key regenerated", {
+      description: `${data.apiKey.name} has been regenerated. The old key is no longer valid.`,
+    });
+    router.refresh();
   };
 
   return (

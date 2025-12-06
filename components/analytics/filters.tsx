@@ -1,3 +1,7 @@
+/**
+ * Analytics filters component for date range and granularity selection.
+ * Supports preset ranges (7d, 30d, 90d) and custom date selection with URL sync.
+ */
 "use client";
 
 import { useMemo } from "react";

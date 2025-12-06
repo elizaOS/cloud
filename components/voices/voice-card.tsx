@@ -1,3 +1,13 @@
+/**
+ * Voice card component displaying voice clone information and actions.
+ * Supports preview playback, deletion, and navigation to voice details.
+ *
+ * @param props - Voice card configuration
+ * @param props.voice - Voice data to display
+ * @param props.onDelete - Callback when voice is deleted
+ * @param props.onPreview - Callback when preview button is clicked
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -40,23 +50,17 @@ export function VoiceCard({ voice, onDelete, onPreview }: VoiceCardProps) {
 
   const handleDelete = async () => {
     setIsDeleting(true);
-    try {
-      const response = await fetch(`/api/elevenlabs/voices/${voice.id}`, {
-        method: "DELETE",
-      });
+    const response = await fetch(`/api/elevenlabs/voices/${voice.id}`, {
+      method: "DELETE",
+    });
 
-      if (!response.ok) {
-        throw new Error("Failed to delete voice");
-      }
+    if (!response.ok) {
+      throw new Error("Failed to delete voice");
+    }
 
-      toast.success("Voice deleted successfully");
-      onDelete(voice.id);
-      setIsDeleteDialogOpen(false);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to delete voice",
-      );
-    } finally {
+    toast.success("Voice deleted successfully");
+    onDelete(voice.id);
+    setIsDeleteDialogOpen(false); finally {
       setIsDeleting(false);
     }
   };

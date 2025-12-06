@@ -253,20 +253,12 @@ export class PaymentMethodsService {
       return [];
     }
 
-    try {
-      const paymentMethods = await stripe.paymentMethods.list({
-        customer: org.stripe_customer_id,
-        type: "card",
-      });
+    const paymentMethods = await stripe.paymentMethods.list({
+      customer: org.stripe_customer_id,
+      type: "card",
+    });
 
-      return paymentMethods.data;
-    } catch (error) {
-      console.error(
-        `Failed to list payment methods for org ${organizationId}:`,
-        error,
-      );
-      return [];
-    }
+    return paymentMethods.data;
   }
 
   /**
@@ -287,23 +279,15 @@ export class PaymentMethodsService {
       return null;
     }
 
-    try {
-      const paymentMethod =
-        await stripe.paymentMethods.retrieve(paymentMethodId);
+    const paymentMethod =
+      await stripe.paymentMethods.retrieve(paymentMethodId);
 
-      // Verify it belongs to this customer
-      if (paymentMethod.customer !== org.stripe_customer_id) {
-        return null;
-      }
-
-      return paymentMethod;
-    } catch (error) {
-      console.error(
-        `Failed to get payment method ${paymentMethodId} for org ${organizationId}:`,
-        error,
-      );
+    // Verify it belongs to this customer
+    if (paymentMethod.customer !== org.stripe_customer_id) {
       return null;
     }
+
+    return paymentMethod;
   }
 
   /**

@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { apiKeysService } from "@/lib/services";
 
+/**
+ * POST /api/v1/api-keys/[id]/regenerate
+ * Regenerates an API key, invalidating the old key and creating a new one.
+ * Requires authentication and ownership verification.
+ *
+ * @param request - The Next.js request object.
+ * @param params - Route parameters containing the API key ID.
+ * @returns New API key details including the plain key (only shown once).
+ */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },

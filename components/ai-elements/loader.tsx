@@ -1,3 +1,7 @@
+/**
+ * Loader component displaying animated loading spinner.
+ * Provides LoaderIcon and Loader components for loading states.
+ */
 import { cn } from "@/lib/utils";
 import type { HTMLAttributes } from "react";
 

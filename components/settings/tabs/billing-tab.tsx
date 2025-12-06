@@ -1,3 +1,11 @@
+/**
+ * Billing settings tab component for managing credit balance and invoices.
+ * Supports credit purchases, invoice viewing, and balance management.
+ *
+ * @param props - Billing tab configuration
+ * @param props.user - User data with organization information
+ */
+
 "use client";
 
 import { BrandCard, CornerBrackets } from "@/components/brand";
@@ -94,7 +102,7 @@ export function BillingTab({ user }: BillingTabProps) {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await response.json();
         throw new Error(errorData.error || "Failed to create checkout session");
       }
 

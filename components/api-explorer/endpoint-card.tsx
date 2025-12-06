@@ -1,3 +1,14 @@
+/**
+ * Endpoint card component displaying API endpoint information.
+ * Shows method, path, description, pricing, and parameter count.
+ *
+ * @param props - Endpoint card configuration
+ * @param props.endpoint - API endpoint data to display
+ * @param props.onSelect - Callback when card is clicked
+ * @param props.getMethodColor - Function to get color for HTTP method
+ * @param props.getCategoryIcon - Function to get icon for category
+ */
+
 "use client";
 
 import { type ApiEndpoint } from "@/lib/swagger/endpoint-discovery";

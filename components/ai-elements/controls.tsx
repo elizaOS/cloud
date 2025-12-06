@@ -1,3 +1,7 @@
+/**
+ * Controls component wrapping React Flow controls with custom styling.
+ * Provides zoom and fit view controls for flow diagrams.
+ */
 "use client";
 
 import { cn } from "@/lib/utils";

@@ -153,6 +153,20 @@ function generateTestData(days: number) {
   };
 }
 
+/**
+ * GET /api/v1/apps/[id]/earnings
+ * Gets earnings data for a specific app including summary, breakdown, chart data, and transaction history.
+ * Supports test data generation for UI verification via `testData=true` query parameter.
+ * Requires ownership verification.
+ *
+ * Query Parameters:
+ * - `days`: Number of days for chart data (1-90, default: 30).
+ * - `testData`: If "true", returns generated test data for UI verification.
+ *
+ * @param request - Request with optional days and testData query parameters.
+ * @param params - Route parameters containing the app ID.
+ * @returns Earnings summary, breakdown by period, chart data, recent transactions, and monetization settings.
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

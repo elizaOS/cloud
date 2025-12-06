@@ -25,6 +25,14 @@ import type {
 
 export const maxDuration = 60;
 
+/**
+ * POST /api/v1/chat/completions
+ * OpenAI-compatible chat completions endpoint.
+ * Processes chat messages and returns AI responses with detailed logging and credit deduction.
+ *
+ * @param req - OpenAI-format request with model and messages array.
+ * @returns Streaming or non-streaming chat completion response.
+ */
 async function handlePOST(req: NextRequest) {
   const startTime = Date.now();
 

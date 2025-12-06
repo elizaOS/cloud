@@ -110,17 +110,8 @@ export class AutoTopUpService {
 
     // Process each organization
     for (const org of orgsNeedingTopUp) {
-      try {
-        const result = await this.executeAutoTopUp(org);
-        results.push(result);
-      } catch (error) {
-        console.error(`[AutoTopUp] Error processing org ${org.id}:`, error);
-        results.push({
-          organizationId: org.id,
-          success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
+      const result = await this.executeAutoTopUp(org);
+      results.push(result);
     }
 
     const successful = results.filter((r) => r.success).length;
@@ -196,103 +187,84 @@ export class AutoTopUpService {
       };
     }
 
-    try {
-      // Create and confirm PaymentIntent with saved payment method
+    // Create and confirm PaymentIntent with saved payment method
+    console.log(
+      `[AutoTopUp] Creating PaymentIntent for $${amount.toFixed(2)}`,
+    );
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100), // Convert to cents
+      currency: "usd",
+      customer: org.stripe_customer_id,
+      payment_method: org.stripe_default_payment_method,
+      confirm: true,
+      off_session: true, // Critical: allows charging without user present
+      metadata: {
+        organization_id: organizationId,
+        credits: amount.toFixed(2),
+        type: "auto_top_up",
+      },
+      description: `Auto top-up - $${amount.toFixed(2)}`,
+    });
+
+    console.log(
+      `[AutoTopUp] PaymentIntent ${paymentIntent.id} status: ${paymentIntent.status}`,
+    );
+
+    if (paymentIntent.status === "succeeded") {
+      // Credits will be added by webhook, but we can return success here
+      const currentBalance = Number(org.credit_balance);
+      const newBalance = currentBalance + amount;
+
       console.log(
-        `[AutoTopUp] Creating PaymentIntent for $${amount.toFixed(2)}`,
+        `[AutoTopUp] ✓ Auto top-up succeeded for org ${organizationId}. Payment: ${paymentIntent.id}`,
       );
 
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(amount * 100), // Convert to cents
-        currency: "usd",
-        customer: org.stripe_customer_id,
-        payment_method: org.stripe_default_payment_method,
-        confirm: true,
-        off_session: true, // Critical: allows charging without user present
-        metadata: {
-          organization_id: organizationId,
-          credits: amount.toFixed(2),
-          type: "auto_top_up",
-        },
-        description: `Auto top-up - $${amount.toFixed(2)}`,
-      });
-
+      // Send success email notification
       console.log(
-        `[AutoTopUp] PaymentIntent ${paymentIntent.id} status: ${paymentIntent.status}`,
+        `[AutoTopUp] About to call queueAutoTopUpSuccessEmail for org ${organizationId}`,
+      );
+      this.queueAutoTopUpSuccessEmail(
+        org,
+        amount,
+        currentBalance,
+        newBalance,
+        paymentIntent.id,
       );
 
-      if (paymentIntent.status === "succeeded") {
-        // Credits will be added by webhook, but we can return success here
-        const currentBalance = Number(org.credit_balance);
-        const newBalance = currentBalance + amount;
-
-        console.log(
-          `[AutoTopUp] ✓ Auto top-up succeeded for org ${organizationId}. Payment: ${paymentIntent.id}`,
-        );
-
-        // Send success email notification
-        console.log(
-          `[AutoTopUp] About to call queueAutoTopUpSuccessEmail for org ${organizationId}`,
-        );
-        this.queueAutoTopUpSuccessEmail(
-          org,
-          amount,
-          currentBalance,
-          newBalance,
-          paymentIntent.id,
-        );
-
-        // Note: Credits are added by webhook handler to avoid race conditions
-        // We just return the expected new balance here for logging
-        return {
-          organizationId,
-          success: true,
-          amount,
-          newBalance,
-        };
-      } else if (
-        paymentIntent.status === "requires_action" ||
-        paymentIntent.status === "requires_payment_method"
-      ) {
-        // Payment needs additional action or failed
-        console.error(
-          `[AutoTopUp] Payment requires action for org ${organizationId}: ${paymentIntent.status}`,
-        );
-        await this.disableAutoTopUp(
-          organizationId,
-          `Payment ${paymentIntent.status}`,
-        );
-        return {
-          organizationId,
-          success: false,
-          error: `Payment ${paymentIntent.status}`,
-        };
-      } else {
-        console.error(
-          `[AutoTopUp] Payment in unexpected state for org ${organizationId}: ${paymentIntent.status}`,
-        );
-        return {
-          organizationId,
-          success: false,
-          error: `Payment ${paymentIntent.status}`,
-        };
-      }
-    } catch (error) {
+      // Note: Credits are added by webhook handler to avoid race conditions
+      // We just return the expected new balance here for logging
+      return {
+        organizationId,
+        success: true,
+        amount,
+        newBalance,
+      };
+    } else if (
+      paymentIntent.status === "requires_action" ||
+      paymentIntent.status === "requires_payment_method"
+    ) {
+      // Payment needs additional action or failed
       console.error(
-        `[AutoTopUp] Payment failed for org ${organizationId}:`,
-        error,
+        `[AutoTopUp] Payment requires action for org ${organizationId}: ${paymentIntent.status}`,
       );
-
-      // Disable auto top-up on payment failure
       await this.disableAutoTopUp(
         organizationId,
-        error instanceof Error ? error.message : "Payment failed",
+        `Payment ${paymentIntent.status}`,
       );
-
       return {
         organizationId,
         success: false,
-        error: error instanceof Error ? error.message : "Payment failed",
+        error: `Payment ${paymentIntent.status}`,
+      };
+    } else {
+      console.error(
+        `[AutoTopUp] Payment in unexpected state for org ${organizationId}: ${paymentIntent.status}`,
+      );
+      return {
+        organizationId,
+        success: false,
+        error: `Payment ${paymentIntent.status}`,
       };
     }
   }
@@ -308,30 +280,23 @@ export class AutoTopUpService {
     organizationId: string,
     reason: string,
   ): Promise<void> {
-    try {
-      console.log(
-        `[AutoTopUp] Disabling auto top-up for org ${organizationId}: ${reason}`,
-      );
+    console.log(
+      `[AutoTopUp] Disabling auto top-up for org ${organizationId}: ${reason}`,
+    );
 
-      const org = await organizationsRepository.findById(organizationId);
-      if (!org) {
-        console.error(`[AutoTopUp] Organization ${organizationId} not found`);
-        return;
-      }
-
-      await organizationsRepository.update(organizationId, {
-        auto_top_up_enabled: false,
-        updated_at: new Date(),
-      });
-
-      // Send email notification
-      void this.queueAutoTopUpDisabledEmail(org, reason);
-    } catch (error) {
-      console.error(
-        `[AutoTopUp] Failed to disable auto top-up for org ${organizationId}:`,
-        error,
-      );
+    const org = await organizationsRepository.findById(organizationId);
+    if (!org) {
+      console.error(`[AutoTopUp] Organization ${organizationId} not found`);
+      return;
     }
+
+    await organizationsRepository.update(organizationId, {
+      auto_top_up_enabled: false,
+      updated_at: new Date(),
+    });
+
+    // Send email notification
+    void this.queueAutoTopUpDisabledEmail(org, reason);
   }
 
   /**
@@ -360,15 +325,11 @@ export class AutoTopUpService {
 
     let paymentMethodDisplay = "Card on file";
     if (org.stripe_default_payment_method) {
-      try {
-        const pm = await stripe.paymentMethods.retrieve(
-          org.stripe_default_payment_method,
-        );
-        if (pm.card) {
-          paymentMethodDisplay = `${pm.card.brand} ••••${pm.card.last4}`;
-        }
-      } catch (error) {
-        console.error(`[AutoTopUp] Failed to retrieve payment method:`, error);
+      const pm = await stripe.paymentMethods.retrieve(
+        org.stripe_default_payment_method,
+      );
+      if (pm.card) {
+        paymentMethodDisplay = `${pm.card.brand} ••••${pm.card.last4}`;
       }
     }
 

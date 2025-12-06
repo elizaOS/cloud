@@ -59,25 +59,19 @@ function InviteAcceptContent() {
   }, [token]);
 
   const validateInvite = async () => {
-    try {
-      setIsValidating(true);
-      const response = await fetch(
-        `/api/invites/validate?token=${encodeURIComponent(token!)}`,
-      );
-      const data = await response.json();
+    setIsValidating(true);
+    const response = await fetch(
+      `/api/invites/validate?token=${encodeURIComponent(token!)}`,
+    );
+    const data = await response.json();
 
-      if (data.success) {
-        setInviteDetails(data.data);
-        setError(null);
-      } else {
-        setError(data.error || "Invalid or expired invitation");
-      }
-    } catch (err) {
-      console.error("Error validating invite:", err);
-      setError("Failed to validate invitation");
-    } finally {
-      setIsValidating(false);
+    if (data.success) {
+      setInviteDetails(data.data);
+      setError(null);
+    } else {
+      setError(data.error || "Invalid or expired invitation");
     }
+    setIsValidating(false);
   };
 
   const handleAcceptInvite = async () => {
@@ -88,28 +82,22 @@ function InviteAcceptContent() {
       return;
     }
 
-    try {
-      setIsAccepting(true);
-      const response = await fetch("/api/invites/accept", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
-      });
+    setIsAccepting(true);
+    const response = await fetch("/api/invites/accept", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (data.success) {
-        toast.success("Invitation accepted! Redirecting to dashboard...");
-        setTimeout(() => {
-          router.push("/dashboard");
-        }, 1500);
-      } else {
-        setError(data.error || "Failed to accept invitation");
-        setIsAccepting(false);
-      }
-    } catch (err) {
-      console.error("Error accepting invite:", err);
-      setError("Failed to accept invitation");
+    if (data.success) {
+      toast.success("Invitation accepted! Redirecting to dashboard...");
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 1500);
+    } else {
+      setError(data.error || "Failed to accept invitation");
       setIsAccepting(false);
     }
   };
@@ -288,6 +276,11 @@ function InviteAcceptContent() {
   );
 }
 
+/**
+ * Invite acceptance page for organization invitations.
+ * Validates the invitation token and allows authenticated users to accept.
+ * Redirects unauthenticated users to login first.
+ */
 export default function InviteAcceptPage() {
   return (
     <Suspense

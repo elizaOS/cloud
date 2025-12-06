@@ -93,7 +93,10 @@ interface AISdkRequest {
 }
 
 /**
- * Transform AI SDK request format to OpenAI format
+ * Transforms AI SDK request format to OpenAI format.
+ *
+ * @param aiSdkRequest - AI SDK format request.
+ * @returns OpenAI format request.
  */
 function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
   const {
@@ -232,6 +235,15 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
   };
 }
 
+/**
+ * POST /api/v1/responses
+ * AI SDK v2.0+ compatibility endpoint for chat completions.
+ * Transforms AI SDK request format to OpenAI format and forwards to the gateway.
+ * Supports both authenticated and anonymous users.
+ *
+ * @param req - AI SDK format request with input messages and max_output_tokens.
+ * @returns Streaming or non-streaming chat completion response in AI SDK format.
+ */
 async function handlePOST(req: NextRequest) {
   const startTime = Date.now();
 

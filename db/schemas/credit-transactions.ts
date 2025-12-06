@@ -13,6 +13,11 @@ import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { organizations } from "./organizations";
 import { users } from "./users";
 
+/**
+ * Credit transactions table schema.
+ * 
+ * Tracks all credit-related transactions including purchases, deductions, and adjustments.
+ */
 export const creditTransactions = pgTable(
   "credit_transactions",
   {

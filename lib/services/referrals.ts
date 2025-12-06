@@ -13,6 +13,10 @@ import { logger } from "@/lib/utils/logger";
 import * as crypto from "crypto";
 
 /**
+ * Service for managing referral codes, signups, and social share rewards.
+ */
+
+/**
  * Context for app-specific operations.
  * When appId is provided, credits go to app balance instead of org balance.
  */
@@ -32,15 +36,31 @@ const REWARDS = {
   SHARE_DISCORD: 0.25,
 } as const;
 
+/**
+ * Social platform identifier.
+ */
 type SocialPlatform = "x" | "farcaster" | "telegram" | "discord";
+
+/**
+ * Share type identifier.
+ */
 type ShareType = "app_share" | "character_share" | "invite_share";
 
+/**
+ * Generates a unique referral code for a user.
+ *
+ * @param userId - User ID.
+ * @returns Referral code string.
+ */
 function generateReferralCode(userId: string): string {
   const prefix = userId.substring(0, 4).toUpperCase();
   const random = crypto.randomBytes(3).toString("hex").toUpperCase();
   return `${prefix}-${random}`;
 }
 
+/**
+ * Service for managing referral programs and social sharing rewards.
+ */
 export class ReferralsService {
   async getOrCreateCode(userId: string): Promise<ReferralCode> {
     const existing = await referralCodesRepository.findByUserId(userId);
@@ -288,7 +308,9 @@ export class SocialRewardsService {
    * 1. User clicks share button
    * 2. We record the intent and award credits server-side
    * 3. Share window opens (client-side)
-   * 4. Daily limit prevents abuse
+   * 4. Daily limit prevents abuse (one share per platform per day)
+   * 
+   * Uses atomic check-and-insert to prevent race conditions from concurrent requests.
    */
   async claimShareReward(
     userId: string,
@@ -298,26 +320,27 @@ export class SocialRewardsService {
     shareUrl?: string,
     appContext?: AppContext
   ): Promise<{ success: boolean; message: string; amount?: number; alreadyAwarded?: boolean }> {
-    const alreadyClaimed = await socialShareRewardsRepository.hasClaimedToday(userId, platform);
+    const rewardAmount = this.getRewardAmount(platform);
 
-    if (alreadyClaimed) {
+    // Atomically check if claimed today and create record if not
+    // This prevents race conditions where multiple concurrent requests could both pass the check
+    const shareRecord = await socialShareRewardsRepository.createIfNotClaimedToday(
+      userId,
+      platform,
+      {
+        share_type: shareType,
+        share_url: shareUrl,
+        credits_awarded: String(rewardAmount),
+      }
+    );
+
+    if (!shareRecord) {
       return {
         success: false,
         message: `Already claimed ${platform} share reward today. Try again tomorrow!`,
         alreadyAwarded: true,
       };
     }
-
-    const rewardAmount = this.getRewardAmount(platform);
-
-    // Create share record with intent timestamp
-    const shareRecord = await socialShareRewardsRepository.create({
-      user_id: userId,
-      platform,
-      share_type: shareType,
-      share_url: shareUrl,
-      credits_awarded: String(rewardAmount),
-    });
 
     // Award credits (app-specific or org balance)
     if (appContext?.appId) {

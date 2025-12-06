@@ -1,10 +1,3 @@
-/**
- * GET /api/v1/miniapp/user
- * 
- * Returns the current authenticated user's info for miniapp consumption.
- * Supports both API key and session authentication.
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { addCorsHeaders, validateOrigin, createPreflightResponse } from "@/lib/middleware/cors-apps";
@@ -16,11 +9,26 @@ import {
 } from "@/lib/middleware/miniapp-rate-limit";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * OPTIONS /api/v1/miniapp/user
+ * CORS preflight handler for miniapp user endpoint.
+ *
+ * @param request - The Next.js request object.
+ * @returns Preflight response with CORS headers.
+ */
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
   return createPreflightResponse(origin, ["GET", "OPTIONS"]);
 }
 
+/**
+ * GET /api/v1/miniapp/user
+ * Returns the current authenticated user's information for miniapp consumption.
+ * Supports both API key and session authentication with CORS and rate limiting.
+ *
+ * @param request - The Next.js request object.
+ * @returns User information including organization details.
+ */
 export async function GET(request: NextRequest) {
   const corsResult = await validateOrigin(request);
   

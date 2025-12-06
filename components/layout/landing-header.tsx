@@ -1,6 +1,6 @@
 /**
- * Landing Header Component
- * Header for the landing page - shows different UI for authenticated vs unauthenticated users
+ * Landing header component for the landing page.
+ * Displays different UI for authenticated vs unauthenticated users with navigation links.
  */
 
 "use client";

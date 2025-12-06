@@ -74,34 +74,27 @@ export function VoiceManager({
   const handlePreview = async (voice: Voice) => {
     updatePreview({ voice, isLoading: true });
 
-    try {
-      // Generate a sample text-to-speech to preview the voice
-      const response = await fetch("/api/elevenlabs/tts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          text: "Hello! This is a preview of your custom voice clone.",
-          voiceId: voice.elevenlabsVoiceId,
-        }),
-      });
+    // Generate a sample text-to-speech to preview the voice
+    const response = await fetch("/api/elevenlabs/tts", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        text: "Hello! This is a preview of your custom voice clone.",
+        voiceId: voice.elevenlabsVoiceId,
+      }),
+    });
 
-      if (!response.ok) {
-        throw new Error("Failed to generate preview");
-      }
-
-      // Convert audio stream to blob URL
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      updatePreview({ audioUrl: url });
-    } catch (error) {
-      toast.error("Failed to load voice preview");
-      console.error("Preview error:", error);
-      updatePreview({ voice: null });
-    } finally {
+    if (!response.ok) {
       updatePreview({ isLoading: false });
+      throw new Error("Failed to generate preview");
     }
+
+    // Convert audio stream to blob URL
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    updatePreview({ audioUrl: url, isLoading: false });
   };
 
   const handleClosePreview = () => {

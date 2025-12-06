@@ -9,6 +9,13 @@ import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 export const maxDuration = 60;
 
+/**
+ * GET /api/analytics/breakdown
+ * Gets cost breakdown analytics by dimension (model, provider, user, or apiKey).
+ *
+ * @param req - Request with query parameters for dimension, sorting, pagination, and date range.
+ * @returns Paginated breakdown data with costs, requests, tokens, and success rates.
+ */
 async function handleGET(req: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);

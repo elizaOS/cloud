@@ -1,3 +1,8 @@
+/**
+ * Advanced voice studio component with voice management and creation.
+ * Supports voice cloning, preview playback, deletion, and status tracking.
+ */
+
 "use client";
 
 import { useState, useCallback } from "react";
@@ -109,21 +114,15 @@ export function VoiceStudioAdvanced({
   // Manual refresh function
   const manualRefresh = useCallback(async () => {
     updateOperation({ isRefreshing: true });
-    try {
-      const response = await fetch("/api/elevenlabs/voices/user");
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setVoices(data.voices);
-          toast.success("Voices refreshed");
-        }
+    const response = await fetch("/api/elevenlabs/voices/user");
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success) {
+        setVoices(data.voices);
+        toast.success("Voices refreshed");
       }
-    } catch (error) {
-      toast.error("Failed to refresh voices");
-      console.error("Refresh error:", error);
-    } finally {
-      updateOperation({ isRefreshing: false });
     }
+    updateOperation({ isRefreshing: false });
   }, []);
 
   const handleVoiceCreated = (newVoice: Voice) => {
@@ -168,67 +167,50 @@ export function VoiceStudioAdvanced({
 
     updatePreview({ voice, isLoading: true });
 
-    try {
-      const response = await fetch("/api/elevenlabs/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: "Hello! This is a preview of your custom voice clone.",
-          voiceId: voice.elevenlabsVoiceId,
-        }),
-      });
+    const response = await fetch("/api/elevenlabs/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: "Hello! This is a preview of your custom voice clone.",
+        voiceId: voice.elevenlabsVoiceId,
+      }),
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to generate preview");
-      }
-
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      updatePreview({ audioUrl: url });
-    } catch (error) {
+    if (!response.ok) {
+      const errorData = await response.json();
+      const errorMsg = errorData.error || "Failed to generate preview";
       // Check for service unavailable
-      if (
-        error instanceof Error &&
-        error.message.includes("temporarily unavailable")
-      ) {
-        toast.error(error.message, { duration: 6000 });
+      if (errorMsg.includes("temporarily unavailable")) {
+        toast.error("Voice service is temporarily unavailable. Please try again in a few minutes.", { duration: 6000 });
       } else {
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : "Failed to load voice preview"
-        );
+        toast.error(errorMsg);
       }
-      console.error("Preview error:", error);
-      updatePreview({ voice: null });
-    } finally {
-      updatePreview({ isLoading: false });
+      updatePreview({ voice: null, isLoading: false });
+      return;
     }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    updatePreview({ audioUrl: url, isLoading: false });
   };
 
   const handleDelete = async (voice: Voice) => {
     updateOperation({ isDeleting: true });
-    try {
-      const response = await fetch(`/api/elevenlabs/voices/${voice.id}`, {
-        method: "DELETE",
-      });
+    const response = await fetch(`/api/elevenlabs/voices/${voice.id}`, {
+      method: "DELETE",
+    });
 
-      if (!response.ok) throw new Error("Failed to delete voice");
-
-      toast.success("Voice deleted successfully");
-      setVoices(voices.filter((v) => v.id !== voice.id));
-      if (selectedVoice?.id === voice.id) {
-        setSelectedVoice(voices[0] || null);
-      }
-      updateOperation({ deleteDialogVoice: null });
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to delete voice"
-      );
-    } finally {
+    if (!response.ok) {
       updateOperation({ isDeleting: false });
+      throw new Error("Failed to delete voice");
     }
+
+    toast.success("Voice deleted successfully");
+    setVoices(voices.filter((v) => v.id !== voice.id));
+    if (selectedVoice?.id === voice.id) {
+      setSelectedVoice(voices[0] || null);
+    }
+    updateOperation({ deleteDialogVoice: null, isDeleting: false });
   };
 
   const handleUseInTTS = (voice: Voice) => {

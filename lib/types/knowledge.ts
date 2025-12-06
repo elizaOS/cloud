@@ -2,6 +2,9 @@
  * Shared type definitions for Knowledge/Document features
  */
 
+/**
+ * Knowledge document structure.
+ */
 export interface KnowledgeDocument {
   id: string;
   content: {
@@ -17,6 +20,9 @@ export interface KnowledgeDocument {
   };
 }
 
+/**
+ * Query result from knowledge search.
+ */
 export interface QueryResult {
   id: string;
   content: string;

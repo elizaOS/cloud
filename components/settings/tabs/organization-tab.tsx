@@ -1,3 +1,11 @@
+/**
+ * Organization settings tab component for managing organization settings and members.
+ * Provides tabs for members management and general organization settings.
+ *
+ * @param props - Organization tab configuration
+ * @param props.user - User data with organization information
+ */
+
 "use client";
 
 import { useState } from "react";

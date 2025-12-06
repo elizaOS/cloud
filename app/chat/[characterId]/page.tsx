@@ -17,6 +17,15 @@ interface ChatPageProps {
   }>;
 }
 
+/**
+ * Chat page for interacting with a character/agent.
+ * Supports both authenticated and anonymous users.
+ * Handles affiliate character claiming and session migration.
+ *
+ * @param params - Route parameters containing the character ID.
+ * @param searchParams - Query parameters for source, session token, and vibe.
+ * @returns Chat interface component with appropriate user context.
+ */
 export default async function ChatPage({
   params,
   searchParams,

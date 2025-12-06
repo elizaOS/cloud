@@ -1,3 +1,11 @@
+/**
+ * Cost alerts component displaying cost-related warnings and information.
+ * Shows alerts for low balance, burn rate increases, and high projected costs.
+ *
+ * @param props - Cost alerts configuration
+ * @param props.costTrending - Cost trending data
+ * @param props.creditBalance - Current credit balance
+ */
 import type { ReactNode } from "react";
 import { AlertTriangle, Info, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";

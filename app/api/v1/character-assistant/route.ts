@@ -90,6 +90,14 @@ For example, if they say "make them more professional":
 
 Always include a JSON block in your response showing the current character state with your suggested changes.`;
 
+/**
+ * POST /api/v1/character-assistant
+ * AI assistant for creating and editing ElizaOS character definitions.
+ * Uses GPT-4o to help users build character configurations progressively.
+ *
+ * @param request - Request body with messages array and optional character for editing.
+ * @returns Streaming text response with character JSON updates.
+ */
 export async function POST(request: Request) {
   try {
     await requireAuth();

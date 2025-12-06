@@ -41,47 +41,31 @@ export async function checkContainerHealth(
   const startTime = Date.now();
   const fullUrl = `${containerUrl}${healthCheckPath}`;
 
-  try {
-    console.log("Performing health check", { url: fullUrl });
+  console.log("Performing health check", { url: fullUrl });
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    const response = await fetch(fullUrl, {
-      method: "GET",
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "ElizaOS-HealthMonitor/1.0",
-      },
-    });
+  const response = await fetch(fullUrl, {
+    method: "GET",
+    signal: controller.signal,
+    headers: {
+      "User-Agent": "ElizaOS-HealthMonitor/1.0",
+    },
+  });
 
-    clearTimeout(timeoutId);
+  clearTimeout(timeoutId);
 
-    const responseTime = Date.now() - startTime;
-    const healthy = response.ok; // 200-299 status codes
+  const responseTime = Date.now() - startTime;
+  const healthy = response.ok; // 200-299 status codes
 
-    return {
-      containerId: "", // Set by caller
-      healthy,
-      statusCode: response.status,
-      responseTime,
-      checkedAt: new Date(),
-    };
-  } catch (error) {
-    const responseTime = Date.now() - startTime;
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-
-    console.warn("Health check failed", { url: fullUrl, error: errorMessage });
-
-    return {
-      containerId: "", // Set by caller
-      healthy: false,
-      responseTime,
-      error: errorMessage,
-      checkedAt: new Date(),
-    };
-  }
+  return {
+    containerId: "", // Set by caller
+    healthy,
+    statusCode: response.status,
+    responseTime,
+    checkedAt: new Date(),
+  };
 }
 
 /**
@@ -93,101 +77,93 @@ export async function updateContainerHealth(
   containerId: string,
   healthResult: HealthCheckResult,
 ): Promise<void> {
-  try {
-    // RACE CONDITION FIX: Use atomic conditional UPDATE instead of check-then-act
-    // This prevents race conditions by including expected status in WHERE clause
+  // RACE CONDITION FIX: Use atomic conditional UPDATE instead of check-then-act
+  // This prevents race conditions by including expected status in WHERE clause
 
-    const baseUpdate = {
-      last_health_check: healthResult.checkedAt,
-      updated_at: new Date(),
-    };
+  const baseUpdate = {
+    last_health_check: healthResult.checkedAt,
+    updated_at: new Date(),
+  };
 
-    if (!healthResult.healthy) {
-      // Atomically mark as failed ONLY if currently running
-      // The WHERE clause ensures we only update if status hasn't changed
-      const [updatedContainer] = await db
+  if (!healthResult.healthy) {
+    // Atomically mark as failed ONLY if currently running
+    // The WHERE clause ensures we only update if status hasn't changed
+    const [updatedContainer] = await db
+      .update(containers)
+      .set({
+        ...baseUpdate,
+        status: "failed",
+        error_message: healthResult.error || "Health check failed",
+      })
+      .where(
+        and(
+          eq(containers.id, containerId),
+          eq(containers.status, "running"), // Only update if still running
+        ),
+      )
+      .returning({ id: containers.id });
+
+    // If no rows were updated, container status has changed (not a race condition)
+    if (!updatedContainer) {
+      // Just update health check timestamp without changing status
+      await db
         .update(containers)
-        .set({
-          ...baseUpdate,
-          status: "failed",
-          error_message: healthResult.error || "Health check failed",
-        })
-        .where(
-          and(
-            eq(containers.id, containerId),
-            eq(containers.status, "running"), // Only update if still running
-          ),
-        )
-        .returning({ id: containers.id });
+        .set(baseUpdate)
+        .where(eq(containers.id, containerId));
 
-      // If no rows were updated, container status has changed (not a race condition)
-      if (!updatedContainer) {
-        // Just update health check timestamp without changing status
-        await db
-          .update(containers)
-          .set(baseUpdate)
-          .where(eq(containers.id, containerId));
-
-        console.log(
-          "Container health check failed, but status changed (not running anymore)",
-          {
-            containerId,
-            healthy: false,
-          },
-        );
-        return;
-      }
-
-      console.log("Container health status updated to failed", {
-        containerId,
-        healthy: false,
-        previousStatus: "running",
-        newStatus: "failed",
-      });
-    } else {
-      // Health check passed - atomically restore to running ONLY if currently failed
-      const [updatedContainer] = await db
-        .update(containers)
-        .set({
-          ...baseUpdate,
-          status: "running",
-          error_message: null,
-        })
-        .where(
-          and(
-            eq(containers.id, containerId),
-            eq(containers.status, "failed"), // Only restore if currently failed
-          ),
-        )
-        .returning({ id: containers.id });
-
-      if (!updatedContainer) {
-        // Just update health check timestamp for non-failed containers
-        await db
-          .update(containers)
-          .set(baseUpdate)
-          .where(eq(containers.id, containerId));
-
-        console.log("Container health check passed, status unchanged", {
+      console.log(
+        "Container health check failed, but status changed (not running anymore)",
+        {
           containerId,
-          healthy: true,
-        });
-        return;
-      }
+          healthy: false,
+        },
+      );
+      return;
+    }
 
-      console.log("Container health status restored to running", {
+    console.log("Container health status updated to failed", {
+      containerId,
+      healthy: false,
+      previousStatus: "running",
+      newStatus: "failed",
+    });
+  } else {
+    // Health check passed - atomically restore to running ONLY if currently failed
+    const [updatedContainer] = await db
+      .update(containers)
+      .set({
+        ...baseUpdate,
+        status: "running",
+        error_message: null,
+      })
+      .where(
+        and(
+          eq(containers.id, containerId),
+          eq(containers.status, "failed"), // Only restore if currently failed
+        ),
+      )
+      .returning({ id: containers.id });
+
+    if (!updatedContainer) {
+      // Just update health check timestamp for non-failed containers
+      await db
+        .update(containers)
+        .set(baseUpdate)
+        .where(eq(containers.id, containerId));
+
+      console.log("Container health check passed, status unchanged", {
         containerId,
         healthy: true,
-        previousStatus: "failed",
-        newStatus: "running",
       });
+      return;
     }
-  } catch (error) {
-    console.error(
-      "Failed to update container health status",
-      error instanceof Error ? error.message : String(error),
-      { containerId },
-    );
+
+    console.log("Container health status restored to running", {
+      containerId,
+      healthy: true,
+      previousStatus: "failed",
+      newStatus: "running",
+    });
   }
 }
 
@@ -200,69 +176,64 @@ export async function monitorAllContainers(
 ): Promise<HealthCheckResult[]> {
   const finalConfig = { ...DEFAULT_CONFIG, ...config };
 
-  try {
-    console.log("Starting health check for all containers");
+  console.log("Starting health check for all containers");
 
-    // Get all running containers
-    const runningContainers = await db
-      .select()
-      .from(containers)
-      .where(eq(containers.status, "running"));
+  // Get all running containers
+  const runningContainers = await db
+    .select()
+    .from(containers)
+    .where(eq(containers.status, "running"));
 
-    console.log(
-      `Found ${runningContainers.length} running containers to check`,
-    );
+  console.log(
+    `Found ${runningContainers.length} running containers to check`,
+  );
 
-    // Check all containers in parallel for better performance
-    const results: HealthCheckResult[] = await Promise.all(
-      runningContainers.map(async (container) => {
-        if (!container.load_balancer_url) {
-          console.warn("Container has no URL, skipping health check", {
-            containerId: container.id,
-          });
-          return {
-            healthy: false,
-            responseTime: 0,
-            error: "No URL configured",
-            containerId: container.id,
-          } as HealthCheckResult;
-        }
+  // Check all containers in parallel for better performance
+  const results: HealthCheckResult[] = await Promise.all(
+    runningContainers.map(async (container) => {
+      if (!container.load_balancer_url) {
+        console.warn("Container has no URL, skipping health check", {
+          containerId: container.id,
+        });
+        return {
+          healthy: false,
+          responseTime: 0,
+          error: "No URL configured",
+          containerId: container.id,
+        } as HealthCheckResult;
+      }
 
-        const result = await checkContainerHealth(
-          container.load_balancer_url,
-          container.health_check_path || "/health",
-          finalConfig.timeout,
-        );
+      const result = await checkContainerHealth(
+        container.load_balancer_url,
+        container.health_check_path || "/health",
+        finalConfig.timeout,
+      );
 
-        // Update database
-        await updateContainerHealth(container.id, result);
+      // Update database
+      await updateContainerHealth(container.id, result);
 
-        if (!result.healthy) {
-          console.warn("Container health check failed", {
-            containerId: container.id,
-            url: container.load_balancer_url,
-            error: result.error,
-          });
-        }
+      if (!result.healthy) {
+        console.warn("Container health check failed", {
+          containerId: container.id,
+          url: container.load_balancer_url,
+          error: result.error,
+        });
+      }
 
-        return result;
-      }),
-    );
+      return result;
+    }),
+  );
 
-    const healthyCount = results.filter((r) => r.healthy).length;
-    const unhealthyCount = results.length - healthyCount;
+  const healthyCount = results.filter((r) => r.healthy).length;
+  const unhealthyCount = results.length - healthyCount;
 
-    console.log("Health check completed", {
-      total: results.length,
-      healthy: healthyCount,
-      unhealthy: unhealthyCount,
-    });
+  console.log("Health check completed", {
+    total: results.length,
+    healthy: healthyCount,
+    unhealthy: unhealthyCount,
+  });
 
-    return results;
-  } catch (error) {
-    console.error("Health check failed:", error);
-    throw error;
-  }
+  return results;
 }
 
 /**
@@ -271,42 +242,33 @@ export async function monitorAllContainers(
 export async function getContainerHealthStatus(
   containerId: string,
 ): Promise<HealthCheckResult | null> {
-  try {
-    // Note: We need to get container without organization_id here
-    // So we still use db directly, but this is acceptable for health monitoring
-    const results = await db
-      .select()
-      .from(containers)
-      .where(eq(containers.id, containerId))
-      .limit(1);
+  // Note: We need to get container without organization_id here
+  // So we still use db directly, but this is acceptable for health monitoring
+  const results = await db
+    .select()
+    .from(containers)
+    .where(eq(containers.id, containerId))
+    .limit(1);
 
-    if (results.length === 0 || !results[0].load_balancer_url) {
-      return null;
-    }
-
-    const container = results[0];
-
-    if (!container.load_balancer_url) {
-      return null;
-    }
-
-    const result = await checkContainerHealth(
-      container.load_balancer_url,
-      container.health_check_path || "/health",
-    );
-
-    result.containerId = containerId;
-    await updateContainerHealth(containerId, result);
-
-    return result;
-  } catch (error) {
-    console.error(
-      "Failed to get container health status",
-      error instanceof Error ? error.message : String(error),
-      { containerId },
-    );
+  if (results.length === 0 || !results[0].load_balancer_url) {
     return null;
   }
+
+  const container = results[0];
+
+  if (!container.load_balancer_url) {
+    return null;
+  }
+
+  const result = await checkContainerHealth(
+    container.load_balancer_url,
+    container.health_check_path || "/health",
+  );
+
+  result.containerId = containerId;
+  await updateContainerHealth(containerId, result);
+
+  return result;
 }
 
 /**
@@ -351,14 +313,7 @@ export function startHealthMonitoring(
   );
 
   const interval = setInterval(async () => {
-    try {
-      await monitorAllContainers();
-    } catch (error) {
-      console.error(
-        "Health monitoring cycle failed",
-        error instanceof Error ? error.message : String(error),
-      );
-    }
+    await monitorAllContainers();
   }, intervalMs);
 
   // Also run immediately on startup

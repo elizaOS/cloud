@@ -17,6 +17,9 @@ import {
   VOICE_CLONE_PROFESSIONAL_COST,
 } from "@/lib/pricing-constants";
 
+/**
+ * Parameters for creating a voice clone.
+ */
 export interface CreateVoiceCloneParams {
   organizationId: string;
   userId: string;
@@ -27,11 +30,17 @@ export interface CreateVoiceCloneParams {
   settings?: Record<string, unknown>;
 }
 
+/**
+ * Result of creating a voice clone.
+ */
 export interface VoiceCloneResult {
   userVoice: NewUserVoice;
   job: NewVoiceCloningJob;
 }
 
+/**
+ * Service for managing voice cloning operations with ElevenLabs.
+ */
 export class VoiceCloningService {
   private readonly MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
   private readonly ALLOWED_TYPES = [
@@ -101,43 +110,32 @@ export class VoiceCloningService {
       if (hasVercelToken) {
         await Promise.all(
           files.map(async (file) => {
-            try {
-              // Upload to Vercel Blob
-              const blob = await put(
-                `voice-samples/${organizationId}/${job.id}/${file.name}`,
-                file,
-                {
-                  access: "public",
-                  addRandomSuffix: true,
-                },
-              );
+            // Upload to Vercel Blob
+            const blob = await put(
+              `voice-samples/${organizationId}/${job.id}/${file.name}`,
+              file,
+              {
+                access: "public",
+                addRandomSuffix: true,
+              },
+            );
 
-              logger.info("[VoiceCloning] Uploaded sample to blob storage", {
-                jobId: job.id,
-                fileName: file.name,
-                blobUrl: blob.url,
-              });
+            logger.info("[VoiceCloning] Uploaded sample to blob storage", {
+              jobId: job.id,
+              fileName: file.name,
+              blobUrl: blob.url,
+            });
 
-              // Store sample metadata in database
-              await db.insert(voiceSamples).values({
-                jobId: job.id,
-                organizationId,
-                userId,
-                fileName: file.name,
-                fileSize: file.size,
-                fileType: file.type,
-                blobUrl: blob.url,
-              });
-            } catch (error) {
-              logger.warn(
-                "[VoiceCloning] Failed to upload to blob storage, continuing anyway",
-                {
-                  jobId: job.id,
-                  fileName: file.name,
-                  error: error instanceof Error ? error.message : "Unknown",
-                },
-              );
-            }
+            // Store sample metadata in database
+            await db.insert(voiceSamples).values({
+              jobId: job.id,
+              organizationId,
+              userId,
+              fileName: file.name,
+              fileSize: file.size,
+              fileType: file.type,
+              blobUrl: blob.url,
+            });
           }),
         );
       } else {
@@ -366,18 +364,10 @@ export class VoiceCloningService {
 
     // Delete from ElevenLabs
     const elevenlabs = getElevenLabsService();
-    try {
-      await elevenlabs.deleteVoice(voice.elevenlabsVoiceId);
-      logger.info("[VoiceCloning] Voice deleted from ElevenLabs", {
-        elevenlabsVoiceId: voice.elevenlabsVoiceId,
-      });
-    } catch (error) {
-      logger.error("[VoiceCloning] Error deleting from ElevenLabs", {
-        elevenlabsVoiceId: voice.elevenlabsVoiceId,
-        error: error instanceof Error ? error.message : "Unknown",
-      });
-      // Continue with local deletion even if ElevenLabs deletion fails
-    }
+    await elevenlabs.deleteVoice(voice.elevenlabsVoiceId);
+    logger.info("[VoiceCloning] Voice deleted from ElevenLabs", {
+      elevenlabsVoiceId: voice.elevenlabsVoiceId,
+    });
 
     // Soft delete from database (set inactive instead of hard delete)
     await db

@@ -1,7 +1,11 @@
+/**
+ * Analytics projection utilities for forecasting usage and costs.
+ */
+
 import type { TimeSeriesDataPoint } from "@/lib/services";
 
 /**
- * Projection configuration constants
+ * Projection configuration constants.
  */
 export const PROJECTION_CONSTANTS = {
   /**
@@ -51,6 +55,9 @@ function seededRandom(
   return 1 + (random - 0.5) * variance;
 }
 
+/**
+ * Data point with projection information.
+ */
 export interface ProjectionDataPoint {
   timestamp: Date;
   totalRequests: number;
@@ -62,11 +69,17 @@ export interface ProjectionDataPoint {
   confidence?: number;
 }
 
+/**
+ * Linear regression calculation result.
+ */
 export interface LinearRegressionResult {
   slope: number;
   intercept: number;
 }
 
+/**
+ * Alert for projection-based warnings.
+ */
 export interface ProjectionAlert {
   type: "warning" | "danger" | "info";
   title: string;

@@ -19,14 +19,12 @@ export const maxDuration = 60;
 
 /**
  * POST /api/eliza/rooms/[roomId]/messages/stream
+ * Single-endpoint streaming architecture for Eliza agent messages.
+ * Receives message via POST and streams back thinking indicator and agent response via SSE.
  *
- * Single-endpoint streaming architecture:
- * - Receives message via POST
- * - Streams back thinking indicator and agent response via SSE
- * - All processing happens in same container (no cross-container issues!)
- * - Simple, fast, and works perfectly on serverless
- * 
- * Security: entityId is derived from authenticated user, not client-supplied
+ * @param request - Request body with text, optional model, agentMode, sessionToken, attachments, and appId.
+ * @param ctx - Route context containing the room ID parameter.
+ * @returns SSE stream with thinking indicators and agent response.
  */
 export async function POST(
   request: NextRequest,

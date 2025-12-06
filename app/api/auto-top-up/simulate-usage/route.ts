@@ -3,6 +3,15 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { creditsService } from "@/lib/services/credits";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
+/**
+ * POST /api/auto-top-up/simulate-usage
+ * Simulates credit usage by deducting a specified amount from the organization's balance.
+ * Used for testing auto top-up functionality.
+ * Rate limited: Strict preset.
+ *
+ * @param req - Request body with optional amount (default: $2.00, max: $100.00).
+ * @returns Deduction result with new balance.
+ */
 async function handleSimulateUsage(req: NextRequest) {
   try {
     const user = await requireAuthWithOrg();

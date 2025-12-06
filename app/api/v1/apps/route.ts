@@ -14,6 +14,13 @@ const CreateAppSchema = z.object({
   logo_url: z.string().url().optional(),
 });
 
+/**
+ * GET /api/v1/apps
+ * Lists all apps for the authenticated user's organization.
+ *
+ * @param request - The Next.js request object.
+ * @returns Array of app objects.
+ */
 export async function GET(request: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
@@ -28,6 +35,14 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * POST /api/v1/apps
+ * Creates a new app for the authenticated user's organization.
+ * Automatically generates an API key for the app.
+ *
+ * @param request - Request body with app details (name, description, app_url, etc.).
+ * @returns Created app details and API key.
+ */
 export async function POST(request: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);

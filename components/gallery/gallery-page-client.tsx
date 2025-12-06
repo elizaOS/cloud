@@ -1,3 +1,7 @@
+/**
+ * Gallery page client component displaying user's AI-generated media.
+ * Supports filtering by type (all, image, video) and displays stats and grid view.
+ */
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -51,28 +55,17 @@ export function GalleryPageClient() {
 
   const loadItems = useCallback(async () => {
     setIsLoading(true);
-    try {
-      const type = activeTab === "all" ? undefined : activeTab;
-      const data = await listUserMedia({ type, limit: 100 });
-      setItems(data);
-    } catch (error) {
-      console.error("Failed to load gallery:", error);
-      toast.error("Failed to load gallery items");
-    } finally {
-      setIsLoading(false);
-    }
+    const type = activeTab === "all" ? undefined : activeTab;
+    const data = await listUserMedia({ type, limit: 100 });
+    setItems(data);
+    setIsLoading(false);
   }, [activeTab]);
 
   const loadStats = useCallback(async () => {
     setIsLoadingStats(true);
-    try {
-      const data = await getUserMediaStats();
-      setStats(data);
-    } catch (error) {
-      console.error("Failed to load stats:", error);
-    } finally {
-      setIsLoadingStats(false);
-    }
+    const data = await getUserMediaStats();
+    setStats(data);
+    setIsLoadingStats(false);
   }, []);
 
   useEffect(() => {

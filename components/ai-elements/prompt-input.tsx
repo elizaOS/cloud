@@ -1,3 +1,8 @@
+/**
+ * Prompt input component for AI chat interfaces with file attachments and voice input.
+ * Supports text input, image attachments, audio recording, and model selection.
+ */
+
 "use client";
 
 import NextImage from "next/image";
@@ -733,9 +738,6 @@ export const PromptInput = ({
                 controller.textInput.clear();
               }
             })
-            .catch(() => {
-              // Don't clear on error - user may want to retry
-            });
         } else {
           // Sync function completed without throwing, clear attachments
           clear();

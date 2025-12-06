@@ -1,3 +1,16 @@
+/**
+ * Export button component for exporting analytics data.
+ * Supports CSV, JSON, and Excel formats with simple or dropdown variants.
+ *
+ * @param props - Export button configuration
+ * @param props.startDate - Start date for export range
+ * @param props.endDate - End date for export range
+ * @param props.granularity - Data granularity (hour, day, month)
+ * @param props.format - Export format (csv, json, excel)
+ * @param props.type - Export type (timeseries, users, providers, models)
+ * @param props.variant - Button variant (simple or dropdown)
+ */
+
 "use client";
 
 import { Button } from "@/components/ui/button";

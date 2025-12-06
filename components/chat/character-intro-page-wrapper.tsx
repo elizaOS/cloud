@@ -1,3 +1,16 @@
+/**
+ * Character intro page wrapper component handling session creation and navigation.
+ * Manages anonymous session creation and routing for authenticated/anonymous users.
+ *
+ * @param props - Character intro page wrapper configuration
+ * @param props.character - Character data to display
+ * @param props.characterId - Character ID
+ * @param props.source - Optional source identifier
+ * @param props.theme - Affiliate theme configuration
+ * @param props.existingSessionId - Optional existing session ID
+ * @param props.isAuthenticated - Whether user is authenticated
+ */
+
 "use client";
 
 import { useState } from "react";

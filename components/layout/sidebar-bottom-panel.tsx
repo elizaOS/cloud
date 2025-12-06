@@ -1,6 +1,9 @@
 /**
- * Sidebar Bottom Panel Component
- * Displays user info, balance, and settings menu items
+ * Sidebar bottom panel component displaying user info, credit balance, and settings.
+ * Shows sign up CTA for anonymous users and user menu for authenticated users.
+ *
+ * @param props - Sidebar bottom panel configuration
+ * @param props.className - Additional CSS classes
  */
 
 "use client";

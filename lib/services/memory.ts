@@ -18,6 +18,10 @@ import { eq, and, desc } from "drizzle-orm";
 import { users } from "@/db/schemas/users";
 import { participantTable, memoryTable } from "@/db/schemas/eliza";
 
+/**
+ * Memory service for managing Eliza agent memories and conversation summaries.
+ */
+
 export interface SaveMemoryInput {
   organizationId: string;
   roomId: string;
@@ -30,12 +34,18 @@ export interface SaveMemoryInput {
   persistent?: boolean;
 }
 
+/**
+ * Result of saving a memory.
+ */
 export interface SaveMemoryResult {
   memoryId: string;
   storage: "redis" | "postgres" | "both";
   expiresAt?: Date;
 }
 
+/**
+ * Input for retrieving memories.
+ */
 export interface RetrieveMemoriesInput {
   organizationId: string;
   roomId?: string;
@@ -47,6 +57,9 @@ export interface RetrieveMemoriesInput {
   sortBy?: "relevance" | "recent" | "importance";
 }
 
+/**
+ * Input for deleting memories.
+ */
 export interface DeleteMemoryInput {
   organizationId: string;
   memoryId?: string;
@@ -55,11 +68,17 @@ export interface DeleteMemoryInput {
   tags?: string[];
 }
 
+/**
+ * Result of deleting memories.
+ */
 export interface DeleteMemoryResult {
   deletedCount: number;
   storageFreed: number;
 }
 
+/**
+ * Input for summarizing a conversation.
+ */
 export interface SummarizeConversationInput {
   roomId: string;
   organizationId: string;
@@ -68,6 +87,9 @@ export interface SummarizeConversationInput {
   includeMetadata?: boolean;
 }
 
+/**
+ * Result of conversation summarization.
+ */
 export interface SummarizeConversationResult {
   summary: string;
   tokenCount: number;
@@ -75,6 +97,9 @@ export interface SummarizeConversationResult {
   participants: string[];
 }
 
+/**
+ * Service for managing agent memories, conversation context, and summaries.
+ */
 export class MemoryService {
   // PERFORMANCE FIX: Add method to check single room ownership efficiently
   private async checkRoomOwnership(
@@ -176,43 +201,20 @@ export class MemoryService {
     const persistent = input.persistent !== false;
 
     if (persistent) {
-      try {
-        logger.debug(
-          `[Memory Service] Attempting to create memory in PostgreSQL:`,
-          {
-            memoryId: memory.id,
-            roomId: memory.roomId,
-            entityId: memory.entityId,
-            agentId: memory.agentId,
-            contentLength: JSON.stringify(memory.content).length,
-          },
-        );
-        await runtime.adapter.createMemory(memory, "memories", true);
-        logger.info(
-          `[Memory Service] Saved memory to PostgreSQL: ${memory.id}`,
-        );
-      } catch (dbError) {
-        logger.error(
-          `[Memory Service] PostgreSQL insert failed with full error:`,
-          {
-            error:
-              dbError instanceof Error ? dbError.message : String(dbError),
-            errorName: dbError instanceof Error ? dbError.name : "Unknown",
-            errorStack: dbError instanceof Error ? dbError.stack : undefined,
-            errorCause:
-              dbError instanceof Error
-                ? JSON.stringify(dbError.cause)
-                : undefined,
-            memory: {
-              id: memory.id,
-              roomId: memory.roomId,
-              entityId: memory.entityId,
-              agentId: memory.agentId,
-            },
-          },
-        );
-        throw dbError;
-      }
+      logger.debug(
+        `[Memory Service] Attempting to create memory in PostgreSQL:`,
+        {
+          memoryId: memory.id,
+          roomId: memory.roomId,
+          entityId: memory.entityId,
+          agentId: memory.agentId,
+          contentLength: JSON.stringify(memory.content).length,
+        },
+      );
+      await runtime.adapter.createMemory(memory, "memories", true);
+      logger.info(
+        `[Memory Service] Saved memory to PostgreSQL: ${memory.id}`,
+      );
     }
 
     const ttl = input.ttl || CacheTTL.memory.item;
@@ -232,22 +234,21 @@ export class MemoryService {
   async retrieveMemories(
     input: RetrieveMemoriesInput,
   ): Promise<SearchResult[]> {
-    try {
-      logger.info(
-        `[Memory Service] retrieveMemories called with input:`,
-        JSON.stringify(
-          {
-            organizationId: input.organizationId,
-            roomId: input.roomId,
-            query: input.query,
-            limit: input.limit,
-            type: input.type,
-            tags: input.tags,
-          },
-          null,
-          2,
-        ),
-      );
+    logger.info(
+      `[Memory Service] retrieveMemories called with input:`,
+      JSON.stringify(
+        {
+          organizationId: input.organizationId,
+          roomId: input.roomId,
+          query: input.query,
+          limit: input.limit,
+          type: input.type,
+          tags: input.tags,
+        },
+        null,
+        2,
+      ),
+    );
 
       const runtime = await agentRuntime.getRuntime();
       logger.info(
@@ -429,35 +430,26 @@ export class MemoryService {
         `[Memory Service] Retrieved ${results.length} memories (filtered from ${memories.length}) for query`,
       );
       return results;
-    } catch (error) {
-      logger.error("[Memory Service] Failed to retrieve memories:", error);
-      throw error;
-    }
   }
 
   async deleteMemory(input: DeleteMemoryInput): Promise<DeleteMemoryResult> {
-    try {
-      const runtime = await agentRuntime.getRuntime();
-      let deletedCount = 0;
+    const runtime = await agentRuntime.getRuntime();
+    let deletedCount = 0;
 
-      if (input.memoryId) {
-        await runtime.adapter.deleteMemory(input.memoryId as UUID);
-        await memoryCache.invalidateMemory(input.memoryId);
-        deletedCount = 1;
-      }
-
-      logger.info(
-        `[Memory Service] Deleted ${deletedCount} memories for org ${input.organizationId}`,
-      );
-
-      return {
-        deletedCount,
-        storageFreed: deletedCount * 1024,
-      };
-    } catch (error) {
-      logger.error("[Memory Service] Failed to delete memory:", error);
-      throw error;
+    if (input.memoryId) {
+      await runtime.adapter.deleteMemory(input.memoryId as UUID);
+      await memoryCache.invalidateMemory(input.memoryId);
+      deletedCount = 1;
     }
+
+    logger.info(
+      `[Memory Service] Deleted ${deletedCount} memories for org ${input.organizationId}`,
+    );
+
+    return {
+      deletedCount,
+      storageFreed: deletedCount * 1024,
+    };
   }
 
   async getRoomContext(
@@ -465,122 +457,112 @@ export class MemoryService {
     organizationId: string,
     depth: number = 20,
   ): Promise<MemoryRoomContext> {
-    try {
-      const cached = await memoryCache.getRoomContext(roomId, organizationId);
-      if (cached && cached.depth >= depth) {
-        logger.debug(`[Memory Service] Cache HIT for room context: ${roomId}`);
-        return cached;
-      }
-
-      const runtime = await agentRuntime.getRuntime();
-
-      const memories = await runtime.adapter.getMemoriesByRoomIds({
-        tableName: "messages",
-        roomIds: [roomId as UUID],
-        limit: depth,
-      });
-
-      const participants = await runtime.adapter.getParticipantsForRoom(
-        roomId as UUID,
-      );
-
-      const rooms = await runtime.adapter.getRoomsByIds([roomId as UUID]);
-      const room = rooms && rooms.length > 0 ? rooms[0] : null;
-
-      const context: MemoryRoomContext = {
-        roomId,
-        messages: memories,
-        participants,
-        metadata: room?.metadata || {},
-        depth,
-        timestamp: new Date(),
-      };
-
-      await memoryCache.cacheRoomContext(
-        roomId,
-        organizationId,
-        context,
-        CacheTTL.memory.roomContext,
-      );
-
-      logger.info(
-        `[Memory Service] Retrieved room context: ${roomId} (${memories.length} messages)`,
-      );
-      return context;
-    } catch (error) {
-      logger.error("[Memory Service] Failed to get room context:", error);
-      throw error;
+    const cached = await memoryCache.getRoomContext(roomId, organizationId);
+    if (cached && cached.depth >= depth) {
+      logger.debug(`[Memory Service] Cache HIT for room context: ${roomId}`);
+      return cached;
     }
+
+    const runtime = await agentRuntime.getRuntime();
+
+    const memories = await runtime.adapter.getMemoriesByRoomIds({
+      tableName: "messages",
+      roomIds: [roomId as UUID],
+      limit: depth,
+    });
+
+    const participants = await runtime.adapter.getParticipantsForRoom(
+      roomId as UUID,
+    );
+
+    const rooms = await runtime.adapter.getRoomsByIds([roomId as UUID]);
+    const room = rooms && rooms.length > 0 ? rooms[0] : null;
+
+    const context: MemoryRoomContext = {
+      roomId,
+      messages: memories,
+      participants,
+      metadata: room?.metadata || {},
+      depth,
+      timestamp: new Date(),
+    };
+
+    await memoryCache.cacheRoomContext(
+      roomId,
+      organizationId,
+      context,
+      CacheTTL.memory.roomContext,
+    );
+
+    logger.info(
+      `[Memory Service] Retrieved room context: ${roomId} (${memories.length} messages)`,
+    );
+    return context;
   }
 
   async summarizeConversation(
     input: SummarizeConversationInput,
   ): Promise<SummarizeConversationResult> {
-    try {
-      const cacheKey = `${input.roomId}:${input.lastN}:${input.style}`;
-      const cached = await memoryCache.getMemory(
-        CacheKeys.memory.conversationSummary(input.organizationId, cacheKey),
+    const cacheKey = `${input.roomId}:${input.lastN}:${input.style}`;
+    const cached = await memoryCache.getMemory(
+      CacheKeys.memory.conversationSummary(input.organizationId, cacheKey),
+    );
+    if (cached) {
+      logger.debug(
+        `[Memory Service] Cache HIT for conversation summary: ${input.roomId}`,
       );
-      if (cached) {
-        logger.debug(
-          `[Memory Service] Cache HIT for conversation summary: ${input.roomId}`,
-        );
-        return cached.content as unknown as SummarizeConversationResult;
-      }
-
-      const context = await this.getRoomContext(
-        input.roomId,
-        input.organizationId,
-        input.lastN || 50,
-      );
-
-      const summaryPrompt = this.buildSummaryPrompt(
-        context,
-        input.style || "brief",
-      );
-
-      const result = await streamText({
-        model: gateway.languageModel("gpt-4o-mini"),
-        prompt: summaryPrompt,
-      });
-
-      let fullText = "";
-      for await (const delta of result.textStream) {
-        fullText += delta;
-      }
-
-      const usage = await result.usage;
-
-      const summary: SummarizeConversationResult = {
-        summary: fullText,
-        tokenCount: usage?.totalTokens || 0,
-        keyTopics: this.extractTopics(fullText),
-        participants: context.participants.map((p) => p.toString()),
-      };
-
-      const summaryMemory: Memory = {
-        id: uuidv4() as UUID,
-        roomId: input.roomId as UUID,
-        entityId: context.participants[0] || ("system" as UUID),
-        agentId: (await agentRuntime.getRuntime()).agentId,
-        createdAt: Date.now(),
-        content: summary as unknown as Record<string, unknown>,
-      };
-
-      await memoryCache.cacheMemory(
-        CacheKeys.memory.conversationSummary(input.organizationId, cacheKey),
-        summaryMemory,
-        CacheTTL.memory.conversationSummary,
-      );
-
-      logger.info(
-        `[Memory Service] Generated conversation summary: ${input.roomId} (${usage?.totalTokens} tokens)`,
-      );
-      return summary;
-    } catch (error) {
-      logger.error("[Memory Service] Failed to summarize conversation:", error);
-      throw error;
+      return cached.content as unknown as SummarizeConversationResult;
     }
+
+    const context = await this.getRoomContext(
+      input.roomId,
+      input.organizationId,
+      input.lastN || 50,
+    );
+
+    const summaryPrompt = this.buildSummaryPrompt(
+      context,
+      input.style || "brief",
+    );
+
+    const result = await streamText({
+      model: gateway.languageModel("gpt-4o-mini"),
+      prompt: summaryPrompt,
+    });
+
+    let fullText = "";
+    for await (const delta of result.textStream) {
+      fullText += delta;
+    }
+
+    const usage = await result.usage;
+
+    const summary: SummarizeConversationResult = {
+      summary: fullText,
+      tokenCount: usage?.totalTokens || 0,
+      keyTopics: this.extractTopics(fullText),
+      participants: context.participants.map((p) => p.toString()),
+    };
+
+    const summaryMemory: Memory = {
+      id: uuidv4() as UUID,
+      roomId: input.roomId as UUID,
+      entityId: context.participants[0] || ("system" as UUID),
+      agentId: (await agentRuntime.getRuntime()).agentId,
+      createdAt: Date.now(),
+      content: summary as unknown as Record<string, unknown>,
+    };
+
+    await memoryCache.cacheMemory(
+      CacheKeys.memory.conversationSummary(input.organizationId, cacheKey),
+      summaryMemory,
+      CacheTTL.memory.conversationSummary,
+    );
+
+    logger.info(
+      `[Memory Service] Generated conversation summary: ${input.roomId} (${usage?.totalTokens} tokens)`,
+    );
+    return summary;
   }
 
   private hashQuery(
@@ -651,45 +633,33 @@ Summary:`;
     messageCount: number;
     relevanceScores: Array<{ messageId: string; score: number }>;
   }> {
-    try {
-      const context = await this.getRoomContext(roomId, organizationId, 100);
+    const context = await this.getRoomContext(roomId, organizationId, 100);
 
-      const recentMessages = context.messages.slice(0, preserveRecent);
-      const olderMessages = context.messages.slice(preserveRecent);
+    const recentMessages = context.messages.slice(0, preserveRecent);
+    const olderMessages = context.messages.slice(preserveRecent);
 
-      const selectedMessages = [...recentMessages];
-      let currentTokens = await this.estimateTokenCount(recentMessages);
+    const selectedMessages = [...recentMessages];
+    let currentTokens = await this.estimateTokenCount(recentMessages);
 
-      const relevanceScores: Array<{ messageId: string; score: number }> = [];
+    const relevanceScores: Array<{ messageId: string; score: number }> = [];
 
-      if (query) {
-        for (const msg of olderMessages) {
-          const msgText = msg.content.text || "";
-          const score = this.calculateRelevanceScore(msgText, query);
-          relevanceScores.push({
-            messageId: msg.id?.toString() || "",
-            score,
-          });
-        }
+    if (query) {
+      for (const msg of olderMessages) {
+        const msgText = msg.content.text || "";
+        const score = this.calculateRelevanceScore(msgText, query);
+        relevanceScores.push({
+          messageId: msg.id?.toString() || "",
+          score,
+        });
+      }
 
-        relevanceScores.sort((a, b) => b.score - a.score);
+      relevanceScores.sort((a, b) => b.score - a.score);
 
-        for (const scoreItem of relevanceScores) {
-          const msg = olderMessages.find(
-            (m) => m.id?.toString() === scoreItem.messageId,
-          );
-          if (msg) {
-            const msgTokens = await this.estimateTokenCount([msg]);
-            if (currentTokens + msgTokens <= maxTokens) {
-              selectedMessages.push(msg);
-              currentTokens += msgTokens;
-            } else {
-              break;
-            }
-          }
-        }
-      } else {
-        for (const msg of olderMessages) {
+      for (const scoreItem of relevanceScores) {
+        const msg = olderMessages.find(
+          (m) => m.id?.toString() === scoreItem.messageId,
+        );
+        if (msg) {
           const msgTokens = await this.estimateTokenCount([msg]);
           if (currentTokens + msgTokens <= maxTokens) {
             selectedMessages.push(msg);
@@ -699,24 +669,28 @@ Summary:`;
           }
         }
       }
-
-      logger.info(
-        `[Memory Service] Optimized context: ${selectedMessages.length}/${context.messages.length} messages, ${currentTokens}/${maxTokens} tokens`,
-      );
-
-      return {
-        messages: selectedMessages,
-        totalTokens: currentTokens,
-        messageCount: selectedMessages.length,
-        relevanceScores,
-      };
-    } catch (error) {
-      logger.error(
-        "[Memory Service] Failed to optimize context window:",
-        error,
-      );
-      throw error;
+    } else {
+      for (const msg of olderMessages) {
+        const msgTokens = await this.estimateTokenCount([msg]);
+        if (currentTokens + msgTokens <= maxTokens) {
+          selectedMessages.push(msg);
+          currentTokens += msgTokens;
+        } else {
+          break;
+        }
+      }
     }
+
+    logger.info(
+      `[Memory Service] Optimized context: ${selectedMessages.length}/${context.messages.length} messages, ${currentTokens}/${maxTokens} tokens`,
+    );
+
+    return {
+      messages: selectedMessages,
+      totalTokens: currentTokens,
+      messageCount: selectedMessages.length,
+      relevanceScores,
+    };
   }
 
   async exportConversation(
@@ -728,84 +702,79 @@ Summary:`;
     size: number;
     format: string;
   }> {
-    try {
-      const conversation =
-        await conversationsService.getWithMessages(conversationId);
+    const conversation =
+      await conversationsService.getWithMessages(conversationId);
 
-      if (!conversation) {
-        throw new Error("Conversation not found");
-      }
-
-      let content = "";
-
-      switch (format) {
-        case "json":
-          content = JSON.stringify(
-            {
-              id: conversation.id,
-              title: conversation.title,
-              model: conversation.model,
-              createdAt: conversation.created_at,
-              messages: conversation.messages.map((m: ConversationMessage) => ({
-                id: m.id,
-                role: m.role,
-                content: m.content,
-                tokens: m.tokens,
-                cost: m.cost,
-                createdAt: m.created_at,
-              })),
-              metadata: {
-                messageCount: conversation.message_count,
-                totalCost: conversation.total_cost,
-              },
-            },
-            null,
-            2,
-          );
-          break;
-
-        case "markdown":
-          content = `# ${conversation.title}\n\n`;
-          content += `**Model**: ${conversation.model}\n`;
-          content += `**Created**: ${conversation.created_at}\n`;
-          content += `**Messages**: ${conversation.message_count}\n\n`;
-          content += `---\n\n`;
-
-          for (const msg of conversation.messages) {
-            content += `## ${msg.role}\n\n`;
-            content += `${msg.content}\n\n`;
-            content += `_Tokens: ${msg.tokens || 0} | Cost: ${msg.cost || 0} credits_\n\n`;
-            content += `---\n\n`;
-          }
-          break;
-
-        case "txt":
-          content = `Conversation: ${conversation.title}\n`;
-          content += `Model: ${conversation.model}\n`;
-          content += `Created: ${conversation.created_at}\n`;
-          content += `\n${"=".repeat(80)}\n\n`;
-
-          for (const msg of conversation.messages) {
-            content += `[${msg.role.toUpperCase()}]\n`;
-            content += `${msg.content}\n`;
-            content += `\n${"-".repeat(80)}\n\n`;
-          }
-          break;
-      }
-
-      logger.info(
-        `[Memory Service] Exported conversation ${conversationId} as ${format}`,
-      );
-
-      return {
-        content,
-        size: content.length,
-        format,
-      };
-    } catch (error) {
-      logger.error("[Memory Service] Failed to export conversation:", error);
-      throw error;
+    if (!conversation) {
+      throw new Error("Conversation not found");
     }
+
+    let content = "";
+
+    switch (format) {
+      case "json":
+        content = JSON.stringify(
+          {
+            id: conversation.id,
+            title: conversation.title,
+            model: conversation.model,
+            createdAt: conversation.created_at,
+            messages: conversation.messages.map((m: ConversationMessage) => ({
+              id: m.id,
+              role: m.role,
+              content: m.content,
+              tokens: m.tokens,
+              cost: m.cost,
+              createdAt: m.created_at,
+            })),
+            metadata: {
+              messageCount: conversation.message_count,
+              totalCost: conversation.total_cost,
+            },
+          },
+          null,
+          2,
+        );
+        break;
+
+      case "markdown":
+        content = `# ${conversation.title}\n\n`;
+        content += `**Model**: ${conversation.model}\n`;
+        content += `**Created**: ${conversation.created_at}\n`;
+        content += `**Messages**: ${conversation.message_count}\n\n`;
+        content += `---\n\n`;
+
+        for (const msg of conversation.messages) {
+          content += `## ${msg.role}\n\n`;
+          content += `${msg.content}\n\n`;
+          content += `_Tokens: ${msg.tokens || 0} | Cost: ${msg.cost || 0} credits_\n\n`;
+          content += `---\n\n`;
+        }
+        break;
+
+      case "txt":
+        content = `Conversation: ${conversation.title}\n`;
+        content += `Model: ${conversation.model}\n`;
+        content += `Created: ${conversation.created_at}\n`;
+        content += `\n${"=".repeat(80)}\n\n`;
+
+        for (const msg of conversation.messages) {
+          content += `[${msg.role.toUpperCase()}]\n`;
+          content += `${msg.content}\n`;
+          content += `\n${"-".repeat(80)}\n\n`;
+        }
+        break;
+    }
+
+    logger.info(
+      `[Memory Service] Exported conversation ${conversationId} as ${format}`,
+    );
+
+    return {
+      content,
+      size: content.length,
+      format,
+    };
   }
 
   async cloneConversation(
@@ -822,52 +791,47 @@ Summary:`;
     conversationId: string;
     clonedMessageCount: number;
   }> {
-    try {
-      const sourceConversation =
-        await conversationsService.getWithMessages(conversationId);
+    const sourceConversation =
+      await conversationsService.getWithMessages(conversationId);
 
-      if (!sourceConversation) {
-        throw new Error("Source conversation not found");
-      }
-
-      const newConversation = await conversationsService.create({
-        organization_id: organizationId,
-        user_id: userId,
-        title: options.newTitle || `${sourceConversation.title} (Copy)`,
-        model: options.newModel || sourceConversation.model,
-        settings: sourceConversation.settings,
-      });
-
-      let clonedMessageCount = 0;
-
-      if (options.preserveMessages && sourceConversation.messages.length > 0) {
-        for (const msg of sourceConversation.messages) {
-          await conversationsService.addMessage(
-            newConversation.id,
-            msg.role,
-            msg.content,
-            msg.sequence_number,
-            {
-              tokens: msg.tokens,
-              cost: msg.cost,
-            },
-          );
-          clonedMessageCount++;
-        }
-      }
-
-      logger.info(
-        `[Memory Service] Cloned conversation ${conversationId} to ${newConversation.id} with ${clonedMessageCount} messages`,
-      );
-
-      return {
-        conversationId: newConversation.id,
-        clonedMessageCount,
-      };
-    } catch (error) {
-      logger.error("[Memory Service] Failed to clone conversation:", error);
-      throw error;
+    if (!sourceConversation) {
+      throw new Error("Source conversation not found");
     }
+
+    const newConversation = await conversationsService.create({
+      organization_id: organizationId,
+      user_id: userId,
+      title: options.newTitle || `${sourceConversation.title} (Copy)`,
+      model: options.newModel || sourceConversation.model,
+      settings: sourceConversation.settings,
+    });
+
+    let clonedMessageCount = 0;
+
+    if (options.preserveMessages && sourceConversation.messages.length > 0) {
+      for (const msg of sourceConversation.messages) {
+        await conversationsService.addMessage(
+          newConversation.id,
+          msg.role,
+          msg.content,
+          msg.sequence_number,
+          {
+            tokens: msg.tokens,
+            cost: msg.cost,
+          },
+        );
+        clonedMessageCount++;
+      }
+    }
+
+    logger.info(
+      `[Memory Service] Cloned conversation ${conversationId} to ${newConversation.id} with ${clonedMessageCount} messages`,
+    );
+
+    return {
+      conversationId: newConversation.id,
+      clonedMessageCount,
+    };
   }
 
   async analyzeMemoryPatterns(
@@ -879,11 +843,10 @@ Summary:`;
     data: Record<string, unknown>;
     chartData?: Array<{ label: string; value: number }>;
   }> {
-    try {
-      const memories = await this.retrieveMemories({
-        organizationId,
-        limit: 100,
-      });
+    const memories = await this.retrieveMemories({
+      organizationId,
+      limit: 100,
+    });
 
       const memoriesText = memories
         .map((m) => m.memory.content.text || "")
@@ -1001,13 +964,6 @@ Summary:`;
         data,
         chartData,
       };
-    } catch (error) {
-      logger.error(
-        "[Memory Service] Failed to analyze memory patterns:",
-        error,
-      );
-      throw error;
-    }
   }
 
   private calculateRelevanceScore(text: string, query: string): number {

@@ -9,7 +9,7 @@ import type {
 } from "@elizaos/core";
 
 /**
- * Parameters for message received handler
+ * Parameters for message received handler.
  */
 export interface MessageReceivedHandlerParams {
   runtime: IAgentRuntime;

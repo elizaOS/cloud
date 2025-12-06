@@ -1,3 +1,13 @@
+/**
+ * Build page client component for character building interface.
+ * Initializes chat store, handles anonymous sessions, and displays build mode with signup prompts.
+ *
+ * @param props - Build page client configuration
+ * @param props.initialCharacters - Initial list of characters
+ * @param props.isAuthenticated - Whether user is authenticated
+ * @param props.initialCharacterId - Optional initial character ID
+ */
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -68,10 +78,6 @@ export function BuildPageClient({
           }
           setIsLoadingSession(false);
         })
-        .catch((error) => {
-          console.error("Failed to create anonymous session:", error);
-          setIsLoadingSession(false);
-        });
     }
   }, [isAuthenticated, anonymousSession]);
 

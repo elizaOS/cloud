@@ -17,6 +17,12 @@ import {
 } from "@/lib/services";
 import type { UserWithOrganization } from "@/lib/types";
 
+/**
+ * Generates a unique organization slug from an email address.
+ *
+ * @param email - Email address.
+ * @returns Unique slug string.
+ */
 function generateSlugFromEmail(email: string): string {
   const username = email.split("@")[0];
   const sanitized = username.toLowerCase().replace(/[^a-z0-9]/g, "-");
@@ -25,6 +31,12 @@ function generateSlugFromEmail(email: string): string {
   return `${sanitized}-${timestamp}${random}`;
 }
 
+/**
+ * Generates a unique organization slug from a wallet address.
+ *
+ * @param walletAddress - Wallet address.
+ * @returns Unique slug string.
+ */
 function generateSlugFromWallet(walletAddress: string): string {
   const shortAddress = walletAddress.substring(0, 8);
   const sanitized = shortAddress.toLowerCase().replace(/[^a-z0-9]/g, "-");
@@ -33,8 +45,10 @@ function generateSlugFromWallet(walletAddress: string): string {
   return `wallet-${sanitized}-${timestamp}${random}`;
 }
 
-// Define flexible interface for Privy user data
-// Handles both webhook payload and SDK User type
+/**
+ * Flexible interface for Privy user data.
+ * Handles both webhook payload and SDK User type.
+ */
 interface PrivyUserData {
   id: string;
   email?: { address: string };
@@ -411,6 +425,13 @@ export async function syncUserFromPrivy(
  * Ensure user has a default API key for programmatic access
  * Creates one if it doesn't exist
  */
+/**
+ * Ensures a user has a default API key for programmatic access.
+ * Creates one if it doesn't exist.
+ *
+ * @param userId - User ID.
+ * @param organizationId - Organization ID.
+ */
 async function ensureUserHasApiKey(
   userId: string,
   organizationId: string,
@@ -454,6 +475,11 @@ async function ensureUserHasApiKey(
   }
 }
 
+/**
+ * Queues a welcome email to be sent to a new user.
+ *
+ * @param data - Welcome email data.
+ */
 async function queueWelcomeEmail(data: {
   email: string;
   userName: string;

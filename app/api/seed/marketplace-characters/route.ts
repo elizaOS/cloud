@@ -454,6 +454,14 @@ const TEMPLATE_CHARACTERS: TemplateCharacter[] = [
   },
 ];
 
+/**
+ * POST /api/seed/marketplace-characters
+ * Seeds the marketplace with template characters if none exist.
+ * Creates predefined characters for users to discover and clone.
+ * Requires authentication with organization.
+ *
+ * @returns Seeding results with success/failure counts and character details.
+ */
 export async function POST() {
   try {
     const user = await requireAuthWithOrg();

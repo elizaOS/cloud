@@ -108,7 +108,11 @@ async function handleHealthCheck(request: NextRequest) {
 
 /**
  * GET /api/v1/cron/health-check
- * Vercel cron jobs use GET by default
+ * Cron job endpoint for monitoring container health.
+ * Protected by CRON_SECRET. Can be called via GET (Vercel cron) or POST (manual testing).
+ *
+ * @param request - Request with Bearer token authorization header.
+ * @returns Health check results for all containers.
  */
 export async function GET(request: NextRequest) {
   return handleHealthCheck(request);
@@ -116,7 +120,11 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/v1/cron/health-check
- * Support POST for manual testing and other cron services
+ * Cron job endpoint for monitoring container health (POST variant).
+ * Protected by CRON_SECRET.
+ *
+ * @param request - Request with Bearer token authorization header.
+ * @returns Health check results for all containers.
  */
 export async function POST(request: NextRequest) {
   return handleHealthCheck(request);

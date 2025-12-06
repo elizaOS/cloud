@@ -7,7 +7,11 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/v1/containers/[id]/deployments
- * Get deployment history for a specific container
+ * Retrieves deployment history for a specific container from usage records.
+ *
+ * @param request - The Next.js request object.
+ * @param params - Route parameters containing the container ID.
+ * @returns Deployment history with status, costs, and metadata.
  */
 export async function GET(
   request: NextRequest,

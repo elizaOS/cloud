@@ -1,3 +1,15 @@
+/**
+ * Avatar generator component for selecting or generating character avatars.
+ * Supports built-in avatar selection, random generation, and AI-powered avatar generation.
+ *
+ * @param props - Avatar generator configuration
+ * @param props.characterName - Character name for avatar generation
+ * @param props.characterDescription - Optional character description
+ * @param props.currentAvatarUrl - Current avatar URL
+ * @param props.onAvatarChange - Callback when avatar changes
+ * @param props.className - Additional CSS classes
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -49,37 +61,37 @@ export function AvatarGenerator({
 
     setIsGeneratingAI(true);
 
-    try {
-      const description = characterDescription || characterName;
-      const prompt = `Professional avatar portrait for an AI character named "${characterName}". ${description}. Clean circular composition, dark background (#0A0A0A), high quality digital illustration style, suitable for profile picture. Modern, sleek design.`;
+    const description = characterDescription || characterName;
+    const prompt = `Professional avatar portrait for an AI character named "${characterName}". ${description}. Clean circular composition, dark background (#0A0A0A), high quality digital illustration style, suitable for profile picture. Modern, sleek design.`;
 
-      const response = await fetch("/api/v1/generate-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, aspectRatio: "1:1", numImages: 1 }),
-      });
+    const response = await fetch("/api/v1/generate-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, aspectRatio: "1:1", numImages: 1 }),
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to generate avatar");
-      }
-
-      const data = await response.json();
-
-      if (data.images?.[0]) {
-        const newAvatarUrl = data.images[0].url || data.images[0].image;
-        if (!newAvatarUrl) throw new Error("No valid image URL in response");
-        onAvatarChange(newAvatarUrl);
-        toast.success("AI avatar generated! ($0.01)");
-      } else {
-        throw new Error("No image returned");
-      }
-    } catch (error) {
-      console.error("Error generating AI avatar:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to generate AI avatar");
-    } finally {
+    if (!response.ok) {
+      const errorData = await response.json();
+      toast.error(errorData.error || "Failed to generate avatar");
       setIsGeneratingAI(false);
+      return;
     }
+
+    const data = await response.json();
+
+    if (data.images?.[0]) {
+      const newAvatarUrl = data.images[0].url || data.images[0].image;
+      if (!newAvatarUrl) {
+        toast.error("No valid image URL in response");
+        setIsGeneratingAI(false);
+        return;
+      }
+      onAvatarChange(newAvatarUrl);
+      toast.success("AI avatar generated! ($0.01)");
+    } else {
+      toast.error("No image returned");
+    }
+    setIsGeneratingAI(false);
   };
 
   const resolvedCurrentAvatar = ensureAvatarUrl(currentAvatarUrl);

@@ -1,14 +1,3 @@
-/**
- * /api/v1/miniapp/agents/[id]/chats/[chatId]/messages
- * 
- * POST - Send a message to the agent
- * 
- * This endpoint validates access and then forwards to the main streaming endpoint.
- * For streaming responses, miniapp should use:
- *   POST /api/eliza/rooms/[chatId]/messages/stream
- *   with body: { text, model?, agentMode? }
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { charactersService } from "@/lib/services";
@@ -22,6 +11,13 @@ import { z } from "zod";
 
 export const maxDuration = 60;
 
+/**
+ * OPTIONS /api/v1/miniapp/agents/[id]/chats/[chatId]/messages
+ * CORS preflight handler for miniapp message endpoint.
+ *
+ * @param request - The Next.js request object.
+ * @returns Preflight response with CORS headers.
+ */
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
   return createPreflightResponse(origin, ["POST", "OPTIONS"]);
@@ -34,9 +30,16 @@ const SendMessageSchema = z.object({
 
 /**
  * POST /api/v1/miniapp/agents/[id]/chats/[chatId]/messages
- * 
- * Validates access and returns the streaming URL for the client to use.
- * The client should then call the streaming endpoint directly.
+ * Validates access to send a message and returns the streaming endpoint URL.
+ * The client should then POST to the returned streamUrl for the actual streaming response.
+ *
+ * Request Body:
+ * - `text`: Message text (required, 1-10000 characters).
+ * - `model`: Optional model ID to use.
+ *
+ * @param request - Request body with message text and optional model.
+ * @param params - Route parameters containing the agent ID and chat ID.
+ * @returns Streaming endpoint URL and message details for client to use.
  */
 export async function POST(
   request: NextRequest,

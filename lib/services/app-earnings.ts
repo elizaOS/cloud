@@ -1,3 +1,7 @@
+/**
+ * Service for managing app earnings and revenue tracking.
+ */
+
 import {
   appEarningsRepository,
   type AppEarnings,
@@ -6,6 +10,9 @@ import {
 import { appsRepository } from "@/db/repositories/apps";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * Summary of app earnings.
+ */
 export interface EarningsSummary {
   totalLifetimeEarnings: number;
   totalInferenceEarnings: number;
@@ -16,6 +23,9 @@ export interface EarningsSummary {
   payoutThreshold: number;
 }
 
+/**
+ * Earnings breakdown by period.
+ */
 export interface EarningsBreakdown {
   period: "day" | "week" | "month" | "all_time";
   inferenceEarnings: number;
@@ -23,6 +33,9 @@ export interface EarningsBreakdown {
   total: number;
 }
 
+/**
+ * Service for tracking and querying app earnings and revenue.
+ */
 export class AppEarningsService {
   async getEarningsSummary(appId: string): Promise<EarningsSummary | null> {
     const earnings = await appEarningsRepository.findByAppId(appId);

@@ -11,7 +11,12 @@ import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
 export const maxDuration = 60;
 
 /**
- * POST /api/v1/knowledge/query - Query knowledge base
+ * POST /api/v1/knowledge/query
+ * Queries the knowledge base using semantic search.
+ * Returns relevant knowledge documents based on the query.
+ *
+ * @param req - Request body with query string, optional limit, and characterId.
+ * @returns Query results with similarity scores and metadata.
  */
 async function handlePOST(req: NextRequest) {
   try {

@@ -13,6 +13,11 @@ import { users } from "./users";
 import { apiKeys } from "./api-keys";
 import { generations } from "./generations";
 
+/**
+ * Jobs table schema.
+ * 
+ * Tracks background job execution with retry logic and webhook support.
+ */
 export const jobs = pgTable(
   "jobs",
   {

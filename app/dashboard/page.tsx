@@ -24,6 +24,12 @@ export const metadata: Metadata = generatePageMetadata({
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Main dashboard page displaying user's agents, containers, and onboarding status.
+ * Shows getting started section for new users.
+ *
+ * @returns Dashboard page with agents and containers sections.
+ */
 export default async function DashboardPage() {
   const data = await getDashboardData();
 

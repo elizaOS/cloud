@@ -1,3 +1,11 @@
+/**
+ * Knowledge drawer component providing access to knowledge base management.
+ * Displays tabs for uploading documents, viewing document list, and querying knowledge.
+ *
+ * @param props - Knowledge drawer configuration
+ * @param props.characterId - Optional character ID to filter documents
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -28,29 +36,25 @@ export function KnowledgeDrawer({ characterId }: KnowledgeDrawerProps) {
   const [open, setOpen] = useState(false);
 
   const fetchDocuments = async () => {
-    try {
-      setLoading(true);
+    setLoading(true);
 
-      // Include characterId in query params if provided
-      const url = new URL("/api/v1/knowledge", window.location.origin);
-      if (characterId) {
-        url.searchParams.set("characterId", characterId);
-      }
-
-      const response = await fetch(url.toString());
-
-      if (!response.ok) {
-        console.error("Failed to fetch documents");
-        return;
-      }
-
-      const data = await response.json();
-      setDocuments(data.documents || []);
-    } catch (err) {
-      console.error("Error fetching documents:", err);
-    } finally {
-      setLoading(false);
+    // Include characterId in query params if provided
+    const url = new URL("/api/v1/knowledge", window.location.origin);
+    if (characterId) {
+      url.searchParams.set("characterId", characterId);
     }
+
+    const response = await fetch(url.toString());
+
+    if (!response.ok) {
+      console.error("Failed to fetch documents");
+      setLoading(false);
+      return;
+    }
+
+    const data = await response.json();
+    setDocuments(data.documents || []);
+    setLoading(false);
   };
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -66,23 +70,22 @@ export function KnowledgeDrawer({ characterId }: KnowledgeDrawerProps) {
   };
 
   const handleDelete = async (documentId: string) => {
-    try {
-      // Include characterId in query params if provided
-      const url = new URL(
-        `/api/v1/knowledge/${documentId}`,
-        window.location.origin,
-      );
-      if (characterId) {
-        url.searchParams.set("characterId", characterId);
-      }
+    // Include characterId in query params if provided
+    const url = new URL(
+      `/api/v1/knowledge/${documentId}`,
+      window.location.origin,
+    );
+    if (characterId) {
+      url.searchParams.set("characterId", characterId);
+    }
 
-      const response = await fetch(url.toString(), {
-        method: "DELETE",
-      });
+    const response = await fetch(url.toString(), {
+      method: "DELETE",
+    });
 
-      if (!response.ok) {
-        throw new Error("Failed to delete document");
-      }
+    if (!response.ok) {
+      throw new Error("Failed to delete document");
+    }
 
       // Refresh the list
       fetchDocuments();

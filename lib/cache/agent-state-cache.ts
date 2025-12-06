@@ -1,3 +1,7 @@
+/**
+ * Agent state cache for Eliza agent runtime data.
+ */
+
 import { cache as cacheClient } from "./client";
 import { CacheKeys, CacheTTL } from "./keys";
 import { logger } from "@/lib/utils/logger";
@@ -5,6 +9,9 @@ import type { Memory, UUID } from "@elizaos/core";
 import type { ElizaCharacter } from "@/lib/types";
 import type { DiscoveredCharacterInfo } from "@/lib/services/deployments/discovery";
 
+/**
+ * Serializable message format for caching.
+ */
 export interface SerializableMessage {
   id: string;
   entityId: string;
@@ -18,6 +25,9 @@ export interface SerializableMessage {
   createdAt: number;
 }
 
+/**
+ * Room context with messages and participants.
+ */
 export interface RoomContext {
   roomId: string;
   messages: Memory[];
@@ -34,6 +44,9 @@ interface SerializableRoomContext {
   lastActivity: string;
 }
 
+/**
+ * User session data for agent interactions.
+ */
 export interface UserSession {
   entityId: string;
   preferences: Record<string, unknown>;
@@ -41,6 +54,9 @@ export interface UserSession {
   lastActivity: Date;
 }
 
+/**
+ * Statistics for an agent deployment.
+ */
 export interface AgentStats {
   agentId: string;
   messageCount: number;
@@ -50,6 +66,9 @@ export interface AgentStats {
   status: "deployed" | "stopped" | "draft";
 }
 
+/**
+ * Cache manager for agent state including room contexts, character data, and user sessions.
+ */
 export class AgentStateCache {
   /**
    * Get cached room context for agent conversations

@@ -3,157 +3,33 @@
  *
  * Wrapper for interacting with the Eliza Cloud API through the proxy.
  * Automatically includes auth token from localStorage.
+ * 
+ * IMPORTANT: This file imports types from ./types.ts to ensure complete
+ * separation from the main app. Never import types from the parent app.
  */
 
 import { getAuthToken } from "./use-auth";
+import type {
+  Agent,
+  AgentDetails,
+  MessageExampleConversation,
+  Chat,
+  Message,
+  MessageAttachment,
+  User,
+  Organization,
+  Billing,
+  AppBilling,
+  CreditPack,
+  UsageSummary,
+  Transaction,
+  Pagination,
+  StreamCallbacks,
+  ReferralInfo,
+  RewardsStatus,
+} from "./types";
 
 const API_BASE = "/api/proxy";
-
-interface Agent {
-  id: string;
-  name: string;
-  bio: string | string[];
-  avatarUrl: string | null;
-  isPublic: boolean;
-  createdAt: string;
-  updatedAt: string;
-  stats?: {
-    views: number;
-    chats: number;
-    messages: number;
-  };
-}
-
-/**
- * A single message in a conversation example
- */
-interface MessageExampleMessage {
-  name: string;
-  content: {
-    text: string;
-    action?: string;
-  };
-}
-
-/**
- * A conversation example (array of messages)
- */
-type MessageExampleConversation = MessageExampleMessage[];
-
-interface AgentDetails extends Agent {
-  topics: string[];
-  adjectives: string[];
-  style: {
-    all?: string[];
-    chat?: string[];
-    post?: string[];
-  };
-  settings: Record<string, string | number | boolean | Record<string, string | number | boolean>>;
-  knowledge: string[];
-  messageExamples: MessageExampleConversation[];
-  postExamples: string[];
-  plugins: string[];
-  isTemplate: boolean;
-  characterData: Record<string, string | number | boolean | string[] | Record<string, string | number | boolean>>;
-}
-
-interface Chat {
-  id: string;
-  agentId: string;
-  name: string | null; // Room title (generated after 2 rounds of conversation)
-  createdAt: string;
-  updatedAt: string;
-  lastMessage?: {
-    content: string;
-    role: "user" | "assistant";
-    createdAt: string;
-  };
-  messageCount: number;
-}
-
-interface MessageAttachment {
-  id: string;
-  url: string;
-  title?: string;
-  contentType?: string;
-}
-
-interface Message {
-  id: string;
-  content: string;
-  role: "user" | "assistant";
-  createdAt: string;
-  metadata?: Record<string, unknown>;
-  attachments?: MessageAttachment[];
-}
-
-interface User {
-  id: string;
-  email: string | null;
-  name: string | null;
-  nickname: string | null;
-  avatar: string | null;
-  walletAddress: string | null;
-  walletChainType: string | null;
-  createdAt: string;
-}
-
-interface Organization {
-  id: string;
-  name: string;
-  creditBalance: string;
-}
-
-interface Billing {
-  creditBalance: string;
-  autoTopUpEnabled: boolean;
-  autoTopUpThreshold: string | null;
-  autoTopUpAmount: string | null;
-  billingEmail: string | null;
-  hasPaymentMethod: boolean;
-}
-
-export interface AppBilling {
-  appId: string;
-  appName: string;
-  monetizationEnabled: boolean;
-  creditBalance?: number;
-  totalPurchased?: number;
-  totalSpent?: number;
-  inferenceMarkupPercentage?: number;
-  useOrgBalance?: boolean;
-  createdBy?: {
-    organizationId: string;
-  };
-}
-
-interface UsageSummary {
-  totalRequests: number;
-  totalCost: string;
-  totalTokens: number;
-  breakdown: Array<{
-    model: string;
-    provider: string;
-    count: number;
-    totalCost: number;
-  }>;
-}
-
-interface Transaction {
-  id: string;
-  type: string;
-  amount: string;
-  description: string;
-  createdAt: string;
-}
-
-interface Pagination {
-  page: number;
-  limit: number;
-  totalPages: number;
-  totalCount: number;
-  hasMore: boolean;
-}
 
 /**
  * Get auth headers for API requests
@@ -380,17 +256,6 @@ export async function deleteChat(
 // Messages API (Streaming)
 // ============================================
 
-export interface StreamCallbacks {
-  onStart?: () => void;
-  onUserMessage?: (message: Message) => void;
-  onThinking?: () => void;
-  onChunk?: (chunk: string) => void;
-  onComplete?: (
-    message: Message,
-    usage: { tokens: number; cost: number }
-  ) => void;
-  onError?: (error: string) => void;
-}
 
 export async function sendMessage(
   roomId: string,
@@ -549,15 +414,6 @@ export async function getBilling(): Promise<{
   };
 }
 
-interface CreditPack {
-  id: string;
-  name: string;
-  description: string | null;
-  credits: string;
-  price: string;
-  bonusCredits: string | null;
-  isPopular: boolean;
-}
 
 export async function getCreditPacks(): Promise<CreditPack[]> {
   const response = await fetchApi<{
@@ -590,56 +446,6 @@ export async function createCheckoutSession(params: {
 // Referrals & Rewards
 // ============================================
 
-interface ReferralInfo {
-  code: string;
-  shareUrl: string;
-  stats: {
-    totalReferrals: number;
-    totalEarnings: number;
-    signupEarnings: number;
-    qualifiedEarnings: number;
-    commissionEarnings: number;
-  };
-  rewards: {
-    signupBonus: number;
-    referredBonus: number;
-    qualifiedBonus: number;
-    commissionRate: number;
-  };
-}
-
-interface ShareStatus {
-  x: { claimed: boolean; amount: number };
-  farcaster: { claimed: boolean; amount: number };
-  telegram: { claimed: boolean; amount: number };
-  discord: { claimed: boolean; amount: number };
-}
-
-interface RewardsStatus {
-  sharing: {
-    status: ShareStatus;
-    totalEarnings: number;
-    availableToday: number;
-  };
-  referrals: {
-    code: string | null;
-    totalReferrals: number;
-    totalEarnings: number;
-    signupEarnings: number;
-    qualifiedEarnings: number;
-    commissionEarnings: number;
-  };
-  rewardRates: {
-    shareX: number;
-    shareFarcaster: number;
-    shareTelegram: number;
-    shareDiscord: number;
-    signupBonus: number;
-    referredBonus: number;
-    qualifiedBonus: number;
-    commissionRate: number;
-  };
-}
 
 export async function getReferralInfo(): Promise<ReferralInfo> {
   const response = await fetchApi<{ success: boolean; referral: ReferralInfo }>("/referral");
@@ -680,20 +486,24 @@ export async function qualifyReferral(): Promise<{ success: boolean; qualified: 
 }
 
 // ============================================
-// Export types
+// Re-export types for convenience
 // ============================================
 
 export type {
   Agent,
   AgentDetails,
   Billing,
+  AppBilling,
   Chat,
   CreditPack,
   Message,
   MessageAttachment,
   Organization,
   Pagination,
+  StreamCallbacks,
   Transaction,
   UsageSummary,
   User,
-};
+  ReferralInfo,
+  RewardsStatus,
+} from "./types";

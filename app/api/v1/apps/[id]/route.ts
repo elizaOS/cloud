@@ -15,6 +15,15 @@ const UpdateAppSchema = z.object({
   is_active: z.boolean().optional(),
 });
 
+/**
+ * GET /api/v1/apps/[id]
+ * Gets details for a specific app by ID.
+ * Requires ownership verification.
+ *
+ * @param request - The Next.js request object.
+ * @param params - Route parameters containing the app ID.
+ * @returns App details.
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -43,6 +52,15 @@ export async function GET(
   }
 }
 
+/**
+ * PUT /api/v1/apps/[id]
+ * Updates an app's properties.
+ * Requires ownership verification.
+ *
+ * @param request - Request body with optional fields to update.
+ * @param params - Route parameters containing the app ID.
+ * @returns Updated app details.
+ */
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -85,6 +103,15 @@ export async function PUT(
   }
 }
 
+/**
+ * DELETE /api/v1/apps/[id]
+ * Deletes an app and its associated API key.
+ * Requires ownership verification.
+ *
+ * @param request - The Next.js request object.
+ * @param params - Route parameters containing the app ID.
+ * @returns Success status.
+ */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },

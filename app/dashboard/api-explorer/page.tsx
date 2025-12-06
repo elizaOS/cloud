@@ -79,17 +79,10 @@ export default function ApiExplorerPage() {
       : getEndpointsByCategory(selectedCategory);
 
   useEffect(() => {
-    try {
-      const spec = generateOpenAPISpec(
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
-      );
-      setOpenApiSpec(spec);
-    } catch {
-      toast({
-        message: "Failed to generate API specification",
-        mode: "error",
-      });
-    }
+    const spec = generateOpenAPISpec(
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
+    );
+    setOpenApiSpec(spec);
   }, []);
 
   const getCategoryIcon = (category: string) => {

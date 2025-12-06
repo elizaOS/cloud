@@ -1,3 +1,7 @@
+/**
+ * Service for managing app-specific credit balances and purchases.
+ */
+
 import {
   appCreditBalancesRepository,
   type AppCreditBalance,
@@ -9,6 +13,9 @@ import { db } from "@/db/client";
 import { eq, sql } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * Parameters for purchasing app credits.
+ */
 export interface AppCreditPurchaseParams {
   appId: string;
   userId: string;
@@ -17,6 +24,9 @@ export interface AppCreditPurchaseParams {
   stripePaymentIntentId?: string; // For deduplication on webhook retries
 }
 
+/**
+ * Result of purchasing app credits.
+ */
 export interface AppCreditPurchaseResult {
   success: boolean;
   creditsAdded: number;
@@ -26,6 +36,9 @@ export interface AppCreditPurchaseResult {
   balance: AppCreditBalance;
 }
 
+/**
+ * Parameters for deducting app credits.
+ */
 export interface AppCreditDeductionParams {
   appId: string;
   userId: string;
@@ -34,6 +47,9 @@ export interface AppCreditDeductionParams {
   metadata?: Record<string, unknown>;
 }
 
+/**
+ * Result of deducting app credits.
+ */
 export interface AppCreditDeductionResult {
   success: boolean;
   baseCost: number;
@@ -44,6 +60,9 @@ export interface AppCreditDeductionResult {
   message?: string;
 }
 
+/**
+ * Service for managing app-specific credit balances, purchases, and deductions.
+ */
 export class AppCreditsService {
   async getBalance(
     appId: string,

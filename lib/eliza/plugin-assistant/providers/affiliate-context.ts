@@ -143,8 +143,7 @@ export const affiliateContextProvider: Provider = {
     "Affiliate character vibe and social media context with behavioral instructions",
 
   get: async (runtime: IAgentRuntime, _message: Memory, _state?: State) => {
-    try {
-      const character = runtime.character;
+    const character = runtime.character;
 
       // Get affiliate data from character settings
       const affiliate = character.settings?.affiliateData as
@@ -283,17 +282,5 @@ export const affiliateContextProvider: Provider = {
         },
         text: contextText,
       };
-    } catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error);
-      runtime.logger?.error(
-        "[Affiliate Context Provider] Failed to load affiliate context:",
-        errMsg
-      );
-      return {
-        values: { affiliateContext: "" },
-        data: { error: errMsg },
-        text: "",
-      };
-    }
   },
 };

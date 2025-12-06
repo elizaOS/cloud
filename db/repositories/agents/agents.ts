@@ -1,7 +1,8 @@
 /**
- * Agents Repository
- * Pure database operations for the ElizaOS agents table
- * Used to get agent info without spinning up the full runtime
+ * Agents repository.
+ * 
+ * Pure database operations for the ElizaOS agents table.
+ * Used to get agent info without spinning up the full runtime.
  */
 
 import { db } from "@/db/client";
@@ -10,8 +11,9 @@ import { eq, inArray } from "drizzle-orm";
 import type { Agent } from "@elizaos/core";
 
 /**
- * Agent info returned from database
- * Matches the agentTable schema from @elizaos/plugin-sql
+ * Agent information returned from database.
+ * 
+ * Matches the agentTable schema from @elizaos/plugin-sql.
  */
 export interface AgentInfo {
   id: string;
@@ -25,9 +27,12 @@ export interface AgentInfo {
   settings?: Record<string, unknown> | null;
 }
 
+/**
+ * Repository for ElizaOS agent database operations.
+ */
 export class AgentsRepository {
   /**
-   * Get agent by ID
+   * Gets an agent by ID.
    */
   async findById(agentId: string): Promise<AgentInfo | null> {
     const result = await db
@@ -50,7 +55,7 @@ export class AgentsRepository {
   }
 
   /**
-   * Get multiple agents by IDs
+   * Gets multiple agents by IDs.
    */
   async findByIds(agentIds: string[]): Promise<AgentInfo[]> {
     if (agentIds.length === 0) return [];
@@ -72,7 +77,7 @@ export class AgentsRepository {
   }
 
   /**
-   * Check if agent exists
+   * Checks if an agent exists.
    */
   async exists(agentId: string): Promise<boolean> {
     const result = await db
@@ -85,47 +90,42 @@ export class AgentsRepository {
   }
 
   /**
-   * Create a new agent
-   * Returns true if successful, false if agent with same ID already exists
+   * Creates a new agent.
+   * 
+   * @returns True if successful, false if agent with same ID already exists.
+   * @throws Error if creation fails for reasons other than duplicate ID.
    */
   async create(agent: Partial<Agent>): Promise<boolean> {
-    try {
-      // Check for existing agent with the same ID only (names can be duplicated)
-      if (agent.id) {
-        const existing = await db
-          .select({ id: agentTable.id })
-          .from(agentTable)
-          .where(eq(agentTable.id, agent.id))
-          .limit(1);
+    // Check for existing agent with the same ID only (names can be duplicated)
+    if (agent.id) {
+      const existing = await db
+        .select({ id: agentTable.id })
+        .from(agentTable)
+        .where(eq(agentTable.id, agent.id))
+        .limit(1);
 
-        if (existing.length > 0) {
-          console.warn(
-            `Attempted to create an agent with a duplicate ID. ID: ${agent.id}`,
-          );
-          return false;
-        }
+      if (existing.length > 0) {
+        console.warn(
+          `Attempted to create an agent with a duplicate ID. ID: ${agent.id}`,
+        );
+        return false;
       }
-
-      await db.transaction(async (tx) => {
-        await tx.insert(agentTable).values({
-          ...agent,
-          createdAt: new Date(agent.createdAt || Date.now()),
-          updatedAt: new Date(agent.updatedAt || Date.now()),
-        });
-      });
-
-      console.debug(`Agent created successfully: ${agent.id}`);
-      return true;
-    } catch (error) {
-      console.error(
-        `Error creating agent: ${error instanceof Error ? error.message : String(error)}, agentId: ${agent.id}`,
-      );
-      return false;
     }
+
+    await db.transaction(async (tx) => {
+      await tx.insert(agentTable).values({
+        ...agent,
+        createdAt: new Date(agent.createdAt || Date.now()),
+        updatedAt: new Date(agent.updatedAt || Date.now()),
+      });
+    });
+
+    console.debug(`Agent created successfully: ${agent.id}`);
+    return true;
   }
 
   /**
-   * Get agent's avatar URL from settings
+   * Gets an agent's avatar URL from settings.
    */
   async getAvatarUrl(agentId: string): Promise<string | undefined> {
     const agent = await this.findById(agentId);
@@ -133,7 +133,7 @@ export class AgentsRepository {
   }
 
   /**
-   * Get basic agent display info (name, avatar)
+   * Gets basic agent display information (name, avatar).
    */
   async getDisplayInfo(agentId: string): Promise<{
     id: string;
@@ -151,5 +151,7 @@ export class AgentsRepository {
   }
 }
 
-// Export singleton instance
+/**
+ * Singleton instance of AgentsRepository.
+ */
 export const agentsRepository = new AgentsRepository();

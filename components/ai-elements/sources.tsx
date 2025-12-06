@@ -1,3 +1,8 @@
+/**
+ * Sources component for displaying source citations in a collapsible format.
+ * Shows source count and provides expandable list of sources.
+ */
+
 "use client";
 
 import {

@@ -33,6 +33,14 @@ const EXPORT_LIMITS = {
   STREAMING_THRESHOLD: 10000, // Stream if > 10k rows (future)
 } as const;
 
+/**
+ * GET /api/analytics/export
+ * Exports analytics data in various formats (CSV, JSON, Excel).
+ * Supports time series, user breakdown, provider breakdown, and model breakdown exports.
+ *
+ * @param req - Request with query parameters for format, date range, granularity, and data type.
+ * @returns File download response with analytics data in the requested format.
+ */
 async function handleGET(req: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);

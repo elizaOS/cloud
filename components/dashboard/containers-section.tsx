@@ -1,6 +1,10 @@
 /**
- * Containers Section Component
- * Displays deployed containers table on dashboard
+ * Containers section component displaying deployed containers table on dashboard.
+ * Shows container count and provides link to full containers page.
+ *
+ * @param props - Containers section configuration
+ * @param props.containers - Array of container objects
+ * @param props.className - Additional CSS classes
  */
 
 "use client";

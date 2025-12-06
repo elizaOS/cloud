@@ -4,6 +4,14 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * GET /api/elevenlabs/voices/jobs
+ * Gets all active (processing or pending) voice cloning jobs for the authenticated user.
+ * Only returns jobs that are still in progress.
+ *
+ * @param request - The Next.js request object.
+ * @returns Array of active voice cloning jobs with status and progress information.
+ */
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuthWithOrg();

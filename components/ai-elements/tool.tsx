@@ -1,3 +1,8 @@
+/**
+ * Tool component for displaying AI tool usage in a collapsible format.
+ * Shows tool status, input/output, and execution results with status badges.
+ */
+
 "use client";
 
 import { Badge } from "@/components/ui/badge";

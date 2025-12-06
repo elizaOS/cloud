@@ -1,3 +1,12 @@
+/**
+ * Auth manager component for API explorer authentication.
+ * Manages API key display, creation, and validation with visibility toggle.
+ *
+ * @param props - Auth manager configuration
+ * @param props.authToken - Current authentication token
+ * @param props.onTokenChange - Callback when token changes
+ */
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -42,30 +51,25 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
     setIsLoading(true);
     setError(null);
 
-    try {
-      const response = await fetch("/api/v1/api-keys/explorer");
-      const data = await response.json();
+    const response = await fetch("/api/v1/api-keys/explorer");
+    const data = await response.json();
 
-      if (!response.ok) {
-        setError(data.error || "Failed to fetch API key");
-        return;
-      }
-
-      setExplorerKey(data.apiKey);
-      onTokenChange(data.apiKey.key);
-
-      if (data.isNew) {
-        toast({
-          message: "API Explorer key created! Usage will be billed to your account.",
-          mode: "success",
-        });
-      }
-    } catch (err) {
-      console.error("Failed to fetch explorer key:", err);
-      setError("Failed to connect to server");
-    } finally {
+    if (!response.ok) {
       setIsLoading(false);
+      setError(data.error || "Failed to fetch API key");
+      return;
     }
+
+    setExplorerKey(data.apiKey);
+    onTokenChange(data.apiKey.key);
+
+    if (data.isNew) {
+      toast({
+        message: "API Explorer key created! Usage will be billed to your account.",
+        mode: "success",
+      });
+    }
+    setIsLoading(false);
   }, [onTokenChange]);
 
   // Auto-fetch explorer key on mount

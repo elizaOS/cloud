@@ -2,9 +2,12 @@
  * API Endpoint Discovery System
  *
  * Catalogs available API endpoints from the Eliza Cloud API
- * for automatic documentation and testing in API Explorer
+ * for automatic documentation and testing in API Explorer.
  */
 
+/**
+ * Pricing information for an API endpoint.
+ */
 export interface EndpointPricing {
   cost: number; // Cost in USD per request
   unit: "request" | "image" | "video" | "minute" | "1k tokens" | "clone";
@@ -14,6 +17,9 @@ export interface EndpointPricing {
   estimatedRange?: { min: number; max: number }; // For variable pricing
 }
 
+/**
+ * Parameter definition for an API endpoint.
+ */
 export interface EndpointParameter {
   name: string;
   type: "string" | "number" | "boolean" | "object" | "array";
@@ -28,6 +34,9 @@ export interface EndpointParameter {
   step?: number;
 }
 
+/**
+ * Response definition for an API endpoint.
+ */
 export interface EndpointResponse {
   statusCode: number;
   description: string;
@@ -35,6 +44,9 @@ export interface EndpointResponse {
   example?: Record<string, unknown>;
 }
 
+/**
+ * Complete API endpoint definition.
+ */
 export interface ApiEndpoint {
   id: string;
   path: string;

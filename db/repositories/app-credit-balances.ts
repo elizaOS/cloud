@@ -8,13 +8,22 @@ import { eq, and, sql, desc } from "drizzle-orm";
 
 export type { AppCreditBalance, NewAppCreditBalance };
 
+/**
+ * Repository for app credit balance database operations.
+ */
 export class AppCreditBalancesRepository {
+  /**
+   * Finds an app credit balance by ID.
+   */
   async findById(id: string): Promise<AppCreditBalance | undefined> {
     return await db.query.appCreditBalances.findFirst({
       where: eq(appCreditBalances.id, id),
     });
   }
 
+  /**
+   * Finds an app credit balance by app ID and user ID.
+   */
   async findByAppAndUser(
     appId: string,
     userId: string
@@ -27,6 +36,9 @@ export class AppCreditBalancesRepository {
     });
   }
 
+  /**
+   * Lists all credit balances for an app, ordered by balance amount.
+   */
   async listByApp(appId: string): Promise<AppCreditBalance[]> {
     return await db.query.appCreditBalances.findMany({
       where: eq(appCreditBalances.app_id, appId),
@@ -34,6 +46,9 @@ export class AppCreditBalancesRepository {
     });
   }
 
+  /**
+   * Lists all credit balances for a user across all apps.
+   */
   async listByUser(userId: string): Promise<AppCreditBalance[]> {
     return await db.query.appCreditBalances.findMany({
       where: eq(appCreditBalances.user_id, userId),
@@ -41,6 +56,9 @@ export class AppCreditBalancesRepository {
     });
   }
 
+  /**
+   * Creates a new app credit balance record.
+   */
   async create(data: NewAppCreditBalance): Promise<AppCreditBalance> {
     const [balance] = await db
       .insert(appCreditBalances)
@@ -49,6 +67,9 @@ export class AppCreditBalancesRepository {
     return balance;
   }
 
+  /**
+   * Gets existing balance or creates a new one if it doesn't exist.
+   */
   async getOrCreate(
     appId: string,
     userId: string,
@@ -66,6 +87,11 @@ export class AppCreditBalancesRepository {
     });
   }
 
+  /**
+   * Atomically adds credits to an app user's balance in a transaction.
+   * 
+   * Creates balance record if it doesn't exist.
+   */
   async addCredits(
     appId: string,
     userId: string,
@@ -123,6 +149,12 @@ export class AppCreditBalancesRepository {
     });
   }
 
+  /**
+   * Atomically deducts credits from an app user's balance in a transaction.
+   * 
+   * Uses row-level locking (FOR UPDATE) to prevent race conditions.
+   * Returns success false if balance doesn't exist or is insufficient.
+   */
   async deductCredits(
     appId: string,
     userId: string,
@@ -186,11 +218,19 @@ export class AppCreditBalancesRepository {
     });
   }
 
+  /**
+   * Gets current credit balance for an app user.
+   * 
+   * Returns 0 if balance record doesn't exist.
+   */
   async getBalance(appId: string, userId: string): Promise<number> {
     const balance = await this.findByAppAndUser(appId, userId);
     return balance ? Number(balance.credit_balance) : 0;
   }
 
+  /**
+   * Gets aggregated balance statistics for an app across all users.
+   */
   async getTotalAppBalance(appId: string): Promise<{
     totalBalance: number;
     totalPurchased: number;
@@ -216,6 +256,8 @@ export class AppCreditBalancesRepository {
   }
 }
 
-// Export singleton instance
+/**
+ * Singleton instance of AppCreditBalancesRepository.
+ */
 export const appCreditBalancesRepository = new AppCreditBalancesRepository();
 

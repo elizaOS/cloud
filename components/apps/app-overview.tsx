@@ -1,3 +1,12 @@
+/**
+ * App overview component displaying app details, API key management, and statistics.
+ * Supports API key visibility toggle, regeneration, and copying app information.
+ *
+ * @param props - App overview configuration
+ * @param props.app - App data to display
+ * @param props.showApiKey - Optional API key to display initially
+ */
+
 "use client";
 
 import { useState, useEffect } from "react";

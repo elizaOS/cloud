@@ -47,7 +47,10 @@ const createContainerSchema = z.object({
 
 /**
  * GET /api/v1/containers
- * List all containers for the authenticated user's organization
+ * Lists all containers for the authenticated user's organization.
+ *
+ * @param request - The Next.js request object.
+ * @returns Array of container objects.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -74,8 +77,11 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/v1/containers
- * Create and deploy a new container
- * Rate limited: 5 deployments per 5 minutes
+ * Creates and deploys a new container to AWS ECS.
+ * Rate limited: 5 deployments per 5 minutes.
+ *
+ * @param request - Request body with container configuration including ECR image URI, CPU, memory, and environment variables.
+ * @returns Created container details and deployment status.
  */
 async function handleCreateContainer(request: NextRequest) {
   try {

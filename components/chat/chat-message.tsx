@@ -1,6 +1,15 @@
 /**
- * Reusable Chat Message Component
- * Themed message bubble for agent and user messages
+ * Chat message component displaying individual chat messages with attachments and audio.
+ * Supports copy to clipboard, audio playback, and timestamp formatting.
+ *
+ * @param props - Chat message configuration
+ * @param props.message - Message data including content and metadata
+ * @param props.avatar - Optional avatar component
+ * @param props.audioUrl - Optional audio URL for playback
+ * @param props.isPlaying - Whether audio is currently playing
+ * @param props.isThinking - Whether message is in thinking state
+ * @param props.onPlayAudio - Optional callback for audio playback
+ * @param props.formatTimestamp - Optional timestamp formatter function
  */
 
 "use client";

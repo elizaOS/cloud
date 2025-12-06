@@ -13,6 +13,9 @@ import { appsService, apiKeysService } from "@/lib/services";
 import { logger } from "@/lib/utils/logger";
 import type { App, ApiKey } from "@/lib/types";
 
+/**
+ * App authentication context with validated app and API key.
+ */
 export interface AppAuthContext {
   appId: string;
   app: App;

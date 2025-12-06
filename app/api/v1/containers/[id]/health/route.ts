@@ -7,7 +7,11 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/v1/containers/[id]/health
- * Get health status for a specific container
+ * Performs a health check on a container by making an HTTP request to its health endpoint.
+ *
+ * @param request - The Next.js request object.
+ * @param params - Route parameters containing the container ID.
+ * @returns Health status including response time, status code, and error information.
  */
 export async function GET(
   request: NextRequest,

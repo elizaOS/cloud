@@ -397,45 +397,18 @@ export class RuntimeFactory {
     character: Character,
     agentId: UUID,
   ): Promise<void> {
-    try {
-      elizaLogger.info("[RuntimeFactory] Starting runtime initialization...");
+    elizaLogger.info("[RuntimeFactory] Starting runtime initialization...");
 
-      try {
-        await runtime.initialize({ skipMigrations: true });
-        elizaLogger.success(
-          "[RuntimeFactory] Runtime initialized successfully",
-        );
-      } catch (initError) {
-        const errorMsg =
-          initError instanceof Error ? initError.message : String(initError);
+    await runtime.initialize({ skipMigrations: true });
+    elizaLogger.success(
+      "[RuntimeFactory] Runtime initialized successfully",
+    );
 
-        // Handle duplicate key errors gracefully (records already exist)
-        if (
-          errorMsg.includes("Failed to create entity") ||
-          errorMsg.includes("Failed to create agent") ||
-          errorMsg.toLowerCase().includes("duplicate key") ||
-          errorMsg.toLowerCase().includes("unique constraint")
-        ) {
-          elizaLogger.warn(
-            "[RuntimeFactory] Agent/entity records already exist, continuing",
-          );
-        } else {
-          throw initError;
-        }
-      }
-
-      // Verify agent exists
-      const agentExists = await runtime.getAgent(agentId);
-      if (!agentExists) {
-        elizaLogger.info("[RuntimeFactory] Creating agent entity...");
-        await this.ensureAgentExists(runtime, character, agentId);
-      }
-    } catch (error) {
-      elizaLogger.error(
-        "[RuntimeFactory] Runtime initialization failed:",
-        error instanceof Error ? error.message : String(error),
-      );
-      throw error;
+    // Verify agent exists
+    const agentExists = await runtime.getAgent(agentId);
+    if (!agentExists) {
+      elizaLogger.info("[RuntimeFactory] Creating agent entity...");
+      await this.ensureAgentExists(runtime, character, agentId);
     }
   }
 
@@ -447,44 +420,29 @@ export class RuntimeFactory {
     character: Character,
     agentId: UUID,
   ): Promise<void> {
-    try {
-      await runtime.ensureAgentExists({
-        id: agentId,
-        name: character.name || "Eliza",
-        username: character.username,
-        system: character.system || "",
-        bio: character.bio || [],
-        messageExamples: character.messageExamples || [],
-        postExamples: character.postExamples || [],
-        topics: character.topics || [],
-        adjectives: character.adjectives || [],
-        knowledge: character.knowledge || [],
-        plugins: character.plugins || [],
-        settings: character.settings || {},
-        style: character.style || {},
-      } as Agent);
+    await runtime.ensureAgentExists({
+      id: agentId,
+      name: character.name || "Eliza",
+      username: character.username,
+      system: character.system || "",
+      bio: character.bio || [],
+      messageExamples: character.messageExamples || [],
+      postExamples: character.postExamples || [],
+      topics: character.topics || [],
+      adjectives: character.adjectives || [],
+      knowledge: character.knowledge || [],
+      plugins: character.plugins || [],
+      settings: character.settings || {},
+      style: character.style || {},
+    } as Agent);
 
-      // Also ensure entity exists
-      await runtime.createEntity({
-        id: agentId,
-        agentId: agentId,
-        names: [character.name || "Eliza"],
-        metadata: { name: character.name || "Eliza" },
-      });
-    } catch (entityError) {
-      const msg =
-        entityError instanceof Error
-          ? entityError.message
-          : String(entityError);
-      if (
-        msg.toLowerCase().includes("duplicate key") ||
-        msg.toLowerCase().includes("unique constraint")
-      ) {
-        elizaLogger.warn("[RuntimeFactory] Agent entity already exists");
-      } else {
-        throw entityError;
-      }
-    }
+    // Also ensure entity exists
+    await runtime.createEntity({
+      id: agentId,
+      agentId: agentId,
+      names: [character.name || "Eliza"],
+      metadata: { name: character.name || "Eliza" },
+    });
   }
 
   /**

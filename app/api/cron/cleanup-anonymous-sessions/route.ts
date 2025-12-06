@@ -29,6 +29,14 @@ import { logger } from "@/lib/utils/logger";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * GET /api/cron/cleanup-anonymous-sessions
+ * Cron job endpoint that cleans up expired anonymous sessions and users.
+ * Protected by CRON_SECRET authentication.
+ *
+ * @param request - Request with Bearer token containing CRON_SECRET.
+ * @returns Summary of deleted sessions, users, and conversations.
+ */
 export async function GET(request: NextRequest) {
   try {
     // Verify cron secret

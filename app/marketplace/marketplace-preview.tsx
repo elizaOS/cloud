@@ -404,6 +404,10 @@ const SHOWCASE_CHARACTERS: ExtendedCharacter[] = [
   },
 ];
 
+/**
+ * Marketplace preview component displaying featured and showcase characters.
+ * Fetches additional characters from the API and handles authentication redirects.
+ */
 export function MarketplacePreview() {
   const [additionalCharacters, setAdditionalCharacters] = useState<
     ExtendedCharacter[]

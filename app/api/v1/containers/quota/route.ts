@@ -12,7 +12,11 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/v1/containers/quota
- * Get container quota and pricing information for the authenticated user's organization
+ * Retrieves container quota and pricing information for the authenticated user's organization.
+ * Includes current usage, limits, and cost breakdowns.
+ *
+ * @param request - The Next.js request object.
+ * @returns Quota information, credit balance, pricing details, and limits.
  */
 export async function GET(request: NextRequest) {
   try {

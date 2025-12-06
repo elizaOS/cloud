@@ -26,7 +26,9 @@ const updateUserSchema = z.object({
 
 /**
  * GET /api/v1/user
- * Get current user profile
+ * Gets the current authenticated user's profile information.
+ *
+ * @returns User profile data including organization details.
  */
 async function handleGET() {
   try {
@@ -81,7 +83,10 @@ async function handleGET() {
 
 /**
  * PATCH /api/v1/user
- * Update current user profile
+ * Updates the current authenticated user's profile information.
+ *
+ * @param request - Request body with optional fields to update (name, avatar, nickname, etc.).
+ * @returns Updated user profile data.
  */
 async function handlePATCH(request: NextRequest) {
   try {

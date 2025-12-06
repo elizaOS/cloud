@@ -1,7 +1,16 @@
+/**
+ * Distributed locking service for preventing concurrent operations.
+ *
+ * Uses Redis to coordinate locks across multiple serverless instances.
+ */
+
 import { Redis } from "@upstash/redis";
 import { logger } from "@/lib/utils/logger";
 import { v4 as uuidv4 } from "uuid";
 
+/**
+ * Lock object with release and extend methods.
+ */
 export interface Lock {
   lockId: string;
   roomId: string;
@@ -10,6 +19,9 @@ export interface Lock {
   extend: (ms: number) => Promise<void>;
 }
 
+/**
+ * Service for managing distributed locks using Redis.
+ */
 export class DistributedLockService {
   private static instance: DistributedLockService;
   private redis: Redis | null = null;
