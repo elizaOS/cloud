@@ -116,8 +116,7 @@ export class RuntimeFactory {
       context.characterId || "default",
     );
 
-    // 1. Load character with appropriate plugins for the AgentMode
-    // We load character first to get its ID for the database adapter
+    // 1. Load character with plugins for the AgentMode
     const { character, plugins } = context.characterId
       ? await agentLoader.loadCharacter(context.characterId, context.agentMode)
       : await agentLoader.getDefaultCharacter(context.agentMode);
@@ -127,8 +126,7 @@ export class RuntimeFactory {
       character.id ? stringToUuid(character.id) : this.DEFAULT_AGENT_ID
     ) as UUID;
 
-    // 3. Create database adapter with the CORRECT agentId
-    // Each runtime needs its own adapter because ElizaOS queries filter by agentId
+    // 3. Get/create database adapter for this agent (cached per agentId)
     const dbAdapter = await this.getOrCreateDbAdapter(agentId);
 
     elizaLogger.info(
