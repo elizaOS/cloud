@@ -176,7 +176,7 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
   const recorder = useAudioRecorder();
   const player = useAudioPlayer();
 
-  const { selectedTier, selectedModelId, tiers, setTier, isLoading: isLoadingModels } = useModelTier();
+  const { selectedTier, selectedModelId, displayInfo, tiers, setTier, isLoading: isLoadingModels } = useModelTier();
 
   const loadMessages = useCallback(async (targetRoomId: string) => {
     setLoadingState(prev => ({ ...prev, isLoadingMessages: true }));
@@ -1077,8 +1077,15 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
                       <div className="flex items-center gap-2">
                         {tierIcons[tier.id]}
                         <div className="flex flex-col">
-                          <span className="font-medium">{tier.name}</span>
-                          <span className="text-xs text-muted-foreground">{tier.description}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium">{tier.name}</span>
+                            {tier.recommended && (
+                              <span className="text-[10px] px-1 py-0.5 rounded bg-[#FF5800]/20 text-[#FF5800]">
+                                recommended
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-white/40 font-mono">{tier.modelId}</span>
                         </div>
                       </div>
                     </SelectItem>

@@ -15,6 +15,7 @@ import {
   getProviderFromModel,
   estimateTokens,
 } from "@/lib/pricing";
+import { resolveModel } from "@/lib/models";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import type { NextRequest } from "next/server";
@@ -66,10 +67,11 @@ async function handlePOST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { messages, id }: { messages: UIMessage[]; id?: string } = body;
+    const { messages, id, tier }: { messages: UIMessage[]; id?: string; tier?: string } = body;
 
-    const selectedModel = id || "gpt-4o";
-    const provider = getProviderFromModel(selectedModel);
+    const modelConfig = resolveModel(tier || id);
+    const selectedModel = modelConfig.modelId;
+    const provider = modelConfig.provider;
     const lastMessage = messages[messages.length - 1];
     const conversationId = lastMessage?.metadata
       ? (lastMessage.metadata as { conversationId?: string }).conversationId
@@ -116,21 +118,6 @@ async function handlePOST(req: NextRequest) {
 
     // For authenticated users: Check credit balance BEFORE starting stream
     if (!isAnonymous) {
-      const messageText = messages
-        .map((m) =>
-          m.parts.map((p) => (p.type === "text" ? p.text : "")).join(""),
-        )
-        .join(" ");
-      const estimatedInputTokens = estimateTokens(messageText);
-      const estimatedOutputTokens = 500;
-
-      const { totalCost: estimatedCost } = await calculateCost(
-        selectedModel,
-        provider,
-        estimatedInputTokens,
-        estimatedOutputTokens,
-      );
-
       if (!user.organization_id) {
         return NextResponse.json(
           { error: "Organization not found for authenticated user" },
@@ -149,16 +136,52 @@ async function handlePOST(req: NextRequest) {
         );
       }
 
-      if (Number(org.credit_balance) < estimatedCost) {
-        logger.warn("chat-api", "Insufficient credits", {
+      const balance = Number(org.credit_balance) || 0;
+
+      // STRICT CHECK: Block users with zero or negative balance immediately
+      if (balance <= 0) {
+        logger.warn("chat-api", "Zero or negative balance", {
           organizationId: user.organization_id,
-          required: estimatedCost,
-          balance: Number(org.credit_balance),
+          balance: org.credit_balance,
         });
         return NextResponse.json(
           {
             error: "Insufficient balance",
-            details: `Required: ${estimatedCost}, Available: ${Number(org.credit_balance).toFixed(2)}`,
+            details: `Your credit balance is $${balance.toFixed(2)}. Please add credits to continue.`,
+          },
+          { status: 402 },
+        );
+      }
+
+      // Also check against estimated cost for users with positive but low balance
+      const messageText = messages
+        .map((m) =>
+          m.parts.map((p) => (p.type === "text" ? p.text : "")).join(""),
+        )
+        .join(" ");
+      const estimatedInputTokens = estimateTokens(messageText);
+      const estimatedOutputTokens = 500;
+
+      const { totalCost: estimatedCost } = await calculateCost(
+        selectedModel,
+        provider,
+        estimatedInputTokens,
+        estimatedOutputTokens,
+      );
+
+      // Ensure minimum cost of $0.01 to prevent bypass with 0-cost calculations
+      const effectiveEstimatedCost = Math.max(estimatedCost, 0.01);
+
+      if (balance < effectiveEstimatedCost) {
+        logger.warn("chat-api", "Insufficient credits", {
+          organizationId: user.organization_id,
+          required: effectiveEstimatedCost,
+          balance: balance,
+        });
+        return NextResponse.json(
+          {
+            error: "Insufficient balance",
+            details: `Required: $${effectiveEstimatedCost.toFixed(4)}, Available: $${balance.toFixed(2)}`,
           },
           { status: 402 },
         );

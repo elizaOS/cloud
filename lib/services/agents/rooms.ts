@@ -166,13 +166,24 @@ export class RoomsService {
       }
 
       // 3. Create participant (link entity to room)
-      await tx.insert(participantTable).values({
-        id: uuidv4(),
-        entityId: input.entityId,
-        roomId: roomId,
-        agentId: input.agentId,
-        createdAt: new Date(),
-      });
+      // Check if participant already exists to avoid duplicates
+      const existingParticipant = await tx
+        .select({ id: participantTable.id })
+        .from(participantTable)
+        .where(
+          sql`${participantTable.entityId} = ${input.entityId}::uuid AND ${participantTable.roomId} = ${roomId}::uuid`
+        )
+        .limit(1);
+
+      if (existingParticipant.length === 0) {
+        await tx.insert(participantTable).values({
+          id: uuidv4(),
+          entityId: input.entityId,
+          roomId: roomId,
+          agentId: input.agentId,
+          createdAt: new Date(),
+        });
+      }
 
       return newRoom;
     });

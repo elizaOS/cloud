@@ -52,6 +52,11 @@ export interface DeductCreditsParams {
   tokens_consumed?: number;
 }
 
+export interface ReserveAndDeductParams extends DeductCreditsParams {
+  /** Minimum balance required before deduction (prevents race conditions) */
+  minimumBalanceRequired?: number;
+}
+
 /**
  * Service for managing credits, transactions, and credit packs.
  */
@@ -62,35 +67,35 @@ export class CreditsService {
   }
 
   async getTransactionByStripePaymentIntent(
-    paymentIntentId: string,
+    paymentIntentId: string
   ): Promise<CreditTransaction | undefined> {
     return await creditTransactionsRepository.findByStripePaymentIntent(
-      paymentIntentId,
+      paymentIntentId
     );
   }
 
   async listTransactionsByOrganization(
     organizationId: string,
-    limit?: number,
+    limit?: number
   ): Promise<CreditTransaction[]> {
     return await creditTransactionsRepository.listByOrganization(
       organizationId,
-      limit,
+      limit
     );
   }
 
   async listTransactionsByOrganizationAndType(
     organizationId: string,
-    type: string,
+    type: string
   ): Promise<CreditTransaction[]> {
     return await creditTransactionsRepository.listByOrganizationAndType(
       organizationId,
-      type,
+      type
     );
   }
 
   async createTransaction(
-    data: NewCreditTransaction,
+    data: NewCreditTransaction
   ): Promise<CreditTransaction> {
     return await creditTransactionsRepository.create(data);
   }
@@ -115,7 +120,7 @@ export class CreditsService {
 
       if (existingTransaction) {
         console.log(
-          `[CreditsService] Idempotency: Payment intent ${stripePaymentIntentId} already processed (transaction ${existingTransaction.id})`,
+          `[CreditsService] Idempotency: Payment intent ${stripePaymentIntentId} already processed (transaction ${existingTransaction.id})`
         );
 
         // Get current balance to return consistent response
@@ -141,13 +146,13 @@ export class CreditsService {
           const existingInTx = await tx.query.creditTransactions.findFirst({
             where: eq(
               creditTransactions.stripe_payment_intent_id,
-              stripePaymentIntentId,
+              stripePaymentIntentId
             ),
           });
 
           if (existingInTx) {
             console.log(
-              `[CreditsService] Race condition detected: Payment intent ${stripePaymentIntentId} was inserted by another thread`,
+              `[CreditsService] Race condition detected: Payment intent ${stripePaymentIntentId} was inserted by another thread`
             );
 
             // Get current balance
@@ -207,7 +212,12 @@ export class CreditsService {
       })
       .then(async (result) => {
         // Invalidate organization cache since balance changed
-        await invalidateOrganizationCache(organizationId);
+        invalidateOrganizationCache(organizationId).catch((error) => {
+          console.error(
+            "[CreditsService] Failed to invalidate org cache:",
+            error
+          );
+        });
         return result;
       });
 
@@ -222,6 +232,23 @@ export class CreditsService {
     newBalance: number;
     transaction: CreditTransaction | null;
   }> {
+    // Delegate to reserveAndDeduct with no minimum balance requirement
+    return this.reserveAndDeductCredits(params);
+  }
+
+  /**
+   * Atomically check balance and deduct credits in a single transaction.
+   * This prevents TOCTOU race conditions by using row-level locking.
+   *
+   * @param minimumBalanceRequired - Optional minimum balance that must exist BEFORE deduction
+   *                                 (useful for reserving credits for estimated costs)
+   */
+  async reserveAndDeductCredits(params: ReserveAndDeductParams): Promise<{
+    success: boolean;
+    newBalance: number;
+    transaction: CreditTransaction | null;
+    reason?: "insufficient_balance" | "below_minimum" | "org_not_found";
+  }> {
     const {
       organizationId,
       amount,
@@ -229,6 +256,7 @@ export class CreditsService {
       metadata,
       session_token,
       tokens_consumed,
+      minimumBalanceRequired = 0,
     } = params;
 
     if (amount <= 0) {
@@ -249,10 +277,29 @@ export class CreditsService {
           .for("update");
 
         if (!org) {
-          throw new Error("Organization not found");
+          return {
+            success: false,
+            newBalance: 0,
+            transaction: null,
+            reason: "org_not_found" as const,
+          };
         }
 
         const currentBalance = Number.parseFloat(String(org.credit_balance));
+
+        // Check if balance meets minimum requirement BEFORE deduction
+        if (
+          minimumBalanceRequired > 0 &&
+          currentBalance < minimumBalanceRequired
+        ) {
+          return {
+            success: false,
+            newBalance: currentBalance,
+            transaction: null,
+            reason: "below_minimum" as const,
+          };
+        }
+
         const newBalance = currentBalance - amount;
 
         // Return early if insufficient credits, without creating a transaction
@@ -261,6 +308,7 @@ export class CreditsService {
             success: false,
             newBalance: currentBalance,
             transaction: null,
+            reason: "insufficient_balance" as const,
           };
         }
 
@@ -293,28 +341,52 @@ export class CreditsService {
       .then(async (result) => {
         // Invalidate organization cache if balance changed
         if (result.success) {
-          await invalidateOrganizationCache(organizationId);
+          invalidateOrganizationCache(organizationId).catch((error) => {
+            console.error(
+              "[CreditsService] Failed to invalidate org cache:",
+              error
+            );
+          });
           // Invalidate balance cache immediately after successful deduction
           await CacheInvalidation.onCreditMutation(organizationId);
 
           // Track session usage if session_token is provided
           if (session_token) {
-            await userSessionsService.trackUsage({
-              session_token,
-              credits_used: amount,
-              requests_made: 1,
-              tokens_consumed: tokens_consumed || 0,
-            });
+            userSessionsService
+              .trackUsage({
+                session_token,
+                credits_used: amount,
+                requests_made: 1,
+                tokens_consumed: tokens_consumed || 0,
+              })
+              .catch((error) => {
+                console.error(
+                  "[CreditsService] Failed to track session usage:",
+                  error
+                );
+              });
           }
 
           // Check if auto top-up should be triggered
-          await this.checkAndTriggerAutoTopUp(
+          this.checkAndTriggerAutoTopUp(
             organizationId,
-            result.newBalance,
-          );
+            result.newBalance
+          ).catch((error) => {
+            console.error(
+              "[CreditsService] Failed to check auto top-up:",
+              error
+            );
+          });
 
           // Queue low credits email
-          await this.queueLowCreditsEmail(organizationId, result.newBalance);
+          this.queueLowCreditsEmail(organizationId, result.newBalance).catch(
+            (error) => {
+              console.error(
+                "[CreditsService] Failed to queue low credits email:",
+                error
+              );
+            }
+          );
         }
         return result;
       });
@@ -326,79 +398,98 @@ export class CreditsService {
    */
   private async checkAndTriggerAutoTopUp(
     organizationId: string,
-    newBalance: number,
+    newBalance: number
   ): Promise<void> {
-    // Get organization details
-    const org = await organizationsRepository.findById(organizationId);
-    if (!org) {
-      return;
+    try {
+      // Get organization details
+      const org = await organizationsRepository.findById(organizationId);
+      if (!org) {
+        return;
+      }
+
+      // Check if auto top-up is enabled
+      if (!org.auto_top_up_enabled) {
+        return;
+      }
+
+      const threshold = Number(org.auto_top_up_threshold || 0);
+
+      // Check if balance is below threshold
+      if (newBalance >= threshold) {
+        return;
+      }
+
+      console.log(
+        `[CreditsService] Auto top-up triggered: balance $${newBalance.toFixed(2)} < threshold $${threshold.toFixed(2)}`
+      );
+
+      // Import auto top-up service dynamically to avoid circular dependency
+      const { autoTopUpService } = await import("./auto-top-up");
+
+      // Execute auto top-up asynchronously (don't block the main operation)
+      autoTopUpService.executeAutoTopUp(org).catch((error) => {
+        console.error(
+          `[CreditsService] Auto top-up execution failed for org ${organizationId}:`,
+          error
+        );
+      });
+    } catch (error) {
+      console.error(
+        `[CreditsService] Error checking auto top-up for org ${organizationId}:`,
+        error
+      );
     }
-
-    // Check if auto top-up is enabled
-    if (!org.auto_top_up_enabled) {
-      return;
-    }
-
-    const threshold = Number(org.auto_top_up_threshold || 0);
-
-    // Check if balance is below threshold
-    if (newBalance >= threshold) {
-      return;
-    }
-
-    console.log(
-      `[CreditsService] Auto top-up triggered: balance $${newBalance.toFixed(2)} < threshold $${threshold.toFixed(2)}`,
-    );
-
-    // Import auto top-up service dynamically to avoid circular dependency
-    const { autoTopUpService } = await import("./auto-top-up");
-
-    // Execute auto top-up
-    await autoTopUpService.executeAutoTopUp(org);
   }
 
   private async queueLowCreditsEmail(
     organizationId: string,
-    currentBalance: number,
+    currentBalance: number
   ): Promise<void> {
-    const threshold = parseInt(
-      process.env.LOW_CREDITS_THRESHOLD || "1000",
-      10,
-    );
+    try {
+      const threshold = parseInt(
+        process.env.LOW_CREDITS_THRESHOLD || "1000",
+        10
+      );
 
-    if (currentBalance <= 0 || currentBalance > threshold) {
-      return;
-    }
+      if (currentBalance <= 0 || currentBalance > threshold) {
+        return;
+      }
 
-    const canSend = await canSendLowCreditsEmail(organizationId);
-    if (!canSend) {
-      return;
-    }
+      const canSend = await canSendLowCreditsEmail(organizationId);
+      if (!canSend) {
+        return;
+      }
 
-    const { organizationsService } = await import("./organizations");
-    const org = await organizationsService.getById(organizationId);
-    if (!org) {
-      return;
-    }
+      const { organizationsService } = await import("./organizations");
+      const org = await organizationsService.getById(organizationId);
+      if (!org) {
+        return;
+      }
 
-    const recipientEmail = org.billing_email;
-    if (!recipientEmail) {
-      console.warn("[CreditsService] No billing email for organization", {
-        organizationId,
+      const recipientEmail = org.billing_email;
+      if (!recipientEmail) {
+        console.warn("[CreditsService] No billing email for organization", {
+          organizationId,
+        });
+        return;
+      }
+
+      const sent = await emailService.sendLowCreditsEmail({
+        email: recipientEmail,
+        organizationName: org.name,
+        currentBalance,
+        threshold,
+        billingUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing`,
       });
-      return;
-    }
 
-    const sent = await emailService.sendLowCreditsEmail({
-      email: recipientEmail,
-      organizationName: org.name,
-      currentBalance,
-      threshold,
-      billingUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing`,
-    });
-
-    if (sent) {
-      await markLowCreditsEmailSent(organizationId);
+      if (sent) {
+        await markLowCreditsEmailSent(organizationId);
+      }
+    } catch (error) {
+      console.error(
+        `[CreditsService] Error queueing low credits email for org ${organizationId}:`,
+        error
+      );
     }
   }
 
@@ -458,7 +549,12 @@ export class CreditsService {
       })
       .then(async (result) => {
         // Invalidate organization cache since balance changed
-        await invalidateOrganizationCache(organizationId);
+        invalidateOrganizationCache(organizationId).catch((error) => {
+          console.error(
+            "[CreditsService] Failed to invalidate org cache:",
+            error
+          );
+        });
         return result;
       });
   }
@@ -469,7 +565,7 @@ export class CreditsService {
   }
 
   async getCreditPackByStripePriceId(
-    stripePriceId: string,
+    stripePriceId: string
   ): Promise<CreditPack | undefined> {
     return await creditPacksRepository.findByStripePriceId(stripePriceId);
   }
