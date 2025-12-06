@@ -46,13 +46,14 @@ export function AuthButton() {
     };
   }, [authenticated]);
 
-  // Format credits for display
+  // Format credits for display (convert dollars to credits: 1 dollar = 100 credits)
   const formatCredits = (amount: string) => {
-    const num = parseFloat(amount);
-    if (num >= 1000) {
-      return `$${(num / 1000).toFixed(1)}k`;
+    const dollars = parseFloat(amount);
+    const credits = Math.round(dollars * 100);
+    if (credits >= 10000) {
+      return `${(credits / 1000).toFixed(1)}k`;
     }
-    return `$${num.toFixed(2)}`;
+    return credits.toLocaleString();
   };
 
   // Still loading
@@ -94,7 +95,7 @@ export function AuthButton() {
           <div className="flex items-center gap-1 rounded-md bg-emerald-500/20 px-2 py-0.5">
             <Coins className="h-3 w-3 text-emerald-400" />
             <span className="text-xs font-medium text-emerald-400">
-              {formatCredits(credits)}
+              {formatCredits(credits)} credits
             </span>
           </div>
         )}

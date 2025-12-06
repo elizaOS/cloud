@@ -5,7 +5,7 @@
 
 export const CONTAINER_PRICING = {
   // One-time costs
-  DEPLOYMENT: 0.5, // $0.50 per deployment
+  DEPLOYMENT: 0.5, // $0.50 (50 credits) per deployment
   IMAGE_UPLOAD: 0.25, // $0.25 per image upload
 
   // Recurring costs (per hour, charged daily)

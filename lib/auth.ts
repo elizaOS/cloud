@@ -108,14 +108,13 @@ export const getCurrentUser = cache(
           // Import the sync logic from webhook
           const { syncUserFromPrivy } = await import("./privy-sync");
           // Type cast needed because Privy SDK types don't match our simplified interface
-          user = await syncUserFromPrivy(
-            privyUser as unknown as {
-              id: string;
-              email?: { address: string };
-              name?: string | null;
-              linkedAccounts?: Array<Record<string, unknown>>;
-            },
-          );
+          interface PrivyUserShape {
+            id: string;
+            email?: { address: string };
+            name?: string | null;
+            linkedAccounts?: Array<Record<string, unknown>>;
+          }
+          user = await syncUserFromPrivy(privyUser as PrivyUserShape);
         }
       }
 

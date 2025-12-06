@@ -508,7 +508,17 @@ export class MemoryService {
       logger.debug(
         `[Memory Service] Cache HIT for conversation summary: ${input.roomId}`,
       );
-      return cached.content as unknown as SummarizeConversationResult;
+      // Type guard to ensure cached content matches SummarizeConversationResult
+      const cachedContent = cached.content;
+      if (
+        typeof cachedContent === "object" &&
+        cachedContent !== null &&
+        "summary" in cachedContent &&
+        typeof (cachedContent as { summary: unknown }).summary === "string"
+      ) {
+        return cachedContent as SummarizeConversationResult;
+      }
+      // If cached content doesn't match expected structure, continue to generate new summary
     }
 
     const context = await this.getRoomContext(
@@ -541,13 +551,21 @@ export class MemoryService {
       participants: context.participants.map((p) => p.toString()),
     };
 
+    // Convert summary to Memory content format
+    const summaryContent: Record<string, unknown> = {
+      summary: summary.summary,
+      tokenCount: summary.tokenCount,
+      keyTopics: summary.keyTopics,
+      participants: summary.participants,
+    };
+
     const summaryMemory: Memory = {
       id: uuidv4() as UUID,
       roomId: input.roomId as UUID,
       entityId: context.participants[0] || ("system" as UUID),
       agentId: (await runtimeFactory.getSystemRuntime()).agentId,
       createdAt: Date.now(),
-      content: summary as unknown as Record<string, unknown>,
+      content: summaryContent,
     };
 
     await memoryCache.cacheMemory(

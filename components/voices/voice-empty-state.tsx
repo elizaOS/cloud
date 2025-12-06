@@ -30,7 +30,7 @@ export function VoiceEmptyState({ onCreateClick }: VoiceEmptyStateProps) {
       </Button>
 
       <p className="text-xs text-muted-foreground mt-4">
-        Instant: $0.50 • Professional: $2.00
+        Instant: 50 credits • Professional: 200 credits
       </p>
     </div>
   );

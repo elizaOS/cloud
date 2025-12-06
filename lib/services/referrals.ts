@@ -26,9 +26,9 @@ interface AppContext {
 
 // Reward amounts (in dollars/credits)
 const REWARDS = {
-  SIGNUP_BONUS: 1.0, // Referrer gets $1 when someone signs up with their code
-  REFERRED_BONUS: 0.5, // New user gets $0.50 for using a referral code
-  QUALIFIED_BONUS: 0.5, // Referrer gets $0.50 when referred user links social account
+  SIGNUP_BONUS: 1.0, // Referrer gets $1 (100 credits) when someone signs up with their code
+  REFERRED_BONUS: 0.5, // New user gets $0.50 (50 credits) for using a referral code
+  QUALIFIED_BONUS: 0.5, // Referrer gets $0.50 (50 credits) when referred user links social account
   COMMISSION_RATE: 0.05, // 5% commission on referral purchases
   SHARE_X: 0.25,
   SHARE_FARCASTER: 0.25,
@@ -171,7 +171,7 @@ export class ReferralsService {
 
     return {
       success: true,
-      message: `You received $${REWARDS.REFERRED_BONUS.toFixed(2)} bonus credits!`,
+      message: `You received ${Math.round(REWARDS.REFERRED_BONUS * 100)} bonus credits!`,
       bonusAmount: REWARDS.REFERRED_BONUS,
     };
   }
@@ -380,7 +380,7 @@ export class SocialRewardsService {
 
     return {
       success: true,
-      message: `You earned $${rewardAmount.toFixed(2)} for sharing on ${platform}!`,
+      message: `You earned ${Math.round(rewardAmount * 100)} credits for sharing on ${platform}!`,
       amount: rewardAmount,
       alreadyAwarded: false,
     };

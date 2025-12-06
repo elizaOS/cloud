@@ -69,8 +69,20 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
         interface Transaction {
           amount: string | number;
         }
-        const burn = (data.transactions || ([] as Transaction[]))
-          .filter((t: Transaction) => Number(t.amount) < 0)
+        interface Transaction {
+          amount: string | number;
+        }
+        const transactions: Transaction[] = Array.isArray(data.transactions)
+          ? data.transactions.filter(
+              (t): t is Transaction =>
+                typeof t === "object" &&
+                t !== null &&
+                "amount" in t &&
+                (typeof (t as { amount: unknown }).amount === "string" ||
+                  typeof (t as { amount: unknown }).amount === "number"),
+            )
+          : [];
+        const burn = transactions.filter((t) => Number(t.amount) < 0)
           .reduce(
             (sum: number, t: Transaction) => sum + Math.abs(Number(t.amount)),
             0,

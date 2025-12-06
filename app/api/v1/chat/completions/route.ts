@@ -248,20 +248,25 @@ async function handlePOST(req: NextRequest) {
     logger.error("[OpenAI Proxy] Error:", error);
 
     // Check if error is a structured gateway error
+    interface GatewayError {
+      status: number;
+      error: { message: string; type?: string; code?: string };
+    }
+
     if (
       error &&
       typeof error === "object" &&
       "error" in error &&
       "status" in error
     ) {
-      const gatewayError = error as {
-        status: number;
-        error: { message: string; type?: string; code?: string };
-      };
-      return Response.json(
-        { error: gatewayError.error },
-        { status: gatewayError.status },
-      );
+      const status = (error as { status: unknown }).status;
+      if (typeof status === "number") {
+        const gatewayError = error as GatewayError;
+        return Response.json(
+          { error: gatewayError.error },
+          { status: gatewayError.status },
+        );
+      }
     }
 
     // Fallback to generic error

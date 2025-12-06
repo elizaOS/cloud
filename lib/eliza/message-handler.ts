@@ -14,6 +14,7 @@ import {
   createUniqueUuid,
   type UUID,
   type Content,
+  type Media,
 } from "@elizaos/core";
 import { connectionCache } from "@/lib/cache/connection-cache";
 import type { UserContext } from "./user-context";
@@ -289,39 +290,95 @@ export class MessageHandler {
         }
       }
 
-      // Use ensureConnections (plural) for more robust entity/room creation
-      await this.runtime.ensureConnections(
-        [
-          {
-            id: entityUuid,
-            agentId: this.runtime.agentId, // Required field - user entity belongs to this agent's world
-            names: [userName], // Use actual user name, not ID
-            metadata: {
-              name: userName, // Use actual user name
-              email: this.userContext.email,
-              web: {
-                userName: userName, // Use actual user name
-                userId: this.userContext.userId, // Keep userId for reference
-                organizationId: this.userContext.organizationId,
-              },
+      // CRITICAL: Ensure room exists FIRST with all required fields (worldId, serverId)
+      // The room may have been created via /api/eliza/rooms without these fields.
+      // ensureRoomExists handles existing rooms gracefully by updating missing fields.
+      const serverId = stringToUuid("eliza-server") as UUID;
+      try {
+        await this.runtime.ensureRoomExists({
+          id: roomId as UUID,
+          name: entityId,
+          type: ChannelType.DM,
+          channelId: roomId,
+          worldId: worldId,
+          serverId: serverId,
+          agentId: this.runtime.agentId,
+          source: "web",
+        });
+        elizaLogger.debug(
+          `[MessageHandler] Ensured room exists with all required fields: ${roomId}`,
+        );
+      } catch (roomError) {
+        const errorMessage =
+          roomError instanceof Error ? roomError.message : String(roomError);
+        elizaLogger.error(
+          `[MessageHandler] Failed to ensure room exists ${roomId}:`,
+          errorMessage,
+        );
+        throw new Error(`Failed to ensure room exists: ${errorMessage}`);
+      }
+
+      // Ensure user entity exists before creating connection
+      try {
+        await this.runtime.ensureEntityExists({
+          id: entityUuid,
+          agentId: this.runtime.agentId,
+          names: [userName],
+          metadata: {
+            name: userName,
+            email: this.userContext.email,
+            web: {
+              userName: userName,
+              userId: this.userContext.userId,
+              organizationId: this.userContext.organizationId,
             },
           },
-        ],
-        [
-          {
-            id: roomId as UUID,
-            name: entityId,
-            type: ChannelType.DM,
-            channelId: roomId,
-          },
-        ],
-        "web",
-        {
-          id: worldId,
-          name: "eliza-world",
-          serverId: "eliza-server",
-        },
-      );
+        });
+        elizaLogger.debug(
+          `[MessageHandler] Ensured user entity exists: ${entityId}`,
+        );
+      } catch (entityError) {
+        // Ignore duplicate key errors - entity already exists
+        const msg =
+          entityError instanceof Error ? entityError.message : String(entityError);
+        if (
+          !msg.toLowerCase().includes("duplicate") &&
+          !msg.toLowerCase().includes("unique constraint")
+        ) {
+          elizaLogger.error(
+            `[MessageHandler] Failed to ensure user entity ${entityId}:`,
+            msg,
+          );
+          throw new Error(`Failed to ensure user entity: ${msg}`);
+        }
+      }
+
+      // Now ensure the entity and participant connection
+      // Use ensureConnection (singular) since room is already ensured
+      try {
+        await this.runtime.ensureConnection({
+          entityId: entityUuid,
+          roomId: roomId as UUID,
+          worldId: worldId,
+          source: "web",
+          type: ChannelType.DM,
+          channelId: roomId,
+          userName: userName,
+        });
+        elizaLogger.debug(
+          `[MessageHandler] Ensured entity connection: ${entityId} -> ${roomId}`,
+        );
+      } catch (connectionError) {
+        const errorMessage =
+          connectionError instanceof Error
+            ? connectionError.message
+            : String(connectionError);
+        elizaLogger.error(
+          `[MessageHandler] Failed to ensure connection for room ${roomId} and entity ${entityId}:`,
+          errorMessage,
+        );
+        throw new Error(`Failed to create room: ${errorMessage}`);
+      }
 
       await connectionCache.markEstablished(roomId, entityId);
       elizaLogger.debug(
@@ -355,8 +412,12 @@ export class MessageHandler {
         Array.isArray(content.attachments) &&
         content.attachments.length > 0
           ? {
-              attachments:
-                content.attachments as unknown as import("@elizaos/core").Media[],
+              attachments: content.attachments.filter(
+                (att): att is Media =>
+                  typeof att === "object" &&
+                  att !== null &&
+                  ("url" in att || "mimeType" in att || "data" in att),
+              ) as Media[],
             }
           : {}),
       },
@@ -618,9 +679,15 @@ export class MessageHandler {
             .map((m) => {
               const content = m.content;
               if (typeof content === "string") return content;
-              if (typeof content === "object" && content !== null) {
-                const parsed = content as { text?: string };
-                return parsed.text || "";
+              if (
+                typeof content === "object" &&
+                content !== null &&
+                "text" in content
+              ) {
+                const text = (content as { text: unknown }).text;
+                if (typeof text === "string") {
+                  return text;
+                }
               }
               return "";
             })

@@ -75,7 +75,7 @@ class AgentRuntime {
     );
 
     // Extract response message
-    const responseContent = result.processing?.responseContent;
+    const responseContent = result.result?.responseContent;
     const agentMessage: Memory = {
       id: result.messageId as UUID,
       entityId: runtime.agentId,
@@ -85,11 +85,14 @@ class AgentRuntime {
     };
 
     // Extract usage if available
-    const usage = result.processing?.usage
+    const usageData = (result.result as Record<string, unknown>)?.usage as
+      | { inputTokens?: number; outputTokens?: number; model?: string }
+      | undefined;
+    const usage = usageData
       ? {
-          inputTokens: result.processing.usage.inputTokens || 0,
-          outputTokens: result.processing.usage.outputTokens || 0,
-          model: result.processing.usage.model || "eliza-agent",
+          inputTokens: usageData.inputTokens || 0,
+          outputTokens: usageData.outputTokens || 0,
+          model: usageData.model || "eliza-agent",
         }
       : undefined;
 

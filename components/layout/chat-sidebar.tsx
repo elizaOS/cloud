@@ -109,10 +109,11 @@ export function ChatSidebar({
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-  // Load rooms on mount
+  // Load rooms on mount (loadRooms from Zustand is stable)
   useEffect(() => {
     loadRooms();
-  }, [loadRooms]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
   const handleNewChat = async () => {
     if (operationState.isCreatingRoom) return; // Prevent double-clicking

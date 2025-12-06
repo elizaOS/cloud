@@ -11,7 +11,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { ElizaChatInterface } from "@/components/chat/eliza-chat-interface";
 import { SignupPromptBanner } from "@/components/chat/signup-prompt-banner";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
@@ -51,20 +51,24 @@ export function ElizaPageClient({
       "Chat with AI agents using the full ElizaOS runtime with persistent memory and room-based conversations.",
   });
 
-  // Initialize store on mount
+  // Memoize transformed characters to prevent unnecessary re-renders
+  const characters = useMemo<Character[]>(
+    () =>
+      initialCharacters.map((char) => ({
+        id: char.id || "",
+        name: char.name || "Unknown",
+        username: char.username || undefined,
+        avatarUrl: char.avatarUrl || char.avatar_url || undefined,
+      })),
+    [initialCharacters],
+  );
+
+  // Initialize store on mount (only when characters change)
   useEffect(() => {
-    // Transform characters to match store interface
-    const characters: Character[] = initialCharacters.map((char) => ({
-      id: char.id || "",
-      name: char.name || "Unknown",
-      username: char.username || undefined,
-      avatarUrl: char.avatarUrl || char.avatar_url || undefined,
-    }));
-
     setAvailableCharacters(characters);
-  }, [initialCharacters, setAvailableCharacters]);
+  }, [characters, setAvailableCharacters]);
 
-  // Sync URL params with store on mount
+  // Sync URL params with store on mount (only once)
   useEffect(() => {
     if (initialRoomId) {
       setRoomId(initialRoomId);
@@ -72,11 +76,12 @@ export function ElizaPageClient({
     if (initialCharacterId) {
       setSelectedCharacterId(initialCharacterId);
     }
-  }, [initialRoomId, initialCharacterId, setRoomId, setSelectedCharacterId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
-  // Initialize anonymous session for unauthenticated users
+  // Initialize anonymous session for unauthenticated users (only once)
   useEffect(() => {
-    if (!isAuthenticated && !anonymousSession) {
+    if (!isAuthenticated && !anonymousSession && isLoadingSession) {
       getOrCreateAnonymousUserAction()
         .then((result) => {
           if (result.session) {
@@ -89,8 +94,12 @@ export function ElizaPageClient({
           }
           setIsLoadingSession(false);
         })
+        .catch(() => {
+          setIsLoadingSession(false);
+        });
     }
-  }, [isAuthenticated, anonymousSession]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
   // Show loading state while initializing anonymous session
   if (!isAuthenticated && isLoadingSession) {

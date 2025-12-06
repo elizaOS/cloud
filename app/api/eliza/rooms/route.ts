@@ -7,7 +7,12 @@ import {
   getOrCreateAnonymousUser,
 } from "@/lib/auth-anonymous";
 import { roomsService } from "@/lib/services/agents/rooms";
+import { agentsService } from "@/lib/services/agents/agents";
 import { anonymousSessionsService, usersService } from "@/lib/services";
+
+// Default agent ID - used when no character is selected
+// This is the ID of the built-in Eliza character
+const DEFAULT_AGENT_ID = "b850bc30-45f8-0041-a00a-83df46d8555d";
 
 /**
  * GET /api/eliza/rooms
@@ -160,18 +165,27 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Determine the agent ID - use provided characterId or default
+  const agentId = characterId || DEFAULT_AGENT_ID;
+
+  // Ensure the agent exists in the database before creating the room
+  // For custom characters, this creates an agent record from the character data
+  // For the default agent, this verifies it exists (should be seeded)
+  await agentsService.ensureAgentExists(agentId);
+
   // Create room via service (pure DB operation)
   const roomId = uuidv4();
   const createdAt = Date.now();
 
   await roomsService.createRoom({
     id: roomId,
-    agentId: characterId || undefined, // Single source of truth for character/agent ID
+    agentId, // Always set - either characterId or DEFAULT_AGENT_ID
     entityId: userId, // User's ID (from auth)
     source: "web",
     type: "DM",
     metadata: {
       createdAt,
+      creatorUserId: userId, // Store creator for access control
     },
   });
 

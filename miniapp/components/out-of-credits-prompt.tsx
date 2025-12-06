@@ -32,7 +32,7 @@ export function OutOfCreditsPrompt({
           <p className="text-sm text-white/60 mt-1">
             {currentBalance <= 0
               ? "You've run out of credits."
-              : `You have $${currentBalance.toFixed(2)} remaining.`}
+              : `You have ${Math.round(currentBalance * 100).toLocaleString()} credits remaining.`}
           </p>
         </div>
       </div>
@@ -61,7 +61,7 @@ export function OutOfCreditsPrompt({
               className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 text-pink-400 font-medium hover:from-pink-500/30 hover:to-purple-500/30 transition-all"
             >
               <Gift className="h-4 w-4" />
-              {availableToday > 0 ? `Earn $${availableToday.toFixed(2)}` : "Share & Earn"}
+              {availableToday > 0 ? `Earn ${Math.round(availableToday).toLocaleString()} credits` : "Share & Earn"}
             </button>
             <Link
               href="/settings"

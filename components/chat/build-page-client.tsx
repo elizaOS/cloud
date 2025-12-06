@@ -110,7 +110,10 @@ export function BuildPageClient({
           e.stopPropagation();
           setShowWarning(true);
 
-          (window as any).__pendingNavigation = anchor.href;
+          interface WindowWithPendingNavigation extends Window {
+            __pendingNavigation?: string | null;
+          }
+          (window as WindowWithPendingNavigation).__pendingNavigation = anchor.href;
         }
       }
 
@@ -119,13 +122,17 @@ export function BuildPageClient({
         e.preventDefault();
         e.stopPropagation();
         setShowWarning(true);
-        (window as any).__pendingNavigation = "back";
+        (window as WindowWithPendingNavigation).__pendingNavigation = "back";
       }
     };
 
     document.addEventListener("click", handleClick, true);
     return () => document.removeEventListener("click", handleClick, true);
   }, [hasUnsavedChanges, pathname]);
+
+  interface WindowWithPendingNavigation extends Window {
+    __pendingNavigation?: string | null;
+  }
 
   useEffect(() => {
     if (!hasUnsavedChanges) return;
@@ -144,18 +151,18 @@ export function BuildPageClient({
     setShowWarning(false);
     setHasUnsavedChanges(false);
 
-    const pending = (window as any).__pendingNavigation;
+    const pending = (window as WindowWithPendingNavigation).__pendingNavigation;
     if (pending === "back") {
       router.back();
     } else if (pending) {
       window.location.href = pending;
     }
-    (window as any).__pendingNavigation = null;
+    (window as WindowWithPendingNavigation).__pendingNavigation = null;
   };
 
   const handleCancelLeave = () => {
     setShowWarning(false);
-    (window as any).__pendingNavigation = null;
+    (window as WindowWithPendingNavigation).__pendingNavigation = null;
   };
 
   // Show loading state while initializing anonymous session

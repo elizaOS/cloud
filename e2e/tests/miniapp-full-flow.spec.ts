@@ -22,6 +22,20 @@ const CLOUD_URL = process.env.CLOUD_URL ?? "http://localhost:3000";
 const MINIAPP_URL = process.env.MINIAPP_URL ?? "http://localhost:3001";
 const API_KEY = process.env.TEST_API_KEY;
 
+// Check if miniapp is available
+let miniappAvailable = false;
+
+test.beforeAll(async ({ request }) => {
+  const miniappResponse = await request.get(MINIAPP_URL).catch(() => null);
+  miniappAvailable = miniappResponse?.ok() ?? false;
+  
+  if (!miniappAvailable) {
+    console.log(
+      `⚠️ Miniapp not available at ${MINIAPP_URL}. Skipping miniapp tests. Start with: cd miniapp && bun run dev`,
+    );
+  }
+});
+
 function authHeaders() {
   return {
     Authorization: `Bearer ${API_KEY}`,
@@ -31,6 +45,10 @@ function authHeaders() {
 
 test.describe("Anonymous Character Creation Flow", () => {
   test("anonymous user can create character", async ({ request }) => {
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     const response = await request.post(`${MINIAPP_URL}/api/create-character`, {
       data: {
         name: "Anonymous Test Character",
@@ -117,6 +135,10 @@ test.describe("Anonymous Chat Flow", () => {
 
 test.describe("Pass-Through Authentication Flow", () => {
   test("miniapp login initiates pass-through auth", async ({ page, request }) => {
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     await page.goto(MINIAPP_URL);
     await page.waitForLoadState("networkidle");
 
