@@ -117,13 +117,10 @@ function ConnectingContent() {
             </div>
 
             {/* Main heading */}
-            <div className="space-y-2 text-center">
+            <div className="text-center">
               <h1 className="text-2xl leading-tight font-bold text-balance text-white sm:text-3xl">
                 {`Bringing ${name} to life...`}
               </h1>
-              <p className="text-base text-white/60">
-                Your AI companion is being created
-              </p>
             </div>
 
             {/* Progress steps */}
@@ -198,12 +195,6 @@ function ConnectingContent() {
               })}
             </div>
 
-            {/* Footer text */}
-            <div className="space-y-2 text-center">
-              <p className="text-xs text-white/30">
-                You&apos;ll be able to chat in a moment
-              </p>
-            </div>
           </div>
         </div>
       </div>

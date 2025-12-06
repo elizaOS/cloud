@@ -524,7 +524,7 @@ function AgentDetailPage() {
           <textarea
             value={bio}
             onChange={(e) => setBio(e.target.value)}
-            placeholder="Describe your character's personality and background..."
+            placeholder="Describe your character..."
             rows={4}
             className="mt-1 w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-pink-500 focus:outline-none"
           />
@@ -657,9 +657,7 @@ function AgentDetailPage() {
                     className="w-full h-full max-w-44 mx-auto flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-white/10 bg-white/[0.02] transition-all hover:border-white/20 hover:bg-white/[0.04]"
                   >
                     <Upload className="mb-1 size-8 text-white/30" />
-                    <p className="text-sm text-white/50 text-center px-4">
-                      Click to upload
-                    </p>
+                    <p className="text-sm text-white/50">Upload</p>
                     <input
                       id="avatar-upload"
                       type="file"
@@ -688,9 +686,6 @@ function AgentDetailPage() {
                 placeholder="technology, music, travel..."
                 className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-pink-500 focus:outline-none"
               />
-              <p className="mt-1 text-xs text-white/40">
-                Comma-separated list of topics the character knows about
-              </p>
             </div>
 
             {/* Adjectives */}
@@ -705,9 +700,6 @@ function AgentDetailPage() {
                 placeholder="friendly, witty, helpful..."
                 className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-pink-500 focus:outline-none"
               />
-              <p className="mt-1 text-xs text-white/40">
-                Comma-separated list of personality traits
-              </p>
             </div>
 
             {/* Style - All */}
@@ -722,9 +714,6 @@ function AgentDetailPage() {
                 rows={3}
                 className="mt-1 w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-pink-500 focus:outline-none"
               />
-              <p className="mt-1 text-xs text-white/40">
-                One style directive per line (applies to all responses)
-              </p>
             </div>
 
             {/* Style - Chat */}
@@ -739,9 +728,6 @@ function AgentDetailPage() {
                 rows={3}
                 className="mt-1 w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-pink-500 focus:outline-none"
               />
-              <p className="mt-1 text-xs text-white/40">
-                One style directive per line (applies to chat conversations)
-              </p>
             </div>
 
             {/* Message Examples */}
@@ -759,21 +745,15 @@ function AgentDetailPage() {
                   Add Example
                 </button>
               </div>
-              <p className="mt-1 text-xs text-white/40">
-                Example conversations to help the AI understand how to respond
-              </p>
 
               {messageExamples.length === 0 ? (
-                <div className="mt-3 rounded-lg border border-dashed border-white/10 p-4 text-center">
-                  <p className="text-sm text-white/40">No message examples yet</p>
-                  <button
-                    type="button"
-                    onClick={addMessageExample}
-                    className="mt-2 text-sm text-pink-400 hover:text-pink-300"
-                  >
-                    Add your first example
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={addMessageExample}
+                  className="mt-3 w-full rounded-lg border border-dashed border-white/10 p-4 text-center text-sm text-white/40 hover:border-white/20 hover:text-white/60"
+                >
+                  Add example
+                </button>
               ) : (
                 <div className="mt-3 space-y-4">
                   {messageExamples.map((example, index) => (
