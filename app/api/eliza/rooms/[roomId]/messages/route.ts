@@ -217,13 +217,11 @@ export async function POST(
     userContext.characterId = characterId;
   }
 
-  // Create runtime and send message using unified API
+  // Create runtime and send message via plugin event handlers
   // Note: Billing is handled by the gateway (plugin-elizacloud routes through /api/v1/chat/completions)
   const runtime = await runtimeFactory.createRuntimeForUser(userContext);
-  const elizaOS = runtimeFactory.getElizaOS();
 
   const result = await sendMessageWithSideEffects(
-    elizaOS,
     runtime,
     roomId as UUID,
     stringToUuid(entityId) as UUID,

@@ -134,6 +134,8 @@ export function ElizaChatInterface({
   const isPendingMessageProcessingRef = useRef(false);
   const pendingMessageToSendRef = useRef<string | null>(null);
   const isCreatingRoomRef = useRef(false);
+  // Ref to hold sendMessage function - avoids TDZ error when used in effects before definition
+  const sendMessageRef = useRef<((textOverride?: string) => Promise<void>) | null>(null);
 
   // Get character name from prop (preferred), store, or agentInfo (memoized)
   const selectedCharacter = useMemo(
@@ -295,7 +297,8 @@ export function ElizaChatInterface({
       setTimeout(() => {
         setInputText(messageToSend);
         setTimeout(() => {
-          sendMessage(messageToSend).finally(() => {
+          // Use ref to avoid TDZ - sendMessage is defined later in the component
+          sendMessageRef.current?.(messageToSend).finally(() => {
             // Reset processing flag after message is sent
             isPendingMessageProcessingRef.current = false;
           });
@@ -309,7 +312,6 @@ export function ElizaChatInterface({
     loadingState.isLoadingMessages,
     createRoom,
     setPendingMessage,
-    sendMessage,
   ]);
 
   // Extract stable values from audioState to prevent callback recreation
@@ -438,7 +440,8 @@ export function ElizaChatInterface({
       }
 
       // Auto-send the transcribed message (will create room if needed)
-      await sendMessage(transcript);
+      // Use ref to avoid TDZ - sendMessage is defined later in the component
+      await sendMessageRef.current?.(transcript);
       
       // Cleanup: Clear recording and reset processing state
       recorder.clearRecording();
@@ -446,7 +449,7 @@ export function ElizaChatInterface({
     };
 
     processAudioBlob();
-  }, [recorder.audioBlob, loadingState.isProcessingSTT, recorder, sendMessage]);
+  }, [recorder.audioBlob, loadingState.isProcessingSTT, recorder]);
 
   // Auto-generate TTS for new agent messages (only if autoPlayTTS is enabled)
   useEffect(() => {
@@ -701,6 +704,11 @@ export function ElizaChatInterface({
       onMessageSent,
     ],
   );
+
+  // Keep sendMessageRef in sync - allows effects defined before sendMessage to call it
+  useEffect(() => {
+    sendMessageRef.current = sendMessage;
+  }, [sendMessage]);
 
   const formatTimestamp = (timestamp: number): string => {
     const date = new Date(timestamp);
