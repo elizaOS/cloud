@@ -288,6 +288,16 @@ export async function POST(
         // Send connection confirmation
         sendEvent("connected", { roomId, timestamp: Date.now() });
 
+        // Determine consistent agent ID - prefer room's characterId, validate against runtime
+        const roomAgentId = characterId || agentRuntime.agentId;
+        if (characterId && characterId !== agentRuntime.agentId) {
+          logger.warn("[Stream] Agent ID mismatch detected", {
+            roomCharacterId: characterId,
+            runtimeAgentId: agentRuntime.agentId,
+            usingAgentId: roomAgentId,
+          });
+        }
+
         // Send thinking indicator immediately
         sendEvent("message", {
           id: `thinking-${Date.now()}`,
@@ -299,8 +309,8 @@ export async function POST(
         });
 
         // Process message via plugin event handlers
-        // Note: User message is stored by the plugin handler (e.g., plugin-chat-playground)
-        // via runtime.createMemory(message, "messages") - no explicit storage needed here
+        // IMPORTANT: User message is stored by plugin handler (plugin-chat-playground/handler.ts line 72)
+        // via runtime.createMemory(message, "messages") - NO explicit storage here to avoid duplicates
         logger.info("[Stream] Processing message via sendMessageWithSideEffects...");
         const result = await sendMessageWithSideEffects(
           agentRuntime,
@@ -317,7 +327,7 @@ export async function POST(
         );
 
         // Send user message event with the ID from sendMessageWithSideEffects
-        // (The message was stored by the plugin handler)
+        // (The message was already stored by the plugin handler)
         sendEvent("message", {
           id: result.messageId,
           entityId: userContext.userId,
@@ -329,7 +339,15 @@ export async function POST(
 
         // Extract response from result
         const responseContent = result.result?.responseContent;
-        const responseText = responseContent?.text || "I apologize, but I couldn't generate a response. Please try again.";
+        if (!responseContent?.text) {
+          logger.error("[Stream] Agent failed to generate response", {
+            roomId,
+            hasResult: !!result.result,
+            hasResponseContent: !!responseContent,
+          });
+          throw new Error("Agent failed to generate a response. Please try again.");
+        }
+        const responseText = responseContent.text;
 
         // Build response content payload
         const responseContentPayload: Record<string, unknown> = {
@@ -353,16 +371,15 @@ export async function POST(
         }
 
         // Agent message is stored by sendMessageWithSideEffects via runtime.createMemory()
-        // Use the returned responseMessageId for the SSE event
-        const agentEntityId = characterId || agentRuntime.agentId;
+        // in the callback (send-message.ts) - NO explicit storage here to avoid duplicates
         const agentMessageId = result.responseMessageId || `agent-${Date.now()}`;
         logger.info(`[Stream] Agent message stored by sendMessageWithSideEffects: ${agentMessageId}`);
 
         // Send agent response with stored ID
         sendEvent("message", {
           id: agentMessageId,
-          entityId: agentEntityId,
-          agentId: agentEntityId,
+          entityId: roomAgentId,
+          agentId: roomAgentId,
           content: responseContentPayload,
           createdAt: Date.now(),
           isAgent: true,

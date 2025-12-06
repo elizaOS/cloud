@@ -20,12 +20,17 @@ import {
   MINIAPP_WRITE_LIMITS,
 } from "@/lib/middleware/miniapp-rate-limit";
 import { logger } from "@/lib/utils/logger";
+import { safeToISOString } from "@/lib/utils/date";
+import { extractMessageText } from "@/lib/utils/message-text";
 import { db } from "@/db/client";
 import { roomTable, memoryTable, participantTable } from "@/db/schemas/eliza";
 import { eq, and, asc } from "drizzle-orm";
 import type { UUID } from "@elizaos/core";
 import type { RoomMetadata } from "@/lib/types/message-content";
-import { parseMessageContent, type MessageAttachment } from "@/lib/types/message-content";
+import {
+  parseMessageContent,
+  type MessageAttachment,
+} from "@/lib/types/message-content";
 
 /**
  * OPTIONS /api/v1/miniapp/agents/[id]/chats/[chatId]
@@ -53,7 +58,7 @@ async function verifyAccess(
   chatId: string,
   agentId: string,
   userId: string,
-  organizationId: string,
+  organizationId: string
 ): Promise<{ allowed: boolean; error?: string; status?: number }> {
   // Verify agent exists and user has access
   const character = await charactersService.getById(agentId);
@@ -88,7 +93,7 @@ async function verifyAccess(
   const userParticipant = await db.query.participantTable.findFirst({
     where: and(
       eq(participantTable.roomId, chatId as UUID),
-      eq(participantTable.entityId, userId as UUID),
+      eq(participantTable.entityId, userId as UUID)
     ),
   });
 
@@ -119,7 +124,7 @@ async function verifyAccess(
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; chatId: string }> },
+  { params }: { params: Promise<{ id: string; chatId: string }> }
 ) {
   const corsResult = await validateOrigin(request);
   const { id: agentId, chatId } = await params;
@@ -127,12 +132,12 @@ export async function GET(
   // Rate limiting
   const rateLimitResult = await checkMiniappRateLimit(
     request,
-    MINIAPP_RATE_LIMITS,
+    MINIAPP_RATE_LIMITS
   );
   if (!rateLimitResult.allowed) {
     return createRateLimitErrorResponse(
       rateLimitResult,
-      corsResult.origin ?? undefined,
+      corsResult.origin ?? undefined
     );
   }
 
@@ -142,7 +147,7 @@ export async function GET(
 
     const limit = Math.min(
       100,
-      Math.max(1, parseInt(searchParams.get("limit") || "50", 10)),
+      Math.max(1, parseInt(searchParams.get("limit") || "50", 10))
     );
     const before = searchParams.get("before"); // Cursor for pagination
 
@@ -151,12 +156,12 @@ export async function GET(
       chatId,
       agentId,
       user.id,
-      user.organization_id,
+      user.organization_id
     );
     if (!access.allowed) {
       const response = NextResponse.json(
         { success: false, error: access.error },
-        { status: access.status },
+        { status: access.status }
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -171,7 +176,7 @@ export async function GET(
       .select()
       .from(memoryTable)
       .where(
-        and(eq(memoryTable.roomId, chatId), eq(memoryTable.type, "messages")),
+        and(eq(memoryTable.roomId, chatId), eq(memoryTable.type, "messages"))
       )
       .orderBy(asc(memoryTable.createdAt))
       .limit(limit);
@@ -217,77 +222,19 @@ export async function GET(
       const rawContent = msg.content;
       const content = parseMessageContent(rawContent);
 
-      // Extract text content - handle multiple possible structures
+      // Extract text content using shared utility
       // ElizaOS stores content differently for user vs agent messages
-      let textContent = "";
-      if (typeof content === "object" && content !== null) {
-        const c = content as Record<string, unknown>;
+      const textContent = extractMessageText(content, msg.metadata);
 
-        // Try direct text field first (if non-empty)
-        if (typeof c.text === "string" && c.text.length > 0) {
-          textContent = c.text;
-        }
-        // Check thought field (ElizaOS sometimes stores response in thought)
-        else if (typeof c.thought === "string" && c.thought.length > 0) {
-          textContent = c.thought;
-        }
-        // Check response field
-        else if (typeof c.response === "string" && c.response.length > 0) {
-          textContent = c.response;
-        }
-        // Check body field
-        else if (typeof c.body === "string" && c.body.length > 0) {
-          textContent = c.body;
-        }
-        // Fallback: check if content itself is the text
-        else if (typeof c.content === "string" && c.content.length > 0) {
-          textContent = c.content;
-        }
-        // Fallback: nested content.text structure
-        else if (
-          typeof c.content === "object" &&
-          c.content !== null &&
-          typeof (c.content as Record<string, unknown>).text === "string" &&
-          ((c.content as Record<string, unknown>).text as string).length > 0
-        ) {
-          textContent = (c.content as Record<string, unknown>).text as string;
-        }
-        // Check message field
-        else if (typeof c.message === "string" && c.message.length > 0) {
-          textContent = c.message;
-        }
-        // Last resort: find ANY non-empty string field
-        else {
-          const stringFields = Object.entries(c)
-            .filter(([key, v]) => typeof v === "string" && (v as string).length > 0 && key !== "source" && key !== "action" && key !== "inReplyTo")
-            .sort((a, b) => (b[1] as string).length - (a[1] as string).length); // Prefer longer strings
-          if (stringFields.length > 0) {
-            textContent = stringFields[0][1] as string;
-          }
-        }
-      }
-
-      // Also check metadata for text (ElizaOS sometimes stores there)
-      if (!textContent && msg.metadata && typeof msg.metadata === "object") {
-        const meta = msg.metadata as Record<string, unknown>;
-        if (typeof meta.text === "string" && meta.text.length > 0) {
-          textContent = meta.text;
-        } else if (typeof meta.response === "string" && meta.response.length > 0) {
-          textContent = meta.response;
-        } else if (typeof meta.content === "string" && meta.content.length > 0) {
-          textContent = meta.content;
-        }
-      }
-
-      // Debug log to understand content structure (only in development or when DEBUG_MESSAGE_PARSING is enabled)
-      if (process.env.NODE_ENV !== "production" || process.env.DEBUG_MESSAGE_PARSING === "true") {
+      // Debug log to understand content structure (development only)
+      if (process.env.NODE_ENV !== "production") {
         logger.debug("[Miniapp API] Message content structure", {
           msgId: msg.id,
           entityId: msg.entityId,
           isAgent: msg.entityId === agentId,
-          rawContentType: typeof rawContent,
-          parsedContentKeys: typeof content === "object" && content ? Object.keys(content) : [],
-          extractedText: textContent ? textContent.substring(0, 100) : "(EMPTY - extraction failed)",
+          extractedText: textContent
+            ? textContent.substring(0, 100)
+            : "(EMPTY - extraction failed)",
         });
       }
 
@@ -317,28 +264,11 @@ export async function GET(
         msg.entityId === room?.agentId ||
         (msg.content as Record<string, unknown>)?.source === "agent";
 
-      // Safely convert createdAt to ISO string
-      let createdAtValue: string;
-      try {
-        if (typeof msg.createdAt === "string") {
-          const testDate = new Date(msg.createdAt);
-          createdAtValue = !isNaN(testDate.getTime()) ? msg.createdAt : new Date().toISOString();
-        } else if (typeof msg.createdAt === "number") {
-          createdAtValue = new Date(msg.createdAt).toISOString();
-        } else if (msg.createdAt && typeof (msg.createdAt as { getTime?: () => number }).getTime === "function") {
-          createdAtValue = new Date((msg.createdAt as { getTime: () => number }).getTime()).toISOString();
-        } else {
-          createdAtValue = new Date().toISOString();
-        }
-      } catch {
-        createdAtValue = new Date().toISOString();
-      }
-
       return {
         id: msg.id,
         content: textContent,
         role: isAgent ? ("assistant" as const) : ("user" as const),
-        createdAt: createdAtValue,
+        createdAt: safeToISOString(msg.createdAt),
         metadata: msg.metadata,
         attachments:
           attachments && attachments.length > 0 ? attachments : undefined,
@@ -372,7 +302,7 @@ export async function GET(
         success: false,
         error: error instanceof Error ? error.message : "Failed to get chat",
       },
-      { status },
+      { status }
     );
 
     return addCorsHeaders(response, corsResult.origin);
@@ -390,7 +320,7 @@ export async function GET(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; chatId: string }> },
+  { params }: { params: Promise<{ id: string; chatId: string }> }
 ) {
   const corsResult = await validateOrigin(request);
   const { id: agentId, chatId } = await params;
@@ -398,12 +328,12 @@ export async function DELETE(
   // Rate limiting (stricter for write operations)
   const rateLimitResult = await checkMiniappRateLimit(
     request,
-    MINIAPP_WRITE_LIMITS,
+    MINIAPP_WRITE_LIMITS
   );
   if (!rateLimitResult.allowed) {
     return createRateLimitErrorResponse(
       rateLimitResult,
-      corsResult.origin ?? undefined,
+      corsResult.origin ?? undefined
     );
   }
 
@@ -415,12 +345,12 @@ export async function DELETE(
       chatId,
       agentId,
       user.id,
-      user.organization_id,
+      user.organization_id
     );
     if (!access.allowed) {
       const response = NextResponse.json(
         { success: false, error: access.error },
-        { status: access.status },
+        { status: access.status }
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -464,7 +394,7 @@ export async function DELETE(
         success: false,
         error: error instanceof Error ? error.message : "Failed to delete chat",
       },
-      { status },
+      { status }
     );
 
     return addCorsHeaders(response, corsResult.origin);
