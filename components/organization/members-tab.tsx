@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { UserPlus, Loader2 } from "lucide-react";
 import type { UserWithOrganization } from "@/lib/types";
 import { InviteMemberDialog } from "./invite-member-dialog";
@@ -51,7 +51,7 @@ export function MembersTab({ user }: MembersTabProps) {
   const [isLoadingMembers, setIsLoadingMembers] = useState(true);
   const [isLoadingInvites, setIsLoadingInvites] = useState(true);
 
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     setIsLoadingMembers(true);
     const response = await fetch("/api/organizations/members");
     const data = await response.json();
@@ -62,9 +62,9 @@ export function MembersTab({ user }: MembersTabProps) {
       toast.error("Failed to load members");
     }
     setIsLoadingMembers(false);
-  };
+  }, []);
 
-  const fetchInvites = async () => {
+  const fetchInvites = useCallback(async () => {
     setIsLoadingInvites(true);
     const response = await fetch("/api/organizations/invites");
     const data = await response.json();
@@ -75,12 +75,15 @@ export function MembersTab({ user }: MembersTabProps) {
       toast.error("Failed to load invites");
     }
     setIsLoadingInvites(false);
-  };
+  }, []);
 
   useEffect(() => {
-    fetchMembers();
-    fetchInvites();
-  }, []);
+    // Use queueMicrotask to defer execution and avoid synchronous setState
+    queueMicrotask(() => {
+      fetchMembers();
+      fetchInvites();
+    });
+  }, [fetchMembers, fetchInvites]);
 
   const handleInviteSuccess = () => {
     setIsInviteDialogOpen(false);

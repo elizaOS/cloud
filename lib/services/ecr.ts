@@ -105,17 +105,17 @@ export class ECRManager {
     });
 
     const createResponse = await this.client.send(createCommand);
-    const repository = createResponse.repository!;
+    const createdRepository = createResponse.repository!;
 
-    console.log("Repository created:", repository.repositoryUri);
+    console.log("Repository created:", createdRepository.repositoryUri);
 
     // Set lifecycle policy to prevent storage bloat
     await this.setLifecyclePolicy(repositoryName);
 
     return {
-      repositoryUri: repository.repositoryUri!,
-      repositoryArn: repository.repositoryArn!,
-      registryId: repository.registryId!,
+      repositoryUri: createdRepository.repositoryUri!,
+      repositoryArn: createdRepository.repositoryArn!,
+      registryId: createdRepository.registryId!,
     };
   }
 

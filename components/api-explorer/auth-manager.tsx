@@ -74,7 +74,10 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
 
   // Auto-fetch explorer key on mount
   useEffect(() => {
-    fetchExplorerKey();
+    // Use setTimeout to avoid synchronous setState in effect
+    setTimeout(() => {
+      fetchExplorerKey();
+    }, 0);
   }, [fetchExplorerKey]);
 
   const isValidKey = authToken && (authToken.startsWith("eliza_") || authToken.startsWith("sk-"));

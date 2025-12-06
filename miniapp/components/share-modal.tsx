@@ -95,25 +95,7 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
   } | null>(null);
   const [claiming, setClaiming] = useState<string | null>(null);
 
-  // Load data when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      loadData();
-    }
-  }, [isOpen]);
-
-  // Handle escape key to close modal
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
-        onClose();
-      }
-    };
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [isOpen, onClose]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     const [referralInfo, rewardsStatus] = await Promise.all([
@@ -132,7 +114,28 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
       totalEarnings: referralInfo.stats.totalEarnings,
     });
     setLoading(false);
-  };
+  }, []);
+
+  // Load data when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      // Defer fetch to avoid cascading renders
+      queueMicrotask(() => {
+        loadData();
+      });
+    }
+  }, [isOpen, loadData]);
+
+  // Handle escape key to close modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen) {
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [isOpen, onClose]);
 
   const copyCode = async () => {
     if (!referralCode) return;

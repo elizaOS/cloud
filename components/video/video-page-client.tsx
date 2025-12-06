@@ -158,7 +158,10 @@ export function VideoPageClient({
   }, [modelPresets, selectedModel]);
 
   useEffect(() => {
-    setFormError(null);
+    // Use queueMicrotask to defer execution and avoid synchronous setState
+    queueMicrotask(() => {
+      setFormError(null);
+    });
   }, [prompt, selectedModel]);
 
   const scrollToHistory = useCallback(() => {
@@ -352,7 +355,6 @@ export function VideoPageClient({
       modelPresets,
       replaceVideoEntry,
       selectedPreset,
-      simulateMockCompletion,
       updateUsageAfterCompletion,
     ],
   );

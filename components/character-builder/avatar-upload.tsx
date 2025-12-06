@@ -62,8 +62,7 @@ export function AvatarUpload({
     }
     setIsUploading(false);
     if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      fileInputRef.current.value = "";
     }
   };
 

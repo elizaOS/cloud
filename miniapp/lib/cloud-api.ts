@@ -373,9 +373,6 @@ export async function sendMessage(
               createdAt: new Date(data.createdAt || Date.now()).toISOString(),
               attachments: attachments.length > 0 ? attachments : undefined,
             };
-              attachmentCount: agentMsg.attachments?.length || 0,
-              contentPreview: agentMsg.content.substring(0, 50),
-            });
             
             callbacks.onComplete?.(agentMsg, { tokens: 0, cost: 0 });
           }

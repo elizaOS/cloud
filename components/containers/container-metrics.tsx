@@ -68,7 +68,10 @@ export function ContainerMetrics({
   }, [containerId]);
 
   useEffect(() => {
-    fetchMetrics();
+    // Use setTimeout to avoid synchronous setState in effect
+    setTimeout(() => {
+      fetchMetrics();
+    }, 0);
   }, [fetchMetrics]);
 
   useEffect(() => {

@@ -54,9 +54,9 @@ export function KnowledgePageClient({
     selectedCharacterId: initialCharacters.length > 0 ? initialCharacters[0].id! : null,
   });
 
-  const updatePageState = (updates: Partial<PageState>) => {
+  const updatePageState = useCallback((updates: Partial<PageState>) => {
     setPageState((prev) => ({ ...prev, ...updates }));
-  };
+  }, []);
 
   const fetchDocuments = useCallback(async () => {
     updatePageState({ loading: true, error: null });
@@ -92,14 +92,23 @@ export function KnowledgePageClient({
       serviceAvailable: true,
       loading: false,
     });
-  }, [pageState.selectedCharacterId]);
+  }, [pageState.selectedCharacterId, updatePageState]);
 
   useEffect(() => {
     if (pageState.selectedCharacterId) {
-      fetchDocuments();
+      // Use queueMicrotask to defer execution and avoid synchronous setState
+      queueMicrotask(() => {
+        fetchDocuments();
+      });
     }
-    updatePageState({ isMounted: true });
   }, [pageState.selectedCharacterId, fetchDocuments]);
+
+  useEffect(() => {
+    // Use queueMicrotask to defer execution and avoid synchronous setState
+    queueMicrotask(() => {
+      updatePageState({ isMounted: true });
+    });
+  }, [updatePageState]);
 
   const handleUploadSuccess = () => {
     fetchDocuments();

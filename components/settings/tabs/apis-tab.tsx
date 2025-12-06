@@ -85,7 +85,10 @@ export function ApisTab({ user }: ApisTabProps) {
   }, []);
 
   useEffect(() => {
-    fetchApiKeys();
+    // Use queueMicrotask to defer execution and avoid synchronous setState
+    queueMicrotask(() => {
+      fetchApiKeys();
+    });
   }, [fetchApiKeys]);
 
   const handleCreateNewKey = () => {

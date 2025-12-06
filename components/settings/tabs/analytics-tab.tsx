@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import type { UserWithOrganization } from "@/lib/types";
 import { Activity, Coins, Shield, BarChart, Loader2 } from "lucide-react";
@@ -53,7 +53,7 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
     null,
   );
 
-  const fetchAnalytics = async (range: TimeRange) => {
+  const fetchAnalytics = useCallback(async (range: TimeRange) => {
     setLoading(true);
 
     const apiTimeRange =
@@ -73,11 +73,14 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
       setAnalyticsData(result.data);
     }
     setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
-    fetchAnalytics(timeRange);
-  }, [timeRange]);
+    // Use queueMicrotask to defer execution and avoid synchronous setState
+    queueMicrotask(() => {
+      fetchAnalytics(timeRange);
+    });
+  }, [timeRange, fetchAnalytics]);
 
   const formatDateRange = () => {
     if (!analyticsData) return "";

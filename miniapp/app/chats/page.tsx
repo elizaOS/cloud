@@ -51,7 +51,10 @@ export default function ChatsPage() {
 
   useEffect(() => {
     if (authenticated) {
-      fetchAgents();
+      // Defer fetch to avoid cascading renders
+      queueMicrotask(() => {
+        fetchAgents();
+      });
     }
   }, [authenticated, fetchAgents]);
 

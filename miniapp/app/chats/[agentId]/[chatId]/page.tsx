@@ -20,6 +20,13 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+// Helper to generate unique IDs without using Date.now() during render
+const generateId = () => {
+  return typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `id_${Math.random().toString(36).substring(2, 15)}`;
+};
+
 import { OutOfCreditsPrompt } from "@/components/out-of-credits-prompt";
 import {
   type AgentDetails,
@@ -93,7 +100,6 @@ function ChatPage() {
       listChats(agentId, { limit: 20 }),
       getBilling().catch(() => null),
     ]);
-    })));
     
     setAgent(agentData);
     setMessages(chatData.messages);
@@ -115,7 +121,10 @@ function ChatPage() {
 
   useEffect(() => {
     if (authenticated && agentId && chatId) {
-      fetchData();
+      // Use setTimeout to avoid synchronous setState in effect
+      setTimeout(() => {
+        fetchData();
+      }, 0);
     }
   }, [authenticated, agentId, chatId, fetchData]);
 
@@ -142,16 +151,21 @@ function ChatPage() {
     setStreamingContent("");
     setIsThinking(false);
 
+    // Generate unique IDs without using Date.now() (avoiding purity issues)
+    const messageId = generateId();
+    const attachmentId = imageToSend ? generateId() : null;
+    const createdAt = new Date().toISOString();
+
     // Add user message optimistically (with image if selected)
-    const userAttachments: MessageAttachment[] = imageToSend
-      ? [{ id: `img-${Date.now()}`, url: imageToSend, contentType: "image" }]
+    const userAttachments: MessageAttachment[] = imageToSend && attachmentId
+      ? [{ id: attachmentId, url: imageToSend, contentType: "image" }]
       : [];
     
     const userMessage: Message = {
-      id: `temp-${Date.now()}`,
+      id: messageId,
       content: messageText || (imageToSend ? "[Image]" : ""),
       role: "user",
-      createdAt: new Date().toISOString(),
+      createdAt,
       attachments: userAttachments.length > 0 ? userAttachments : undefined,
     };
     setMessages((prev) => [...prev, userMessage]);

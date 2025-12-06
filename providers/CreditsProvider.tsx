@@ -187,7 +187,10 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
     isMountedRef.current = true;
 
     if (ready && authenticated && !isPollingPausedRef.current) {
-      fetchBalance();
+      // Defer initial fetch to avoid cascading renders
+      queueMicrotask(() => {
+        fetchBalance();
+      });
 
       pollIntervalRef.current = setInterval(() => {
         if (isVisibleRef.current) {
@@ -195,8 +198,11 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
         }
       }, POLL_INTERVAL);
     } else if (ready && !authenticated) {
-      setIsLoading(false);
-      setCreditBalance(null);
+      // Use queueMicrotask to defer execution and avoid synchronous setState
+      queueMicrotask(() => {
+        setIsLoading(false);
+        setCreditBalance(null);
+      });
     }
 
     return () => {

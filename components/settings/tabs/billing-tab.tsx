@@ -11,7 +11,7 @@
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import type { UserWithOrganization } from "@/lib/types";
 import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
@@ -51,20 +51,15 @@ export function BillingTab({ user }: BillingTabProps) {
     Number(user.organization?.credit_balance || 0),
   );
 
-  useEffect(() => {
-    fetchInvoices();
-    fetchBalance();
-  }, []);
-
-  const fetchBalance = async () => {
+  const fetchBalance = useCallback(async () => {
     const response = await fetch("/api/credits/balance");
     if (response.ok) {
       const data = await response.json();
       setBalance(data.balance);
     }
-  };
+  }, []);
 
-  const fetchInvoices = async () => {
+  const fetchInvoices = useCallback(async () => {
     setLoadingInvoices(true);
     const response = await fetch("/api/invoices/list");
     if (response.ok) {
@@ -74,7 +69,15 @@ export function BillingTab({ user }: BillingTabProps) {
       setInvoices([]);
     }
     setLoadingInvoices(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    // Use queueMicrotask to defer execution and avoid synchronous setState
+    queueMicrotask(() => {
+      fetchInvoices();
+      fetchBalance();
+    });
+  }, [fetchInvoices, fetchBalance]);
 
   const handleBuyCredits = async () => {
     const amount = parseFloat(purchaseAmount);

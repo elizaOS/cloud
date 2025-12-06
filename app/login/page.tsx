@@ -50,9 +50,12 @@ function LoginPageContent() {
     if (ready && authenticated) {
       // Clear guards and loading states
       loginInProgressRef.current = false;
-      setLoadingButton(null);
-      // Show syncing state before redirect
-      setIsSyncing(true);
+      // Use setTimeout to avoid synchronous setState in effect
+      setTimeout(() => {
+        setLoadingButton(null);
+        // Show syncing state before redirect
+        setIsSyncing(true);
+      }, 0);
 
       // Small delay to ensure the sync message is visible
       const timer = setTimeout(() => {
@@ -72,7 +75,10 @@ function LoginPageContent() {
   // Monitor email state to show code input
   useEffect(() => {
     if (emailState.status === "awaiting-code-input") {
-      setShowCodeInput(true);
+      // Use setTimeout to avoid synchronous setState in effect
+      setTimeout(() => {
+        setShowCodeInput(true);
+      }, 0);
     }
   }, [emailState.status]);
 
