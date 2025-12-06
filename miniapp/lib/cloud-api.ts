@@ -8,26 +8,26 @@
  * separation from the main app. Never import types from the parent app.
  */
 
-import { getAuthToken } from "./use-auth";
 import type {
   Agent,
   AgentDetails,
-  MessageExampleConversation,
+  AppBilling,
+  Billing,
   Chat,
+  CreditPack,
   Message,
   MessageAttachment,
-  User,
+  MessageExampleConversation,
   Organization,
-  Billing,
-  AppBilling,
-  CreditPack,
-  UsageSummary,
-  Transaction,
   Pagination,
-  StreamCallbacks,
   ReferralInfo,
   RewardsStatus,
+  StreamCallbacks,
+  Transaction,
+  UsageSummary,
+  User,
 } from "./types";
+import { getAuthToken } from "./use-auth";
 
 const API_BASE = "/api/proxy";
 
@@ -509,18 +509,18 @@ export async function qualifyReferral(): Promise<{ success: boolean; qualified: 
 export type {
   Agent,
   AgentDetails,
-  Billing,
   AppBilling,
+  Billing,
   Chat,
   CreditPack,
   Message,
   MessageAttachment,
   Organization,
   Pagination,
+  ReferralInfo,
+  RewardsStatus,
   StreamCallbacks,
   Transaction,
   UsageSummary,
   User,
-  ReferralInfo,
-  RewardsStatus,
 } from "./types";

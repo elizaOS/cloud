@@ -9,7 +9,7 @@ export default function Hero() {
     <div className="flex w-full flex-col items-start gap-4 lg:w-auto lg:flex-1 lg:justify-center lg:sticky lg:top-20">
       <div>
         <h1 className="text-2xl leading-[1.15] font-black text-balance text-white sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl">
-          <span className="relative inline-block bg-pink-500 px-2 py-0.5 text-white shadow-lg sm:px-3 sm:py-1">
+          <span className="relative inline-block bg-brand px-2 py-0.5 text-white shadow-lg sm:px-3 sm:py-1">
             {siteConfig.hero.headline}
           </span>{" "}
           {siteConfig.hero.subheadline}
