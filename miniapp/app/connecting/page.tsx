@@ -16,12 +16,12 @@ function ConnectingContent() {
   const sessionId = searchParams.get("sessionId");
 
   const steps = [
-    { icon: Sparkles, text: "Analyzing your preferences", color: "text-pink-400" },
+    { icon: Sparkles, text: "Analyzing your preferences", color: "text-brand-400" },
     { icon: Heart, text: "Creating your perfect companion", color: "text-fuchsia-400" },
     {
       icon: MessageCircle,
       text: "Finalizing everything for you",
-      color: "text-purple-400",
+      color: "text-accent-brand-400",
     },
   ];
 
@@ -76,7 +76,7 @@ function ConnectingContent() {
       {/* Ambient background effects */}
       <div className="absolute inset-0 overflow-hidden">
         {/* Gradient orbs */}
-        <div className="absolute top-1/4 left-1/4 size-96 animate-pulse rounded-full bg-pink-500/10 blur-3xl" />
+        <div className="absolute top-1/4 left-1/4 size-96 animate-pulse rounded-full bg-brand/10 blur-3xl" />
         <div className="absolute right-1/4 bottom-1/4 size-96 animate-pulse rounded-full bg-fuchsia-500/10 blur-3xl delay-1000" />
 
         {/* Floating hearts */}
@@ -89,7 +89,7 @@ function ConnectingContent() {
               left: `${heart.left}%`,
             }}
           >
-            <Heart className="size-6 fill-pink-500/30 text-pink-500/50" />
+            <Heart className="size-6 fill-brand/30 text-brand/50" />
           </div>
         ))}
       </div>
@@ -105,9 +105,9 @@ function ConnectingContent() {
             <div className="flex justify-center">
               <div className="relative">
                 {/* Pulsing ring */}
-                <div className="absolute inset-0 animate-ping rounded-full bg-pink-500/20" />
+                <div className="absolute inset-0 animate-ping rounded-full bg-brand/20" />
                 {/* Main icon container */}
-                <div className="relative flex size-20 items-center justify-center rounded-full bg-gradient-to-b from-pink-500 to-pink-600 shadow-lg shadow-pink-500/30">
+                <div className="relative flex size-20 items-center justify-center rounded-full bg-gradient-to-b from-brand to-brand-600 shadow-lg shadow-brand/30">
                   <Zap
                     className="size-10 animate-pulse text-white"
                     fill="white"
@@ -144,14 +144,14 @@ function ConnectingContent() {
                     <div
                       className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
                         isComplete
-                          ? "bg-pink-500/20"
+                          ? "bg-brand/20"
                           : isActive
-                            ? "bg-pink-500/10"
+                            ? "bg-brand/10"
                             : "bg-white/5"
                       }`}
                     >
                       {isComplete ? (
-                        <div className="flex size-4 items-center justify-center rounded-full bg-pink-500">
+                        <div className="flex size-4 items-center justify-center rounded-full bg-brand">
                           <svg
                             className="size-3 text-white"
                             fill="none"
@@ -188,7 +188,7 @@ function ConnectingContent() {
 
                     {/* Loading spinner for active step */}
                     {isActive && !isComplete && (
-                      <div className="mt-1 size-4 shrink-0 animate-spin rounded-full border-2 border-pink-500/30 border-t-pink-500" />
+                      <div className="mt-1 size-4 shrink-0 animate-spin rounded-full border-2 border-brand/30 border-t-brand" />
                     )}
                   </div>
                 );
@@ -230,7 +230,7 @@ export default function ConnectingPage() {
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center bg-[#050109]">
-          <div className="size-8 animate-spin rounded-full border-2 border-pink-500/30 border-t-pink-500" />
+          <div className="size-8 animate-spin rounded-full border-2 border-brand/30 border-t-brand" />
         </div>
       }
     >

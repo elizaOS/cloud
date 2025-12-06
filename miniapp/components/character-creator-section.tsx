@@ -477,7 +477,7 @@ function CharacterCreatorSection() {
                   value={name}
                   onChange={(e) => updateFormState({ name: e.target.value })}
                   placeholder="Enter your character's name"
-                  className="h-10 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white placeholder-white/30 backdrop-blur-sm transition-colors hover:border-white/20 focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/20 focus:outline-hidden"
+                  className="h-10 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white placeholder-white/30 backdrop-blur-sm transition-colors hover:border-white/20 focus:border-brand/50 focus:ring-1 focus:ring-brand/20 focus:outline-hidden"
                   required
                 />
             </div>
@@ -510,7 +510,7 @@ function CharacterCreatorSection() {
                   placeholder="What are they like?"
                   rows={3}
                   maxLength={1000}
-                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 backdrop-blur-sm transition-colors hover:border-white/20 focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/20 focus:outline-hidden resize-none"
+                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 backdrop-blur-sm transition-colors hover:border-white/20 focus:border-brand/50 focus:ring-1 focus:ring-brand/20 focus:outline-hidden resize-none"
                 />
             </div>
 
@@ -527,7 +527,7 @@ function CharacterCreatorSection() {
                   }}
                   className={`px-3 py-1.5 text-sm font-medium transition-colors ${
                     imageTab === "generate"
-                      ? "text-white border-b-2 border-pink-500"
+                      ? "text-white border-b-2 border-brand"
                       : "text-white/50 hover:text-white/70"
                   }`}
                 >
@@ -538,7 +538,7 @@ function CharacterCreatorSection() {
                   onClick={() => updateFormState({ imageTab: "upload" })}
                   className={`px-3 py-1.5 text-sm font-medium transition-colors ${
                     imageTab === "upload"
-                      ? "text-white border-b-2 border-pink-500"
+                      ? "text-white border-b-2 border-brand"
                       : "text-white/50 hover:text-white/70"
                   }`}
                 >
@@ -597,7 +597,7 @@ function CharacterCreatorSection() {
                             value={imagePrompt}
                             onChange={(e) => updateFormState({ imagePrompt: e.target.value })}
                             placeholder="Describe how they look..."
-                            className="flex-1 w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-white/30 backdrop-blur-sm transition-colors hover:border-white/20 focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/20 focus:outline-hidden resize-none"
+                            className="flex-1 w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-white/30 backdrop-blur-sm transition-colors hover:border-white/20 focus:border-brand/50 focus:ring-1 focus:ring-brand/20 focus:outline-hidden resize-none"
                           />
                         </div>
                         {/* Generate button below */}
@@ -697,7 +697,7 @@ function CharacterCreatorSection() {
                   value={backstory}
                   onChange={(e) => updateFormState({ backstory: e.target.value })}
                   placeholder="Met in college, always joked about running away together."
-                  className="h-10 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white placeholder-white/30 backdrop-blur-sm transition-colors hover:border-white/20 focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/20 focus:outline-hidden"
+                  className="h-10 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white placeholder-white/30 backdrop-blur-sm transition-colors hover:border-white/20 focus:border-brand/50 focus:ring-1 focus:ring-brand/20 focus:outline-hidden"
                 />
             </div>
 
@@ -718,7 +718,7 @@ function CharacterCreatorSection() {
                     !backstory.trim()
                   }
                   size="lg"
-                  className="h-11 w-full bg-gradient-to-b from-pink-500 to-pink-600 text-base font-semibold shadow-lg hover:from-pink-400 hover:to-pink-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="h-11 w-full bg-gradient-to-b from-brand to-brand-600 text-base font-semibold shadow-lg hover:from-brand-400 hover:to-brand disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isUploadingImages
                     ? "Uploading..."

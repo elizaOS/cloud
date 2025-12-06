@@ -15,7 +15,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { AuthUser, AuthState } from "./types";
+
+import type { AuthState,AuthUser } from "./types";
 
 const CLOUD_URL = process.env.NEXT_PUBLIC_ELIZA_CLOUD_URL || "http://localhost:3000";
 const AUTH_TOKEN_KEY = "miniapp_auth_token";
