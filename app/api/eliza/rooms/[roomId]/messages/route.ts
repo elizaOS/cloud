@@ -236,7 +236,6 @@ export async function POST(
     characterId,
   );
 
-  // Note: SendMessageResult has `result` (not `processing`) containing MessageProcessingResult
   const responseContent = result.result?.responseContent;
 
   logger.debug(`[Eliza Messages API] Message sent`, {
