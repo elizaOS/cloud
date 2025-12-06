@@ -23,7 +23,6 @@ import { anonymousSessionsService } from "@/lib/services";
 import { discordService } from "@/lib/services/discord";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
-import { generateRoomTitle } from "@/lib/ai/generate-room-title";
 import type { AgentModeConfig } from "./agent-mode-types";
 import { DEFAULT_AGENT_MODE } from "./agent-mode-types";
 
@@ -229,13 +228,16 @@ export class MessageHandler {
       });
     }
 
-    // 7. Fire-and-forget side effects (Discord, room title generation)
-    this.handleSideEffects(
+    // 7. Fire-and-forget side effects (Discord integration)
+    // Note: Room title generation now handled by roomTitleEvaluator
+    this.sendToDiscordThread(
       roomId,
       text,
       responseContent?.text || "",
       options.characterId,
-    );
+    ).catch((err) => {
+      logger.error("[MessageHandler] Failed to send to Discord:", err);
+    });
 
     elizaLogger.success(
       `[MessageHandler] Message processed successfully for user ${this.userContext.userId}`,
@@ -319,7 +321,7 @@ export class MessageHandler {
 
     // Step 3: Ensure room exists with proper fields
     // Room must have worldId + serverId or queries will fail
-    await this.ensureRoomExistsWithFields(roomUuid, worldId, serverId, displayName);
+    await this.ensureRoomExistsWithFields(roomUuid, worldId, serverId);
 
     // Step 4: Ensure user entity exists or update it
     // This is where we set the critical names array
@@ -379,7 +381,6 @@ export class MessageHandler {
     roomId: UUID,
     worldId: UUID,
     serverId: UUID,
-    displayName: string,
   ): Promise<void> {
     try {
       // Check if room already exists to avoid duplicate creation
@@ -392,14 +393,12 @@ export class MessageHandler {
             ...existingRoom,
             worldId,
             serverId,
-            name: displayName || existingRoom.name,
           });
         }
       } else {
         // Room doesn't exist - create it
         await this.runtime.ensureRoomExists({
           id: roomId,
-          name: displayName,
           type: ChannelType.DM,
           channelId: roomId,
           worldId: worldId,
@@ -727,32 +726,6 @@ export class MessageHandler {
   }
 
   /**
-   * Handle side effects (fire-and-forget)
-   * Includes Discord integration and room title generation
-   */
-  private handleSideEffects(
-    roomId: string,
-    userText: string,
-    agentResponse: string,
-    characterId?: string,
-  ): void {
-    // Send to Discord thread (if configured)
-    this.sendToDiscordThread(
-      roomId,
-      userText,
-      agentResponse,
-      characterId,
-    ).catch((err) => {
-      logger.error("[MessageHandler] Failed to send to Discord:", err);
-    });
-
-    // Generate room title (if needed)
-    this.generateRoomTitleIfNeeded(roomId, userText).catch((err) => {
-      logger.error("[MessageHandler] Failed to generate room title:", err);
-    });
-  }
-
-  /**
    * Send messages to Discord thread if configured
    */
   private async sendToDiscordThread(
@@ -804,90 +777,6 @@ export class MessageHandler {
     }
   }
 
-  /**
-   * Generate room title after 2 rounds of conversation (4+ messages)
-   * This ensures we have enough context to generate a meaningful title
-   */
-  private async generateRoomTitleIfNeeded(
-    roomId: string,
-    userText: string,
-  ): Promise<void> {
-    try {
-      // Check if room already has a title
-      const roomCheck = await db.execute<{ name: string | null }>(
-        sql`SELECT name FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`,
-      );
-
-      const currentRoomName = roomCheck.rows[0]?.name;
-
-      // Only generate title if room doesn't have one yet
-      if (!currentRoomName) {
-        // Count messages in this room to check if we have 2 rounds (4+ messages)
-        const messageCount = await db.execute<{ count: string }>(
-          sql`SELECT COUNT(*)::text as count FROM memories WHERE "roomId" = ${roomId}::uuid AND type = 'messages'`,
-        );
-
-        const count = parseInt(messageCount.rows[0]?.count || "0", 10);
-
-        // Only generate title after 2 rounds of back and forth (4+ messages)
-        // This gives us user1, agent1, user2, agent2 - enough context
-        if (count >= 4) {
-          logger.debug(
-            `[MessageHandler] Room has ${count} messages and no title, generating...`,
-          );
-
-          // Get first few messages for context
-          const recentMessages = await db.execute<{ content: string }>(
-            sql`SELECT content FROM memories 
-                WHERE "roomId" = ${roomId}::uuid AND type = 'messages' 
-                ORDER BY "createdAt" ASC LIMIT 4`,
-          );
-
-          // Combine user messages for better context
-          const context = recentMessages.rows
-            .map((m) => {
-              const content = m.content;
-              if (typeof content === "string") return content;
-              if (
-                typeof content === "object" &&
-                content !== null &&
-                "text" in content
-              ) {
-                const text = (content as { text: unknown }).text;
-                if (typeof text === "string") {
-                  return text;
-                }
-              }
-              return "";
-            })
-            .filter(Boolean)
-            .join(" | ");
-
-          // Generate title from the conversation context
-          const title = await generateRoomTitle(context || userText);
-
-          // Update room with the generated title
-          await db.execute(
-            sql`UPDATE rooms SET name = ${title} WHERE id = ${roomId}::uuid`,
-          );
-
-          logger.info(
-            `[MessageHandler] Generated and saved room title: ${title}`,
-          );
-        } else {
-          logger.debug(
-            `[MessageHandler] Room has ${count} messages, waiting for 4+ to generate title`,
-          );
-        }
-      }
-    } catch (err) {
-      // Non-critical error, don't interrupt the message flow
-      logger.debug(
-        "[MessageHandler] Room title generation not available:",
-        err,
-      );
-    }
-  }
 }
 
 // Export convenience function for creating a message handler

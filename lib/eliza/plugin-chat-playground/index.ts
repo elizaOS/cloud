@@ -6,6 +6,7 @@ import {
 } from "@elizaos/core";
 import { characterProvider } from "./providers/character";
 import { handleMessage } from "./handler";
+import { roomTitleEvaluator } from "../shared/evaluators";
 import type { IAgentRuntime, Memory, HandlerCallback } from "@elizaos/core";
 
 /**
@@ -83,6 +84,7 @@ export const chatPlaygroundPlugin: Plugin = {
   events,
   providers: [characterProvider],
   actions: [],
+  evaluators: [roomTitleEvaluator],
   services: [],
 };
 

@@ -14,6 +14,7 @@ import { generateImageAction } from "./actions/image-generation";
 import { affiliateContextProvider } from "./providers/affiliate-context";
 import { currentRunContextProvider } from "./providers/current-run-context";
 import { handleMessage } from "./handler";
+import { roomTitleEvaluator } from "../shared/evaluators";
 
 /**
  * Message handler parameters
@@ -94,6 +95,7 @@ export const assistantPlugin: Plugin = {
     currentRunContextProvider,
   ],
   actions: [generateImageAction],
+  evaluators: [roomTitleEvaluator],
   services: [],
 };
 
