@@ -5,10 +5,7 @@ import type {
   Provider,
   State,
 } from "@elizaos/core";
-import {
-  addHeader,
-  formatActions,
-} from "@elizaos/core";
+import { addHeader, formatActions } from "@elizaos/core";
 
 /**
  * A provider object that fetches possible response actions based on the provided runtime, message, and state.

@@ -76,6 +76,21 @@ export async function uploadBase64Image(
 }
 
 /**
+ * Check if a URL is from Fal.ai CDN (should be proxied through our storage)
+ */
+export function isFalAiUrl(url: string): boolean {
+  try {
+    const urlObj = new URL(url);
+    return (
+      urlObj.hostname.includes("fal.media") ||
+      urlObj.hostname.includes("fal.ai")
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Download content from a URL and upload to Vercel Blob
  */
 export async function uploadFromUrl(
@@ -95,6 +110,41 @@ export async function uploadFromUrl(
     ...options,
     contentType,
   });
+}
+
+/**
+ * Ensure a URL is from our storage, not Fal.ai.
+ * If the URL is from Fal.ai, download and upload it to our storage.
+ * Returns our storage URL or the original URL if it's already ours or upload fails.
+ */
+export async function ensureElizaCloudUrl(
+  sourceUrl: string,
+  options: BlobUploadOptions & { fallbackToOriginal?: boolean },
+): Promise<string> {
+  // If it's not a Fal.ai URL, return as-is
+  if (!isFalAiUrl(sourceUrl)) {
+    return sourceUrl;
+  }
+
+  // It's a Fal.ai URL - download and upload to our storage
+  try {
+    const result = await uploadFromUrl(sourceUrl, options);
+    return result.url;
+  } catch (error) {
+    console.error(
+      "[ensureElizaCloudUrl] Failed to upload Fal.ai URL to our storage:",
+      error,
+    );
+
+    // If fallback is allowed, return original URL
+    if (options.fallbackToOriginal !== false) {
+      console.warn("[ensureElizaCloudUrl] Falling back to original Fal.ai URL");
+      return sourceUrl;
+    }
+
+    // Otherwise, throw the error
+    throw error;
+  }
 }
 
 /**

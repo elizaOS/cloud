@@ -56,7 +56,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
 
     if (session.payment_status !== "paid") {
       logger.warn(
-        `[BillingSuccess] Session ${sessionId} not paid: ${session.payment_status}`
+        `[BillingSuccess] Session ${sessionId} not paid: ${session.payment_status}`,
       );
       return {
         success: false,
@@ -105,7 +105,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
 
     // Add credits (with built-in idempotency)
     logger.debug(
-      `[BillingSuccess] Adding ${credits} credits to org ${organizationId}`
+      `[BillingSuccess] Adding ${credits} credits to org ${organizationId}`,
     );
 
     await creditsService.addCredits({
@@ -123,13 +123,13 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
     });
 
     logger.info(
-      `[BillingSuccess] Credits added for session ${sessionId} (fallback)`
+      `[BillingSuccess] Credits added for session ${sessionId} (fallback)`,
     );
 
     // Create invoice record
     try {
       const existingInvoice = await invoicesService.getByStripeInvoiceId(
-        `cs_${sessionId}`
+        `cs_${sessionId}`,
       );
 
       if (!existingInvoice) {
@@ -160,14 +160,14 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
         });
 
         logger.debug(
-          `[BillingSuccess] Invoice created for session ${sessionId}`
+          `[BillingSuccess] Invoice created for session ${sessionId}`,
         );
       }
     } catch (invoiceError) {
       // Non-critical - credits were added successfully
       logger.error(
         "[BillingSuccess] Invoice creation error (non-critical)",
-        invoiceError
+        invoiceError,
       );
     }
 

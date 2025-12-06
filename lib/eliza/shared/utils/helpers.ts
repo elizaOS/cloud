@@ -255,7 +255,9 @@ export async function executeActions(
   );
 
   // Refresh state to get action results
-  const actionState = await runtime.composeState(message, ["CURRENT_RUN_CONTEXT"]);
+  const actionState = await runtime.composeState(message, [
+    "CURRENT_RUN_CONTEXT",
+  ]);
   return { ...currentState, ...actionState };
 }
 

@@ -71,11 +71,15 @@ async function uploadSingleImage(
       return result.url;
     } else if (isValidHttpUrl(imageData)) {
       if (isVercelBlobUrl(imageData)) {
-        logger.debug(`[AffiliateImages] URL image ${index} already on Vercel Blob`);
+        logger.debug(
+          `[AffiliateImages] URL image ${index} already on Vercel Blob`,
+        );
         return imageData;
       }
 
-      logger.info(`[AffiliateImages] Re-uploading external URL ${index} to blob storage`);
+      logger.info(
+        `[AffiliateImages] Re-uploading external URL ${index} to blob storage`,
+      );
       const result = await uploadWithTimeout(
         uploadFromUrl(imageData, {
           filename,
@@ -156,8 +160,7 @@ export async function processAffiliateImages(
   }
 
   const uniqueImages = allImages.filter(
-    (img, index, self) =>
-      index === self.findIndex((i) => i.data === img.data),
+    (img, index, self) => index === self.findIndex((i) => i.data === img.data),
   );
 
   const imagesToProcess = uniqueImages.slice(0, MAX_IMAGES);
@@ -209,7 +212,9 @@ export async function processAffiliateImages(
   }
 
   logger.info("[AffiliateImages] Processing complete", {
-    avatarUrl: result.avatarUrl ? result.avatarUrl.substring(0, 60) + "..." : null,
+    avatarUrl: result.avatarUrl
+      ? result.avatarUrl.substring(0, 60) + "..."
+      : null,
     referenceCount: result.referenceImageUrls.length,
     failedCount: result.failedUploads,
   });

@@ -46,12 +46,17 @@ export function BuildPageClient({
     }));
 
     setAvailableCharacters(characters);
-    
+
     // Set selected character from URL if provided
     if (initialCharacterId) {
       setSelectedCharacterId(initialCharacterId);
     }
-  }, [initialCharacters, initialCharacterId, setAvailableCharacters, setSelectedCharacterId]);
+  }, [
+    initialCharacters,
+    initialCharacterId,
+    setAvailableCharacters,
+    setSelectedCharacterId,
+  ]);
 
   // Initialize anonymous session for unauthenticated users
   useEffect(() => {

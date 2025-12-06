@@ -1,7 +1,7 @@
 "use client";
 
 import { type ApiEndpoint } from "@/lib/swagger/endpoint-discovery";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Coins, Sparkles } from "lucide-react";
 import { BrandCard } from "@/components/brand";
 
 interface EndpointCardProps {
@@ -9,6 +9,22 @@ interface EndpointCardProps {
   onSelect: (endpoint: ApiEndpoint) => void;
   getMethodColor: (method: string) => string;
   getCategoryIcon: (category: string) => React.ReactNode;
+}
+
+function formatPrice(pricing: ApiEndpoint["pricing"]) {
+  if (!pricing) return null;
+  if (pricing.isFree) return "Free";
+  if (pricing.isVariable && pricing.estimatedRange) {
+    return `$${pricing.estimatedRange.min.toFixed(3)} - $${pricing.estimatedRange.max.toFixed(2)}`;
+  }
+  return `$${pricing.cost.toFixed(pricing.cost < 0.01 ? 4 : 2)}`;
+}
+
+function getPricingTextStyle(pricing: ApiEndpoint["pricing"]) {
+  if (!pricing) return "text-white/50";
+  if (pricing.isFree) return "text-emerald-400";
+  if (pricing.isVariable) return "text-amber-400";
+  return "text-[#FF5800]";
 }
 
 export function EndpointCard({
@@ -66,6 +82,34 @@ export function EndpointCard({
           </code>
         </div>
 
+        {/* Pricing */}
+        {endpoint.pricing && (
+          <div className="flex items-center gap-2">
+            <div
+              className={`flex items-center gap-1.5 ${getPricingTextStyle(endpoint.pricing)}`}
+            >
+              {endpoint.pricing.isFree ? (
+                <Sparkles className="h-3.5 w-3.5" />
+              ) : (
+                <Coins className="h-3.5 w-3.5" />
+              )}
+              <span className="text-xs font-semibold">
+                {formatPrice(endpoint.pricing)}
+              </span>
+              {!endpoint.pricing.isFree && (
+                <span className="text-[10px] opacity-70">
+                  /{endpoint.pricing.unit}
+                </span>
+              )}
+            </div>
+            {endpoint.pricing.isVariable && !endpoint.pricing.isFree && (
+              <span className="text-[10px] text-white/40 italic">
+                varies by usage
+              </span>
+            )}
+          </div>
+        )}
+
         <div className="flex items-center justify-between border-t border-white/5 pt-4 mt-4">
           <div className="flex gap-4 text-xs text-white/40 font-mono">
             <span>{paramCount} params</span>
@@ -75,7 +119,7 @@ export function EndpointCard({
               </span>
             )}
           </div>
-          
+
           {endpoint.tags.length > 0 && (
             <div className="flex gap-1.5">
               {endpoint.tags.slice(0, 2).map((tag) => (

@@ -54,26 +54,6 @@ export default function Installation() {
 
         {/* Terminal command section */}
         <div className="max-w-4xl mx-auto mb-4 px-4">
-          {/* Tabs */}
-          <div className="flex gap-0 mb-4">
-            <button
-              onClick={() => setActiveTab("macos")}
-              className={`brand-tab text-xs sm:text-sm ${
-                activeTab === "macos" ? "brand-tab-active" : ""
-              }`}
-            >
-              MACOS / LINUX
-            </button>
-            <button
-              onClick={() => setActiveTab("windows")}
-              className={`brand-tab text-xs sm:text-sm ${
-                activeTab === "windows" ? "brand-tab-active" : ""
-              }`}
-            >
-              WINDOWS
-            </button>
-          </div>
-
           {/* Command display */}
           <div className="bg-white text-black p-4 md:p-6 flex items-center justify-between gap-2 md:gap-4 border border-white/10">
             <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">

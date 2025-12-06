@@ -1,10 +1,13 @@
 "use client";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import { isDiceBearAvatar } from "@/lib/utils/default-avatar";
+import {
+  isBuiltInAvatar,
+  ensureAvatarUrl,
+  DEFAULT_AVATAR,
+} from "@/lib/utils/default-avatar";
 
 interface ElizaAvatarProps {
   avatarUrl?: string;
@@ -17,14 +20,14 @@ interface ElizaAvatarProps {
 
 /**
  * Reusable Eliza avatar component with consistent fallback behavior.
- * Shows custom avatar if provided, otherwise shows Bot icon with gradient background.
+ * Shows custom avatar if provided, otherwise shows the default Eliza avatar.
  *
  * @param avatarUrl - Optional custom avatar URL
  * @param name - Optional name for alt text
  * @param className - Additional classes for the Avatar wrapper
  * @param fallbackClassName - Additional classes for the AvatarFallback
- * @param iconClassName - Additional classes for the Bot icon
- * @param animate - Whether to animate the avatar/icon with pulse
+ * @param iconClassName - Additional classes for the avatar image
+ * @param animate - Whether to animate the avatar with pulse
  */
 export function ElizaAvatar({
   avatarUrl,
@@ -34,34 +37,30 @@ export function ElizaAvatar({
   iconClassName,
   animate = false,
 }: ElizaAvatarProps) {
+  // Always ensure we have an avatar URL - use Eliza as fallback
+  const resolvedAvatarUrl = ensureAvatarUrl(avatarUrl);
+
   return (
     <Avatar className={cn(className)}>
-      {avatarUrl ? (
-        <Image
-          src={avatarUrl}
-          alt={name}
-          fill
-          className={cn(
-            "object-cover",
-            animate ? "animate-pulse" : "",
-          )}
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          unoptimized={isDiceBearAvatar(avatarUrl)}
-        />
-      ) : null}
+      <Image
+        src={resolvedAvatarUrl}
+        alt={name}
+        fill
+        className={cn(
+          "object-cover",
+          animate ? "animate-pulse" : "",
+          iconClassName,
+        )}
+        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+        unoptimized={!isBuiltInAvatar(resolvedAvatarUrl)}
+      />
       <AvatarFallback
         className={cn(
           "bg-gradient-to-br from-purple-500 to-blue-600",
           fallbackClassName,
         )}
       >
-        <Bot
-          className={cn(
-            "text-white",
-            iconClassName,
-            animate && "animate-pulse",
-          )}
-        />
+        <Image src={DEFAULT_AVATAR} alt="Eliza" fill className="object-cover" />
       </AvatarFallback>
     </Avatar>
   );

@@ -1,7 +1,7 @@
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { charactersService, anonymousSessionsService } from "@/lib/services";
 import { getCurrentUser } from "@/lib/auth";
-import { CharacterIntroPageWrapper } from "@/components/chat/character-intro-page-wrapper";
+import { getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
 import { ChatInterface } from "@/components/chat/chat-interface";
 import { logger } from "@/lib/utils/logger";
 import { resolveCharacterTheme } from "@/lib/config/affiliate-themes";
@@ -14,7 +14,6 @@ interface ChatPageProps {
     source?: string;
     session?: string;
     vibe?: string;
-    intro?: string;
   }>;
 }
 
@@ -23,7 +22,7 @@ export default async function ChatPage({
   searchParams,
 }: ChatPageProps) {
   const { characterId } = await params;
-  const { source, session: sessionId, vibe, intro } = await searchParams;
+  const { source, session: sessionId } = await searchParams;
 
   // 1. Load character from database
   const character = await charactersService.getById(characterId);
@@ -46,48 +45,66 @@ export default async function ChatPage({
   // 3. Check authentication status
   const user = await getCurrentUser();
 
-  // 4. DECISION TREE: Show intro page or chat interface?
+  // 4. DECISION TREE: Jump directly to chat
 
-  // Case A: First-time visitor (no user, no session) OR explicitly requested intro
-  if ((!user && !sessionId) || intro === "true") {
-    logger.info(
-      `[Chat Page] Showing intro page for character ${characterId} with theme ${theme.id}`,
-    );
+  // Case A: Anonymous user - create session if needed and show chat
+  if (!user) {
+    // First check for URL-based session (for backward compatibility with affiliate links)
+    const anonSession = sessionId
+      ? await anonymousSessionsService.getByToken(sessionId)
+      : null;
 
-    return (
-      <CharacterIntroPageWrapper
-        character={character}
-        characterId={characterId}
-        source={source}
-        theme={theme}
-        existingSessionId={sessionId}
-        isAuthenticated={!!user}
-      />
-    );
-  }
+    // If URL session is valid, use it
+    if (anonSession && anonSession.expires_at >= new Date()) {
+      const messagesRemaining =
+        anonSession.messages_limit - anonSession.message_count;
+      const shouldShowSignupPrompt = anonSession.message_count >= 1; // Show after first message
 
-  // Case B: Anonymous user with session token
-  if (!user && sessionId) {
-    const anonSession = await anonymousSessionsService.getByToken(sessionId);
+      logger.info(
+        `[Chat Page] Anonymous session from URL: ${sessionId} with theme ${theme.id}`,
+        {
+          messageCount: anonSession.message_count,
+          messagesRemaining,
+        },
+      );
 
-    if (!anonSession) {
-      logger.warn(`[Chat Page] Invalid session token: ${sessionId}`);
-      redirect(`/chat/${characterId}?intro=true&source=${source || "direct"}`);
+      return (
+        <ChatInterface
+          character={character}
+          session={{
+            id: anonSession.id,
+            token: anonSession.session_token,
+            userId: anonSession.user_id,
+            messageCount: anonSession.message_count,
+            messagesLimit: anonSession.messages_limit,
+            messagesRemaining,
+          }}
+          showSignupPrompt={shouldShowSignupPrompt}
+          source={source}
+          sessionTokenFromUrl={anonSession.session_token}
+          theme={theme}
+        />
+      );
     }
 
-    if (anonSession.expires_at < new Date()) {
-      logger.warn(`[Chat Page] Expired session: ${sessionId}`);
-      redirect(`/chat/${characterId}?intro=true&source=${source || "direct"}`);
+    // Otherwise, use cookie-based session (creates one if needed)
+    const { user: anonUser, session: cookieSession } =
+      await getOrCreateAnonymousUser();
+
+    if (!cookieSession) {
+      logger.error(`[Chat Page] Failed to create anonymous session`);
+      notFound();
     }
 
     const messagesRemaining =
-      anonSession.messages_limit - anonSession.message_count;
-    const shouldShowSignupPrompt = anonSession.message_count >= 5;
+      cookieSession.messages_limit - cookieSession.message_count;
+    const shouldShowSignupPrompt = cookieSession.message_count >= 1; // Show after first message
 
     logger.info(
-      `[Chat Page] Anonymous session: ${sessionId} with theme ${theme.id}`,
+      `[Chat Page] Anonymous session from cookie with theme ${theme.id}`,
       {
-        messageCount: anonSession.message_count,
+        userId: anonUser.id,
+        messageCount: cookieSession.message_count,
         messagesRemaining,
       },
     );
@@ -96,16 +113,16 @@ export default async function ChatPage({
       <ChatInterface
         character={character}
         session={{
-          id: anonSession.id,
-          token: sessionId,
-          userId: anonSession.user_id,
-          messageCount: anonSession.message_count,
-          messagesLimit: anonSession.messages_limit,
+          id: cookieSession.id,
+          token: cookieSession.session_token,
+          userId: cookieSession.user_id,
+          messageCount: cookieSession.message_count,
+          messagesLimit: cookieSession.messages_limit,
           messagesRemaining,
         }}
         showSignupPrompt={shouldShowSignupPrompt}
         source={source}
-        sessionTokenFromUrl={sessionId}
+        sessionTokenFromUrl={cookieSession.session_token}
         theme={theme}
       />
     );
@@ -119,20 +136,26 @@ export default async function ChatPage({
   // CRITICAL: If authenticated user has a session token in URL, migrate the anonymous session data
   // This handles the case where user was already authenticated when redirected from affiliate
   if (sessionId && user!.privy_user_id) {
-    logger.info(`[Chat Page] Authenticated user with session token - triggering server-side migration`, {
-      sessionId,
-      userId: user!.id,
-      privyUserId: user!.privy_user_id,
-    });
+    logger.info(
+      `[Chat Page] Authenticated user with session token - triggering server-side migration`,
+      {
+        sessionId,
+        userId: user!.id,
+        privyUserId: user!.privy_user_id,
+      },
+    );
 
     try {
       const anonSession = await anonymousSessionsService.getByToken(sessionId);
 
       if (anonSession && !anonSession.converted_at) {
-        logger.info(`[Chat Page] Found unconverted anonymous session, migrating...`, {
-          sessionId: anonSession.id,
-          anonymousUserId: anonSession.user_id,
-        });
+        logger.info(
+          `[Chat Page] Found unconverted anonymous session, migrating...`,
+          {
+            sessionId: anonSession.id,
+            anonymousUserId: anonSession.user_id,
+          },
+        );
 
         const { convertAnonymousToReal } = await import("@/lib/auth-anonymous");
         await convertAnonymousToReal(anonSession.user_id, user!.privy_user_id);
@@ -141,7 +164,9 @@ export default async function ChatPage({
       } else if (anonSession?.converted_at) {
         logger.info(`[Chat Page] Session already converted`, { sessionId });
       } else {
-        logger.warn(`[Chat Page] Session not found for token`, { sessionId: sessionId.slice(0, 8) + "..." });
+        logger.warn(`[Chat Page] Session not found for token`, {
+          sessionId: sessionId.slice(0, 8) + "...",
+        });
       }
     } catch (error) {
       logger.error(`[Chat Page] Migration failed:`, error);
@@ -152,23 +177,29 @@ export default async function ChatPage({
   // If this is an affiliate-created character owned by an anonymous user,
   // automatically transfer ownership to the authenticated user
   if (user!.organization_id) {
-    const claimCheck = await charactersService.isClaimableAffiliateCharacter(characterId);
+    const claimCheck =
+      await charactersService.isClaimableAffiliateCharacter(characterId);
 
     if (claimCheck.claimable) {
-      logger.info(`[Chat Page] 🎯 Detected claimable affiliate character, initiating transfer...`, {
-        characterId,
-        userId: user!.id,
-        previousOwnerId: claimCheck.ownerId,
-      });
+      logger.info(
+        `[Chat Page] 🎯 Detected claimable affiliate character, initiating transfer...`,
+        {
+          characterId,
+          userId: user!.id,
+          previousOwnerId: claimCheck.ownerId,
+        },
+      );
 
       const claimResult = await charactersService.claimAffiliateCharacter(
         characterId,
         user!.id,
-        user!.organization_id
+        user!.organization_id,
       );
 
       if (claimResult.success) {
-        logger.info(`[Chat Page] ✅ Successfully claimed affiliate character: ${characterId}`);
+        logger.info(
+          `[Chat Page] ✅ Successfully claimed affiliate character: ${characterId}`,
+        );
         // Reload the character to get updated ownership
         const updatedCharacter = await charactersService.getById(characterId);
         if (updatedCharacter) {
@@ -186,7 +217,9 @@ export default async function ChatPage({
           );
         }
       } else {
-        logger.warn(`[Chat Page] Failed to claim affiliate character: ${claimResult.message}`);
+        logger.warn(
+          `[Chat Page] Failed to claim affiliate character: ${claimResult.message}`,
+        );
       }
     }
   }

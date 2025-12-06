@@ -116,7 +116,16 @@ function Carousel({
       canScrollPrev,
       canScrollNext,
     }),
-    [carouselRef, api, opts, orientation, scrollPrev, scrollNext, canScrollPrev, canScrollNext],
+    [
+      carouselRef,
+      api,
+      opts,
+      orientation,
+      scrollPrev,
+      scrollNext,
+      canScrollPrev,
+      canScrollNext,
+    ],
   );
 
   return (

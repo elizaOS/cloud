@@ -29,11 +29,8 @@ export function ElizaPageClient({
   const [isLoadingSession, setIsLoadingSession] = useState(!isAuthenticated);
 
   // Initialize store with characters (must be at top level)
-  const {
-    setAvailableCharacters,
-    setRoomId,
-    setSelectedCharacterId,
-  } = useChatStore();
+  const { setAvailableCharacters, setRoomId, setSelectedCharacterId } =
+    useChatStore();
 
   // Note: Page header is now handled by ChatHeader component
   // Remove this if you want to completely disable the old header system for chat

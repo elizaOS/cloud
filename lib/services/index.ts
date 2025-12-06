@@ -1,20 +1,20 @@
 /**
  * Service Layer - Business Logic
- * 
+ *
  * Architecture Overview:
- * 
+ *
  * 1. **Character Services** (lib/services/characters/)
  *    - User-created character definitions (user_characters table)
  *    - Marketplace, templates, CRUD operations
- * 
+ *
  * 2. **Deployment Services** (lib/services/deployments/)
  *    - Character deployment discovery
  *    - Infrastructure lifecycle
- * 
+ *
  * 3. **Agent Services** (lib/services/agents/)
  *    - Runtime agent operations (agents table - ElizaOS)
  *    - Rooms, messages, conversations
- * 
+ *
  * 4. **Core Platform Services** (lib/services/)
  *    - Organizations, users, credits, etc.
  */
@@ -40,10 +40,7 @@ export * from "./analytics";
 // Character Domain Services
 // ============================================
 export * from "./characters";
-export { 
-  charactersService,
-  characterMarketplaceService,
-} from "./characters";
+export { charactersService, characterMarketplaceService } from "./characters";
 
 // ============================================
 // Deployment Domain Services
@@ -70,6 +67,13 @@ export * from "./generations";
 export * from "./conversations";
 export * from "./container-quota";
 export * from "./memory";
+
+// ============================================
+// App Domain Services
+// ============================================
+export { appsService } from "./apps";
+export { appAnalyticsService } from "./app-analytics";
+export { appSignupTrackingService } from "./app-signup-tracking";
 
 // AWS Infrastructure services
 export * from "./ecr";

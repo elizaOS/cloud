@@ -5,6 +5,15 @@
  * for automatic documentation and testing in API Explorer
  */
 
+export interface EndpointPricing {
+  cost: number; // Cost in USD per request
+  unit: "request" | "image" | "video" | "minute" | "1k tokens" | "clone";
+  description?: string;
+  isFree?: boolean;
+  isVariable?: boolean; // True if cost varies based on usage
+  estimatedRange?: { min: number; max: number }; // For variable pricing
+}
+
 export interface EndpointParameter {
   name: string;
   type: "string" | "number" | "boolean" | "object" | "array";
@@ -34,6 +43,7 @@ export interface ApiEndpoint {
   name: string;
   description: string;
   requiresAuth: boolean;
+  pricing?: EndpointPricing;
   parameters?: {
     path?: EndpointParameter[];
     query?: EndpointParameter[];
@@ -63,6 +73,11 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     description:
       "Generate images from text prompts using AI models (supports API key auth)",
     requiresAuth: true,
+    pricing: {
+      cost: 0.01,
+      unit: "image",
+      description: "Per image generated",
+    },
     parameters: {
       body: [
         {
@@ -101,6 +116,11 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     name: "Generate Video",
     description: "Generate videos from text prompts (supports API key auth)",
     requiresAuth: true,
+    pricing: {
+      cost: 0.05,
+      unit: "video",
+      description: "Per video generated",
+    },
     parameters: {
       body: [
         {
@@ -136,6 +156,13 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     description:
       "Generate text completions using Vercel AI SDK format (supports API key auth)",
     requiresAuth: true,
+    pricing: {
+      cost: 0.0025,
+      unit: "1k tokens",
+      description: "Input tokens (output varies by model)",
+      isVariable: true,
+      estimatedRange: { min: 0.001, max: 0.03 },
+    },
     parameters: {
       body: [
         {
@@ -178,6 +205,13 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     description:
       "AI assistant for creating character definitions (session auth only)",
     requiresAuth: true,
+    pricing: {
+      cost: 0.0025,
+      unit: "1k tokens",
+      description: "Input tokens (output varies by model)",
+      isVariable: true,
+      estimatedRange: { min: 0.001, max: 0.03 },
+    },
     parameters: {
       body: [
         {
@@ -219,6 +253,11 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     description:
       "Generate creative prompts for image/video generation (session auth only)",
     requiresAuth: true,
+    pricing: {
+      cost: 0,
+      unit: "request",
+      isFree: true,
+    },
     parameters: {
       body: [
         {
@@ -249,6 +288,11 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     name: "List Models",
     description: "List all available AI models (supports API key auth)",
     requiresAuth: true,
+    pricing: {
+      cost: 0,
+      unit: "request",
+      isFree: true,
+    },
     parameters: {},
     responses: [
       {
@@ -269,6 +313,11 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     description:
       "List all media generations (images and videos) (supports API key auth)",
     requiresAuth: true,
+    pricing: {
+      cost: 0,
+      unit: "request",
+      isFree: true,
+    },
     parameters: {
       query: [
         {
@@ -316,6 +365,11 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     description:
       "Get current user profile and organization details (session auth only - won't work with API key)",
     requiresAuth: true,
+    pricing: {
+      cost: 0,
+      unit: "request",
+      isFree: true,
+    },
     parameters: {},
     responses: [
       {
@@ -336,6 +390,11 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     description:
       "Update user profile information (session auth only - won't work with API key)",
     requiresAuth: true,
+    pricing: {
+      cost: 0,
+      unit: "request",
+      isFree: true,
+    },
     parameters: {
       body: [
         {
@@ -373,6 +432,11 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     description:
       "List all API keys for your organization (session auth only - won't work with API key)",
     requiresAuth: true,
+    pricing: {
+      cost: 0,
+      unit: "request",
+      isFree: true,
+    },
     parameters: {},
     responses: [
       {
@@ -393,6 +457,11 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     description:
       "Create a new API key (session auth only - won't work with API key)",
     requiresAuth: true,
+    pricing: {
+      cost: 0,
+      unit: "request",
+      isFree: true,
+    },
     parameters: {
       body: [
         {
@@ -447,6 +516,11 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     description:
       "Delete an API key (session auth only - won't work with API key)",
     requiresAuth: true,
+    pricing: {
+      cost: 0,
+      unit: "request",
+      isFree: true,
+    },
     parameters: {
       path: [
         {
@@ -477,6 +551,11 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     description:
       "Update API key properties (session auth only - won't work with API key)",
     requiresAuth: true,
+    pricing: {
+      cost: 0,
+      unit: "request",
+      isFree: true,
+    },
     parameters: {
       path: [
         {
@@ -523,6 +602,11 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     description:
       "Regenerate API key secret (old key becomes invalid) (session auth only - won't work with API key)",
     requiresAuth: true,
+    pricing: {
+      cost: 0,
+      unit: "request",
+      isFree: true,
+    },
     parameters: {
       path: [
         {
@@ -553,6 +637,13 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     description:
       "Convert text to realistic speech audio using ElevenLabs. Supports custom cloned voices and multiple voice models. Returns streaming audio response.",
     requiresAuth: true,
+    pricing: {
+      cost: 0.003,
+      unit: "1k tokens",
+      description: "Per 1K characters (~150 words)",
+      isVariable: true,
+      estimatedRange: { min: 0.001, max: 0.01 },
+    },
     parameters: {
       body: [
         {
@@ -620,6 +711,12 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     description:
       "Transcribe audio to text using ElevenLabs. Supports multiple audio formats including MP3, WAV, M4A, WebM, and OGG. Max file size: 25MB. The API Explorer provides a built-in voice recorder for easy testing.",
     requiresAuth: true,
+    pricing: {
+      cost: 0.01,
+      unit: "minute",
+      description: "Per minute of audio transcribed",
+      isVariable: true,
+    },
     parameters: {
       body: [
         {
@@ -680,6 +777,11 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     description:
       "Get all available ElevenLabs pre-built public voices (Rachel, Adam, etc.). This endpoint only returns premade voices that all users can use. Custom cloned voices are NOT included here - use 'List User Cloned Voices' endpoint to see your personal voices.",
     requiresAuth: true,
+    pricing: {
+      cost: 0,
+      unit: "request",
+      isFree: true,
+    },
     parameters: {},
     responses: [
       {
@@ -720,6 +822,13 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     description:
       "Create a custom voice clone using audio samples. Supports instant cloning (30s, $0.50) and professional cloning (1-3hrs, $2.00). Upload 1-10 audio files (max 100MB total). The API Explorer provides a built-in file uploader for easy testing.",
     requiresAuth: true,
+    pricing: {
+      cost: 0.5,
+      unit: "clone",
+      description: "Instant: $0.50, Professional: $2.00",
+      isVariable: true,
+      estimatedRange: { min: 0.5, max: 2.0 },
+    },
     parameters: {
       body: [
         {
@@ -827,6 +936,11 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     description:
       "Get all custom voices cloned by your organization. Includes usage statistics, quality scores, and status information. Supports filtering and pagination.",
     requiresAuth: true,
+    pricing: {
+      cost: 0,
+      unit: "request",
+      isFree: true,
+    },
     parameters: {
       query: [
         {
@@ -907,6 +1021,11 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     description:
       "Retrieve detailed information about a specific cloned voice including usage statistics, quality metrics, and configuration settings. Note: Use your internal voice ID (starts with 'voice_'), not the ElevenLabs voice ID.",
     requiresAuth: true,
+    pricing: {
+      cost: 0,
+      unit: "request",
+      isFree: true,
+    },
     parameters: {
       path: [
         {
@@ -961,6 +1080,11 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     description:
       "Permanently delete a cloned voice. This action cannot be undone. The voice will be removed from both Eliza Cloud and ElevenLabs.",
     requiresAuth: true,
+    pricing: {
+      cost: 0,
+      unit: "request",
+      isFree: true,
+    },
     parameters: {
       path: [
         {

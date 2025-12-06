@@ -170,4 +170,3 @@ export const ROUTE_METADATA = {
     keywords: ["account", "settings", "profile", "preferences"],
   },
 } as const;
-

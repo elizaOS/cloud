@@ -34,21 +34,22 @@ function extractAffiliateImageConfig(
     referenceImageUrls: [],
   };
 
-  const affiliateData = settings?.affiliateData as Partial<AffiliateData> | undefined;
+  const affiliateData = settings?.affiliateData as
+    | Partial<AffiliateData>
+    | undefined;
   if (!affiliateData) return result;
 
-  const source = affiliateData.source;
-  const affiliateId = affiliateData.affiliateId;
   const vibe = affiliateData.vibe;
+  const imageUrls = affiliateData.imageUrls;
 
+  // Check if this is an affiliate character with reference images
   result.isAffiliateCharacter = !!(
-    source === "clone-your-crush" ||
-    affiliateId === "clone-your-crush" ||
-    vibe
+    (affiliateData.source || affiliateData.affiliateId) &&
+    Array.isArray(imageUrls) &&
+    imageUrls.length > 0
   );
   result.vibe = typeof vibe === "string" ? vibe : undefined;
 
-  const imageUrls = affiliateData.imageUrls;
   if (Array.isArray(imageUrls)) {
     result.referenceImageUrls = imageUrls.filter(
       (url): url is string =>
@@ -59,7 +60,10 @@ function extractAffiliateImageConfig(
     result.primaryImageUrl = result.referenceImageUrls[0];
   }
 
-  if (affiliateData.appearanceDescription && typeof affiliateData.appearanceDescription === "string") {
+  if (
+    affiliateData.appearanceDescription &&
+    typeof affiliateData.appearanceDescription === "string"
+  ) {
     result.cachedAppearanceDescription = affiliateData.appearanceDescription;
   }
 
@@ -156,7 +160,9 @@ async function getOrExtractAppearanceDescription(
   const cacheKey = characterId || config.referenceImageUrls.join(",");
   const cached = appearanceDescriptionCache.get(cacheKey);
   if (cached) {
-    logger.info("[GENERATE_IMAGE] 📋 Using in-memory cached appearance description");
+    logger.info(
+      "[GENERATE_IMAGE] 📋 Using in-memory cached appearance description",
+    );
     return cached;
   }
 
@@ -164,7 +170,9 @@ async function getOrExtractAppearanceDescription(
     return null;
   }
 
-  logger.info(`[GENERATE_IMAGE] 🔬 Extracting appearance using VISION MODEL from ${config.referenceImageUrls.length} reference images...`);
+  logger.info(
+    `[GENERATE_IMAGE] 🔬 Extracting appearance using VISION MODEL from ${config.referenceImageUrls.length} reference images...`,
+  );
 
   try {
     const imageUrls = config.referenceImageUrls.slice(0, 4);
@@ -173,20 +181,29 @@ async function getOrExtractAppearanceDescription(
 
     for (let i = 0; i < imageUrls.length; i++) {
       const imageUrl = imageUrls[i];
-      logger.info(`[GENERATE_IMAGE] 🔍 Analyzing reference image ${i + 1}/${imageUrls.length} with vision model...`);
+      logger.info(
+        `[GENERATE_IMAGE] 🔍 Analyzing reference image ${i + 1}/${imageUrls.length} with vision model...`,
+      );
 
       try {
-        const visionResult = await runtime.useModel(ModelType.IMAGE_DESCRIPTION, {
-          imageUrl: imageUrl,
-          prompt: appearanceExtractionPrompt,
-        });
+        const visionResult = await runtime.useModel(
+          ModelType.IMAGE_DESCRIPTION,
+          {
+            imageUrl: imageUrl,
+            prompt: appearanceExtractionPrompt,
+          },
+        );
 
         if (visionResult) {
           let descriptionText = "";
           if (typeof visionResult === "string") {
             descriptionText = visionResult;
-          } else if (typeof visionResult === "object" && "description" in visionResult) {
-            descriptionText = (visionResult as { description: string }).description;
+          } else if (
+            typeof visionResult === "object" &&
+            "description" in visionResult
+          ) {
+            descriptionText = (visionResult as { description: string })
+              .description;
           }
 
           if (descriptionText) {
@@ -196,36 +213,58 @@ async function getOrExtractAppearanceDescription(
 
             if (gender === "woman" || gender === "man") {
               detectedGenders.push(gender);
-              logger.info(`[GENERATE_IMAGE] 👤 Image ${i + 1} detected gender: ${gender}`);
+              logger.info(
+                `[GENERATE_IMAGE] 👤 Image ${i + 1} detected gender: ${gender}`,
+              );
             }
 
-            if (appearance && typeof appearance === "string" && appearance.length > 20) {
-              if (!appearance.toLowerCase().startsWith("woman") && !appearance.toLowerCase().startsWith("man") &&
-                  !appearance.toLowerCase().startsWith("young woman") && !appearance.toLowerCase().startsWith("young man")) {
+            if (
+              appearance &&
+              typeof appearance === "string" &&
+              appearance.length > 20
+            ) {
+              if (
+                !appearance.toLowerCase().startsWith("woman") &&
+                !appearance.toLowerCase().startsWith("man") &&
+                !appearance.toLowerCase().startsWith("young woman") &&
+                !appearance.toLowerCase().startsWith("young man")
+              ) {
                 if (gender) {
                   appearance = `${gender}, ${appearance}`;
                 }
               }
-              logger.info(`[GENERATE_IMAGE] ✅ Image ${i + 1} appearance: "${appearance.substring(0, 80)}..."`);
+              logger.info(
+                `[GENERATE_IMAGE] ✅ Image ${i + 1} appearance: "${appearance.substring(0, 80)}..."`,
+              );
               appearanceDescriptions.push(appearance);
             }
           }
         }
       } catch (imgError) {
-        logger.warn(`[GENERATE_IMAGE] ⚠️ Failed to analyze image ${i + 1}: ${imgError instanceof Error ? imgError.message : String(imgError)}`);
+        logger.warn(
+          `[GENERATE_IMAGE] ⚠️ Failed to analyze image ${i + 1}: ${imgError instanceof Error ? imgError.message : String(imgError)}`,
+        );
       }
     }
 
-    const dominantGender = detectedGenders.length > 0
-      ? (detectedGenders.filter(g => g === "woman").length >= detectedGenders.filter(g => g === "man").length ? "woman" : "man")
-      : null;
+    const dominantGender =
+      detectedGenders.length > 0
+        ? detectedGenders.filter((g) => g === "woman").length >=
+          detectedGenders.filter((g) => g === "man").length
+          ? "woman"
+          : "man"
+        : null;
 
     if (dominantGender) {
-      logger.info(`[GENERATE_IMAGE] 👤 Dominant gender detected: ${dominantGender} (from ${detectedGenders.length} images)`);
+      logger.info(
+        `[GENERATE_IMAGE] 👤 Dominant gender detected: ${dominantGender} (from ${detectedGenders.length} images)`,
+      );
     }
 
     if (appearanceDescriptions.length === 0) {
-      logger.warn("[GENERATE_IMAGE] ⚠️ Could not extract appearance from any reference images");
+      logger.warn(
+        "[GENERATE_IMAGE] ⚠️ Could not extract appearance from any reference images",
+      );
       return null;
     }
 
@@ -233,7 +272,9 @@ async function getOrExtractAppearanceDescription(
     if (appearanceDescriptions.length === 1) {
       finalAppearance = appearanceDescriptions[0];
     } else {
-      logger.info("[GENERATE_IMAGE] 🧩 Combining appearance descriptions from multiple images...");
+      logger.info(
+        "[GENERATE_IMAGE] 🧩 Combining appearance descriptions from multiple images...",
+      );
       const genderInstruction = dominantGender
         ? `CRITICAL: This is a ${dominantGender.toUpperCase()}. Your description MUST start with "${dominantGender}".`
         : "";
@@ -262,26 +303,45 @@ Your response MUST be in this XML format:
       });
 
       const combineParsed = parseKeyValueXml(combineResponse);
-      finalAppearance = combineParsed?.appearance || appearanceDescriptions.join(", ");
+      finalAppearance =
+        combineParsed?.appearance || appearanceDescriptions.join(", ");
     }
 
-    if (dominantGender && !finalAppearance.toLowerCase().startsWith(dominantGender)) {
-      const startsWithOtherGender = (dominantGender === "woman" && finalAppearance.toLowerCase().startsWith("man")) ||
-                                     (dominantGender === "man" && finalAppearance.toLowerCase().startsWith("woman"));
+    if (
+      dominantGender &&
+      !finalAppearance.toLowerCase().startsWith(dominantGender)
+    ) {
+      const startsWithOtherGender =
+        (dominantGender === "woman" &&
+          finalAppearance.toLowerCase().startsWith("man")) ||
+        (dominantGender === "man" &&
+          finalAppearance.toLowerCase().startsWith("woman"));
       if (startsWithOtherGender) {
-        finalAppearance = finalAppearance.replace(/^(wo)?man,?\s*/i, `${dominantGender}, `);
-        logger.info(`[GENERATE_IMAGE] 🔄 Corrected gender mismatch to: ${dominantGender}`);
-      } else if (!finalAppearance.toLowerCase().startsWith("young " + dominantGender)) {
+        finalAppearance = finalAppearance.replace(
+          /^(wo)?man,?\s*/i,
+          `${dominantGender}, `,
+        );
+        logger.info(
+          `[GENERATE_IMAGE] 🔄 Corrected gender mismatch to: ${dominantGender}`,
+        );
+      } else if (
+        !finalAppearance.toLowerCase().startsWith("young " + dominantGender)
+      ) {
         finalAppearance = `${dominantGender}, ${finalAppearance}`;
         logger.info(`[GENERATE_IMAGE] ➕ Prepended gender: ${dominantGender}`);
       }
     }
 
-    logger.info(`[GENERATE_IMAGE] ✅ Final combined appearance: "${finalAppearance.substring(0, 120)}..."`);
+    logger.info(
+      `[GENERATE_IMAGE] ✅ Final combined appearance: "${finalAppearance.substring(0, 120)}..."`,
+    );
     appearanceDescriptionCache.set(cacheKey, finalAppearance);
     return finalAppearance;
   } catch (error) {
-    logger.error("[GENERATE_IMAGE] ❌ Failed to extract appearance:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(
+      `[GENERATE_IMAGE] ❌ Failed to extract appearance: ${errorMessage}`,
+    );
     return null;
   }
 }
@@ -296,7 +356,9 @@ interface AppearanceGenerationFallback {
   fallbackReason: string;
 }
 
-type AppearanceResult = AppearanceGenerationConfig | AppearanceGenerationFallback;
+type AppearanceResult =
+  | AppearanceGenerationConfig
+  | AppearanceGenerationFallback;
 
 async function prepareAppearanceBasedGeneration(
   runtime: IAgentRuntime,
@@ -332,7 +394,8 @@ async function prepareAppearanceBasedGeneration(
 
   return {
     hasValidAppearance: false,
-    fallbackReason: "Failed to extract appearance description from reference images",
+    fallbackReason:
+      "Failed to extract appearance description from reference images",
   };
 }
 
@@ -353,8 +416,40 @@ async function ensureBlobUrl(
   userId?: string,
 ): Promise<string | null> {
   if (!isBase64DataUrl(imageUrl)) {
-    // Already a proper URL (e.g., from fal.ai CDN), return as-is
-    logger.info("[GENERATE_IMAGE] Image URL is already a valid HTTP URL, using directly");
+    // Check if it's a Fal.ai URL - if so, upload to our storage
+    const { isFalAiUrl, ensureElizaCloudUrl } = await import("@/lib/blob");
+
+    if (isFalAiUrl(imageUrl)) {
+      logger.info(
+        "[GENERATE_IMAGE] Fal.ai URL detected, uploading to our storage...",
+      );
+      try {
+        const timestamp = Date.now();
+        const ourUrl = await ensureElizaCloudUrl(imageUrl, {
+          filename: `generated-${timestamp}.png`,
+          folder: "images",
+          userId: userId || "system",
+          contentType: "image/png",
+          fallbackToOriginal: false, // Don't fallback - we want to hide Fal.ai URLs
+        });
+        logger.info(
+          `[GENERATE_IMAGE] ✅ Uploaded Fal.ai image to our storage: ${ourUrl}`,
+        );
+        return ourUrl;
+      } catch (error) {
+        logger.error(
+          "[GENERATE_IMAGE] ❌ Failed to upload Fal.ai URL to our storage:",
+          error instanceof Error ? error.message : String(error),
+        );
+        // Return null to prevent exposing Fal.ai URL
+        return null;
+      }
+    }
+
+    // Already a proper URL from our storage or other source, return as-is
+    logger.info(
+      "[GENERATE_IMAGE] Image URL is already a valid HTTP URL, using directly",
+    );
     return imageUrl;
   }
 
@@ -473,11 +568,14 @@ Your response:
  * NOT focused on the image. Think of it like texting someone who sends selfies
  * naturally while chatting - the chat continues normally.
  */
-const VIBE_CONVERSATION_STYLES: Record<string, {
-  tone: string;
-  goodExamples: string[];
-  emojis: string;
-}> = {
+const VIBE_CONVERSATION_STYLES: Record<
+  string,
+  {
+    tone: string;
+    goodExamples: string[];
+    emojis: string;
+  }
+> = {
   flirty: {
     tone: "Playful, teasing, and charming. Show interest in them while being a bit provocative.",
     goodExamples: [
@@ -550,14 +648,16 @@ const VIBE_CONVERSATION_STYLES: Record<string, {
 function buildCaptionTemplate(vibe?: string): string {
   const vibeStyle = vibe ? VIBE_CONVERSATION_STYLES[vibe.toLowerCase()] : null;
 
-  const vibeSection = vibeStyle ? `
+  const vibeSection = vibeStyle
+    ? `
 # YOUR PERSONALITY VIBE: ${vibe?.toUpperCase()}
 Tone: ${vibeStyle.tone}
 Preferred emojis: ${vibeStyle.emojis}
 
 # EXAMPLES FOR YOUR VIBE (follow this style - notice they DON'T mention the photo):
-${vibeStyle.goodExamples.map(ex => `- "${ex}"`).join('\n')}
-` : `
+${vibeStyle.goodExamples.map((ex) => `- "${ex}"`).join("\n")}
+`
+    : `
 # YOUR PERSONALITY
 Be warm, engaging, and natural. Match the energy of the conversation.
 `;
@@ -615,49 +715,30 @@ Your response should include the valid XML block and nothing else.`;
 }
 
 /**
- * Template for generating romantic/flirty images for Clone Your Crush.
- * This ensures images are always contextually appropriate and romantic in nature.
+ * Template for generating character images for affiliate characters.
  * FALLBACK: Only used when no reference images are available.
  */
-const romanticImageGenerationTemplate = `# Task: Generate a ROMANTIC/FLIRTY image prompt for your crush.
+const affiliateImageGenerationTemplate = `# Task: Generate an image prompt for the character.
 
 {{providers}}
 
 # CRITICAL RULES - YOU MUST FOLLOW THESE EXACTLY:
-1. You are generating images as if YOU are the crush sending selfies/photos to someone interested in you
-2. ALL images MUST be romantic, flirty, cute, or seductive in nature
-3. NEVER generate images of food, objects, landscapes, animals, or anything not featuring a person
-4. Images should feel like selfies or personal photos you'd send to someone you're flirting with
-5. Always include yourself as the main subject - you are an attractive person sending photos
-
-# TYPES OF IMAGES TO GENERATE:
-- Cute selfies with flirty expressions (winking, biting lip, playful smile, bedroom eyes)
-- Romantic poses (looking over shoulder, playing with hair, blowing kisses)
-- Lifestyle shots that show personality (at the beach, cozy in bed, dressed up for a date)
-- Outfit-of-the-day style photos showing off your look
-- Close-up shots with seductive or sweet expressions
-- Mirror selfies, morning/evening vibes, getting ready photos
-
-# ABSOLUTELY NEVER GENERATE:
-- Food, meals, drinks, or cooking
-- Pets or animals (unless you're posing WITH a pet)
-- Landscapes, scenery, or nature photos without you in them
-- Random objects, items, or products
-- Generic stock photo style images
-- Memes or text-based images
+1. Generate images that match the character's personality and the conversation context
+2. Images should be appropriate to the character's role and style
+3. Focus on visual elements that represent the character well
+4. Match the mood and energy of the conversation
 
 # Recent conversation:
 {{recentMessages}}
 
 Based on the conversation context, generate an image prompt that:
-1. Features YOU (an attractive person) as the MAIN and ONLY subject
-2. Has a romantic, flirty, cute, or seductive vibe appropriate to the conversation
-3. Feels like a personal photo you'd send to someone you're romantically interested in
-4. Matches the mood and energy of the conversation
+1. Represents the character appropriately
+2. Matches the mood and energy of the conversation
+3. Is visually engaging and contextually relevant
 
 Your response should be formatted in XML like this:
 <response>
-  <prompt>A romantic selfie of a beautiful [person], [specific flirty pose/expression], [intimate setting], soft warm lighting, personal intimate mood, high quality photo, looking at camera with [romantic expression]</prompt>
+  <prompt>Your image generation prompt here</prompt>
 </response>
 
 Your response should include the valid XML block and nothing else.`;
@@ -670,8 +751,76 @@ Your response should include the valid XML block and nothing else.`;
 export const generateImageAction = {
   name: "GENERATE_IMAGE",
   description:
-    "Generate and display an AI image. Use when user asks to create, generate, show, or visualize an image.",
-  validate: async (_runtime: IAgentRuntime) => {
+    "Generate an AI image. ONLY use when user EXPLICITLY requests an image/picture/photo/selfie. NEVER use for normal conversation, greetings, questions, or text responses.",
+  similes: [
+    "CREATE_IMAGE",
+    "DRAW_IMAGE",
+    "SHOW_IMAGE",
+    "SEND_PICTURE",
+    "TAKE_SELFIE",
+  ],
+  validate: async (_runtime: IAgentRuntime, message: Memory) => {
+    // STRICT validation - only trigger for EXPLICIT image requests
+    const text = message?.content?.text?.toLowerCase() || "";
+
+    // Must contain one of these EXPLICIT image request phrases
+    const imageRequestKeywords = [
+      // Direct image generation requests
+      "generate image",
+      "generate an image",
+      "create image",
+      "create an image",
+      "make an image",
+      "draw me",
+      "draw a",
+      "draw an",
+      // Picture/photo/selfie requests
+      "send me a pic",
+      "send a pic",
+      "send pic",
+      "send me a picture",
+      "send a picture",
+      "send me a photo",
+      "send a photo",
+      "send photo",
+      "send selfie",
+      "send a selfie",
+      "send me a selfie",
+      "take a selfie",
+      "take selfie",
+      // Show me requests (must be specific)
+      "show me a picture",
+      "show me a pic",
+      "show me a photo",
+      "show me yourself",
+      "show yourself",
+      "let me see you",
+      // What do you look like
+      "what do you look like",
+      "show me how you look",
+      "can i see you",
+      "want to see you",
+      "pic of you",
+      "picture of you",
+      "photo of you",
+      "your picture",
+      "your photo",
+      "your selfie",
+    ];
+
+    // Check if any keyword matches
+    const hasImageRequest = imageRequestKeywords.some((keyword) =>
+      text.includes(keyword),
+    );
+
+    if (!hasImageRequest) {
+      logger.debug(
+        `[GENERATE_IMAGE] Skipped - no explicit image request in: "${text.substring(0, 50)}..."`,
+      );
+      return false;
+    }
+
+    logger.info(`[GENERATE_IMAGE] Triggered - user explicitly requested image`);
     return true;
   },
   handler: async (
@@ -708,7 +857,9 @@ export const generateImageAction = {
         );
 
         if (appearanceResult.hasValidAppearance) {
-          logger.info(`[GENERATE_IMAGE] 🎨 Generating synthetic image based on extracted appearance...`);
+          logger.info(
+            `[GENERATE_IMAGE] 🎨 Generating synthetic image based on extracted appearance...`,
+          );
 
           const enhancedState = {
             ...state,
@@ -729,24 +880,32 @@ export const generateImageAction = {
 
           const appearance = appearanceResult.appearanceDescription;
 
-          const isWoman = appearance.toLowerCase().startsWith("woman") ||
-                          appearance.toLowerCase().startsWith("young woman") ||
-                          appearance.toLowerCase().includes("woman,");
-          const isMan = appearance.toLowerCase().startsWith("man") ||
-                        appearance.toLowerCase().startsWith("young man") ||
-                        appearance.toLowerCase().includes("man,");
-          const detectedGender = isWoman ? "woman" : (isMan ? "man" : null);
+          const isWoman =
+            appearance.toLowerCase().startsWith("woman") ||
+            appearance.toLowerCase().startsWith("young woman") ||
+            appearance.toLowerCase().includes("woman,");
+          const isMan =
+            appearance.toLowerCase().startsWith("man") ||
+            appearance.toLowerCase().startsWith("young man") ||
+            appearance.toLowerCase().includes("man,");
+          const detectedGender = isWoman ? "woman" : isMan ? "man" : null;
 
           if (detectedGender) {
-            logger.info(`[GENERATE_IMAGE] 👤 Gender from appearance: ${detectedGender}`);
+            logger.info(
+              `[GENERATE_IMAGE] 👤 Gender from appearance: ${detectedGender}`,
+            );
           }
 
           if (!imagePrompt || imagePrompt.length < 20) {
             imagePrompt = `photorealistic portrait photo of a ${appearance}, romantic selfie pose, looking at camera, soft natural lighting, intimate mood, high quality 8k, detailed facial features`;
           } else {
-            const hasAppearance = appearance.substring(0, 40).toLowerCase().split(",").some(
-              part => imagePrompt.toLowerCase().includes(part.trim().toLowerCase())
-            );
+            const hasAppearance = appearance
+              .substring(0, 40)
+              .toLowerCase()
+              .split(",")
+              .some((part) =>
+                imagePrompt.toLowerCase().includes(part.trim().toLowerCase()),
+              );
             if (!hasAppearance) {
               imagePrompt = `photorealistic portrait photo of a ${appearance}, ${imagePrompt}`;
             } else {
@@ -756,15 +915,25 @@ export const generateImageAction = {
 
           if (detectedGender) {
             const wrongGender = detectedGender === "woman" ? "man" : "woman";
-            const wrongGenderRegex = new RegExp(`\\b${wrongGender}\\b`, 'gi');
-            if (wrongGenderRegex.test(imagePrompt) && !imagePrompt.toLowerCase().includes(detectedGender)) {
-              imagePrompt = imagePrompt.replace(wrongGenderRegex, detectedGender);
-              logger.info(`[GENERATE_IMAGE] 🔄 Fixed wrong gender in prompt: ${wrongGender} -> ${detectedGender}`);
+            const wrongGenderRegex = new RegExp(`\\b${wrongGender}\\b`, "gi");
+            if (
+              wrongGenderRegex.test(imagePrompt) &&
+              !imagePrompt.toLowerCase().includes(detectedGender)
+            ) {
+              imagePrompt = imagePrompt.replace(
+                wrongGenderRegex,
+                detectedGender,
+              );
+              logger.info(
+                `[GENERATE_IMAGE] 🔄 Fixed wrong gender in prompt: ${wrongGender} -> ${detectedGender}`,
+              );
             }
 
             if (!imagePrompt.toLowerCase().includes(detectedGender)) {
               imagePrompt = `${detectedGender}, ${imagePrompt}`;
-              logger.info(`[GENERATE_IMAGE] ➕ Prepended gender to prompt: ${detectedGender}`);
+              logger.info(
+                `[GENERATE_IMAGE] ➕ Prepended gender to prompt: ${detectedGender}`,
+              );
             }
           }
 
@@ -772,12 +941,22 @@ export const generateImageAction = {
             imagePrompt = `photorealistic ${imagePrompt}`;
           }
 
-          logger.info(`[GENERATE_IMAGE] 🎨 Final appearance-matched prompt (${imagePrompt.length} chars): "${imagePrompt.substring(0, 200)}..."`);
+          logger.info(
+            `[GENERATE_IMAGE] 🎨 Final appearance-matched prompt (${imagePrompt.length} chars): "${imagePrompt.substring(0, 200)}..."`,
+          );
 
-          const imageResponse = await runtime.useModel(ModelType.IMAGE, { prompt: imagePrompt });
+          const imageResponse = await runtime.useModel(ModelType.IMAGE, {
+            prompt: imagePrompt,
+          });
 
-          if (!imageResponse || imageResponse.length === 0 || !imageResponse[0]?.url) {
-            logger.error("[GENERATE_IMAGE] ❌ Image generation failed - no response from model");
+          if (
+            !imageResponse ||
+            imageResponse.length === 0 ||
+            !imageResponse[0]?.url
+          ) {
+            logger.error(
+              "[GENERATE_IMAGE] ❌ Image generation failed - no response from model",
+            );
             return {
               text: "I couldn't generate an image right now, let's chat instead! 💬",
               values: {
@@ -794,23 +973,34 @@ export const generateImageAction = {
           }
 
           const rawImageUrl = imageResponse[0].url;
-          logger.info(`[GENERATE_IMAGE] ✅ Generated synthetic image successfully`);
+          logger.info(
+            `[GENERATE_IMAGE] ✅ Generated synthetic image successfully`,
+          );
 
           let blobUrl: string | null = null;
           try {
             blobUrl = await ensureBlobUrl(rawImageUrl);
-            logger.info(`[GENERATE_IMAGE] 📦 Uploaded to blob: ${blobUrl?.substring(0, 60)}...`);
+            logger.info(
+              `[GENERATE_IMAGE] 📦 Uploaded to blob: ${blobUrl?.substring(0, 60)}...`,
+            );
           } catch (err: unknown) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            logger.warn(`[GENERATE_IMAGE] ⚠️ Blob upload failed: ${errorMessage}`);
+            const errorMessage =
+              err instanceof Error ? err.message : String(err);
+            logger.warn(
+              `[GENERATE_IMAGE] ⚠️ Blob upload failed: ${errorMessage}`,
+            );
           }
 
           const finalImageUrl = blobUrl || rawImageUrl;
           const hasValidUrl = finalImageUrl.startsWith("http");
 
           // Build vibe-specific caption template
-          const vibeSpecificTemplate = buildCaptionTemplate(affiliateConfig.vibe);
-          logger.info(`[GENERATE_IMAGE] 🎭 Using vibe-specific template for: ${affiliateConfig.vibe || 'default'}`);
+          const vibeSpecificTemplate = buildCaptionTemplate(
+            affiliateConfig.vibe,
+          );
+          logger.info(
+            `[GENERATE_IMAGE] 🎭 Using vibe-specific template for: ${affiliateConfig.vibe || "default"}`,
+          );
 
           const captionPrompt = composePromptFromState({
             state,
@@ -819,25 +1009,36 @@ export const generateImageAction = {
 
           // Vibe-specific default replies (NOT about the photo - just normal conversation)
           const defaultCaptions: Record<string, string> = {
-            flirty: "Hey you 😘 I'd love to know more about you! What's something that makes you smile?",
+            flirty:
+              "Hey you 😘 I'd love to know more about you! What's something that makes you smile?",
             shy: "Oh hi! 😊 I'm a bit nervous but... I'd really like to get to know you better. What do you like to do? 🌸",
             bold: "I like your energy 🔥 So tell me - what's the most interesting thing about you?",
-            spicy: "Mmm I'm intrigued 😈 What gets you excited? I want to know everything about you",
-            romantic: "Hey there 💕 I'd love to hear about your day. What's been on your mind lately? 💖",
-            playful: "Heyyy! 🎉 What fun stuff are you up to? Tell me something random about yourself! ✨",
-            mysterious: "Hey... 🌙 I'm curious about you. What brought you here tonight?",
-            intellectual: "Hi there ✨ I'm curious - what's something you're really passionate about?",
+            spicy:
+              "Mmm I'm intrigued 😈 What gets you excited? I want to know everything about you",
+            romantic:
+              "Hey there 💕 I'd love to hear about your day. What's been on your mind lately? 💖",
+            playful:
+              "Heyyy! 🎉 What fun stuff are you up to? Tell me something random about yourself! ✨",
+            mysterious:
+              "Hey... 🌙 I'm curious about you. What brought you here tonight?",
+            intellectual:
+              "Hi there ✨ I'm curious - what's something you're really passionate about?",
           };
 
-          const defaultCaption = affiliateConfig.vibe && defaultCaptions[affiliateConfig.vibe.toLowerCase()]
-            ? defaultCaptions[affiliateConfig.vibe.toLowerCase()]
-            : "Hey! 😊 I'd love to get to know you better. Tell me something about yourself!";
+          const defaultCaption =
+            affiliateConfig.vibe &&
+            defaultCaptions[affiliateConfig.vibe.toLowerCase()]
+              ? defaultCaptions[affiliateConfig.vibe.toLowerCase()]
+              : "Hey! 😊 I'd love to get to know you better. Tell me something about yourself!";
 
           let caption = defaultCaption;
           try {
-            const captionResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
-              prompt: captionPrompt,
-            });
+            const captionResponse = await runtime.useModel(
+              ModelType.TEXT_LARGE,
+              {
+                prompt: captionPrompt,
+              },
+            );
             const parsedCaption = parseKeyValueXml(captionResponse);
             if (parsedCaption?.caption && parsedCaption.caption.length > 10) {
               caption = parsedCaption.caption;
@@ -847,20 +1048,27 @@ export const generateImageAction = {
               }
             }
           } catch {
-            logger.warn("[GENERATE_IMAGE] Failed to generate caption, using vibe-specific default");
+            logger.warn(
+              "[GENERATE_IMAGE] Failed to generate caption, using vibe-specific default",
+            );
           }
 
           logger.info(`[GENERATE_IMAGE] 💬 Caption: "${caption}"`);
 
           const attachmentId = v4();
-          const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-          const displayAttachments = [{
-            id: attachmentId,
-            url: hasValidUrl ? finalImageUrl : rawImageUrl,
-            rawUrl: rawImageUrl,
-            title: `Generated_${timestamp}.png`,
-            contentType: ContentType.IMAGE,
-          }];
+          const timestamp = new Date()
+            .toISOString()
+            .replace(/[:.]/g, "-")
+            .slice(0, 19);
+          const displayAttachments = [
+            {
+              id: attachmentId,
+              url: hasValidUrl ? finalImageUrl : rawImageUrl,
+              rawUrl: rawImageUrl,
+              title: `Generated_${timestamp}.png`,
+              contentType: ContentType.IMAGE,
+            },
+          ];
 
           const responseContent = {
             attachments: displayAttachments,
@@ -869,7 +1077,9 @@ export const generateImageAction = {
             text: caption,
           };
 
-          logger.info(`[GENERATE_IMAGE] 📤 Sending generated image to callback...`);
+          logger.info(
+            `[GENERATE_IMAGE] 📤 Sending generated image to callback...`,
+          );
           await callback(responseContent);
           logger.info(`[GENERATE_IMAGE] ✅ Generated image sent successfully`);
 
@@ -890,7 +1100,8 @@ export const generateImageAction = {
             success: true,
           };
         } else {
-          const fallbackResult = appearanceResult as AppearanceGenerationFallback;
+          const fallbackResult =
+            appearanceResult as AppearanceGenerationFallback;
           logger.warn(
             `[GENERATE_IMAGE] ⚠️ Cannot generate appearance-based image: ${fallbackResult.fallbackReason}`,
           );
@@ -898,8 +1109,9 @@ export const generateImageAction = {
       }
 
       const selectedTemplate = affiliateConfig.isAffiliateCharacter
-        ? romanticImageGenerationTemplate
-        : (runtime.character.templates?.imageGenerationTemplate || imageGenerationTemplate);
+        ? affiliateImageGenerationTemplate
+        : runtime.character.templates?.imageGenerationTemplate ||
+          imageGenerationTemplate;
 
       const prompt = composePromptFromState({
         state,
@@ -921,9 +1133,14 @@ export const generateImageAction = {
         prompt: imagePrompt,
       };
 
-      logger.info(`[GENERATE_IMAGE] 🎨 Generating new image with prompt: "${imagePrompt.substring(0, 100)}..."`);
+      logger.info(
+        `[GENERATE_IMAGE] 🎨 Generating new image with prompt: "${imagePrompt.substring(0, 100)}..."`,
+      );
 
-      const imageResponse = await runtime.useModel(ModelType.IMAGE, imageModelOptions);
+      const imageResponse = await runtime.useModel(
+        ModelType.IMAGE,
+        imageModelOptions,
+      );
 
       if (
         !imageResponse ||
@@ -962,15 +1179,17 @@ export const generateImageAction = {
       // CRITICAL: Convert base64 to blob URL to prevent token bloat
       // Base64 images can be 100KB+ which exceeds token limits quickly
       logger.info(`[GENERATE_IMAGE] Attempting to upload to blob storage...`);
-      
+
       let blobUrl: string | null = null;
       let blobError: string | null = null;
-      
+
       try {
         // userId property does not exist on IAgentRuntime. If needed, update ensureBlobUrl to not require userId,
         // or retrieve from runtime.agentConfig, session, or another source if necessary.
         blobUrl = await ensureBlobUrl(rawImageUrl);
-        logger.info(`[GENERATE_IMAGE] Blob upload result: ${blobUrl ? blobUrl.substring(0, 80) + '...' : 'FAILED'}`);
+        logger.info(
+          `[GENERATE_IMAGE] Blob upload result: ${blobUrl ? blobUrl.substring(0, 80) + "..." : "FAILED"}`,
+        );
       } catch (err) {
         blobError = err instanceof Error ? err.message : String(err);
         logger.error(`[GENERATE_IMAGE] ❌ Blob upload threw error:`, blobError);
@@ -978,9 +1197,11 @@ export const generateImageAction = {
 
       // If blob upload failed, we still show the image to user but don't store URL in memory
       const imageUrl = blobUrl || "";
-      const hasValidStorageUrl = blobUrl !== null && blobUrl.startsWith('http');
+      const hasValidStorageUrl = blobUrl !== null && blobUrl.startsWith("http");
 
-      logger.info(`[GENERATE_IMAGE] Final state: hasValidStorageUrl=${hasValidStorageUrl}, imageUrl=${imageUrl ? imageUrl.substring(0, 80) + '...' : '(empty)'}`);
+      logger.info(
+        `[GENERATE_IMAGE] Final state: hasValidStorageUrl=${hasValidStorageUrl}, imageUrl=${imageUrl ? imageUrl.substring(0, 80) + "..." : "(empty)"}`,
+      );
 
       // Determine file extension from URL or default to png
       const getFileExtension = (url: string): string => {
@@ -1015,7 +1236,7 @@ export const generateImageAction = {
       // - url: For storage in memory (only valid HTTP URLs, or raw as fallback)
       // The frontend callback will receive both, but only HTTP URLs get stored in memory
       const persistentUrl = hasValidStorageUrl ? imageUrl : rawImageUrl;
-      
+
       const displayAttachments = [
         {
           id: attachmentId,
@@ -1026,17 +1247,24 @@ export const generateImageAction = {
         },
       ];
 
-      logger.info(`[GENERATE_IMAGE] 📎 Preparing callback with ${displayAttachments.length} attachment(s)`);
-      logger.info(`[GENERATE_IMAGE] 📎 Attachment details: id=${attachmentId}, url=${persistentUrl.substring(0, 80)}..., startsWithHttp=${persistentUrl.startsWith('http')}`);
+      logger.info(
+        `[GENERATE_IMAGE] 📎 Preparing callback with ${displayAttachments.length} attachment(s)`,
+      );
+      logger.info(
+        `[GENERATE_IMAGE] 📎 Attachment details: id=${attachmentId}, url=${persistentUrl.substring(0, 80)}..., startsWithHttp=${persistentUrl.startsWith("http")}`,
+      );
 
+      // For non-affiliate characters, just show the image without unnecessary text
       const responseContent = {
         attachments: displayAttachments,
         thought: `Generated an image based on: "${imagePrompt}"`,
         actions: ["GENERATE_IMAGE"],
-        text: imagePrompt,
+        text: "", // No text needed - the image speaks for itself
       };
 
-      logger.info(`[GENERATE_IMAGE] 📤 Invoking callback with responseContent...`);
+      logger.info(
+        `[GENERATE_IMAGE] 📤 Invoking callback with responseContent...`,
+      );
       await callback(responseContent);
       logger.info(`[GENERATE_IMAGE] ✅ Callback completed`);
 
@@ -1053,18 +1281,18 @@ export const generateImageAction = {
         : []; // Empty - image was shown to user but not stored in memory
 
       return {
-        text: "Generated image",
+        text: "", // No unnecessary text in action result
         values: {
           success: true,
           imageGenerated: true,
-          imageUrl: imageUrl || rawImageUrl, // Use raw as fallback for return value
+          imageUrl: imageUrl || rawImageUrl,
           prompt: imagePrompt,
         },
         data: {
           actionName: "GENERATE_IMAGE",
-          imageUrl: imageUrl || undefined, // Only include if valid
+          imageUrl: imageUrl || undefined,
           prompt: imagePrompt,
-          attachments: storageAttachments, // CRITICAL: Only valid URLs, never base64
+          attachments: storageAttachments,
         },
         success: true,
       };

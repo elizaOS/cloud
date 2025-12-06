@@ -45,7 +45,7 @@ export function CharacterGrid({
           onLoadMore();
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
 
     const trigger = loadMoreTriggerRef.current;

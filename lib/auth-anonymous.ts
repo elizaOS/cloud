@@ -40,15 +40,15 @@ import type { UserWithOrganization, User, Organization } from "@/lib/types";
 const ANON_SESSION_COOKIE = "eliza-anon-session";
 const ANON_SESSION_EXPIRY_DAYS = Number.parseInt(
   process.env.ANON_SESSION_EXPIRY_DAYS || "7",
-  10
+  10,
 );
 const ANON_MESSAGE_LIMIT = Number.parseInt(
-  process.env.ANON_MESSAGE_LIMIT || "10",
-  10
+  process.env.ANON_MESSAGE_LIMIT || "5",
+  10,
 );
 const ANON_HOURLY_LIMIT = Number.parseInt(
   process.env.ANON_HOURLY_LIMIT || "10",
-  10
+  10,
 );
 
 /**
@@ -80,7 +80,10 @@ async function getClientIp(): Promise<string | undefined> {
     return realIp;
   }
   // Fallback to x-forwarded-for (first IP in the chain)
-  const forwardedFor = headersList.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const forwardedFor = headersList
+    .get("x-forwarded-for")
+    ?.split(",")[0]
+    ?.trim();
   return forwardedFor || undefined;
 }
 
@@ -148,7 +151,7 @@ export async function getOrCreateAnonymousUser(): Promise<{
   // Create new anonymous user
   const newSessionToken = nanoid(32);
   const expiresAt = new Date(
-    Date.now() + ANON_SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+    Date.now() + ANON_SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
   );
   const ipAddress = await getClientIp();
   const userAgent = await getUserAgent();
@@ -160,14 +163,14 @@ export async function getOrCreateAnonymousUser(): Promise<{
       // Log when IP is missing in production - could indicate proxy misconfiguration
       logger.warn(
         "auth-anonymous",
-        "Missing IP address in production - abuse detection bypassed"
+        "Missing IP address in production - abuse detection bypassed",
       );
     } else {
       const isAbuse = await anonymousSessionsService.checkIpAbuse(ipAddress);
       if (isAbuse) {
         // Use specific error type for proper HTTP status code handling
         const error = new Error(
-          "Too many anonymous sessions from this IP address. Please sign up for continued access."
+          "Too many anonymous sessions from this IP address. Please sign up for continued access.",
         );
         error.name = "RateLimitError";
         throw error;
@@ -215,7 +218,7 @@ export async function getOrCreateAnonymousUser(): Promise<{
       userId: newUser.id,
       sessionId: newSession.id,
       expiresAt,
-    }
+    },
   );
 
   // Create properly typed anonymous user
@@ -245,7 +248,7 @@ export async function getOrCreateAnonymousUser(): Promise<{
  */
 export async function convertAnonymousToReal(
   anonymousUserId: string,
-  privyUserId: string
+  privyUserId: string,
 ): Promise<void> {
   logger.info("auth-anonymous", "Starting anonymous to real user conversion", {
     anonymousUserId,
@@ -269,9 +272,9 @@ export async function convertAnonymousToReal(
         .where(
           and(
             eq(users.id, anonymousUserId),
-            like(users.email, 'affiliate-%@anonymous.elizacloud.ai'),
-            isNull(users.privy_user_id)
-          )
+            like(users.email, "affiliate-%@anonymous.elizacloud.ai"),
+            isNull(users.privy_user_id),
+          ),
         )
         .limit(1);
 
@@ -282,7 +285,7 @@ export async function convertAnonymousToReal(
           {
             userId: anonUser.id,
             email: anonUser.email,
-          }
+          },
         );
       }
     }
@@ -308,12 +311,14 @@ export async function convertAnonymousToReal(
       const orgSlug = `user-${privyUserId.slice(-8)}-${Math.random().toString(36).slice(2, 8)}`;
 
       // Create organization for the user
+      // Affiliate-converted users get $1.00 initial credits (affiliate bonus)
+      const AFFILIATE_INITIAL_CREDITS = "1.00";
       const [organization] = await tx
         .insert(organizations)
         .values({
           name: `${anonUser.name || "User"}'s Organization`,
           slug: orgSlug,
-          credit_balance: "5.00", // $5 initial credits
+          credit_balance: AFFILIATE_INITIAL_CREDITS,
         })
         .returning();
 
@@ -347,7 +352,7 @@ export async function convertAnonymousToReal(
           userId: anonymousUserId,
           privyUserId,
           organizationId: organization.id,
-        }
+        },
       );
 
       // Update user_characters to point to the new organization (user_id stays the same)
@@ -369,7 +374,7 @@ export async function convertAnonymousToReal(
             organizationId: organization.id,
             characterCount: charResult.length,
             characters: charResult.map((c) => ({ id: c.id, name: c.name })),
-          }
+          },
         );
       }
     } else {
@@ -395,7 +400,7 @@ export async function convertAnonymousToReal(
           anonymousUserId,
           realUserId: realUser.id,
           conversationCount: conversationResult.length,
-        }
+        },
       );
 
       // Transfer user_characters ownership
@@ -436,7 +441,7 @@ export async function convertAnonymousToReal(
             anonymousUserId,
             realUserId: realUser.id,
             mappingCount: roomCharResult.length,
-          }
+          },
         );
       }
 
@@ -462,7 +467,7 @@ export async function convertAnonymousToReal(
         "Deleted anonymous user after data transfer",
         {
           anonymousUserId,
-        }
+        },
       );
     }
 
@@ -496,7 +501,7 @@ export async function convertAnonymousToReal(
     // Cookie deletion may fail if not in request context (e.g., webhook)
     logger.debug(
       "auth-anonymous",
-      "Could not delete cookie (likely not in request context)"
+      "Could not delete cookie (likely not in request context)",
     );
   }
 
@@ -533,7 +538,7 @@ export async function checkAnonymousLimit(sessionId: string): Promise<{
 
   // Check hourly rate limit
   const rateLimitResult = await anonymousSessionsService.checkRateLimit(
-    session.id
+    session.id,
   );
 
   if (!rateLimitResult.allowed) {
@@ -578,7 +583,7 @@ export async function getAnonymousUser(): Promise<{
   if (!session) {
     logger.debug(
       "[getAnonymousUser] Session not found in DB for token hash:",
-      hashTokenForLogging(sessionToken)
+      hashTokenForLogging(sessionToken),
     );
     return null;
   }

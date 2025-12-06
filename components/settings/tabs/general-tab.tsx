@@ -143,7 +143,10 @@ export function GeneralTab({ user }: GeneralTabProps) {
             <Label className="text-white font-mono text-sm md:text-base">
               What best describes your work?
             </Label>
-            <Select value={formState.workFunction} onValueChange={(v) => updateForm({ workFunction: v })}>
+            <Select
+              value={formState.workFunction}
+              onValueChange={(v) => updateForm({ workFunction: v })}
+            >
               <SelectTrigger className="bg-transparent border-[#303030] text-white data-[placeholder]:text-white/60">
                 <SelectValue placeholder="Select your work function" />
               </SelectTrigger>
@@ -221,7 +224,9 @@ export function GeneralTab({ user }: GeneralTabProps) {
               </p>
               <Switch
                 checked={formState.responseNotifications}
-                onCheckedChange={(checked) => updateForm({ responseNotifications: checked })}
+                onCheckedChange={(checked) =>
+                  updateForm({ responseNotifications: checked })
+                }
                 className="data-[state=checked]:bg-[#FF5800] flex-shrink-0"
               />
             </div>
@@ -239,7 +244,9 @@ export function GeneralTab({ user }: GeneralTabProps) {
               </p>
               <Switch
                 checked={formState.emailNotifications}
-                onCheckedChange={(checked) => updateForm({ emailNotifications: checked })}
+                onCheckedChange={(checked) =>
+                  updateForm({ emailNotifications: checked })
+                }
                 className="data-[state=checked]:bg-[#FF5800] flex-shrink-0"
               />
             </div>

@@ -1,14 +1,14 @@
 /**
  * Character Deployment Discovery Service
- * 
+ *
  * This service discovers CHARACTERS (user_characters table) with their deployment status.
  * It's NOT about discovering agents - it's about finding characters and checking if they're deployed.
- * 
+ *
  * Domain Model:
  * - Characters (user_characters) = User-created definitions
  * - Containers (containers) = Deployment infrastructure
  * - Agents (agents) = Running instances (created by ElizaOS when container starts)
- * 
+ *
  * Key Insight: This service operates at the CHARACTER level, not the agent level.
  * It answers questions like "which characters are deployed?" not "which agents exist?"
  */
@@ -34,7 +34,7 @@ export interface CharacterDiscoveryFilters {
 
 /**
  * Discovered character with deployment information
- * 
+ *
  * Note: This represents a CHARACTER (from user_characters table), not an Agent.
  * The "status" field indicates if the character has been deployed as an agent.
  */
@@ -47,11 +47,11 @@ export interface DiscoveredCharacterInfo {
   avatarUrl?: string;
   isTemplate?: boolean;
   ownerId?: string;
-  
+
   // Deployment status
   status: "deployed" | "draft" | "stopped";
   deploymentUrl?: string;
-  
+
   // Runtime statistics (only available when deployed)
   messageCount?: number;
   lastActiveAt?: Date | null;
@@ -87,9 +87,7 @@ export class CharacterDeploymentDiscoveryService {
       filterHash,
     );
     if (cached) {
-      logger.debug(
-        `[Character Discovery] Cache hit for org ${organizationId}`,
-      );
+      logger.debug(`[Character Discovery] Cache hit for org ${organizationId}`);
       return {
         characters: cached as DiscoveredCharacterInfo[],
         total: cached.length,
@@ -233,7 +231,7 @@ export class CharacterDeploymentDiscoveryService {
   /**
    * Get runtime statistics for a deployed character
    * Only works for deployed characters (characters with running containers)
-   * 
+   *
    * @param characterId - Character ID
    * @returns Character statistics
    */
@@ -263,7 +261,7 @@ export class CharacterDeploymentDiscoveryService {
       }
 
       // Determine deployment status
-      const status: "deployed" | "stopped" | "draft" = 
+      const status: "deployed" | "stopped" | "draft" =
         container.status === "running" ? "deployed" : "stopped";
 
       // Character is deployed - fetch statistics from database directly
@@ -273,7 +271,8 @@ export class CharacterDeploymentDiscoveryService {
       // Get message count for this character's agent across all rooms
       let messageCount = 0;
       try {
-        messageCount = await memoriesRepository.countMessagesByAgent(characterId);
+        messageCount =
+          await memoriesRepository.countMessagesByAgent(characterId);
       } catch (error) {
         logger.warn(
           `[Character Discovery] Error fetching message count for ${characterId}:`,
@@ -308,8 +307,7 @@ export class CharacterDeploymentDiscoveryService {
       let uptime = 0;
       try {
         if (container?.last_deployed_at && status === "deployed") {
-          uptime =
-            Date.now() - new Date(container.last_deployed_at).getTime();
+          uptime = Date.now() - new Date(container.last_deployed_at).getTime();
         }
       } catch (error) {
         logger.warn(

@@ -2,11 +2,11 @@
 
 /**
  * Debug Provider - Development-Only Performance Monitoring
- * 
+ *
  * Automatically tracks and logs:
  * - React component renders (frequency, duration)
  * - API calls (duplicates, slow responses, errors)
- * 
+ *
  * Auto-logs summaries at sensible times:
  * - After initial page load (5s)
  * - Every 30 seconds if there's activity
@@ -14,7 +14,14 @@
  * - Before page unload
  */
 
-import { useEffect, useRef, useCallback, Profiler, type ReactNode, type ProfilerOnRenderCallback } from "react";
+import {
+  useEffect,
+  useRef,
+  useCallback,
+  Profiler,
+  type ReactNode,
+  type ProfilerOnRenderCallback,
+} from "react";
 import { usePathname } from "next/navigation";
 
 // Only load in development
@@ -44,7 +51,7 @@ let lastRouteLogTime = 0;
 
 function logSummary(reason: string): void {
   if (!isDev) return;
-  
+
   console.group(`📊 Performance Summary (${reason})`);
   renderTracker?.logRenderSummary();
   apiTracker?.logApiSummary();
@@ -88,7 +95,7 @@ export function DebugProvider({ children }: { children?: ReactNode }) {
     intervalRef.current = setInterval(() => {
       const shouldLogRender = renderTracker?.shouldAutoLog() ?? false;
       const shouldLogApi = apiTracker?.shouldAutoLog() ?? false;
-      
+
       if (shouldLogRender || shouldLogApi) {
         logSummary("periodic check");
       }
@@ -103,8 +110,9 @@ export function DebugProvider({ children }: { children?: ReactNode }) {
     // Log on visibility change (when user comes back to tab)
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        const shouldLog = (renderTracker?.shouldAutoLog() ?? false) || 
-                         (apiTracker?.shouldAutoLog() ?? false);
+        const shouldLog =
+          (renderTracker?.shouldAutoLog() ?? false) ||
+          (apiTracker?.shouldAutoLog() ?? false);
         if (shouldLog) {
           logSummary("tab focused");
         }
@@ -120,7 +128,7 @@ export function DebugProvider({ children }: { children?: ReactNode }) {
       "\n  window.__logRenderSummary__() - Render stats",
       "\n  window.__logApiSummary__() - API stats",
       "\n  window.__resetRenderStats__() - Reset render tracking",
-      "\n  window.__resetApiStats__() - Reset API tracking"
+      "\n  window.__resetApiStats__() - Reset API tracking",
     );
 
     return () => {
@@ -140,10 +148,10 @@ export function DebugProvider({ children }: { children?: ReactNode }) {
         actualDuration,
         baseDuration,
         startTime,
-        commitTime
+        commitTime,
       );
     },
-    []
+    [],
   );
 
   if (!isDev) {

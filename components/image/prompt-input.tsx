@@ -155,11 +155,6 @@ export function PromptInput({
               <Wand2 className="h-4 w-4 text-primary" />
               Image Description
             </label>
-            {prompt && (
-              <span className="text-xs text-muted-foreground tabular-nums">
-                {prompt.length} characters
-              </span>
-            )}
           </div>
           <textarea
             id="prompt"

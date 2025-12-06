@@ -64,13 +64,13 @@ export function ContainerLogsViewer({
     error: null,
     infoMessage: null,
   });
-  
+
   const [streamingState, setStreamingState] = useState<StreamingState>({
     autoRefresh: false,
     useStreaming: true,
     isStreaming: false,
   });
-  
+
   const [filterState, setFilterState] = useState<FilterState>({
     level: "all",
     searchQuery: "",
@@ -221,7 +221,13 @@ export function ContainerLogsViewer({
       // Stop streaming if auto-refresh is off
       stopStreaming();
     }
-  }, [streamingState.autoRefresh, streamingState.useStreaming, startStreaming, stopStreaming, fetchLogs]);
+  }, [
+    streamingState.autoRefresh,
+    streamingState.useStreaming,
+    startStreaming,
+    stopStreaming,
+    fetchLogs,
+  ]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -346,7 +352,9 @@ export function ContainerLogsViewer({
             <BrandButton
               variant="outline"
               size="sm"
-              onClick={() => updateStreaming({ autoRefresh: !streamingState.autoRefresh })}
+              onClick={() =>
+                updateStreaming({ autoRefresh: !streamingState.autoRefresh })
+              }
               title={
                 streamingState.autoRefresh
                   ? streamingState.isStreaming
@@ -396,7 +404,10 @@ export function ContainerLogsViewer({
               style={{ fontFamily: "var(--font-roboto-mono)" }}
             />
           </div>
-          <Select value={filterState.level} onValueChange={(v) => updateFilter({ level: v })}>
+          <Select
+            value={filterState.level}
+            onValueChange={(v) => updateFilter({ level: v })}
+          >
             <SelectTrigger
               className="w-full sm:w-[140px] rounded-none border-white/10 bg-black/40"
               style={{ fontFamily: "var(--font-roboto-mono)" }}
@@ -461,7 +472,8 @@ export function ContainerLogsViewer({
             <div className="text-center py-8">
               <div className="space-y-2">
                 <p className="text-white/60">
-                  {logsState.infoMessage || "No logs available for this container"}
+                  {logsState.infoMessage ||
+                    "No logs available for this container"}
                 </p>
                 {!logsState.infoMessage && (
                   <p className="text-xs text-white/50">

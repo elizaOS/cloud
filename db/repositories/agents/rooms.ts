@@ -91,6 +91,7 @@ export class RoomsRepository {
 
   /**
    * Create a new room
+   * Note: source and type are required in the database (notNull, no defaults)
    */
   async create(input: CreateRoomInput): Promise<Room> {
     const [room] = await db
@@ -98,8 +99,8 @@ export class RoomsRepository {
       .values({
         id: input.id,
         agentId: input.agentId,
-        source: input.source,
-        type: input.type,
+        source: input.source || "web",
+        type: input.type || "DIRECT",
         name: input.name,
         serverId: input.serverId,
         channelId: input.channelId,
@@ -185,23 +186,27 @@ export class RoomsRepository {
   /**
    * Get all rooms for an entity (user) with last message preview
    * Uses a single optimized query with joins
-   * 
+   *
    * @param entityId - The user's ID (from auth)
    * @returns Rooms with preview data, sorted by most recent activity
    */
-  async findRoomsWithPreviewForEntity(entityId: string): Promise<RoomWithPreview[]> {
+  async findRoomsWithPreviewForEntity(
+    entityId: string,
+  ): Promise<RoomWithPreview[]> {
     // Use a subquery to get the latest message per room
     const latestMessagesSubquery = db
       .select({
         roomId: memoryTable.roomId,
         createdAt: memoryTable.createdAt,
-        text: sql<string | null>`${memoryTable.content}->>'text'`.as('text'),
+        text: sql<string | null>`${memoryTable.content}->>'text'`.as("text"),
         // Use row_number to pick the latest message per room
-        rn: sql<number>`row_number() over (partition by ${memoryTable.roomId} order by ${memoryTable.createdAt} desc)`.as('rn'),
+        rn: sql<number>`row_number() over (partition by ${memoryTable.roomId} order by ${memoryTable.createdAt} desc)`.as(
+          "rn",
+        ),
       })
       .from(memoryTable)
       .where(eq(memoryTable.type, "messages"))
-      .as('latest_messages');
+      .as("latest_messages");
 
     // Main query: join participants -> rooms -> latest messages
     const results = await db
@@ -219,8 +224,8 @@ export class RoomsRepository {
         latestMessagesSubquery,
         and(
           eq(latestMessagesSubquery.roomId, roomTable.id),
-          eq(latestMessagesSubquery.rn, 1)
-        )
+          eq(latestMessagesSubquery.rn, 1),
+        ),
       )
       .where(eq(participantTable.entityId, entityId));
 

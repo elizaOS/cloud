@@ -11,7 +11,7 @@ import {
   VIDEO_GENERATION_COST,
   VIDEO_GENERATION_FALLBACK_COST,
 } from "@/lib/pricing";
-import { uploadFromUrl } from "@/lib/blob";
+import { uploadFromUrl, isFalAiUrl } from "@/lib/blob";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 fal.config({
@@ -133,33 +133,47 @@ async function handlePOST(request: NextRequest) {
       `[VIDEO GENERATION] Success for user ${user.id}, requestId: ${result.requestId}`,
     );
 
-    // Upload video to Vercel Blob
-    let blobUrl = data.video.url;
-    let blobFileSize: bigint | null = data.video.file_size
-      ? BigInt(data.video.file_size)
-      : null;
+    // Upload video to Vercel Blob (required - we don't expose Fal.ai URLs)
+    let blobUrl: string;
+    let blobFileSize: bigint | null = null;
+
+    const fileExtension =
+      data.video.content_type?.split("/")[1] ||
+      data.video.file_name?.split(".").pop() ||
+      "mp4";
+
     try {
-      const fileExtension =
-        data.video.content_type?.split("/")[1] ||
-        data.video.file_name?.split(".").pop() ||
-        "mp4";
-      const blobResult = await uploadFromUrl(data.video.url, {
+      // Always upload to our storage - videos come from Fal.ai
+      if (!isFalAiUrl(data.video.url)) {
+        // If for some reason it's not a Fal.ai URL, log a warning but still upload
+        console.warn(
+          `[VIDEO GENERATION] Unexpected non-Fal.ai URL: ${data.video.url}`,
+        );
+      }
+
+      const uploadResult = await uploadFromUrl(data.video.url, {
         filename: `${generationId}.${fileExtension}`,
         contentType: data.video.content_type || "video/mp4",
         folder: "videos",
         userId: user.id,
       });
-      blobUrl = blobResult.url;
-      blobFileSize = blobResult.size ? BigInt(blobResult.size) : null;
+
+      blobUrl = uploadResult.url;
+      blobFileSize = BigInt(uploadResult.size);
+
       console.log(
-        `[VIDEO GENERATION] Uploaded to Vercel Blob: ${blobUrl} (${blobResult.size} bytes)`,
+        `[VIDEO GENERATION] Uploaded to Vercel Blob: ${blobUrl} (${blobFileSize.toString()} bytes)`,
       );
     } catch (blobError) {
       console.error(
         "[VIDEO GENERATION] Failed to upload to Vercel Blob:",
         blobError,
       );
-      // Continue with original URL as fallback
+      // Don't fallback to Fal.ai URL - return error instead
+      return NextResponse.json(
+        { error: "Failed to store video in our storage. Please try again." },
+        { status: 500 },
+      );
     }
 
     const deductionResult = await creditsService.deductCredits({
@@ -219,15 +233,17 @@ async function handlePOST(request: NextRequest) {
         completed_at: new Date(),
         result: {
           video: {
-            ...data.video,
             url: blobUrl,
+            content_type: data.video.content_type,
+            width: data.video.width,
+            height: data.video.height,
           },
-          originalUrl: data.video.url,
+          // Note: Original Fal.ai URL stored separately for debugging only, not exposed to clients
+          _originalUrl: data.video.url,
           seed: data.seed,
           has_nsfw_concepts: data.has_nsfw_concepts,
           timings: data.timings,
           requestId: result.requestId,
-          blobUrl: blobUrl !== data.video.url ? blobUrl : undefined,
         },
       });
     }
@@ -239,10 +255,14 @@ async function handlePOST(request: NextRequest) {
     return NextResponse.json(
       {
         video: {
-          ...data.video,
           url: blobUrl,
+          content_type: data.video.content_type,
+          width: data.video.width,
+          height: data.video.height,
+          file_name: data.video.file_name,
+          file_size: blobFileSize ? Number(blobFileSize) : undefined,
         },
-        originalUrl: data.video.url,
+        // Note: Original Fal.ai URL is NOT exposed to the client
         seed: data.seed,
         has_nsfw_concepts: data.has_nsfw_concepts,
         timings: data.timings,
@@ -298,8 +318,7 @@ async function handlePOST(request: NextRequest) {
         await generationsService.update(generationId, {
           status: "failed",
           error: errorMessage,
-          storage_url:
-            "https://v3.fal.media/files/zebra/P8u5qLXJrXF--Xm1Kix6j_output.mp4",
+          storage_url: null, // No storage URL for fallback - generation failed
           mime_type: "video/mp4",
           dimensions: {
             width: 1920,
@@ -312,12 +331,7 @@ async function handlePOST(request: NextRequest) {
           result: {
             isFallback: true,
             originalError: errorMessage,
-            video: {
-              url: "https://v3.fal.media/files/zebra/P8u5qLXJrXF--Xm1Kix6j_output.mp4",
-              content_type: "video/mp4",
-              width: 1920,
-              height: 1080,
-            },
+            video: null, // No video URL - generation failed
           },
         });
       }
@@ -334,20 +348,11 @@ async function handlePOST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        video: {
-          url: "https://v3.fal.media/files/zebra/P8u5qLXJrXF--Xm1Kix6j_output.mp4",
-          content_type: "video/mp4",
-          width: 1920,
-          height: 1080,
-        },
-        seed: Math.floor(Math.random() * 10000),
-        has_nsfw_concepts: [false],
-        timings: { fallback: 0 },
-        requestId: `fallback_${Date.now()}`,
+        error: "Video generation failed. Please try again.",
         isFallback: true,
         originalError: errorMessage,
       },
-      { status: 200 },
+      { status: 500 },
     );
   }
 }

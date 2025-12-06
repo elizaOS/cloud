@@ -372,7 +372,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
               <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
                 Avatar
               </label>
-              
+
               {/* Avatar Generator - Quick styles and AI generation */}
               <AvatarGenerator
                 characterName={character.name || "Character"}
