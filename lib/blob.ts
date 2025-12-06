@@ -106,8 +106,15 @@ export async function uploadBase64Image(
  * @returns True if the URL is from Fal.ai CDN.
  */
 export function isFalAiUrl(url: string): boolean {
-  const urlObj = new URL(url);
-  return urlObj.hostname.includes("fal.media") || urlObj.hostname.includes("fal.ai");
+  try {
+    const urlObj = new URL(url);
+    return (
+      urlObj.hostname.includes("fal.media") ||
+      urlObj.hostname.includes("fal.ai")
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -158,8 +165,24 @@ export async function ensureElizaCloudUrl(
   }
 
   // It's a Fal.ai URL - download and upload to our storage
-  const result = await uploadFromUrl(sourceUrl, options);
-  return result.url;
+  try {
+    const result = await uploadFromUrl(sourceUrl, options);
+    return result.url;
+  } catch (error) {
+    console.error(
+      "[ensureElizaCloudUrl] Failed to upload Fal.ai URL to our storage:",
+      error,
+    );
+
+    // If fallback is allowed, return original URL
+    if (options.fallbackToOriginal !== false) {
+      console.warn("[ensureElizaCloudUrl] Falling back to original Fal.ai URL");
+      return sourceUrl;
+    }
+
+    // Otherwise, throw the error
+    throw error;
+  }
 }
 
 /**

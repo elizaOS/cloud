@@ -835,11 +835,11 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
       "Create a custom voice clone using audio samples. Supports instant cloning (30s, $0.50) and professional cloning (1-3hrs, $2.00). Upload 1-10 audio files (max 100MB total). The API Explorer provides a built-in file uploader for easy testing.",
     requiresAuth: true,
     pricing: {
-      cost: 0.50,
+      cost: 0.5,
       unit: "clone",
       description: "Instant: $0.50, Professional: $2.00",
       isVariable: true,
-      estimatedRange: { min: 0.50, max: 2.00 },
+      estimatedRange: { min: 0.5, max: 2.0 },
     },
     parameters: {
       body: [

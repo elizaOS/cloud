@@ -20,8 +20,8 @@ export class AnonymousSessionsRepository {
         and(
           eq(anonymousSessions.session_token, sessionToken),
           eq(anonymousSessions.is_active, true),
-          gte(anonymousSessions.expires_at, new Date())
-        )
+          gte(anonymousSessions.expires_at, new Date()),
+        ),
       )
       .limit(1);
 
@@ -103,11 +103,11 @@ export class AnonymousSessionsRepository {
    * @throws Error if session not found.
    */
   async incrementHourlyCount(
-    sessionId: string
+    sessionId: string,
   ): Promise<{ allowed: boolean; remaining: number }> {
     const hourlyLimit = Number.parseInt(
       process.env.ANON_HOURLY_LIMIT || "10",
-      10
+      10,
     );
     const now = new Date();
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
@@ -241,8 +241,8 @@ export class AnonymousSessionsRepository {
       .where(
         and(
           eq(anonymousSessions.ip_address, ipAddress),
-          eq(anonymousSessions.is_active, true)
-        )
+          eq(anonymousSessions.is_active, true),
+        ),
       );
   }
 

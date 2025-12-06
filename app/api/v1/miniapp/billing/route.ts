@@ -1,10 +1,26 @@
+/**
+ * /api/v1/miniapp/billing
+ *
+ * GET - Get billing/credits info for the authenticated user's organization
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { organizationsService, creditsService, usageService, appCreditsService, appsService } from "@/lib/services";
-import { addCorsHeaders, validateOrigin, createPreflightResponse } from "@/lib/middleware/cors-apps";
-import { 
-  checkMiniappRateLimit, 
-  createRateLimitErrorResponse, 
+import {
+  organizationsService,
+  creditsService,
+  usageService,
+  appCreditsService,
+  appsService,
+} from "@/lib/services";
+import {
+  addCorsHeaders,
+  validateOrigin,
+  createPreflightResponse,
+} from "@/lib/middleware/cors-apps";
+import {
+  checkMiniappRateLimit,
+  createRateLimitErrorResponse,
   addRateLimitInfoToResponse,
   MINIAPP_RATE_LIMITS,
 } from "@/lib/middleware/miniapp-rate-limit";
@@ -35,54 +51,61 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   const corsResult = await validateOrigin(request);
-  
+
   // Rate limiting
-  const rateLimitResult = await checkMiniappRateLimit(request, MINIAPP_RATE_LIMITS);
+  const rateLimitResult = await checkMiniappRateLimit(
+    request,
+    MINIAPP_RATE_LIMITS,
+  );
   if (!rateLimitResult.allowed) {
-    return createRateLimitErrorResponse(rateLimitResult, corsResult.origin ?? undefined);
+    return createRateLimitErrorResponse(
+      rateLimitResult,
+      corsResult.origin ?? undefined,
+    );
   }
-  
+
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
-    
+
     // Check for app-specific billing - from query param OR X-App-Id header
     const queryAppId = request.nextUrl.searchParams.get("appId");
     const headerAppId = request.headers.get("X-App-Id");
     const appId = queryAppId || headerAppId;
-    
+
     // Get organization with credit balance
     const org = await organizationsService.getById(user.organization_id);
-    
+
     if (!org) {
       const response = NextResponse.json(
         { success: false, error: "Organization not found" },
-        { status: 404 }
+        { status: 404 },
       );
       return addCorsHeaders(response, corsResult.origin);
     }
-    
+
     // Get recent credit transactions
-    const recentTransactions = await creditsService.listTransactionsByOrganization(
-      user.organization_id,
-      10 // Last 10 transactions
-    );
-    
+    const recentTransactions =
+      await creditsService.listTransactionsByOrganization(
+        user.organization_id,
+        10, // Last 10 transactions
+      );
+
     // Get usage summary for the current month
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const usageStats = await usageService.getStatsByOrganization(
       user.organization_id,
       startOfMonth,
-      now
+      now,
     );
-    
+
     // Get usage breakdown by model
     const usageByModel = await usageService.getByModel(
       user.organization_id,
       startOfMonth,
-      now
+      now,
     );
-    
+
     // Build base response
     const responseData: Record<string, unknown> = {
       success: true,
@@ -98,7 +121,9 @@ export async function GET(request: NextRequest) {
         currentMonth: {
           totalRequests: usageStats?.totalRequests || 0,
           totalCost: usageStats?.totalCost || "0.00",
-          totalTokens: (usageStats?.totalInputTokens || 0) + (usageStats?.totalOutputTokens || 0),
+          totalTokens:
+            (usageStats?.totalInputTokens || 0) +
+            (usageStats?.totalOutputTokens || 0),
           breakdown: usageByModel || [],
         },
       },
@@ -110,16 +135,20 @@ export async function GET(request: NextRequest) {
         createdAt: tx.created_at,
       })),
     };
-    
+
     // If appId is provided, add app-specific billing info
     if (appId) {
       try {
         const app = await appsService.getById(appId);
-        
+
         if (app && app.monetization_enabled) {
-          const appBalance = await appCreditsService.getBalance(appId, user.id);
-          const monetizationSettings = await appCreditsService.getMonetizationSettings(appId);
-          
+          const appBalance = await appCreditsService.getBalance(
+            appId,
+            user.id,
+          );
+          const monetizationSettings =
+            await appCreditsService.getMonetizationSettings(appId);
+
           responseData.appBilling = {
             appId,
             appName: app.name,
@@ -128,7 +157,8 @@ export async function GET(request: NextRequest) {
             totalPurchased: appBalance?.totalPurchased || 0,
             totalSpent: appBalance?.totalSpent || 0,
             // Pricing info for user transparency
-            inferenceMarkupPercentage: monetizationSettings?.inferenceMarkupPercentage || 0,
+            inferenceMarkupPercentage:
+              monetizationSettings?.inferenceMarkupPercentage || 0,
             // Creator attribution
             createdBy: {
               organizationId: app.organization_id,
@@ -146,25 +176,34 @@ export async function GET(request: NextRequest) {
           };
         }
       } catch (appError) {
-        logger.error("[Miniapp API] Error getting app billing info", { appError, appId });
+        logger.error("[Miniapp API] Error getting app billing info", {
+          appError,
+          appId,
+        });
         // Don't fail the whole request, just don't include app billing
       }
     }
-    
+
     const response = NextResponse.json(responseData);
-    
+
     addRateLimitInfoToResponse(response, rateLimitResult);
     return addCorsHeaders(response, corsResult.origin);
   } catch (error) {
     logger.error("[Miniapp API] Error getting billing info", { error });
-    
-    const status = error instanceof Error && error.message.includes("Unauthorized") ? 401 : 500;
+
+    const status =
+      error instanceof Error && error.message.includes("Unauthorized")
+        ? 401
+        : 500;
     const response = NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Failed to get billing info" },
-      { status }
+      {
+        success: false,
+        error:
+          error instanceof Error ? error.message : "Failed to get billing info",
+      },
+      { status },
     );
-    
+
     return addCorsHeaders(response, corsResult.origin);
   }
 }
-

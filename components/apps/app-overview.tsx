@@ -126,9 +126,26 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
         <Alert className="bg-[#FF5800]/10 border-[#FF5800]/20">
           <Key className="h-4 w-4 text-[#FF5800]" />
           <AlertDescription className="text-white">
-            <div className="font-semibold mb-2">New API Key Generated</div>
-            <p className="text-xs text-white/60 mb-2">
-              Save this key securely. This is the only time you&apos;ll see the full key.
+            <div className="font-semibold mb-2">Your API Key (shown once)</div>
+            <div className="flex items-center gap-2 mb-2">
+              <code className="flex-1 bg-black/30 p-2 rounded text-xs overflow-x-auto">
+                {displayApiKey}
+              </code>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => copyToClipboard(displayApiKey, "API Key")}
+              >
+                {copiedItem === "API Key" ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-white/60">
+              Make sure to save this key securely. You won&apos;t be able to see
+              it again! This message will disappear in 30 seconds.
             </p>
           </AlertDescription>
         </Alert>

@@ -46,7 +46,7 @@ export function CharacterBuildMode({
 
   // Mobile view state: 'assistant' or 'editor'
   const [mobileView, setMobileView] = useState<"assistant" | "editor">(
-    "assistant"
+    "assistant",
   );
 
   // Derive character from selectedCharacterId - avoid setState in effect
@@ -78,7 +78,7 @@ export function CharacterBuildMode({
     (updates: Partial<ElizaCharacter>) => {
       setCharacter((prev) => ({ ...prev, ...updates }));
     },
-    []
+    [],
   );
 
   const handleSave = useCallback(async () => {
@@ -92,23 +92,32 @@ export function CharacterBuildMode({
       return;
     }
 
-    if (selectedCharacterId && character.id) {
-      // Update existing character
-      await updateCharacter(selectedCharacterId, character);
-      toast.success("Character updated successfully!");
-    } else {
-      // Create new character
-      const saved = await createCharacter(character);
+    try {
+      if (selectedCharacterId && character.id) {
+        // Update existing character
+        await updateCharacter(selectedCharacterId, character);
+        toast.success("Character updated successfully!");
+      } else {
+        // Create new character
+        const saved = await createCharacter(character);
 
-      // Update selection to the newly created character
-      if (saved.id) {
-        setSelectedCharacterId(saved.id);
+        // Update selection to the newly created character
+        if (saved.id) {
+          setSelectedCharacterId(saved.id);
+        }
+
+        toast.success("Character created successfully!", {
+          description: "You can now chat with your new character!",
+          duration: 4000,
+        });
       }
-
-      toast.success("Character created successfully!", {
-        description: "You can now chat with your new character!",
-        duration: 4000,
-      });
+    } catch (error) {
+      console.error("Error saving character:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to save character. Please try again.",
+      );
     }
 
     // Mark changes as saved after successful save
@@ -145,7 +154,7 @@ export function CharacterBuildMode({
             "flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors",
             mobileView === "assistant"
               ? "bg-[#E500FF] text-white"
-              : "text-white/60 hover:text-white hover:bg-white/5"
+              : "text-white/60 hover:text-white hover:bg-white/5",
           )}
         >
           <MessageSquare className="h-4 w-4" />
@@ -157,7 +166,7 @@ export function CharacterBuildMode({
             "flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-l border-[#353535]",
             mobileView === "editor"
               ? "bg-[#E500FF] text-white"
-              : "text-white/60 hover:text-white hover:bg-white/5"
+              : "text-white/60 hover:text-white hover:bg-white/5",
           )}
         >
           <FileCode2 className="h-4 w-4" />

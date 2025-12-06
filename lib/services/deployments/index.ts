@@ -1,6 +1,6 @@
 /**
  * Deployment Services
- * 
+ *
  * Services for managing character deployments and infrastructure discovery.
  */
 
@@ -12,4 +12,3 @@ export {
   type CharacterListResult,
   type AgentStats,
 } from "./discovery";
-

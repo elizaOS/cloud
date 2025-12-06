@@ -132,9 +132,7 @@ export default function RootLayout({
               disableTransitionOnChange
             >
               <NextTopLoader showSpinner={false} color="#FF5800" />
-              <DebugProvider>
-                {children}
-              </DebugProvider>
+              <DebugProvider>{children}</DebugProvider>
               <Toaster
                 richColors
                 theme="dark"

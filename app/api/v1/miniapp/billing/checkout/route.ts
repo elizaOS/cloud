@@ -32,11 +32,11 @@ const checkoutRequestSchema = z
       .number()
       .min(
         CUSTOM_AMOUNT_LIMITS.MIN_AMOUNT,
-        `Amount must be at least $${CUSTOM_AMOUNT_LIMITS.MIN_AMOUNT}`
+        `Amount must be at least $${CUSTOM_AMOUNT_LIMITS.MIN_AMOUNT}`,
       )
       .max(
         CUSTOM_AMOUNT_LIMITS.MAX_AMOUNT,
-        `Amount cannot exceed $${CUSTOM_AMOUNT_LIMITS.MAX_AMOUNT}`
+        `Amount cannot exceed $${CUSTOM_AMOUNT_LIMITS.MAX_AMOUNT}`,
       )
       .finite("Amount must be a valid number")
       .optional(),
@@ -82,10 +82,13 @@ export async function POST(request: NextRequest) {
   // Rate limiting
   const rateLimitResult = await checkMiniappRateLimit(
     request,
-    MINIAPP_RATE_LIMITS
+    MINIAPP_RATE_LIMITS,
   );
   if (!rateLimitResult.allowed) {
-    return createRateLimitErrorResponse(rateLimitResult, corsResult.origin ?? undefined);
+    return createRateLimitErrorResponse(
+      rateLimitResult,
+      corsResult.origin ?? undefined,
+    );
   }
 
   try {
@@ -101,7 +104,7 @@ export async function POST(request: NextRequest) {
           error: "Validation failed",
           details: validationResult.error.flatten().fieldErrors,
         },
-        { status: 400 }
+        { status: 400 },
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -132,7 +135,7 @@ export async function POST(request: NextRequest) {
       if (!creditPack || !creditPack.is_active) {
         const response = NextResponse.json(
           { success: false, error: "Invalid or inactive credit pack" },
-          { status: 404 }
+          { status: 404 },
         );
         return addCorsHeaders(response, corsResult.origin);
       }
@@ -186,8 +189,11 @@ export async function POST(request: NextRequest) {
       };
     } else {
       const response = NextResponse.json(
-        { success: false, error: "Either creditPackId or amount must be provided" },
-        { status: 400 }
+        {
+          success: false,
+          error: "Either creditPackId or amount must be provided",
+        },
+        { status: 400 },
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -269,10 +275,9 @@ export async function POST(request: NextRequest) {
             ? error.message
             : "Failed to create checkout session",
       },
-      { status }
+      { status },
     );
 
     return addCorsHeaders(response, corsResult.origin);
   }
 }
-

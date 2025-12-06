@@ -166,8 +166,8 @@ export function EmailCaptureModal({
           <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/30 rounded-lg p-3">
             <Lock className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <p>
-              We&apos;ll never spam you or share your email. It&apos;s only used to save
-              your chat and send you important updates.
+              We&apos;ll never spam you or share your email. It&apos;s only used
+              to save your chat and send you important updates.
             </p>
           </div>
         </form>

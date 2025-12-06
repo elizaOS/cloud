@@ -273,69 +273,72 @@ export function VoiceCloneForm({
 
     setIsUploading(true);
 
-    const submitData = new FormData();
-    submitData.append("name", formData.name.trim());
-    submitData.append("cloneType", formData.cloneType);
-    if (formData.description.trim()) {
-      submitData.append("description", formData.description.trim());
-    }
-
-    // Add advanced settings
-    submitData.append("settings", JSON.stringify(settings));
-
-    // Add files
-    files.forEach((f, index) => {
-      submitData.append(`file${index + 1}`, f.file);
-    });
-
-    const response = await fetch("/api/elevenlabs/voices/clone", {
-      method: "POST",
-      body: submitData,
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      // Check for service unavailable (quota issues)
-      if (response.status === 503 || data.type === "service_unavailable") {
-        const friendlyError =
-          data.error ||
-          "Voice service is temporarily unavailable. Please try again in a few minutes.";
-        setError(friendlyError);
-        toast.error(friendlyError);
-        setIsUploading(false);
-        return;
+    try {
+      const submitData = new FormData();
+      submitData.append("name", formData.name.trim());
+      submitData.append("cloneType", formData.cloneType);
+      if (formData.description.trim()) {
+        submitData.append("description", formData.description.trim());
       }
-      const errorMsg = data.error || "Failed to create voice clone";
-      setError(errorMsg);
-      toast.error(errorMsg);
+
+      // Add advanced settings
+      submitData.append("settings", JSON.stringify(settings));
+
+      // Add files
+      files.forEach((f, index) => {
+        submitData.append(`file${index + 1}`, f.file);
+      });
+
+      const response = await fetch("/api/elevenlabs/voices/clone", {
+        method: "POST",
+        body: submitData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Check for service unavailable (quota issues)
+        if (response.status === 503 || data.type === "service_unavailable") {
+          const friendlyError =
+            data.error ||
+            "Voice service is temporarily unavailable. Please try again in a few minutes.";
+          throw new Error(friendlyError);
+        }
+        throw new Error(data.error || "Failed to create voice clone");
+      }
+
+      // Show appropriate success message based on clone type
+      if (formData.cloneType === "professional") {
+        toast.success(
+          `Voice "${formData.name}" is being created. Professional cloning takes 30-60 minutes. Check back later!`,
+          { duration: 10000 },
+        );
+      } else {
+        toast.success(
+          `Voice "${formData.name}" created successfully and ready to use!`,
+        );
+      }
+
+      // Update credit balance
+      if (data.newBalance !== undefined) {
+        onCreditBalanceChange(data.newBalance);
+      }
+
+      // Reset form
+      setFormData(DEFAULT_FORM_DATA);
+      setSettings(DEFAULT_SETTINGS);
+      setFiles([]);
+
+      // Notify parent
+      onSuccess(data.voice);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to create voice clone";
+      setError(message);
+      toast.error(message);
+    } finally {
       setIsUploading(false);
-      return;
     }
-
-    // Show appropriate success message based on clone type
-    if (formData.cloneType === "professional") {
-      toast.success(
-        `Voice "${formData.name}" is being created. Professional cloning takes 30-60 minutes. Check back later!`,
-        { duration: 10000 },
-      );
-    } else {
-      toast.success(`Voice "${formData.name}" created successfully and ready to use!`);
-    }
-
-    // Update credit balance
-    if (data.newBalance !== undefined) {
-      onCreditBalanceChange(data.newBalance);
-    }
-
-    // Reset form
-    setFormData(DEFAULT_FORM_DATA);
-    setSettings(DEFAULT_SETTINGS);
-    setFiles([]);
-
-    // Notify parent
-    onSuccess(data.voice);
-    setIsUploading(false);
   };
 
   const formatFileSize = (bytes: number) => {
@@ -383,7 +386,9 @@ export function VoiceCloneForm({
               id="name"
               placeholder="My Voice"
               value={formData.name}
-              onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, name: e.target.value }))
+              }
               disabled={isUploading}
               required
               className="border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
@@ -402,7 +407,12 @@ export function VoiceCloneForm({
               id="description"
               placeholder="A clone of my voice for content creation"
               value={formData.description}
-              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
               disabled={isUploading}
               rows={3}
               className="border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
@@ -422,7 +432,9 @@ export function VoiceCloneForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => setFormData((prev) => ({ ...prev, cloneType: "instant" }))}
+                onClick={() =>
+                  setFormData((prev) => ({ ...prev, cloneType: "instant" }))
+                }
                 disabled={isUploading}
                 className={cn(
                   "relative border p-3 text-left transition-all",
@@ -457,7 +469,12 @@ export function VoiceCloneForm({
 
               <button
                 type="button"
-                onClick={() => setFormData((prev) => ({ ...prev, cloneType: "professional" }))}
+                onClick={() =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    cloneType: "professional",
+                  }))
+                }
                 disabled={isUploading}
                 className={cn(
                   "relative border p-3 text-left transition-all",
@@ -799,7 +816,9 @@ export function VoiceCloneForm({
                     min={0}
                     max={1}
                     step={0.01}
-                    onValueChange={(v) => setSettings((prev) => ({ ...prev, stability: v[0] }))}
+                    onValueChange={(v) =>
+                      setSettings((prev) => ({ ...prev, stability: v[0] }))
+                    }
                     disabled={isUploading}
                   />
                   <p className="text-xs text-muted-foreground">
@@ -816,7 +835,12 @@ export function VoiceCloneForm({
                     min={0}
                     max={1}
                     step={0.01}
-                    onValueChange={(v) => setSettings((prev) => ({ ...prev, similarityBoost: v[0] }))}
+                    onValueChange={(v) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        similarityBoost: v[0],
+                      }))
+                    }
                     disabled={isUploading}
                   />
                   <p className="text-xs text-muted-foreground">
@@ -833,7 +857,9 @@ export function VoiceCloneForm({
                     min={0}
                     max={1}
                     step={0.01}
-                    onValueChange={(v) => setSettings((prev) => ({ ...prev, style: v[0] }))}
+                    onValueChange={(v) =>
+                      setSettings((prev) => ({ ...prev, style: v[0] }))
+                    }
                     disabled={isUploading}
                   />
                   <p className="text-xs text-muted-foreground">

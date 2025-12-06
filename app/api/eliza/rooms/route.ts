@@ -15,6 +15,8 @@ import { anonymousSessionsService, usersService } from "@/lib/services";
  * Returns rooms sorted by most recent activity.
  *
  * Single optimized query - no runtime needed
+ * Returns rooms sorted by most recent activity
+ *
  * Security: entityId is derived from authenticated user, not client-supplied
  */
 export async function GET(request: NextRequest) {

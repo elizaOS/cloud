@@ -74,7 +74,7 @@ export function useCreditsStream(): UseCreditsStreamResult {
 
   const fetchBalance = useCallback(async () => {
     if (!isMountedRef.current) return;
-    
+
     // Don't fetch if not authenticated or polling is paused
     if (!authenticated || isPollingPausedRef.current) {
       if (isMountedRef.current) {
@@ -100,29 +100,31 @@ export function useCreditsStream(): UseCreditsStreamResult {
       // Handle 401 Unauthorized specifically
       if (response.status === 401) {
         authErrorCountRef.current++;
-        
+
         // Log only on first error to avoid console spam
         if (authErrorCountRef.current === 1) {
-          console.warn("[useCreditsStream] Unauthorized - user may need to re-authenticate");
+          console.warn(
+            "[useCreditsStream] Unauthorized - user may need to re-authenticate",
+          );
         }
-        
+
         // Stop polling after too many auth errors
         if (authErrorCountRef.current >= MAX_AUTH_ERRORS) {
-          console.warn("[useCreditsStream] Too many auth errors, pausing polling");
+          console.warn(
+            "[useCreditsStream] Too many auth errors, pausing polling",
+          );
           stopPolling();
         }
-        
+
         if (isMountedRef.current) {
           setError("Unauthorized");
           setIsConnected(false);
           setCreditBalance(null);
-        }
-        if (isMountedRef.current) {
           setIsLoading(false);
         }
         return;
       }
-      
+
       throw new Error(`Failed to fetch balance: ${response.statusText}`);
     }
 

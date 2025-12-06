@@ -58,7 +58,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
 
   if (session.payment_status !== "paid") {
     logger.warn(
-      `[BillingSuccess] Session ${sessionId} not paid: ${session.payment_status}`
+      `[BillingSuccess] Session ${sessionId} not paid: ${session.payment_status}`,
     );
     return {
       success: false,

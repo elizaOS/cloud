@@ -63,7 +63,7 @@ export function BuildPageClient({
     }));
 
     setAvailableCharacters(characters);
-    
+
     // Set selected character from URL if provided
     if (initialCharacterId) {
       setSelectedCharacterId(initialCharacterId);

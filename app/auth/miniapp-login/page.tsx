@@ -13,7 +13,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 
-type Status = "loading" | "waiting_auth" | "completing" | "redirecting" | "error";
+type Status =
+  | "loading"
+  | "waiting_auth"
+  | "completing"
+  | "redirecting"
+  | "error";
 
 function MiniappLoginContent() {
   const { authenticated, login, ready } = usePrivy();
@@ -43,28 +48,40 @@ function MiniappLoginContent() {
 
     setStatus("completing");
 
-    const response = await fetch(
-      `/api/auth/miniapp-session/${sessionId}/complete`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    try {
+      const response = await fetch(
+        `/api/auth/miniapp-session/${sessionId}/complete`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        },
+      );
 
-    if (!response.ok) {
-      const errorData = await response.json();
+      if (!response.ok) {
+        const errorData = await response.json();
+        setStatus("error");
+        setErrorMessage(
+          errorData.error || "Failed to complete authentication",
+        );
+        return;
+      }
+
+      const data = await response.json();
+      setStatus("redirecting");
+
+      // Build callback URL and redirect
+      const callbackUrl = new URL(data.callbackUrl);
+      callbackUrl.searchParams.set("session", sessionId);
+      window.location.href = callbackUrl.toString();
+    } catch (error) {
       setStatus("error");
-      setErrorMessage(errorData.error || "Failed to complete authentication");
-      return;
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Failed to complete authentication",
+      );
     }
 
-    const data = await response.json();
-    setStatus("redirecting");
-
-    // Build callback URL and redirect
-    const callbackUrl = new URL(data.callbackUrl);
-    callbackUrl.searchParams.set("session", sessionId);
-    window.location.href = callbackUrl.toString();
   }, [sessionId]);
 
   // Update status when props change (avoiding synchronous setState)
@@ -131,7 +148,11 @@ function MiniappLoginContent() {
             <CardDescription>{errorMessage}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => window.close()} variant="outline" className="w-full">
+            <Button
+              onClick={() => window.close()}
+              variant="outline"
+              className="w-full"
+            >
               Close Window
             </Button>
           </CardContent>
@@ -183,7 +204,9 @@ function MiniappLoginContent() {
               <CheckCircle2 className="h-6 w-6 text-green-500" />
             </div>
             <CardTitle>Authentication Complete!</CardTitle>
-            <CardDescription>Redirecting you back to the app...</CardDescription>
+            <CardDescription>
+              Redirecting you back to the app...
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-center">

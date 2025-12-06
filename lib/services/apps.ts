@@ -2,7 +2,13 @@
  * Service for managing apps and app-related operations.
  */
 
-import { appsRepository, type App, type NewApp, type AppUser, type AppAnalytics } from "@/db/repositories/apps";
+import {
+  appsRepository,
+  type App,
+  type NewApp,
+  type AppUser,
+  type AppAnalytics,
+} from "@/db/repositories/apps";
 import { apiKeysService } from "./api-keys";
 import { logger } from "@/lib/utils/logger";
 import crypto from "crypto";
@@ -25,6 +31,10 @@ export class AppsService {
 
   async getBySlug(slug: string): Promise<App | undefined> {
     return await appsRepository.findBySlug(slug);
+  }
+
+  async getByAffiliateCode(code: string): Promise<App | undefined> {
+    return await appsRepository.findByAffiliateCode(code);
   }
 
   async listByOrganization(organizationId: string): Promise<App[]> {
@@ -98,12 +108,13 @@ export class AppsService {
 
   async delete(id: string): Promise<void> {
     const app = await appsRepository.findById(id);
-    
+
     if (app?.api_key_id) {
       await apiKeysService.delete(app.api_key_id);
     }
 
     await appsRepository.delete(id);
+
     logger.info(`Deleted app: ${id}`);
   }
 
@@ -111,9 +122,14 @@ export class AppsService {
     appId: string,
     userId: string,
     creditsUsed: string = "0.00",
-    metadata?: Record<string, unknown>
+    metadata?: Record<string, unknown>,
   ): Promise<void> {
-    await appsRepository.trackAppUserActivity(appId, userId, creditsUsed, metadata);
+    await appsRepository.trackAppUserActivity(
+      appId,
+      userId,
+      creditsUsed,
+      metadata,
+    );
   }
 
   async getAppUsers(appId: string, limit?: number): Promise<AppUser[]> {
@@ -124,9 +140,14 @@ export class AppsService {
     appId: string,
     periodType: "hourly" | "daily" | "monthly",
     startDate: Date,
-    endDate: Date
+    endDate: Date,
   ): Promise<AppAnalytics[]> {
-    return await appsRepository.getAnalytics(appId, periodType, startDate, endDate);
+    return await appsRepository.getAnalytics(
+      appId,
+      periodType,
+      startDate,
+      endDate,
+    );
   }
 
   async getTotalStats(appId: string): Promise<{
@@ -139,13 +160,13 @@ export class AppsService {
 
   async validateOrigin(appId: string, origin: string): Promise<boolean> {
     const app = await appsRepository.findById(appId);
-    
+
     if (!app || !app.is_active) {
       return false;
     }
 
     const allowedOrigins = app.allowed_origins as string[];
-    
+
     if (allowedOrigins.includes("*")) {
       return true;
     }
@@ -162,7 +183,7 @@ export class AppsService {
 
   async regenerateApiKey(appId: string): Promise<string> {
     const app = await appsRepository.findById(appId);
-    
+
     if (!app) {
       throw new Error("App not found");
     }

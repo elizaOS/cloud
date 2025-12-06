@@ -1,6 +1,6 @@
 /**
  * App Signup Tracking Service
- * 
+ *
  * Tracks user signups that come through apps via affiliate codes or direct referrals
  */
 
@@ -185,4 +185,3 @@ export class AppSignupTrackingService {
 
 // Export singleton instance
 export const appSignupTrackingService = new AppSignupTrackingService();
-

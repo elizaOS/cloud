@@ -49,8 +49,10 @@ export function VoiceAudioPlayer({
     const audio = audioRef.current;
     if (!audio) return;
 
-    const handleTimeUpdate = () => updatePlayer({ currentTime: audio.currentTime });
-    const handleDurationChange = () => updatePlayer({ duration: audio.duration });
+    const handleTimeUpdate = () =>
+      updatePlayer({ currentTime: audio.currentTime });
+    const handleDurationChange = () =>
+      updatePlayer({ duration: audio.duration });
     const handleEnded = () => updatePlayer({ isPlaying: false });
 
     audio.addEventListener("timeupdate", handleTimeUpdate);

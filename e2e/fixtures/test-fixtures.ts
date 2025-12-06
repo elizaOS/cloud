@@ -43,9 +43,11 @@ export async function waitForPrivyReady(page: Page): Promise<void> {
   }
 
   // Alternative: wait for the login form to be visible
-  await page.waitForSelector('[data-testid="login-form"]', { timeout: 30000 }).catch(() => {
-    // If login form not found, we might be on a different page
-  });
+  await page
+    .waitForSelector('[data-testid="login-form"]', { timeout: 30000 })
+    .catch(() => {
+      // If login form not found, we might be on a different page
+    });
 }
 
 /**
@@ -103,7 +105,7 @@ export async function clearAuthState(page: Page): Promise<void> {
  */
 export async function waitForDashboardRedirect(
   page: Page,
-  timeout = 60000
+  timeout = 60000,
 ): Promise<void> {
   await page.waitForURL("**/dashboard**", { timeout });
   await waitForPageLoad(page);
@@ -115,10 +117,10 @@ export async function waitForDashboardRedirect(
  */
 export const LoginSelectors = {
   // Main containers
-  loginPage: 'body',
-  loginForm: 'form',
-  loginCard: 'form',
-  loadingSpinner: '.animate-spin',
+  loginPage: "body",
+  loginForm: "form",
+  loginCard: "form",
+  loadingSpinner: ".animate-spin",
 
   // Email login
   emailInput: 'input[type="email"], input[placeholder*="example.com"]',
@@ -142,8 +144,8 @@ export const LoginSelectors = {
   privyMetamaskOption: '[class*="privy"] button:has-text("MetaMask")',
 
   // Success/redirect states
-  signingInMessage: 'text=Signing you in',
-  redirectingMessage: 'text=Taking you to your dashboard',
+  signingInMessage: "text=Signing you in",
+  redirectingMessage: "text=Taking you to your dashboard",
 } as const;
 
 /**

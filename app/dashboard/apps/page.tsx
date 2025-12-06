@@ -59,7 +59,9 @@ export default async function AppsPage() {
           <div className="relative z-10 flex items-center justify-between">
             <div>
               <p className="text-sm text-white/60">Total Apps</p>
-              <p className="text-2xl font-bold text-white mt-1">{stats.total}</p>
+              <p className="text-2xl font-bold text-white mt-1">
+                {stats.total}
+              </p>
             </div>
             <div className="p-3 bg-white/5 rounded-lg">
               <Grid3x3 className="h-5 w-5 text-[#FF5800]" />
@@ -72,7 +74,9 @@ export default async function AppsPage() {
           <div className="relative z-10 flex items-center justify-between">
             <div>
               <p className="text-sm text-white/60">Active Apps</p>
-              <p className="text-2xl font-bold text-white mt-1">{stats.active}</p>
+              <p className="text-2xl font-bold text-white mt-1">
+                {stats.active}
+              </p>
             </div>
             <div className="p-3 bg-white/5 rounded-lg">
               <Activity className="h-5 w-5 text-green-500" />
@@ -127,4 +131,3 @@ export default async function AppsPage() {
     </div>
   );
 }
-

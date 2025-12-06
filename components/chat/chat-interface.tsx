@@ -67,13 +67,20 @@ export function ChatInterface({
   const { login } = usePrivy();
   const [messageCount, setMessageCount] = useState(session?.messageCount || 0);
   const [isLoadingSessionData, setIsLoadingSessionData] = useState(false);
-  const { setSelectedCharacterId, setAnonymousSessionToken, loadRooms, rooms, setRoomId, roomId } = useChatStore();
+  const {
+    setSelectedCharacterId,
+    setAnonymousSessionToken,
+    loadRooms,
+    rooms,
+    setRoomId,
+    roomId,
+  } = useChatStore();
   const isAnonymous = !user && !!session;
-  
+
   // Use refs for initialization tracking to avoid re-renders and infinite loops
   const roomInitializedRef = useRef(false);
   const roomInitializingRef = useRef(false);
-  
+
   // CRITICAL: Fetch the LATEST session data from server on mount and when token changes
   // This ensures the message count is accurate after page reload, not stale from SSR props
   useEffect(() => {
@@ -84,64 +91,91 @@ export function ChatInterface({
 
     const fetchLatestSessionData = async () => {
       setIsLoadingSessionData(true);
-      console.log("[ChatInterface] 🔄 Fetching latest session data from server...");
-      const response = await fetch(`/api/anonymous-session?token=${sessionTokenFromUrl}`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.session) {
-          const serverCount = data.session.message_count;
-          
-          // Use functional update to compare against current state value
-          // This avoids stale closure issues with messageCount
-          setMessageCount((currentCount) => {
-            console.log("[ChatInterface] ✅ Server session data:", {
-              serverCount,
-              currentLocalCount: currentCount,
-              willUpdate: serverCount > currentCount,
+      try {
+        console.log(
+          "[ChatInterface] 🔄 Fetching latest session data from server...",
+        );
+        const response = await fetch(
+          `/api/anonymous-session?token=${sessionTokenFromUrl}`,
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.session) {
+            const serverCount = data.session.message_count;
+
+            // Use functional update to compare against current state value
+            // This avoids stale closure issues with messageCount
+            setMessageCount((currentCount) => {
+              console.log("[ChatInterface] ✅ Server session data:", {
+                serverCount,
+                currentLocalCount: currentCount,
+                willUpdate: serverCount > currentCount,
+              });
+
+              // Only update if server has a higher count
+              // This ensures we don't overwrite local increments that haven't synced yet
+              if (serverCount > currentCount) {
+                console.log(
+                  "[ChatInterface] 📊 Updated message count from server:",
+                  serverCount,
+                );
+                return serverCount;
+              }
+              return currentCount;
             });
-            
-            // Only update if server has a higher count
-            // This ensures we don't overwrite local increments that haven't synced yet
-            if (serverCount > currentCount) {
-              console.log(
-                "[ChatInterface] 📊 Updated message count from server:",
-                serverCount
-              );
-              return serverCount;
-            }
-            return currentCount;
-          });
+          }
+        } else {
+          console.warn(
+            "[ChatInterface] ⚠️ Failed to fetch session data:",
+            response.status,
+          );
         }
-      } else {
-        console.warn("[ChatInterface] ⚠️ Failed to fetch session data:", response.status);
+      } catch (error) {
+        console.error("[ChatInterface] Error fetching session data:", error);
+      } finally {
+        setIsLoadingSessionData(false);
       }
-      setIsLoadingSessionData(false);
     };
 
     // Fetch immediately on mount
     fetchLatestSessionData();
   }, [sessionTokenFromUrl, user]); // Only re-run if token changes or auth state changes
-  
+
   // Callback to sync message count when a message is sent successfully
   // This is called from ElizaChatInterface after a successful message
   // NOTE: The actual increment happens server-side in message-handler.ts
   // This callback just fetches the latest count to update the UI
   const onMessageSent = useCallback(async () => {
     if (isAnonymous && sessionTokenFromUrl) {
-      console.log("[ChatInterface] 📊 Message sent, fetching latest count for token:", sessionTokenFromUrl.slice(0, 8) + "...");
+      console.log(
+        "[ChatInterface] 📊 Message sent, fetching latest count for token:",
+        sessionTokenFromUrl.slice(0, 8) + "...",
+      );
 
-      const response = await fetch(`/api/anonymous-session?token=${sessionTokenFromUrl}`);
+      try {
+        const response = await fetch(
+          `/api/anonymous-session?token=${sessionTokenFromUrl}`,
+        );
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.session) {
-          const serverCount = data.session.message_count;
-          console.log("[ChatInterface] ✅ Fetched latest count from server:", serverCount);
-          setMessageCount(serverCount);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.session) {
+            const serverCount = data.session.message_count;
+            console.log(
+              "[ChatInterface] ✅ Fetched latest count from server:",
+              serverCount,
+            );
+            setMessageCount(serverCount);
+          }
+        } else {
+          console.warn(
+            "[ChatInterface] ⚠️ Failed to fetch session data:",
+            response.status,
+          );
         }
-      } else {
-        console.warn("[ChatInterface] ⚠️ Failed to fetch session data:", response.status);
+      } catch (error) {
+        console.error("[ChatInterface] Error fetching session data:", error);
       }
     }
   }, [isAnonymous, sessionTokenFromUrl]);
@@ -165,22 +199,34 @@ export function ChatInterface({
     console.log("[ChatInterface] 🔍 DEBUG - Auth & Theme State:", {
       themeId: theme.id,
       hasSession: !!session,
-      sessionDetails: session ? {
-        messageCount: session.messageCount,
-        messagesLimit: session.messagesLimit,
-        messagesRemaining: session.messagesRemaining,
-      } : "NO SESSION PROP",
+      sessionDetails: session
+        ? {
+            messageCount: session.messageCount,
+            messagesLimit: session.messagesLimit,
+            messagesRemaining: session.messagesRemaining,
+          }
+        : "NO SESSION PROP",
       hasUser: !!user,
       userDetails: user ? { id: user.id, name: user.name } : "NO USER PROP",
       isAnonymous,
       messagesRemaining,
       shouldShowBanner: isAnonymous && !shouldShowPaywall,
       source,
-      reason: user ? "USER IS LOGGED IN VIA PRIVY - No banner for authenticated users" 
-             : !session ? "SESSION PROP IS MISSING - Check page.tsx Case B logic"
-             : "ANONYMOUS USER WITH SESSION - Banner should show",
+      reason: user
+        ? "USER IS LOGGED IN VIA PRIVY - No banner for authenticated users"
+        : !session
+          ? "SESSION PROP IS MISSING - Check page.tsx Case B logic"
+          : "ANONYMOUS USER WITH SESSION - Banner should show",
     });
-  }, [theme.id, session, user, isAnonymous, messagesRemaining, source, shouldShowPaywall]);
+  }, [
+    theme.id,
+    session,
+    user,
+    isAnonymous,
+    messagesRemaining,
+    source,
+    shouldShowPaywall,
+  ]);
 
   // CRITICAL: Set the selected character ID so ElizaChatInterface knows which character to use
   useEffect(() => {
@@ -192,7 +238,10 @@ export function ChatInterface({
   useEffect(() => {
     if (sessionTokenFromUrl && !user) {
       setAnonymousSessionToken(sessionTokenFromUrl);
-      console.log("[ChatInterface] Set anonymous session token in store:", sessionTokenFromUrl.slice(0, 8) + "...");
+      console.log(
+        "[ChatInterface] Set anonymous session token in store:",
+        sessionTokenFromUrl.slice(0, 8) + "...",
+      );
     }
   }, [sessionTokenFromUrl, user, setAnonymousSessionToken]);
 
@@ -204,46 +253,71 @@ export function ChatInterface({
     if (roomInitializedRef.current || roomInitializingRef.current) {
       return;
     }
-    
+
     // Skip if we already have a room selected
     if (roomId) {
       roomInitializedRef.current = true;
       return;
     }
-    
+
     // Skip if no character ID
     if (!character.id) {
       return;
     }
-    
+
     const initializeRoom = async () => {
       roomInitializingRef.current = true;
-      
+
       const currentEntityId = useChatStore.getState().entityId;
-      console.log("[ChatInterface] 🔄 Initializing room for character:", character.id, "entityId:", currentEntityId);
-      
-      // Load rooms (this uses internal deduplication)
-      await loadRooms(true);
-      
-      // Get the current rooms from store
-      const currentRooms = useChatStore.getState().rooms;
-      console.log("[ChatInterface] Loaded rooms:", currentRooms.length, "rooms:", currentRooms.map(r => ({ id: r.id, characterId: r.characterId })));
-      
-      // Find an existing room for this character
-      const existingRoom = currentRooms.find(room => room.characterId === character.id);
-      
-      if (existingRoom) {
-        console.log("[ChatInterface] ✅ Found existing room:", existingRoom.id);
-        setRoomId(existingRoom.id);
-      } else {
-        console.log("[ChatInterface] No existing room found for character:", character.id);
+      console.log(
+        "[ChatInterface] 🔄 Initializing room for character:",
+        character.id,
+        "entityId:",
+        currentEntityId,
+      );
+
+      try {
+        // Load rooms (this uses internal deduplication)
+        await loadRooms(true);
+
+        // Get the current rooms from store
+        const currentRooms = useChatStore.getState().rooms;
+        console.log(
+          "[ChatInterface] Loaded rooms:",
+          currentRooms.length,
+          "rooms:",
+          currentRooms.map((r) => ({ id: r.id, characterId: r.characterId })),
+        );
+
+        // Find an existing room for this character
+        const existingRoom = currentRooms.find(
+          (room) => room.characterId === character.id,
+        );
+
+        if (existingRoom) {
+          console.log(
+            "[ChatInterface] ✅ Found existing room:",
+            existingRoom.id,
+          );
+          setRoomId(existingRoom.id);
+        } else {
+          console.log(
+            "[ChatInterface] No existing room found for character:",
+            character.id,
+          );
+        }
+
+        // Mark as initialized so we don't try again
+        roomInitializedRef.current = true;
+      } catch (error) {
+        console.error("[ChatInterface] Error initializing room:", error);
+        // Still mark as initialized to prevent retry loops
+        roomInitializedRef.current = true;
+      } finally {
+        roomInitializingRef.current = false;
       }
-      
-      // Mark as initialized so we don't try again
-      roomInitializedRef.current = true;
-      roomInitializingRef.current = false;
     };
-    
+
     initializeRoom();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [character.id]); // Only depend on character.id - other deps are stable or accessed via refs/getState
@@ -255,11 +329,21 @@ export function ChatInterface({
     // Only set cookie if we have a session token AND user is NOT authenticated
     // (authenticated users don't need the anonymous session cookie)
     if (sessionTokenFromUrl && !user) {
-      console.log("[ChatInterface] Setting anonymous session cookie from URL:", sessionTokenFromUrl.slice(0, 8) + "...");
+      console.log(
+        "[ChatInterface] Setting anonymous session cookie from URL:",
+        sessionTokenFromUrl.slice(0, 8) + "...",
+      );
 
       // Store in localStorage as backup (httpOnly cookies can't be read by JS)
-      localStorage.setItem("eliza-anon-session-token", sessionTokenFromUrl);
-      console.log("[ChatInterface] ✅ Session token stored in localStorage");
+      try {
+        localStorage.setItem("eliza-anon-session-token", sessionTokenFromUrl);
+        console.log("[ChatInterface] ✅ Session token stored in localStorage");
+      } catch (e) {
+        console.warn(
+          "[ChatInterface] Failed to store session in localStorage:",
+          e,
+        );
+      }
 
       fetch("/api/set-anonymous-session", {
         method: "POST",
@@ -310,7 +394,6 @@ export function ChatInterface({
       toast.error("Failed to open signup. Please try again.");
     }
   };
-  
 
   // Paywall view
   if (shouldShowPaywall) {
@@ -370,10 +453,7 @@ export function ChatInterface({
   }
 
   return (
-    <div
-      style={themeStyles}
-      className="h-screen flex flex-col themed-chat"
-    >
+    <div style={themeStyles} className="h-screen flex flex-col themed-chat">
       {/* Free messages banner (anonymous only) */}
       {isAnonymous && !shouldShowPaywall && (
         <div className="border-b backdrop-blur-sm bg-muted/30">
@@ -390,11 +470,7 @@ export function ChatInterface({
                   />
                 </div>
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleUpgrade}
-              >
+              <Button size="sm" variant="outline" onClick={handleUpgrade}>
                 <Sparkles className="w-4 h-4 mr-2" />
                 Unlock Unlimited
               </Button>
@@ -428,8 +504,8 @@ export function ChatInterface({
 
       {/* Chat interface */}
       <div className="flex-1 overflow-hidden">
-        <ElizaChatInterface 
-          onMessageSent={onMessageSent} 
+        <ElizaChatInterface
+          onMessageSent={onMessageSent}
           character={character}
         />
       </div>

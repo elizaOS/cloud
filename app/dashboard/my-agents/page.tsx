@@ -27,13 +27,18 @@ export default async function MyAgentsPage() {
   const anonSessionCookie = cookieStore.get("eliza-anon-session");
 
   if (anonSessionCookie?.value && user.privy_user_id) {
-    logger.info("[MyAgents] Found anonymous session cookie, attempting migration", {
-      userId: user.id,
-      sessionToken: anonSessionCookie.value.slice(0, 8) + "...",
-    });
+    logger.info(
+      "[MyAgents] Found anonymous session cookie, attempting migration",
+      {
+        userId: user.id,
+        sessionToken: anonSessionCookie.value.slice(0, 8) + "...",
+      },
+    );
 
     const { anonymousSessionsService } = await import("@/lib/services");
-    const anonSession = await anonymousSessionsService.getByToken(anonSessionCookie.value);
+    const anonSession = await anonymousSessionsService.getByToken(
+      anonSessionCookie.value,
+    );
 
     if (anonSession && !anonSession.converted_at) {
       logger.info("[MyAgents] Found unconverted session, migrating...", {

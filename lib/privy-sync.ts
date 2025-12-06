@@ -276,6 +276,9 @@ export async function syncUserFromPrivy(
           role: userWithOrg.role,
           isNewOrganization: false,
         })
+        .catch((error) => {
+          console.error("[PrivySync] Failed to log signup to Discord:", error);
+        });
 
       return userWithOrg;
     }

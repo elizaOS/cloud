@@ -1,6 +1,9 @@
 import { streamText } from "ai";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
+import {
+  getAnonymousUser,
+  getOrCreateAnonymousUser,
+} from "@/lib/auth-anonymous";
 import {
   usageService,
   creditsService,
@@ -62,11 +65,13 @@ async function authenticateUser(req: NextRequest): Promise<AuthContext> {
   } catch (authError) {
     // Fall back to anonymous user
     logger.info("[Generate Image] Privy auth failed, trying anonymous...");
-    
+
     let anonData = await getAnonymousUser();
-    
+
     if (!anonData) {
-      logger.info("[Generate Image] No session cookie - creating new anonymous session");
+      logger.info(
+        "[Generate Image] No session cookie - creating new anonymous session",
+      );
       const newAnonData = await getOrCreateAnonymousUser();
       anonData = {
         user: newAnonData.user,
@@ -101,13 +106,15 @@ async function authenticateUser(req: NextRequest): Promise<AuthContext> {
  */
 async function handlePOST(req: NextRequest) {
   let generationId: string | undefined;
-  
+
   try {
     // Authenticate - supports both authenticated and anonymous users
     const authContext = await authenticateUser(req);
     const { user, apiKey, session_token, isAnonymous } = authContext;
 
-    logger.info(`[Generate Image] Request from ${isAnonymous ? 'anonymous' : 'authenticated'} user: ${user.id}`);
+    logger.info(
+      `[Generate Image] Request from ${isAnonymous ? "anonymous" : "authenticated"} user: ${user.id}`,
+    );
 
     const {
       prompt,
@@ -187,7 +194,7 @@ async function handlePOST(req: NextRequest) {
     enhancedPrompt += `, ${aspectRatioDescriptions[aspectRatio]}`;
 
     logger.info(
-      `[Generate Image] Generating ${numImages} image(s) for ${isAnonymous ? 'anonymous' : 'authenticated'} user with prompt: ${enhancedPrompt.substring(0, 100)}...`,
+      `[Generate Image] Generating ${numImages} image(s) for ${isAnonymous ? "anonymous" : "authenticated"} user with prompt: ${enhancedPrompt.substring(0, 100)}...`,
     );
 
     // Function to generate a single image
@@ -284,7 +291,10 @@ async function handlePOST(req: NextRequest) {
 
     // Calculate actual cost based on successful images
     const actualCost = IMAGE_GENERATION_COST * successfulResults.length;
-    let deductionResult: { success: boolean; newBalance: number } = { success: true, newBalance: 0 };
+    let deductionResult: { success: boolean; newBalance: number } = {
+      success: true,
+      newBalance: 0,
+    };
 
     // Only deduct credits for authenticated users with an organization
     if (!isAnonymous && user.organization_id) {
@@ -317,7 +327,9 @@ async function handlePOST(req: NextRequest) {
         );
       }
     } else {
-      logger.info(`[Generate Image] Anonymous user - skipping credit deduction`);
+      logger.info(
+        `[Generate Image] Anonymous user - skipping credit deduction`,
+      );
     }
 
     // Only create usage record for authenticated users
@@ -449,7 +461,10 @@ async function handlePOST(req: NextRequest) {
           model: "google/gemini-2.5-flash-image-preview",
         })
         .catch((error) => {
-          logger.error("[Generate Image] Failed to log to Discord:", error instanceof Error ? error.message : String(error));
+          logger.error(
+            "[Generate Image] Failed to log to Discord:",
+            error instanceof Error ? error.message : String(error),
+          );
         });
     }
 
@@ -458,7 +473,10 @@ async function handlePOST(req: NextRequest) {
       numImages: successfulResults.length,
     });
   } catch (error) {
-    logger.error("[Generate Image] Error:", error instanceof Error ? error.message : String(error));
+    logger.error(
+      "[Generate Image] Error:",
+      error instanceof Error ? error.message : String(error),
+    );
     const errorMessage =
       error instanceof Error ? error.message : "Image generation failed";
 
@@ -472,7 +490,9 @@ async function handlePOST(req: NextRequest) {
       } catch (updateError) {
         logger.error(
           "[Generate Image] Failed to update generation record:",
-          updateError instanceof Error ? updateError.message : String(updateError),
+          updateError instanceof Error
+            ? updateError.message
+            : String(updateError),
         );
       }
     }

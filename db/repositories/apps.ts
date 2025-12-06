@@ -1,5 +1,15 @@
 import { db } from "../client";
-import { apps, appUsers, appAnalytics, type App, type NewApp, type AppUser, type NewAppUser, type AppAnalytics, type NewAppAnalytics } from "../schemas";
+import {
+  apps,
+  appUsers,
+  appAnalytics,
+  type App,
+  type NewApp,
+  type AppUser,
+  type NewAppUser,
+  type AppAnalytics,
+  type NewAppAnalytics,
+} from "../schemas";
 import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
 
 export type { App, NewApp, AppUser, NewAppUser, AppAnalytics, NewAppAnalytics };
@@ -10,6 +20,8 @@ export type { App, NewApp, AppUser, NewAppUser, AppAnalytics, NewAppAnalytics };
  * Handles CRUD operations for apps, app users, and app analytics.
  */
 export class AppsRepository {
+  // ==================== Apps CRUD ====================
+
   /**
    * Finds an app by ID.
    */
@@ -55,11 +67,11 @@ export class AppsRepository {
     isApproved?: boolean;
   }): Promise<App[]> {
     const conditions = [];
-    
+
     if (filters?.isActive !== undefined) {
       conditions.push(eq(apps.is_active, filters.isActive));
     }
-    
+
     if (filters?.isApproved !== undefined) {
       conditions.push(eq(apps.is_approved, filters.isApproved));
     }
@@ -103,7 +115,10 @@ export class AppsRepository {
   /**
    * Atomically increments app usage statistics.
    */
-  async incrementUsage(id: string, creditsUsed: string = "0.00"): Promise<void> {
+  async incrementUsage(
+    id: string,
+    creditsUsed: string = "0.00",
+  ): Promise<void> {
     await db
       .update(apps)
       .set({
@@ -115,15 +130,17 @@ export class AppsRepository {
       .where(eq(apps.id, id));
   }
 
+  // ==================== App Users CRUD ====================
+
   /**
    * Finds an app user by app ID and user ID.
    */
-  async findAppUser(appId: string, userId: string): Promise<AppUser | undefined> {
+  async findAppUser(
+    appId: string,
+    userId: string,
+  ): Promise<AppUser | undefined> {
     return await db.query.appUsers.findFirst({
-      where: and(
-        eq(appUsers.app_id, appId),
-        eq(appUsers.user_id, userId)
-      ),
+      where: and(eq(appUsers.app_id, appId), eq(appUsers.user_id, userId)),
     });
   }
 
@@ -143,7 +160,8 @@ export class AppsRepository {
    */
   async createAppUser(data: NewAppUser): Promise<AppUser> {
     const [appUser] = await db.insert(appUsers).values(data).returning();
-    
+
+    // Increment the app's total_users count
     await db
       .update(apps)
       .set({
@@ -151,7 +169,7 @@ export class AppsRepository {
         updated_at: new Date(),
       })
       .where(eq(apps.id, data.app_id));
-    
+
     return appUser;
   }
 
@@ -161,7 +179,7 @@ export class AppsRepository {
   async updateAppUser(
     appId: string,
     userId: string,
-    data: Partial<NewAppUser>
+    data: Partial<NewAppUser>,
   ): Promise<AppUser | undefined> {
     const [updated] = await db
       .update(appUsers)
@@ -169,12 +187,7 @@ export class AppsRepository {
         ...data,
         last_seen_at: new Date(),
       })
-      .where(
-        and(
-          eq(appUsers.app_id, appId),
-          eq(appUsers.user_id, userId)
-        )
-      )
+      .where(and(eq(appUsers.app_id, appId), eq(appUsers.user_id, userId)))
       .returning();
     return updated;
   }
@@ -185,7 +198,7 @@ export class AppsRepository {
   async incrementAppUserUsage(
     appId: string,
     userId: string,
-    creditsUsed: string = "0.00"
+    creditsUsed: string = "0.00",
   ): Promise<void> {
     await db
       .update(appUsers)
@@ -194,12 +207,7 @@ export class AppsRepository {
         total_credits_used: sql`${appUsers.total_credits_used} + ${creditsUsed}`,
         last_seen_at: new Date(),
       })
-      .where(
-        and(
-          eq(appUsers.app_id, appId),
-          eq(appUsers.user_id, userId)
-        )
-      );
+      .where(and(eq(appUsers.app_id, appId), eq(appUsers.user_id, userId)));
   }
 
   /**
@@ -211,7 +219,7 @@ export class AppsRepository {
     appId: string,
     userId: string,
     creditsUsed: string = "0.00",
-    metadata?: Record<string, unknown>
+    metadata?: Record<string, unknown>,
   ): Promise<void> {
     const existingAppUser = await this.findAppUser(appId, userId);
 
@@ -245,14 +253,14 @@ export class AppsRepository {
     appId: string,
     periodType: string,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
   ): Promise<AppAnalytics[]> {
     return await db.query.appAnalytics.findMany({
       where: and(
         eq(appAnalytics.app_id, appId),
         eq(appAnalytics.period_type, periodType),
         gte(appAnalytics.period_start, startDate),
-        lte(appAnalytics.period_end, endDate)
+        lte(appAnalytics.period_end, endDate),
       ),
       orderBy: [desc(appAnalytics.period_start)],
     });
@@ -261,7 +269,10 @@ export class AppsRepository {
   /**
    * Gets the latest app analytics records.
    */
-  async getLatestAnalytics(appId: string, limit: number = 30): Promise<AppAnalytics[]> {
+  async getLatestAnalytics(
+    appId: string,
+    limit: number = 30,
+  ): Promise<AppAnalytics[]> {
     return await db.query.appAnalytics.findMany({
       where: eq(appAnalytics.app_id, appId),
       orderBy: [desc(appAnalytics.period_start)],
@@ -278,7 +289,7 @@ export class AppsRepository {
     totalCreditsUsed: string;
   }> {
     const app = await this.findById(appId);
-    
+
     if (!app) {
       return {
         totalRequests: 0,
@@ -299,4 +310,3 @@ export class AppsRepository {
  * Singleton instance of AppsRepository.
  */
 export const appsRepository = new AppsRepository();
-

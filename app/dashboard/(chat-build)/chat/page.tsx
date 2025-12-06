@@ -100,19 +100,27 @@ export default async function ElizaPage({ searchParams }: PageProps) {
     const anonSessionCookie = cookieStore.get("eliza-anon-session");
 
     if (anonSessionCookie?.value) {
-      logger.info("[Dashboard Chat] Found anonymous session cookie, attempting migration", {
-        userId: user.id,
-        sessionToken: anonSessionCookie.value.slice(0, 8) + "...",
-      });
+      logger.info(
+        "[Dashboard Chat] Found anonymous session cookie, attempting migration",
+        {
+          userId: user.id,
+          sessionToken: anonSessionCookie.value.slice(0, 8) + "...",
+        },
+      );
 
       const { anonymousSessionsService } = await import("@/lib/services");
-      const anonSession = await anonymousSessionsService.getByToken(anonSessionCookie.value);
+      const anonSession = await anonymousSessionsService.getByToken(
+        anonSessionCookie.value,
+      );
 
       if (anonSession && !anonSession.converted_at) {
-        logger.info("[Dashboard Chat] Found unconverted session, migrating...", {
-          sessionId: anonSession.id,
-          anonymousUserId: anonSession.user_id,
-        });
+        logger.info(
+          "[Dashboard Chat] Found unconverted session, migrating...",
+          {
+            sessionId: anonSession.id,
+            anonymousUserId: anonSession.user_id,
+          },
+        );
 
         const { convertAnonymousToReal } = await import("@/lib/auth-anonymous");
         await convertAnonymousToReal(anonSession.user_id, user.privy_user_id);

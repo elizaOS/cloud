@@ -24,10 +24,7 @@ export default defineConfig({
   workers: 1,
 
   // Reporter to use
-  reporter: [
-    ["list"],
-    ...(process.env.CI ? ([["github"]] as const) : []),
-  ],
+  reporter: [["list"], ...(process.env.CI ? ([["github"]] as const) : [])],
 
   // Shared settings for all the projects below
   use: {

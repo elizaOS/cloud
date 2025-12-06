@@ -1,10 +1,21 @@
+/**
+ * /api/v1/miniapp/agents
+ *
+ * GET  - List all agents for the authenticated user
+ * POST - Create a new agent
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { charactersService, myAgentsService } from "@/lib/services";
-import { addCorsHeaders, validateOrigin, createPreflightResponse } from "@/lib/middleware/cors-apps";
-import { 
-  checkMiniappRateLimit, 
-  createRateLimitErrorResponse, 
+import {
+  addCorsHeaders,
+  validateOrigin,
+  createPreflightResponse,
+} from "@/lib/middleware/cors-apps";
+import {
+  checkMiniappRateLimit,
+  createRateLimitErrorResponse,
   addRateLimitInfoToResponse,
   MINIAPP_RATE_LIMITS,
   MINIAPP_WRITE_LIMITS,
@@ -39,22 +50,31 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   const corsResult = await validateOrigin(request);
-  
+
   // Rate limiting
-  const rateLimitResult = await checkMiniappRateLimit(request, MINIAPP_RATE_LIMITS);
+  const rateLimitResult = await checkMiniappRateLimit(
+    request,
+    MINIAPP_RATE_LIMITS,
+  );
   if (!rateLimitResult.allowed) {
-    return createRateLimitErrorResponse(rateLimitResult, corsResult.origin ?? undefined);
+    return createRateLimitErrorResponse(
+      rateLimitResult,
+      corsResult.origin ?? undefined,
+    );
   }
-  
+
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { searchParams } = new URL(request.url);
-    
+
     // Parse query parameters
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "20", 10)));
+    const limit = Math.min(
+      50,
+      Math.max(1, parseInt(searchParams.get("limit") || "20", 10)),
+    );
     const search = searchParams.get("search") || undefined;
-    
+
     const result = await myAgentsService.searchCharacters({
       userId: user.id,
       organizationId: user.organization_id,
@@ -66,7 +86,7 @@ export async function GET(request: NextRequest) {
       pagination: { page, limit },
       includeStats: true,
     });
-    
+
     const response = NextResponse.json({
       success: true,
       agents: result.characters.map((char) => ({
@@ -87,18 +107,24 @@ export async function GET(request: NextRequest) {
         hasMore: result.pagination.hasMore,
       },
     });
-    
+
     addRateLimitInfoToResponse(response, rateLimitResult);
     return addCorsHeaders(response, corsResult.origin);
   } catch (error) {
     logger.error("[Miniapp API] Error listing agents", { error });
-    
-    const status = error instanceof Error && error.message.includes("Unauthorized") ? 401 : 500;
+
+    const status =
+      error instanceof Error && error.message.includes("Unauthorized")
+        ? 401
+        : 500;
     const response = NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Failed to list agents" },
-      { status }
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to list agents",
+      },
+      { status },
     );
-    
+
     return addCorsHeaders(response, corsResult.origin);
   }
 }
@@ -110,12 +136,24 @@ const CreateAgentSchema = z.object({
   avatarUrl: z.string().url().optional().nullable(),
   topics: z.array(z.string()).optional(),
   adjectives: z.array(z.string()).optional(),
-  style: z.object({
-    all: z.array(z.string()).optional(),
-    chat: z.array(z.string()).optional(),
-    post: z.array(z.string()).optional(),
-  }).optional(),
-  settings: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.record(z.string(), z.unknown())])).optional(),
+  style: z
+    .object({
+      all: z.array(z.string()).optional(),
+      chat: z.array(z.string()).optional(),
+      post: z.array(z.string()).optional(),
+    })
+    .optional(),
+  settings: z
+    .record(
+      z.string(),
+      z.union([
+        z.string(),
+        z.number(),
+        z.boolean(),
+        z.record(z.string(), z.unknown()),
+      ]),
+    )
+    .optional(),
   isPublic: z.boolean().optional(),
 });
 
@@ -139,29 +177,39 @@ const CreateAgentSchema = z.object({
  */
 export async function POST(request: NextRequest) {
   const corsResult = await validateOrigin(request);
-  
+
   // Rate limiting (stricter for write operations)
-  const rateLimitResult = await checkMiniappRateLimit(request, MINIAPP_WRITE_LIMITS);
+  const rateLimitResult = await checkMiniappRateLimit(
+    request,
+    MINIAPP_WRITE_LIMITS,
+  );
   if (!rateLimitResult.allowed) {
-    return createRateLimitErrorResponse(rateLimitResult, corsResult.origin ?? undefined);
+    return createRateLimitErrorResponse(
+      rateLimitResult,
+      corsResult.origin ?? undefined,
+    );
   }
-  
+
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
-    
+
     const body = await request.json();
     const validationResult = CreateAgentSchema.safeParse(body);
-    
+
     if (!validationResult.success) {
       const response = NextResponse.json(
-        { success: false, error: "Invalid request data", details: validationResult.error.format() },
-        { status: 400 }
+        {
+          success: false,
+          error: "Invalid request data",
+          details: validationResult.error.format(),
+        },
+        { status: 400 },
       );
       return addCorsHeaders(response, corsResult.origin);
     }
-    
+
     const data = validationResult.data;
-    
+
     const character = await charactersService.create({
       organization_id: user.organization_id,
       user_id: user.id,
@@ -171,7 +219,10 @@ export async function POST(request: NextRequest) {
       topics: data.topics || [],
       adjectives: data.adjectives || [],
       style: data.style || {},
-      settings: (data.settings || {}) as Record<string, string | number | boolean | Record<string, unknown>>,
+      settings: (data.settings || {}) as Record<
+        string,
+        string | number | boolean | Record<string, unknown>
+      >,
       secrets: {},
       knowledge: [],
       plugins: [],
@@ -182,36 +233,45 @@ export async function POST(request: NextRequest) {
       is_public: data.isPublic ?? false,
       source: "miniapp", // Mark as created from miniapp
     });
-    
-    logger.info("[Miniapp API] Created agent", { 
-      agentId: character.id, 
+
+    logger.info("[Miniapp API] Created agent", {
+      agentId: character.id,
       userId: user.id,
-      name: character.name 
+      name: character.name,
     });
-    
-    const response = NextResponse.json({
-      success: true,
-      agent: {
-        id: character.id,
-        name: character.name,
-        bio: character.bio,
-        avatarUrl: character.avatar_url,
-        isPublic: character.is_public,
-        createdAt: character.created_at,
+
+    const response = NextResponse.json(
+      {
+        success: true,
+        agent: {
+          id: character.id,
+          name: character.name,
+          bio: character.bio,
+          avatarUrl: character.avatar_url,
+          isPublic: character.is_public,
+          createdAt: character.created_at,
+        },
       },
-    }, { status: 201 });
-    
+      { status: 201 },
+    );
+
     return addCorsHeaders(response, corsResult.origin);
   } catch (error) {
     logger.error("[Miniapp API] Error creating agent", { error });
-    
-    const status = error instanceof Error && error.message.includes("Unauthorized") ? 401 : 500;
+
+    const status =
+      error instanceof Error && error.message.includes("Unauthorized")
+        ? 401
+        : 500;
     const response = NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Failed to create agent" },
-      { status }
+      {
+        success: false,
+        error:
+          error instanceof Error ? error.message : "Failed to create agent",
+      },
+      { status },
     );
-    
+
     return addCorsHeaders(response, corsResult.origin);
   }
 }
-

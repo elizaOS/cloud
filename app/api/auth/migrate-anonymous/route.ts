@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     if (!user.privy_user_id) {
       return NextResponse.json(
         { error: "User does not have a Privy ID" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     if (!sessionToken) {
       logger.info(
-        "[Migrate Anonymous] No anonymous session found, nothing to migrate"
+        "[Migrate Anonymous] No anonymous session found, nothing to migrate",
       );
       return NextResponse.json({
         success: true,
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 
     if (!anonSession) {
       logger.info(
-        `[Migrate Anonymous] Anonymous session not found for token hash: ${hashTokenForLogging(sessionToken)}`
+        `[Migrate Anonymous] Anonymous session not found for token hash: ${hashTokenForLogging(sessionToken)}`,
       );
       return NextResponse.json({
         success: true,
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     if (anonSession.converted_at) {
       logger.info(
         "[Migrate Anonymous] Session already converted:",
-        anonSession.id
+        anonSession.id,
       );
 
       // Clean up the cookie
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
           success: false,
           error: "Rate limit exceeded",
         },
-        { status: 429 }
+        { status: 429 },
       );
     }
 
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
         success: false,
         error: "Failed to migrate anonymous data",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

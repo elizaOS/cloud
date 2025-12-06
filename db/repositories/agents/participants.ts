@@ -54,7 +54,9 @@ export class ParticipantsRepository {
    * 
    * @returns Map of entity ID to array of room IDs.
    */
-  async findRoomsByEntityIds(entityIds: string[]): Promise<Map<string, string[]>> {
+  async findRoomsByEntityIds(
+    entityIds: string[],
+  ): Promise<Map<string, string[]>> {
     if (entityIds.length === 0) return new Map();
 
     const results = await db
@@ -215,4 +217,3 @@ export class ParticipantsRepository {
  * Singleton instance of ParticipantsRepository.
  */
 export const participantsRepository = new ParticipantsRepository();
-

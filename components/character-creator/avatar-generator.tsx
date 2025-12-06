@@ -49,7 +49,9 @@ export function AvatarGenerator({
   };
 
   const handleRandomize = () => {
-    onAvatarChange(generateDefaultAvatarUrl(characterName || `char-${Date.now()}`));
+    onAvatarChange(
+      generateDefaultAvatarUrl(characterName || `char-${Date.now()}`),
+    );
     toast.success("Random avatar selected");
   };
 
@@ -70,28 +72,30 @@ export function AvatarGenerator({
       body: JSON.stringify({ prompt, aspectRatio: "1:1", numImages: 1 }),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      toast.error(errorData.error || "Failed to generate avatar");
-      setIsGeneratingAI(false);
-      return;
-    }
-
-    const data = await response.json();
-
-    if (data.images?.[0]) {
-      const newAvatarUrl = data.images[0].url || data.images[0].image;
-      if (!newAvatarUrl) {
-        toast.error("No valid image URL in response");
-        setIsGeneratingAI(false);
-        return;
+    try {
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to generate avatar");
       }
-      onAvatarChange(newAvatarUrl);
-      toast.success("AI avatar generated! ($0.01)");
-    } else {
-      toast.error("No image returned");
+
+      const data = await response.json();
+
+      if (data.images?.[0]) {
+        const newAvatarUrl = data.images[0].url || data.images[0].image;
+        if (!newAvatarUrl) throw new Error("No valid image URL in response");
+        onAvatarChange(newAvatarUrl);
+        toast.success("AI avatar generated! ($0.01)");
+      } else {
+        throw new Error("No image returned");
+      }
+    } catch (error) {
+      console.error("Error generating AI avatar:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to generate AI avatar",
+      );
+    } finally {
+      setIsGeneratingAI(false);
     }
-    setIsGeneratingAI(false);
   };
 
   const resolvedCurrentAvatar = ensureAvatarUrl(currentAvatarUrl);
@@ -144,7 +148,9 @@ export function AvatarGenerator({
 
       {/* Avatar Selection Grid */}
       <div className="space-y-2">
-        <p className="text-sm text-white/60">Or choose from built-in avatars:</p>
+        <p className="text-sm text-white/60">
+          Or choose from built-in avatars:
+        </p>
         <div className="grid grid-cols-5 gap-2">
           {availableAvatars.map((avatar) => {
             const isSelected = currentAvatarUrl === avatar.url;
@@ -156,7 +162,7 @@ export function AvatarGenerator({
                   "relative w-full aspect-square rounded-lg overflow-hidden border-2 transition-all",
                   isSelected
                     ? "border-[#FF5800] ring-2 ring-[#FF5800]/30"
-                    : "border-white/10 hover:border-white/30"
+                    : "border-white/10 hover:border-white/30",
                 )}
                 title={avatar.name}
               >

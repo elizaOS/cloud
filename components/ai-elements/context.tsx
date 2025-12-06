@@ -57,12 +57,15 @@ export const Context = ({
   modelId,
   ...props
 }: ContextProps) => {
-  const contextValue = useMemo(() => ({
-    usedTokens,
-    maxTokens,
-    usage,
-    modelId,
-  }), [usedTokens, maxTokens, usage, modelId]);
+  const contextValue = useMemo(
+    () => ({
+      usedTokens,
+      maxTokens,
+      usage,
+      modelId,
+    }),
+    [usedTokens, maxTokens, usage, modelId],
+  );
 
   return (
     <ContextContext.Provider value={contextValue}>
