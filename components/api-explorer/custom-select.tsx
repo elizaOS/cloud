@@ -1,3 +1,14 @@
+/**
+ * Custom select component with dropdown functionality.
+ * Provides custom styling and click-outside handling.
+ *
+ * @param props - Custom select configuration
+ * @param props.value - Selected value
+ * @param props.onValueChange - Callback when value changes
+ * @param props.options - Array of select options
+ * @param props.placeholder - Placeholder text
+ */
+
 "use client";
 
 import * as React from "react";

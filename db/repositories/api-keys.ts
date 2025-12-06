@@ -4,19 +4,31 @@ import { apiKeys, type ApiKey, type NewApiKey } from "../schemas/api-keys";
 
 export type { ApiKey, NewApiKey };
 
+/**
+ * Repository for API key database operations.
+ */
 export class ApiKeysRepository {
+  /**
+   * Finds an API key by ID.
+   */
   async findById(id: string): Promise<ApiKey | undefined> {
     return await db.query.apiKeys.findFirst({
       where: eq(apiKeys.id, id),
     });
   }
 
+  /**
+   * Finds an API key by its hash.
+   */
   async findByHash(hash: string): Promise<ApiKey | undefined> {
     return await db.query.apiKeys.findFirst({
       where: eq(apiKeys.key_hash, hash),
     });
   }
 
+  /**
+   * Finds an active, non-expired API key by hash.
+   */
   async findActiveByHash(hash: string): Promise<ApiKey | undefined> {
     const apiKey = await db.query.apiKeys.findFirst({
       where: and(eq(apiKeys.key_hash, hash), eq(apiKeys.is_active, true)),
@@ -34,17 +46,26 @@ export class ApiKeysRepository {
     return apiKey;
   }
 
+  /**
+   * Lists all API keys for an organization.
+   */
   async listByOrganization(organizationId: string): Promise<ApiKey[]> {
     return await db.query.apiKeys.findMany({
       where: eq(apiKeys.organization_id, organizationId),
     });
   }
 
+  /**
+   * Creates a new API key.
+   */
   async create(data: NewApiKey): Promise<ApiKey> {
     const [apiKey] = await db.insert(apiKeys).values(data).returning();
     return apiKey;
   }
 
+  /**
+   * Updates an existing API key.
+   */
   async update(
     id: string,
     data: Partial<NewApiKey>,
@@ -60,9 +81,12 @@ export class ApiKeysRepository {
     return updated;
   }
 
+  /**
+   * Atomically increments the usage count for an API key.
+   * 
+   * Uses SQL atomic increment to prevent race conditions.
+   */
   async incrementUsage(id: string): Promise<void> {
-    // FIXED: Use SQL atomic increment to prevent race condition
-    // Multiple concurrent requests won't lose counts
     await db
       .update(apiKeys)
       .set({
@@ -73,10 +97,15 @@ export class ApiKeysRepository {
       .where(eq(apiKeys.id, id));
   }
 
+  /**
+   * Deletes an API key by ID.
+   */
   async delete(id: string): Promise<void> {
     await db.delete(apiKeys).where(eq(apiKeys.id, id));
   }
 }
 
-// Export singleton instance
+/**
+ * Singleton instance of ApiKeysRepository.
+ */
 export const apiKeysRepository = new ApiKeysRepository();

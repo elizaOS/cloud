@@ -1,3 +1,8 @@
+/**
+ * Installation section component for the landing page.
+ * Displays CLI installation command with OS-specific tabs and copy functionality.
+ */
+
 "use client";
 
 import { useState } from "react";

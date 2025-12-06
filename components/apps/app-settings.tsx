@@ -1,3 +1,11 @@
+/**
+ * App settings component for editing app configuration.
+ * Supports updating app details, allowed origins, and app deletion.
+ *
+ * @param props - App settings configuration
+ * @param props.app - App data to edit
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -21,7 +29,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Trash2, Key, Plus, X, Save } from "lucide-react";
+import { Loader2, Trash2, Plus, X, Save, Key } from "lucide-react";
 import { toast } from "sonner";
 
 interface AppSettingsProps {
@@ -31,12 +39,15 @@ interface AppSettingsProps {
 export function AppSettings({ app }: AppSettingsProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [isRegenerating, setIsRegenerating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
-  const [allowedOrigins, setAllowedOrigins] = useState<string[]>(
-    (app.allowed_origins as string[]) || [],
-  );
+  const [allowedOrigins, setAllowedOrigins] = useState<string[]>(() => {
+    const origins = app.allowed_origins;
+    return Array.isArray(origins)
+      ? origins.filter((origin): origin is string => typeof origin === "string")
+      : [];
+  });
   const [newOrigin, setNewOrigin] = useState("");
 
   const [formData, setFormData] = useState({
@@ -46,8 +57,6 @@ export function AppSettings({ app }: AppSettingsProps) {
     website_url: app.website_url || "",
     contact_email: app.contact_email || "",
     is_active: app.is_active,
-    rate_limit_per_minute: app.rate_limit_per_minute,
-    rate_limit_per_hour: app.rate_limit_per_hour,
   });
 
   const handleSave = async () => {
@@ -140,6 +149,7 @@ export function AppSettings({ app }: AppSettingsProps) {
         description:
           error instanceof Error ? error.message : "Please try again",
       });
+    } finally {
       setIsDeleting(false);
     }
   };
@@ -254,11 +264,9 @@ export function AppSettings({ app }: AppSettingsProps) {
         <CornerBrackets className="opacity-20" />
         <div className="relative z-10 space-y-4">
           <div>
-            <h2 className="text-xl font-semibold text-white">
-              Allowed Origins (URL Whitelist)
-            </h2>
+            <h2 className="text-xl font-semibold text-white">Allowed Origins</h2>
             <p className="text-sm text-white/60 mt-1">
-              Specify which domains can make requests with your API key
+              API requests are only accepted from these domains
             </p>
           </div>
 
@@ -302,48 +310,6 @@ export function AppSettings({ app }: AppSettingsProps) {
         </div>
       </BrandCard>
 
-      {/* Rate Limits */}
-      <BrandCard>
-        <CornerBrackets className="opacity-20" />
-        <div className="relative z-10 space-y-4">
-          <h2 className="text-xl font-semibold text-white">Rate Limits</h2>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <Label htmlFor="rate_limit_per_minute">Per Minute</Label>
-              <Input
-                id="rate_limit_per_minute"
-                type="number"
-                value={formData.rate_limit_per_minute || ""}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    rate_limit_per_minute: parseInt(e.target.value),
-                  })
-                }
-                placeholder="60"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="rate_limit_per_hour">Per Hour</Label>
-              <Input
-                id="rate_limit_per_hour"
-                type="number"
-                value={formData.rate_limit_per_hour || ""}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    rate_limit_per_hour: parseInt(e.target.value),
-                  })
-                }
-                placeholder="1000"
-              />
-            </div>
-          </div>
-        </div>
-      </BrandCard>
-
       {/* Save Button */}
       <div className="flex justify-end">
         <Button
@@ -369,9 +335,7 @@ export function AppSettings({ app }: AppSettingsProps) {
       <BrandCard>
         <CornerBrackets className="opacity-20" />
         <div className="relative z-10 space-y-4">
-          <h2 className="text-xl font-semibold text-white text-red-400">
-            Danger Zone
-          </h2>
+          <h2 className="text-xl font-semibold text-red-400">Danger Zone</h2>
 
           <div className="space-y-3">
             <div className="flex items-center justify-between p-4 bg-red-500/10 rounded-lg border border-red-500/20">

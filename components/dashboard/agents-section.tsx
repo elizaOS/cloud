@@ -1,6 +1,11 @@
 /**
- * Agents Section Component
- * Displays user's agents in a card grid layout with Getting Started guide
+ * Agents section component displaying user's agents in a card grid layout.
+ * Shows a "Getting Started" guide when user has fewer than 3 agents.
+ * Displays up to 4 agents on dashboard with a "View all" link if more exist.
+ *
+ * @param props - Agents section configuration
+ * @param props.agents - Array of agent objects to display
+ * @param props.className - Additional CSS classes
  */
 
 "use client";
@@ -33,12 +38,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import { isBuiltInAvatar, ensureAvatarUrl } from "@/lib/utils/default-avatar";
 
-interface AgentStats {
-  roomCount: number;
-  messageCount: number;
-  deploymentStatus: "deployed" | "stopped" | "draft";
-  lastActiveAt: Date | null;
-}
+import type { DashboardAgentStats as AgentStats } from "@/lib/actions/dashboard";
 
 interface Agent {
   id: string;

@@ -1,3 +1,8 @@
+/**
+ * Resizable panel components for creating resizable split-pane layouts.
+ * Supports horizontal and vertical directions with configurable panel sizes.
+ */
+
 "use client";
 
 import * as React from "react";

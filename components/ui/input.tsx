@@ -1,3 +1,7 @@
+/**
+ * Input component with consistent styling and focus states.
+ * Supports file inputs, validation states, and accessibility attributes.
+ */
 import * as React from "react";
 
 import { cn } from "@/lib/utils";

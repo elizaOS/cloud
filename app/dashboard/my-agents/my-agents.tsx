@@ -22,12 +22,7 @@ export function MyAgentsClient() {
     claimAttempted.current = true;
 
     // Get session token from localStorage (set during anonymous chat)
-    let sessionToken: string | null = null;
-    try {
-      sessionToken = localStorage.getItem("eliza-anon-session-token");
-    } catch (e) {
-      console.warn("[My Agents] Failed to read localStorage:", e);
-    }
+    const sessionToken = localStorage.getItem("eliza-anon-session-token");
 
     fetch("/api/my-agents/claim-affiliate-characters", {
       method: "POST",
@@ -87,26 +82,21 @@ export function MyAgentsClient() {
 
   const handleCloneCharacter = useCallback(
     async (character: ExtendedCharacter) => {
-      try {
-        const response = await fetch(
-          `/api/my-agents/characters/${character.id}/clone`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-          },
-        );
+      const response = await fetch(
+        `/api/my-agents/characters/${character.id}/clone`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        },
+      );
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Failed to clone character");
-        }
-
-        const result = await response.json();
-        toast.success(`Cloned ${character.name} to your library`);
-      } catch (error) {
-        console.error("[My Agents] Error cloning character:", error);
-        throw error;
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to clone character");
       }
+
+      const result = await response.json();
+      toast.success(`Cloned ${character.name} to your library`);
     },
     [],
   );

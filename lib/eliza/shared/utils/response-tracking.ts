@@ -8,14 +8,22 @@
 import { logger, type IAgentRuntime, type UUID } from "@elizaos/core";
 
 /**
- * Build cache key for response tracking
+ * Builds cache key for response tracking.
+ *
+ * @param agentId - Agent UUID.
+ * @param roomId - Room ID.
+ * @returns Cache key string.
  */
 export function buildResponseCacheKey(agentId: UUID, roomId: string): string {
   return `response_id:${agentId}:${roomId}`;
 }
 
 /**
- * Get the latest response ID for a room
+ * Gets the latest response ID for a room.
+ *
+ * @param runtime - Agent runtime instance.
+ * @param roomId - Room ID.
+ * @returns Latest response ID or null if not found.
  */
 export async function getLatestResponseId(
   runtime: IAgentRuntime,
@@ -26,7 +34,11 @@ export async function getLatestResponseId(
 }
 
 /**
- * Set the latest response ID for a room
+ * Sets the latest response ID for a room.
+ *
+ * @param runtime - Agent runtime instance.
+ * @param roomId - Room ID.
+ * @param responseId - Response ID to set.
  */
 export async function setLatestResponseId(
   runtime: IAgentRuntime,
@@ -47,7 +59,10 @@ export async function setLatestResponseId(
 }
 
 /**
- * Clear the latest response ID for a room
+ * Clears the latest response ID for a room.
+ *
+ * @param runtime - Agent runtime instance.
+ * @param roomId - Room ID.
  */
 export async function clearLatestResponseId(
   runtime: IAgentRuntime,
@@ -59,7 +74,12 @@ export async function clearLatestResponseId(
 }
 
 /**
- * Check if a response is still valid (not superseded by a newer message)
+ * Checks if a response is still valid (not superseded by a newer message).
+ *
+ * @param runtime - Agent runtime instance.
+ * @param roomId - Room ID.
+ * @param responseId - Response ID to check.
+ * @returns True if response is still valid.
  */
 export async function isResponseStillValid(
   runtime: IAgentRuntime,

@@ -1,3 +1,8 @@
+/**
+ * Create app button component that opens the create app dialog.
+ * Provides a button trigger for creating new applications.
+ */
+
 "use client";
 
 import { useState } from "react";

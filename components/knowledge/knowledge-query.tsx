@@ -1,3 +1,11 @@
+/**
+ * Knowledge query component for searching the knowledge base.
+ * Supports query input, result limit slider, and displays search results with relevance scores.
+ *
+ * @param props - Knowledge query configuration
+ * @param props.characterId - Optional character ID to filter queries
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -9,12 +17,7 @@ import { Loader2, Search, FileText } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 
-interface QueryResult {
-  id: string;
-  content: string;
-  similarity: number;
-  metadata?: Record<string, unknown>;
-}
+import type { QueryResult } from "@/lib/types/knowledge";
 
 interface KnowledgeQueryProps {
   characterId: string | null;
@@ -40,35 +43,28 @@ export function KnowledgeQuery({ characterId }: KnowledgeQueryProps) {
     setError(null);
     setHasSearched(false);
 
-    try {
-      const response = await fetch("/api/v1/knowledge/query", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          query: query.trim(),
-          limit,
-          characterId: characterId || undefined,
-        }),
-      });
+    const response = await fetch("/api/v1/knowledge/query", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query: query.trim(),
+        limit,
+        characterId: characterId || undefined,
+      }),
+    });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to query knowledge");
-      }
-
+    if (!response.ok) {
       const data = await response.json();
-      setResults(data.results || []);
-      setHasSearched(true);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to query knowledge",
-      );
-      console.error("Query error:", err);
-    } finally {
       setLoading(false);
+      throw new Error(data.error || "Failed to query knowledge");
     }
+
+    const data = await response.json();
+    setResults(data.results || []);
+    setHasSearched(true);
+    setLoading(false);
   };
 
   const getSimilarityColor = (similarity: number): string => {

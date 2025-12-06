@@ -1,11 +1,19 @@
+/**
+ * Image generator component with prompt input, aspect ratio, and style preset options.
+ * Handles image generation state and displays generated images.
+ */
+
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { PromptInput } from "./prompt-input";
 import { ImageDisplay } from "./image-display";
 import { EmptyState } from "./empty-state";
 import { LoadingState } from "./loading-state";
 
+/**
+ * Supported aspect ratios for image generation.
+ */
 export type AspectRatio =
   | "1:1"
   | "16:9"
@@ -14,6 +22,10 @@ export type AspectRatio =
   | "3:4"
   | "21:9"
   | "9:21";
+
+/**
+ * Style presets for image generation.
+ */
 export type StylePreset =
   | "none"
   | "photographic"
@@ -119,14 +131,15 @@ export function ImageGenerator() {
     }
   };
 
-  const handleDownload = (imageData: string, index: number) => {
+  const handleDownload = useCallback((imageData: string, index: number) => {
     const link = document.createElement("a");
     link.href = imageData;
-    link.download = `eliza-generated-${Date.now()}-${index + 1}.png`;
+    const timestamp = Date.now();
+    link.download = `eliza-generated-${timestamp}-${index + 1}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
+  }, []);
 
   const handleGenerateAnother = () => {
     updateGeneration({ images: [] });

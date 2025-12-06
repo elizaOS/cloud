@@ -1,3 +1,13 @@
+/**
+ * Billing page wrapper component setting page header and displaying payment cancellation alerts.
+ * Wraps billing page client with page context and alert handling.
+ *
+ * @param props - Billing page wrapper configuration
+ * @param props.creditPacks - Array of available credit packs
+ * @param props.currentCredits - Current credit balance
+ * @param props.canceled - Optional cancellation message from Stripe
+ */
+
 "use client";
 
 import { useSetPageHeader } from "@/components/layout/page-header-context";

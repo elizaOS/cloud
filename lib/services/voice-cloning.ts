@@ -17,6 +17,9 @@ import {
   VOICE_CLONE_PROFESSIONAL_COST,
 } from "@/lib/pricing-constants";
 
+/**
+ * Parameters for creating a voice clone.
+ */
 export interface CreateVoiceCloneParams {
   organizationId: string;
   userId: string;
@@ -27,11 +30,17 @@ export interface CreateVoiceCloneParams {
   settings?: Record<string, unknown>;
 }
 
+/**
+ * Result of creating a voice clone.
+ */
 export interface VoiceCloneResult {
   userVoice: NewUserVoice;
   job: NewVoiceCloningJob;
 }
 
+/**
+ * Service for managing voice cloning operations with ElevenLabs.
+ */
 export class VoiceCloningService {
   private readonly MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
   private readonly ALLOWED_TYPES = [
@@ -71,8 +80,9 @@ export class VoiceCloningService {
       fileCount: files.length,
     });
 
-    // Validate files
-    this.validateAudioFiles(files);
+    try {
+      // Validate files
+      this.validateAudioFiles(files);
 
     // Create job record
     const [job] = await db
@@ -94,155 +104,151 @@ export class VoiceCloningService {
 
     logger.info(`[VoiceCloning] Created job ${job.id}`, { jobId: job.id });
 
-    try {
-      // Upload files to Vercel Blob for backup/reference (optional - skip if no token)
-      const hasVercelToken = !!process.env.BLOB_READ_WRITE_TOKEN;
+    // Upload files to Vercel Blob for backup/reference (optional - skip if no token)
+    const hasVercelToken = !!process.env.BLOB_READ_WRITE_TOKEN;
 
-      if (hasVercelToken) {
-        await Promise.all(
-          files.map(async (file) => {
-            try {
-              // Upload to Vercel Blob
-              const blob = await put(
-                `voice-samples/${organizationId}/${job.id}/${file.name}`,
-                file,
-                {
-                  access: "public",
-                  addRandomSuffix: true,
-                },
-              );
+    if (hasVercelToken) {
+      await Promise.all(
+        files.map(async (file) => {
+          // Upload to Vercel Blob
+          const blob = await put(
+            `voice-samples/${organizationId}/${job.id}/${file.name}`,
+            file,
+            {
+              access: "public",
+              addRandomSuffix: true,
+            },
+          );
 
-              logger.info("[VoiceCloning] Uploaded sample to blob storage", {
-                jobId: job.id,
-                fileName: file.name,
-                blobUrl: blob.url,
-              });
-
-              // Store sample metadata in database
-              await db.insert(voiceSamples).values({
-                jobId: job.id,
-                organizationId,
-                userId,
-                fileName: file.name,
-                fileSize: file.size,
-                fileType: file.type,
-                blobUrl: blob.url,
-              });
-            } catch (error) {
-              logger.warn(
-                "[VoiceCloning] Failed to upload to blob storage, continuing anyway",
-                {
-                  jobId: job.id,
-                  fileName: file.name,
-                  error: error instanceof Error ? error.message : "Unknown",
-                },
-              );
-            }
-          }),
-        );
-      } else {
-        logger.info(
-          "[VoiceCloning] Skipping blob storage (no token configured)",
-          {
+          logger.info("[VoiceCloning] Uploaded sample to blob storage", {
             jobId: job.id,
-          },
-        );
-      }
+            fileName: file.name,
+            blobUrl: blob.url,
+          });
 
-      logger.info("[VoiceCloning] Creating voice in ElevenLabs", {
-        jobId: job.id,
-      });
+          // Store sample metadata in database
+          await db.insert(voiceSamples).values({
+            jobId: job.id,
+            organizationId,
+            userId,
+            fileName: file.name,
+            fileSize: file.size,
+            fileType: file.type,
+            blobUrl: blob.url,
+          });
+        }),
+      );
+    } else {
+      logger.info(
+        "[VoiceCloning] Skipping blob storage (no token configured)",
+        {
+          jobId: job.id,
+        },
+      );
+    }
 
-      // Create voice clone in ElevenLabs (use original files)
-      const elevenlabs = getElevenLabsService();
+    logger.info("[VoiceCloning] Creating voice in ElevenLabs", {
+      jobId: job.id,
+    });
 
-      // Extract language from settings if provided, otherwise default to 'en'
-      const language = (settings.language as string) || "en";
+    // Create voice clone in ElevenLabs (use original files)
+    const elevenlabs = getElevenLabsService();
 
-      const result =
-        cloneType === "instant"
-          ? await elevenlabs.createInstantVoiceClone({
-              name,
-              description,
-              language,
-              files,
-            })
-          : await elevenlabs.createProfessionalVoiceClone({
-              name,
-              description,
-              language,
-              files,
-            });
+    // Extract language from settings if provided, otherwise default to 'en'
+    const language = (settings.language as string) || "en";
 
-      logger.info("[VoiceCloning] Voice created in ElevenLabs", {
-        jobId: job.id,
+    const result =
+      cloneType === "instant"
+        ? await elevenlabs.createInstantVoiceClone({
+            name,
+            description,
+            language,
+            files,
+          })
+        : await elevenlabs.createProfessionalVoiceClone({
+            name,
+            description,
+            language,
+            files,
+          });
+
+    logger.info("[VoiceCloning] Voice created in ElevenLabs", {
+      jobId: job.id,
+      elevenlabsVoiceId: result.voiceId,
+    });
+
+    // Determine creation cost using constants for consistency
+    const creationCost =
+      cloneType === "instant"
+        ? VOICE_CLONE_INSTANT_COST
+        : VOICE_CLONE_PROFESSIONAL_COST;
+
+    // Create user_voices record
+    const [userVoice] = await db
+      .insert(userVoices)
+      .values({
+        organizationId,
+        userId,
         elevenlabsVoiceId: result.voiceId,
-      });
+        name,
+        description,
+        cloneType,
+        settings,
+        sampleCount: files.length,
+        creationCost: String(creationCost),
+      })
+      .returning();
 
-      // Determine creation cost using constants for consistency
-      const creationCost =
-        cloneType === "instant"
-          ? VOICE_CLONE_INSTANT_COST
-          : VOICE_CLONE_PROFESSIONAL_COST;
+    logger.info("[VoiceCloning] User voice record created", {
+      jobId: job.id,
+      userVoiceId: userVoice.id,
+    });
 
-      // Create user_voices record
-      const [userVoice] = await db
-        .insert(userVoices)
-        .values({
-          organizationId,
-          userId,
-          elevenlabsVoiceId: result.voiceId,
-          name,
-          description,
-          cloneType,
-          settings,
-          sampleCount: files.length,
-          creationCost: String(creationCost),
-        })
-        .returning();
-
-      logger.info("[VoiceCloning] User voice record created", {
-        jobId: job.id,
-        userVoiceId: userVoice.id,
-      });
-
-      // Update job as completed
-      const [updatedJob] = await db
-        .update(voiceCloningJobs)
-        .set({
-          status: "completed",
-          userVoiceId: userVoice.id,
-          elevenlabsVoiceId: result.voiceId,
-          progress: 100,
-          completedAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .where(eq(voiceCloningJobs.id, job.id))
-        .returning();
-
-      logger.info("[VoiceCloning] Voice cloning completed successfully", {
-        jobId: job.id,
+    // Update job as completed
+    const [updatedJob] = await db
+      .update(voiceCloningJobs)
+      .set({
+        status: "completed",
         userVoiceId: userVoice.id,
         elevenlabsVoiceId: result.voiceId,
-      });
+        progress: 100,
+        completedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(voiceCloningJobs.id, job.id))
+      .returning();
 
-      return { userVoice, job: updatedJob };
+    logger.info("[VoiceCloning] Voice cloning completed successfully", {
+      jobId: job.id,
+      userVoiceId: userVoice.id,
+      elevenlabsVoiceId: result.voiceId,
+    });
+
+    return { userVoice, job: updatedJob };
     } catch (error) {
-      logger.error("[VoiceCloning] Error creating voice clone", {
-        jobId: job.id,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      
+      // Only update job status if job was created
+      if (job) {
+        logger.error("[VoiceCloning] Error creating voice clone", {
+          jobId: job.id,
+          error: errorMessage,
+        });
 
-      // Update job as failed
-      await db
-        .update(voiceCloningJobs)
-        .set({
-          status: "failed",
-          errorMessage:
-            error instanceof Error ? error.message : "Unknown error",
-          updatedAt: new Date(),
-        })
-        .where(eq(voiceCloningJobs.id, job.id));
+        // Update job as failed
+        await db
+          .update(voiceCloningJobs)
+          .set({
+            status: "failed",
+            errorMessage,
+            updatedAt: new Date(),
+          })
+          .where(eq(voiceCloningJobs.id, job.id));
+      } else {
+        logger.error("[VoiceCloning] Error creating voice clone (before job creation)", {
+          error: errorMessage,
+        });
+      }
 
       throw error;
     }
@@ -366,18 +372,10 @@ export class VoiceCloningService {
 
     // Delete from ElevenLabs
     const elevenlabs = getElevenLabsService();
-    try {
-      await elevenlabs.deleteVoice(voice.elevenlabsVoiceId);
-      logger.info("[VoiceCloning] Voice deleted from ElevenLabs", {
-        elevenlabsVoiceId: voice.elevenlabsVoiceId,
-      });
-    } catch (error) {
-      logger.error("[VoiceCloning] Error deleting from ElevenLabs", {
-        elevenlabsVoiceId: voice.elevenlabsVoiceId,
-        error: error instanceof Error ? error.message : "Unknown",
-      });
-      // Continue with local deletion even if ElevenLabs deletion fails
-    }
+    await elevenlabs.deleteVoice(voice.elevenlabsVoiceId);
+    logger.info("[VoiceCloning] Voice deleted from ElevenLabs", {
+      elevenlabsVoiceId: voice.elevenlabsVoiceId,
+    });
 
     // Soft delete from database (set inactive instead of hard delete)
     await db

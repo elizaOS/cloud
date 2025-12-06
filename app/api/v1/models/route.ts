@@ -9,8 +9,14 @@ import type { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-// Using shared OpenAIModelsResponse type
-
+/**
+ * GET /api/v1/models
+ * Lists all available AI models in OpenAI-compatible format.
+ * Supports both authenticated and anonymous users.
+ *
+ * @param request - The Next.js request object.
+ * @returns OpenAI-compatible models list response.
+ */
 export async function GET(request: NextRequest) {
   try {
     // Support both authenticated and anonymous users

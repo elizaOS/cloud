@@ -8,13 +8,22 @@ import {
 
 export type { UserSession, NewUserSession };
 
+/**
+ * Repository for user session database operations.
+ */
 export class UserSessionsRepository {
+  /**
+   * Finds a user session by ID.
+   */
   async findById(id: string): Promise<UserSession | undefined> {
     return await db.query.userSessions.findFirst({
       where: eq(userSessions.id, id),
     });
   }
 
+  /**
+   * Finds an active session by token (not ended).
+   */
   async findActiveByToken(
     sessionToken: string,
   ): Promise<UserSession | undefined> {
@@ -26,6 +35,9 @@ export class UserSessionsRepository {
     });
   }
 
+  /**
+   * Lists all active sessions for a user, ordered by last activity.
+   */
   async listActiveByUser(userId: string): Promise<UserSession[]> {
     return await db.query.userSessions.findMany({
       where: and(
@@ -36,6 +48,9 @@ export class UserSessionsRepository {
     });
   }
 
+  /**
+   * Lists sessions for an organization, ordered by start time.
+   */
   async listByOrganization(
     organizationId: string,
     limit?: number,
@@ -47,18 +62,21 @@ export class UserSessionsRepository {
     });
   }
 
+  /**
+   * Creates a new user session.
+   */
   async create(data: NewUserSession): Promise<UserSession> {
     const [session] = await db.insert(userSessions).values(data).returning();
     return session;
   }
 
   /**
-   * Atomic get-or-create session using Drizzle's onConflictDoUpdate
-   * Prevents race conditions by handling conflicts at the database level
+   * Atomically gets or creates a session using Drizzle's onConflictDoUpdate.
+   * 
+   * Prevents race conditions by handling conflicts at the database level.
+   * If session_token already exists, updates last_activity_at and returns existing session.
    */
   async getOrCreate(data: NewUserSession): Promise<UserSession> {
-    // Use onConflictDoUpdate to atomically handle the race condition
-    // If session_token already exists, update last_activity_at and return existing
     const [session] = await db
       .insert(userSessions)
       .values(data)
@@ -74,6 +92,9 @@ export class UserSessionsRepository {
     return session;
   }
 
+  /**
+   * Updates session metrics with absolute values.
+   */
   async updateMetrics(
     sessionToken: string,
     metrics: {
@@ -107,6 +128,9 @@ export class UserSessionsRepository {
     return updated;
   }
 
+  /**
+   * Atomically increments session metrics for an active session.
+   */
   async incrementMetrics(
     sessionToken: string,
     increments: {
@@ -146,6 +170,9 @@ export class UserSessionsRepository {
     return updated;
   }
 
+  /**
+   * Ends a session by setting ended_at timestamp.
+   */
   async endSession(sessionToken: string): Promise<UserSession | undefined> {
     const [updated] = await db
       .update(userSessions)
@@ -158,6 +185,11 @@ export class UserSessionsRepository {
     return updated;
   }
 
+  /**
+   * Ends all active sessions for a user.
+   * 
+   * @returns Number of sessions ended.
+   */
   async endAllUserSessions(userId: string): Promise<number> {
     const result = await db
       .update(userSessions)
@@ -172,6 +204,12 @@ export class UserSessionsRepository {
     return result.rowCount || 0;
   }
 
+  /**
+   * Deletes sessions that ended more than specified days ago.
+   * 
+   * @param daysOld - Minimum age in days for sessions to be deleted (default: 30).
+   * @returns Number of sessions deleted.
+   */
   async cleanupOldSessions(daysOld: number = 30): Promise<number> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
@@ -183,6 +221,11 @@ export class UserSessionsRepository {
     return result.rowCount || 0;
   }
 
+  /**
+   * Gets aggregated stats across all active sessions for a user.
+   * 
+   * @returns Aggregated stats or null if no active sessions.
+   */
   async getCurrentSessionStats(userId: string): Promise<{
     credits_used: number;
     requests_made: number;
@@ -212,4 +255,7 @@ export class UserSessionsRepository {
   }
 }
 
+/**
+ * Singleton instance of UserSessionsRepository.
+ */
 export const userSessionsRepository = new UserSessionsRepository();

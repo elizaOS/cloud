@@ -1,3 +1,7 @@
+/**
+ * Service for managing user characters (CRUD operations).
+ */
+
 import {
   userCharactersRepository,
   type UserCharacter,
@@ -6,7 +10,11 @@ import {
 import { agentsRepository } from "@/db/repositories/agents/agents";
 import type { ElizaCharacter } from "@/lib/types";
 import type { Agent } from "@elizaos/core";
+import type { ElizaCharacter } from "@/lib/types";
 
+/**
+ * Service for character CRUD operations.
+ */
 export class CharactersService {
   async getById(id: string): Promise<UserCharacter | undefined> {
     return await userCharactersRepository.findById(id);
@@ -30,22 +38,29 @@ export class CharactersService {
     options?: {
       limit?: number;
       includeTemplates?: boolean;
+      source?: "cloud" | "miniapp";
     },
   ): Promise<UserCharacter[]> {
+    const source = options?.source ?? "cloud";
+    
     // If templates are requested, get them separately
     if (options?.includeTemplates) {
       const [userChars, templates] = await Promise.all([
-        userCharactersRepository.listByUser(userId),
+        userCharactersRepository.listByUser(userId, source),
         userCharactersRepository.listTemplates(),
       ]);
       return [...userChars, ...templates];
     }
 
-    return await userCharactersRepository.listByUser(userId);
+    return await userCharactersRepository.listByUser(userId, source);
   }
 
-  async listByOrganization(organizationId: string): Promise<UserCharacter[]> {
-    return await userCharactersRepository.listByOrganization(organizationId);
+  async listByOrganization(
+    organizationId: string,
+    options?: { source?: "cloud" | "miniapp" },
+  ): Promise<UserCharacter[]> {
+    const source = options?.source ?? "cloud";
+    return await userCharactersRepository.listByOrganization(organizationId, source);
   }
 
   async listPublic(): Promise<UserCharacter[]> {
@@ -155,18 +170,26 @@ export class CharactersService {
       username: character.username ?? undefined,
       system: character.system ?? undefined,
       bio: character.bio,
-      messageExamples: character.message_examples as unknown[] as
-        | Array<
-            Array<{
-              name: string;
-              content: {
-                text: string;
-                action?: string;
-                [key: string]: unknown;
-              };
-            }>
-          >
-        | undefined,
+      messageExamples: (() => {
+        const examples = character.message_examples;
+        if (
+          Array.isArray(examples) &&
+          examples.every(
+            (ex) =>
+              Array.isArray(ex) &&
+              ex.every(
+                (msg) =>
+                  typeof msg === "object" &&
+                  msg !== null &&
+                  "name" in msg &&
+                  "content" in msg,
+              ),
+          )
+        ) {
+          return examples as ElizaCharacter["messageExamples"];
+        }
+        return undefined;
+      })(),
       postExamples: character.post_examples as string[] | undefined,
       topics: character.topics as string[] | undefined,
       adjectives: character.adjectives as string[] | undefined,
@@ -270,66 +293,51 @@ export class CharactersService {
       },
     );
 
-    try {
-      // Transfer character ownership
-      const updated = await userCharactersRepository.update(characterId, {
-        user_id: userId,
-        organization_id: organizationId,
-      });
+    // Transfer character ownership
+    const updated = await userCharactersRepository.update(characterId, {
+      user_id: userId,
+      organization_id: organizationId,
+    });
 
-      if (!updated) {
-        return { success: false, message: "Failed to update character" };
-      }
-
-      // Transfer room associations from the previous owner to the new owner
-      if (previousOwnerId) {
-        const roomUpdateResult = await db
-          .update(elizaRoomCharactersTable)
-          .set({
-            user_id: userId,
-            updated_at: new Date(),
-          })
-          .where(
-            and(
-              eq(elizaRoomCharactersTable.character_id, characterId),
-              eq(elizaRoomCharactersTable.user_id, previousOwnerId),
-            ),
-          )
-          .returning({ room_id: elizaRoomCharactersTable.room_id });
-
-        if (roomUpdateResult.length > 0) {
-          logger.info(
-            `[Characters] Transferred ${roomUpdateResult.length} room association(s)`,
-            {
-              characterId,
-              fromUserId: previousOwnerId,
-              toUserId: userId,
-            },
-          );
-        }
-      }
-
-      logger.info(
-        `[Characters] ✅ Successfully claimed character ${characterId}`,
-        {
-          characterName: updated.name,
-          newOwnerId: userId,
-          newOrgId: organizationId,
-        },
-      );
-
-      return {
-        success: true,
-        message: `Character "${updated.name}" has been added to your account`,
-      };
-    } catch (error) {
-      logger.error(`[Characters] ❌ Failed to claim character:`, error);
-      return {
-        success: false,
-        message:
-          error instanceof Error ? error.message : "Failed to claim character",
-      };
+    if (!updated) {
+      return { success: false, message: "Failed to update character" };
     }
+
+    // Transfer room associations from the previous owner to the new owner
+    if (previousOwnerId) {
+      const roomUpdateResult = await db
+        .update(elizaRoomCharactersTable)
+        .set({
+          user_id: userId,
+          updated_at: new Date(),
+        })
+        .where(
+          and(
+            eq(elizaRoomCharactersTable.character_id, characterId),
+            eq(elizaRoomCharactersTable.user_id, previousOwnerId)
+          )
+        )
+        .returning({ room_id: elizaRoomCharactersTable.room_id });
+
+      if (roomUpdateResult.length > 0) {
+        logger.info(`[Characters] Transferred ${roomUpdateResult.length} room association(s)`, {
+          characterId,
+          fromUserId: previousOwnerId,
+          toUserId: userId,
+        });
+      }
+    }
+
+    logger.info(`[Characters] ✅ Successfully claimed character ${characterId}`, {
+      characterName: updated.name,
+      newOwnerId: userId,
+      newOrgId: organizationId,
+    });
+
+    return {
+      success: true,
+      message: `Character "${updated.name}" has been added to your account`
+    };
   }
 }
 

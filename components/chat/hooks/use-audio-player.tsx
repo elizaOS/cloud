@@ -1,3 +1,9 @@
+/**
+ * Audio player hook providing audio playback functionality.
+ * Supports play, pause, resume, stop, seek, and progress tracking.
+ *
+ * @returns {UseAudioPlayerReturn} Audio player state and control functions
+ */
 import { useState, useRef, useCallback, useEffect } from "react";
 
 export interface UseAudioPlayerReturn {
@@ -7,7 +13,7 @@ export interface UseAudioPlayerReturn {
   error: string | null;
   playAudio: (audioBlob: Blob | string) => Promise<void>;
   pauseAudio: () => void;
-  resumeAudio: () => void;
+  resumeAudio: () => Promise<void>;
   stopAudio: () => void;
   seekTo: (time: number) => void;
 }
@@ -112,13 +118,25 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
     }
   }, []);
 
-  const resumeAudio = useCallback(() => {
+  const resumeAudio = useCallback(async () => {
     if (audioRef.current?.paused) {
-      audioRef.current.play().catch(() => {
-        setError("Failed to resume audio");
+      try {
+        await audioRef.current.play();
+        setIsPlaying(true);
+      } catch (err) {
+        if (err instanceof Error) {
+          if (err.name === "NotAllowedError") {
+            setError(
+              "Audio playback not allowed. Please interact with the page first.",
+            );
+          } else {
+            setError("Failed to resume audio. Please try again.");
+          }
+        } else {
+          setError("Failed to resume audio. Please try again.");
+        }
         setIsPlaying(false);
-      });
-      setIsPlaying(true);
+      }
     }
   }, []);
 

@@ -84,99 +84,80 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     // Deduplicate concurrent loadRooms calls
     if (!force && state.loadRoomsPromise) {
-      console.log("[ChatStore] loadRooms - using existing promise");
       return state.loadRoomsPromise;
     }
 
-    console.log("[ChatStore] loadRooms - fetching rooms");
-
     const loadPromise = (async () => {
       set({ isLoadingRooms: true });
-      try {
-        // Server derives entityId from authenticated user
-        const headers: Record<string, string> = {};
-        
-        // Pass anonymous session token if available (for affiliate flows)
-        if (anonymousSessionToken) {
-          headers["X-Anonymous-Session"] = anonymousSessionToken;
-        }
-        
-        const res = await fetch(`/api/eliza/rooms`, { headers });
-        
-        if (res.ok) {
-          const data = await res.json();
-          console.log("[ChatStore] loadRooms - API response:", { 
-            roomCount: data.rooms?.length || 0, 
-          });
-          
-          if (Array.isArray(data.rooms)) {
-            const roomItems: RoomItem[] = data.rooms
-              .slice(0, 20)
-              .map((r: Record<string, unknown>) => ({
-                id: r.id as string,
-                characterId: r.characterId as string | undefined,
-                characterName: r.characterName as string | undefined,
-                lastText: r.lastText as string | undefined,
-                lastTime: r.lastTime as number | undefined,
-                title: r.title as string | undefined,
-              }));
-
-            const currentState = get();
-            const existingCharacterIds = new Set(
-              currentState.availableCharacters.map((c) => c.id)
-            );
-
-            const charactersFromRooms: Character[] = [];
-            for (const room of roomItems) {
-              if (
-                room.characterId &&
-                room.characterName &&
-                !existingCharacterIds.has(room.characterId)
-              ) {
-                charactersFromRooms.push({
-                  id: room.characterId,
-                  name: room.characterName,
-                });
-                existingCharacterIds.add(room.characterId);
-              }
-            }
-
-            const mergedCharacters = [
-              ...currentState.availableCharacters,
-              ...charactersFromRooms,
-            ];
-
-            let newSelectedCharacterId = currentState.selectedCharacterId;
-            if (
-              !newSelectedCharacterId &&
-              charactersFromRooms.length === 1 &&
-              currentState.availableCharacters.length === 0
-            ) {
-              newSelectedCharacterId = charactersFromRooms[0].id;
-              console.log(
-                "[ChatStore] Auto-selecting character:",
-                newSelectedCharacterId
-              );
-            }
-
-            set({
-              rooms: roomItems,
-              availableCharacters: mergedCharacters,
-              selectedCharacterId: newSelectedCharacterId,
-            });
-          }
-        } else {
-          console.error(
-            "[ChatStore] loadRooms - API error:",
-            res.status,
-            await res.text()
-          );
-        }
-      } catch (error) {
-        console.error("[ChatStore] Error loading rooms:", error);
-      } finally {
-        set({ isLoadingRooms: false, loadRoomsPromise: null });
+      
+      // Server derives entityId from authenticated user
+      const headers: Record<string, string> = {};
+      
+      // Pass anonymous session token if available (for affiliate flows)
+      if (anonymousSessionToken) {
+        headers["X-Anonymous-Session"] = anonymousSessionToken;
       }
+      
+      const res = await fetch(`/api/eliza/rooms`, { headers });
+      
+      if (res.ok) {
+        const data = await res.json();
+        
+        if (Array.isArray(data.rooms)) {
+          const roomItems: RoomItem[] = data.rooms
+            .slice(0, 20)
+            .map((r: Record<string, unknown>) => ({
+              id: r.id as string,
+              characterId: r.characterId as string | undefined,
+              characterName: r.characterName as string | undefined,
+              lastText: r.lastText as string | undefined,
+              lastTime: r.lastTime as number | undefined,
+              title: r.title as string | undefined,
+            }));
+
+          const currentState = get();
+          const existingCharacterIds = new Set(
+            currentState.availableCharacters.map((c) => c.id)
+          );
+
+          const charactersFromRooms: Character[] = [];
+          for (const room of roomItems) {
+            if (
+              room.characterId &&
+              room.characterName &&
+              !existingCharacterIds.has(room.characterId)
+            ) {
+              charactersFromRooms.push({
+                id: room.characterId,
+                name: room.characterName,
+              });
+              existingCharacterIds.add(room.characterId);
+            }
+          }
+
+          const mergedCharacters = [
+            ...currentState.availableCharacters,
+            ...charactersFromRooms,
+          ];
+
+          let newSelectedCharacterId = currentState.selectedCharacterId;
+          if (
+            !newSelectedCharacterId &&
+            charactersFromRooms.length === 1 &&
+            currentState.availableCharacters.length === 0
+          ) {
+            newSelectedCharacterId = charactersFromRooms[0].id;
+          }
+
+          set({
+            rooms: roomItems,
+            availableCharacters: mergedCharacters,
+            selectedCharacterId: newSelectedCharacterId,
+          });
+        }
+      }
+      
+      set({ isLoadingRooms: false, loadRoomsPromise: null });
     })();
 
     set({ loadRoomsPromise: loadPromise });
@@ -188,74 +169,53 @@ export const useChatStore = create<ChatState>((set, get) => ({
   createRoom: async (characterId?: string | null) => {
     const { loadRooms, setRoomId, anonymousSessionToken } = get();
 
-    try {
-      const requestBody: Record<string, string | undefined> = {
-        characterId: characterId || undefined,
-      };
-      
-      // Pass the session token for anonymous users
-      if (anonymousSessionToken) {
-        requestBody.sessionToken = anonymousSessionToken;
-      }
-      
-      console.log("[ChatStore] Creating room with:", { 
-        characterId: requestBody.characterId,
-        hasSessionToken: !!requestBody.sessionToken,
-      });
+    const requestBody: Record<string, string | undefined> = {
+      characterId: characterId || undefined,
+    };
+    
+    // Pass the session token for anonymous users
+    if (anonymousSessionToken) {
+      requestBody.sessionToken = anonymousSessionToken;
+    }
 
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      
-      // Also pass as header for redundancy
-      if (anonymousSessionToken) {
-        headers["X-Anonymous-Session"] = anonymousSessionToken;
-      }
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    
+    // Also pass as header for redundancy
+    if (anonymousSessionToken) {
+      headers["X-Anonymous-Session"] = anonymousSessionToken;
+    }
 
-      const response = await fetch("/api/eliza/rooms", {
-        method: "POST",
-        headers,
-        body: JSON.stringify(requestBody),
-      });
+    const response = await fetch("/api/eliza/rooms", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(requestBody),
+    });
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log("[ChatStore] Room creation response:", data);
-        const newRoomId = data.roomId;
+    if (response.ok) {
+      const data = await response.json();
+      const newRoomId = data.roomId;
 
-        if (!newRoomId) {
-          console.error("[ChatStore] API returned empty roomId:", data);
-          throw new Error(
-            "Room creation succeeded but returned empty ID. Check server logs.",
-          );
-        }
-
-        // Automatically switch to the new room FIRST (before loading rooms)
-        // This ensures the UI updates immediately
-        setRoomId(newRoomId);
-
-        // Then reload rooms to get the updated list (fire-and-forget)
-        loadRooms().catch((err) => {
-          console.error(
-            "[ChatStore] Failed to reload rooms after creation:",
-            err,
-          );
-        });
-
-        return newRoomId;
-      } else {
-        // Log the error response for debugging
-        const errorData = await response
-          .json()
-          .catch(() => ({ error: "Unknown error" }));
-        console.error("Failed to create room:", response.status, errorData);
+      if (!newRoomId) {
         throw new Error(
-          errorData.error || `Failed to create room: ${response.status}`,
+          "Room creation succeeded but returned empty ID. Check server logs.",
         );
       }
-    } catch (error) {
-      console.error("Error creating room:", error);
-      throw error; // Re-throw the error so it can be handled by the caller
+
+      // Automatically switch to the new room FIRST (before loading rooms)
+      // This ensures the UI updates immediately
+      setRoomId(newRoomId);
+
+      // Then reload rooms to get the updated list (fire-and-forget)
+      void loadRooms();
+
+      return newRoomId;
+    } else {
+      const errorData = await response.json();
+      throw new Error(
+        errorData.error || `Failed to create room: ${response.status}`,
+      );
     }
   },
 
@@ -279,8 +239,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
           window.localStorage.removeItem("elizaRoomId");
         }
       }
-    } else {
-      console.error("Error deleting room:", response.status);
     }
   },
 
@@ -307,10 +265,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 }));
 
 // Subscribe to migration events to clear anonymous session token
-// This is called when the PrivyProvider successfully migrates an anonymous session
 if (typeof window !== "undefined") {
   window.addEventListener("anonymous-session-migrated", () => {
-    console.log("[ChatStore] Received anonymous-session-migrated event, clearing token");
     useChatStore.getState().setAnonymousSessionToken(null);
   });
 }

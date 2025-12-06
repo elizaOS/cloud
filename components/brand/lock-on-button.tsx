@@ -1,3 +1,14 @@
+/**
+ * Lock-on button component with active state animation.
+ * Provides visual feedback on click with temporary active state.
+ *
+ * @param props - Lock-on button props
+ * @param props.icon - Optional icon to display
+ * @param props.size - Button size (sm, md, lg, icon)
+ * @param props.variant - Button variant (default, primary, outline, ghost, hud, icon, icon-primary)
+ * @param props.asChild - If true, renders as a child component using Radix Slot
+ */
+
 "use client";
 
 import type React from "react";

@@ -1,9 +1,6 @@
 /**
- * Brand Tabs Component
- * Tab system matching the landing page design with border-based active state
- *
- * IMPORTANT: Always provide a unique `id` prop to BrandTabs/Tabs components
- * to prevent hydration errors and ensure accessibility.
+ * Brand tabs component system matching the landing page design.
+ * Uses border-based active state and requires unique `id` prop to prevent hydration errors.
  *
  * @example
  * <BrandTabs id="my-unique-tabs" defaultValue="tab1">
@@ -11,11 +8,6 @@
  *     <BrandTabsTrigger value="tab1">Tab 1</BrandTabsTrigger>
  *   </BrandTabsList>
  * </BrandTabs>
- *
- * The `id` must be:
- * - Unique across the entire page
- * - Descriptive and kebab-case (e.g., "hero-tabs", "settings-tabs")
- * - Consistent between server and client renders
  */
 
 "use client";

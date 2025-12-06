@@ -8,19 +8,31 @@ import {
 
 export type { UsageQuota, NewUsageQuota };
 
+/**
+ * Repository for usage quota database operations.
+ */
 export class UsageQuotasRepository {
+  /**
+   * Finds a usage quota by ID.
+   */
   async findById(id: string): Promise<UsageQuota | undefined> {
     return await db.query.usageQuotas.findFirst({
       where: eq(usageQuotas.id, id),
     });
   }
 
+  /**
+   * Lists all usage quotas for an organization.
+   */
   async findByOrganization(organizationId: string): Promise<UsageQuota[]> {
     return await db.query.usageQuotas.findMany({
       where: eq(usageQuotas.organization_id, organizationId),
     });
   }
 
+  /**
+   * Lists active usage quotas for an organization.
+   */
   async findActiveByOrganization(
     organizationId: string,
   ): Promise<UsageQuota[]> {
@@ -32,6 +44,9 @@ export class UsageQuotasRepository {
     });
   }
 
+  /**
+   * Finds an active quota by organization, type, and optional model name.
+   */
   async findByOrganizationAndType(
     organizationId: string,
     quotaType: string,
@@ -54,11 +69,17 @@ export class UsageQuotasRepository {
     });
   }
 
+  /**
+   * Creates a new usage quota.
+   */
   async create(data: NewUsageQuota): Promise<UsageQuota> {
     const [quota] = await db.insert(usageQuotas).values(data).returning();
     return quota;
   }
 
+  /**
+   * Updates an existing usage quota.
+   */
   async update(
     id: string,
     data: Partial<NewUsageQuota>,
@@ -74,6 +95,9 @@ export class UsageQuotasRepository {
     return updated;
   }
 
+  /**
+   * Resets usage count to zero for a quota.
+   */
   async resetUsage(id: string): Promise<UsageQuota | undefined> {
     const [updated] = await db
       .update(usageQuotas)
@@ -86,6 +110,9 @@ export class UsageQuotasRepository {
     return updated;
   }
 
+  /**
+   * Atomically increments usage count for a quota.
+   */
   async incrementUsage(
     id: string,
     amount: number,
@@ -101,6 +128,9 @@ export class UsageQuotasRepository {
     return updated;
   }
 
+  /**
+   * Checks if a quota has been exceeded.
+   */
   async checkQuotaExceeded(id: string): Promise<boolean> {
     const quota = await this.findById(id);
     if (!quota) {
@@ -113,6 +143,9 @@ export class UsageQuotasRepository {
     return currentUsage >= creditsLimit;
   }
 
+  /**
+   * Lists all active quotas that have passed their period end date.
+   */
   async listExpiredQuotas(): Promise<UsageQuota[]> {
     const now = new Date();
     return await db.query.usageQuotas.findMany({
@@ -123,6 +156,9 @@ export class UsageQuotasRepository {
     });
   }
 
+  /**
+   * Updates quota period and resets usage count to zero.
+   */
   async updatePeriod(
     id: string,
     periodStart: Date,
@@ -141,10 +177,18 @@ export class UsageQuotasRepository {
     return updated;
   }
 
+  /**
+   * Deletes a usage quota by ID.
+   */
   async delete(id: string): Promise<void> {
     await db.delete(usageQuotas).where(eq(usageQuotas.id, id));
   }
 
+  /**
+   * Gets current usage breakdown for an organization.
+   * 
+   * Returns global quota usage and model-specific quota usage.
+   */
   async getCurrentUsage(organizationId: string): Promise<{
     global: { used: number; limit: number | null };
     modelSpecific: Record<string, { used: number; limit: number }>;
@@ -172,4 +216,7 @@ export class UsageQuotasRepository {
   }
 }
 
+/**
+ * Singleton instance of UsageQuotasRepository.
+ */
 export const usageQuotasRepository = new UsageQuotasRepository();

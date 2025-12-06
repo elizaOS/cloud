@@ -1,3 +1,8 @@
+/**
+ * Conversation component for displaying chat messages with auto-scroll to bottom.
+ * Uses StickToBottom for smooth scrolling behavior and provides empty state support.
+ */
+
 "use client";
 
 import { Button } from "@/components/ui/button";

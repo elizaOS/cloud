@@ -404,6 +404,10 @@ const SHOWCASE_CHARACTERS: ExtendedCharacter[] = [
   },
 ];
 
+/**
+ * Marketplace preview component displaying featured and showcase characters.
+ * Fetches additional characters from the API and handles authentication redirects.
+ */
 export function MarketplacePreview() {
   const [additionalCharacters, setAdditionalCharacters] = useState<
     ExtendedCharacter[]
@@ -416,26 +420,21 @@ export function MarketplacePreview() {
 
   useEffect(() => {
     async function fetchAdditionalCharacters() {
-      try {
-        setIsLoadingMore(true);
-        const response = await fetch(
-          "/api/public/marketplace/characters?limit=4&sortBy=popularity",
-        );
+      setIsLoadingMore(true);
+      const response = await fetch(
+        "/api/public/marketplace/characters?limit=4&sortBy=popularity",
+      );
 
-        if (response.ok) {
-          const data = await response.json();
-          const apiCharacters = data.data?.characters || [];
-          const showcaseIds = new Set(SHOWCASE_CHARACTERS.map((c) => c.id));
-          const uniqueChars = apiCharacters.filter(
-            (c: ExtendedCharacter) => !showcaseIds.has(c.id),
-          );
-          setAdditionalCharacters(uniqueChars);
-        }
-      } catch (error) {
-        console.error("Failed to fetch additional characters:", error);
-      } finally {
-        setIsLoadingMore(false);
+      if (response.ok) {
+        const data = await response.json();
+        const apiCharacters = data.data?.characters || [];
+        const showcaseIds = new Set(SHOWCASE_CHARACTERS.map((c) => c.id));
+        const uniqueChars = apiCharacters.filter(
+          (c: ExtendedCharacter) => !showcaseIds.has(c.id),
+        );
+        setAdditionalCharacters(uniqueChars);
       }
+      setIsLoadingMore(false);
     }
 
     fetchAdditionalCharacters();

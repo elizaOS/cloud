@@ -77,18 +77,21 @@ function isValidTokenFormat(token: string): boolean {
 
 /**
  * POST /api/anonymous-session/increment
- *
- * Directly increment the message count for an anonymous session.
- * This is called by the frontend after a message is successfully sent.
- *
- * This provides a reliable fallback mechanism for message counting,
- * bypassing any potential issues in the complex auth flow.
+ * Directly increments the message count for an anonymous session.
+ * Called by the frontend after a message is successfully sent.
+ * Provides a reliable fallback mechanism for message counting.
  *
  * Security:
- * - Rate limited per IP address
- * - Input validation for token format
+ * - Rate limited per IP address (20 requests/minute)
+ * - Input validation for token format (UUID or nanoid)
  * - Uses query builder (not raw SQL) to prevent injection
  * - Tokens are hashed for logging
+ *
+ * Request Body:
+ * - `sessionToken`: The anonymous session token (required).
+ *
+ * @param request - Request body with sessionToken.
+ * @returns Updated message count and remaining messages.
  */
 export async function POST(request: NextRequest) {
   try {

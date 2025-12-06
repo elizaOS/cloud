@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { cliAuthSessionsService } from "@/lib/services";
 
 /**
- * Cron job to clean up expired CLI auth sessions
- * Should be called periodically (e.g., every hour)
+ * GET /api/cron/cleanup-cli-sessions
+ * Cron job endpoint that cleans up expired CLI authentication sessions.
+ * Protected by CRON_SECRET authentication.
+ *
+ * @param request - Request with Bearer token containing CRON_SECRET.
+ * @returns Success status.
  */
 export async function GET(request: NextRequest) {
   try {

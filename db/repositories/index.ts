@@ -49,6 +49,8 @@ export * from "./characters";
 // Deployment Domain (Infrastructure)
 // ============================================
 export * from "./containers";
+export * from "./eliza-room-characters";
+export * from "./agent-events";
 
 // ============================================
 // Agent Domain (ElizaOS Runtime)
@@ -76,3 +78,10 @@ export * from "./generations";
 // ============================================
 export * from "./eliza-room-characters";
 export * from "./apps";
+export * from "./app-credit-balances";
+export * from "./app-earnings";
+
+// ============================================
+// Referrals & Rewards
+// ============================================
+export * from "./referrals";

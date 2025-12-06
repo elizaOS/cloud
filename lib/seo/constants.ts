@@ -1,3 +1,6 @@
+/**
+ * SEO constants for site-wide metadata configuration.
+ */
 export const SEO_CONSTANTS = {
   siteName: "elizaOS Platform",
   twitterHandle: "@elizaos",
@@ -24,6 +27,9 @@ export const SEO_CONSTANTS = {
   locale: "en_US",
 } as const;
 
+/**
+ * Route-specific metadata configurations.
+ */
 export const ROUTE_METADATA = {
   home: {
     title: "elizaOS Platform - AI Agent Development Platform",

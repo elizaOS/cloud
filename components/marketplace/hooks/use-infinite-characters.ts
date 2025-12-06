@@ -1,3 +1,13 @@
+/**
+ * Hook for infinite scrolling character loading with caching and deduplication.
+ * Supports filtering, sorting, and pagination with automatic cache management.
+ *
+ * @param options - Infinite characters hook options
+ * @param options.filters - Search filters to apply
+ * @param options.sortBy - Sort option
+ * @param options.includeStats - Whether to include character statistics
+ * @returns {object} Character data, loading states, and pagination controls
+ */
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -104,6 +114,11 @@ export function useInfiniteCharacters({
         error: append ? prev.error : null,
       }));
 
+      // Check if request was aborted before proceeding
+      if (abortControllerRef.current.signal.aborted) {
+        return;
+      }
+
       try {
         const queryString = buildQueryParams(pageNum);
         const response = await fetch(
@@ -114,7 +129,7 @@ export function useInfiniteCharacters({
         );
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
+          const errorData = await response.json();
           throw new Error(errorData.error || "Failed to fetch characters");
         }
 
@@ -147,22 +162,16 @@ export function useInfiniteCharacters({
             error: null,
           };
         });
-      } catch (err) {
-        // Ignore abort errors
-        if (err instanceof Error && err.name === "AbortError") {
+      } catch (error) {
+        // Don't set error state if request was aborted
+        if (error instanceof Error && error.name === "AbortError") {
           return;
         }
-
-        const errorMessage =
-          err instanceof Error ? err.message : "Failed to fetch characters";
-
         setState((prev) => ({
           ...prev,
           isLoading: false,
           isLoadingMore: false,
-          error: errorMessage,
-          // Clear characters only on initial load error
-          characters: append ? prev.characters : [],
+          error: error instanceof Error ? error.message : "Failed to fetch characters",
         }));
       }
     },
@@ -171,9 +180,12 @@ export function useInfiniteCharacters({
 
   // Initial fetch and filter change handling
   useEffect(() => {
-    setPage(1);
-    fetchPage(1, false);
-  }, [filterKey]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Use queueMicrotask to defer execution and avoid synchronous setState
+    queueMicrotask(() => {
+      setPage(1);
+      fetchPage(1, false);
+    });
+  }, [filterKey, fetchPage]);  
 
   // Cleanup on unmount
   useEffect(() => {
@@ -187,9 +199,6 @@ export function useInfiniteCharacters({
   // Listen for external events that should trigger a refresh (e.g., affiliate character claims)
   useEffect(() => {
     const handleCharactersUpdated = () => {
-      logger.debug(
-        "[useInfiniteCharacters] Received characters-updated event, refreshing...",
-      );
       setPage(1);
       fetchPage(1, false);
     };

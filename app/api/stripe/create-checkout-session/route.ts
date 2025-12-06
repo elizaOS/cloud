@@ -45,6 +45,14 @@ const checkoutRequestSchema = z
 
 type CheckoutRequest = z.infer<typeof checkoutRequestSchema>;
 
+/**
+ * POST /api/stripe/create-checkout-session
+ * Creates a Stripe Checkout session for credit pack purchase or custom amount top-up.
+ * Creates Stripe customer if one doesn't exist for the organization.
+ *
+ * @param req - Request body with creditPackId or amount, and optional returnUrl.
+ * @returns Checkout session ID and URL.
+ */
 async function handleCheckoutSession(req: NextRequest) {
   logger.debug("[Stripe Checkout] Route handler called");
 

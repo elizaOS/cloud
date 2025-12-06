@@ -9,6 +9,13 @@ const acceptInviteSchema = z.object({
   token: z.string().min(1, "Token is required"),
 });
 
+/**
+ * POST /api/invites/accept
+ * Accepts an organization invitation using the invitation token.
+ *
+ * @param request - Request body containing the invitation token.
+ * @returns Accepted invite details with organization ID and role.
+ */
 async function handlePOST(request: NextRequest) {
   try {
     const user = await requireAuth();

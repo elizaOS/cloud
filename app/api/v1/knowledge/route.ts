@@ -10,7 +10,12 @@ import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
 export const maxDuration = 60;
 
 /**
- * GET /api/v1/knowledge - List all knowledge documents
+ * GET /api/v1/knowledge
+ * Lists all knowledge documents for the authenticated user.
+ * Supports filtering by characterId and pagination.
+ *
+ * @param req - Request with optional characterId, count, and offset query parameters.
+ * @returns Array of knowledge documents with total count.
  */
 async function handleGET(req: NextRequest) {
   try {
@@ -99,7 +104,12 @@ async function handleGET(req: NextRequest) {
 }
 
 /**
- * POST /api/v1/knowledge - Upload a new knowledge document
+ * POST /api/v1/knowledge
+ * Uploads a new knowledge document to the knowledge base.
+ * Supports text content and converts it to base64 for processing.
+ *
+ * @param req - Request body with content, contentType, filename, optional metadata, and characterId.
+ * @returns Created document ID and fragment count.
  */
 async function handlePOST(req: NextRequest) {
   try {

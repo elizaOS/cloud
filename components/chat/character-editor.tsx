@@ -1,3 +1,13 @@
+/**
+ * Character editor component with tabbed interface for editing character properties.
+ * Supports form-based editing, JSON editing, plugins management, and stats display.
+ *
+ * @param props - Character editor configuration
+ * @param props.character - Character data to edit
+ * @param props.onChange - Callback when character data changes
+ * @param props.onSave - Callback when save button is clicked
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -66,11 +76,8 @@ export function CharacterEditor({
 
   const handleSave = async () => {
     setIsSaving(true);
-    try {
-      await onSave();
-    } finally {
-      setIsSaving(false);
-    }
+    await onSave();
+    setIsSaving(false);
   };
 
   const handleExport = () => {

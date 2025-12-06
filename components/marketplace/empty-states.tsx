@@ -1,3 +1,12 @@
+/**
+ * Empty states component displaying different states for character marketplace.
+ * Supports loading, no results, and error states with customizable messages.
+ *
+ * @param props - Empty states configuration
+ * @param props.type - Type of empty state (loading, no-results, error)
+ * @param props.message - Optional custom message to display
+ */
+
 "use client";
 
 import { Loader2, Search, Sparkles } from "lucide-react";

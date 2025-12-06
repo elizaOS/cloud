@@ -1,3 +1,7 @@
+/**
+ * Email template rendering utilities.
+ */
+
 import fs from "fs";
 import path from "path";
 import type {
@@ -9,6 +13,12 @@ import type {
   PurchaseConfirmationEmailData,
 } from "@/lib/email/types";
 
+/**
+ * Loads an email template file from disk.
+ *
+ * @param filename - Template filename.
+ * @returns Template content as string.
+ */
 function loadTemplate(filename: string): string {
   const templatePath = path.join(
     process.cwd(),
@@ -20,6 +30,13 @@ function loadTemplate(filename: string): string {
   return fs.readFileSync(templatePath, "utf-8");
 }
 
+/**
+ * Interpolates template variables with data.
+ *
+ * @param template - Template string with {{variable}} placeholders.
+ * @param data - Data object with values to interpolate.
+ * @returns Interpolated template string.
+ */
 function interpolate(
   template: string,
   data: Record<string, string | number>,
@@ -29,6 +46,12 @@ function interpolate(
   });
 }
 
+/**
+ * Renders the welcome email template.
+ *
+ * @param data - Welcome email data.
+ * @returns Rendered HTML and text versions.
+ */
 export function renderWelcomeTemplate(data: WelcomeEmailData): {
   html: string;
   text: string;
@@ -51,6 +74,12 @@ export function renderWelcomeTemplate(data: WelcomeEmailData): {
   };
 }
 
+/**
+ * Renders the low credits warning email template.
+ *
+ * @param data - Low credits email data.
+ * @returns Rendered HTML and text versions.
+ */
 export function renderLowCreditsTemplate(data: LowCreditsEmailData): {
   html: string;
   text: string;
@@ -72,6 +101,12 @@ export function renderLowCreditsTemplate(data: LowCreditsEmailData): {
   };
 }
 
+/**
+ * Renders the organization invite email template.
+ *
+ * @param data - Invite email data.
+ * @returns Rendered HTML and text versions.
+ */
 export function renderInviteTemplate(data: InviteEmailData): {
   html: string;
   text: string;
@@ -95,6 +130,12 @@ export function renderInviteTemplate(data: InviteEmailData): {
   };
 }
 
+/**
+ * Renders the auto top-up success email template.
+ *
+ * @param data - Auto top-up success email data.
+ * @returns Rendered HTML and text versions.
+ */
 export function renderAutoTopUpSuccessTemplate(
   data: AutoTopUpSuccessEmailData,
 ): {
@@ -185,6 +226,12 @@ This automatic top-up ensures your services continue running without interruptio
   return { html, text };
 }
 
+/**
+ * Renders the auto top-up disabled email template.
+ *
+ * @param data - Auto top-up disabled email data.
+ * @returns Rendered HTML and text versions.
+ */
 export function renderAutoTopUpDisabledTemplate(
   data: AutoTopUpDisabledEmailData,
 ): {
@@ -266,6 +313,12 @@ To prevent service interruptions, please address this issue as soon as possible.
   return { html, text };
 }
 
+/**
+ * Renders the purchase confirmation email template.
+ *
+ * @param data - Purchase confirmation email data.
+ * @returns Rendered HTML and text versions.
+ */
 export function renderPurchaseConfirmationTemplate(
   data: PurchaseConfirmationEmailData,
 ): {

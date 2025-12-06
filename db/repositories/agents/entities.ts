@@ -1,6 +1,7 @@
 /**
- * Repository for ElizaOS Entities table
- * Handles all database operations for entities without spinning up runtime
+ * Repository for ElizaOS entities table.
+ * 
+ * Handles all database operations for entities without spinning up runtime.
  */
 
 import { db } from "@/db/client";
@@ -8,6 +9,9 @@ import { entityTable } from "@/db/schemas/eliza";
 import { eq, inArray, sql } from "drizzle-orm";
 import type { Entity, UUID } from "@elizaos/core";
 
+/**
+ * Input for creating a new entity.
+ */
 export interface CreateEntityInput {
   id: string;
   agentId: string;
@@ -15,10 +19,14 @@ export interface CreateEntityInput {
   metadata?: Record<string, unknown>;
 }
 
+/**
+ * Repository for ElizaOS entity database operations.
+ */
 export class EntitiesRepository {
   /**
-   * Get entity by ID
-   * entityId should be the user's database ID (already a UUID)
+   * Gets an entity by ID.
+   * 
+   * @param entityId - User's database ID (UUID).
    */
   async findById(entityId: string): Promise<Entity | null> {
     const result = await db
@@ -31,7 +39,7 @@ export class EntitiesRepository {
   }
 
   /**
-   * Get multiple entities by IDs
+   * Gets multiple entities by IDs.
    */
   async findByIds(entityIds: string[]): Promise<Entity[]> {
     if (entityIds.length === 0) return [];
@@ -45,7 +53,7 @@ export class EntitiesRepository {
   }
 
   /**
-   * Get entities by agent ID
+   * Gets entities by agent ID.
    */
   async findByAgentId(agentId: string, limit = 100): Promise<Entity[]> {
     const results = await db
@@ -58,7 +66,7 @@ export class EntitiesRepository {
   }
 
   /**
-   * Check if entity exists
+   * Checks if an entity exists.
    */
   async exists(entityId: string): Promise<boolean> {
     const result = await db
@@ -71,8 +79,10 @@ export class EntitiesRepository {
   }
 
   /**
-   * Create a new entity
-   * Both entityId and agentId should be UUIDs from our database
+   * Creates a new entity.
+   * 
+   * Both entityId and agentId should be UUIDs from our database.
+   * Returns existing entity if already present.
    */
   async create(input: CreateEntityInput): Promise<Entity> {
     // Check if already exists
@@ -96,7 +106,7 @@ export class EntitiesRepository {
   }
 
   /**
-   * Update entity names
+   * Updates entity names.
    */
   async updateNames(entityId: string, names: string[]): Promise<Entity> {
     const [entity] = await db
@@ -109,7 +119,7 @@ export class EntitiesRepository {
   }
 
   /**
-   * Update entity metadata
+   * Updates entity metadata.
    */
   async updateMetadata(
     entityId: string,
@@ -125,7 +135,9 @@ export class EntitiesRepository {
   }
 
   /**
-   * Delete entity
+   * Deletes an entity.
+   * 
+   * @returns True if entity was deleted, false if not found.
    */
   async delete(entityId: string): Promise<boolean> {
     const result = await db
@@ -137,7 +149,7 @@ export class EntitiesRepository {
   }
 
   /**
-   * Count entities by agent
+   * Counts entities for an agent.
    */
   async countByAgentId(agentId: string): Promise<number> {
     const result = await db
@@ -149,7 +161,7 @@ export class EntitiesRepository {
   }
 
   /**
-   * Find entity by name (useful for lookups)
+   * Finds an entity by name within an agent's entities.
    */
   async findByName(agentId: string, name: string): Promise<Entity | null> {
     const result = await db.execute<{
@@ -179,7 +191,7 @@ export class EntitiesRepository {
   }
 
   /**
-   * Search entities by name pattern
+   * Searches entities by name pattern (case-insensitive).
    */
   async searchByName(
     agentId: string,
@@ -216,4 +228,7 @@ export class EntitiesRepository {
   }
 }
 
+/**
+ * Singleton instance of EntitiesRepository.
+ */
 export const entitiesRepository = new EntitiesRepository();

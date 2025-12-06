@@ -13,6 +13,15 @@ const updateMemberSchema = z.object({
     }),
 });
 
+/**
+ * PATCH /api/organizations/members/[userId]
+ * Updates a member's role in the organization.
+ * Requires owner role. Cannot change own role or owner role.
+ *
+ * @param request - Request body with new role (admin or member).
+ * @param context - Route context containing the user ID parameter.
+ * @returns Updated member details.
+ */
 async function handlePATCH(
   request: NextRequest,
   context?: { params: Promise<{ userId: string }> },
@@ -136,6 +145,15 @@ async function handlePATCH(
   }
 }
 
+/**
+ * DELETE /api/organizations/members/[userId]
+ * Removes a member from the organization.
+ * Requires owner or admin role. Admins cannot remove other admins.
+ *
+ * @param request - The Next.js request object.
+ * @param context - Route context containing the user ID parameter.
+ * @returns Success status.
+ */
 async function handleDELETE(
   request: NextRequest,
   context?: { params: Promise<{ userId: string }> },

@@ -17,6 +17,15 @@ interface ChatPageProps {
   }>;
 }
 
+/**
+ * Chat page for interacting with a character/agent.
+ * Supports both authenticated and anonymous users.
+ * Handles affiliate character claiming and session migration.
+ *
+ * @param params - Route parameters containing the character ID.
+ * @param searchParams - Query parameters for source, session token, and vibe.
+ * @returns Chat interface component with appropriate user context.
+ */
 export default async function ChatPage({
   params,
   searchParams,
@@ -29,6 +38,13 @@ export default async function ChatPage({
 
   if (!character) {
     logger.warn(`[Chat Page] Character not found: ${characterId}`);
+    notFound();
+  }
+
+  // Cloud chat page only works with cloud-created agents (including affiliates)
+  // Miniapp agents have their own chat interface
+  if (character.source !== "cloud") {
+    logger.warn(`[Chat Page] Character ${characterId} is not a cloud agent (source: ${character.source})`);
     notFound();
   }
 
@@ -145,31 +161,27 @@ export default async function ChatPage({
       },
     );
 
-    try {
-      const anonSession = await anonymousSessionsService.getByToken(sessionId);
+    const anonSession = await anonymousSessionsService.getByToken(sessionId);
 
-      if (anonSession && !anonSession.converted_at) {
-        logger.info(
-          `[Chat Page] Found unconverted anonymous session, migrating...`,
-          {
-            sessionId: anonSession.id,
-            anonymousUserId: anonSession.user_id,
-          },
-        );
+    if (anonSession && !anonSession.converted_at) {
+      logger.info(
+        `[Chat Page] Found unconverted anonymous session, migrating...`,
+        {
+          sessionId: anonSession.id,
+          anonymousUserId: anonSession.user_id,
+        },
+      );
 
-        const { convertAnonymousToReal } = await import("@/lib/auth-anonymous");
-        await convertAnonymousToReal(anonSession.user_id, user!.privy_user_id);
+      const { convertAnonymousToReal } = await import("@/lib/auth-anonymous");
+      await convertAnonymousToReal(anonSession.user_id, user!.privy_user_id);
 
-        logger.info(`[Chat Page] Migration completed successfully`);
-      } else if (anonSession?.converted_at) {
-        logger.info(`[Chat Page] Session already converted`, { sessionId });
-      } else {
-        logger.warn(`[Chat Page] Session not found for token`, {
-          sessionId: sessionId.slice(0, 8) + "...",
-        });
-      }
-    } catch (error) {
-      logger.error(`[Chat Page] Migration failed:`, error);
+      logger.info(`[Chat Page] Migration completed successfully`);
+    } else if (anonSession?.converted_at) {
+      logger.info(`[Chat Page] Session already converted`, { sessionId });
+    } else {
+      logger.warn(`[Chat Page] Session not found for token`, {
+        sessionId: sessionId.slice(0, 8) + "...",
+      });
     }
   }
 

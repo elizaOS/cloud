@@ -1,3 +1,11 @@
+/**
+ * Invoice detail client component displaying full invoice information.
+ * Shows invoice details, line items, payment status, and provides download/view links.
+ *
+ * @param props - Invoice detail client configuration
+ * @param props.invoice - Invoice data to display
+ */
+
 "use client";
 
 import { BrandCard, CornerBrackets } from "@/components/brand";

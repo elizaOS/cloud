@@ -1,8 +1,15 @@
+/**
+ * Service for managing invoices from Stripe payments.
+ */
+
 import { db } from "@/db/client";
 import { invoices, type Invoice, type NewInvoice } from "@/db/schemas";
 import { eq, desc } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * Service for invoice CRUD operations.
+ */
 class InvoicesService {
   async create(data: NewInvoice): Promise<Invoice> {
     const [invoice] = await db

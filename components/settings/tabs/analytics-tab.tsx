@@ -1,6 +1,14 @@
+/**
+ * Analytics settings tab component displaying usage analytics and statistics.
+ * Supports time range selection, cadence filtering, and focus metric switching.
+ *
+ * @param props - Analytics tab configuration
+ * @param props.user - User data with organization information
+ */
+
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import type { UserWithOrganization } from "@/lib/types";
 import { Activity, Coins, Shield, BarChart, Loader2 } from "lucide-react";
@@ -45,37 +53,34 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
     null,
   );
 
-  const fetchAnalytics = async (range: TimeRange) => {
-    try {
-      setLoading(true);
+  const fetchAnalytics = useCallback(async (range: TimeRange) => {
+    setLoading(true);
 
-      const apiTimeRange =
-        range === "7days" ? "daily" : range === "30days" ? "weekly" : "monthly";
+    const apiTimeRange =
+      range === "7days" ? "daily" : range === "30days" ? "weekly" : "monthly";
 
-      const response = await fetch(
-        `/api/analytics/overview?timeRange=${apiTimeRange}`,
-      );
+    const response = await fetch(
+      `/api/analytics/overview?timeRange=${apiTimeRange}`,
+    );
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch analytics");
-      }
-
-      const result = await response.json();
-
-      if (result.success && result.data) {
-        setAnalyticsData(result.data);
-      }
-    } catch (error) {
-      console.error("Error fetching analytics:", error);
-      toast.error("Failed to load analytics data");
-    } finally {
-      setLoading(false);
+    if (!response.ok) {
+      throw new Error("Failed to fetch analytics");
     }
-  };
+
+    const result = await response.json();
+
+    if (result.success && result.data) {
+      setAnalyticsData(result.data);
+    }
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
-    fetchAnalytics(timeRange);
-  }, [timeRange]);
+    // Use queueMicrotask to defer execution and avoid synchronous setState
+    queueMicrotask(() => {
+      fetchAnalytics(timeRange);
+    });
+  }, [timeRange, fetchAnalytics]);
 
   const formatDateRange = () => {
     if (!analyticsData) return "";

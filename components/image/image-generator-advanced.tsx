@@ -1,3 +1,9 @@
+/**
+ * Advanced image generator component with full-featured controls.
+ * Supports prompt input, advanced settings (width, height, steps, guidance scale),
+ * image history, favorites, and carousel display of generated images.
+ */
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -126,7 +132,8 @@ export function ImageGeneratorAdvanced() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to generate image");
+        setRequestState({ isLoading: false, error: data.error || "Failed to generate image" });
+        return;
       }
 
       // Handle multiple images array response

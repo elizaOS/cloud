@@ -1,8 +1,14 @@
 /**
- * Brand Card Component
- * Reusable card component with brand styling and corner decorations
+ * Brand card component with brand styling and optional corner bracket decorations.
+ * Supports hover effects and customizable corner styling.
+ *
+ * @param props - Brand card props
+ * @param props.hover - Whether to enable hover effects
+ * @param props.corners - Whether to display corner brackets
+ * @param props.cornerSize - Size of corner brackets (sm, md, lg, xl)
+ * @param props.cornerColor - Color of corner brackets
+ * @param props.asChild - If true, renders as a child component
  */
-
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { CornerBrackets } from "./corner-brackets";

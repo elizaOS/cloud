@@ -1,3 +1,11 @@
+/**
+ * Knowledge drawer component providing access to knowledge base management.
+ * Displays tabs for uploading documents, viewing document list, and querying knowledge.
+ *
+ * @param props - Knowledge drawer configuration
+ * @param props.characterId - Optional character ID to filter documents
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -16,20 +24,7 @@ import { DocumentUpload } from "@/components/knowledge/document-upload";
 import { DocumentList } from "@/components/knowledge/document-list";
 import { KnowledgeQuery } from "@/components/knowledge/knowledge-query";
 
-interface KnowledgeDocument {
-  id: string;
-  content: {
-    text: string;
-  };
-  createdAt: number;
-  metadata?: {
-    fileName?: string;
-    fileSize?: number;
-    uploadedBy?: string;
-    uploadedAt?: number;
-    originalFilename?: string;
-  };
-}
+import type { KnowledgeDocument } from "@/lib/types/knowledge";
 
 interface KnowledgeDrawerProps {
   characterId?: string | null;
@@ -41,29 +36,25 @@ export function KnowledgeDrawer({ characterId }: KnowledgeDrawerProps) {
   const [open, setOpen] = useState(false);
 
   const fetchDocuments = async () => {
-    try {
-      setLoading(true);
+    setLoading(true);
 
-      // Include characterId in query params if provided
-      const url = new URL("/api/v1/knowledge", window.location.origin);
-      if (characterId) {
-        url.searchParams.set("characterId", characterId);
-      }
-
-      const response = await fetch(url.toString());
-
-      if (!response.ok) {
-        console.error("Failed to fetch documents");
-        return;
-      }
-
-      const data = await response.json();
-      setDocuments(data.documents || []);
-    } catch (err) {
-      console.error("Error fetching documents:", err);
-    } finally {
-      setLoading(false);
+    // Include characterId in query params if provided
+    const url = new URL("/api/v1/knowledge", window.location.origin);
+    if (characterId) {
+      url.searchParams.set("characterId", characterId);
     }
+
+    const response = await fetch(url.toString());
+
+    if (!response.ok) {
+      console.error("Failed to fetch documents");
+      setLoading(false);
+      return;
+    }
+
+    const data = await response.json();
+    setDocuments(data.documents || []);
+    setLoading(false);
   };
 
   const handleOpenChange = (newOpen: boolean) => {

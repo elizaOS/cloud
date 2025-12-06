@@ -50,13 +50,13 @@ export interface MCPToolContext {
   org: Organization;
 
   /** Get cached tool result (if available) */
-  getToolCache: (toolName: string, params: any) => Promise<any | null>;
+  getToolCache: (toolName: string, params: unknown) => Promise<unknown | null>;
 
   /** Set tool result in cache */
-  setToolCache: (toolName: string, params: any, result: any) => Promise<void>;
+  setToolCache: (toolName: string, params: unknown, result: unknown) => Promise<void>;
 
   /** Invalidate tool cache */
-  invalidateToolCache: (toolName: string, params?: any) => Promise<void>;
+  invalidateToolCache: (toolName: string, params?: unknown) => Promise<void>;
 
   /** Deduct credits with automatic refund on error */
   deductCredits: (
@@ -103,15 +103,15 @@ export async function createMCPContext(
     user,
     org,
 
-    async getToolCache(toolName: string, params: any) {
+    async getToolCache(toolName: string, params: unknown) {
       return await getCachedToolResult(toolName, params, org.id);
     },
 
-    async setToolCache(toolName: string, params: any, result: any) {
+    async setToolCache(toolName: string, params: unknown, result: unknown) {
       await setCachedToolResult(toolName, params, org.id, result);
     },
 
-    async invalidateToolCache(toolName: string, params?: any) {
+    async invalidateToolCache(toolName: string, params?: unknown) {
       await invalidateToolCacheInternal(toolName, org.id, params);
     },
 
@@ -283,7 +283,7 @@ export function withCache<TParams, TResult>(
  * Standardizes response format across all tools
  */
 export function formatMCPResponse(
-  data: any,
+  data: unknown,
   isError: boolean = false,
 ): {
   content: Array<{ type: "text"; text: string }>;

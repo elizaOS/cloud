@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { apiKeysService } from "@/lib/services";
+import { logger } from "@/lib/utils/logger";
 
+/**
+ * DELETE /api/v1/api-keys/[id]
+ * Deletes an API key by ID.
+ * Requires authentication and ownership verification.
+ *
+ * @param request - The Next.js request object.
+ * @param params - Route parameters containing the API key ID.
+ * @returns Success status.
+ */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -24,7 +34,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
-    console.error("Error deleting API key:", error);
+    logger.error("[API Keys] Error deleting API key", { error });
     return NextResponse.json(
       { error: "Failed to delete API key" },
       { status: 500 },
@@ -32,6 +42,15 @@ export async function DELETE(
   }
 }
 
+/**
+ * PATCH /api/v1/api-keys/[id]
+ * Updates an API key's properties (name, description, permissions, rate limit, etc.).
+ * Requires authentication and ownership verification.
+ *
+ * @param request - Request body with optional fields to update.
+ * @param params - Route parameters containing the API key ID.
+ * @returns Updated API key details.
+ */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -95,7 +114,7 @@ export async function PATCH(
       { status: 200 },
     );
   } catch (error) {
-    console.error("Error updating API key:", error);
+    logger.error("[API Keys] Error updating API key", { error });
     return NextResponse.json(
       { error: "Failed to update API key" },
       { status: 500 },

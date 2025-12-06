@@ -5,7 +5,7 @@
 
 export const CONTAINER_PRICING = {
   // One-time costs
-  DEPLOYMENT: 0.5, // $0.50 per deployment
+  DEPLOYMENT: 0.5, // $0.50 (50 credits) per deployment
   IMAGE_UPLOAD: 0.25, // $0.25 per image upload
 
   // Recurring costs (per hour, charged daily)
@@ -38,7 +38,11 @@ export const CONTAINER_LIMITS = {
 } as const;
 
 /**
- * Get max containers allowed for an organization
+ * Gets the maximum number of containers allowed for an organization.
+ *
+ * @param creditBalance - Organization credit balance in USD.
+ * @param orgSettings - Optional organization settings with custom limit.
+ * @returns Maximum number of containers allowed.
  */
 export function getMaxContainersForOrg(
   creditBalance: number,

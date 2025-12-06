@@ -9,6 +9,9 @@ import { containers } from "@/db/schemas/containers";
 import { organizations } from "@/db/schemas/organizations";
 import { conversations } from "@/db/schemas/conversations";
 
+/**
+ * Parameters for resource access verification.
+ */
 export interface ResourceAccessParams {
   organizationId: string;
   userId: string;
@@ -17,8 +20,11 @@ export interface ResourceAccessParams {
 }
 
 /**
- * Verify if a user has access to a specific resource based on event type
- * @throws Error if resource access is denied
+ * Verifies if a user has access to a specific resource based on event type.
+ *
+ * @param params - Resource access parameters.
+ * @returns True if access is granted.
+ * @throws Error if resource access is denied.
  */
 export async function verifyResourceAccess(
   params: ResourceAccessParams,
@@ -74,7 +80,10 @@ export async function verifyResourceAccess(
 }
 
 /**
- * Verify organization exists and user has access
+ * Verifies organization exists and user has access.
+ *
+ * @param organizationId - Organization ID to verify.
+ * @returns True if organization exists.
  */
 export async function verifyOrganizationAccess(
   organizationId: string,

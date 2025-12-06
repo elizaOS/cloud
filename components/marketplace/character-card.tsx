@@ -1,3 +1,15 @@
+/**
+ * Character card component for displaying character information in grid or list view.
+ * Shows avatar, bio, stats, and action buttons for chatting, cloning, and viewing details.
+ *
+ * @param props - Character card configuration
+ * @param props.character - Character data to display
+ * @param props.view - Display mode: "grid" (card layout) or "list" (compact horizontal)
+ * @param props.onStartChat - Callback when chat button is clicked
+ * @param props.onClone - Callback when clone button is clicked
+ * @param props.onViewDetails - Callback when details button is clicked
+ */
+
 "use client";
 
 import Image from "next/image";
@@ -281,7 +293,12 @@ export function CharacterCard({
   );
 }
 
-// Skeleton loading component
+/**
+ * Skeleton loading component for character cards.
+ *
+ * @param props - Skeleton configuration
+ * @param props.view - Display mode: "grid" or "list"
+ */
 interface CharacterCardSkeletonProps {
   view?: "grid" | "list";
 }

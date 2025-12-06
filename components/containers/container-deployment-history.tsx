@@ -1,3 +1,12 @@
+/**
+ * Container deployment history component displaying past deployment records.
+ * Shows deployment status, cost, duration, and configuration details.
+ *
+ * @param props - Container deployment history configuration
+ * @param props.containerId - Container ID to fetch deployment history for
+ * @param props.containerName - Container name for display
+ */
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -48,30 +57,23 @@ export function ContainerDeploymentHistory({
 
   useEffect(() => {
     async function fetchDeployments() {
-      try {
-        setLoading(true);
-        const response = await fetch(
-          `/api/v1/containers/${containerId}/deployments`,
-        );
+      setLoading(true);
+      const response = await fetch(
+        `/api/v1/containers/${containerId}/deployments`,
+      );
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch deployment history");
-        }
-
-        const data = await response.json();
-        if (data.success) {
-          setDeployments(data.data.deployments);
-        } else {
-          setError(data.error || "Failed to load deployments");
-        }
-      } catch (err) {
-        console.error("Error fetching deployments:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to load deployments",
-        );
-      } finally {
+      if (!response.ok) {
         setLoading(false);
+        throw new Error("Failed to fetch deployment history");
       }
+
+      const data = await response.json();
+      if (data.success) {
+        setDeployments(data.data.deployments);
+      } else {
+        setError(data.error || "Failed to load deployments");
+      }
+      setLoading(false);
     }
 
     fetchDeployments();

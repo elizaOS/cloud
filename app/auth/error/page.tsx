@@ -44,11 +44,8 @@ function AuthErrorContent() {
 
   const handleLogin = async () => {
     setIsLoggingIn(true);
-    try {
-      await login();
-    } finally {
-      setTimeout(() => setIsLoggingIn(false), 1000);
-    }
+    await login();
+    setTimeout(() => setIsLoggingIn(false), 1000);
   };
 
   const isLoading = !ready || isLoggingIn;
@@ -88,6 +85,10 @@ function AuthErrorContent() {
   );
 }
 
+/**
+ * Authentication error page with dynamic error messages based on reason query parameter.
+ * Supports retry functionality and displays appropriate error details.
+ */
 export default function AuthErrorPage() {
   return (
     <Suspense

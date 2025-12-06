@@ -8,13 +8,22 @@ import {
 
 export type { OrganizationInvite, NewOrganizationInvite };
 
+/**
+ * Repository for organization invite database operations.
+ */
 export class OrganizationInvitesRepository {
+  /**
+   * Finds an organization invite by ID.
+   */
   async findById(id: string): Promise<OrganizationInvite | undefined> {
     return await db.query.organizationInvites.findFirst({
       where: eq(organizationInvites.id, id),
     });
   }
 
+  /**
+   * Finds an organization invite by token hash with organization and inviter data.
+   */
   async findByTokenHash(
     tokenHash: string,
   ): Promise<OrganizationInvite | undefined> {
@@ -27,6 +36,9 @@ export class OrganizationInvitesRepository {
     });
   }
 
+  /**
+   * Finds a pending invite by email address (case-insensitive).
+   */
   async findPendingInviteByEmail(
     email: string,
   ): Promise<OrganizationInvite | undefined> {
@@ -41,6 +53,9 @@ export class OrganizationInvitesRepository {
     });
   }
 
+  /**
+   * Lists all invites for an organization with inviter information.
+   */
   async listByOrganization(
     organizationId: string,
   ): Promise<OrganizationInvite[]> {
@@ -59,6 +74,9 @@ export class OrganizationInvitesRepository {
     });
   }
 
+  /**
+   * Lists pending invites for an organization with inviter information.
+   */
   async listPendingByOrganization(
     organizationId: string,
   ): Promise<OrganizationInvite[]> {
@@ -80,6 +98,9 @@ export class OrganizationInvitesRepository {
     });
   }
 
+  /**
+   * Creates a new organization invite.
+   */
   async create(data: NewOrganizationInvite): Promise<OrganizationInvite> {
     const [invite] = await db
       .insert(organizationInvites)
@@ -88,6 +109,9 @@ export class OrganizationInvitesRepository {
     return invite;
   }
 
+  /**
+   * Updates an existing organization invite.
+   */
   async update(
     id: string,
     data: Partial<NewOrganizationInvite>,
@@ -103,12 +127,18 @@ export class OrganizationInvitesRepository {
     return updated;
   }
 
+  /**
+   * Revokes an organization invite by setting status to "revoked".
+   */
   async revoke(id: string): Promise<OrganizationInvite | undefined> {
     return await this.update(id, {
       status: "revoked",
     });
   }
 
+  /**
+   * Marks an invite as accepted by a user.
+   */
   async markAsAccepted(
     id: string,
     acceptedByUserId: string,
@@ -120,16 +150,25 @@ export class OrganizationInvitesRepository {
     });
   }
 
+  /**
+   * Marks an invite as expired.
+   */
   async markAsExpired(id: string): Promise<OrganizationInvite | undefined> {
     return await this.update(id, {
       status: "expired",
     });
   }
 
+  /**
+   * Deletes an organization invite by ID.
+   */
   async delete(id: string): Promise<void> {
     await db.delete(organizationInvites).where(eq(organizationInvites.id, id));
   }
 }
 
+/**
+ * Singleton instance of OrganizationInvitesRepository.
+ */
 export const organizationInvitesRepository =
   new OrganizationInvitesRepository();

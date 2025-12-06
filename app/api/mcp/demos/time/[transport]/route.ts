@@ -801,4 +801,17 @@ const handler = createPaidMcpHandler(
   },
 );
 
+/**
+ * GET /api/mcp/demos/time/[transport]
+ * POST /api/mcp/demos/time/[transport]
+ * DELETE /api/mcp/demos/time/[transport]
+ *
+ * MCP transport endpoint for Time & Date utilities.
+ * Handles tool invocations for time-related operations (get current time, convert timezone, format date, etc.).
+ * Uses x402 paid MCP handler for payment processing.
+ *
+ * @param request - The Next.js request object.
+ * @param context - Route context containing the transport parameter.
+ * @returns MCP handler response.
+ */
 export { handler as GET, handler as POST, handler as DELETE };

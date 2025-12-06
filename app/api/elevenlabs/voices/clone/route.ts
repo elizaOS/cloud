@@ -16,6 +16,22 @@ import {
 const MAX_FILES = 10;
 const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100MB
 
+/**
+ * POST /api/elevenlabs/voices/clone
+ * Creates a new voice clone using ElevenLabs voice cloning service.
+ * Supports both instant and professional cloning types with credit deduction.
+ * Refunds credits if cloning fails.
+ *
+ * Request Body (FormData):
+ * - `name`: Voice name (required).
+ * - `description`: Optional voice description.
+ * - `cloneType`: "instant" | "professional" (required).
+ * - `settings`: Optional JSON string with voice settings.
+ * - `file0`, `file1`, ...: Audio files for cloning (1-10 files, max 100MB total).
+ *
+ * @param request - FormData with voice configuration and audio files.
+ * @returns Created voice details, job information, and credit deduction confirmation.
+ */
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user

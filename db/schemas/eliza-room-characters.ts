@@ -2,8 +2,10 @@ import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { userCharacters } from "./user-characters";
 
 /**
- * Maps ElizaOS rooms to user-created characters
- * This allows each conversation room to use a different character
+ * Eliza room characters table schema.
+ * 
+ * Maps ElizaOS rooms to user-created characters, allowing each conversation
+ * room to use a different character.
  */
 export const elizaRoomCharactersTable = pgTable("eliza_room_characters", {
   room_id: uuid("room_id").primaryKey(),

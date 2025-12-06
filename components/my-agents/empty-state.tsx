@@ -1,3 +1,11 @@
+/**
+ * Empty state component for my agents page when no agents exist.
+ * Provides call-to-action buttons to create agent or browse marketplace.
+ *
+ * @param props - Empty state configuration
+ * @param props.onCreateNew - Callback when create button is clicked
+ */
+
 "use client";
 
 import { BrandCard, BrandButton, CornerBrackets } from "@/components/brand";

@@ -33,6 +33,9 @@ import { roomsService } from "./rooms";
 // Re-export AgentInfo type
 export type { AgentInfo };
 
+/**
+ * Input for sending a message to an agent.
+ */
 export interface SendMessageInput {
   roomId: string;
   entityId: string;
@@ -42,6 +45,9 @@ export interface SendMessageInput {
   attachments?: Attachment[];
 }
 
+/**
+ * Message attachment structure.
+ */
 export interface Attachment {
   type: "image" | "file";
   url: string;
@@ -49,6 +55,9 @@ export interface Attachment {
   mimeType?: string;
 }
 
+/**
+ * Response from an agent.
+ */
 export interface AgentResponse {
   messageId: string;
   content: string;
@@ -91,12 +100,90 @@ class AgentsService {
    * Check if agent exists
    */
   async exists(agentId: string): Promise<boolean> {
-    try {
-      return await agentsRepository.exists(agentId);
-    } catch (error) {
-      logger.error(`[Agents Service] Error checking agent existence:`, error);
-      return false;
+    return await agentsRepository.exists(agentId);
+  }
+
+  /**
+   * Ensure the default Eliza agent exists in the database.
+   * This is the built-in Eliza character that's always available.
+   */
+  async ensureDefaultAgentExists(): Promise<void> {
+    const DEFAULT_AGENT_ID = "b850bc30-45f8-0041-a00a-83df46d8555d";
+    
+    // Check if default agent already exists
+    const exists = await agentsRepository.exists(DEFAULT_AGENT_ID);
+    if (exists) {
+      logger.debug(`[Agents Service] Default Eliza agent already exists`);
+      return;
     }
+
+    // Import default character from agent-loader
+    const defaultAgent = await import("@/lib/eliza/agent");
+    const character = defaultAgent.default.character;
+
+    // Create default agent in database
+    const avatarUrl = character.settings?.avatarUrl as string | undefined;
+    const created = await agentsRepository.create({
+      id: DEFAULT_AGENT_ID as `${string}-${string}-${string}-${string}-${string}`,
+      name: character.name,
+      bio: character.bio,
+      system: character.system,
+      settings: avatarUrl ? { avatarUrl } : {},
+      enabled: true,
+    });
+
+    if (created) {
+      logger.info(`[Agents Service] Created default Eliza agent ${DEFAULT_AGENT_ID}`);
+    } else {
+      logger.debug(`[Agents Service] Default Eliza agent already exists (race condition)`);
+    }
+  }
+
+  /**
+   * Ensure agent exists in database, creating from character if needed.
+   * 
+   * @param characterId - Character ID to ensure exists as an agent
+   * @returns The agent ID that was ensured to exist
+   */
+  async ensureAgentExists(characterId: string): Promise<string> {
+    // Check if agent already exists
+    const exists = await agentsRepository.exists(characterId);
+    if (exists) {
+      logger.debug(`[Agents Service] Agent ${characterId} already exists`);
+      return characterId;
+    }
+
+    // Load character data to create agent
+    const { charactersService } = await import("@/lib/services/characters");
+    const character = await charactersService.getById(characterId);
+    
+    if (!character) {
+      throw new Error(`Character ${characterId} not found`);
+    }
+
+    // Extract character data
+    const characterData = character.character_data as Record<string, unknown> | undefined;
+    
+    // Create agent from character
+    const created = await agentsRepository.create({
+      id: characterId as `${string}-${string}-${string}-${string}-${string}`,
+      name: character.name,
+      bio: characterData?.bio as string | string[] | undefined,
+      settings: {
+        ...(character.avatar_url ? { avatarUrl: character.avatar_url } : {}),
+        ...(characterData?.settings as Record<string, unknown> | undefined),
+      },
+      enabled: true,
+    });
+
+    if (!created) {
+      // Agent was created by another process (race condition), that's fine
+      logger.debug(`[Agents Service] Agent ${characterId} already exists (race condition)`);
+    } else {
+      logger.info(`[Agents Service] Created agent ${characterId} from character ${character.name}`);
+    }
+
+    return characterId;
   }
 
   /**

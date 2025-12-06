@@ -12,40 +12,41 @@ export const metadata: Metadata = {
     "Clone your voice and create custom AI voices for text-to-speech",
 };
 
+/**
+ * Voice Studio page for managing voice clones and creating custom AI voices.
+ * Displays user's voices and provides voice cloning functionality.
+ *
+ * @returns The rendered voice studio page client component with initial voices and credit balance.
+ */
 export default async function VoicesPage() {
   const user = await requireAuthWithOrg();
 
   // Fetch user's voices directly from service (server-side)
   const { voiceCloningService } = await import("@/lib/services/voice-cloning");
 
-  let voices: Voice[] = [];
-  try {
-    const userVoices = await voiceCloningService.getUserVoices({
-      organizationId: user.organization_id,
-      includeInactive: false,
-    });
+  const userVoices = await voiceCloningService.getUserVoices({
+    organizationId: user.organization_id,
+    includeInactive: false,
+  });
 
-    // Format for client component - ensure dates are properly serialized
-    voices = userVoices.map((voice) => ({
-      id: voice.id,
-      elevenlabsVoiceId: voice.elevenlabsVoiceId,
-      name: voice.name,
-      description: voice.description,
-      cloneType: voice.cloneType,
-      sampleCount: voice.sampleCount,
-      totalAudioDurationSeconds: voice.totalAudioDurationSeconds,
-      audioQualityScore: voice.audioQualityScore,
-      usageCount: voice.usageCount,
-      lastUsedAt: voice.lastUsedAt
-        ? new Date(voice.lastUsedAt).toISOString()
-        : null,
-      isActive: voice.isActive,
-      isPublic: voice.isPublic,
-      createdAt: new Date(voice.createdAt).toISOString(), // Convert to ISO string for consistent parsing
-    }));
-  } catch (error) {
-    console.error("Failed to fetch voices:", error);
-  }
+  // Format for client component - ensure dates are properly serialized
+  const voices: Voice[] = userVoices.map((voice) => ({
+    id: voice.id,
+    elevenlabsVoiceId: voice.elevenlabsVoiceId,
+    name: voice.name,
+    description: voice.description,
+    cloneType: voice.cloneType,
+    sampleCount: voice.sampleCount,
+    totalAudioDurationSeconds: voice.totalAudioDurationSeconds,
+    audioQualityScore: voice.audioQualityScore,
+    usageCount: voice.usageCount,
+    lastUsedAt: voice.lastUsedAt
+      ? new Date(voice.lastUsedAt).toISOString()
+      : null,
+    isActive: voice.isActive,
+    isPublic: voice.isPublic,
+    createdAt: new Date(voice.createdAt).toISOString(), // Convert to ISO string for consistent parsing
+  }));
 
   // Get organization for credit balance
   const organization = await organizationsService.getById(user.organization_id);

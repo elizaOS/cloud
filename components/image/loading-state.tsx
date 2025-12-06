@@ -1,3 +1,7 @@
+/**
+ * Loading state component for image generation displaying skeleton placeholders.
+ * Shows animated loading spinner and placeholder elements.
+ */
 "use client";
 
 import { Loader2 } from "lucide-react";

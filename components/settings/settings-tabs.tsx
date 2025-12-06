@@ -1,3 +1,12 @@
+/**
+ * Settings tabs navigation component with responsive design.
+ * Supports desktop tab list and mobile dropdown selection.
+ *
+ * @param props - Settings tabs configuration
+ * @param props.activeTab - Currently active tab
+ * @param props.onTabChange - Callback when tab changes
+ */
+
 "use client";
 
 import * as React from "react";

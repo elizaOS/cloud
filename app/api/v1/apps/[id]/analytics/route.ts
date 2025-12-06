@@ -1,18 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services";
 import { logger } from "@/lib/utils/logger";
 
 /**
  * GET /api/v1/apps/[id]/analytics
- * Get analytics for a specific app
+ * Gets analytics data for a specific app.
+ * Supports different time periods (hourly, daily, monthly) and custom date ranges.
+ * Requires ownership verification.
+ *
+ * Query Parameters:
+ * - `period`: Time period type - "hourly" | "daily" | "monthly" (default: "daily").
+ * - `start_date`: Start date for the data range (ISO string, default: 30 days ago).
+ * - `end_date`: End date for the data range (ISO string, default: now).
+ *
+ * @param request - Request with optional period and date range query parameters.
+ * @param params - Route parameters containing the app ID.
+ * @returns Analytics data and total statistics for the specified period.
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
     const { searchParams } = new URL(request.url);
 

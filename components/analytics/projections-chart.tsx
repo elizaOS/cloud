@@ -1,3 +1,11 @@
+/**
+ * Projections chart component displaying historical and projected cost trends.
+ * Shows area chart with alerts for low balance and high burn rate.
+ *
+ * @param props - Projections chart configuration
+ * @param props.data - Projections data including historical and projected values
+ */
+
 "use client";
 
 import { useMemo } from "react";
@@ -194,13 +202,14 @@ export function ProjectionsChart({ data }: ProjectionsChartProps) {
                           typeof source === "object" &&
                           "payload" in source
                         ) {
-                          const inner = source as {
+                          interface TooltipPayload {
                             payload?: {
                               fullDate?: string;
                               isProjected?: boolean;
                               confidence?: number;
                             };
-                          };
+                          }
+                          const inner = source as TooltipPayload;
                           const fullDate = inner.payload?.fullDate ?? "";
                           const isProjected = inner.payload?.isProjected;
                           const confidence = inner.payload?.confidence;

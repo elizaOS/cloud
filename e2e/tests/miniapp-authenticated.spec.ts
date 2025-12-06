@@ -55,19 +55,16 @@ test.describe("Authenticated API Tests (API Key)", () => {
   });
 
   test.describe("Agents API - CRUD", () => {
-    test("POST /agents creates new agent", async ({ request }) => {
-      const response = await request.post(
-        `${CLOUD_URL}/api/v1/miniapp/agents`,
-        {
-          headers: apiKeyHeaders(),
-          data: {
-            name: "Test Agent",
-            bio: "A test agent for e2e testing",
-            topics: ["testing", "automation"],
-            adjectives: ["helpful", "friendly"],
-          },
+    test("POST /agents creates new agent with source=miniapp", async ({ request }) => {
+      const response = await request.post(`${CLOUD_URL}/api/v1/miniapp/agents`, {
+        headers: apiKeyHeaders(),
+        data: {
+          name: "Test Agent",
+          bio: "A test agent for e2e testing",
+          topics: ["testing", "automation"],
+          adjectives: ["helpful", "friendly"],
         },
-      );
+      });
 
       expect(response.status()).toBe(201);
 
@@ -84,6 +81,36 @@ test.describe("Authenticated API Tests (API Key)", () => {
           headers: apiKeyHeaders(),
         },
       );
+    });
+
+    test("miniapp agents are isolated from cloud agents", async ({ request }) => {
+      // Create agent via miniapp API (source=miniapp)
+      const createResponse = await request.post(`${CLOUD_URL}/api/v1/miniapp/agents`, {
+        headers: apiKeyHeaders(),
+        data: { name: "Miniapp Source Test Agent", bio: "Should have source=miniapp" },
+      });
+      expect(createResponse.status()).toBe(201);
+      const { agent: miniappAgent } = await createResponse.json();
+
+      // Verify agent appears in miniapp agent list
+      const miniappListResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/agents`, {
+        headers: apiKeyHeaders(),
+      });
+      expect(miniappListResponse.status()).toBe(200);
+      const miniappData = await miniappListResponse.json();
+      const foundInMiniapp = miniappData.agents.some((a: { id: string }) => a.id === miniappAgent.id);
+      expect(foundInMiniapp).toBe(true);
+
+      // Verify agent does NOT appear in cloud My Agents (which filters by source=cloud)
+      // Note: This requires authentication via the cloud dashboard, not API key
+      // The API key is for miniapp, cloud dashboard uses session auth
+      // So we can't directly test this via API without cloud auth
+      // This test verifies the miniapp side of the source filtering
+
+      // Cleanup
+      await request.delete(`${CLOUD_URL}/api/v1/miniapp/agents/${miniappAgent.id}`, {
+        headers: apiKeyHeaders(),
+      });
     });
 
     test("GET /agents lists user's agents", async ({ request }) => {

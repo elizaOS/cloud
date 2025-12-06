@@ -1,8 +1,14 @@
 /**
- * Corner Brackets Component
- * Reusable corner decorations used throughout the landing page
+ * Corner brackets component providing decorative corner elements.
+ * Supports multiple sizes, colors, variants (corners or full border), and hover effects.
+ *
+ * @param props - Corner brackets configuration
+ * @param props.size - Size variant (sm, md, lg, xl)
+ * @param props.color - Border color
+ * @param props.variant - Display variant (corners or full-border)
+ * @param props.hoverColor - Optional hover color
+ * @param props.hoverScale - Whether to scale on hover
  */
-
 import { cn } from "@/lib/utils";
 
 interface CornerBracketsProps {

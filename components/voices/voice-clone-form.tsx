@@ -1,3 +1,14 @@
+/**
+ * Voice clone form component for creating voice clones.
+ * Supports instant and professional cloning modes with audio upload or recording.
+ * Includes advanced settings for stability, similarity, and style.
+ *
+ * @param props - Voice clone form configuration
+ * @param props.creditBalance - Current credit balance
+ * @param props.onSuccess - Callback when voice is successfully created
+ * @param props.onCreditBalanceChange - Callback when credit balance changes
+ */
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -116,19 +127,15 @@ export function VoiceCloneForm({
   // Fetch professional voice count on mount
   useEffect(() => {
     const fetchVoiceCount = async () => {
-      try {
-        const response = await fetch("/api/elevenlabs/voices/user");
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.voices) {
-            const proCount = data.voices.filter(
-              (v: Voice) => v.cloneType === "professional",
-            ).length;
-            setProfessionalVoiceCount(proCount);
-          }
+      const response = await fetch("/api/elevenlabs/voices/user");
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.voices) {
+          const proCount = data.voices.filter(
+            (v: Voice) => v.cloneType === "professional",
+          ).length;
+          setProfessionalVoiceCount(proCount);
         }
-      } catch (error) {
-        console.error("Failed to fetch voice count:", error);
       }
     };
 

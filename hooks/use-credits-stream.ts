@@ -19,12 +19,21 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 
+/**
+ * Return value from useCreditsStream hook.
+ */
 interface UseCreditsStreamResult {
+  /** Current credit balance or null if not loaded. */
   creditBalance: number | null;
+  /** Whether the connection is active. */
   isConnected: boolean;
+  /** Whether the initial balance fetch is in progress. */
   isLoading: boolean;
+  /** Error message if fetch failed. */
   error: string | null;
+  /** Timestamp of last successful balance update. */
   lastUpdate: Date | null;
+  /** Function to manually refresh the balance. */
   refreshBalance: () => Promise<void>;
 }
 
@@ -79,76 +88,67 @@ export function useCreditsStream(): UseCreditsStreamResult {
       return;
     }
 
-    try {
-      const response = await fetch("/api/credits/balance", {
-        cache: "no-store",
-        headers: {
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          Pragma: "no-cache",
-        },
-      });
+    const response = await fetch("/api/credits/balance", {
+      cache: "no-store",
+      headers: {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Pragma: "no-cache",
+      },
+    });
 
-      if (!response.ok) {
-        // Handle 401 Unauthorized specifically
-        if (response.status === 401) {
-          authErrorCountRef.current++;
+    if (!response.ok) {
+      // Handle 401 Unauthorized specifically
+      if (response.status === 401) {
+        authErrorCountRef.current++;
 
-          // Log only on first error to avoid console spam
-          if (authErrorCountRef.current === 1) {
-            console.warn(
-              "[useCreditsStream] Unauthorized - user may need to re-authenticate",
-            );
-          }
-
-          // Stop polling after too many auth errors
-          if (authErrorCountRef.current >= MAX_AUTH_ERRORS) {
-            console.warn(
-              "[useCreditsStream] Too many auth errors, pausing polling",
-            );
-            stopPolling();
-          }
-
-          if (isMountedRef.current) {
-            setError("Unauthorized");
-            setIsConnected(false);
-            setCreditBalance(null);
-          }
-          return;
+        // Log only on first error to avoid console spam
+        if (authErrorCountRef.current === 1) {
+          console.warn(
+            "[useCreditsStream] Unauthorized - user may need to re-authenticate",
+          );
         }
 
-        throw new Error(`Failed to fetch balance: ${response.statusText}`);
+        // Stop polling after too many auth errors
+        if (authErrorCountRef.current >= MAX_AUTH_ERRORS) {
+          console.warn(
+            "[useCreditsStream] Too many auth errors, pausing polling",
+          );
+          stopPolling();
+        }
+
+        if (isMountedRef.current) {
+          setError("Unauthorized");
+          setIsConnected(false);
+          setCreditBalance(null);
+          setIsLoading(false);
+        }
+        return;
       }
 
-      // Reset auth error count on success
-      authErrorCountRef.current = 0;
+      throw new Error(`Failed to fetch balance: ${response.statusText}`);
+    }
 
-      const data = await response.json();
-      const balance = Number(data.balance);
+    // Reset auth error count on success
+    authErrorCountRef.current = 0;
 
-      if (isMountedRef.current) {
-        setCreditBalance(balance);
-        setLastUpdate(new Date());
-        setIsConnected(true);
-        setError(null);
+    const data = await response.json();
+    const balance = Number(data.balance);
 
-        broadcastChannelRef.current?.postMessage({
-          type: "credit-update",
-          balance,
-          timestamp: new Date().toISOString(),
-        });
-      }
-    } catch (err) {
-      if (isMountedRef.current) {
-        setError(
-          err instanceof Error ? err.message : "Failed to fetch balance",
-        );
-        setIsConnected(false);
-        console.error("[useCreditsStream] Error fetching balance:", err);
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setIsLoading(false);
-      }
+    if (isMountedRef.current) {
+      setCreditBalance(balance);
+      setLastUpdate(new Date());
+      setIsConnected(true);
+      setError(null);
+
+      broadcastChannelRef.current?.postMessage({
+        type: "credit-update",
+        balance,
+        timestamp: new Date().toISOString(),
+      });
+    }
+    
+    if (isMountedRef.current) {
+      setIsLoading(false);
     }
   }, [authenticated, stopPolling]);
 
@@ -183,15 +183,21 @@ export function useCreditsStream(): UseCreditsStreamResult {
 
     // Only start polling if authenticated and ready
     if (ready && authenticated && !isPollingPausedRef.current) {
-      fetchBalance();
+      // Defer initial fetch to avoid cascading renders
+      queueMicrotask(() => {
+        fetchBalance();
+      });
 
       pollIntervalRef.current = setInterval(() => {
         fetchBalance();
       }, POLL_INTERVAL);
     } else if (ready && !authenticated) {
       // User is not authenticated, set loading to false
-      setIsLoading(false);
-      setCreditBalance(null);
+      // Use queueMicrotask to defer execution and avoid synchronous setState
+      queueMicrotask(() => {
+        setIsLoading(false);
+        setCreditBalance(null);
+      });
     }
 
     return () => {

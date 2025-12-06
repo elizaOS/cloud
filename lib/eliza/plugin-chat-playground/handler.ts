@@ -341,10 +341,7 @@ async function checkAndRunMcpAction(
     );
     return false;
   } catch (error) {
-    logger.error(
-      "[ChatPlayground] Error checking/running MCP action:",
-      String(error),
-    );
+    logger.error("[ChatPlayground] Error checking/running MCP action", error);
     return false;
   }
 }

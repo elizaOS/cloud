@@ -31,6 +31,14 @@ const ALLOWED_AUDIO_SIGNATURES = new Set([
   "video/webm", // Safari/macOS creates this for audio recordings
 ]);
 
+/**
+ * POST /api/elevenlabs/stt
+ * Converts speech to text using ElevenLabs STT API.
+ * Validates file type using magic numbers for security.
+ *
+ * @param request - Form data with audio file and optional languageCode.
+ * @returns Transcript and processing duration.
+ */
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user

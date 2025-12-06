@@ -1,8 +1,10 @@
 /**
- * Brand Button Component
- * Styled buttons matching the landing page brand design
+ * Brand button component with variants matching the landing page brand design.
+ * Supports primary, ghost, outline, and icon variants with multiple sizes.
+ *
+ * @param props - Brand button props including variant and size
+ * @param props.asChild - If true, renders as a child component using Radix Slot
  */
-
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";

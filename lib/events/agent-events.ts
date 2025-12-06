@@ -1,7 +1,16 @@
+/**
+ * Agent event emitter for Eliza agent runtime events.
+ *
+ * Publishes events to Redis for real-time updates across serverless instances.
+ */
+
 import { Redis } from "@upstash/redis";
 import { logger } from "@/lib/utils/logger";
 import type { Memory, UUID } from "@elizaos/core";
 
+/**
+ * Agent event structure.
+ */
 export interface AgentEvent {
   type:
     | "message_received"
@@ -14,6 +23,9 @@ export interface AgentEvent {
   data: Record<string, unknown>;
 }
 
+/**
+ * Event emitter for agent runtime events using Redis pub/sub.
+ */
 class AgentEventEmitter {
   private static instance: AgentEventEmitter;
   private redis: Redis | null = null;
@@ -75,9 +87,7 @@ class AgentEventEmitter {
     };
 
     // Fire-and-forget: don't await Redis operations
-    this.publishEvent(roomId, event).catch((err) =>
-      logger.error("[Agent Events] Failed to emit response_started:", err),
-    );
+    void this.publishEvent(roomId, event);
   }
 
   async emitResponseChunk(
@@ -119,9 +129,7 @@ class AgentEventEmitter {
     };
 
     // Fire-and-forget: don't await Redis operations
-    this.publishEvent(roomId, event).catch((err) =>
-      logger.error("[Agent Events] Failed to emit response_complete:", err),
-    );
+    void this.publishEvent(roomId, event);
   }
 
   async emitError(roomId: string, error: Error): Promise<void> {
@@ -143,20 +151,16 @@ class AgentEventEmitter {
   private async publishEvent(roomId: string, event: AgentEvent): Promise<void> {
     if (!this.redis) return;
 
-    try {
-      const channel = `agent:events:${roomId}:queue`;
-      const message = JSON.stringify({
-        ...event,
-        timestamp: event.timestamp.toISOString(),
-      });
+    const channel = `agent:events:${roomId}:queue`;
+    const message = JSON.stringify({
+      ...event,
+      timestamp: event.timestamp.toISOString(),
+    });
 
-      await this.redis.rpush(channel, message);
-      await this.redis.expire(channel, 300);
+    await this.redis.rpush(channel, message);
+    await this.redis.expire(channel, 300);
 
-      logger.debug(`[Agent Events] Published ${event.type} to ${channel}`);
-    } catch (error) {
-      logger.error("[Agent Events] Failed to publish event:", error);
-    }
+    logger.debug(`[Agent Events] Published ${event.type} to ${channel}`);
   }
 
   public isEnabled(): boolean {

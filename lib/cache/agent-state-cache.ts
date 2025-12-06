@@ -1,9 +1,17 @@
+/**
+ * Agent state cache for Eliza agent runtime data.
+ */
+
 import { cache as cacheClient } from "./client";
 import { CacheKeys, CacheTTL } from "./keys";
 import { logger } from "@/lib/utils/logger";
 import type { Memory, UUID } from "@elizaos/core";
 import type { ElizaCharacter } from "@/lib/types";
+import type { DiscoveredCharacterInfo } from "@/lib/services/deployments/discovery";
 
+/**
+ * Serializable message format for caching.
+ */
 export interface SerializableMessage {
   id: string;
   entityId: string;
@@ -17,6 +25,9 @@ export interface SerializableMessage {
   createdAt: number;
 }
 
+/**
+ * Room context with messages and participants.
+ */
 export interface RoomContext {
   roomId: string;
   messages: Memory[];
@@ -33,6 +44,9 @@ interface SerializableRoomContext {
   lastActivity: string;
 }
 
+/**
+ * User session data for agent interactions.
+ */
 export interface UserSession {
   entityId: string;
   preferences: Record<string, unknown>;
@@ -40,6 +54,9 @@ export interface UserSession {
   lastActivity: Date;
 }
 
+/**
+ * Statistics for an agent deployment.
+ */
 export interface AgentStats {
   agentId: string;
   messageCount: number;
@@ -49,6 +66,9 @@ export interface AgentStats {
   status: "deployed" | "stopped" | "draft";
 }
 
+/**
+ * Cache manager for agent state including room contexts, character data, and user sessions.
+ */
 export class AgentStateCache {
   /**
    * Get cached room context for agent conversations
@@ -58,40 +78,32 @@ export class AgentStateCache {
   async getRoomContext(roomId: string): Promise<RoomContext | null> {
     const key = CacheKeys.agent.roomContext(roomId);
 
-    try {
-      // Cache client now handles JSON.parse internally
-      const cached = await cacheClient.get<SerializableRoomContext>(key);
-      if (!cached) return null;
+    // Cache client now handles JSON.parse internally
+    const cached = await cacheClient.get<SerializableRoomContext>(key);
+    if (!cached) return null;
 
-      const serialized = cached;
+    const serialized = cached;
 
-      // Convert back to RoomContext with Memory objects
-      const context: RoomContext = {
-        roomId: serialized.roomId,
-        messages: serialized.messages.map(
-          (msg) =>
-            ({
-              id: msg.id as UUID,
-              entityId: msg.entityId as UUID,
-              agentId: msg.agentId as UUID,
-              roomId: msg.roomId as UUID,
-              content: msg.content,
-              createdAt: msg.createdAt,
-            }) as Memory,
-        ),
-        participants: serialized.participants,
-        metadata: serialized.metadata,
-        lastActivity: new Date(serialized.lastActivity),
-      };
+    // Convert back to RoomContext with Memory objects
+    const context: RoomContext = {
+      roomId: serialized.roomId,
+      messages: serialized.messages.map(
+        (msg) =>
+          ({
+            id: msg.id as UUID,
+            entityId: msg.entityId as UUID,
+            agentId: msg.agentId as UUID,
+            roomId: msg.roomId as UUID,
+            content: msg.content,
+            createdAt: msg.createdAt,
+          }) as Memory,
+      ),
+      participants: serialized.participants,
+      metadata: serialized.metadata,
+      lastActivity: new Date(serialized.lastActivity),
+    };
 
-      return context;
-    } catch (error) {
-      logger.error(
-        `[Agent State Cache] Error getting room context for ${roomId}:`,
-        error,
-      );
-      return null;
-    }
+    return context;
   }
 
   /**
@@ -99,72 +111,60 @@ export class AgentStateCache {
    * @param roomId - Room/conversation ID
    * @param context - Room context data
    */
-  async setRoomContext(roomId: string, context: RoomContext): Promise<boolean> {
+  async setRoomContext(roomId: string, context: RoomContext): Promise<void> {
     const key = CacheKeys.agent.roomContext(roomId);
 
-    try {
-      // Convert Memory objects to serializable format
-      const serializable: SerializableRoomContext = {
-        roomId: context.roomId,
-        messages: context.messages.map((msg) => ({
-          id: msg.id?.toString() || "",
-          entityId: msg.entityId?.toString() || "",
-          agentId: msg.agentId?.toString() || "",
-          roomId: msg.roomId?.toString() || "",
-          content: {
-            text:
-              typeof msg.content === "object" && msg.content !== null
-                ? (msg.content as { text?: string }).text
-                : String(msg.content),
-            action:
-              typeof msg.content === "object" && msg.content !== null
-                ? (msg.content as { action?: string }).action
-                : undefined,
-            source:
-              typeof msg.content === "object" && msg.content !== null
-                ? (msg.content as { source?: string }).source
-                : undefined,
-          },
-          createdAt: msg.createdAt || Date.now(),
-        })),
-        participants: context.participants,
-        metadata: context.metadata,
-        lastActivity: context.lastActivity.toISOString(),
-      };
+    // Convert Memory objects to serializable format
+    const serializable: SerializableRoomContext = {
+      roomId: context.roomId,
+      messages: context.messages.map((msg) => ({
+        id: msg.id?.toString() || "",
+        entityId: msg.entityId?.toString() || "",
+        agentId: msg.agentId?.toString() || "",
+        roomId: msg.roomId?.toString() || "",
+        content: (() => {
+          if (typeof msg.content === "object" && msg.content !== null) {
+            const content = msg.content as {
+              text?: string;
+              action?: string;
+              source?: string;
+            };
+            return {
+              text:
+                typeof content.text === "string" ? content.text : String(msg.content),
+              action: typeof content.action === "string" ? content.action : undefined,
+              source: typeof content.source === "string" ? content.source : undefined,
+            };
+          }
+          return {
+            text: String(msg.content),
+            action: undefined,
+            source: undefined,
+          };
+        })(),
+        createdAt: msg.createdAt || Date.now(),
+      })),
+      participants: context.participants,
+      metadata: context.metadata,
+      lastActivity: context.lastActivity.toISOString(),
+    };
 
-      // Cache client now handles JSON.stringify internally
-      await cacheClient.set(key, serializable, CacheTTL.agent.roomContext);
-      logger.debug(`[Agent State Cache] Cached room context for ${roomId}`);
-      return true;
-    } catch (error) {
-      logger.error(
-        `[Agent State Cache] Error caching room context for ${roomId}:`,
-        error,
-      );
-      return false;
-    }
+    // Cache client now handles JSON.stringify internally
+    await cacheClient.set(key, serializable, CacheTTL.agent.roomContext);
+    logger.debug(`[Agent State Cache] Cached room context for ${roomId}`);
   }
 
   /**
    * Invalidate room context cache
    * @param roomId - Room to invalidate
    */
-  async invalidateRoomContext(roomId: string): Promise<boolean> {
+  async invalidateRoomContext(roomId: string): Promise<void> {
     const key = CacheKeys.agent.roomContext(roomId);
 
-    try {
-      await cacheClient.del(key);
-      logger.debug(
-        `[Agent State Cache] Invalidated room context for ${roomId}`,
-      );
-      return true;
-    } catch (error) {
-      logger.error(
-        `[Agent State Cache] Error invalidating room context for ${roomId}:`,
-        error,
-      );
-      return false;
-    }
+    await cacheClient.del(key);
+    logger.debug(
+      `[Agent State Cache] Invalidated room context for ${roomId}`,
+    );
   }
 
   /**
@@ -175,18 +175,10 @@ export class AgentStateCache {
   async getCharacterData(agentId: string): Promise<ElizaCharacter | null> {
     const key = CacheKeys.agent.characterData(agentId);
 
-    try {
-      const cached = await cacheClient.get<ElizaCharacter>(key);
-      if (!cached) return null;
+    const cached = await cacheClient.get<ElizaCharacter>(key);
+    if (!cached) return null;
 
-      return cached;
-    } catch (error) {
-      logger.error(
-        `[Agent State Cache] Error getting character data for ${agentId}:`,
-        error,
-      );
-      return null;
-    }
+    return cached;
   }
 
   /**
@@ -197,42 +189,24 @@ export class AgentStateCache {
   async setCharacterData(
     agentId: string,
     character: ElizaCharacter,
-  ): Promise<boolean> {
+  ): Promise<void> {
     const key = CacheKeys.agent.characterData(agentId);
 
-    try {
-      await cacheClient.set(key, character, CacheTTL.agent.characterData);
-      logger.debug(`[Agent State Cache] Cached character data for ${agentId}`);
-      return true;
-    } catch (error) {
-      logger.error(
-        `[Agent State Cache] Error caching character data for ${agentId}:`,
-        error,
-      );
-      return false;
-    }
+    await cacheClient.set(key, character, CacheTTL.agent.characterData);
+    logger.debug(`[Agent State Cache] Cached character data for ${agentId}`);
   }
 
   /**
    * Invalidate character data cache
    * @param agentId - Agent to invalidate
    */
-  async invalidateCharacterData(agentId: string): Promise<boolean> {
+  async invalidateCharacterData(agentId: string): Promise<void> {
     const key = CacheKeys.agent.characterData(agentId);
 
-    try {
-      await cacheClient.del(key);
-      logger.debug(
-        `[Agent State Cache] Invalidated character data for ${agentId}`,
-      );
-      return true;
-    } catch (error) {
-      logger.error(
-        `[Agent State Cache] Error invalidating character data for ${agentId}:`,
-        error,
-      );
-      return false;
-    }
+    await cacheClient.del(key);
+    logger.debug(
+      `[Agent State Cache] Invalidated character data for ${agentId}`,
+    );
   }
 
   /**
@@ -243,24 +217,16 @@ export class AgentStateCache {
   async getUserSession(entityId: string): Promise<UserSession | null> {
     const key = CacheKeys.agent.userSession(entityId);
 
-    try {
-      const cached = await cacheClient.get<
-        UserSession & { lastActivity: string }
-      >(key);
-      if (!cached) return null;
+    const cached = await cacheClient.get<
+      UserSession & { lastActivity: string }
+    >(key);
+    if (!cached) return null;
 
-      const session: UserSession = {
-        ...cached,
-        lastActivity: new Date(cached.lastActivity),
-      };
-      return session;
-    } catch (error) {
-      logger.error(
-        `[Agent State Cache] Error getting user session for ${entityId}:`,
-        error,
-      );
-      return null;
-    }
+    const session: UserSession = {
+      ...cached,
+      lastActivity: new Date(cached.lastActivity),
+    };
+    return session;
   }
 
   /**
@@ -271,20 +237,11 @@ export class AgentStateCache {
   async setUserSession(
     entityId: string,
     session: UserSession,
-  ): Promise<boolean> {
+  ): Promise<void> {
     const key = CacheKeys.agent.userSession(entityId);
 
-    try {
-      await cacheClient.set(key, session, CacheTTL.agent.userSession);
-      logger.debug(`[Agent State Cache] Cached user session for ${entityId}`);
-      return true;
-    } catch (error) {
-      logger.error(
-        `[Agent State Cache] Error caching user session for ${entityId}:`,
-        error,
-      );
-      return false;
-    }
+    await cacheClient.set(key, session, CacheTTL.agent.userSession);
+    logger.debug(`[Agent State Cache] Cached user session for ${entityId}`);
   }
 
   /**
@@ -295,12 +252,12 @@ export class AgentStateCache {
   async getAgentStats(agentId: string): Promise<AgentStats | null> {
     const key = CacheKeys.agent.agentStats(agentId);
 
-    try {
-      const cached = await cacheClient.get<
-        AgentStats & { lastActiveAt: string | null }
-      >(key);
-      if (!cached) return null;
+    const cached = await cacheClient.get<
+      AgentStats & { lastActiveAt: string | null }
+    >(key);
+    if (!cached) return null;
 
+    try {
       // Check if cached data has the roomCount field (v2 schema)
       // If not, treat as cache miss so we refetch fresh data
       if (typeof cached.roomCount !== "number") {
@@ -333,20 +290,11 @@ export class AgentStateCache {
    * @param agentId - Agent ID
    * @param stats - Statistics data
    */
-  async setAgentStats(agentId: string, stats: AgentStats): Promise<boolean> {
+  async setAgentStats(agentId: string, stats: AgentStats): Promise<void> {
     const key = CacheKeys.agent.agentStats(agentId);
 
-    try {
-      await cacheClient.set(key, stats, CacheTTL.agent.agentStats);
-      logger.debug(`[Agent State Cache] Cached agent stats for ${agentId}`);
-      return true;
-    } catch (error) {
-      logger.error(
-        `[Agent State Cache] Error caching agent stats for ${agentId}:`,
-        error,
-      );
-      return false;
-    }
+    await cacheClient.set(key, stats, CacheTTL.agent.agentStats);
+    logger.debug(`[Agent State Cache] Cached agent stats for ${agentId}`);
   }
 
   /**
@@ -358,21 +306,13 @@ export class AgentStateCache {
   async getAgentList(
     orgId: string,
     filterHash: string,
-  ): Promise<unknown[] | null> {
+  ): Promise<DiscoveredCharacterInfo[] | null> {
     const key = CacheKeys.agent.agentList(orgId, filterHash);
 
-    try {
-      const cached = await cacheClient.get<unknown[]>(key);
-      if (!cached) return null;
+    const cached = await cacheClient.get<DiscoveredCharacterInfo[]>(key);
+    if (!cached) return null;
 
-      return cached;
-    } catch (error) {
-      logger.error(
-        `[Agent State Cache] Error getting agent list for ${orgId}:`,
-        error,
-      );
-      return null;
-    }
+    return cached;
   }
 
   /**
@@ -384,30 +324,21 @@ export class AgentStateCache {
   async setAgentList(
     orgId: string,
     filterHash: string,
-    agents: unknown[],
-  ): Promise<boolean> {
+    agents: DiscoveredCharacterInfo[],
+  ): Promise<void> {
     const key = CacheKeys.agent.agentList(orgId, filterHash);
 
-    try {
-      await cacheClient.set(key, agents, CacheTTL.agent.agentList);
-      logger.debug(
-        `[Agent State Cache] Cached agent list for ${orgId} (${agents.length} agents)`,
-      );
-      return true;
-    } catch (error) {
-      logger.error(
-        `[Agent State Cache] Error caching agent list for ${orgId}:`,
-        error,
-      );
-      return false;
-    }
+    await cacheClient.set(key, agents, CacheTTL.agent.agentList);
+    logger.debug(
+      `[Agent State Cache] Cached agent list for ${orgId} (${agents.length} agents)`,
+    );
   }
 
   /**
    * Invalidate agent list cache for organization
    * @param orgId - Organization ID
    */
-  async invalidateAgentList(orgId: string): Promise<boolean> {
+  async invalidateAgentList(orgId: string): Promise<void> {
     // Need to invalidate all variations of filter hashes
     // In production, you might want to track filter hashes or use a pattern delete
     logger.debug(
@@ -415,7 +346,6 @@ export class AgentStateCache {
     );
     // For now, we rely on TTL expiry
     // Could implement pattern matching delete if needed
-    return true;
   }
 }
 

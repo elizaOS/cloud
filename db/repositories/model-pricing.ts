@@ -8,7 +8,13 @@ import {
 
 export type { ModelPricing, NewModelPricing };
 
+/**
+ * Repository for model pricing database operations.
+ */
 export class ModelPricingRepository {
+  /**
+   * Finds active pricing for a model and provider combination.
+   */
   async findByModelAndProvider(
     model: string,
     provider: string,
@@ -22,23 +28,35 @@ export class ModelPricingRepository {
     });
   }
 
+  /**
+   * Finds model pricing by ID.
+   */
   async findById(id: string): Promise<ModelPricing | undefined> {
     return await db.query.modelPricing.findFirst({
       where: eq(modelPricing.id, id),
     });
   }
 
+  /**
+   * Lists all active model pricing records.
+   */
   async listActive(): Promise<ModelPricing[]> {
     return await db.query.modelPricing.findMany({
       where: eq(modelPricing.is_active, true),
     });
   }
 
+  /**
+   * Creates a new model pricing record.
+   */
   async create(data: NewModelPricing): Promise<ModelPricing> {
     const [pricing] = await db.insert(modelPricing).values(data).returning();
     return pricing;
   }
 
+  /**
+   * Updates an existing model pricing record.
+   */
   async update(
     id: string,
     data: Partial<NewModelPricing>,
@@ -55,5 +73,7 @@ export class ModelPricingRepository {
   }
 }
 
-// Export singleton instance
+/**
+ * Singleton instance of ModelPricingRepository.
+ */
 export const modelPricingRepository = new ModelPricingRepository();

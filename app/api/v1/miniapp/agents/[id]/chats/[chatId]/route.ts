@@ -24,14 +24,30 @@ import { db } from "@/db/client";
 import { roomTable, memoryTable, participantTable } from "@/db/schemas/eliza";
 import { eq, and, asc } from "drizzle-orm";
 import type { UUID } from "@elizaos/core";
+import type { RoomMetadata } from "@/lib/types/message-content";
+import { parseMessageContent, type MessageAttachment } from "@/lib/types/message-content";
 
+/**
+ * OPTIONS /api/v1/miniapp/agents/[id]/chats/[chatId]
+ * CORS preflight handler for miniapp chat management endpoint.
+ *
+ * @param request - The Next.js request object.
+ * @returns Preflight response with CORS headers.
+ */
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
   return createPreflightResponse(origin, ["GET", "DELETE", "OPTIONS"]);
 }
 
 /**
- * Verify user has access to the chat
+ * Verifies that a user has access to a specific chat.
+ * Checks agent ownership, room existence, and user participation/creation.
+ *
+ * @param chatId - The chat/room ID.
+ * @param agentId - The agent ID.
+ * @param userId - The user ID.
+ * @param organizationId - The organization ID.
+ * @returns Access verification result with error details if denied.
  */
 async function verifyAccess(
   chatId: string,
@@ -43,6 +59,11 @@ async function verifyAccess(
   const character = await charactersService.getById(agentId);
 
   if (!character) {
+    return { allowed: false, error: "Agent not found", status: 404 };
+  }
+
+  // Verify this is a miniapp agent - miniapp API can only access miniapp-created agents
+  if (character.source !== "miniapp") {
     return { allowed: false, error: "Agent not found", status: 404 };
   }
 
@@ -72,9 +93,8 @@ async function verifyAccess(
   });
 
   // Check if user is the room creator (stored in metadata)
-  const isCreator =
-    (room.metadata as { creatorUserId?: string } | null)?.creatorUserId ===
-    userId;
+  const metadata = (room.metadata as RoomMetadata | null) ?? {};
+  const isCreator = metadata.creatorUserId === userId;
 
   if (!userParticipant && !isCreator) {
     return { allowed: false, error: "Access denied", status: 403 };
@@ -85,7 +105,17 @@ async function verifyAccess(
 
 /**
  * GET /api/v1/miniapp/agents/[id]/chats/[chatId]
- * Get chat history (messages)
+ * Gets chat history (messages) for a specific chat.
+ * Supports pagination via limit and before cursor parameters.
+ * Includes message attachments if present.
+ *
+ * Query Parameters:
+ * - `limit`: Maximum number of messages to return (default: 50, max: 100).
+ * - `before`: Cursor for pagination (message ID).
+ *
+ * @param request - Request with optional pagination query parameters.
+ * @param params - Route parameters containing the agent ID and chat ID.
+ * @returns Chat messages with role, content, attachments, and metadata.
  */
 export async function GET(
   request: NextRequest,
@@ -148,27 +178,28 @@ export async function GET(
 
     // Transform messages and extract attachments
     const transformedMessages = messages.map((msg) => {
-      const content = msg.content as
-        | {
-            text?: string;
-            attachments?: Array<{
-              id: string;
-              url: string;
-              title?: string;
-              contentType?: string;
-            }>;
-          }
-        | string;
-
-      const textContent =
-        typeof content === "string" ? content : content?.text || "";
+      const content = parseMessageContent(msg.content);
+      const textContent = content.text || "";
 
       // Extract attachments from content if present
-      const attachments =
-        typeof content === "object" && content?.attachments
-          ? content.attachments.filter(
-              (att) => att.url && typeof att.url === "string",
-            )
+      const attachments: MessageAttachment[] | undefined =
+        Array.isArray(content.attachments) && content.attachments.length > 0
+          ? content.attachments
+              .filter((att): att is MessageAttachment => {
+                return (
+                  typeof att === "object" &&
+                  att !== null &&
+                  "id" in att &&
+                  "url" in att &&
+                  typeof (att as MessageAttachment).url === "string"
+                );
+              })
+              .map((att) => ({
+                id: att.id,
+                url: att.url,
+                title: att.title,
+                contentType: att.contentType,
+              }))
           : undefined;
 
       return {
@@ -219,7 +250,12 @@ export async function GET(
 
 /**
  * DELETE /api/v1/miniapp/agents/[id]/chats/[chatId]
- * Delete a chat
+ * Deletes a chat and all associated messages and participants.
+ * Requires ownership verification. Rate limited with stricter limits for write operations.
+ *
+ * @param request - The Next.js request object.
+ * @param params - Route parameters containing the agent ID and chat ID.
+ * @returns Success confirmation.
  */
 export async function DELETE(
   request: NextRequest,

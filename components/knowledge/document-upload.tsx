@@ -1,3 +1,12 @@
+/**
+ * Document upload component for knowledge base.
+ * Supports file upload and text input with MIME type detection and character association.
+ *
+ * @param props - Document upload configuration
+ * @param props.onUploadSuccess - Callback when upload succeeds
+ * @param props.characterId - Optional character ID to associate document with
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -84,67 +93,62 @@ export function DocumentUpload({
     setError(null);
     setSuccess(null);
 
-    try {
-      const formData = new FormData();
+    const formData = new FormData();
 
-      // Append characterId if provided
-      if (characterId) {
-        formData.append("characterId", characterId);
-      }
-
-      // Append files with corrected MIME types (matching plugin pattern)
-      for (const file of selectedFiles) {
-        const correctedMimeType = getCorrectMimeType(file);
-        const blob = new Blob([file], { type: correctedMimeType });
-        formData.append("files", blob, file.name);
-        console.log(
-          "[DocumentUpload] Added file:",
-          file.name,
-          "type:",
-          correctedMimeType,
-        );
-      }
-
-      console.log(
-        "[DocumentUpload] Making API call to /api/v1/knowledge/upload-file",
-      );
-
-      const response = await fetch("/api/v1/knowledge/upload-file", {
-        method: "POST",
-        body: formData,
-      });
-
-      console.log("[DocumentUpload] Response status:", response.status);
-
-      if (!response.ok) {
-        const data = await response.json();
-        console.error("[DocumentUpload] Upload failed:", data);
-        throw new Error(data.error || "Failed to upload files");
-      }
-
-      const data = await response.json();
-      console.log("[DocumentUpload] Upload successful:", data);
-      setSuccess(
-        data.message || `Successfully uploaded ${selectedFiles.length} file(s)`,
-      );
-      setSelectedFiles([]);
-
-      // Reset file input
-      const fileInput = document.getElementById(
-        "file-input",
-      ) as HTMLInputElement;
-      if (fileInput) {
-        fileInput.value = "";
-      }
-
-      // Notify parent
-      onUploadSuccess();
-    } catch (err) {
-      console.error("[DocumentUpload] Upload error:", err);
-      setError(err instanceof Error ? err.message : "Failed to upload files");
-    } finally {
-      setUploading(false);
+    // Append characterId if provided
+    if (characterId) {
+      formData.append("characterId", characterId);
     }
+
+    // Append files with corrected MIME types (matching plugin pattern)
+    for (const file of selectedFiles) {
+      const correctedMimeType = getCorrectMimeType(file);
+      const blob = new Blob([file], { type: correctedMimeType });
+      formData.append("files", blob, file.name);
+      console.log(
+        "[DocumentUpload] Added file:",
+        file.name,
+        "type:",
+        correctedMimeType,
+      );
+    }
+
+    console.log(
+      "[DocumentUpload] Making API call to /api/v1/knowledge/upload-file",
+    );
+
+    const response = await fetch("/api/v1/knowledge/upload-file", {
+      method: "POST",
+      body: formData,
+    });
+
+    console.log("[DocumentUpload] Response status:", response.status);
+
+    if (!response.ok) {
+      const data = await response.json();
+      console.error("[DocumentUpload] Upload failed:", data);
+      setUploading(false);
+      throw new Error(data.error || "Failed to upload files");
+    }
+
+    const data = await response.json();
+    console.log("[DocumentUpload] Upload successful:", data);
+    setSuccess(
+      data.message || `Successfully uploaded ${selectedFiles.length} file(s)`,
+    );
+    setSelectedFiles([]);
+
+    // Reset file input
+    const fileInput = document.getElementById(
+      "file-input",
+    ) as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = "";
+    }
+
+    // Notify parent
+    onUploadSuccess();
+    setUploading(false);
   };
 
   const handleTextUpload = async (e: React.FormEvent) => {
@@ -161,44 +165,39 @@ export function DocumentUpload({
     setError(null);
     setSuccess(null);
 
-    try {
-      console.log("[DocumentUpload] Making API call to /api/v1/knowledge");
+    console.log("[DocumentUpload] Making API call to /api/v1/knowledge");
 
-      const response = await fetch("/api/v1/knowledge", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          content: textContent,
-          contentType: "text/plain",
-          filename: filename || "text-document.txt",
-          characterId: characterId || undefined,
-        }),
-      });
+    const response = await fetch("/api/v1/knowledge", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        content: textContent,
+        contentType: "text/plain",
+        filename: filename || "text-document.txt",
+        characterId: characterId || undefined,
+      }),
+    });
 
-      console.log("[DocumentUpload] Response status:", response.status);
+    console.log("[DocumentUpload] Response status:", response.status);
 
-      if (!response.ok) {
-        const data = await response.json();
-        console.error("[DocumentUpload] Upload failed:", data);
-        throw new Error(data.error || "Failed to upload text");
-      }
-
+    if (!response.ok) {
       const data = await response.json();
-      console.log("[DocumentUpload] Upload successful:", data);
-      setSuccess(data.message);
-      setTextContent("");
-      setFilename("");
-
-      // Notify parent
-      onUploadSuccess();
-    } catch (err) {
-      console.error("[DocumentUpload] Text upload error:", err);
-      setError(err instanceof Error ? err.message : "Failed to upload text");
-    } finally {
+      console.error("[DocumentUpload] Upload failed:", data);
       setUploading(false);
+      throw new Error(data.error || "Failed to upload text");
     }
+
+    const data = await response.json();
+    console.log("[DocumentUpload] Upload successful:", data);
+    setSuccess(data.message);
+    setTextContent("");
+    setFilename("");
+
+    // Notify parent
+    onUploadSuccess();
+    setUploading(false);
   };
 
   return (

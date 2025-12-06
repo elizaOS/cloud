@@ -7,6 +7,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
@@ -14,8 +15,8 @@ import { organizations } from "./organizations";
 import { users } from "./users";
 
 /**
- * Apps Table
- *
+ * Apps table schema.
+ * 
  * Represents third-party applications that integrate with the Eliza Cloud platform.
  * Apps can embed agents, use the API, and track their usage and users.
  */
@@ -66,11 +67,44 @@ export const apps = pgTable(
     custom_pricing_enabled: boolean("custom_pricing_enabled")
       .default(false)
       .notNull(),
-    custom_pricing_markup: numeric("custom_pricing_markup", {
+
+    // Monetization settings
+    monetization_enabled: boolean("monetization_enabled")
+      .default(false)
+      .notNull(),
+    inference_markup_percentage: numeric("inference_markup_percentage", {
+      precision: 7,
+      scale: 2,
+    })
+      .default("0.00")
+      .notNull(), // 0-1000% markup on inference costs
+    purchase_share_percentage: numeric("purchase_share_percentage", {
       precision: 5,
       scale: 2,
-    }).default("0.00"), // % markup on LLM costs
+    })
+      .default("10.00")
+      .notNull(), // % of credit purchases creator earns (default 10%)
+    platform_offset_amount: numeric("platform_offset_amount", {
+      precision: 10,
+      scale: 2,
+    })
+      .default("1.00")
+      .notNull(), // Platform takes this amount to offset costs
 
+    // Creator earnings tracking (summary)
+    total_creator_earnings: numeric("total_creator_earnings", {
+      precision: 12,
+      scale: 2,
+    })
+      .default("0.00")
+      .notNull(),
+    total_platform_revenue: numeric("total_platform_revenue", {
+      precision: 12,
+      scale: 2,
+    })
+      .default("0.00")
+      .notNull(),
+    
     // App features/permissions
     features_enabled: jsonb("features_enabled")
       .$type<{
@@ -126,8 +160,8 @@ export const apps = pgTable(
 );
 
 /**
- * App Users Table
- *
+ * App users table schema.
+ * 
  * Tracks users who have signed up or used the platform through a specific app.
  */
 export const appUsers = pgTable(
@@ -166,20 +200,19 @@ export const appUsers = pgTable(
       .notNull(),
   },
   (table) => ({
-    app_id_idx: index("app_users_app_id_idx").on(table.app_id),
-    user_id_idx: index("app_users_user_id_idx").on(table.user_id),
-    // Composite unique constraint - one record per app-user pair
-    app_user_unique_idx: index("app_users_app_user_idx").on(
+    app_user_unique_idx: uniqueIndex("app_users_app_user_idx").on(
       table.app_id,
       table.user_id,
     ),
+    app_id_idx: index("app_users_app_id_idx").on(table.app_id),
+    user_id_idx: index("app_users_user_id_idx").on(table.user_id),
     first_seen_idx: index("app_users_first_seen_idx").on(table.first_seen_at),
   }),
 );
 
 /**
- * App Analytics Table
- *
+ * App analytics table schema.
+ * 
  * Daily/hourly aggregated analytics for each app.
  */
 export const appAnalytics = pgTable(

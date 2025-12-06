@@ -1,3 +1,6 @@
+/**
+ * Cache key generators for consistent key naming across the application.
+ */
 export const CacheKeys = {
   org: {
     data: (orgId: string) => `org:${orgId}:data:v1`,
@@ -77,6 +80,9 @@ export const CacheKeys = {
   },
 } as const;
 
+/**
+ * Time-to-live values (in seconds) for different cache categories.
+ */
 export const CacheTTL = {
   org: {
     data: 300, // 5 minutes (was 60s)
@@ -131,7 +137,11 @@ export const CacheTTL = {
   },
 } as const;
 
-// Stale-while-revalidate thresholds (when to consider cache stale but still serve it)
+/**
+ * Stale-while-revalidate thresholds (in seconds).
+ *
+ * When data exceeds this age, it's considered stale but still served while revalidating in the background.
+ */
 export const CacheStaleTTL = {
   org: {
     dashboard: 180, // Serve stale after 3 minutes, revalidate in background

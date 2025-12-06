@@ -1,3 +1,12 @@
+/**
+ * Web preview component for displaying web content in an iframe.
+ * Supports URL input, console view, and navigation controls.
+ *
+ * @param props - Web preview configuration
+ * @param props.defaultUrl - Default URL to display
+ * @param props.onUrlChange - Callback when URL changes
+ */
+
 "use client";
 
 import { Button } from "@/components/ui/button";

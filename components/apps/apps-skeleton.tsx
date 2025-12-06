@@ -1,3 +1,6 @@
+/**
+ * Apps skeleton loading component displaying placeholder cards while apps are loading.
+ */
 export function AppsSkeleton() {
   return (
     <div className="space-y-4">

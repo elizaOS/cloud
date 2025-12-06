@@ -10,16 +10,29 @@ import type { SearchFilters, SortOptions } from "@/lib/types/my-agents";
 
 export type { UserCharacter, NewUserCharacter };
 
+/**
+ * Repository for user character database operations.
+ */
 export class UserCharactersRepository {
+  /**
+   * Finds a character by ID.
+   */
   async findById(id: string): Promise<UserCharacter | undefined> {
     return await db.query.userCharacters.findFirst({
       where: eq(userCharacters.id, id),
     });
   }
 
-  async listByUser(userId: string): Promise<UserCharacter[]> {
-    // Include characters that user owns OR has interacted with via chat rooms
-    // This allows affiliate-created characters to appear in the character selector
+  /**
+   * Lists characters for a user, including owned and interacted characters.
+   * 
+   * Includes characters the user owns or has interacted with via chat rooms,
+   * allowing affiliate-created characters to appear in the selector.
+   * 
+   * @param userId - User ID to list characters for.
+   * @param source - Filter by source type (default: "cloud").
+   */
+  async listByUser(userId: string, source: "cloud" | "miniapp" = "cloud"): Promise<UserCharacter[]> {
     const interactedCharacterIds = db
       .selectDistinct({ character_id: elizaRoomCharactersTable.character_id })
       .from(elizaRoomCharactersTable)
@@ -29,35 +42,62 @@ export class UserCharactersRepository {
       .selectDistinct()
       .from(userCharacters)
       .where(
-        or(
-          eq(userCharacters.user_id, userId),
-          inArray(userCharacters.id, interactedCharacterIds),
+        and(
+          eq(userCharacters.source, source),
+          or(
+            eq(userCharacters.user_id, userId),
+            inArray(userCharacters.id, interactedCharacterIds),
+          ),
         ),
       )
       .orderBy(desc(userCharacters.created_at));
   }
 
-  async listByOrganization(organizationId: string): Promise<UserCharacter[]> {
+  /**
+   * Lists characters for an organization.
+   * 
+   * @param organizationId - Organization ID.
+   * @param source - Filter by source type (default: "cloud").
+   */
+  async listByOrganization(organizationId: string, source: "cloud" | "miniapp" = "cloud"): Promise<UserCharacter[]> {
     return await db.query.userCharacters.findMany({
-      where: eq(userCharacters.organization_id, organizationId),
+      where: and(
+        eq(userCharacters.organization_id, organizationId),
+        eq(userCharacters.source, source),
+      ),
       orderBy: desc(userCharacters.created_at),
     });
   }
 
+  /**
+   * Lists all public characters (cloud source only).
+   */
   async listPublic(): Promise<UserCharacter[]> {
     return await db.query.userCharacters.findMany({
-      where: eq(userCharacters.is_public, true),
+      where: and(
+        eq(userCharacters.is_public, true),
+        eq(userCharacters.source, "cloud"),
+      ),
       orderBy: desc(userCharacters.created_at),
     });
   }
 
+  /**
+   * Lists all template characters (cloud source only).
+   */
   async listTemplates(): Promise<UserCharacter[]> {
     return await db.query.userCharacters.findMany({
-      where: eq(userCharacters.is_template, true),
+      where: and(
+        eq(userCharacters.is_template, true),
+        eq(userCharacters.source, "cloud"),
+      ),
       orderBy: desc(userCharacters.created_at),
     });
   }
 
+  /**
+   * Creates a new character.
+   */
   async create(data: NewUserCharacter): Promise<UserCharacter> {
     const [character] = await db
       .insert(userCharacters)
@@ -66,6 +106,9 @@ export class UserCharactersRepository {
     return character;
   }
 
+  /**
+   * Updates an existing character.
+   */
   async update(
     id: string,
     data: Partial<NewUserCharacter>,
@@ -81,10 +124,18 @@ export class UserCharactersRepository {
     return updated;
   }
 
+  /**
+   * Deletes a character by ID.
+   */
   async delete(id: string): Promise<void> {
     await db.delete(userCharacters).where(eq(userCharacters.id, id));
   }
 
+  /**
+   * Searches characters with filters and sorting.
+   * 
+   * Includes characters the user owns or has interacted with via chat rooms.
+   */
   async search(
     filters: SearchFilters,
     userId: string,
@@ -124,6 +175,11 @@ export class UserCharactersRepository {
 
     if (filters.featured !== undefined) {
       conditions.push(eq(userCharacters.featured, filters.featured));
+    }
+
+    // Filter by source (cloud vs miniapp)
+    if (filters.source) {
+      conditions.push(eq(userCharacters.source, filters.source));
     }
 
     // Include characters that user owns OR has interacted with via chat rooms
@@ -181,6 +237,9 @@ export class UserCharactersRepository {
       .offset(offset);
   }
 
+  /**
+   * Counts characters matching the search filters.
+   */
   async count(
     filters: SearchFilters,
     userId: string,
@@ -219,6 +278,11 @@ export class UserCharactersRepository {
       conditions.push(eq(userCharacters.featured, filters.featured));
     }
 
+    // Filter by source (cloud vs miniapp)
+    if (filters.source) {
+      conditions.push(eq(userCharacters.source, filters.source));
+    }
+
     // Include characters that user owns OR has interacted with via chat rooms
     const interactedCharacterIds = db
       .selectDistinct({ character_id: elizaRoomCharactersTable.character_id })
@@ -240,6 +304,9 @@ export class UserCharactersRepository {
     return result[0]?.count || 0;
   }
 
+  /**
+   * Atomically increments the view count for a character.
+   */
   async incrementViewCount(id: string): Promise<void> {
     await db
       .update(userCharacters)
@@ -249,6 +316,9 @@ export class UserCharactersRepository {
       .where(eq(userCharacters.id, id));
   }
 
+  /**
+   * Atomically increments the interaction count for a character.
+   */
   async incrementInteractionCount(id: string): Promise<void> {
     await db
       .update(userCharacters)
@@ -258,6 +328,9 @@ export class UserCharactersRepository {
       .where(eq(userCharacters.id, id));
   }
 
+  /**
+   * Updates the popularity score for a character.
+   */
   async updatePopularityScore(id: string, score: number): Promise<void> {
     await db
       .update(userCharacters)
@@ -267,25 +340,44 @@ export class UserCharactersRepository {
       .where(eq(userCharacters.id, id));
   }
 
+  /**
+   * Gets featured characters (cloud source only).
+   * 
+   * @param limit - Maximum number of characters to return (default: 10).
+   */
   async getFeatured(limit: number = 10): Promise<UserCharacter[]> {
     return await db.query.userCharacters.findMany({
-      where: eq(userCharacters.featured, true),
-      orderBy: desc(userCharacters.popularity_score),
-      limit,
-    });
-  }
-
-  async getPopular(limit: number = 20): Promise<UserCharacter[]> {
-    return await db.query.userCharacters.findMany({
-      where: or(
-        eq(userCharacters.is_template, true),
-        eq(userCharacters.is_public, true),
+      where: and(
+        eq(userCharacters.featured, true),
+        eq(userCharacters.source, "cloud"),
       ),
       orderBy: desc(userCharacters.popularity_score),
       limit,
     });
   }
 
+  /**
+   * Gets popular characters (cloud source only).
+   * 
+   * @param limit - Maximum number of characters to return (default: 20).
+   */
+  async getPopular(limit: number = 20): Promise<UserCharacter[]> {
+    return await db.query.userCharacters.findMany({
+      where: and(
+        or(
+        eq(userCharacters.is_template, true),
+        eq(userCharacters.is_public, true),
+        ),
+        eq(userCharacters.source, "cloud"),
+      ),
+      orderBy: desc(userCharacters.popularity_score),
+      limit,
+    });
+  }
+
+  /**
+   * Searches public characters (templates and public characters).
+   */
   async searchPublic(
     filters: Omit<SearchFilters, "myCharacters" | "deployed">,
     sortOptions: SortOptions,
@@ -328,6 +420,11 @@ export class UserCharactersRepository {
       conditions.push(eq(userCharacters.featured, filters.featured));
     }
 
+    // Filter by source (cloud vs miniapp) - miniapp agents should never appear in public marketplace
+    if (filters.source) {
+      conditions.push(eq(userCharacters.source, filters.source));
+    }
+
     const { sortBy, order } = sortOptions;
     const direction = order === "asc" ? "asc" : "desc";
 
@@ -368,6 +465,9 @@ export class UserCharactersRepository {
       .offset(offset);
   }
 
+  /**
+   * Counts public characters matching the filters.
+   */
   async countPublic(
     filters: Omit<SearchFilters, "myCharacters" | "deployed">,
   ): Promise<number> {
@@ -407,6 +507,11 @@ export class UserCharactersRepository {
       conditions.push(eq(userCharacters.featured, filters.featured));
     }
 
+    // Filter by source (cloud vs miniapp) - miniapp agents should never appear in public marketplace
+    if (filters.source) {
+      conditions.push(eq(userCharacters.source, filters.source));
+    }
+
     const result = await db
       .select({ count: sql<number>`count(*)` })
       .from(userCharacters)
@@ -416,5 +521,7 @@ export class UserCharactersRepository {
   }
 }
 
-// Export singleton instance
+/**
+ * Singleton instance of UserCharactersRepository.
+ */
 export const userCharactersRepository = new UserCharactersRepository();

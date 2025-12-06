@@ -8,6 +8,9 @@ import { appsRepository } from "@/db/repositories/apps";
 import { appsService } from "./apps";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * Data for tracking app signups.
+ */
 export interface SignupTrackingData {
   userId: string;
   appId?: string;
@@ -19,66 +22,61 @@ export interface SignupTrackingData {
   metadata?: Record<string, unknown>;
 }
 
+/**
+ * Service for tracking user signups that come through apps.
+ */
 export class AppSignupTrackingService {
   /**
    * Track a user signup from an app
    * This should be called during user registration
    */
   async trackSignup(data: SignupTrackingData): Promise<void> {
-    try {
-      let appId = data.appId;
+    let appId = data.appId;
 
-      // If no appId but we have an affiliate code, find the app
-      if (!appId && data.affiliateCode) {
-        const app = await appsService.getByAffiliateCode(data.affiliateCode);
-        if (app) {
-          appId = app.id;
-        }
+    // If no appId but we have an affiliate code, find the app
+    if (!appId && data.affiliateCode) {
+      const app = await appsService.getByAffiliateCode(data.affiliateCode);
+      if (app) {
+        appId = app.id;
       }
-
-      // If we still don't have an appId, we can't track
-      if (!appId) {
-        logger.info("No app found for signup tracking", { data });
-        return;
-      }
-
-      // Create or update app user record
-      const existingAppUser = await appsRepository.findAppUser(
-        appId,
-        data.userId,
-      );
-
-      if (existingAppUser) {
-        // User already exists for this app, just update metadata
-        await appsRepository.updateAppUser(appId, data.userId, {
-          metadata: {
-            ...existingAppUser.metadata,
-            signup_tracked: true,
-            signup_source: data.signupSource,
-          },
-        });
-      } else {
-        // Create new app user record
-        await appsRepository.createAppUser({
-          app_id: appId,
-          user_id: data.userId,
-          signup_source: data.signupSource || "app_referral",
-          referral_code_used: data.referralCode || data.affiliateCode,
-          ip_address: data.ipAddress,
-          user_agent: data.userAgent,
-          metadata: data.metadata || {},
-        });
-      }
-
-      logger.info("Tracked signup for app", {
-        appId,
-        userId: data.userId,
-        affiliateCode: data.affiliateCode,
-      });
-    } catch (error) {
-      logger.error("Failed to track app signup:", error);
-      // Don't throw - tracking failures shouldn't break signup
     }
+
+    // If we still don't have an appId, we can't track
+    if (!appId) {
+      logger.info("No app found for signup tracking", { data });
+      return;
+    }
+
+    // Create or update app user record
+    const existingAppUser = await appsRepository.findAppUser(appId, data.userId);
+
+    if (existingAppUser) {
+      // User already exists for this app, just update metadata
+      await appsRepository.updateAppUser(appId, data.userId, {
+        metadata: {
+          ...existingAppUser.metadata,
+          signup_tracked: true,
+          signup_source: data.signupSource,
+        },
+      });
+    } else {
+      // Create new app user record
+      await appsRepository.createAppUser({
+        app_id: appId,
+        user_id: data.userId,
+        signup_source: data.signupSource || "app_referral",
+        referral_code_used: data.referralCode || data.affiliateCode,
+        ip_address: data.ipAddress,
+        user_agent: data.userAgent,
+        metadata: data.metadata || {},
+      });
+    }
+
+    logger.info("Tracked signup for app", {
+      appId,
+      userId: data.userId,
+      affiliateCode: data.affiliateCode,
+    });
   }
 
   /**
@@ -131,25 +129,20 @@ export class AppSignupTrackingService {
       if (app) return app.id;
     }
 
-    // Try matching origin/referrer to app URLs
-    if (origin || referrer) {
-      const urlToMatch = origin || referrer;
-      if (!urlToMatch) return null;
+      // Try matching origin/referrer to app URLs
+      if (origin || referrer) {
+        const urlToMatch = origin || referrer;
+        if (!urlToMatch) return null;
 
-      // Get all apps and try to match URL
-      // Note: This is not the most efficient approach for large numbers of apps
-      // In production, you might want to index apps by domain
-      try {
-        const hostname = new URL(urlToMatch!).hostname;
+        // Get all apps and try to match URL
+        // Note: This is not the most efficient approach for large numbers of apps
+        // In production, you might want to index apps by domain
+        const hostname = new URL(urlToMatch).hostname;
 
         // For demo purposes, we'll skip the full lookup
         // In production, implement proper URL matching
         return null;
-      } catch (error) {
-        logger.error("Failed to parse URL for app matching:", error);
-        return null;
       }
-    }
 
     return null;
   }
@@ -158,35 +151,35 @@ export class AppSignupTrackingService {
    * Award referral bonus to app owner (if configured)
    */
   async awardReferralBonus(appId: string, userId: string): Promise<void> {
-    try {
-      const app = await appsRepository.findById(appId);
+    const app = await appsRepository.findById(appId);
 
-      if (!app) {
-        logger.warn(`App not found: ${appId}`);
-        return;
-      }
-
-      const bonusAmount = parseFloat(app.referral_bonus_credits || "0");
-
-      if (bonusAmount <= 0) {
-        logger.info("No referral bonus configured for app", { appId });
-        return;
-      }
-
-      // Award bonus credits to the app's organization
-      // This would typically integrate with your credits/billing system
-      logger.info("Referral bonus awarded", {
-        appId,
-        userId,
-        bonusAmount,
-        organizationId: app.organization_id,
-      });
-
-      // TODO: Implement actual credit award through credits service
-      // await creditsService.addCredits(app.organization_id, bonusAmount, "referral_bonus", { appId, userId });
-    } catch (error) {
-      logger.error("Failed to award referral bonus:", error);
+    if (!app) {
+      logger.warn(`App not found: ${appId}`);
+      return;
     }
+
+    const bonusAmount = parseFloat(app.referral_bonus_credits || "0");
+
+    if (bonusAmount <= 0) {
+      logger.info("No referral bonus configured for app", { appId });
+      return;
+    }
+
+    // Award bonus credits to the app's organization
+    const { creditsService } = await import("./credits");
+    await creditsService.addCredits({
+      organizationId: app.organization_id,
+      amount: bonusAmount,
+      description: "App signup referral bonus",
+      metadata: { appId, userId, type: "app_signup_bonus" },
+    });
+
+    logger.info("Referral bonus awarded", {
+      appId,
+      userId,
+      bonusAmount,
+      organizationId: app.organization_id,
+    });
   }
 }
 

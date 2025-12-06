@@ -4,6 +4,20 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * GET /api/elevenlabs/voices/user
+ * Lists all voices owned by the authenticated user's organization.
+ * Supports filtering by clone type and pagination.
+ *
+ * Query Parameters:
+ * - `includeInactive`: If "true", includes inactive voices (default: false).
+ * - `cloneType`: Filter by "instant" | "professional".
+ * - `limit`: Maximum number of results (default: 50).
+ * - `offset`: Offset for pagination (default: 0).
+ *
+ * @param request - Request with optional filtering and pagination query parameters.
+ * @returns Paginated list of user voices with metadata.
+ */
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user

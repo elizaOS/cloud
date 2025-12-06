@@ -1,3 +1,7 @@
+/**
+ * Tabs component system for organizing content into tabbed interfaces.
+ * Built on Radix UI primitives with keyboard navigation and accessibility support.
+ */
 import * as React from "react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 

@@ -1,3 +1,13 @@
+/**
+ * Dialog component for inviting members to an organization.
+ * Allows setting email and role (member or admin) with validation and error handling.
+ *
+ * @param props - Invite member dialog configuration
+ * @param props.isOpen - Whether dialog is open
+ * @param props.onClose - Callback when dialog closes
+ * @param props.onSuccess - Callback when invitation is successfully sent
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -48,29 +58,23 @@ export function InviteMemberDialog({
       return;
     }
 
-    try {
-      setIsSubmitting(true);
-      const response = await fetch("/api/organizations/invites", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, role }),
-      });
+    setIsSubmitting(true);
+    const response = await fetch("/api/organizations/invites", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, role }),
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (data.success) {
-        setEmail("");
-        setRole("member");
-        onSuccess();
-      } else {
-        setError(data.error || "Failed to send invitation");
-      }
-    } catch (error) {
-      console.error("Error sending invite:", error);
-      setError("Failed to send invitation. Please try again.");
-    } finally {
-      setIsSubmitting(false);
+    if (data.success) {
+      setEmail("");
+      setRole("member");
+      onSuccess();
+    } else {
+      setError(data.error || "Failed to send invitation");
     }
+    setIsSubmitting(false);
   };
 
   const handleClose = () => {

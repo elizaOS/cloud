@@ -6,8 +6,13 @@ import { getElevenLabsService } from "@/lib/services/elevenlabs";
 import { logger } from "@/lib/utils/logger";
 
 /**
- * Verify if a voice is actually ready to use in ElevenLabs
- * Useful for professional voices that may still be processing
+ * GET /api/elevenlabs/voices/verify/[id]
+ * Verifies if a voice is ready to use in ElevenLabs by checking its status and testing TTS generation.
+ * Useful for professional voices that may still be processing or fine-tuning.
+ *
+ * @param request - The Next.js request object.
+ * @param context - Route context containing the voice ID parameter.
+ * @returns Voice verification status including readiness, TTS capability, and fine-tuning information.
  */
 export async function GET(
   request: NextRequest,

@@ -1,3 +1,14 @@
+/**
+ * My Agents view component displaying user's characters with filtering and search.
+ * Supports grid/list views, infinite scrolling, and character actions.
+ *
+ * @param props - My Agents view configuration
+ * @param props.onSelectCharacter - Callback when character is selected for chat
+ * @param props.onCloneCharacter - Callback when character is cloned
+ * @param props.isCollapsed - Whether view is collapsed
+ * @param props.onToggleCollapse - Callback to toggle collapse state
+ */
+
 "use client";
 
 import { useState, useCallback } from "react";
@@ -61,33 +72,24 @@ export function MyAgentsView({
 
   const handleStartChat = useCallback(
     async (character: ExtendedCharacter) => {
-      try {
-        // Track interaction
-        await fetch(
-          `/api/my-agents/characters/${character.id}/track-interaction`,
-          { method: "POST" },
-        );
+      // Track interaction (fire-and-forget)
+      void fetch(
+        `/api/my-agents/characters/${character.id}/track-interaction`,
+        { method: "POST" },
+      );
 
-        onSelectCharacter(character);
-        // Note: Toast is shown in my-agents.tsx to avoid duplicate
-      } catch (error) {
-        console.error("Error tracking interaction:", error);
-        onSelectCharacter(character);
-      }
+      onSelectCharacter(character);
+      // Note: Toast is shown in my-agents.tsx to avoid duplicate
     },
     [onSelectCharacter],
   );
 
   const handleViewDetails = useCallback(
     async (character: ExtendedCharacter) => {
-      try {
-        // Track view
-        await fetch(`/api/my-agents/characters/${character.id}/track-view`, {
-          method: "POST",
-        });
-      } catch (error) {
-        console.error("Error tracking view:", error);
-      }
+      // Track view (fire-and-forget)
+      void fetch(`/api/my-agents/characters/${character.id}/track-view`, {
+        method: "POST",
+      });
 
       setSelectedCharacter(character);
     },
@@ -96,16 +98,9 @@ export function MyAgentsView({
 
   const handleClone = useCallback(
     async (character: ExtendedCharacter) => {
-      try {
-        await onCloneCharacter(character);
-        toast.success(`Cloned ${character.name} to your library`);
-        refetch();
-      } catch (error) {
-        console.error("Error cloning character:", error);
-        toast.error(
-          error instanceof Error ? error.message : "Failed to clone character",
-        );
-      }
+      await onCloneCharacter(character);
+      toast.success(`Cloned ${character.name} to your library`);
+      refetch();
     },
     [onCloneCharacter, refetch],
   );

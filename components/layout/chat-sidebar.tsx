@@ -1,6 +1,11 @@
 /**
- * Chat Sidebar Component
- * Special sidebar for the /chat page showing rooms/conversations
+ * Chat sidebar component for the /chat page displaying rooms and conversations.
+ * Supports room creation, deletion, editing, and navigation.
+ *
+ * @param props - Chat sidebar configuration
+ * @param props.className - Additional CSS classes
+ * @param props.isOpen - Whether sidebar is open (mobile)
+ * @param props.onToggle - Callback to toggle sidebar visibility
  */
 
 "use client";
@@ -81,9 +86,14 @@ export function ChatSidebar({
 
   // Filter rooms by selected character
   const filteredRooms = useMemo(() => {
+    // Default Eliza agent ID (same as in rooms/route.ts)
+    const DEFAULT_AGENT_ID = "b850bc30-45f8-0041-a00a-83df46d8555d";
+    
     if (!selectedCharacterId) {
-      // Show rooms with no character assignment (default Eliza)
-      return rooms.filter((room) => !room.characterId);
+      // Show rooms with no character assignment OR default Eliza ID
+      return rooms.filter(
+        (room) => !room.characterId || room.characterId === DEFAULT_AGENT_ID
+      );
     }
     // Show rooms for the selected character
     return rooms.filter((room) => room.characterId === selectedCharacterId);
@@ -104,33 +114,29 @@ export function ChatSidebar({
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-  // Load rooms on mount
+  // Load rooms on mount (loadRooms from Zustand is stable)
   useEffect(() => {
     loadRooms();
-  }, [loadRooms]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
   const handleNewChat = async () => {
     if (operationState.isCreatingRoom) return; // Prevent double-clicking
 
     updateOperation({ isCreatingRoom: true });
-    try {
-      // Create room with currently selected character
-      const newRoomId = await createRoom(selectedCharacterId);
-      if (newRoomId) {
-        setRoomId(newRoomId);
-        // Update URL with new room ID and current character
-        const params = new URLSearchParams();
-        params.set("roomId", newRoomId);
-        if (selectedCharacterId) {
-          params.set("characterId", selectedCharacterId);
-        }
-        router.push(`/dashboard/chat?${params.toString()}`);
+    // Create room with currently selected character
+    const newRoomId = await createRoom(selectedCharacterId);
+    if (newRoomId) {
+      setRoomId(newRoomId);
+      // Update URL with new room ID and current character
+      const params = new URLSearchParams();
+      params.set("roomId", newRoomId);
+      if (selectedCharacterId) {
+        params.set("characterId", selectedCharacterId);
       }
-    } catch (error) {
-      console.error("Error creating room:", error);
-    } finally {
-      updateOperation({ isCreatingRoom: false });
+      router.push(`/dashboard/chat?${params.toString()}`);
     }
+    updateOperation({ isCreatingRoom: false });
   };
 
   const handleSelectRoom = (selectedRoomId: string) => {

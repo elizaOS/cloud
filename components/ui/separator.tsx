@@ -1,3 +1,7 @@
+/**
+ * Separator component for visual content division.
+ * Built on Radix UI primitives with horizontal and vertical orientations.
+ */
 "use client";
 
 import * as React from "react";

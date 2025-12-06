@@ -1,8 +1,13 @@
 /**
- * HUD Container Component
- * Container with HUD-style corner decorations, used for input areas and cards
+ * HUD container component with HUD-style corner decorations and hover effects.
+ * Used for input areas and cards with animated corner brackets.
+ *
+ * @param props - HUD container configuration
+ * @param props.children - Content to display
+ * @param props.cornerSize - Size of corner brackets
+ * @param props.cornerColor - Color of corner brackets
+ * @param props.withBorder - Whether to display border
  */
-
 import { cn } from "@/lib/utils";
 import { CornerBrackets } from "./corner-brackets";
 

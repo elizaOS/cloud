@@ -31,14 +31,19 @@ const actionAttachmentCache = new Map<string, unknown[]>();
 const actionResponseSentCache = new Map<string, boolean>();
 
 /**
- * Check if an action has already sent a response for this room
+ * Checks if an action has already sent a response for this room.
+ *
+ * @param roomId - Room ID.
+ * @returns True if action has sent a response.
  */
 export function hasActionSentResponse(roomId: string): boolean {
   return actionResponseSentCache.get(roomId) === true;
 }
 
 /**
- * Clear the action response flag for a room
+ * Clears the action response flag for a room.
+ *
+ * @param roomId - Room ID.
  */
 export function clearActionResponseFlag(roomId: string): void {
   actionResponseSentCache.delete(roomId);
@@ -52,7 +57,10 @@ function isBase64DataUrl(url: string): boolean {
 }
 
 /**
- * Get cached attachments for a room and clear the cache
+ * Gets cached attachments for a room and clears the cache.
+ *
+ * @param roomId - Room ID.
+ * @returns Array of cached attachments.
  */
 export function getAndClearCachedAttachments(roomId: string): unknown[] {
   const attachments = actionAttachmentCache.get(roomId) || [];
@@ -61,16 +69,21 @@ export function getAndClearCachedAttachments(roomId: string): unknown[] {
 }
 
 /**
- * Clear cached attachments for a room
+ * Clears cached attachments for a room.
+ *
+ * @param roomId - Room ID.
  */
 export function clearCachedAttachments(roomId: string): void {
   actionAttachmentCache.delete(roomId);
 }
 
 /**
- * Clean up prompt by removing excessive empty lines
- * Reduces multiple consecutive empty lines to a single empty line
- * Removes leading and trailing empty lines
+ * Cleans up prompt by removing excessive empty lines.
+ * Reduces multiple consecutive empty lines to a single empty line.
+ * Removes leading and trailing empty lines.
+ *
+ * @param prompt - Prompt string to clean.
+ * @returns Cleaned prompt string.
  */
 export function cleanPrompt(prompt: string): string {
   return (
@@ -89,23 +102,37 @@ export function cleanPrompt(prompt: string): string {
 }
 
 /**
- * Extract attachments from action results
- * IMPORTANT: Sanitizes attachments to prevent base64 data from bloating context
+ * Extracts attachments from action results.
+ * IMPORTANT: Sanitizes attachments to prevent base64 data from bloating context.
+ *
+ * @param actionResults - Array of action results with optional attachments.
+ * @returns Array of sanitized attachments.
  */
-export function extractAttachments(
-  actionResults: Array<{ data?: { attachments?: unknown[] } }>,
-): unknown[] {
+interface Attachment {
+  url?: string;
+  id?: string;
+  [key: string]: unknown;
+}
+
+interface ActionResult {
+  data?: {
+    attachments?: Attachment[];
+    [key: string]: unknown;
+  };
+}
+
+export function extractAttachments(actionResults: ActionResult[]): Attachment[] {
   return actionResults
     .flatMap((result) => result.data?.attachments ?? [])
-    .filter(Boolean)
-    .map((att) => {
-      const attachment = att as { url?: string; id?: string };
+    .filter((att): att is Attachment => {
+      if (!att || typeof att !== "object") return false;
+      const attachment = att as Attachment;
       // Skip base64 URLs to prevent token bloat
       if (attachment.url && isBase64DataUrl(attachment.url)) {
         logger.warn(
           "[extractAttachments] Skipping base64 attachment to prevent token bloat",
         );
-        return null;
+        return false;
       }
       // Skip invalid URLs
       if (
@@ -115,15 +142,20 @@ export function extractAttachments(
           !attachment.url.startsWith("http"))
       ) {
         logger.warn("[extractAttachments] Skipping invalid URL attachment");
-        return null;
+        return false;
       }
-      return att;
-    })
-    .filter(Boolean);
+      return true;
+    });
 }
 
 /**
- * Execute planned providers and update state
+ * Executes planned providers and updates state.
+ *
+ * @param runtime - Agent runtime instance.
+ * @param message - Current message.
+ * @param plannedProviders - Array of provider names to execute.
+ * @param currentState - Current state object.
+ * @returns Updated state with provider results.
  */
 export async function executeProviders(
   runtime: IAgentRuntime,
@@ -148,8 +180,16 @@ export async function executeProviders(
 }
 
 /**
- * Execute planned actions and update state
- * Wraps the callback to capture attachments and track if action sent a response
+ * Executes planned actions and updates state.
+ * Wraps the callback to capture attachments and track if action sent a response.
+ *
+ * @param runtime - Agent runtime instance.
+ * @param message - Current message.
+ * @param plannedActions - Array of action names to execute.
+ * @param plan - Parsed plan with thought and text.
+ * @param currentState - Current state object.
+ * @param callback - Optional callback for real-time updates.
+ * @returns Updated state with action results.
  */
 export async function executeActions(
   runtime: IAgentRuntime,
@@ -201,13 +241,23 @@ export async function executeActions(
         actionAttachmentCache.get(message.roomId as string) || [];
 
       // Only add attachments with valid HTTP URLs (not base64)
+      interface AttachmentWithMetadata {
+        url?: string;
+        id?: string;
+        title?: string;
+        contentType?: string;
+      }
+
       for (const att of content.attachments) {
-        const attachment = att as {
-          url?: string;
-          id?: string;
-          title?: string;
-          contentType?: string;
-        };
+        if (
+          !att ||
+          typeof att !== "object" ||
+          !("url" in att) ||
+          typeof (att as AttachmentWithMetadata).url !== "string"
+        ) {
+          continue;
+        }
+        const attachment = att as AttachmentWithMetadata;
         const url = attachment.url;
 
         logger.info(
@@ -262,7 +312,11 @@ export async function executeActions(
 }
 
 /**
- * Generate response with retry logic
+ * Generates response with retry logic.
+ *
+ * @param runtime - Agent runtime instance.
+ * @param prompt - Prompt to send to the model.
+ * @returns Object with text and thought.
  */
 export async function generateResponseWithRetry(
   runtime: IAgentRuntime,
@@ -293,7 +347,13 @@ export async function generateResponseWithRetry(
 }
 
 /**
- * Run evaluators with timeout to prevent hanging
+ * Runs evaluators with timeout to prevent hanging.
+ *
+ * @param runtime - Agent runtime instance.
+ * @param message - Current message.
+ * @param state - Current state.
+ * @param responseMemory - Response memory to evaluate.
+ * @param callback - Callback for evaluator results.
  */
 export async function runEvaluatorsWithTimeout(
   runtime: IAgentRuntime,
@@ -311,36 +371,29 @@ export async function runEvaluatorsWithTimeout(
 
   logger.debug("[runEvaluatorsWithTimeout] Running evaluators");
 
-  try {
-    await Promise.race([
-      runtime.evaluate(
-        message,
-        { ...state },
-        true, // shouldRespondToMessage
-        async (content) => {
-          logger.debug(
-            "[runEvaluatorsWithTimeout] Evaluator callback:",
-            JSON.stringify(content),
-          );
-          return callback ? callback(content) : [];
-        },
-        [responseMemory],
-      ),
-      new Promise<void>((_, reject) => {
-        setTimeout(() => {
-          reject(
-            new Error(`Evaluators timed out after ${EVALUATOR_TIMEOUT_MS}ms`),
-          );
-        }, EVALUATOR_TIMEOUT_MS);
-      }),
-    ]);
-    logger.debug(
-      "[runEvaluatorsWithTimeout] Evaluators completed successfully",
-    );
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(
-      `[runEvaluatorsWithTimeout] Error in evaluators: ${errorMessage}`,
-    );
-  }
+  await Promise.race([
+    runtime.evaluate(
+      message,
+      { ...state },
+      true, // shouldRespondToMessage
+      async (content) => {
+        logger.debug(
+          "[runEvaluatorsWithTimeout] Evaluator callback:",
+          JSON.stringify(content),
+        );
+        return callback ? callback(content) : [];
+      },
+      [responseMemory],
+    ),
+    new Promise<void>((_, reject) => {
+      setTimeout(() => {
+        reject(
+          new Error(`Evaluators timed out after ${EVALUATOR_TIMEOUT_MS}ms`),
+        );
+      }, EVALUATOR_TIMEOUT_MS);
+    }),
+  ]);
+  logger.debug(
+    "[runEvaluatorsWithTimeout] Evaluators completed successfully",
+  );
 }

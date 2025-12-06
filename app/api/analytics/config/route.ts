@@ -8,6 +8,13 @@ export const maxDuration = 60;
 
 const VALID_EXPORT_FORMATS = ["csv", "json", "excel", "xlsx", "pdf"] as const;
 
+/**
+ * GET /api/analytics/config
+ * Gets analytics configuration settings for the organization.
+ *
+ * @param req - The Next.js request object.
+ * @returns Analytics configuration including markup percentage, refresh interval, and export formats.
+ */
 async function handleGET(req: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
@@ -51,6 +58,14 @@ async function handleGET(req: NextRequest) {
   }
 }
 
+/**
+ * PUT /api/analytics/config
+ * Updates analytics configuration settings for the organization.
+ * Requires owner or admin role.
+ *
+ * @param req - Request body with optional markupPercentage, autoRefreshInterval, defaultTimeRange, and exportFormats.
+ * @returns Updated analytics configuration.
+ */
 async function handlePUT(req: NextRequest) {
   try {
     const user = await requireRole(["owner", "admin"]);

@@ -1,6 +1,10 @@
 /**
- * Overview Metrics Component
- * Simplified to show only credit balance - the metric users actually care about
+ * Overview metrics component displaying credit balance.
+ * Shows wallet icon and formatted balance amount.
+ *
+ * @param props - Overview metrics configuration
+ * @param props.creditBalance - Current credit balance
+ * @param props.className - Additional CSS classes
  */
 
 "use client";

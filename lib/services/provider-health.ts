@@ -1,9 +1,16 @@
+/**
+ * Service for tracking AI provider health and status.
+ */
+
 import {
   providerHealthRepository,
   type ProviderHealth,
   type NewProviderHealth,
 } from "@/db/repositories";
 
+/**
+ * Service for managing provider health monitoring.
+ */
 export class ProviderHealthService {
   async listAll(): Promise<ProviderHealth[]> {
     return await providerHealthRepository.listAll();

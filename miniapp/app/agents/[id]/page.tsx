@@ -20,6 +20,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { type AgentDetails, getAgent, updateAgent } from "@/lib/cloud-api";
+import { useRenderTracking } from "@/lib/dev/render-tracking";
 import { useAuth } from "@/lib/use-auth";
 
 type EditMode = "simple" | "advanced";
@@ -29,7 +30,10 @@ interface MessageExample {
   agent: string;
 }
 
-export default function AgentDetailPage() {
+function AgentDetailPage() {
+  // Development: Track renders for this complex component
+  useRenderTracking("AgentDetailPage", { threshold: 8 });
+
   const router = useRouter();
   const params = useParams();
   const agentId = params.id as string;
@@ -75,52 +79,52 @@ export default function AgentDetailPage() {
   const fetchAgent = useCallback(async () => {
     setLoading(true);
     setError(null);
-    try {
-      const data = await getAgent(agentId);
-      setAgent(data);
+    const data = await getAgent(agentId);
+    setAgent(data);
 
-      // Initialize form
-      setName(data.name);
-      setBio(Array.isArray(data.bio) ? data.bio.join("\n") : data.bio);
-      setAvatarUrl(data.avatarUrl || "");
-      setTopics(data.topics?.join(", ") || "");
-      setAdjectives(data.adjectives?.join(", ") || "");
-      setStyleAll(data.style?.all?.join("\n") || "");
-      setStyleChat(data.style?.chat?.join("\n") || "");
+    // Initialize form
+    setName(data.name);
+    setBio(Array.isArray(data.bio) ? data.bio.join("\n") : data.bio);
+    setAvatarUrl(data.avatarUrl || "");
+    setTopics(data.topics?.join(", ") || "");
+    setAdjectives(data.adjectives?.join(", ") || "");
+    setStyleAll(data.style?.all?.join("\n") || "");
+    setStyleChat(data.style?.chat?.join("\n") || "");
 
-      // Initialize message examples
-      if (data.messageExamples && Array.isArray(data.messageExamples)) {
-        const examples: MessageExample[] = [];
-        for (const example of data.messageExamples) {
-          if (Array.isArray(example) && example.length >= 2) {
-            const userMsg = example.find((m: { user?: string }) => m.user);
-            const agentMsg = example.find((m: { user?: string }) => !m.user);
-            if (userMsg && agentMsg) {
-              examples.push({
-                user: typeof userMsg.content === "string" ? userMsg.content : userMsg.content?.text || "",
-                agent: typeof agentMsg.content === "string" ? agentMsg.content : agentMsg.content?.text || "",
-              });
-            }
+    // Initialize message examples
+    // Message examples are arrays of { name, content: { text } } objects
+    if (data.messageExamples && Array.isArray(data.messageExamples)) {
+      const examples: MessageExample[] = [];
+      for (const example of data.messageExamples) {
+        if (Array.isArray(example) && example.length >= 2) {
+          // Find user message (name is "user" or similar) and agent message
+          const userMsg = example.find((m) => m.name?.toLowerCase() === "user");
+          const agentMsg = example.find((m) => m.name?.toLowerCase() !== "user");
+          if (userMsg && agentMsg) {
+            examples.push({
+              user: userMsg.content?.text || "",
+              agent: agentMsg.content?.text || "",
+            });
           }
         }
-        setMessageExamples(examples);
       }
-
-      // If there's an existing avatar, show it in the generated image area
-      if (data.avatarUrl) {
-        setGeneratedImageUrl(data.avatarUrl);
-        setIsEditingImagePrompt(false);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load agent");
-    } finally {
-      setLoading(false);
+      setMessageExamples(examples);
     }
+
+    // If there's an existing avatar, show it in the generated image area
+    if (data.avatarUrl) {
+      setGeneratedImageUrl(data.avatarUrl);
+      setIsEditingImagePrompt(false);
+    }
+    setLoading(false);
   }, [agentId]);
 
   useEffect(() => {
     if (authenticated && agentId) {
-      fetchAgent();
+      // Defer fetch to avoid cascading renders
+      queueMicrotask(() => {
+        fetchAgent();
+      });
     }
   }, [authenticated, agentId, fetchAgent]);
 
@@ -138,35 +142,33 @@ export default function AgentDetailPage() {
 
     setGeneratingField(fieldName);
     setError(null);
-    try {
-      const response = await fetch("/api/generate-field", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fieldName,
-          currentValue: fieldName === "name" ? name : bio,
-          context: { name, personality: bio, backstory: "" },
-        }),
-      });
+    
+    const response = await fetch("/api/generate-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fieldName,
+        currentValue: fieldName === "name" ? name : bio,
+        context: { name, personality: bio, backstory: "" },
+      }),
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Failed to generate" }));
-        throw new Error(errorData.error || "Failed to generate");
-      }
-
-      const result = await response.json();
-      if (result.success && result.value) {
-        if (fieldName === "name") {
-          setName(result.value);
-        } else {
-          setBio(result.value);
-        }
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate");
-    } finally {
+    if (!response.ok) {
+      const errorData = await response.json();
+      setError(errorData.error || "Failed to generate");
       setGeneratingField(null);
+      return;
     }
+
+    const result = await response.json();
+    if (result.success && result.value) {
+      if (fieldName === "name") {
+        setName(result.value);
+      } else {
+        setBio(result.value);
+      }
+    }
+    setGeneratingField(null);
   };
 
   // Generate image prompt
@@ -175,31 +177,29 @@ export default function AgentDetailPage() {
 
     setIsGeneratingPrompt(true);
     setError(null);
-    try {
-      const response = await fetch("/api/generate-field", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fieldName: "imagePrompt",
-          currentValue: imagePrompt,
-          context: { name, personality: bio, backstory: "" },
-        }),
-      });
+    
+    const response = await fetch("/api/generate-field", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fieldName: "imagePrompt",
+        currentValue: imagePrompt,
+        context: { name, personality: bio, backstory: "" },
+      }),
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Failed to generate" }));
-        throw new Error(errorData.error || "Failed to generate");
-      }
-
-      const result = await response.json();
-      if (result.success && result.value) {
-        setImagePrompt(result.value);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate prompt");
-    } finally {
+    if (!response.ok) {
+      const errorData = await response.json();
+      setError(errorData.error || "Failed to generate");
       setIsGeneratingPrompt(false);
+      return;
     }
+
+    const result = await response.json();
+    if (result.success && result.value) {
+      setImagePrompt(result.value);
+    }
+    setIsGeneratingPrompt(false);
   };
 
   // Generate image
@@ -210,59 +210,54 @@ export default function AgentDetailPage() {
     setGeneratedImageUrl(null);
     setError(null);
 
-    try {
-      const response = await fetch("/api/generate-photo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: imagePrompt,
-          name,
-          personality: bio,
-          backstory: "",
-        }),
-      });
+    const response = await fetch("/api/generate-photo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: imagePrompt,
+        name,
+        personality: bio,
+        backstory: "",
+      }),
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Failed to generate image" }));
-        throw new Error(errorData.error || "Failed to generate image");
-      }
+    if (!response.ok) {
+      const errorData = await response.json();
+      setError(errorData.error || "Failed to generate image");
+      setIsGeneratingImage(false);
+      return;
+    }
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
 
-      if (reader) {
-        let buffer = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+    if (reader) {
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
 
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              try {
-                const data = JSON.parse(line.slice(6));
-                if ((data.type === "image" || data.type === "complete") && data.imageUrl) {
-                  setGeneratedImageUrl(data.imageUrl);
-                  setIsEditingImagePrompt(false);
-                  setPhoto(null);
-                } else if (data.type === "error") {
-                  throw new Error(data.error || "Generation failed");
-                }
-              } catch {
-                // Skip invalid JSON
-              }
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = JSON.parse(line.slice(6));
+            if ((data.type === "image" || data.type === "complete") && data.imageUrl) {
+              setGeneratedImageUrl(data.imageUrl);
+              setIsEditingImagePrompt(false);
+              setPhoto(null);
+            } else if (data.type === "error") {
+              setError(data.error || "Generation failed");
+              setIsGeneratingImage(false);
+              return;
             }
           }
         }
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate image");
-    } finally {
-      setIsGeneratingImage(false);
     }
+    setIsGeneratingImage(false);
   };
 
   // Add message example
@@ -288,77 +283,68 @@ export default function AgentDetailPage() {
     setError(null);
     setSuccess(false);
 
-    try {
-      let finalAvatarUrl = avatarUrl;
+    let finalAvatarUrl = avatarUrl;
 
-      // Upload new image if needed
-      if (photo || (generatedImageUrl && generatedImageUrl !== agent?.avatarUrl)) {
-        let imageToUpload: File | null = photo;
+    // Upload new image if needed
+    if (photo || (generatedImageUrl && generatedImageUrl !== agent?.avatarUrl)) {
+      let imageToUpload: File | null = photo;
 
-        if (!imageToUpload && generatedImageUrl) {
-          try {
-            const response = await fetch(generatedImageUrl);
-            const blob = await response.blob();
-            imageToUpload = new File([blob], `avatar-${Date.now()}.png`, { type: blob.type || "image/png" });
-          } catch {
-            // Keep existing URL if fetch fails
-          }
-        }
+      if (!imageToUpload && generatedImageUrl) {
+        const response = await fetch(generatedImageUrl);
+        const blob = await response.blob();
+        imageToUpload = new File([blob], `avatar-${Date.now()}.png`, { type: blob.type || "image/png" });
+      }
 
-        if (imageToUpload) {
-          const formData = new FormData();
-          formData.append("images", imageToUpload);
+      if (imageToUpload) {
+        const formData = new FormData();
+        formData.append("images", imageToUpload);
 
-          const uploadResponse = await fetch("/api/upload-images", {
-            method: "POST",
-            body: formData,
-          });
+        const uploadResponse = await fetch("/api/upload-images", {
+          method: "POST",
+          body: formData,
+        });
 
-          if (uploadResponse.ok) {
-            const uploadResult = await uploadResponse.json();
-            if (uploadResult.images && uploadResult.images.length > 0) {
-              finalAvatarUrl = uploadResult.images[0].url;
-            }
+        if (uploadResponse.ok) {
+          const uploadResult = await uploadResponse.json();
+          if (uploadResult.images && uploadResult.images.length > 0) {
+            finalAvatarUrl = uploadResult.images[0].url;
           }
         }
       }
+    }
 
-      const updateData: Parameters<typeof updateAgent>[1] = {
-        name,
-        bio: bio.includes("\n") ? bio.split("\n").filter(Boolean) : bio,
-        avatarUrl: finalAvatarUrl || null,
+    const updateData: Parameters<typeof updateAgent>[1] = {
+      name,
+      bio: bio.includes("\n") ? bio.split("\n").filter(Boolean) : bio,
+      avatarUrl: finalAvatarUrl || null,
+    };
+
+    // Include advanced fields if in advanced mode
+    if (mode === "advanced") {
+      updateData.topics = topics.split(",").map((t) => t.trim()).filter(Boolean);
+      updateData.adjectives = adjectives.split(",").map((a) => a.trim()).filter(Boolean);
+      updateData.style = {
+        all: styleAll.split("\n").filter(Boolean),
+        chat: styleChat.split("\n").filter(Boolean),
       };
 
-      // Include advanced fields if in advanced mode
-      if (mode === "advanced") {
-        updateData.topics = topics.split(",").map((t) => t.trim()).filter(Boolean);
-        updateData.adjectives = adjectives.split(",").map((a) => a.trim()).filter(Boolean);
-        updateData.style = {
-          all: styleAll.split("\n").filter(Boolean),
-          chat: styleChat.split("\n").filter(Boolean),
-        };
-
-        // Format message examples
-        if (messageExamples.length > 0) {
-          updateData.messageExamples = messageExamples
-            .filter((ex) => ex.user.trim() && ex.agent.trim())
-            .map((ex) => [
-              { user: "user", content: { text: ex.user.trim() } },
-              { user: name, content: { text: ex.agent.trim() } },
-            ]);
-        }
+      // Format message examples - structure is [{ name, content: { text } }]
+      if (messageExamples.length > 0) {
+        updateData.messageExamples = messageExamples
+          .filter((ex) => ex.user.trim() && ex.agent.trim())
+          .map((ex) => [
+            { name: "user", content: { text: ex.user.trim() } },
+            { name: name, content: { text: ex.agent.trim() } },
+          ]);
       }
-
-      const updated = await updateAgent(agentId, updateData);
-      setAgent({ ...agent!, ...updated });
-      setAvatarUrl(finalAvatarUrl || "");
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save agent");
-    } finally {
-      setSaving(false);
     }
+
+    const updated = await updateAgent(agentId, updateData);
+    setAgent({ ...agent!, ...updated });
+    setAvatarUrl(finalAvatarUrl || "");
+    setSuccess(true);
+    setTimeout(() => setSuccess(false), 3000);
+    setSaving(false);
   };
 
   if (!ready || !authenticated) {
@@ -854,3 +840,10 @@ export default function AgentDetailPage() {
     </div>
   );
 }
+
+// Enable why-did-you-render tracking for this component
+if (process.env.NODE_ENV === "development") {
+  (AgentDetailPage as React.FC & { whyDidYouRender?: boolean }).whyDidYouRender = true;
+}
+
+export default AgentDetailPage;

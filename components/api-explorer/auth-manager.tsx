@@ -1,3 +1,12 @@
+/**
+ * Auth manager component for API explorer authentication.
+ * Manages API key display, creation, and validation with visibility toggle.
+ *
+ * @param props - Auth manager configuration
+ * @param props.authToken - Current authentication token
+ * @param props.onTokenChange - Callback when token changes
+ */
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -71,7 +80,10 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
 
   // Auto-fetch explorer key on mount
   useEffect(() => {
-    fetchExplorerKey();
+    // Use setTimeout to avoid synchronous setState in effect
+    setTimeout(() => {
+      fetchExplorerKey();
+    }, 0);
   }, [fetchExplorerKey]);
 
   const isValidKey =

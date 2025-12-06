@@ -1,3 +1,8 @@
+/**
+ * Containers table component displaying deployed containers with filtering and sorting.
+ * Supports search, status filtering, deletion, and navigation to container logs.
+ */
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -48,21 +53,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
 
-interface Container {
-  id: string;
-  name: string;
-  description: string | null;
-  status: string;
-  ecs_service_arn: string | null;
-  load_balancer_url: string | null;
-  port: number;
-  desired_count: number;
-  cpu: number;
-  memory: number;
-  last_deployed_at: Date | null;
-  created_at: Date;
-  error_message: string | null;
-}
+import type { Container } from "@/db/repositories/containers";
 
 interface ContainersTableProps {
   containers: Container[];
@@ -186,24 +177,18 @@ export function ContainersTable({ containers }: ContainersTableProps) {
   const handleDelete = async (id: string) => {
     setIsDeleting(true);
 
-    try {
-      const response = await fetch(`/api/v1/containers/${id}`, {
-        method: "DELETE",
-      });
+    const response = await fetch(`/api/v1/containers/${id}`, {
+      method: "DELETE",
+    });
 
-      if (!response.ok) {
-        throw new Error("Failed to delete container");
-      }
-
-      toast.success("Container deleted successfully");
-      router.refresh();
-    } catch (error) {
-      console.error("Error deleting container:", error);
-      toast.error("Failed to delete container");
-    } finally {
-      setIsDeleting(false);
-      setDeleteId(null);
+    if (!response.ok) {
+      throw new Error("Failed to delete container");
     }
+
+    toast.success("Container deleted successfully");
+    router.refresh();
+    setIsDeleting(false);
+    setDeleteId(null);
   };
 
   const formatDate = (date: Date | null): string => {

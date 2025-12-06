@@ -14,6 +14,12 @@ import { organizations } from "./organizations";
 import { users } from "./users";
 import { apiKeys } from "./api-keys";
 
+/**
+ * Usage records table schema.
+ * 
+ * Tracks API usage including token consumption, costs, and success rates.
+ * Used for billing, analytics, and quota enforcement.
+ */
 export const usageRecords = pgTable(
   "usage_records",
   {

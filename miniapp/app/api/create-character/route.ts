@@ -39,20 +39,17 @@ function isValidImageUrl(url: string): boolean {
     return true;
   }
 
-  try {
-    const parsedUrl = new URL(url);
-    const trustedDomains = [
-      "vercel-storage.com",
-      "blob.vercel-storage.com",
-    ];
-
-    return trustedDomains.some((domain) => parsedUrl.hostname.includes(domain));
-  } catch {
-    if (url.startsWith("/uploads/")) {
-      return true;
-    }
-    return false;
+  if (url.startsWith("/uploads/")) {
+    return true;
   }
+
+  const parsedUrl = new URL(url);
+  const trustedDomains = [
+    "vercel-storage.com",
+    "blob.vercel-storage.com",
+  ];
+
+  return trustedDomains.some((domain) => parsedUrl.hostname.includes(domain));
 }
 
 function extractValidImages(body: CreateCharacterRequest): {

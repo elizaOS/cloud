@@ -3,6 +3,12 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { usageQuotasService } from "@/lib/services";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
+/**
+ * GET /api/quotas/usage
+ * Gets current quota usage statistics for the organization.
+ *
+ * @returns Current usage data across all quota types.
+ */
 async function handleGET() {
   try {
     const user = await requireAuthWithOrg();

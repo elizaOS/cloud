@@ -24,7 +24,15 @@ import { db } from "@/db/client";
 import { roomTable, memoryTable, participantTable } from "@/db/schemas/eliza";
 import { eq, and, desc, sql } from "drizzle-orm";
 import type { UUID } from "@elizaos/core";
+import { parseMessageContent } from "@/lib/types/message-content";
 
+/**
+ * OPTIONS /api/v1/miniapp/agents/[id]/chats
+ * CORS preflight handler for miniapp agent chats endpoint.
+ *
+ * @param request - The Next.js request object.
+ * @returns Preflight response with CORS headers.
+ */
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
   return createPreflightResponse(origin, ["GET", "POST", "OPTIONS"]);
@@ -32,7 +40,17 @@ export async function OPTIONS(request: NextRequest) {
 
 /**
  * GET /api/v1/miniapp/agents/[id]/chats
- * List all chats (rooms) for an agent
+ * Lists all chats (rooms) for a specific agent.
+ * Supports pagination and includes last message preview and message counts.
+ * Only returns chats for miniapp-created agents.
+ *
+ * Query Parameters:
+ * - `page`: Page number (default: 1).
+ * - `limit`: Results per page (default: 20, max: 50).
+ *
+ * @param request - Request with optional pagination query parameters.
+ * @param params - Route parameters containing the agent ID.
+ * @returns Paginated list of chats with last message and metadata.
  */
 export async function GET(
   request: NextRequest,
@@ -68,6 +86,15 @@ export async function GET(
     const character = await charactersService.getById(agentId);
 
     if (!character) {
+      const response = NextResponse.json(
+        { success: false, error: "Agent not found" },
+        { status: 404 },
+      );
+      return addCorsHeaders(response, corsResult.origin);
+    }
+
+    // Verify this is a miniapp agent - miniapp API can only access miniapp-created agents
+    if (character.source !== "miniapp") {
       const response = NextResponse.json(
         { success: false, error: "Agent not found" },
         { status: 404 },
@@ -164,6 +191,10 @@ export async function GET(
             ),
           );
 
+        const lastMessageContent = lastMessage
+          ? parseMessageContent(lastMessage.content)
+          : null;
+
         return {
           id: room.id,
           agentId,
@@ -171,12 +202,9 @@ export async function GET(
           createdAt: room.createdAt,
           // Use last message time as updatedAt if available, otherwise use createdAt
           updatedAt: lastMessage?.createdAt || room.createdAt,
-          lastMessage: lastMessage
+          lastMessage: lastMessage && lastMessageContent
             ? {
-                content:
-                  typeof lastMessage.content === "string"
-                    ? lastMessage.content
-                    : (lastMessage.content as { text?: string })?.text || "",
+                content: lastMessageContent.text || "",
                 role: lastMessage.entityId === agentId ? "assistant" : "user",
                 createdAt: lastMessage.createdAt,
               }
@@ -222,7 +250,13 @@ export async function GET(
 
 /**
  * POST /api/v1/miniapp/agents/[id]/chats
- * Create a new chat (room) with an agent
+ * Creates a new chat (room) with an agent.
+ * The room is created immediately, but entities/participants are set up when the first message is sent.
+ * Rate limited with stricter limits for write operations.
+ *
+ * @param request - The Next.js request object.
+ * @param params - Route parameters containing the agent ID.
+ * @returns Created chat details including room ID and timestamps.
  */
 export async function POST(
   request: NextRequest,
@@ -250,6 +284,15 @@ export async function POST(
     const character = await charactersService.getById(agentId);
 
     if (!character) {
+      const response = NextResponse.json(
+        { success: false, error: "Agent not found" },
+        { status: 404 },
+      );
+      return addCorsHeaders(response, corsResult.origin);
+    }
+
+    // Verify this is a miniapp agent - miniapp API can only access miniapp-created agents
+    if (character.source !== "miniapp") {
       const response = NextResponse.json(
         { success: false, error: "Agent not found" },
         { status: 404 },

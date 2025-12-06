@@ -1,3 +1,7 @@
+/**
+ * Service for managing conversations and conversation messages.
+ */
+
 import {
   conversationsRepository,
   type Conversation,
@@ -7,6 +11,9 @@ import {
   type ConversationWithMessages,
 } from "@/db/repositories";
 
+/**
+ * Service for conversation CRUD operations and message management.
+ */
 export class ConversationsService {
   async getById(id: string): Promise<Conversation | undefined> {
     return await conversationsRepository.findById(id);

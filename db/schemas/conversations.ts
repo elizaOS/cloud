@@ -13,6 +13,12 @@ import { organizations } from "./organizations";
 import { users } from "./users";
 import { usageRecords } from "./usage-records";
 
+/**
+ * Conversations table schema.
+ * 
+ * Stores conversation threads with associated messages. Tracks message count,
+ * total cost, and model settings.
+ */
 export const conversations = pgTable(
   "conversations",
   {
@@ -66,6 +72,12 @@ export const conversations = pgTable(
   }),
 );
 
+/**
+ * Conversation messages table schema.
+ * 
+ * Stores individual messages within conversations with sequence numbers
+ * for ordering and cost tracking.
+ */
 export const conversationMessages = pgTable(
   "conversation_messages",
   {

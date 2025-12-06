@@ -1,3 +1,11 @@
+/**
+ * Settings page client component managing settings tabs and content.
+ * Provides tab navigation and renders appropriate tab content based on selection.
+ *
+ * @param props - Settings page client configuration
+ * @param props.user - User data with organization information
+ */
+
 "use client";
 
 import { useState } from "react";

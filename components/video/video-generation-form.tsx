@@ -1,3 +1,21 @@
+/**
+ * Video generation form component with prompt input, model selection, and reference URL.
+ * Displays model information, cost, and processing time estimates.
+ *
+ * @param props - Video generation form configuration
+ * @param props.prompt - Video generation prompt
+ * @param props.onPromptChange - Callback when prompt changes
+ * @param props.selectedModel - Currently selected model ID
+ * @param props.onModelChange - Callback when model changes
+ * @param props.models - Available video models
+ * @param props.referenceUrl - Optional reference image URL
+ * @param props.onReferenceChange - Callback when reference URL changes
+ * @param props.onGenerate - Callback when generate button is clicked
+ * @param props.isSubmitting - Whether generation is in progress
+ * @param props.errorMessage - Error message to display
+ * @param props.statusMessage - Status message to display
+ */
+
 "use client";
 
 import { useMemo } from "react";

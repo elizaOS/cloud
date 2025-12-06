@@ -10,6 +10,11 @@ export const metadata: Metadata = {
   keywords: ["storage", "cloud storage", "data management", "datasets"],
 };
 
+/**
+ * Storage page for managing cloud storage, datasets, and data for AI agent development.
+ *
+ * @returns The rendered storage page client component.
+ */
 export default function StoragePage() {
   return <StoragePageClient />;
 }

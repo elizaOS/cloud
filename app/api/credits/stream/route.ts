@@ -22,6 +22,14 @@ const CONNECTION_TIMEOUT = parseInt(
   10,
 );
 
+/**
+ * GET /api/credits/stream
+ * Server-Sent Events endpoint for streaming real-time credit balance updates.
+ * Sends initial balance and subscribes to credit update events.
+ *
+ * @param request - The Next.js request object.
+ * @returns SSE stream with credit balance updates and heartbeat events.
+ */
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuthWithOrg();

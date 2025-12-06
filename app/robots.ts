@@ -1,5 +1,12 @@
 import type { MetadataRoute } from "next";
 
+/**
+ * Generates robots.txt configuration for search engine crawlers.
+ * Allows public pages but blocks API routes, dashboard, and auth pages.
+ * Specifically blocks AI crawlers (GPTBot, ChatGPT, Claude, etc.).
+ *
+ * @returns Robots configuration with rules and sitemap reference.
+ */
 export default function robots(): MetadataRoute.Robots {
   // Get base URL with automatic Vercel URL detection as fallback
   const baseUrl =

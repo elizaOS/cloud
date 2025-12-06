@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createHash } from "node:crypto";
 import { requireAuth } from "@/lib/auth";
-import { convertAnonymousToReal } from "@/lib/auth-anonymous";
+import { migrateAnonymousSession } from "@/lib/session";
 import { anonymousSessionsService } from "@/lib/services";
 import { logger } from "@/lib/utils/logger";
 
@@ -18,19 +18,19 @@ function hashTokenForLogging(token: string): string {
 
 /**
  * POST /api/auth/migrate-anonymous
- *
  * Migrates anonymous user data to the authenticated user.
  * Should be called from the frontend after successful Privy authentication.
  *
  * This endpoint:
  * 1. Gets the anonymous session from the cookie (or request body)
  * 2. Verifies the authenticated user
- * 3. Calls convertAnonymousToReal to migrate all data
+ * 3. Calls convertAnonymousToReal to migrate all data (rooms, messages, characters)
  *
- * Request body (optional):
- * {
- *   sessionToken?: string  // Anonymous session token if cookie not available
- * }
+ * Request Body (optional):
+ * - `sessionToken`: Anonymous session token if cookie is not available.
+ *
+ * @param request - Request body with optional sessionToken.
+ * @returns Migration result with success status and migrated data details.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -52,12 +52,8 @@ export async function POST(request: NextRequest) {
 
     // Also check request body for token (in case cookie is not available)
     if (!sessionToken) {
-      try {
-        const body = await request.json().catch(() => ({}));
-        sessionToken = body.sessionToken;
-      } catch {
-        // No body or invalid JSON - that's okay
-      }
+      const body = await request.json().catch(() => ({}));
+      sessionToken = body.sessionToken;
     }
 
     if (!sessionToken) {
@@ -110,20 +106,21 @@ export async function POST(request: NextRequest) {
       messageCount: anonSession.message_count,
     });
 
-    await convertAnonymousToReal(anonSession.user_id, user.privy_user_id);
+    const migrationResult = await migrateAnonymousSession(
+      anonSession.user_id,
+      user.privy_user_id
+    );
 
-    logger.info("[Migrate Anonymous] Migration completed successfully");
+    logger.info("[Migrate Anonymous] Migration completed", migrationResult);
 
-    // 5. Clear the anonymous session cookie
+    // Cookie is cleared by migrateAnonymousSession, but ensure it's cleared here too
     cookieStore.delete(ANON_SESSION_COOKIE);
 
     return NextResponse.json({
       success: true,
       message: "Anonymous data migrated successfully",
       migrated: true,
-      details: {
-        messageCount: anonSession.message_count,
-      },
+      details: migrationResult.mergedData,
     });
   } catch (error) {
     logger.error("[Migrate Anonymous] Error during migration:", error);

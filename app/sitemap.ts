@@ -3,6 +3,12 @@ import { db } from "@/db/client";
 import { userCharacters } from "@/db/schemas/user-characters";
 import { eq } from "drizzle-orm";
 
+/**
+ * Generates the sitemap for search engines.
+ * Includes static pages and up to 1000 public marketplace characters.
+ *
+ * @returns Sitemap configuration with URLs, priorities, and change frequencies.
+ */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Get base URL with automatic Vercel URL detection as fallback
   const baseUrl =

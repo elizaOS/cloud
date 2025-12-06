@@ -1,7 +1,19 @@
+/**
+ * Cache health monitoring and maintenance utilities.
+ */
+
 import { cache } from "./client";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * Cache health check and maintenance operations.
+ */
 export class CacheHealth {
+  /**
+   * Checks cache health by performing a roundtrip test.
+   *
+   * @returns Health status with latency and error information.
+   */
   static async check(): Promise<{
     healthy: boolean;
     latency: number | null;
@@ -42,6 +54,12 @@ export class CacheHealth {
     }
   }
 
+  /**
+   * Clears cache entries matching a pattern.
+   *
+   * @param pattern - Pattern to match (e.g., "org:*").
+   * @returns 0 on success, -1 on error.
+   */
   static async clearPattern(pattern: string): Promise<number> {
     try {
       logger.info(`[Cache Health] Clearing pattern: ${pattern}`);
@@ -53,6 +71,11 @@ export class CacheHealth {
     }
   }
 
+  /**
+   * Clears potentially corrupted cache entries for an organization.
+   *
+   * @param organizationId - Organization ID.
+   */
   static async clearCorruptedEntries(organizationId: string): Promise<void> {
     logger.info(
       `[Cache Health] Clearing potentially corrupted cache for org=${organizationId}`,

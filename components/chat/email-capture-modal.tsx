@@ -1,3 +1,16 @@
+/**
+ * Email capture modal component for anonymous users.
+ * Prompts users to enter email or sign up with Privy authentication.
+ *
+ * @param props - Email capture modal configuration
+ * @param props.open - Whether modal is open
+ * @param props.onClose - Callback when modal closes
+ * @param props.onSubmit - Callback when email is submitted
+ * @param props.onSkip - Callback when user skips email capture
+ * @param props.characterName - Name of character for personalization
+ * @param props.isLoading - Whether submission is in progress
+ */
+
 "use client";
 
 import { useState, type FormEvent } from "react";
@@ -46,22 +59,16 @@ export function EmailCaptureModal({
 
     setSubmitting(true);
 
-    try {
-      // Use Privy to create account with email
-      await login({
-        loginMethods: ["email"],
-      });
+    // Use Privy to create account with email
+    await login({
+      loginMethods: ["email"],
+    });
 
-      // Call parent's onSubmit to handle post-auth logic
-      await onSubmit(email);
+    // Call parent's onSubmit to handle post-auth logic
+    await onSubmit(email);
 
-      toast.success("Welcome! Your chat is ready.");
-    } catch (error) {
-      console.error("Email signup error:", error);
-      toast.error("Failed to create account. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
+    toast.success("Welcome! Your chat is ready.");
+    setSubmitting(false);
   }
 
   function handleSkipClick() {

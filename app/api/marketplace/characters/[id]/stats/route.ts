@@ -5,6 +5,14 @@ import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * GET /api/marketplace/characters/[id]/stats
+ * Gets statistics for a marketplace character.
+ *
+ * @param request - The Next.js request object.
+ * @param params - Route parameters containing the character ID.
+ * @returns Character statistics including message count, room count, and deployment status.
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },

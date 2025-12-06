@@ -1,3 +1,9 @@
+/**
+ * Plugins tab component for managing MCP (Model Context Protocol) servers.
+ * Displays available plugins, allows enabling/disabling, and shows plugin details.
+ * Supports search, filtering, and plugin configuration.
+ */
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -26,14 +32,7 @@ import { toast } from "sonner";
 import type { ElizaCharacter } from "@/lib/types";
 
 // Types for MCP configuration
-interface McpServerConfig {
-  type: "http" | "sse" | "streamable-http";
-  url: string;
-}
-
-interface McpSettings {
-  servers: Record<string, McpServerConfig>;
-}
+import type { McpServerConfig, McpSettings } from "@/lib/types/mcp";
 
 interface McpRegistryEntry {
   id: string;
@@ -67,6 +66,16 @@ interface PluginsTabProps {
   onSave?: () => Promise<void>;
 }
 
+/**
+ * Type guard to check if a value is a valid McpSettings object
+ */
+function isMcpSettings(value: unknown): value is McpSettings {
+  if (typeof value !== "object" || value === null) return false;
+  const obj = value as Record<string, unknown>;
+  if (typeof obj.servers !== "object" || obj.servers === null) return false;
+  return true;
+}
+
 const iconMap: Record<string, typeof Puzzle> = {
   puzzle: Puzzle,
   clock: Clock,
@@ -89,14 +98,18 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
 
     if (typeof mcpSetting === "string") {
       try {
-        return JSON.parse(mcpSetting);
+        const parsed: unknown = JSON.parse(mcpSetting);
+        if (isMcpSettings(parsed)) {
+          return parsed;
+        }
+        return { servers: {} };
       } catch {
         return { servers: {} };
       }
     }
 
-    if (typeof mcpSetting === "object" && mcpSetting !== null) {
-      return mcpSetting as unknown as McpSettings;
+    if (isMcpSettings(mcpSetting)) {
+      return mcpSetting;
     }
 
     return { servers: {} };
@@ -105,27 +118,24 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
   const mcpSettings = getCurrentMcpSettings();
   const enabledServers = Object.keys(mcpSettings.servers || {});
 
-  // Load registry on mount
-  useEffect(() => {
-    fetchRegistry();
+  const fetchRegistry = useCallback(async () => {
+    setIsLoading(true);
+    const response = await fetch("/api/mcp/registry");
+    if (!response.ok) throw new Error("Failed to fetch registry");
+
+    const data = await response.json();
+    setRegistry(data.registry || []);
+    setCategories(data.categories || []);
+    setIsLoading(false);
   }, []);
 
-  const fetchRegistry = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch("/api/mcp/registry");
-      if (!response.ok) throw new Error("Failed to fetch registry");
-
-      const data = await response.json();
-      setRegistry(data.registry || []);
-      setCategories(data.categories || []);
-    } catch (error) {
-      console.error("Error fetching registry:", error);
-      toast.error("Failed to load MCP registry");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Load registry on mount
+  useEffect(() => {
+    // Use queueMicrotask to defer execution and avoid synchronous setState
+    queueMicrotask(() => {
+      fetchRegistry();
+    });
+  }, [fetchRegistry]);
 
   // Check if an MCP is enabled
   const isMcpEnabled = (mcpId: string): boolean => {

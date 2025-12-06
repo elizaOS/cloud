@@ -6,8 +6,11 @@ import { organizationsRepository } from "@/db/repositories";
 
 /**
  * GET /api/payment-methods/list
- * List all payment methods for the organization
- * Also returns the default payment method ID for UI indication
+ * Lists all payment methods for the organization.
+ * Also returns the default payment method ID for UI indication.
+ *
+ * @param req - The Next.js request object.
+ * @returns Array of payment methods with card details and default payment method ID.
  */
 async function handleListPaymentMethods(req: NextRequest) {
   try {

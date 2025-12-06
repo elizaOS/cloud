@@ -39,6 +39,7 @@ import type { NextRequest } from "next/server";
 import type {
   OpenAIChatRequest,
   OpenAIChatResponse,
+  OpenAIChatMessage,
 } from "@/lib/providers/types";
 import type { UserWithOrganization } from "@/lib/types";
 
@@ -95,7 +96,10 @@ interface AISdkRequest {
 }
 
 /**
- * Transform AI SDK request format to OpenAI format
+ * Transforms AI SDK request format to OpenAI format.
+ *
+ * @param aiSdkRequest - AI SDK format request.
+ * @returns OpenAI format request.
  */
 function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
   const {
@@ -126,10 +130,14 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
               return { ...part, type: "text" };
             }
             // Also handle "input_image" -> "image_url" if needed
-            if (part.type === "input_image" && "image" in part) {
+            if (
+              part.type === "input_image" &&
+              "image" in part &&
+              typeof part.image === "string"
+            ) {
               return {
                 type: "image_url",
-                image_url: { url: (part as any).image },
+                image_url: { url: part.image },
               };
             }
           }
@@ -187,11 +195,24 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
         ];
       } else if (Array.isArray(message.content)) {
         // Already array (multimodal)
-        content = (message.content as any[]).map((part: any) =>
-          typeof part === "string"
-            ? { type: "output_text", text: part, annotations: [] }
-            : { type: "output_text", text: part.text || "", annotations: [] },
-        );
+        content = message.content.map((part) => {
+          if (typeof part === "string") {
+            return { type: "output_text", text: part, annotations: [] };
+          }
+          if (
+            typeof part === "object" &&
+            part !== null &&
+            "text" in part &&
+            typeof part.text === "string"
+          ) {
+            return {
+              type: "output_text",
+              text: part.text,
+              annotations: [],
+            };
+          }
+          return { type: "output_text", text: "", annotations: [] };
+        });
       } else {
         // null or other type
         content = [
@@ -213,8 +234,8 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
         // Include tool calls if present
         ...(message.tool_calls ? { tool_calls: message.tool_calls } : {}),
         // Include function call if present (legacy)
-        ...((message as any).function_call
-          ? { function_call: (message as any).function_call }
+        ...("function_call" in message && message.function_call
+          ? { function_call: message.function_call }
           : {}),
       };
     }), // OpenAI: "choices" -> AI SDK: "output" with flattened structure
@@ -226,12 +247,21 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
         }
       : undefined,
     // Preserve any provider metadata
-    ...((openAIResponse as any).provider_metadata
-      ? { provider_metadata: (openAIResponse as any).provider_metadata }
+    ...("provider_metadata" in openAIResponse && openAIResponse.provider_metadata
+      ? { provider_metadata: openAIResponse.provider_metadata }
       : {}),
   };
 }
 
+/**
+ * POST /api/v1/responses
+ * AI SDK v2.0+ compatibility endpoint for chat completions.
+ * Transforms AI SDK request format to OpenAI format and forwards to the gateway.
+ * Supports both authenticated and anonymous users.
+ *
+ * @param req - AI SDK format request with input messages and max_output_tokens.
+ * @returns Streaming or non-streaming chat completion response in AI SDK format.
+ */
 async function handlePOST(req: NextRequest) {
   const startTime = Date.now();
 
@@ -272,14 +302,18 @@ async function handlePOST(req: NextRequest) {
 
     // Log detailed message breakdown
     const systemMessages = request.messages.filter(
-      (msg: any) => msg.role === "system",
+      (msg) => msg.role === "system",
     );
     const userMessages = request.messages.filter(
-      (msg: any) => msg.role === "user",
+      (msg) => msg.role === "user",
     );
     const assistantMessages = request.messages.filter(
-      (msg: any) => msg.role === "assistant",
+      (msg) => msg.role === "assistant",
     );
+
+    // Helper to get content as string for logging
+    const getContentString = (content: OpenAIChatMessage["content"]): string => 
+      typeof content === "string" ? content : JSON.stringify(content);
 
     logger.info("[Responses API] 📝 PROMPT BREAKDOWN", {
       model: request.model,
@@ -289,35 +323,17 @@ async function handlePOST(req: NextRequest) {
         user: userMessages.length,
         assistant: assistantMessages.length,
       },
-      systemPrompts: systemMessages.map((msg: any) => ({
-        content:
-          typeof msg.content === "string"
-            ? msg.content
-            : JSON.stringify(msg.content),
-        length:
-          typeof msg.content === "string"
-            ? msg.content.length
-            : JSON.stringify(msg.content).length,
+      systemPrompts: systemMessages.map((msg) => ({
+        content: getContentString(msg.content),
+        length: getContentString(msg.content).length,
       })),
-      userPrompts: userMessages.map((msg: any) => ({
-        content:
-          typeof msg.content === "string"
-            ? msg.content
-            : JSON.stringify(msg.content),
-        length:
-          typeof msg.content === "string"
-            ? msg.content.length
-            : JSON.stringify(msg.content).length,
+      userPrompts: userMessages.map((msg) => ({
+        content: getContentString(msg.content),
+        length: getContentString(msg.content).length,
       })),
-      assistantResponses: assistantMessages.map((msg: any) => ({
-        content:
-          typeof msg.content === "string"
-            ? msg.content
-            : JSON.stringify(msg.content),
-        length:
-          typeof msg.content === "string"
-            ? msg.content.length
-            : JSON.stringify(msg.content).length,
+      assistantResponses: assistantMessages.map((msg) => ({
+        content: getContentString(msg.content),
+        length: getContentString(msg.content).length,
       })),
     });
 
@@ -361,6 +377,15 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Validate and clean message content
+    // Filter out empty system messages (characters may not have system prompts configured)
+    request.messages = request.messages.filter((msg, i) => {
+      if (msg.role === "system" && (!msg.content || (typeof msg.content === "string" && msg.content.trim() === ""))) {
+        logger.debug("[Responses API] Filtering out empty system message", { messageIndex: i });
+        return false;
+      }
+      return true;
+    });
+
     for (let i = 0; i < request.messages.length; i++) {
       const msg = request.messages[i];
 
@@ -583,20 +608,25 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Check if error is a structured gateway error
+    interface GatewayError {
+      status: number;
+      error: { message: string; type?: string; code?: string };
+    }
+
     if (
       error &&
       typeof error === "object" &&
       "error" in error &&
       "status" in error
     ) {
-      const gatewayError = error as {
-        status: number;
-        error: { message: string; type?: string; code?: string };
-      };
-      return Response.json(
-        { error: gatewayError.error },
-        { status: gatewayError.status },
-      );
+      const status = (error as { status: unknown }).status;
+      if (typeof status === "number") {
+        const gatewayError = error as GatewayError;
+        return Response.json(
+          { error: gatewayError.error },
+          { status: gatewayError.status },
+        );
+      }
     }
 
     // Fallback to generic error
@@ -735,6 +765,22 @@ async function handleNonStreamingResponse(
   return Response.json(aiSdkResponse);
 }
 
+// Type for streaming response choices
+interface StreamingChoice {
+  index: number;
+  delta: {
+    role?: string;
+    content?: string;
+    tool_calls?: Array<{
+      id: string;
+      type: "function";
+      function: { name: string; arguments: string };
+    }>;
+    function_call?: { name: string; arguments: string };
+  };
+  finish_reason: string | null;
+}
+
 // Handle streaming response
 function handleStreamingResponse(
   providerResponse: Response,
@@ -806,7 +852,7 @@ function handleStreamingResponse(
                 model: parsed.model,
                 object: parsed.object,
                 output: parsed.choices
-                  ? parsed.choices.map((choice: any) => {
+                  ? parsed.choices.map((choice: StreamingChoice) => {
                       // For streaming, delta contains the incremental content
                       const delta = choice.delta || {};
                       const content = delta.content

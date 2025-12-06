@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 
-// Metadata endpoint for Crypto Prices MCP
+/**
+ * GET /api/mcp/demos/crypto
+ * Metadata endpoint for Crypto Prices MCP server.
+ * Returns information about available cryptocurrency tools and features.
+ *
+ * @returns MCP server metadata including tools, data source, and feature list.
+ */
 export async function GET() {
   return NextResponse.json({
     name: "Crypto Prices MCP",

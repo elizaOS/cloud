@@ -1,3 +1,8 @@
+/**
+ * Task component for displaying task items in a collapsible format.
+ * Supports task items with file attachments and collapsible task lists.
+ */
+
 "use client";
 
 import {

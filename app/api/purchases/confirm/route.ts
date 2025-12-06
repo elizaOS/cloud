@@ -17,10 +17,16 @@ const confirmPurchaseSchema = z.object({
 
 /**
  * POST /api/purchases/confirm
- * Confirm a PaymentIntent with a payment method
+ * Confirms a PaymentIntent with a payment method.
+ * Used when a PaymentIntent was created without immediate confirmation
+ * and needs to be confirmed with a specific payment method.
  *
- * This endpoint is used when a PaymentIntent was created without immediate confirmation
- * and needs to be confirmed with a specific payment method
+ * Request Body:
+ * - `paymentIntentId`: Stripe PaymentIntent ID (required, pi_* format).
+ * - `paymentMethodId`: Stripe payment method ID (required, pm_* format).
+ *
+ * @param req - Request body with payment intent and payment method IDs.
+ * @returns Confirmed PaymentIntent details with status and amount.
  */
 async function handleConfirmPurchase(req: NextRequest) {
   try {

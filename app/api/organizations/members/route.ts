@@ -3,6 +3,13 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { usersService } from "@/lib/services";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
+/**
+ * GET /api/organizations/members
+ * Lists all members of the organization.
+ * Requires owner or admin role.
+ *
+ * @returns Array of member details with roles and metadata.
+ */
 async function handleGET() {
   try {
     const user = await requireAuthWithOrg();

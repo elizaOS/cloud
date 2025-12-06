@@ -12,6 +12,12 @@ import { users } from "./users";
 import { apiKeys } from "./api-keys";
 import { userCharacters } from "./user-characters";
 
+/**
+ * Containers table schema.
+ * 
+ * Tracks container deployments for character agents. Stores AWS ECS/ECR
+ * infrastructure details and deployment status.
+ */
 export const containers = pgTable(
   "containers",
   {

@@ -1,3 +1,11 @@
+/**
+ * Account page client component organizing account management sections.
+ * Displays profile form, organization info, account details, and security preferences.
+ *
+ * @param props - Account page client configuration
+ * @param props.user - User data with organization information
+ */
+
 "use client";
 
 import { useSetPageHeader } from "@/components/layout/page-header-context";

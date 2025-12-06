@@ -13,6 +13,9 @@ export {
   DuplicateContainerNameError,
 } from "@/db/repositories/containers";
 
+/**
+ * Service for container quota management and checks.
+ */
 export class ContainerQuotaService {
   async checkQuota(organizationId: string) {
     return await containersRepository.checkQuota(organizationId);

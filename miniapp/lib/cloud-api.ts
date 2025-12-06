@@ -3,127 +3,33 @@
  *
  * Wrapper for interacting with the Eliza Cloud API through the proxy.
  * Automatically includes auth token from localStorage.
+ * 
+ * IMPORTANT: This file imports types from ./types.ts to ensure complete
+ * separation from the main app. Never import types from the parent app.
  */
 
 import { getAuthToken } from "./use-auth";
+import type {
+  Agent,
+  AgentDetails,
+  MessageExampleConversation,
+  Chat,
+  Message,
+  MessageAttachment,
+  User,
+  Organization,
+  Billing,
+  AppBilling,
+  CreditPack,
+  UsageSummary,
+  Transaction,
+  Pagination,
+  StreamCallbacks,
+  ReferralInfo,
+  RewardsStatus,
+} from "./types";
 
 const API_BASE = "/api/proxy";
-
-interface Agent {
-  id: string;
-  name: string;
-  bio: string | string[];
-  avatarUrl: string | null;
-  isPublic: boolean;
-  createdAt: string;
-  updatedAt: string;
-  stats?: {
-    views: number;
-    chats: number;
-    messages: number;
-  };
-}
-
-interface AgentDetails extends Agent {
-  topics: string[];
-  adjectives: string[];
-  style: {
-    all?: string[];
-    chat?: string[];
-    post?: string[];
-  };
-  settings: Record<string, unknown>;
-  knowledge: string[];
-  messageExamples: unknown[];
-  postExamples: string[];
-  plugins: string[];
-  isTemplate: boolean;
-  characterData: Record<string, unknown>;
-}
-
-interface Chat {
-  id: string;
-  agentId: string;
-  name: string | null; // Room title (generated after 2 rounds of conversation)
-  createdAt: string;
-  updatedAt: string;
-  lastMessage?: {
-    content: string;
-    role: "user" | "assistant";
-    createdAt: string;
-  };
-  messageCount: number;
-}
-
-interface MessageAttachment {
-  id: string;
-  url: string;
-  title?: string;
-  contentType?: string;
-}
-
-interface Message {
-  id: string;
-  content: string;
-  role: "user" | "assistant";
-  createdAt: string;
-  metadata?: Record<string, unknown>;
-  attachments?: MessageAttachment[];
-}
-
-interface User {
-  id: string;
-  email: string | null;
-  name: string | null;
-  nickname: string | null;
-  avatar: string | null;
-  walletAddress: string | null;
-  walletChainType: string | null;
-  createdAt: string;
-}
-
-interface Organization {
-  id: string;
-  name: string;
-  creditBalance: string;
-}
-
-interface Billing {
-  creditBalance: string;
-  autoTopUpEnabled: boolean;
-  autoTopUpThreshold: string | null;
-  autoTopUpAmount: string | null;
-  billingEmail: string | null;
-  hasPaymentMethod: boolean;
-}
-
-interface UsageSummary {
-  totalRequests: number;
-  totalCost: string;
-  totalTokens: number;
-  breakdown: Array<{
-    model: string;
-    provider: string;
-    count: number;
-    totalCost: number;
-  }>;
-}
-
-interface Transaction {
-  id: string;
-  type: string;
-  amount: string;
-  description: string;
-  createdAt: string;
-}
-
-interface Pagination {
-  page: number;
-  limit: number;
-  totalPages: number;
-  totalCount: number;
-  hasMore: boolean;
-}
 
 /**
  * Get auth headers for API requests
@@ -228,7 +134,7 @@ export async function createAgent(data: {
     chat?: string[];
     post?: string[];
   };
-  settings?: Record<string, unknown>;
+  settings?: Record<string, string | number | boolean | Record<string, string | number | boolean>>;
   isPublic?: boolean;
 }): Promise<Agent> {
   const response = await fetchApi<{
@@ -255,13 +161,13 @@ export async function updateAgent(
       chat?: string[];
       post?: string[];
     };
-    settings: Record<string, unknown>;
+    settings: Record<string, string | number | boolean | Record<string, string | number | boolean>>;
     knowledge: string[];
-    messageExamples: unknown[];
+    messageExamples: MessageExampleConversation[];
     postExamples: string[];
     plugins: string[];
     isPublic: boolean;
-    characterData: Record<string, unknown>;
+    characterData: Record<string, string | number | boolean | string[] | Record<string, string | number | boolean>>;
   }>
 ): Promise<Agent> {
   const response = await fetchApi<{
@@ -350,17 +256,6 @@ export async function deleteChat(
 // Messages API (Streaming)
 // ============================================
 
-export interface StreamCallbacks {
-  onStart?: () => void;
-  onUserMessage?: (message: Message) => void;
-  onThinking?: () => void;
-  onChunk?: (chunk: string) => void;
-  onComplete?: (
-    message: Message,
-    usage: { tokens: number; cost: number }
-  ) => void;
-  onError?: (error: string) => void;
-}
 
 export async function sendMessage(
   roomId: string,
@@ -418,8 +313,7 @@ export async function sendMessage(
 
       if (!eventData) continue;
 
-      try {
-        const data = JSON.parse(eventData);
+      const data = JSON.parse(eventData);
 
         // Handle ElizaOS stream format
         if (eventType === "connected") {
@@ -457,13 +351,9 @@ export async function sendMessage(
             // Agent response
             const responseText = data.content?.text || "";
             
-            // Debug: Log raw content to trace attachment parsing
-            console.log("[cloud-api] Agent response content:", JSON.stringify(data.content, null, 2));
-            
             // Extract attachments (images) from the response
             const attachments: MessageAttachment[] = [];
             if (data.content?.attachments && Array.isArray(data.content.attachments)) {
-              console.log("[cloud-api] Found attachments:", data.content.attachments.length);
               for (const att of data.content.attachments) {
                 if (att.url && typeof att.url === "string") {
                   attachments.push({
@@ -474,8 +364,6 @@ export async function sendMessage(
                   });
                 }
               }
-            } else {
-              console.log("[cloud-api] No attachments found in response");
             }
 
             const agentMsg: Message = {
@@ -486,12 +374,6 @@ export async function sendMessage(
               attachments: attachments.length > 0 ? attachments : undefined,
             };
             
-            console.log("[cloud-api] Parsed agent message:", {
-              hasAttachments: !!agentMsg.attachments,
-              attachmentCount: agentMsg.attachments?.length || 0,
-              contentPreview: agentMsg.content.substring(0, 50),
-            });
-            
             callbacks.onComplete?.(agentMsg, { tokens: 0, cost: 0 });
           }
         } else if (eventType === "error") {
@@ -499,9 +381,6 @@ export async function sendMessage(
         } else if (eventType === "done") {
           // Stream complete
         }
-      } catch {
-        // Ignore parse errors for incomplete chunks
-      }
     }
   }
 }
@@ -514,30 +393,24 @@ export async function getBilling(): Promise<{
   billing: Billing;
   usage: { currentMonth: UsageSummary };
   recentTransactions: Transaction[];
+  appBilling?: AppBilling;
 }> {
   const response = await fetchApi<{
     success: boolean;
     billing: Billing;
     usage: { currentMonth: UsageSummary };
     recentTransactions: Transaction[];
+    appBilling?: AppBilling;
   }>("/billing");
 
   return {
     billing: response.billing,
     usage: response.usage,
     recentTransactions: response.recentTransactions,
+    appBilling: response.appBilling,
   };
 }
 
-interface CreditPack {
-  id: string;
-  name: string;
-  description: string | null;
-  credits: string;
-  price: string;
-  bonusCredits: string | null;
-  isPopular: boolean;
-}
 
 export async function getCreditPacks(): Promise<CreditPack[]> {
   const response = await fetchApi<{
@@ -567,20 +440,67 @@ export async function createCheckoutSession(params: {
 }
 
 // ============================================
-// Export types
+// Referrals & Rewards
+// ============================================
+
+
+export async function getReferralInfo(): Promise<ReferralInfo> {
+  const response = await fetchApi<{ success: boolean; referral: ReferralInfo }>("/referral");
+  return response.referral;
+}
+
+export async function applyReferralCode(code: string): Promise<{ success: boolean; message: string; bonusAmount?: number }> {
+  return fetchApi<{ success: boolean; message: string; bonusAmount?: number }>("/referral/apply", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+
+export async function getRewardsStatus(): Promise<RewardsStatus> {
+  const response = await fetchApi<{ success: boolean; rewards: RewardsStatus }>("/rewards");
+  return response.rewards;
+}
+
+export async function claimShareReward(
+  platform: "x" | "farcaster" | "telegram" | "discord",
+  shareType: "app_share" | "character_share" | "invite_share",
+  shareUrl?: string
+): Promise<{ success: boolean; message: string; amount?: number; alreadyAwarded?: boolean }> {
+  return fetchApi<{ success: boolean; message: string; amount?: number; alreadyAwarded?: boolean }>("/rewards/share", {
+    method: "POST",
+    body: JSON.stringify({ platform, shareType, shareUrl }),
+  });
+}
+
+/**
+ * Qualify a referral by notifying that the user has linked a social account.
+ * Awards the referrer their qualified bonus if this user was referred.
+ */
+export async function qualifyReferral(): Promise<{ success: boolean; qualified: boolean; bonusAwarded?: number }> {
+  return fetchApi<{ success: boolean; qualified: boolean; bonusAwarded?: number }>("/referral/qualify", {
+    method: "POST",
+  });
+}
+
+// ============================================
+// Re-export types for convenience
 // ============================================
 
 export type {
   Agent,
   AgentDetails,
   Billing,
+  AppBilling,
   Chat,
   CreditPack,
   Message,
   MessageAttachment,
   Organization,
   Pagination,
+  StreamCallbacks,
   Transaction,
   UsageSummary,
   User,
-};
+  ReferralInfo,
+  RewardsStatus,
+} from "./types";

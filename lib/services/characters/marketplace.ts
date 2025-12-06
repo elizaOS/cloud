@@ -94,19 +94,10 @@ export class CharacterMarketplaceService {
     if (includeStats || deployed !== undefined) {
       // Batch fetch stats to avoid N+1 queries
       const characterIds = enrichedCharacters.map((char) => char.id);
-      let statsMap: Map<string, AgentStats> = new Map();
-
-      try {
-        statsMap =
-          await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(
-            characterIds,
-          );
-      } catch (error) {
-        logger.warn(
-          `[Character Marketplace] Failed to batch fetch stats:`,
-          error,
+      const statsMap =
+        await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(
+          characterIds,
         );
-      }
 
       // Enrich with stats
       enrichedCharacters = enrichedCharacters.map((char) => {
@@ -191,37 +182,21 @@ export class CharacterMarketplaceService {
 
     const categoriesWithCounts = await Promise.all(
       allCategories.map(async (category) => {
-        try {
-          const count = await userCharactersRepository.count(
-            { category: category.id },
-            userId,
-            organizationId,
-          );
+        const count = await userCharactersRepository.count(
+          { category: category.id },
+          userId,
+          organizationId,
+        );
 
-          return {
-            id: category.id,
-            name: category.name,
-            description: category.description,
-            icon: category.icon,
-            color: category.color,
-            characterCount: count,
-            featured: false,
-          };
-        } catch (error) {
-          logger.error(
-            `[Character Marketplace] Error getting count for category ${category.id}:`,
-            error,
-          );
-          return {
-            id: category.id,
-            name: category.name,
-            description: category.description,
-            icon: category.icon,
-            color: category.color,
-            characterCount: 0,
-            featured: false,
-          };
-        }
+        return {
+          id: category.id,
+          name: category.name,
+          description: category.description,
+          icon: category.icon,
+          color: category.color,
+          characterCount: count,
+          featured: false,
+        };
       }),
     );
 
@@ -250,27 +225,20 @@ export class CharacterMarketplaceService {
     let extended = this.toExtendedCharacter(character);
 
     if (includeStats) {
-      try {
-        const stats =
-          await characterDeploymentDiscoveryService.getCharacterStatistics(
-            characterId,
-          );
-        extended = {
-          ...extended,
-          stats: {
-            messageCount: stats.messageCount,
-            roomCount: stats.roomCount ?? 0,
-            lastActiveAt: stats.lastActiveAt,
-            deploymentStatus: stats.status,
-            uptime: stats.uptime,
-          },
-        };
-      } catch (error) {
-        logger.warn(
-          `[Character Marketplace] Failed to get stats for ${characterId}:`,
-          error,
+      const stats =
+        await characterDeploymentDiscoveryService.getCharacterStatistics(
+          characterId,
         );
-      }
+      extended = {
+        ...extended,
+        stats: {
+          messageCount: stats.messageCount,
+          roomCount: stats.roomCount ?? 0,
+          lastActiveAt: stats.lastActiveAt,
+          deploymentStatus: stats.status,
+          uptime: stats.uptime,
+        },
+      };
     }
 
     await marketplaceCache.setCharacter(characterId, extended);
@@ -328,6 +296,7 @@ export class CharacterMarketplaceService {
       view_count: 0,
       interaction_count: 0,
       popularity_score: 0,
+      source: "cloud", // Cloned from cloud dashboard
     };
 
     const clonedCharacter = await userCharactersRepository.create(clonedData);
@@ -345,66 +314,44 @@ export class CharacterMarketplaceService {
    * Track character view (for analytics)
    */
   async trackView(characterId: string): Promise<TrackingResponse> {
-    try {
-      await userCharactersRepository.incrementViewCount(characterId);
+    await userCharactersRepository.incrementViewCount(characterId);
 
-      const character = await userCharactersRepository.findById(characterId);
-      const viewCount = character?.view_count || 0;
+    const character = await userCharactersRepository.findById(characterId);
+    const viewCount = character?.view_count || 0;
 
-      await marketplaceCache.invalidateCharacter(characterId);
+    await marketplaceCache.invalidateCharacter(characterId);
 
-      logger.debug(
-        `[Character Marketplace] Tracked view for character: ${characterId}`,
-      );
+    logger.debug(
+      `[Character Marketplace] Tracked view for character: ${characterId}`,
+    );
 
-      return {
-        success: true,
-        count: viewCount,
-      };
-    } catch (error) {
-      logger.error(
-        `[Character Marketplace] Error tracking view for ${characterId}:`,
-        error,
-      );
-      return {
-        success: false,
-        count: 0,
-      };
-    }
+    return {
+      success: true,
+      count: viewCount,
+    };
   }
 
   /**
    * Track character interaction (for analytics)
    */
   async trackInteraction(characterId: string): Promise<TrackingResponse> {
-    try {
-      await userCharactersRepository.incrementInteractionCount(characterId);
+    await userCharactersRepository.incrementInteractionCount(characterId);
 
-      await this.updatePopularityScore(characterId);
+    await this.updatePopularityScore(characterId);
 
-      const character = await userCharactersRepository.findById(characterId);
-      const interactionCount = character?.interaction_count || 0;
+    const character = await userCharactersRepository.findById(characterId);
+    const interactionCount = character?.interaction_count || 0;
 
-      await marketplaceCache.invalidateCharacter(characterId);
+    await marketplaceCache.invalidateCharacter(characterId);
 
-      logger.debug(
-        `[Character Marketplace] Tracked interaction for character: ${characterId}`,
-      );
+    logger.debug(
+      `[Character Marketplace] Tracked interaction for character: ${characterId}`,
+    );
 
-      return {
-        success: true,
-        count: interactionCount,
-      };
-    } catch (error) {
-      logger.error(
-        `[Character Marketplace] Error tracking interaction for ${characterId}:`,
-        error,
-      );
-      return {
-        success: false,
-        count: 0,
-      };
-    }
+    return {
+      success: true,
+      count: interactionCount,
+    };
   }
 
   /**
@@ -646,35 +593,19 @@ export class CharacterMarketplaceService {
 
     const categoriesWithCounts = await Promise.all(
       allCategories.map(async (category) => {
-        try {
-          const count = await userCharactersRepository.countPublic({
-            category: category.id,
-          });
+        const count = await userCharactersRepository.countPublic({
+          category: category.id,
+        });
 
-          return {
-            id: category.id,
-            name: category.name,
-            description: category.description,
-            icon: category.icon,
-            color: category.color,
-            characterCount: count,
-            featured: false,
-          };
-        } catch (error) {
-          logger.error(
-            `[Character Marketplace] Error getting count for category ${category.id}:`,
-            error,
-          );
-          return {
-            id: category.id,
-            name: category.name,
-            description: category.description,
-            icon: category.icon,
-            color: category.color,
-            characterCount: 0,
-            featured: false,
-          };
-        }
+        return {
+          id: category.id,
+          name: category.name,
+          description: category.description,
+          icon: category.icon,
+          color: category.color,
+          characterCount: count,
+          featured: false,
+        };
       }),
     );
 

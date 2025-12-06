@@ -74,6 +74,8 @@ export * from "./memory";
 export { appsService } from "./apps";
 export { appAnalyticsService } from "./app-analytics";
 export { appSignupTrackingService } from "./app-signup-tracking";
+export { appCreditsService } from "./app-credits";
+export { appEarningsService } from "./app-earnings";
 
 // AWS Infrastructure services
 export * from "./ecr";
@@ -98,6 +100,22 @@ export { paymentMethodsService } from "./payment-methods";
 export { purchasesService, PURCHASE_LIMITS } from "./purchases";
 export { autoTopUpService, AUTO_TOP_UP_LIMITS } from "./auto-top-up";
 export { invoicesService } from "./invoices";
+
+// Referral & rewards services
+export { referralsService, socialRewardsService, REWARDS } from "./referrals";
+
+// Abuse detection
+export { abuseDetectionService } from "./abuse-detection";
+export type { AbuseCheckResult, SignupContext } from "./abuse-detection";
+
+// Agent monitoring
+export { agentMonitoringService } from "./agent-monitoring";
+export type {
+  AgentStatus,
+  AgentLogEntry,
+  AgentStatusResponse,
+  AgentEventResponse,
+} from "./agent-monitoring";
 
 // ============================================
 // Backward Compatibility (Deprecated)

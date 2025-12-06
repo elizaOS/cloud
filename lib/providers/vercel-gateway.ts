@@ -1,4 +1,9 @@
-// lib/providers/vercel-gateway.ts
+/**
+ * Vercel AI Gateway provider implementation.
+ *
+ * Provides OpenAI-compatible API access through Vercel AI Gateway.
+ */
+
 import type {
   AIProvider,
   OpenAIChatRequest,
@@ -6,6 +11,9 @@ import type {
 } from "./types";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * Gateway error response structure.
+ */
 interface GatewayError {
   error: {
     message: string;
@@ -14,6 +22,9 @@ interface GatewayError {
   };
 }
 
+/**
+ * Vercel AI Gateway provider implementation.
+ */
 export class VercelGatewayProvider implements AIProvider {
   name = "vercel-gateway";
   private baseUrl = "https://ai-gateway.vercel.sh/v1";

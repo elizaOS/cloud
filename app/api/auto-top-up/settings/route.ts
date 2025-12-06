@@ -37,7 +37,10 @@ const updateSettingsSchema = z.object({
 
 /**
  * GET /api/auto-top-up/settings
- * Get auto top-up settings for the current organization
+ * Gets auto top-up settings for the authenticated user's organization.
+ *
+ * @param req - The Next.js request object.
+ * @returns Auto top-up settings including enabled status, amount, and threshold.
  */
 async function handleGetSettings(req: NextRequest) {
   try {
@@ -65,7 +68,10 @@ async function handleGetSettings(req: NextRequest) {
 
 /**
  * POST /api/auto-top-up/settings
- * Update auto top-up settings for the current organization
+ * Updates auto top-up settings for the authenticated user's organization.
+ *
+ * @param req - Request body with optional enabled, amount, and threshold fields.
+ * @returns Updated auto top-up settings.
  */
 async function handleUpdateSettings(req: NextRequest) {
   try {

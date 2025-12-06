@@ -1,6 +1,11 @@
 /**
- * Main Sidebar Navigation Component
- * Memoized to prevent unnecessary re-renders from parent state changes
+ * Main sidebar navigation component with responsive mobile support.
+ * Memoized to prevent unnecessary re-renders from parent state changes.
+ *
+ * @param props - Sidebar configuration
+ * @param props.className - Additional CSS classes
+ * @param props.isOpen - Whether sidebar is open (mobile)
+ * @param props.onToggle - Callback to toggle sidebar visibility
  */
 
 "use client";

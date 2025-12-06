@@ -14,9 +14,35 @@ import {
   invitesService,
   discordService,
   apiKeysService,
+  creditsService,
+  abuseDetectionService,
+  type SignupContext,
 } from "@/lib/services";
 import type { UserWithOrganization } from "@/lib/types";
 
+const DEFAULT_INITIAL_CREDITS = 5.0;
+const getInitialCredits = (): number => {
+  const envValue = process.env.INITIAL_FREE_CREDITS;
+  if (envValue) {
+    const parsed = parseFloat(envValue);
+    if (!isNaN(parsed) && parsed >= 0) {
+      return parsed;
+    }
+  }
+  return DEFAULT_INITIAL_CREDITS;
+};
+
+export interface SyncOptions {
+  signupContext?: SignupContext;
+  skipAbuseCheck?: boolean;
+}
+
+/**
+ * Generates a unique organization slug from an email address.
+ *
+ * @param email - Email address.
+ * @returns Unique slug string.
+ */
 function generateSlugFromEmail(email: string): string {
   const username = email.split("@")[0];
   const sanitized = username.toLowerCase().replace(/[^a-z0-9]/g, "-");
@@ -25,6 +51,12 @@ function generateSlugFromEmail(email: string): string {
   return `${sanitized}-${timestamp}${random}`;
 }
 
+/**
+ * Generates a unique organization slug from a wallet address.
+ *
+ * @param walletAddress - Wallet address.
+ * @returns Unique slug string.
+ */
 function generateSlugFromWallet(walletAddress: string): string {
   const shortAddress = walletAddress.substring(0, 8);
   const sanitized = shortAddress.toLowerCase().replace(/[^a-z0-9]/g, "-");
@@ -33,8 +65,10 @@ function generateSlugFromWallet(walletAddress: string): string {
   return `wallet-${sanitized}-${timestamp}${random}`;
 }
 
-// Define flexible interface for Privy user data
-// Handles both webhook payload and SDK User type
+/**
+ * Flexible interface for Privy user data.
+ * Handles both webhook payload and SDK User type.
+ */
 interface PrivyUserData {
   id: string;
   email?: { address: string };
@@ -54,7 +88,9 @@ interface PrivyUserData {
  */
 export async function syncUserFromPrivy(
   privyUser: PrivyUserData,
+  options: SyncOptions = {},
 ): Promise<UserWithOrganization> {
+  const { signupContext, skipAbuseCheck = false } = options;
   const privyUserId = privyUser.id;
 
   // Extract email
@@ -249,6 +285,26 @@ export async function syncUserFromPrivy(
   }
 
   // Create new user and organization
+
+  // Check for abuse before creating new account
+  if (!skipAbuseCheck && signupContext) {
+    const abuseCheck = await abuseDetectionService.checkSignupAbuse({
+      email,
+      ipAddress: signupContext.ipAddress,
+      fingerprint: signupContext.fingerprint,
+      userAgent: signupContext.userAgent,
+    });
+
+    if (!abuseCheck.allowed) {
+      console.warn("[PrivySync] Signup blocked due to abuse detection:", {
+        privyUserId,
+        riskScore: abuseCheck.riskScore,
+        flags: abuseCheck.flags,
+      });
+      throw new Error(abuseCheck.reason || "Signup blocked due to suspicious activity");
+    }
+  }
+
   let orgSlug: string;
   if (email) {
     orgSlug = generateSlugFromEmail(email);
@@ -272,13 +328,39 @@ export async function syncUserFromPrivy(
       : generateSlugFromWallet(walletAddress!);
   }
 
-  // Create organization
-  const INITIAL_BALANCE = 5.0; // $5.00 USD starting balance
+  // Create organization with zero balance initially
   const organization = await organizationsService.create({
     name: `${name}'s Organization`,
     slug: orgSlug,
-    credit_balance: String(INITIAL_BALANCE),
+    credit_balance: "0.00",
   });
+
+  // Record signup metadata for future abuse detection
+  if (signupContext) {
+    await abuseDetectionService.recordSignupMetadata(organization.id, signupContext);
+  }
+
+  // Add initial free credits via creditsService for proper tracking
+  const initialCredits = getInitialCredits();
+  if (initialCredits > 0) {
+    try {
+      await creditsService.addCredits({
+        organizationId: organization.id,
+        amount: initialCredits,
+        description: "Initial free credits - Welcome bonus",
+        metadata: {
+          type: "initial_free_credits",
+          source: "signup",
+        },
+      });
+    } catch (error) {
+      console.error("[PrivySync] Failed to add initial credits:", error);
+      // Fallback: update organization balance directly if addCredits fails
+      await organizationsService.update(organization.id, {
+        credit_balance: String(initialCredits),
+      });
+    }
+  }
 
   // Create user - handle race condition where another request created the user
   try {
@@ -338,14 +420,7 @@ export async function syncUserFromPrivy(
               `User with email ${email} already exists with different Privy ID: ${existingUser.privy_user_id}`,
             );
             // Clean up orphaned org and throw - this is a data integrity issue
-            try {
-              await organizationsService.delete(organization.id);
-            } catch (cleanupError) {
-              console.error(
-                "Failed to clean up orphaned organization:",
-                cleanupError,
-              );
-            }
+            await organizationsService.delete(organization.id);
             throw new Error(
               `Email ${email} is already registered with a different account`,
             );
@@ -356,14 +431,7 @@ export async function syncUserFromPrivy(
 
       if (existingUser) {
         // Clean up the orphaned organization we just created
-        try {
-          await organizationsService.delete(organization.id);
-        } catch (cleanupError) {
-          console.error(
-            "Failed to clean up orphaned organization:",
-            cleanupError,
-          );
-        }
+        await organizationsService.delete(organization.id);
         return existingUser;
       }
 
@@ -371,14 +439,7 @@ export async function syncUserFromPrivy(
       console.error(
         `Duplicate key error but user ${privyUserId} not found after ${maxRetries} retries - cleaning up and rethrowing`,
       );
-      try {
-        await organizationsService.delete(organization.id);
-      } catch (cleanupError) {
-        console.error(
-          "Failed to clean up orphaned organization:",
-          cleanupError,
-        );
-      }
+      await organizationsService.delete(organization.id);
     }
     // Not a duplicate key error or couldn't find the existing user - rethrow
     console.error(
@@ -402,7 +463,7 @@ export async function syncUserFromPrivy(
       email: recipientEmail,
       userName: name || "there",
       organizationName: userWithOrg.organization?.name || "",
-      creditBalance: Number(userWithOrg.organization?.credit_balance || 0),
+      creditBalance: initialCredits,
     }).catch((error) => {
       console.error("[PrivySync] Failed to send welcome email:", error);
     });
@@ -426,16 +487,9 @@ export async function syncUserFromPrivy(
       role: userWithOrg.role,
       isNewOrganization: true,
     })
-    .catch((error) => {
-      console.error("[PrivySync] Failed to log signup to Discord:", error);
-    });
 
   // Auto-generate default API key for new user (fire-and-forget)
-  ensureUserHasApiKey(userWithOrg.id, userWithOrg.organization?.id || "").catch(
-    (error) => {
-      console.error("[PrivySync] Failed to create default API key:", error);
-    },
-  );
+  void ensureUserHasApiKey(userWithOrg.id, userWithOrg.organization?.id || "");
 
   return userWithOrg;
 }
@@ -443,6 +497,13 @@ export async function syncUserFromPrivy(
 /**
  * Ensure user has a default API key for programmatic access
  * Creates one if it doesn't exist
+ */
+/**
+ * Ensures a user has a default API key for programmatic access.
+ * Creates one if it doesn't exist.
+ *
+ * @param userId - User ID.
+ * @param organizationId - Organization ID.
  */
 async function ensureUserHasApiKey(
   userId: string,
@@ -487,18 +548,19 @@ async function ensureUserHasApiKey(
   }
 }
 
+/**
+ * Queues a welcome email to be sent to a new user.
+ *
+ * @param data - Welcome email data.
+ */
 async function queueWelcomeEmail(data: {
   email: string;
   userName: string;
   organizationName: string;
   creditBalance: number;
 }): Promise<void> {
-  try {
-    await emailService.sendWelcomeEmail({
-      ...data,
-      dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
-    });
-  } catch (error) {
-    console.error("[PrivySync] Error sending welcome email:", error);
-  }
+  await emailService.sendWelcomeEmail({
+    ...data,
+    dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
+  });
 }

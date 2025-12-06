@@ -1,3 +1,7 @@
+/**
+ * Server actions for dashboard data.
+ */
+
 "use server";
 
 import { requireAuthWithOrg } from "@/lib/auth";
@@ -12,14 +16,18 @@ import {
 import { cache as cacheClient } from "@/lib/cache/client";
 import { CacheKeys, CacheStaleTTL } from "@/lib/cache/keys";
 import { cache } from "react";
+import type { AgentStats } from "@/lib/cache/agent-state-cache";
 
-export interface AgentStats {
-  roomCount: number;
-  messageCount: number;
-  deploymentStatus: "deployed" | "stopped" | "draft";
-  lastActiveAt: Date | null;
-}
+/**
+ * Display version of AgentStats for dashboard (without cache-specific fields).
+ */
+export type DashboardAgentStats = Omit<AgentStats, "agentId" | "uptime"> & {
+  deploymentStatus: AgentStats["status"];
+};
 
+/**
+ * Complete dashboard data for a user's organization.
+ */
 export interface DashboardData {
   user: {
     name: string;
@@ -42,7 +50,7 @@ export interface DashboardData {
     avatarUrl: string | null;
     category: string | null;
     isPublic: boolean;
-    stats?: AgentStats;
+    stats?: DashboardAgentStats;
   }>;
   containers: Array<{
     id: string;
@@ -61,7 +69,12 @@ export interface DashboardData {
   }>;
 }
 
-// Internal function to fetch dashboard data (not cached at React level)
+/**
+ * Internal function to fetch dashboard data (not cached at React level).
+ *
+ * @param user - Authenticated user with organization.
+ * @returns Dashboard data including stats, agents, and containers.
+ */
 async function fetchDashboardDataInternal(
   user: Awaited<ReturnType<typeof requireAuthWithOrg>>,
 ): Promise<DashboardData> {
@@ -91,7 +104,7 @@ async function fetchDashboardDataInternal(
 
   // Fetch agent stats in batch
   const characterIds = userCharacters.map((c) => c.id);
-  const agentStatsMap = new Map<string, AgentStats>();
+  const agentStatsMap = new Map<string, DashboardAgentStats>();
 
   if (characterIds.length > 0) {
     try {
@@ -106,7 +119,7 @@ async function fetchDashboardDataInternal(
         });
       });
     } catch (error) {
-      console.warn("[Dashboard] Failed to fetch agent stats:", error);
+      logger.error("[getDashboardData] Failed to fetch agent stats:", error);
     }
   }
 
@@ -154,7 +167,13 @@ async function fetchDashboardDataInternal(
   };
 }
 
-// React-cached version for request deduplication
+/**
+ * Gets dashboard data for the current user's organization.
+ *
+ * Uses React cache for request deduplication and stale-while-revalidate caching.
+ *
+ * @returns Dashboard data including stats, agents, and containers.
+ */
 export const getDashboardData = cache(async (): Promise<DashboardData> => {
   const user = await requireAuthWithOrg();
   const organizationId = user.organization_id!;

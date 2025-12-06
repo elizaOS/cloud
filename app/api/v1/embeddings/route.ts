@@ -22,8 +22,14 @@ import type { NextRequest } from "next/server";
 
 export const maxDuration = 60;
 
-// Using shared OpenAI embeddings types
-
+/**
+ * POST /api/v1/embeddings
+ * OpenAI-compatible embeddings endpoint.
+ * Generates vector embeddings for text input with credit deduction.
+ *
+ * @param req - OpenAI-format request with model and input (string or array).
+ * @returns Embeddings response with vector arrays.
+ */
 async function handlePOST(req: NextRequest) {
   try {
     const { user, apiKey, session_token } =
@@ -188,33 +194,29 @@ async function handlePOST(req: NextRequest) {
       }
 
       // Background analytics (not critical for billing)
-      (async () => {
-        try {
-          await usageService.create({
-            organization_id: user.organization_id!!,
-            user_id: user.id,
-            api_key_id: apiKey?.id || null,
-            type: "embeddings",
-            model: normalizedModel,
-            provider: providerName,
-            input_tokens: data.usage.prompt_tokens,
-            output_tokens: 0,
-            input_cost: String(inputCost),
-            output_cost: String(0),
-            is_successful: true,
-          });
+      void (async () => {
+        await usageService.create({
+          organization_id: user.organization_id!!,
+          user_id: user.id,
+          api_key_id: apiKey?.id || null,
+          type: "embeddings",
+          model: normalizedModel,
+          provider: providerName,
+          input_tokens: data.usage.prompt_tokens,
+          output_tokens: 0,
+          input_cost: String(inputCost),
+          output_cost: String(0),
+          is_successful: true,
+        });
 
-          logger.info("[OpenAI Proxy] Embeddings completed", {
-            model: request.model,
-            normalizedModel,
-            provider: providerName,
-            tokens: tokensUsed,
-            cost: String(totalCost),
-          });
-        } catch (error) {
-          logger.error("[OpenAI Proxy] Embeddings analytics error:", error);
-        }
-      })().catch(() => {});
+        logger.info("[OpenAI Proxy] Embeddings completed", {
+          model: request.model,
+          normalizedModel,
+          provider: providerName,
+          tokens: tokensUsed,
+          cost: String(totalCost),
+        });
+      })();
     }
 
     return Response.json(data);

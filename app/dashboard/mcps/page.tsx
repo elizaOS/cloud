@@ -103,6 +103,12 @@ const demoMcpServers = [
   },
 ];
 
+/**
+ * MCP Servers page displaying available Model Context Protocol servers.
+ * Shows statistics (total MCPs, live servers, x402 enabled, total tools) and server cards.
+ *
+ * @returns The rendered MCP servers page with statistics and server explorer.
+ */
 export default async function MCPsPage() {
   const user = await requireAuthWithOrg();
 

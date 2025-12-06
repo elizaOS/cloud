@@ -8,6 +8,13 @@ import { BrandCard, CornerBrackets } from "@/components/brand";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Containers page displaying all containers deployed by the authenticated user's organization.
+ * Shows statistics (total, running, building, failed) and a table of containers.
+ * Displays quick start instructions when no containers exist.
+ *
+ * @returns The rendered containers page with statistics and containers table.
+ */
 export default async function ContainersPage() {
   const user = await requireAuthWithOrg();
   const containers = await listContainers(user.organization_id);

@@ -1,3 +1,16 @@
+/**
+ * Filter bar component for character marketplace filtering and sorting.
+ * Supports sort options and filter toggles for voice, deployment status, etc.
+ *
+ * @param props - Filter bar configuration
+ * @param props.sortBy - Current sort option
+ * @param props.onSortChange - Callback when sort changes
+ * @param props.filters - Current filter state
+ * @param props.onToggleFilter - Callback when filter is toggled
+ * @param props.hasActiveFilters - Whether any filters are active
+ * @param props.onClearFilters - Callback to clear all filters
+ */
+
 "use client";
 
 import { Badge } from "@/components/ui/badge";

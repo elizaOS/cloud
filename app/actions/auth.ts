@@ -4,8 +4,10 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { organizationsService } from "@/lib/services";
 
 /**
- * Server action to get user's organization credit balance
- * Note: Requires authenticated user with organization (excludes anonymous users)
+ * Gets the credit balance for the authenticated user's organization.
+ *
+ * @returns The organization's credit balance as a number, or 0 if not found.
+ * @throws If the user is not authenticated or doesn't have an organization.
  */
 export async function getCreditBalance(): Promise<number> {
   const user = await requireAuthWithOrg();

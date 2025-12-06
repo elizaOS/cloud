@@ -30,25 +30,23 @@ export default function AgentChatsPage() {
     if (!authenticated || !agentId) return;
 
     async function findOrCreateChat() {
-      try {
-        // Try to get existing chats
-        const { chats } = await listChats(agentId, { limit: 1 });
-        
-        if (chats.length > 0) {
-          // Redirect to most recent chat
-          router.replace(`/chats/${agentId}/${chats[0].id}`);
-        } else {
-          // Create a new chat
-          const newChat = await createChat(agentId);
-          router.replace(`/chats/${agentId}/${newChat.id}`);
-        }
-      } catch (err) {
-        console.error("Failed to load/create chat:", err);
-        setError(err instanceof Error ? err.message : "Failed to load chat");
+      // Try to get existing chats
+      const { chats } = await listChats(agentId, { limit: 1 });
+      
+      if (chats.length > 0) {
+        // Redirect to most recent chat
+        router.replace(`/chats/${agentId}/${chats[0].id}`);
+      } else {
+        // Create a new chat
+        const newChat = await createChat(agentId);
+        router.replace(`/chats/${agentId}/${newChat.id}`);
       }
     }
 
-    findOrCreateChat();
+    findOrCreateChat().catch((err) => {
+      console.error("Failed to load/create chat:", err);
+      setError(err instanceof Error ? err.message : "Failed to load chat");
+    });
   }, [authenticated, agentId, router]);
 
   if (error) {

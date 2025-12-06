@@ -1,18 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services";
 import { logger } from "@/lib/utils/logger";
 
 /**
  * POST /api/v1/apps/[id]/regenerate-api-key
- * Regenerate the API key for an app
+ * Regenerates the API key for an app, invalidating the old key.
+ * The new key is only returned once. Requires ownership verification.
+ *
+ * @param request - The Next.js request object.
+ * @param params - Route parameters containing the app ID.
+ * @returns New API key (only shown once).
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
 
     // Verify the app exists and belongs to the user's organization

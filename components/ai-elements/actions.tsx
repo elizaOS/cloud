@@ -1,3 +1,8 @@
+/**
+ * Actions component container for action buttons with tooltip support.
+ * Provides Action component for individual action buttons with optional tooltips.
+ */
+
 "use client";
 
 import { Button } from "@/components/ui/button";

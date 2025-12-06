@@ -26,6 +26,9 @@ import type { UserCharacter } from "@/db/repositories";
 // Re-export AgentStats for convenience
 export type { AgentStats };
 
+/**
+ * Filters for character discovery.
+ */
 export interface CharacterDiscoveryFilters {
   deployed?: boolean;
   template?: boolean;
@@ -57,6 +60,9 @@ export interface DiscoveredCharacterInfo {
   lastActiveAt?: Date | null;
 }
 
+/**
+ * Result of listing characters with discovery information.
+ */
 export interface CharacterListResult {
   characters: DiscoveredCharacterInfo[];
   total: number;
@@ -165,14 +171,7 @@ export class CharacterDeploymentDiscoveryService {
    * Fetch active containers for deployment status
    */
   private async fetchContainers(organizationId: string) {
-    try {
-      return await containersService.listByOrganization(organizationId);
-    } catch (error) {
-      logger.warn(
-        `[Character Discovery] Error fetching containers: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-      return [];
-    }
+    return await containersService.listByOrganization(organizationId);
   }
 
   /**
@@ -236,105 +235,17 @@ export class CharacterDeploymentDiscoveryService {
    * @returns Character statistics
    */
   async getCharacterStatistics(characterId: string): Promise<AgentStats> {
-    try {
-      // Check cache first
-      const cached = await agentStateCache.getAgentStats(characterId);
-      if (cached) {
-        return cached;
-      }
+    // Check cache first
+    const cached = await agentStateCache.getAgentStats(characterId);
+    if (cached) {
+      return cached;
+    }
 
-      // Check if character is deployed by looking for a container
-      const container = await containersService.getByCharacterId(characterId);
+    // Check if character is deployed by looking for a container
+    const container = await containersService.getByCharacterId(characterId);
 
-      // If no container exists, character is not deployed - return empty stats
-      if (!container) {
-        const emptyStats: AgentStats = {
-          agentId: characterId,
-          messageCount: 0,
-          roomCount: 0,
-          lastActiveAt: null,
-          uptime: 0,
-          status: "draft",
-        };
-        await agentStateCache.setAgentStats(characterId, emptyStats);
-        return emptyStats;
-      }
-
-      // Determine deployment status
-      const status: "deployed" | "stopped" | "draft" =
-        container.status === "running" ? "deployed" : "stopped";
-
-      // Character is deployed - fetch statistics from database directly
-      const { memoriesRepository } = await import("@/db/repositories");
-      const { roomsRepository } = await import("@/db/repositories/agents");
-
-      // Get message count for this character's agent across all rooms
-      let messageCount = 0;
-      try {
-        messageCount =
-          await memoriesRepository.countMessagesByAgent(characterId);
-      } catch (error) {
-        logger.warn(
-          `[Character Discovery] Error fetching message count for ${characterId}:`,
-          error,
-        );
-        messageCount = 0;
-      }
-
-      // Get room count
-      let roomCount = 0;
-      try {
-        roomCount = await roomsRepository.countByAgentId(characterId);
-      } catch (error) {
-        logger.warn(
-          `[Character Discovery] Error fetching room count for ${characterId}:`,
-          error,
-        );
-      }
-
-      // Determine last active time from most recent message
-      let lastActiveAt: Date | null = null;
-      try {
-        lastActiveAt = await memoriesRepository.getLastMessageTime(characterId);
-      } catch (error) {
-        logger.warn(
-          `[Character Discovery] Error fetching last active time for ${characterId}:`,
-          error,
-        );
-      }
-
-      // Calculate uptime (time since last deployment)
-      let uptime = 0;
-      try {
-        if (container?.last_deployed_at && status === "deployed") {
-          uptime = Date.now() - new Date(container.last_deployed_at).getTime();
-        }
-      } catch (error) {
-        logger.warn(
-          `[Character Discovery] Unable to calculate uptime for ${characterId}:`,
-          error,
-        );
-      }
-
-      const stats: AgentStats = {
-        agentId: characterId,
-        messageCount,
-        roomCount,
-        lastActiveAt,
-        uptime,
-        status,
-      };
-
-      // Cache the stats (5 minute TTL)
-      await agentStateCache.setAgentStats(characterId, stats);
-
-      return stats;
-    } catch (error) {
-      logger.debug(
-        `[Character Discovery] Could not fetch stats for ${characterId} (likely not deployed)`,
-      );
-
-      // Return and cache empty stats
+    // If no container exists, character is not deployed - return empty stats
+    if (!container) {
       const emptyStats: AgentStats = {
         agentId: characterId,
         messageCount: 0,
@@ -343,12 +254,47 @@ export class CharacterDeploymentDiscoveryService {
         uptime: 0,
         status: "draft",
       };
-
-      // Cache to avoid repeated failed lookups
       await agentStateCache.setAgentStats(characterId, emptyStats);
-
       return emptyStats;
     }
+
+    // Determine deployment status
+    const status: "deployed" | "stopped" | "draft" = 
+      container.status === "running" ? "deployed" : "stopped";
+
+    // Character is deployed - fetch statistics from database directly
+    const { memoriesRepository } = await import("@/db/repositories");
+    const { roomsRepository } = await import("@/db/repositories/agents");
+
+    // Get message count for this character's agent across all rooms
+    const messageCount = await memoriesRepository.countMessagesByAgent(characterId);
+
+    // Get room count
+    const roomCount = await roomsRepository.countByAgentId(characterId);
+
+    // Determine last active time from most recent message
+    const lastActiveAt = await memoriesRepository.getLastMessageTime(characterId);
+
+    // Calculate uptime (time since last deployment)
+    let uptime = 0;
+    if (container?.last_deployed_at && status === "deployed") {
+      uptime =
+        Date.now() - new Date(container.last_deployed_at).getTime();
+    }
+
+    const stats: AgentStats = {
+      agentId: characterId,
+      messageCount,
+      roomCount,
+      lastActiveAt,
+      uptime,
+      status,
+    };
+
+    // Cache the stats (5 minute TTL)
+    await agentStateCache.setAgentStats(characterId, stats);
+
+    return stats;
   }
 
   /**
@@ -381,51 +327,33 @@ export class CharacterDeploymentDiscoveryService {
       return statsMap;
     }
 
-    try {
-      // Get containers for all uncached characters in one query
-      const containers =
-        await containersService.listByCharacterIds(uncachedIds);
-      const containerMap = new Map(containers.map((c) => [c.character_id!, c]));
+    // Get containers for all uncached characters in one query
+    const containers =
+      await containersService.listByCharacterIds(uncachedIds);
+    const containerMap = new Map(containers.map((c) => [c.character_id!, c]));
 
-      // Process each uncached character
-      for (const characterId of uncachedIds) {
-        const container = containerMap.get(characterId);
+    // Process each uncached character
+    for (const characterId of uncachedIds) {
+      const container = containerMap.get(characterId);
 
-        // If no container, return empty stats
-        if (!container) {
-          const emptyStats: AgentStats = {
-            agentId: characterId,
-            messageCount: 0,
-            roomCount: 0,
-            lastActiveAt: null,
-            uptime: 0,
-            status: "draft",
-          };
-          await agentStateCache.setAgentStats(characterId, emptyStats);
-          statsMap.set(characterId, emptyStats);
-          continue;
-        }
-
-        // For deployed characters, fetch individual stats
-        const stats = await this.getCharacterStatistics(characterId);
-        statsMap.set(characterId, stats);
+      // If no container, return empty stats
+      if (!container) {
+        const emptyStats: AgentStats = {
+          agentId: characterId,
+          messageCount: 0,
+          roomCount: 0,
+          lastActiveAt: null,
+          uptime: 0,
+          status: "draft",
+        };
+        await agentStateCache.setAgentStats(characterId, emptyStats);
+        statsMap.set(characterId, emptyStats);
+        continue;
       }
-    } catch (error) {
-      logger.warn(`[Character Discovery] Error in batch stats fetch:`, error);
-      // Return empty stats for remaining characters
-      for (const characterId of uncachedIds) {
-        if (!statsMap.has(characterId)) {
-          const emptyStats: AgentStats = {
-            agentId: characterId,
-            messageCount: 0,
-            roomCount: 0,
-            lastActiveAt: null,
-            uptime: 0,
-            status: "draft",
-          };
-          statsMap.set(characterId, emptyStats);
-        }
-      }
+
+      // For deployed characters, fetch individual stats
+      const stats = await this.getCharacterStatistics(characterId);
+      statsMap.set(characterId, stats);
     }
 
     return statsMap;

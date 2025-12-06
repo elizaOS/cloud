@@ -1,3 +1,19 @@
+/**
+ * Character introduction page component displayed before starting a chat.
+ * Shows character information, bio, and email capture for anonymous users.
+ * Supports affiliate theming and authentication state handling.
+ *
+ * @param props - Character intro page configuration
+ * @param props.character - Character data to display
+ * @param props.onEmailSubmit - Callback when email is submitted
+ * @param props.onSkip - Callback when user skips email capture
+ * @param props.onAuthenticatedStart - Optional callback for authenticated users
+ * @param props.source - Optional source identifier
+ * @param props.theme - Affiliate theme configuration
+ * @param props.isLoading - Whether page is in loading state
+ * @param props.isAuthenticated - Whether user is authenticated
+ */
+
 "use client";
 
 import { useState } from "react";

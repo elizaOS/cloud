@@ -1,3 +1,7 @@
+/**
+ * Textarea component with auto-sizing and consistent styling.
+ * Supports validation states and accessibility attributes.
+ */
 import * as React from "react";
 
 import { cn } from "@/lib/utils";

@@ -13,8 +13,8 @@
 - Never make comments on PR
 
 ## TypeScript
-- Never use `any` or `unknown` types
-- Always provide explicit type definitions
+- Never use `any` or `unknown` types, always look for the actual types
+- Always use explicit type definitions, search for existing shared types before creating new ones
 
 ## AI/ML Libraries
 - Prefer to use Vercel AI SDK wherever possible for AI-related functionality
@@ -23,5 +23,4 @@
 ## Documentation
 - Use Context7 MCP for library documentation whenever needed
 
-## General
-- Continuously update cursor rules based on interactions and preferences
+Do not use try { } catch { } blocks unless they are absolutely necessary or handling user supplied data. Avoid defensive programming and implement clean code with fail-fast patterns.

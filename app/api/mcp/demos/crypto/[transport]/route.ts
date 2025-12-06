@@ -1,6 +1,69 @@
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 
+interface CoinGeckoPriceData {
+  [coinId: string]: {
+    [currency: string]: number;
+    usd_24h_change?: number;
+    usd_market_cap?: number;
+    usd_24h_vol?: number;
+  };
+}
+
+interface CoinGeckoMarketData {
+  id: string;
+  symbol: string;
+  name: string;
+  image?: { large?: string };
+  market_data?: {
+    current_price?: { usd?: number };
+    market_cap?: { usd?: number };
+    market_cap_rank?: number;
+    fully_diluted_valuation?: { usd?: number };
+    total_volume?: { usd?: number };
+    high_24h?: { usd?: number };
+    low_24h?: { usd?: number };
+    price_change_24h?: number;
+    price_change_percentage_24h?: number;
+    price_change_percentage_7d?: number;
+    price_change_percentage_30d?: number;
+    market_cap_change_24h?: number;
+    market_cap_change_percentage_24h?: number;
+    circulating_supply?: number;
+    total_supply?: number;
+    max_supply?: number;
+    ath?: { usd?: number };
+    ath_change_percentage?: { usd?: number };
+    ath_date?: { usd?: string };
+    atl?: { usd?: number };
+    atl_change_percentage?: { usd?: number };
+    atl_date?: { usd?: string };
+  };
+}
+
+interface CoinGeckoTrendingResponse {
+  coins?: Array<{
+    item: {
+      id: string;
+      coin_id?: number;
+      name: string;
+      symbol: string;
+      market_cap_rank?: number;
+      thumb?: string;
+      small?: string;
+      large?: string;
+      price_btc?: number;
+      score?: number;
+      data?: {
+        price?: number;
+        price_change_percentage_24h?: { usd?: number };
+        market_cap?: string;
+        total_volume?: string;
+      };
+    };
+  }>;
+}
+
 export const maxDuration = 300;
 
 // CoinGecko API base URL (free tier)
@@ -107,14 +170,7 @@ const handler = createMcpHandler(
           const data = (await fetchWithCache(
             `${COINGECKO_API}/simple/price?ids=${coinId}&vs_currencies=${currency}&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true`,
             cacheKey,
-          )) as Record<
-            string,
-            Record<string, number> & {
-              usd_24h_change?: number;
-              usd_market_cap?: number;
-              usd_24h_vol?: number;
-            }
-          >;
+          )) as CoinGeckoPriceData;
 
           if (!data[coinId]) {
             return {
@@ -233,36 +289,7 @@ const handler = createMcpHandler(
           const data = (await fetchWithCache(
             `${COINGECKO_API}/coins/${coinId}?localization=false&tickers=false&community_data=false&developer_data=false`,
             cacheKey,
-          )) as {
-            id: string;
-            symbol: string;
-            name: string;
-            image?: { large?: string };
-            market_data?: {
-              current_price?: { usd?: number };
-              market_cap?: { usd?: number };
-              market_cap_rank?: number;
-              fully_diluted_valuation?: { usd?: number };
-              total_volume?: { usd?: number };
-              high_24h?: { usd?: number };
-              low_24h?: { usd?: number };
-              price_change_24h?: number;
-              price_change_percentage_24h?: number;
-              price_change_percentage_7d?: number;
-              price_change_percentage_30d?: number;
-              market_cap_change_24h?: number;
-              market_cap_change_percentage_24h?: number;
-              circulating_supply?: number;
-              total_supply?: number;
-              max_supply?: number;
-              ath?: { usd?: number };
-              ath_change_percentage?: { usd?: number };
-              ath_date?: { usd?: string };
-              atl?: { usd?: number };
-              atl_change_percentage?: { usd?: number };
-              atl_date?: { usd?: string };
-            };
-          };
+          )) as CoinGeckoMarketData;
 
           const md = data.market_data;
           if (!md) {
@@ -356,28 +383,7 @@ const handler = createMcpHandler(
           const data = (await fetchWithCache(
             `${COINGECKO_API}/search/trending`,
             cacheKey,
-          )) as {
-            coins?: Array<{
-              item: {
-                id: string;
-                coin_id?: number;
-                name: string;
-                symbol: string;
-                market_cap_rank?: number;
-                thumb?: string;
-                small?: string;
-                large?: string;
-                price_btc?: number;
-                score?: number;
-                data?: {
-                  price?: number;
-                  price_change_percentage_24h?: { usd?: number };
-                  market_cap?: string;
-                  total_volume?: string;
-                };
-              };
-            }>;
-          };
+          )) as CoinGeckoTrendingResponse;
 
           const trending =
             data.coins?.map((coin, index) => ({
@@ -446,4 +452,17 @@ const handler = createMcpHandler(
   },
 );
 
+/**
+ * GET /api/mcp/demos/crypto/[transport]
+ * POST /api/mcp/demos/crypto/[transport]
+ * DELETE /api/mcp/demos/crypto/[transport]
+ *
+ * MCP transport endpoint for cryptocurrency price data.
+ * Handles tool invocations for crypto operations (get price, market data, trending coins).
+ * Uses CoinGecko API with caching.
+ *
+ * @param request - The Next.js request object.
+ * @param context - Route context containing the transport parameter.
+ * @returns MCP handler response.
+ */
 export { handler as GET, handler as POST, handler as DELETE };

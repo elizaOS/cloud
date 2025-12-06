@@ -1039,8 +1039,8 @@ curl https://your-app.com/api/v1/chat \
 - **Text Chat**: Token-based (varies by model)
 - **Image Generation**: $0.01 per image
 - **Video Generation**: $0.05 per video
-- **Container Deployment**: $0.50 base + instance hours
-- **Voice Clone (Instant)**: $0.50
+- **Container Deployment**: 50 credits base + instance hours
+- **Voice Clone (Instant)**: 50 credits
 - **Voice Clone (Professional)**: $2.00
 
 **Stripe Integration**:
@@ -1853,7 +1853,7 @@ curl https://elizacloud.ai/api/v1/containers \
 
 Container deployments are billed based on:
 
-- **Deployment**: $0.50 (one-time per deployment)
+- **Deployment**: 50 credits (one-time per deployment)
 - **Running Costs**: Charged per hour based on resources
   - t4g.small (1.75 vCPU + 1.75 GB RAM): Default, ~10-20 credits/hour
   - Higher CPU/memory allocations: Additional charges

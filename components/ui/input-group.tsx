@@ -1,3 +1,7 @@
+/**
+ * Input group component for combining inputs with addons and buttons.
+ * Supports inline and block alignment with consistent focus and error states.
+ */
 "use client";
 
 import * as React from "react";

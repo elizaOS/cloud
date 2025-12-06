@@ -1,18 +1,28 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, Gift, Loader2 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 
-const CLOUD_URL = process.env.NEXT_PUBLIC_ELIZA_CLOUD_URL || "http://localhost:3000";
+import {
+  clearPendingReferralCode,
+  getPendingReferralCode,
+} from "@/components/referral-capture";
+import { applyReferralCode } from "@/lib/cloud-api";
+
+const CLOUD_URL =
+  process.env.NEXT_PUBLIC_ELIZA_CLOUD_URL || "http://localhost:3000";
 
 function AuthCallbackContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const sessionId = searchParams.get("session");
 
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
+  const [status, setStatus] = useState<"loading" | "success" | "error">(
+    "loading"
+  );
   const [errorMessage, setErrorMessage] = useState("");
+  const [referralBonus, setReferralBonus] = useState<number | null>(null);
 
   useEffect(() => {
     let retryCount = 0;
@@ -25,7 +35,7 @@ function AuthCallbackContent() {
         console.log("[Auth Callback] Token already exists, redirecting...");
         setStatus("success");
         setTimeout(() => {
-          router.push("/agents");
+          router.push("/chats");
         }, 500);
         return;
       }
@@ -58,12 +68,27 @@ function AuthCallbackContent() {
           // Dispatch a custom event to notify other components
           window.dispatchEvent(new Event("miniapp_auth_changed"));
 
+          // Apply pending referral code if any
+          const pendingCode = getPendingReferralCode();
+          let bonusReceived = false;
+          if (pendingCode) {
+            const result = await applyReferralCode(pendingCode);
+            if (result.success && result.bonusAmount) {
+              setReferralBonus(result.bonusAmount);
+              bonusReceived = true;
+            }
+            clearPendingReferralCode();
+          }
+
           setStatus("success");
 
-          // Redirect to the agents page after a brief delay
-          setTimeout(() => {
-            router.push("/agents");
-          }, 1000);
+          // Redirect to the chats page after a brief delay (longer if showing bonus)
+          setTimeout(
+            () => {
+              router.push("/chats");
+            },
+            bonusReceived ? 2500 : 1000
+          );
         } else if (data.status === "authenticated" && !data.authToken) {
           // Token was already retrieved (possibly by a previous request)
           // Check if we have it in localStorage
@@ -71,10 +96,12 @@ function AuthCallbackContent() {
           if (storedToken) {
             setStatus("success");
             setTimeout(() => {
-              router.push("/agents");
+              router.push("/chats");
             }, 500);
           } else {
-            throw new Error("Token already retrieved. Please try signing in again.");
+            throw new Error(
+              "Token already retrieved. Please try signing in again."
+            );
           }
         } else if (data.status === "pending" || retryCount < maxRetries) {
           // Keep polling - also retry if status is unexpected
@@ -89,7 +116,7 @@ function AuthCallbackContent() {
         if (storedToken) {
           setStatus("success");
           setTimeout(() => {
-            router.push("/agents");
+            router.push("/chats");
           }, 500);
           return;
         }
@@ -112,7 +139,9 @@ function AuthCallbackContent() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-pink-500/20">
             <Loader2 className="h-6 w-6 animate-spin text-pink-400" />
           </div>
-          <h1 className="text-xl font-bold text-white">Completing Sign In...</h1>
+          <h1 className="text-xl font-bold text-white">
+            Completing Sign In...
+          </h1>
           <p className="mt-2 text-sm text-white/60">
             Please wait while we set up your session
           </p>
@@ -129,9 +158,18 @@ function AuthCallbackContent() {
             <CheckCircle2 className="h-6 w-6 text-green-400" />
           </div>
           <h1 className="text-xl font-bold text-white">Sign In Successful!</h1>
-          <p className="mt-2 text-sm text-white/60">
-            Redirecting you to your agents...
-          </p>
+          {referralBonus ? (
+            <div className="mt-3 flex items-center justify-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2">
+              <Gift className="h-4 w-4 text-emerald-400" />
+              <span className="text-sm text-emerald-400">
+                You received {Math.round(referralBonus * 100).toLocaleString()} bonus credits!
+              </span>
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-white/60">
+              Redirecting you to your friends...
+            </p>
+          )}
         </div>
       </div>
     );
@@ -171,4 +209,3 @@ export default function AuthCallbackPage() {
     </Suspense>
   );
 }
-

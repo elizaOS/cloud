@@ -1,5 +1,12 @@
+/**
+ * Character category definitions and utilities.
+ */
+
 import type { CategoryId, CategoryInfo } from "@/lib/types/marketplace";
 
+/**
+ * Definition for a character category.
+ */
 export interface CategoryDefinition {
   id: CategoryId;
   name: string;
@@ -81,6 +88,12 @@ export const CATEGORY_ORDER: Array<keyof typeof CHARACTER_CATEGORIES> = [
   "LIFESTYLE",
 ];
 
+/**
+ * Gets a category definition by ID.
+ *
+ * @param id - Category ID.
+ * @returns Category definition or undefined if not found.
+ */
 export function getCategoryById(
   id: CategoryId,
 ): CategoryDefinition | undefined {
@@ -88,15 +101,32 @@ export function getCategoryById(
   return CHARACTER_CATEGORIES[key];
 }
 
+/**
+ * Gets all category definitions in display order.
+ *
+ * @returns Array of category definitions.
+ */
 export function getAllCategories(): CategoryDefinition[] {
   return CATEGORY_ORDER.map((key) => CHARACTER_CATEGORIES[key]);
 }
 
+/**
+ * Gets the color for a category.
+ *
+ * @param id - Category ID.
+ * @returns Color name (defaults to "gray" if not found).
+ */
 export function getCategoryColor(id: CategoryId): string {
   const category = getCategoryById(id);
   return category?.color || "gray";
 }
 
+/**
+ * Gets the icon for a category.
+ *
+ * @param id - Category ID.
+ * @returns Icon emoji (defaults to "📝" if not found).
+ */
 export function getCategoryIcon(id: CategoryId): string {
   const category = getCategoryById(id);
   return category?.icon || "📝";

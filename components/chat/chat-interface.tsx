@@ -17,14 +17,17 @@ import { getThemeCSSVariables } from "@/lib/config/affiliate-themes";
 import { useRenderTracker } from "@/lib/debug/render-tracker";
 
 /**
- * Unified Chat Interface Component with Dynamic Theming
+ * Unified chat interface component with dynamic theming and message limit enforcement.
+ * Wraps ElizaChatInterface with session management, signup prompts, and affiliate theming.
  *
- * This is a wrapper component that:
- * 1. Shows free message count for anonymous users
- * 2. Displays signup prompts at appropriate times
- * 3. Enforces message limits
- * 4. Integrates with the Eliza chat system
- * 5. Applies affiliate-specific theming via CSS variables
+ * @param props - Chat interface configuration
+ * @param props.character - Character data for the chat session
+ * @param props.session - Optional session data including message limits
+ * @param props.user - Optional user data
+ * @param props.showSignupPrompt - Whether to display signup prompt banner
+ * @param props.source - Source identifier for analytics
+ * @param props.sessionTokenFromUrl - Optional session token from URL parameters
+ * @param props.theme - Affiliate theme configuration for styling
  */
 
 interface ChatInterfaceProps {
@@ -129,7 +132,7 @@ export function ChatInterface({
           );
         }
       } catch (error) {
-        console.error("[ChatInterface] ❌ Error fetching session data:", error);
+        console.error("[ChatInterface] Error fetching session data:", error);
       } finally {
         setIsLoadingSessionData(false);
       }
@@ -172,7 +175,7 @@ export function ChatInterface({
           );
         }
       } catch (error) {
-        console.error("[ChatInterface] ❌ Error fetching session data:", error);
+        console.error("[ChatInterface] Error fetching session data:", error);
       }
     }
   }, [isAnonymous, sessionTokenFromUrl]);
@@ -353,19 +356,13 @@ export function ChatInterface({
               "[ChatInterface] ✅ Anonymous session cookie set successfully",
             );
           } else {
-            const errorData = await res.json().catch(() => ({}));
+            const errorData = await res.json();
             console.error(
               "[ChatInterface] ❌ Failed to set session cookie:",
               res.status,
               errorData,
             );
           }
-        })
-        .catch((err) => {
-          console.error(
-            "[ChatInterface] ❌ Error setting session cookie:",
-            err,
-          );
         });
     }
   }, [sessionTokenFromUrl, user]);
