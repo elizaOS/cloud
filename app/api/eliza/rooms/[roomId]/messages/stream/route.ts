@@ -340,7 +340,15 @@ export async function POST(
 
         // Extract response from result
         const responseContent = result.result?.responseContent;
-        const responseText = responseContent?.text || "I apologize, but I couldn't generate a response. Please try again.";
+        if (!responseContent?.text) {
+          logger.error("[Stream] Agent failed to generate response", {
+            roomId,
+            hasResult: !!result.result,
+            hasResponseContent: !!responseContent,
+          });
+          throw new Error("Agent failed to generate a response. Please try again.");
+        }
+        const responseText = responseContent.text;
 
         // Build response content payload
         const responseContentPayload: Record<string, unknown> = {

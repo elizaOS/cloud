@@ -20,38 +20,12 @@ import {
   MINIAPP_WRITE_LIMITS,
 } from "@/lib/middleware/miniapp-rate-limit";
 import { logger } from "@/lib/utils/logger";
+import { safeToISOString } from "@/lib/utils/date";
 import { db } from "@/db/client";
 import { roomTable, memoryTable, participantTable } from "@/db/schemas/eliza";
 import { eq, and, desc, sql, or, inArray } from "drizzle-orm";
 import type { UUID } from "@elizaos/core";
 import { parseMessageContent } from "@/lib/types/message-content";
-
-/**
- * Safely convert a date value to ISO string
- * Handles Date objects, timestamps, ISO strings, and invalid values
- */
-function safeToISOString(value: unknown): string {
-  if (!value) return new Date().toISOString();
-
-  try {
-    // If it's already a valid ISO string, return as-is
-    if (typeof value === "string") {
-      const testDate = new Date(value);
-      if (!isNaN(testDate.getTime())) return value;
-      return new Date().toISOString();
-    }
-
-    // For numbers (timestamps) or Date-like objects
-    const timestamp = typeof value === "number"
-      ? value
-      : (value as { getTime?: () => number })?.getTime?.() ?? Date.now();
-
-    const date = new Date(timestamp);
-    return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
-  } catch {
-    return new Date().toISOString();
-  }
-}
 
 /**
  * OPTIONS /api/v1/miniapp/agents/[id]/chats
@@ -81,7 +55,7 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const corsResult = await validateOrigin(request);
   const { id: agentId } = await params;
@@ -89,12 +63,12 @@ export async function GET(
   // Rate limiting
   const rateLimitResult = await checkMiniappRateLimit(
     request,
-    MINIAPP_RATE_LIMITS,
+    MINIAPP_RATE_LIMITS
   );
   if (!rateLimitResult.allowed) {
     return createRateLimitErrorResponse(
       rateLimitResult,
-      corsResult.origin ?? undefined,
+      corsResult.origin ?? undefined
     );
   }
 
@@ -105,7 +79,7 @@ export async function GET(
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const limit = Math.min(
       50,
-      Math.max(1, parseInt(searchParams.get("limit") || "20", 10)),
+      Math.max(1, parseInt(searchParams.get("limit") || "20", 10))
     );
     const offset = (page - 1) * limit;
 
@@ -115,7 +89,7 @@ export async function GET(
     if (!character) {
       const response = NextResponse.json(
         { success: false, error: "Agent not found" },
-        { status: 404 },
+        { status: 404 }
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -124,7 +98,7 @@ export async function GET(
     if (character.source !== "miniapp") {
       const response = NextResponse.json(
         { success: false, error: "Agent not found" },
-        { status: 404 },
+        { status: 404 }
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -135,7 +109,7 @@ export async function GET(
     ) {
       const response = NextResponse.json(
         { success: false, error: "Access denied" },
-        { status: 403 },
+        { status: 403 }
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -156,8 +130,8 @@ export async function GET(
         and(
           eq(participantTable.entityId, user.id as UUID),
           eq(roomTable.agentId, agentId as UUID),
-          inArray(roomTable.type, ["DM", "DIRECT"]),
-        ),
+          inArray(roomTable.type, ["DM", "DIRECT"])
+        )
       )
       .orderBy(desc(roomTable.createdAt))
       .limit(limit)
@@ -172,8 +146,8 @@ export async function GET(
         and(
           eq(roomTable.agentId, agentId as UUID),
           inArray(roomTable.type, ["DM", "DIRECT"]),
-          sql`${roomTable.metadata}->>'creatorUserId' = ${user.id}`,
-        ),
+          sql`${roomTable.metadata}->>'creatorUserId' = ${user.id}`
+        )
       )
       .orderBy(desc(roomTable.createdAt))
       .limit(limit)
@@ -201,8 +175,8 @@ export async function GET(
           .where(
             and(
               eq(memoryTable.roomId, room.id),
-              eq(memoryTable.type, "messages"),
-            ),
+              eq(memoryTable.type, "messages")
+            )
           )
           .orderBy(desc(memoryTable.createdAt))
           .limit(1);
@@ -214,8 +188,8 @@ export async function GET(
           .where(
             and(
               eq(memoryTable.roomId, room.id),
-              eq(memoryTable.type, "messages"),
-            ),
+              eq(memoryTable.type, "messages")
+            )
           );
 
         const lastMessageContent = lastMessage
@@ -228,16 +202,17 @@ export async function GET(
           name: room.name || null,
           createdAt: safeToISOString(room.createdAt),
           updatedAt: safeToISOString(lastMessage?.createdAt || room.createdAt),
-          lastMessage: lastMessage && lastMessageContent
-            ? {
-                content: lastMessageContent.text || "",
-                role: lastMessage.entityId === agentId ? "assistant" : "user",
-                createdAt: safeToISOString(lastMessage.createdAt),
-              }
-            : null,
+          lastMessage:
+            lastMessage && lastMessageContent
+              ? {
+                  content: lastMessageContent.text || "",
+                  role: lastMessage.entityId === agentId ? "assistant" : "user",
+                  createdAt: safeToISOString(lastMessage.createdAt),
+                }
+              : null,
           messageCount: messageCount.length,
         };
-      }),
+      })
     );
 
     const chats = chatsWithMessages;
@@ -267,7 +242,7 @@ export async function GET(
         success: false,
         error: error instanceof Error ? error.message : "Failed to list chats",
       },
-      { status },
+      { status }
     );
 
     return addCorsHeaders(response, corsResult.origin);
@@ -286,7 +261,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const corsResult = await validateOrigin(request);
   const { id: agentId } = await params;
@@ -294,12 +269,12 @@ export async function POST(
   // Rate limiting (stricter for write operations)
   const rateLimitResult = await checkMiniappRateLimit(
     request,
-    MINIAPP_WRITE_LIMITS,
+    MINIAPP_WRITE_LIMITS
   );
   if (!rateLimitResult.allowed) {
     return createRateLimitErrorResponse(
       rateLimitResult,
-      corsResult.origin ?? undefined,
+      corsResult.origin ?? undefined
     );
   }
 
@@ -312,7 +287,7 @@ export async function POST(
     if (!character) {
       const response = NextResponse.json(
         { success: false, error: "Agent not found" },
-        { status: 404 },
+        { status: 404 }
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -321,7 +296,7 @@ export async function POST(
     if (character.source !== "miniapp") {
       const response = NextResponse.json(
         { success: false, error: "Agent not found" },
-        { status: 404 },
+        { status: 404 }
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -333,7 +308,7 @@ export async function POST(
     ) {
       const response = NextResponse.json(
         { success: false, error: "Access denied" },
-        { status: 403 },
+        { status: 403 }
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -371,7 +346,7 @@ export async function POST(
           updatedAt: safeToISOString(room.createdAt),
         },
       },
-      { status: 201 },
+      { status: 201 }
     );
 
     return addCorsHeaders(response, corsResult.origin);
@@ -387,7 +362,7 @@ export async function POST(
         success: false,
         error: error instanceof Error ? error.message : "Failed to create chat",
       },
-      { status },
+      { status }
     );
 
     return addCorsHeaders(response, corsResult.origin);
