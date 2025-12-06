@@ -564,37 +564,39 @@ export function ElizaChatInterface({
     setLoadingState((prev) => ({ ...prev, isSending: true }));
     setError(null);
 
-    // If no room exists, create one first
-    let currentRoomId = roomId;
-    if (!currentRoomId) {
-      console.log("[ElizaChat] No room selected, creating new room...");
-      // Prevent duplicate room creation attempts
-      if (isCreatingRoomRef.current) {
-        console.log(
-          "[ElizaChat] Room creation already in progress, waiting...",
-        );
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        currentRoomId = roomId; // Use the room that was just created
-        if (!currentRoomId) {
-          setError("Room creation timed out");
-          setLoadingState(prev => ({ ...prev, isSending: false }));
-          return;
-        }
-      } else {
-        isCreatingRoomRef.current = true;
-        const newRoomId = await createRoom(selectedCharacterId);
-        isCreatingRoomRef.current = false;
-        if (!newRoomId) {
-          setError("Room creation returned empty ID");
-          setLoadingState(prev => ({ ...prev, isSending: false }));
-          return;
-        }
-        currentRoomId = newRoomId;
-        console.log("[ElizaChat] Created new room:", newRoomId);
+    try {
+      // If no room exists, create one first
+      let currentRoomId = roomId;
+      if (!currentRoomId) {
+        console.log("[ElizaChat] No room selected, creating new room...");
+        // Prevent duplicate room creation attempts
+        if (isCreatingRoomRef.current) {
+          console.log(
+            "[ElizaChat] Room creation already in progress, waiting...",
+          );
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          currentRoomId = roomId; // Use the room that was just created
+          if (!currentRoomId) {
+            setError("Room creation timed out");
+            setLoadingState(prev => ({ ...prev, isSending: false }));
+            return;
+          }
+        } else {
+          isCreatingRoomRef.current = true;
+          const newRoomId = await createRoom(selectedCharacterId);
+          isCreatingRoomRef.current = false;
+          if (!newRoomId) {
+            setError("Room creation returned empty ID");
+            setLoadingState(prev => ({ ...prev, isSending: false }));
+            return;
+          }
+          currentRoomId = newRoomId;
+          console.log("[ElizaChat] Created new room:", newRoomId);
 
-        // Wait briefly for room to be fully initialized
-        // createRoom already loaded messages, just give it a moment
-        await new Promise((resolve) => setTimeout(resolve, 300));
+          // Wait briefly for room to be fully initialized
+          // createRoom already loaded messages, just give it a moment
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
       }
 
       // Add optimistic temp user message
