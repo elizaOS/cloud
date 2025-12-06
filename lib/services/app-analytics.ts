@@ -137,7 +137,7 @@ export class AppAnalyticsService {
       };
     }
 
-    const markupPercentage = parseFloat(app.custom_pricing_markup || "0");
+    const markupPercentage = parseFloat(app.inference_markup_percentage || "0");
     const markup = baseCost * (markupPercentage / 100);
     const finalCost = baseCost + markup;
 
