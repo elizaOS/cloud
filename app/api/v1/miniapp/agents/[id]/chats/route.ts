@@ -22,9 +22,36 @@ import {
 import { logger } from "@/lib/utils/logger";
 import { db } from "@/db/client";
 import { roomTable, memoryTable, participantTable } from "@/db/schemas/eliza";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, or, inArray } from "drizzle-orm";
 import type { UUID } from "@elizaos/core";
 import { parseMessageContent } from "@/lib/types/message-content";
+
+/**
+ * Safely convert a date value to ISO string
+ * Handles Date objects, timestamps, ISO strings, and invalid values
+ */
+function safeToISOString(value: unknown): string {
+  if (!value) return new Date().toISOString();
+
+  try {
+    // If it's already a valid ISO string, return as-is
+    if (typeof value === "string") {
+      const testDate = new Date(value);
+      if (!isNaN(testDate.getTime())) return value;
+      return new Date().toISOString();
+    }
+
+    // For numbers (timestamps) or Date-like objects
+    const timestamp = typeof value === "number"
+      ? value
+      : (value as { getTime?: () => number })?.getTime?.() ?? Date.now();
+
+    const date = new Date(timestamp);
+    return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+  } catch {
+    return new Date().toISOString();
+  }
+}
 
 /**
  * OPTIONS /api/v1/miniapp/agents/[id]/chats
@@ -129,7 +156,7 @@ export async function GET(
         and(
           eq(participantTable.entityId, user.id as UUID),
           eq(roomTable.agentId, agentId as UUID),
-          eq(roomTable.type, "DIRECT"),
+          inArray(roomTable.type, ["DM", "DIRECT"]),
         ),
       )
       .orderBy(desc(roomTable.createdAt))
@@ -144,7 +171,7 @@ export async function GET(
       .where(
         and(
           eq(roomTable.agentId, agentId as UUID),
-          eq(roomTable.type, "DIRECT"),
+          inArray(roomTable.type, ["DM", "DIRECT"]),
           sql`${roomTable.metadata}->>'creatorUserId' = ${user.id}`,
         ),
       )
@@ -198,15 +225,14 @@ export async function GET(
         return {
           id: room.id,
           agentId,
-          name: room.name || null, // Room title (generated after 2 rounds of conversation)
-          createdAt: room.createdAt,
-          // Use last message time as updatedAt if available, otherwise use createdAt
-          updatedAt: lastMessage?.createdAt || room.createdAt,
+          name: room.name || null,
+          createdAt: safeToISOString(room.createdAt),
+          updatedAt: safeToISOString(lastMessage?.createdAt || room.createdAt),
           lastMessage: lastMessage && lastMessageContent
             ? {
                 content: lastMessageContent.text || "",
                 role: lastMessage.entityId === agentId ? "assistant" : "user",
-                createdAt: lastMessage.createdAt,
+                createdAt: safeToISOString(lastMessage.createdAt),
               }
             : null,
           messageCount: messageCount.length,
@@ -322,7 +348,7 @@ export async function POST(
       .insert(roomTable)
       .values({
         source: "miniapp",
-        type: "DIRECT",
+        type: "DM",
         agentId: agentId as UUID,
         metadata: { creatorUserId: user.id },
         createdAt: new Date(),
@@ -341,9 +367,8 @@ export async function POST(
         chat: {
           id: room.id,
           agentId,
-          createdAt: room.createdAt,
-          // New room, so updatedAt is same as createdAt
-          updatedAt: room.createdAt,
+          createdAt: safeToISOString(room.createdAt),
+          updatedAt: safeToISOString(room.createdAt),
         },
       },
       { status: 201 },

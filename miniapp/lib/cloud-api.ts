@@ -32,6 +32,26 @@ import type {
 const API_BASE = "/api/proxy";
 
 /**
+ * Safely convert a timestamp/date to ISO string
+ * Handles undefined, null, invalid dates, and various formats
+ */
+function safeToISOString(value: unknown): string {
+  if (!value) {
+    return new Date().toISOString();
+  }
+
+  try {
+    const date = new Date(value as string | number);
+    if (isNaN(date.getTime())) {
+      return new Date().toISOString();
+    }
+    return date.toISOString();
+  } catch {
+    return new Date().toISOString();
+  }
+}
+
+/**
  * Get auth headers for API requests
  */
 function getAuthHeaders(): HeadersInit {
@@ -340,7 +360,7 @@ export async function sendMessage(
               id: data.id,
               content: data.content?.text || "",
               role: "user",
-              createdAt: new Date(data.createdAt).toISOString(),
+              createdAt: safeToISOString(data.createdAt),
               attachments: userAttachments.length > 0 ? userAttachments : undefined,
             };
             callbacks.onUserMessage?.(userMsg);
@@ -370,7 +390,7 @@ export async function sendMessage(
               id: data.id,
               content: responseText,
               role: "assistant",
-              createdAt: new Date(data.createdAt || Date.now()).toISOString(),
+              createdAt: safeToISOString(data.createdAt),
               attachments: attachments.length > 0 ? attachments : undefined,
             };
             

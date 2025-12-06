@@ -8,6 +8,7 @@ import { roomsRepository } from "@/db/repositories";
 import { userContextService } from "@/lib/eliza/user-context";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { sendMessageWithSideEffects } from "@/lib/eliza/send-message";
+import { messageStorage } from "@/lib/eliza/message-storage";
 import type { AgentModeConfig } from "@/lib/eliza/agent-mode-types";
 import {
   AgentMode,
@@ -288,12 +289,25 @@ export async function POST(
         // Send connection confirmation
         sendEvent("connected", { roomId, timestamp: Date.now() });
 
-        // Send user message event
+        // STEP 1: Store user message FIRST (explicit storage for reliability)
+        // Use characterId (room's agentId) for consistency with miniapp queries
+        const roomAgentId = characterId || agentRuntime.agentId;
+        logger.info(`[Stream] Storing user message with agentId: ${roomAgentId}`);
+        const storedUserMessage = await messageStorage.storeUserMessage({
+          roomId,
+          entityId: userContext.userId,
+          agentId: roomAgentId,
+          text,
+          attachments: attachments || undefined,
+        });
+        logger.info(`[Stream] User message stored: ${storedUserMessage.id}`);
+
+        // Send user message event with stored ID
         sendEvent("message", {
-          id: `user-${Date.now()}`,
+          id: storedUserMessage.id,
           entityId: userContext.userId,
           content: { text, attachments: attachments || undefined },
-          createdAt: Date.now(),
+          createdAt: storedUserMessage.createdAt,
           isAgent: false,
           type: "user",
         });
@@ -308,30 +322,30 @@ export async function POST(
           type: "thinking",
         });
 
-        // Process message via plugin event handlers (plugin-assistant, plugin-chat-playground, etc.)
+        // STEP 2: Process message via plugin event handlers
         logger.info("[Stream] Processing message via sendMessageWithSideEffects...");
         const result = await sendMessageWithSideEffects(
           agentRuntime,
           roomId as UUID,
           stringToUuid(userContext.entityId) as UUID,
-          { 
-            text, 
+          {
+            text,
             attachments: attachments || [],
-            source: "cloud" 
+            source: "client_chat",
           },
           userContext,
           characterId,
-          agentModeConfig, // Pass mode config for plugin-specific handling
+          agentModeConfig,
         );
 
         // Extract response from result
         const responseContent = result.result?.responseContent;
-        const responseText = responseContent?.text || "";
+        const responseText = responseContent?.text || "I apologize, but I couldn't generate a response. Please try again.";
 
         // Build response content payload
         const responseContentPayload: Record<string, unknown> = {
           text: responseText,
-          source: responseContent?.source || "agent",
+          source: "agent",
         };
 
         // Include attachments if present
@@ -349,18 +363,31 @@ export async function POST(
           responseContentPayload.thought = responseContent.thought;
         }
 
-        // Include metadata if present
-        if (responseContent?.metadata) {
-          responseContentPayload.metadata = responseContent.metadata;
-        }
+        // STEP 3: Store agent message EXPLICITLY (critical for persistence)
+        // Use characterId (room's agentId) for consistency with miniapp queries
+        const agentEntityId = characterId || agentRuntime.agentId;
+        logger.info(`[Stream] Storing agent message with entityId: ${agentEntityId}`);
+        const storedAgentMessage = await messageStorage.storeAgentMessage({
+          roomId,
+          agentId: agentEntityId,
+          content: {
+            text: responseText,
+            source: "agent",
+            attachments: responseContent?.attachments as any,
+            actions: responseContent?.actions as any,
+            thought: responseContent?.thought as any,
+          },
+          inReplyTo: storedUserMessage.id,
+        });
+        logger.info(`[Stream] Agent message stored: ${storedAgentMessage.id}`);
 
-        // Send agent response
+        // Send agent response with stored ID
         sendEvent("message", {
-          id: result.messageId,
-          entityId: agentRuntime.agentId,
-          agentId: agentRuntime.agentId,
+          id: storedAgentMessage.id,
+          entityId: agentEntityId,
+          agentId: agentEntityId,
           content: responseContentPayload,
-          createdAt: Date.now(),
+          createdAt: storedAgentMessage.createdAt,
           isAgent: true,
           type: "agent",
         });
