@@ -1,3 +1,7 @@
+/**
+ * Avatar component system built on Radix UI primitives.
+ * Provides image display with fallback support for user avatars.
+ */
 "use client";
 
 import * as React from "react";

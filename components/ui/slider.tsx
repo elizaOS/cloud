@@ -1,3 +1,7 @@
+/**
+ * Slider component for selecting numeric values within a range.
+ * Built on Radix UI primitives with horizontal and vertical orientations.
+ */
 "use client";
 
 import * as React from "react";

@@ -1,3 +1,13 @@
+/**
+ * Character library grid component displaying characters in grid or list view.
+ * Shows empty state when no characters are available.
+ *
+ * @param props - Character library grid configuration
+ * @param props.characters - Array of characters to display
+ * @param props.viewMode - Display mode (grid or list)
+ * @param props.onCreateNew - Callback when create button is clicked
+ */
+
 "use client";
 
 import { CharacterLibraryCard } from "./character-library-card";

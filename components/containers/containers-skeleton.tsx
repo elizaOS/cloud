@@ -1,3 +1,7 @@
+/**
+ * Containers skeleton loading component displaying placeholder table rows.
+ * Shows loading state for containers table with skeleton elements.
+ */
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,

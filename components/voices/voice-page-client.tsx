@@ -1,3 +1,12 @@
+/**
+ * Voice page client component wrapping voice studio with page header.
+ * Manages credit balance state and passes it to voice studio.
+ *
+ * @param props - Voice page client configuration
+ * @param props.initialVoices - Initial list of voices
+ * @param props.creditBalance - Initial credit balance
+ */
+
 "use client";
 
 import { useState } from "react";

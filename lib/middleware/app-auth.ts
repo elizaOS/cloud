@@ -191,17 +191,12 @@ export async function requireAppAuth(
  * Useful for tracking purposes
  */
 export async function getAppFromApiKey(apiKey: string): Promise<string | null> {
-  try {
-    const validatedKey = await apiKeysService.validateApiKey(apiKey);
-    if (!validatedKey) return null;
+  const validatedKey = await apiKeysService.validateApiKey(apiKey);
+  if (!validatedKey) return null;
 
-    const apps = await appsService.listByOrganization(validatedKey.organization_id);
-    const app = apps.find((a) => a.api_key_id === validatedKey.id);
+  const apps = await appsService.listByOrganization(validatedKey.organization_id);
+  const app = apps.find((a) => a.api_key_id === validatedKey.id);
 
-    return app?.id || null;
-  } catch (error) {
-    logger.error("Failed to get app from API key:", error);
-    return null;
-  }
+  return app?.id || null;
 }
 

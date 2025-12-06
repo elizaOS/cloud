@@ -33,6 +33,9 @@ import { roomsService } from "./rooms";
 // Re-export AgentInfo type
 export type { AgentInfo };
 
+/**
+ * Input for sending a message to an agent.
+ */
 export interface SendMessageInput {
   roomId: string;
   entityId: string;
@@ -42,6 +45,9 @@ export interface SendMessageInput {
   attachments?: Attachment[];
 }
 
+/**
+ * Message attachment structure.
+ */
 export interface Attachment {
   type: "image" | "file";
   url: string;
@@ -49,6 +55,9 @@ export interface Attachment {
   mimeType?: string;
 }
 
+/**
+ * Response from an agent.
+ */
 export interface AgentResponse {
   messageId: string;
   content: string;

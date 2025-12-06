@@ -9,6 +9,13 @@ import { useState } from "react";
 import { ChatSidebar } from "@/components/layout/chat-sidebar";
 import { ChatHeader } from "@/components/layout/chat-header";
 
+/**
+ * Shared layout component for chat and build pages.
+ * Provides a fullscreen layout with sidebar and header navigation.
+ *
+ * @param children - The page content to render.
+ * @returns The rendered layout with sidebar, header, and content area.
+ */
 export default function ChatBuildLayout({
   children,
 }: {

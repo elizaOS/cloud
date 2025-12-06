@@ -1,8 +1,11 @@
 /**
- * Prompt Card Component
- * Interactive prompt suggestion cards used in the landing page
+ * Prompt card component displaying interactive prompt suggestions.
+ * Used in landing page with hover effects and click handling.
+ *
+ * @param props - Prompt card configuration
+ * @param props.prompt - Prompt text to display
+ * @param props.onClick - Optional callback when card is clicked
  */
-
 import { cn } from "@/lib/utils";
 import { ArrowUp } from "lucide-react";
 

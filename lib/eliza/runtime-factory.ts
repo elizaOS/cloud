@@ -1,24 +1,24 @@
 /**
  * Runtime Factory - Creates configured ElizaOS runtimes for users
- * Handles all runtime initialization, plugin loading, and settings configuration
+ * Uses ElizaOS.addAgents() for unified runtime creation (serverless pattern)
  */
 
 import {
-  AgentRuntime,
+  ElizaOS,
   stringToUuid,
   elizaLogger,
   type UUID,
-  type Agent,
   type Character,
-  type Plugin,
   type IDatabaseAdapter,
+  type IAgentRuntime,
   type Logger,
 } from "@elizaos/core";
 // @ts-expect-error - Type definitions missing in published package
 import { createDatabaseAdapter } from "@elizaos/plugin-sql/node";
 import { agentLoader } from "./agent-loader";
 import { getElizaCloudApiUrl, getDefaultModels } from "./config";
-import type { UserContext } from "./user-context";
+import { userContextService, type UserContext } from "./user-context";
+import { AgentMode } from "./agent-mode-types";
 import { logger } from "@/lib/utils/logger";
 
 // Initialize DOM polyfills first (before any imports that might need them)
@@ -26,6 +26,7 @@ import "@/lib/polyfills/dom-polyfills";
 
 interface GlobalWithEliza {
   __elizaDatabaseAdapter?: IDatabaseAdapter; // Keep DB adapter cached (connections are safe to share)
+  __elizaOS?: ElizaOS; // Keep ElizaOS instance cached
   logger?: Logger;
 }
 
@@ -87,10 +88,20 @@ export class RuntimeFactory {
   }
 
   /**
-   * Create a configured runtime for a specific user context
-   * All configuration happens here, no late injection needed
+   * Get or create ElizaOS instance (cached globally for warm containers)
    */
-  async createRuntimeForUser(context: UserContext): Promise<AgentRuntime> {
+  getElizaOS(): ElizaOS {
+    if (!globalAny.__elizaOS) {
+      globalAny.__elizaOS = new ElizaOS();
+    }
+    return globalAny.__elizaOS;
+  }
+
+  /**
+   * Create a configured runtime for a specific user context
+   * Uses ElizaOS.addAgents() with ephemeral mode for serverless
+   */
+  async createRuntimeForUser(context: UserContext): Promise<IAgentRuntime> {
     elizaLogger.info(
       "[RuntimeFactory] Creating runtime for user",
       context.userId,
@@ -133,12 +144,9 @@ export class RuntimeFactory {
     // 4. Build complete settings upfront with user context
     const settings = this.buildSettings(character, context);
 
-    // 5. Filter out plugin-sql since we provide our own adapter
-    const filteredPlugins = this.filterPlugins(plugins);
-
     elizaLogger.info(
-      "[RuntimeFactory] Creating AgentRuntime with plugins:",
-      filteredPlugins.map((p) => p.name).join(", "),
+      "[RuntimeFactory] Creating runtime via ElizaOS.addAgents() with plugins:",
+      plugins.map((p) => p.name).join(", "),
     );
 
     // Debug: Log MCP settings being passed to runtime
@@ -153,34 +161,71 @@ export class RuntimeFactory {
       );
     }
 
-    console.log("NEW RUNTIME CREATION");
-
-    // 6. Create runtime with everything configured upfront
-    const runtime = new AgentRuntime({
-      character: {
-        ...character,
-        id: agentId, // Use character's own ID
-        settings, // All settings including API key are here
+    // 5. Use ElizaOS.addAgents() with serverless options
+    // Note: plugin-sql is auto-filtered when databaseAdapter is provided
+    const elizaOS = this.getElizaOS();
+    const [runtime] = await elizaOS.addAgents(
+      [
+        {
+          character: {
+            ...character,
+            id: agentId,
+            settings,
+          },
+          plugins,
+          settings,
+          databaseAdapter: dbAdapter,
+        },
+      ],
+      {
+        ephemeral: true, // Don't store in registry (serverless)
+        skipMigrations: true, // Warm container, migrations already done
+        autoStart: true, // Initialize automatically
+        returnRuntimes: true, // Return runtime instead of UUID
       },
-      plugins: filteredPlugins,
-      agentId: agentId, // Use character's own ID
-      settings,
-    });
+    );
 
-    // 7. Register database adapter
-    runtime.registerDatabaseAdapter(dbAdapter);
-
-    // 8. Ensure runtime has logger
+    // 6. Ensure runtime has logger
     this.ensureRuntimeLogger(runtime);
 
-    // 9. Initialize runtime
-    await this.initializeRuntime(runtime, character, agentId);
+    // 7. Debug: Check if MCP service was registered and wait for it to connect
+    const mcpService = runtime.getService("mcp") as McpServiceInterface | undefined;
+    if (mcpService) {
+      elizaLogger.success(
+        "[RuntimeFactory] MCP service successfully registered and available",
+      );
 
-    // 10. Wait for MCP service if plugin was loaded
-    // Why: Assistant mode requires MCP service to work at full capacity
-    // Where: Only runs if @elizaos/plugin-mcp is in the plugins list
-    // What: Polls until service is available, then waits for initialization
-    await this.waitForMcpServiceIfNeeded(runtime, filteredPlugins);
+      // Wait for MCP initialization to complete
+      if (typeof mcpService.waitForInitialization === "function") {
+        elizaLogger.info(
+          "[RuntimeFactory] Waiting for MCP service to finish connecting...",
+        );
+        await mcpService.waitForInitialization();
+        elizaLogger.info(
+          "[RuntimeFactory] MCP service initialization complete",
+        );
+      }
+
+      // Check if servers are connected
+      const servers = mcpService.getServers?.();
+      if (servers) {
+        elizaLogger.info(
+          `[RuntimeFactory] MCP servers status: ${JSON.stringify(servers.map((s) => ({ name: s.name, status: s.status, toolCount: s.tools?.length || 0 })))}`,
+        );
+      }
+      // Check provider data
+      const providerData = mcpService.getProviderData?.();
+      const serverKeys = providerData?.data?.mcp
+        ? Object.keys(providerData.data.mcp)
+        : [];
+      elizaLogger.info(
+        `[RuntimeFactory] MCP provider has ${serverKeys.length} server(s): ${JSON.stringify(serverKeys)}`,
+      );
+    } else {
+      elizaLogger.error(
+        "[RuntimeFactory] MCP service NOT found after initialization!",
+      );
+    }
 
     elizaLogger.success(
       "[RuntimeFactory] Runtime created successfully for user",
@@ -194,6 +239,20 @@ export class RuntimeFactory {
     );
 
     return runtime;
+  }
+
+  /**
+   * Get a system runtime for operations that don't need user-specific billing
+   * Uses system credentials via createSystemContext()
+   * Suitable for: GET operations, internal queries, admin tasks
+   * For message sending (with billing), use createRuntimeForUser() with user context
+   */
+  async getSystemRuntime(characterId?: string): Promise<IAgentRuntime> {
+    const systemContext = userContextService.createSystemContext(AgentMode.CHAT);
+    if (characterId) {
+      systemContext.characterId = characterId;
+    }
+    return this.createRuntimeForUser(systemContext);
   }
 
   /**
@@ -232,7 +291,7 @@ export class RuntimeFactory {
   private buildSettings(
     character: Character,
     context: UserContext,
-  ): Record<string, any> {
+  ): Record<string, unknown> {
     // Merge character settings first, then override with runtime values
     // This ensures user preferences (like model selection) take precedence
     const settings = {
@@ -329,7 +388,7 @@ export class RuntimeFactory {
       // Transform pathnames to full URLs for the current environment
       ...(character.settings?.mcp
         ? {
-            mcp: this.transformMcpSettings(character.settings.mcp),
+            mcp: this.transformMcpSettings(character.settings.mcp as McpSettingsInput),
           }
         : {}),
 
@@ -383,72 +442,9 @@ export class RuntimeFactory {
   }
 
   /**
-   * Filter out plugin-sql since we provide our own adapter
-   */
-  private filterPlugins(plugins: Plugin[]): Plugin[] {
-    return plugins.filter((p) => p.name !== "@elizaos/plugin-sql") as Plugin[];
-  }
-
-  /**
-   * Initialize runtime with error handling for existing records
-   */
-  private async initializeRuntime(
-    runtime: AgentRuntime,
-    character: Character,
-    agentId: UUID,
-  ): Promise<void> {
-    elizaLogger.info("[RuntimeFactory] Starting runtime initialization...");
-
-    await runtime.initialize({ skipMigrations: true });
-    elizaLogger.success(
-      "[RuntimeFactory] Runtime initialized successfully",
-    );
-
-    // Verify agent exists
-    const agentExists = await runtime.getAgent(agentId);
-    if (!agentExists) {
-      elizaLogger.info("[RuntimeFactory] Creating agent entity...");
-      await this.ensureAgentExists(runtime, character, agentId);
-    }
-  }
-
-  /**
-   * Ensure agent entity exists in database
-   */
-  private async ensureAgentExists(
-    runtime: AgentRuntime,
-    character: Character,
-    agentId: UUID,
-  ): Promise<void> {
-    await runtime.ensureAgentExists({
-      id: agentId,
-      name: character.name || "Eliza",
-      username: character.username,
-      system: character.system || "",
-      bio: character.bio || [],
-      messageExamples: character.messageExamples || [],
-      postExamples: character.postExamples || [],
-      topics: character.topics || [],
-      adjectives: character.adjectives || [],
-      knowledge: character.knowledge || [],
-      plugins: character.plugins || [],
-      settings: character.settings || {},
-      style: character.style || {},
-    } as Agent);
-
-    // Also ensure entity exists
-    await runtime.createEntity({
-      id: agentId,
-      agentId: agentId,
-      names: [character.name || "Eliza"],
-      metadata: { name: character.name || "Eliza" },
-    });
-  }
-
-  /**
    * Ensure runtime has a properly configured logger
    */
-  private ensureRuntimeLogger(runtime: AgentRuntime): void {
+  private ensureRuntimeLogger(runtime: IAgentRuntime): void {
     if (!runtime.logger || !runtime.logger.log) {
       runtime.logger = {
         log: console.log.bind(console),
@@ -515,140 +511,6 @@ export class RuntimeFactory {
         child: () => globalAny.logger!,
       };
     }
-  }
-
-  /**
-   * Wait for MCP service to be available and initialized if the plugin was loaded
-   * 
-   * Why: Assistant mode requires MCP service for full capabilities
-   * When: Only if @elizaos/plugin-mcp is in the loaded plugins list
-   * What: Polls for service availability (2s timeout), then waits for initialization
-   */
-  private async waitForMcpServiceIfNeeded(
-    runtime: AgentRuntime,
-    plugins: Plugin[],
-  ): Promise<void> {
-    // Check if MCP plugin was loaded
-    const hasMcpPlugin = this.isMcpPluginLoaded(plugins);
-    
-    if (!hasMcpPlugin) {
-      elizaLogger.info(
-        "[RuntimeFactory] MCP plugin not loaded, skipping service check",
-      );
-      return;
-    }
-
-    elizaLogger.info(
-      "[RuntimeFactory] MCP plugin loaded, waiting for service to become available...",
-    );
-
-    // Poll for service availability (it registers asynchronously during runtime.initialize())
-    const mcpService = await this.pollForMcpService(runtime);
-
-    if (!mcpService) {
-      elizaLogger.error(
-        "[RuntimeFactory] MCP service NOT available after 2s - assistant mode will have limited capabilities!",
-      );
-      return;
-    }
-
-    // Service is available, now wait for it to finish connecting to MCP servers
-    await this.waitForMcpInitialization(mcpService);
-    
-    // Log final status
-    this.logMcpServiceStatus(mcpService);
-  }
-
-  /**
-   * Check if MCP plugin is in the loaded plugins list
-   * 
-   * Where: Checks plugin names for @elizaos/plugin-mcp
-   */
-  private isMcpPluginLoaded(plugins: Plugin[]): boolean {
-    return plugins.some((p) => p.name === "mcp");
-  }
-
-  /**
-   * Poll for MCP service to become available
-   * 
-   * Why: Service registers asynchronously, not immediately available after runtime.initialize()
-   * What: Checks every 100ms for up to 2000ms (2s)
-   */
-  private async pollForMcpService(
-    runtime: AgentRuntime,
-  ): Promise<McpServiceInterface | null> {
-    const maxAttempts = 40; // 40 attempts * 100ms = 4000ms (4s)
-    const pollInterval = 100; // ms
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const service = runtime.getService("mcp");
-      
-      if (service) {
-        elizaLogger.success(
-          `[RuntimeFactory] MCP service became available after ${attempt * pollInterval}ms`,
-        );
-        return service;
-      }
-
-      // Wait before next attempt
-      await new Promise((resolve) => setTimeout(resolve, pollInterval));
-    }
-
-    return null;
-  }
-
-  /**
-   * Wait for MCP service to finish connecting to configured MCP servers
-   * 
-   * Why: Service needs to establish connections before tools are available
-   * What: Calls waitForInitialization() if the method exists
-   */
-  private async waitForMcpInitialization(mcpService: McpServiceInterface): Promise<void> {
-    if (typeof mcpService.waitForInitialization !== "function") {
-      elizaLogger.warn(
-        "[RuntimeFactory] MCP service does not have waitForInitialization method",
-      );
-      return;
-    }
-
-    elizaLogger.info(
-      "[RuntimeFactory] Waiting for MCP service to finish connecting to servers...",
-    );
-
-    await mcpService.waitForInitialization();
-
-    elizaLogger.success(
-      "[RuntimeFactory] MCP service initialization complete",
-    );
-  }
-
-  /**
-   * Log MCP service status for debugging
-   * 
-   * What: Logs connected servers and available tools
-   */
-  private logMcpServiceStatus(mcpService: McpServiceInterface): void {
-    // Log server connection status
-    const servers = mcpService.getServers?.();
-    if (servers) {
-      const serverStatus = servers.map((s) => ({
-        name: s.name,
-        status: s.status,
-        toolCount: s.tools?.length || 0,
-      }));
-      elizaLogger.info(
-        `[RuntimeFactory] MCP servers: ${JSON.stringify(serverStatus)}`,
-      );
-    }
-
-    // Log provider data
-    const providerData = mcpService.getProviderData?.();
-    const serverKeys = providerData?.data?.mcp
-      ? Object.keys(providerData.data.mcp)
-      : [];
-    elizaLogger.info(
-      `[RuntimeFactory] MCP provider has ${serverKeys.length} server(s): ${JSON.stringify(serverKeys)}`,
-    );
   }
 }
 

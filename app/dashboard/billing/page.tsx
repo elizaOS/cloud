@@ -11,6 +11,13 @@ export const metadata: Metadata = {
 // Force dynamic rendering since we use server-side auth (cookies)
 export const dynamic = "force-dynamic";
 
+/**
+ * Billing page for managing credits and billing information.
+ * Displays available credit packs and current credit balance.
+ *
+ * @param searchParams - Search parameters, including optional `canceled` flag for canceled checkout sessions.
+ * @returns The rendered billing page wrapper component.
+ */
 export default async function BillingPage({
   searchParams,
 }: {

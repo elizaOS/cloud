@@ -1,7 +1,7 @@
 /**
- * Sidebar Navigation Configuration
+ * Sidebar navigation configuration defining sidebar sections and items.
+ * Includes navigation structure with icons, labels, badges, and permission settings.
  */
-
 import { HomeIcon, ImageIcon, LayersIcon } from "@radix-ui/react-icons";
 import {
   Server,

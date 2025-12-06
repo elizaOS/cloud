@@ -1,3 +1,7 @@
+/**
+ * Hover card component displaying content on hover.
+ * Built on Radix UI primitives with configurable positioning and animations.
+ */
 "use client";
 
 import * as React from "react";

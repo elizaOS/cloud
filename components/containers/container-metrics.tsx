@@ -1,3 +1,12 @@
+/**
+ * Container metrics component displaying real-time container performance metrics.
+ * Shows CPU, memory, network utilization, and task health with auto-refresh support.
+ *
+ * @param props - Container metrics configuration
+ * @param props.containerId - Container ID to fetch metrics for
+ * @param props.containerName - Container name for display
+ */
+
 "use client";
 
 import { useEffect, useState, useCallback } from "react";

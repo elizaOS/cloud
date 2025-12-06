@@ -18,6 +18,9 @@ import { logger } from "@/lib/utils/logger";
 import { v4 as uuidv4 } from "uuid";
 import { eq, sql } from "drizzle-orm";
 
+/**
+ * Input for creating a room.
+ */
 export interface CreateRoomInput {
   id?: string; // Allow passing a pre-generated room ID
   agentId?: string; // Optional - will be set when runtime initializes
@@ -28,6 +31,9 @@ export interface CreateRoomInput {
   metadata?: Record<string, unknown>;
 }
 
+/**
+ * Room with associated messages.
+ */
 export interface RoomWithMessages {
   room: Room;
   messages: Memory[];

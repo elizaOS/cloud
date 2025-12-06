@@ -1,3 +1,7 @@
+/**
+ * Skeleton loading component with pulse animation.
+ * Used for displaying loading placeholders.
+ */
 import { cn } from "@/lib/utils";
 
 function Skeleton({ className, ...props }: React.ComponentProps<"div">) {

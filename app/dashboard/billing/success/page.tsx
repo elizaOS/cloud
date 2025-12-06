@@ -24,9 +24,12 @@ interface BillingSuccessPageProps {
 }
 
 /**
- * Verify and process the Stripe checkout session
- * This acts as a fallback if webhook doesn't fire (e.g., local development)
- * The creditsService.addCredits has built-in idempotency to prevent duplicates
+ * Verifies and processes a Stripe checkout session.
+ * Acts as a fallback if the webhook doesn't fire (e.g., local development).
+ * The creditsService.addCredits has built-in idempotency to prevent duplicates.
+ *
+ * @param sessionId - The Stripe checkout session ID.
+ * @returns An object indicating success, error, credits added, and whether it was already processed.
  */
 async function verifyAndProcessSession(sessionId: string): Promise<{
   success: boolean;
@@ -156,6 +159,14 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
   };
 }
 
+/**
+ * Billing success page displayed after a successful Stripe checkout session.
+ * Verifies the payment and processes credit addition if not already handled by webhook.
+ * Shows success or error state based on payment verification.
+ *
+ * @param searchParams - Search parameters, including `from` (redirect source) and `session_id` (Stripe session ID).
+ * @returns The rendered billing success page with payment status and credit balance.
+ */
 export default async function BillingSuccessPage({
   searchParams,
 }: BillingSuccessPageProps) {

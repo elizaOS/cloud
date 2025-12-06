@@ -1,3 +1,13 @@
+/**
+ * Hook for infinite scrolling character loading with caching and deduplication.
+ * Supports filtering, sorting, and pagination with automatic cache management.
+ *
+ * @param options - Infinite characters hook options
+ * @param options.filters - Search filters to apply
+ * @param options.sortBy - Sort option
+ * @param options.includeStats - Whether to include character statistics
+ * @returns {object} Character data, loading states, and pagination controls
+ */
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -97,24 +107,28 @@ export function useInfiniteCharacters({
         error: append ? prev.error : null,
       }));
 
-      try {
-        const queryString = buildQueryParams(pageNum);
-        const response = await fetch(`/api/my-agents/characters?${queryString}`, {
-          signal: abortControllerRef.current.signal,
-        });
+      // Check if request was aborted before proceeding
+      if (abortControllerRef.current.signal.aborted) {
+        return;
+      }
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to fetch characters");
-        }
+      const queryString = buildQueryParams(pageNum);
+      const response = await fetch(`/api/my-agents/characters?${queryString}`, {
+        signal: abortControllerRef.current.signal,
+      });
 
-        const json = await response.json();
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch characters");
+      }
 
-        if (!json.success) {
-          throw new Error(json.error || "API returned unsuccessful response");
-        }
+      const json = await response.json();
 
-        const result: MyAgentsSearchResult = json.data;
+      if (!json.success) {
+        throw new Error(json.error || "API returned unsuccessful response");
+      }
+
+      const result: MyAgentsSearchResult = json.data;
 
         setState((prev) => {
           let newCharacters: ExtendedCharacter[];
@@ -137,24 +151,6 @@ export function useInfiniteCharacters({
             error: null,
           };
         });
-      } catch (err) {
-        // Ignore abort errors
-        if (err instanceof Error && err.name === "AbortError") {
-          return;
-        }
-
-        const errorMessage =
-          err instanceof Error ? err.message : "Failed to fetch characters";
-
-        setState((prev) => ({
-          ...prev,
-          isLoading: false,
-          isLoadingMore: false,
-          error: errorMessage,
-          // Clear characters only on initial load error
-          characters: append ? prev.characters : [],
-        }));
-      }
     },
     [buildQueryParams]
   );

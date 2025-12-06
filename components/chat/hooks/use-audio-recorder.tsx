@@ -1,3 +1,9 @@
+/**
+ * Audio recorder hook providing browser audio recording functionality.
+ * Supports start, stop, pause, resume, and recording time tracking.
+ *
+ * @returns {UseAudioRecorderReturn} Audio recorder state and control functions
+ */
 import { useState, useRef, useCallback } from "react";
 import {
   supportsMediaRecorder,

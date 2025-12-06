@@ -1,3 +1,7 @@
+/**
+ * Accordion component system for collapsible content sections.
+ * Built on Radix UI primitives with expand/collapse animations.
+ */
 import * as React from "react";
 import * as AccordionPrimitive from "@radix-ui/react-accordion";
 import { ChevronDown } from "lucide-react";

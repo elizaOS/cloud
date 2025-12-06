@@ -1,3 +1,7 @@
+/**
+ * Progress component displaying progress bar with percentage indicator.
+ * Built on Radix UI primitives with smooth animations.
+ */
 "use client";
 
 import * as React from "react";

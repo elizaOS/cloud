@@ -2,6 +2,13 @@
 
 import { motion } from "motion/react";
 
+/**
+ * Dashboard template component providing page transition animations.
+ * Wraps dashboard pages with fade and slide animations.
+ *
+ * @param children - The page content to render with animations.
+ * @returns The animated page content.
+ */
 export default function DashboardTemplate({
   children,
 }: {

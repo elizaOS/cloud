@@ -1,3 +1,7 @@
+/**
+ * Badge component with variant support for different visual styles.
+ * Supports default, secondary, destructive, and outline variants.
+ */
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";

@@ -1,3 +1,7 @@
+/**
+ * Calendar component for date selection built on react-day-picker.
+ * Supports single and range selection with customizable styling and formatters.
+ */
 "use client";
 
 import * as React from "react";

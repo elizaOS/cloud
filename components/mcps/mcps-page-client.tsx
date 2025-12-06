@@ -57,14 +57,10 @@ export function MCPsPageClient({ servers }: MCPsPageClientProps) {
     const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
     const fullUrl = `${baseUrl}${endpoint}`;
 
-    try {
-      await navigator.clipboard.writeText(fullUrl);
-      setCopiedEndpoint(serverId);
-      toast.success("Endpoint URL copied to clipboard");
-      setTimeout(() => setCopiedEndpoint(null), 2000);
-    } catch {
-      toast.error("Failed to copy endpoint");
-    }
+    await navigator.clipboard.writeText(fullUrl);
+    setCopiedEndpoint(serverId);
+    toast.success("Endpoint URL copied to clipboard");
+    setTimeout(() => setCopiedEndpoint(null), 2000);
   };
 
   const testMcpServer = async (server: McpRegistryEntry) => {

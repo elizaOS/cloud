@@ -1,3 +1,9 @@
+/**
+ * Audio player hook providing audio playback functionality.
+ * Supports play, pause, resume, stop, seek, and progress tracking.
+ *
+ * @returns {UseAudioPlayerReturn} Audio player state and control functions
+ */
 import { useState, useRef, useCallback, useEffect } from "react";
 
 export interface UseAudioPlayerReturn {

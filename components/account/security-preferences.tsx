@@ -1,3 +1,7 @@
+/**
+ * Security preferences component displaying security and notification settings.
+ * Provides links to API keys, authentication, and notification preferences.
+ */
 "use client";
 
 import { Shield, Key, Bell, Lock, ExternalLink } from "lucide-react";

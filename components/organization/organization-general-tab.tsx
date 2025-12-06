@@ -1,3 +1,11 @@
+/**
+ * Organization general tab component displaying organization details and information.
+ * Shows organization name, slug, status, balance, and creation date.
+ *
+ * @param props - Organization general tab configuration
+ * @param props.organization - Organization data to display
+ */
+
 "use client";
 
 import { Building2, CreditCard, Calendar } from "lucide-react";

@@ -56,6 +56,12 @@ const categoryDescriptions: Record<string, string> = {
   Usage: "Track API usage, quotas, and billing information.",
 };
 
+/**
+ * API Explorer page providing an interactive interface for exploring and testing API endpoints.
+ * Features endpoint browsing, search, authentication management, and OpenAPI specification viewing.
+ *
+ * @returns The rendered API explorer page with tabs for endpoints, authentication, and OpenAPI spec.
+ */
 export default function ApiExplorerPage() {
   useSetPageHeader({
     title: "API Explorer",

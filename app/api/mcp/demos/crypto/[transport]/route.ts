@@ -446,4 +446,17 @@ const handler = createMcpHandler(
   },
 );
 
+/**
+ * GET /api/mcp/demos/crypto/[transport]
+ * POST /api/mcp/demos/crypto/[transport]
+ * DELETE /api/mcp/demos/crypto/[transport]
+ *
+ * MCP transport endpoint for cryptocurrency price data.
+ * Handles tool invocations for crypto operations (get price, market data, trending coins).
+ * Uses CoinGecko API with caching.
+ *
+ * @param request - The Next.js request object.
+ * @param context - Route context containing the transport parameter.
+ * @returns MCP handler response.
+ */
 export { handler as GET, handler as POST, handler as DELETE };

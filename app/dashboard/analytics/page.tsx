@@ -25,6 +25,13 @@ interface AnalyticsPageProps {
   }>;
 }
 
+/**
+ * Analytics page displaying detailed usage statistics, performance metrics, and insights.
+ * Supports filtering by date range, granularity, and time range.
+ *
+ * @param props - Page props containing search parameters for filtering analytics data.
+ * @returns The rendered analytics page client component with data and projections.
+ */
 export default async function AnalyticsPage(props: AnalyticsPageProps) {
   await requireAuth();
 

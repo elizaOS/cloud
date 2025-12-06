@@ -73,12 +73,10 @@ export function MyAgentsView({
   const handleStartChat = useCallback(
     async (character: ExtendedCharacter) => {
       // Track interaction (fire-and-forget)
-      fetch(
+      void fetch(
         `/api/my-agents/characters/${character.id}/track-interaction`,
         { method: "POST" },
-      ).catch(() => {
-        // Ignore tracking errors
-      });
+      );
 
       onSelectCharacter(character);
       // Note: Toast is shown in my-agents.tsx to avoid duplicate
@@ -89,10 +87,8 @@ export function MyAgentsView({
   const handleViewDetails = useCallback(
     async (character: ExtendedCharacter) => {
       // Track view (fire-and-forget)
-      fetch(`/api/my-agents/characters/${character.id}/track-view`, {
+      void fetch(`/api/my-agents/characters/${character.id}/track-view`, {
         method: "POST",
-      }).catch(() => {
-        // Ignore tracking errors
       });
 
       setSelectedCharacter(character);

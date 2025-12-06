@@ -118,6 +118,12 @@ const recentVideos: GeneratedVideo[] = [
   },
 ];
 
+/**
+ * Video Generation page for creating AI-generated videos.
+ * Displays model presets, featured video, usage statistics, and recent videos.
+ *
+ * @returns The rendered video generation page client component.
+ */
 export default function VideoPage() {
   return (
     <VideoPageClient

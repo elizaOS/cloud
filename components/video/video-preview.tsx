@@ -76,12 +76,8 @@ export function VideoPreview({ video }: VideoPreviewProps) {
       return;
     }
 
-    try {
-      await navigator.clipboard.writeText(video.videoUrl);
-      showFeedback("Link copied to clipboard.");
-    } catch {
-      showFeedback("Copy failed — select and copy the URL manually.");
-    }
+    await navigator.clipboard.writeText(video.videoUrl);
+    showFeedback("Link copied to clipboard.");
   }, [showFeedback, video]);
 
   useEffect(() => {

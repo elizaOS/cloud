@@ -12,6 +12,12 @@ export const metadata: Metadata = {
     "Clone your voice and create custom AI voices for text-to-speech",
 };
 
+/**
+ * Voice Studio page for managing voice clones and creating custom AI voices.
+ * Displays user's voices and provides voice cloning functionality.
+ *
+ * @returns The rendered voice studio page client component with initial voices and credit balance.
+ */
 export default async function VoicesPage() {
   const user = await requireAuthWithOrg();
 

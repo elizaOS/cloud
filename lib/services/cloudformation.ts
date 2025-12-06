@@ -22,6 +22,9 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { dbPriorityManager } from "./alb-priority-manager";
 
+/**
+ * Configuration for a user's CloudFormation stack.
+ */
 export interface UserStackConfig {
   userId: string;
   projectName: string; // Project name for multi-project support
@@ -35,6 +38,9 @@ export interface UserStackConfig {
   environmentVars?: Record<string, string>;
 }
 
+/**
+ * Outputs from a CloudFormation stack.
+ */
 export interface StackOutputs {
   clusterName: string;
   clusterArn: string;

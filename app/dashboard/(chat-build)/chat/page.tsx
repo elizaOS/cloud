@@ -20,6 +20,12 @@ interface PageProps {
 // Force dynamic rendering since we use server-side auth (cookies)
 export const dynamic = "force-dynamic";
 
+/**
+ * Generates metadata for the chat page, optionally including character-specific metadata.
+ *
+ * @param searchParams - Search parameters, including optional `characterId` for character-specific metadata.
+ * @returns Metadata object with title and description for the chat page or character chat.
+ */
 export async function generateMetadata({
   searchParams,
 }: PageProps): Promise<Metadata> {
@@ -75,6 +81,14 @@ export async function generateMetadata({
   });
 }
 
+/**
+ * Eliza chat page for interacting with AI agents/characters.
+ * Handles server-side migration of anonymous session data to authenticated user.
+ * Supports both authenticated and anonymous users.
+ *
+ * @param searchParams - Search parameters, including optional `characterId` and `roomId`.
+ * @returns The rendered Eliza chat page client component with initial characters and room/character IDs.
+ */
 export default async function ElizaPage({ searchParams }: PageProps) {
   // Check if user is authenticated (don't create anonymous here - let client handle it)
   const user = await getCurrentUser();

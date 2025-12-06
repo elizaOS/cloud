@@ -12,6 +12,21 @@ const QuerySchema = z.object({
     .optional(),
 });
 
+/**
+ * GET /api/v1/apps/[id]/earnings/history
+ * Gets transaction history for app earnings.
+ * Supports filtering by transaction type and pagination.
+ * Requires ownership verification.
+ *
+ * Query Parameters:
+ * - `limit`: Maximum number of transactions (default: 50, max: 100).
+ * - `offset`: Offset for pagination (default: 0).
+ * - `type`: Filter by transaction type - "inference_markup" | "purchase_share" | "withdrawal" | "adjustment".
+ *
+ * @param request - Request with optional filtering and pagination query parameters.
+ * @param params - Route parameters containing the app ID.
+ * @returns Transaction history with pagination information.
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

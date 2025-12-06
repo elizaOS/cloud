@@ -26,6 +26,12 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
+/**
+ * Generates metadata for the container details page.
+ *
+ * @param params - Route parameters containing the container ID.
+ * @returns Metadata object with title and description for the container details page.
+ */
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
@@ -48,6 +54,14 @@ export async function generateMetadata({
   );
 }
 
+/**
+ * Container details page displaying comprehensive information for a specific container.
+ * Shows container status, metrics, deployment history, logs, and configuration.
+ * Redirects to containers list if the container doesn't exist or doesn't belong to the user's organization.
+ *
+ * @param params - Route parameters containing the container ID.
+ * @returns The rendered container details page with metrics, history, and logs.
+ */
 export default async function ContainerDetailsPage({ params }: PageProps) {
   const user = await requireAuthWithOrg();
   const { id } = await params;

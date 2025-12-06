@@ -18,6 +18,12 @@ interface PageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
+/**
+ * Generates metadata for the app details page.
+ *
+ * @param params - Route parameters containing the app ID.
+ * @returns Metadata object with title and description for the app details page.
+ */
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
@@ -39,6 +45,15 @@ export async function generateMetadata({
   };
 }
 
+/**
+ * App details page displaying information for a specific app.
+ * Shows app logo, name, slug, and tabs for various app management features.
+ * Redirects to apps list if the app doesn't exist or doesn't belong to the user's organization.
+ *
+ * @param params - Route parameters containing the app ID.
+ * @param searchParams - Search parameters, including optional `showApiKey` flag.
+ * @returns The rendered app details page with tabs.
+ */
 export default async function AppDetailsPage({ params, searchParams }: PageProps) {
   const user = await requireAuthWithOrg();
   const { id } = await params;
