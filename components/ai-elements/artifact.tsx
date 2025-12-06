@@ -1,3 +1,8 @@
+/**
+ * Artifact component for displaying AI-generated artifacts.
+ * Provides header, content, and close functionality with tooltip support.
+ */
+
 "use client";
 
 import { Button } from "@/components/ui/button";

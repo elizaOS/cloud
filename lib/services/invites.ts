@@ -1,3 +1,7 @@
+/**
+ * Service for managing organization invites.
+ */
+
 import {
   organizationInvitesRepository,
   type OrganizationInvite,
@@ -11,6 +15,9 @@ import { emailService } from "./email";
 import { usersService } from "./users";
 import { organizationsService } from "./organizations";
 
+/**
+ * Parameters for creating an organization invite.
+ */
 export interface CreateInviteParams {
   organizationId: string;
   inviterUserId: string;
@@ -18,6 +25,9 @@ export interface CreateInviteParams {
   invitedRole: "admin" | "member";
 }
 
+/**
+ * Invite with organization details.
+ */
 export interface InviteWithOrganization extends OrganizationInvite {
   organization: {
     id: string;
@@ -26,12 +36,18 @@ export interface InviteWithOrganization extends OrganizationInvite {
   };
 }
 
+/**
+ * Result of validating an invite token.
+ */
 export interface ValidateTokenResult {
   valid: boolean;
   invite?: InviteWithOrganization;
   error?: string;
 }
 
+/**
+ * Service for managing organization invites including creation, validation, and acceptance.
+ */
 export class InvitesService {
   async getById(id: string): Promise<OrganizationInvite | undefined> {
     return await organizationInvitesRepository.findById(id);

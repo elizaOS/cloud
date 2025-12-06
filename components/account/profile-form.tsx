@@ -1,3 +1,11 @@
+/**
+ * Profile form component for updating user profile information.
+ * Supports name, avatar upload, email updates, and displays organization role.
+ *
+ * @param props - Profile form configuration
+ * @param props.user - User data with organization information
+ */
+
 "use client";
 
 import { useState, useTransition } from "react";
@@ -53,27 +61,19 @@ export function ProfileForm({ user }: ProfileFormProps) {
     setIsUploadingAvatar(true);
     setError(null);
 
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
+    const formData = new FormData();
+    formData.append("file", file);
 
-      const result = await uploadAvatar(formData);
+    const result = await uploadAvatar(formData);
 
-      if (result.success) {
-        toast.success(result.message || "Avatar uploaded successfully");
-        router.refresh();
-      } else {
-        setError(result.error || "Failed to upload avatar");
-        toast.error(result.error || "Failed to upload avatar");
-      }
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to upload avatar";
-      setError(message);
-      toast.error(message);
-    } finally {
-      setIsUploadingAvatar(false);
+    if (result.success) {
+      toast.success(result.message || "Avatar uploaded successfully");
+      router.refresh();
+    } else {
+      setError(result.error || "Failed to upload avatar");
+      toast.error(result.error || "Failed to upload avatar");
     }
+    setIsUploadingAvatar(false);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -84,22 +84,15 @@ export function ProfileForm({ user }: ProfileFormProps) {
     const formData = new FormData(e.currentTarget);
 
     startTransition(async () => {
-      try {
-        const result = await updateProfile(formData);
+      const result = await updateProfile(formData);
 
-        if (result.success) {
-          setSuccess(result.message || "Profile updated successfully");
-          toast.success(result.message || "Profile updated successfully");
-          router.refresh();
-        } else {
-          setError(result.error || "Failed to update profile");
-          toast.error(result.error || "Failed to update profile");
-        }
-      } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "An unexpected error occurred";
-        setError(message);
-        toast.error(message);
+      if (result.success) {
+        setSuccess(result.message || "Profile updated successfully");
+        toast.success(result.message || "Profile updated successfully");
+        router.refresh();
+      } else {
+        setError(result.error || "Failed to update profile");
+        toast.error(result.error || "Failed to update profile");
       }
     });
   };
@@ -112,26 +105,18 @@ export function ProfileForm({ user }: ProfileFormProps) {
 
     const formData = new FormData(e.currentTarget);
 
-    try {
-      const result = await updateEmail(formData);
+    const result = await updateEmail(formData);
 
-      if (result.success) {
-        setSuccess(result.message || "Email added successfully");
-        toast.success(result.message || "Email added successfully");
-        setEmailAdded(true); // Optimistically hide the form
-        router.refresh();
-      } else {
-        setError(result.error || "Failed to add email");
-        toast.error(result.error || "Failed to add email");
-      }
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "An unexpected error occurred";
-      setError(message);
-      toast.error(message);
-    } finally {
-      setIsUpdatingEmail(false);
+    if (result.success) {
+      setSuccess(result.message || "Email added successfully");
+      toast.success(result.message || "Email added successfully");
+      setEmailAdded(true); // Optimistically hide the form
+      router.refresh();
+    } else {
+      setError(result.error || "Failed to add email");
+      toast.error(result.error || "Failed to add email");
     }
+    setIsUpdatingEmail(false);
   };
 
   return (

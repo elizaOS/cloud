@@ -1,3 +1,7 @@
+/**
+ * Toggle component for toggling states with visual feedback.
+ * Built on Radix UI primitives with variant and size support.
+ */
 "use client";
 
 import * as React from "react";

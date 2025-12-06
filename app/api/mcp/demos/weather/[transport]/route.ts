@@ -596,11 +596,21 @@ const handler = createPaidMcpHandler(
           );
 
           // Sort by temperature
-          const validResults = results.filter((r) => !("error" in r));
+          interface ValidWeatherResult {
+            city: string;
+            temperature: number;
+            feelsLike: number;
+            humidity: number;
+            wind: number;
+            condition: string;
+            icon: string;
+          }
+
+          const validResults = results.filter(
+            (r): r is ValidWeatherResult => !("error" in r),
+          );
           validResults.sort(
-            (a, b) =>
-              (b as { temperature: number }).temperature -
-              (a as { temperature: number }).temperature,
+            (a, b) => b.temperature - a.temperature,
           );
 
           return {
@@ -745,4 +755,17 @@ const handler = createPaidMcpHandler(
   },
 );
 
+/**
+ * GET /api/mcp/demos/weather/[transport]
+ * POST /api/mcp/demos/weather/[transport]
+ * DELETE /api/mcp/demos/weather/[transport]
+ *
+ * MCP transport endpoint for weather data.
+ * Handles tool invocations for weather operations (current weather, forecasts, location search).
+ * Uses Open-Meteo API with caching. Uses x402 paid MCP handler for payment processing.
+ *
+ * @param request - The Next.js request object.
+ * @param context - Route context containing the transport parameter.
+ * @returns MCP handler response.
+ */
 export { handler as GET, handler as POST, handler as DELETE };

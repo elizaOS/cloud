@@ -1,3 +1,8 @@
+/**
+ * Prompt input component for AI chat interfaces with file attachments and voice input.
+ * Supports text input, image attachments, audio recording, and model selection.
+ */
+
 "use client";
 
 import NextImage from "next/image";
@@ -721,30 +726,23 @@ export const PromptInput = ({
         return item;
       }),
     ).then((convertedFiles: FileUIPart[]) => {
-      try {
-        const result = onSubmit({ text, files: convertedFiles }, event);
+      const result = onSubmit({ text, files: convertedFiles }, event);
 
-        // Handle both sync and async onSubmit
-        if (result instanceof Promise) {
-          result
-            .then(() => {
-              clear();
-              if (usingProvider) {
-                controller.textInput.clear();
-              }
-            })
-            .catch(() => {
-              // Don't clear on error - user may want to retry
-            });
-        } else {
-          // Sync function completed without throwing, clear attachments
-          clear();
-          if (usingProvider) {
-            controller.textInput.clear();
-          }
+      // Handle both sync and async onSubmit
+      if (result instanceof Promise) {
+        result
+          .then(() => {
+            clear();
+            if (usingProvider) {
+              controller.textInput.clear();
+            }
+          })
+      } else {
+        // Sync function completed without throwing, clear attachments
+        clear();
+        if (usingProvider) {
+          controller.textInput.clear();
         }
-      } catch {
-        // Don't clear on error - user may want to retry
       }
     });
   };

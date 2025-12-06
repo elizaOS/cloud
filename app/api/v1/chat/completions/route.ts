@@ -20,10 +20,19 @@ import type { NextRequest } from "next/server";
 import type {
   OpenAIChatRequest,
   OpenAIChatResponse,
+  OpenAIChatMessage,
 } from "@/lib/providers/types";
 
 export const maxDuration = 60;
 
+/**
+ * POST /api/v1/chat/completions
+ * OpenAI-compatible chat completions endpoint.
+ * Processes chat messages and returns AI responses with detailed logging and credit deduction.
+ *
+ * @param req - OpenAI-format request with model and messages array.
+ * @returns Streaming or non-streaming chat completion response.
+ */
 async function handlePOST(req: NextRequest) {
   const startTime = Date.now();
 
@@ -37,17 +46,21 @@ async function handlePOST(req: NextRequest) {
 
     // Log detailed message breakdown
     const systemMessages = request.messages.filter(
-      (msg: any) => msg.role === "system",
+      (msg) => msg.role === "system",
     );
     const userMessages = request.messages.filter(
-      (msg: any) => msg.role === "user",
+      (msg) => msg.role === "user",
     );
     const assistantMessages = request.messages.filter(
-      (msg: any) => msg.role === "assistant",
+      (msg) => msg.role === "assistant",
     );
     const toolMessages = request.messages.filter(
-      (msg: any) => msg.role === "tool",
+      (msg) => msg.role === "tool",
     );
+
+    // Helper to get content as string for logging
+    const getContentString = (content: OpenAIChatMessage["content"]): string => 
+      typeof content === "string" ? content : JSON.stringify(content);
 
     logger.info("[Chat Completions API] 📝 PROMPT BREAKDOWN", {
       model: request.model,
@@ -58,42 +71,21 @@ async function handlePOST(req: NextRequest) {
         assistant: assistantMessages.length,
         tool: toolMessages.length,
       },
-      systemPrompts: systemMessages.map((msg: any) => ({
-        content:
-          typeof msg.content === "string"
-            ? msg.content
-            : JSON.stringify(msg.content),
-        length:
-          typeof msg.content === "string"
-            ? msg.content.length
-            : JSON.stringify(msg.content).length,
+      systemPrompts: systemMessages.map((msg) => ({
+        content: getContentString(msg.content),
+        length: getContentString(msg.content).length,
       })),
-      userPrompts: userMessages.map((msg: any) => ({
-        content:
-          typeof msg.content === "string"
-            ? msg.content
-            : JSON.stringify(msg.content),
-        length:
-          typeof msg.content === "string"
-            ? msg.content.length
-            : JSON.stringify(msg.content).length,
+      userPrompts: userMessages.map((msg) => ({
+        content: getContentString(msg.content),
+        length: getContentString(msg.content).length,
       })),
-      assistantResponses: assistantMessages.map((msg: any) => ({
-        content:
-          typeof msg.content === "string"
-            ? msg.content
-            : JSON.stringify(msg.content),
-        length:
-          typeof msg.content === "string"
-            ? msg.content.length
-            : JSON.stringify(msg.content).length,
+      assistantResponses: assistantMessages.map((msg) => ({
+        content: getContentString(msg.content),
+        length: getContentString(msg.content).length,
         toolCalls: msg.tool_calls || undefined,
       })),
-      toolResponses: toolMessages.map((msg: any) => ({
-        content:
-          typeof msg.content === "string"
-            ? msg.content
-            : JSON.stringify(msg.content),
+      toolResponses: toolMessages.map((msg) => ({
+        content: getContentString(msg.content),
         toolCallId: msg.tool_call_id,
       })),
     });
@@ -256,20 +248,25 @@ async function handlePOST(req: NextRequest) {
     logger.error("[OpenAI Proxy] Error:", error);
 
     // Check if error is a structured gateway error
+    interface GatewayError {
+      status: number;
+      error: { message: string; type?: string; code?: string };
+    }
+
     if (
       error &&
       typeof error === "object" &&
       "error" in error &&
       "status" in error
     ) {
-      const gatewayError = error as {
-        status: number;
-        error: { message: string; type?: string; code?: string };
-      };
-      return Response.json(
-        { error: gatewayError.error },
-        { status: gatewayError.status },
-      );
+      const status = (error as { status: unknown }).status;
+      if (typeof status === "number") {
+        const gatewayError = error as GatewayError;
+        return Response.json(
+          { error: gatewayError.error },
+          { status: gatewayError.status },
+        );
+      }
     }
 
     // Fallback to generic error

@@ -1,5 +1,9 @@
 /**
- * Sidebar Navigation Item Component
+ * Sidebar navigation item component displaying individual navigation links.
+ * Supports active state highlighting, locked state for anonymous users, and badges.
+ *
+ * @param props - Sidebar navigation item configuration
+ * @param props.item - Sidebar item data including label, href, icon, and permissions
  */
 
 "use client";

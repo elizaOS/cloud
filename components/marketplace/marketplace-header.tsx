@@ -1,3 +1,15 @@
+/**
+ * Marketplace header component with search, view mode toggle, and create button.
+ * Provides responsive layout with mobile collapse support.
+ *
+ * @param props - Marketplace header configuration
+ * @param props.searchQuery - Current search query
+ * @param props.onSearchChange - Callback when search changes
+ * @param props.view - Current view mode (grid or list)
+ * @param props.onViewChange - Callback when view mode changes
+ * @param props.onToggleCollapse - Optional callback to toggle sidebar collapse
+ */
+
 "use client";
 
 import { Input } from "@/components/ui/input";

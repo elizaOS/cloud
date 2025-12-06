@@ -9,6 +9,14 @@ import { logger } from "@/lib/utils/logger";
 
 const MAX_TEXT_LENGTH = 5000;
 
+/**
+ * POST /api/elevenlabs/tts
+ * Converts text to speech using ElevenLabs TTS API.
+ * Supports custom user voices and tracks usage statistics.
+ *
+ * @param request - Request body with text, voiceId, and optional modelId.
+ * @returns Streaming audio response (audio/mpeg).
+ */
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user

@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
-import { creditsService, invoicesService } from "@/lib/services";
+import { creditsService, invoicesService, appCreditsService, referralsService } from "@/lib/services";
+import { referralSignupsRepository } from "@/db/repositories/referrals";
+import { usersRepository } from "@/db/repositories/users";
 import { headers } from "next/headers";
 import type Stripe from "stripe";
 import { logger } from "@/lib/utils/logger";
@@ -28,6 +30,15 @@ function parseAndValidateCredits(creditsStr: string): number | null {
   return Math.round(credits * 100) / 100;
 }
 
+/**
+ * POST /api/stripe/webhook
+ * Stripe webhook endpoint for processing payment events.
+ * Handles checkout sessions, payment intents, invoices, and subscription events.
+ * Verifies webhook signatures for security.
+ *
+ * @param req - Request containing Stripe webhook event data.
+ * @returns Webhook processing result.
+ */
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const headersList = await headers();
@@ -76,6 +87,11 @@ export async function POST(req: NextRequest) {
           const credits = parseAndValidateCredits(creditsStr);
           const paymentIntentId = session.payment_intent as string;
           const purchaseType = session.metadata?.type || "checkout";
+          const purchaseSource = session.metadata?.source;
+          const appId = session.metadata?.app_id;
+
+          // Check if this is an app-specific purchase
+          const isAppPurchase = purchaseSource === "miniapp_app" && appId && userId;
 
           if (!organizationId || !credits) {
             logger.warn(
@@ -121,22 +137,113 @@ export async function POST(req: NextRequest) {
             );
           }
 
-          await creditsService.addCredits({
-            organizationId,
-            amount: credits,
-            description: `Balance top-up - $${credits.toFixed(2)}`,
-            metadata: {
-              user_id: userId,
-              payment_intent_id: paymentIntentId,
-              session_id: session.id,
-              type: purchaseType,
-            },
-            stripePaymentIntentId: paymentIntentId,
-          });
+          // Handle app-specific purchases with creator monetization
+          if (isAppPurchase) {
+            logger.info(
+              `[Stripe Webhook] Processing app-specific credit purchase for app ${appId}`,
+            );
 
-          logger.info(
-            `[Stripe Webhook] Credits added: ${credits} to org ${organizationId}`,
-          );
+            try {
+              const result = await appCreditsService.processPurchase({
+                appId,
+                userId,
+                organizationId,
+                purchaseAmount: credits,
+                stripePaymentIntentId: paymentIntentId,
+              });
+
+              logger.info(
+                `[Stripe Webhook] App credits added: ${result.creditsAdded} to app ${appId} for user ${userId}`,
+                {
+                  creditsAdded: result.creditsAdded,
+                  platformOffset: result.platformOffset,
+                  creatorEarnings: result.creatorEarnings,
+                  newBalance: result.newBalance,
+                },
+              );
+
+              // Also create a record in regular credit transactions for audit trail
+              await creditsService.addCredits({
+                organizationId,
+                amount: 0, // Don't add to org balance - it's in app-specific balance
+                description: `App credit purchase (App: ${appId}) - $${credits.toFixed(2)}`,
+                metadata: {
+                  user_id: userId,
+                  app_id: appId,
+                  payment_intent_id: paymentIntentId,
+                  session_id: session.id,
+                  type: purchaseType,
+                  source: purchaseSource,
+                  credits_to_app_balance: credits,
+                  platform_offset: result.platformOffset,
+                  creator_earnings: result.creatorEarnings,
+                },
+                stripePaymentIntentId: paymentIntentId,
+              });
+            } catch (appError) {
+              logger.error(
+                "[Stripe Webhook] Error processing app credit purchase",
+                appError,
+              );
+              // Fall through to regular credit addition as fallback
+              await creditsService.addCredits({
+                organizationId,
+                amount: credits,
+                description: `Balance top-up (app purchase fallback) - $${credits.toFixed(2)}`,
+                metadata: {
+                  user_id: userId,
+                  app_id: appId,
+                  payment_intent_id: paymentIntentId,
+                  session_id: session.id,
+                  type: purchaseType,
+                  fallback: true,
+                },
+                stripePaymentIntentId: paymentIntentId,
+              });
+            }
+          } else {
+            // Regular credit purchase (not app-specific)
+            await creditsService.addCredits({
+              organizationId,
+              amount: credits,
+              description: `Balance top-up - $${credits.toFixed(2)}`,
+              metadata: {
+                user_id: userId,
+                payment_intent_id: paymentIntentId,
+                session_id: session.id,
+                type: purchaseType,
+              },
+              stripePaymentIntentId: paymentIntentId,
+            });
+
+            logger.info(
+              `[Stripe Webhook] Credits added: ${credits} to org ${organizationId}`,
+            );
+          }
+
+          // Process referral commission if this user was referred
+          if (userId) {
+            const referralSignup =
+              await referralSignupsRepository.findByReferredUserId(userId);
+            if (referralSignup) {
+              const referrerUser = await usersRepository.findById(
+                referralSignup.referrer_user_id,
+              );
+              if (referrerUser?.organization_id) {
+                const commission =
+                  await referralsService.processReferralCommission(
+                    userId,
+                    credits,
+                    referrerUser.organization_id,
+                  );
+                if (commission > 0) {
+                  logger.info(
+                    `[Stripe Webhook] Referral commission credited: $${commission.toFixed(2)} to org ${referrerUser.organization_id}`,
+                  );
+                }
+              }
+            }
+          }
 
           try {
             const existingInvoice = await invoicesService.getByStripeInvoiceId(
@@ -165,6 +272,7 @@ export async function POST(req: NextRequest) {
                 metadata: {
                   type: purchaseType,
                   session_id: session.id,
+                  ...(appId && { app_id: appId }),
                 },
                 paid_at: new Date(),
               });

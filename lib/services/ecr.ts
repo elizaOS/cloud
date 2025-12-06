@@ -19,6 +19,9 @@ import {
 /**
  * Configuration for ECR client
  */
+/**
+ * Configuration for ECR client.
+ */
 export interface ECRConfig {
   region: string;
   accessKeyId: string;
@@ -27,6 +30,9 @@ export interface ECRConfig {
 
 /**
  * Result of image push operation
+ */
+/**
+ * Result of pushing an image to ECR.
  */
 export interface ImagePushResult {
   repositoryUri: string;
@@ -37,6 +43,9 @@ export interface ImagePushResult {
 
 /**
  * Repository creation result
+ */
+/**
+ * Result of creating an ECR repository.
  */
 export interface RepositoryResult {
   repositoryUri: string;
@@ -66,31 +75,21 @@ export class ECRManager {
    * Create a new ECR repository if it doesn't exist
    */
   async createRepository(repositoryName: string): Promise<RepositoryResult> {
-    try {
-      // Check if repository exists
-      const describeCommand = new DescribeRepositoriesCommand({
-        repositoryNames: [repositoryName],
-      });
+    // Check if repository exists
+    const describeCommand = new DescribeRepositoriesCommand({
+      repositoryNames: [repositoryName],
+    });
 
-      const describeResponse = await this.client.send(describeCommand);
-      const repository = describeResponse.repositories?.[0];
+    const describeResponse = await this.client.send(describeCommand);
+    const repository = describeResponse.repositories?.[0];
 
-      if (repository) {
-        console.log("Repository already exists:", repository.repositoryUri);
-        return {
-          repositoryUri: repository.repositoryUri!,
-          repositoryArn: repository.repositoryArn!,
-          registryId: repository.registryId!,
-        };
-      }
-    } catch (error) {
-      // Repository doesn't exist, create it
-      if (
-        error instanceof Error &&
-        error.name !== "RepositoryNotFoundException"
-      ) {
-        throw error;
-      }
+    if (repository) {
+      console.log("Repository already exists:", repository.repositoryUri);
+      return {
+        repositoryUri: repository.repositoryUri!,
+        repositoryArn: repository.repositoryArn!,
+        registryId: repository.registryId!,
+      };
     }
 
     console.log("Creating new ECR repository:", repositoryName);
@@ -106,22 +105,17 @@ export class ECRManager {
     });
 
     const createResponse = await this.client.send(createCommand);
-    const repository = createResponse.repository!;
+    const createdRepository = createResponse.repository!;
 
-    console.log("Repository created:", repository.repositoryUri);
+    console.log("Repository created:", createdRepository.repositoryUri);
 
     // Set lifecycle policy to prevent storage bloat
-    try {
-      await this.setLifecyclePolicy(repositoryName);
-    } catch (error) {
-      console.warn(`Failed to set lifecycle policy (non-fatal):`, error);
-      // Don't fail the operation - lifecycle policy can be set later
-    }
+    await this.setLifecyclePolicy(repositoryName);
 
     return {
-      repositoryUri: repository.repositoryUri!,
-      repositoryArn: repository.repositoryArn!,
-      registryId: repository.registryId!,
+      repositoryUri: createdRepository.repositoryUri!,
+      repositoryArn: createdRepository.repositoryArn!,
+      registryId: createdRepository.registryId!,
     };
   }
 
@@ -247,22 +241,12 @@ export class ECRManager {
    * Get repository details
    */
   async getRepository(repositoryName: string): Promise<Repository | null> {
-    try {
-      const command = new DescribeRepositoriesCommand({
-        repositoryNames: [repositoryName],
-      });
+    const command = new DescribeRepositoriesCommand({
+      repositoryNames: [repositoryName],
+    });
 
-      const response = await this.client.send(command);
-      return response.repositories?.[0] || null;
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        error.name === "RepositoryNotFoundException"
-      ) {
-        return null;
-      }
-      throw error;
-    }
+    const response = await this.client.send(command);
+    return response.repositories?.[0] || null;
   }
 
   /**
@@ -308,28 +292,21 @@ export class ECRManager {
    * Critical for preventing failed deployments due to missing images
    */
   async verifyImageExists(imageUri: string): Promise<boolean> {
-    try {
-      // Parse image URI: registry/repository:tag
-      const [repoWithRegistry, tag] = imageUri.split(":");
-      const repositoryName = repoWithRegistry.split("/").slice(1).join("/");
+    // Parse image URI: registry/repository:tag
+    const [repoWithRegistry, tag] = imageUri.split(":");
+    const repositoryName = repoWithRegistry.split("/").slice(1).join("/");
 
-      if (!tag) {
-        throw new Error("Image URI must include a tag");
-      }
-
-      const command = new DescribeImagesCommand({
-        repositoryName,
-        imageIds: [{ imageTag: tag }],
-      });
-
-      const response = await this.client.send(command);
-      return !!(response.imageDetails && response.imageDetails.length > 0);
-    } catch (error) {
-      if (error instanceof Error && error.name === "ImageNotFoundException") {
-        return false;
-      }
-      throw error;
+    if (!tag) {
+      throw new Error("Image URI must include a tag");
     }
+
+    const command = new DescribeImagesCommand({
+      repositoryName,
+      imageIds: [{ imageTag: tag }],
+    });
+
+    const response = await this.client.send(command);
+    return !!(response.imageDetails && response.imageDetails.length > 0);
   }
 }
 

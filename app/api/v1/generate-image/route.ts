@@ -86,7 +86,7 @@ async function authenticateUser(req: NextRequest): Promise<AuthContext> {
     const anonymousUser: UserWithOrganization = {
       ...anonData.user,
       organization_id: null,
-      organization: null as unknown as UserWithOrganization["organization"],
+      organization: null,
     };
 
     return {
@@ -96,6 +96,14 @@ async function authenticateUser(req: NextRequest): Promise<AuthContext> {
   }
 }
 
+/**
+ * POST /api/v1/generate-image
+ * Generates images using AI models.
+ * Supports both authenticated and anonymous users with rate limiting.
+ *
+ * @param req - Request body with prompt, optional numImages, aspectRatio, and stylePreset.
+ * @returns Generated image URLs and generation metadata.
+ */
 async function handlePOST(req: NextRequest) {
   let generationId: string | undefined;
 

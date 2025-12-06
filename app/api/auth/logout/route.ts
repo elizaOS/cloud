@@ -4,6 +4,13 @@ import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { getCurrentUser } from "@/lib/auth";
 import { userSessionsService } from "@/lib/services";
 
+/**
+ * POST /api/auth/logout
+ * Logs out the current user by ending all sessions and clearing auth cookies.
+ *
+ * @param req - The Next.js request object.
+ * @returns JSON response indicating success or failure.
+ */
 async function handlePOST(req: NextRequest) {
   try {
     const user = await getCurrentUser();

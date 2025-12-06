@@ -19,6 +19,16 @@ const CodeBlockContext = createContext<CodeBlockContextType>({
   code: "",
 });
 
+/**
+ * Code block component with syntax highlighting and copy functionality.
+ * Supports light/dark themes and optional line numbers.
+ *
+ * @param props - Code block configuration
+ * @param props.code - Source code to display
+ * @param props.language - Programming language for syntax highlighting
+ * @param props.showLineNumbers - Whether to display line numbers
+ * @param props.children - Optional child components (e.g., copy button)
+ */
 export type CodeBlockProps = HTMLAttributes<HTMLDivElement> & {
   code: string;
   language: string;

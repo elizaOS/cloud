@@ -13,6 +13,14 @@ const createInviteSchema = z.object({
     }),
 });
 
+/**
+ * POST /api/organizations/invites
+ * Creates a new organization invitation.
+ * Requires owner or admin role.
+ *
+ * @param request - Request body with email and role (admin or member).
+ * @returns Created invite details.
+ */
 async function handlePOST(request: NextRequest) {
   try {
     const user = await requireAuthWithOrg();
@@ -81,6 +89,13 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
+/**
+ * GET /api/organizations/invites
+ * Lists all invitations for the organization.
+ * Requires owner or admin role.
+ *
+ * @returns Array of invitations with inviter details.
+ */
 async function handleGET() {
   try {
     const user = await requireAuthWithOrg();
@@ -99,24 +114,43 @@ async function handleGET() {
       user.organization_id!,
     );
 
+    // Type for invite with inviter relation
+    interface InviteWithInviter {
+      id: string;
+      invited_email: string;
+      invited_role: string;
+      status: string;
+      expires_at: Date;
+      created_at: Date;
+      accepted_at: Date | null;
+      inviter?: {
+        id: string;
+        name: string | null;
+        email: string | null;
+      } | null;
+    }
+
     return NextResponse.json({
       success: true,
-      data: invites.map((invite: any) => ({
-        id: invite.id,
-        email: invite.invited_email,
-        role: invite.invited_role,
-        status: invite.status,
-        expires_at: invite.expires_at,
-        created_at: invite.created_at,
-        inviter: invite.inviter
-          ? {
-              id: invite.inviter.id,
-              name: invite.inviter.name,
-              email: invite.inviter.email,
-            }
-          : null,
-        accepted_at: invite.accepted_at,
-      })),
+      data: invites.map((invite) => {
+        const inviteWithRelation = invite as unknown as InviteWithInviter;
+        return {
+          id: inviteWithRelation.id,
+          email: inviteWithRelation.invited_email,
+          role: inviteWithRelation.invited_role,
+          status: inviteWithRelation.status,
+          expires_at: inviteWithRelation.expires_at,
+          created_at: inviteWithRelation.created_at,
+          inviter: inviteWithRelation.inviter
+            ? {
+                id: inviteWithRelation.inviter.id,
+                name: inviteWithRelation.inviter.name,
+                email: inviteWithRelation.inviter.email,
+              }
+            : null,
+          accepted_at: inviteWithRelation.accepted_at,
+        };
+      }),
     });
   } catch (error) {
     console.error("Error fetching invites:", error);

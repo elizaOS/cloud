@@ -8,7 +8,6 @@ import {
   stringToUuid,
   elizaLogger,
   type UUID,
-  type Agent,
   type Character,
   type Plugin,
   type IDatabaseAdapter,
@@ -24,8 +23,14 @@ import { logger } from "@/lib/utils/logger";
 // Initialize DOM polyfills first (before any imports that might need them)
 import "@/lib/polyfills/dom-polyfills";
 
+/**
+ * Global extensions for ElizaOS
+ * 
+ * NOTE: We do NOT cache database adapters here!
+ * - Each agent needs its own adapter (agent-tenanted queries)
+ * - Caching would cause cross-agent data contamination
+ */
 interface GlobalWithEliza {
-  __elizaDatabaseAdapter?: IDatabaseAdapter; // Keep DB adapter cached (connections are safe to share)
   logger?: Logger;
 }
 
@@ -38,6 +43,7 @@ export class RuntimeFactory {
   private readonly DEFAULT_AGENT_ID = stringToUuid(
     "b850bc30-45f8-0041-a00a-83df46d8555d",
   ) as UUID;
+  private readonly DEFAULT_AGENT_ID_STRING = "b850bc30-45f8-0041-a00a-83df46d8555d";
 
   private constructor() {
     this.initializeLoggers();
@@ -52,7 +58,16 @@ export class RuntimeFactory {
 
   /**
    * Create a configured runtime for a specific user context
-   * All configuration happens here, no late injection needed
+   * 
+   * CRITICAL: Database adapter is agent-tenanted (all queries filter by agentId)
+   * - We create a FRESH adapter for each agentId (NO caching)
+   * - Each runtime gets its own adapter instance
+   * - Prevents cross-agent data contamination
+   * 
+   * Why no caching?
+   * - ElizaOS operations (createEntity, getMemories, etc.) are filtered by agentId
+   * - Reusing adapters would mix data between different agents
+   * - Agent A could see Agent B's data (BAD!)
    */
   async createRuntimeForUser(context: UserContext): Promise<AgentRuntime> {
     elizaLogger.info(
@@ -66,15 +81,15 @@ export class RuntimeFactory {
       context.characterId || "default",
     );
 
-    // 1. Get or create database adapter (cached, safe to share)
-    const dbAdapter = await this.getDbAdapter();
+    // 1. Load character with appropriate plugins for the AgentMode
+    // Use default character if no characterId or if it's the default agent ID
+    const isDefaultCharacter = !context.characterId || context.characterId === this.DEFAULT_AGENT_ID_STRING;
+    
+    const { character, plugins } = isDefaultCharacter
+      ? await agentLoader.getDefaultCharacter(context.agentMode)
+      : await agentLoader.loadCharacter(context.characterId!, context.agentMode);
 
-    // 2. Load character with appropriate plugins for the AgentMode
-    const { character, plugins } = context.characterId
-      ? await agentLoader.loadCharacter(context.characterId, context.agentMode)
-      : await agentLoader.getDefaultCharacter(context.agentMode);
-
-    // 3. Extract agentId from character (use character's ID or default)
+    // 2. Extract agentId from character (use character's ID or default)
     const agentId = (
       character.id ? stringToUuid(character.id) : this.DEFAULT_AGENT_ID
     ) as UUID;
@@ -93,6 +108,11 @@ export class RuntimeFactory {
         ? character.bio[0]
         : character.bio?.toString().substring(0, 100),
     );
+
+    // 3. Create FRESH database adapter for THIS agent (NO CACHING!)
+    // CRITICAL: Adapter must be scoped to this specific agentId
+    // ElizaOS queries filter by agentId, so each agent needs its own adapter
+    const dbAdapter = await this.createDatabaseAdapter(agentId);
 
     // 4. Build complete settings upfront with user context
     const settings = this.buildSettings(character, context);
@@ -117,8 +137,6 @@ export class RuntimeFactory {
       );
     }
 
-    console.log("NEW RUNTIME CREATION");
-
     // 6. Create runtime with everything configured upfront
     const runtime = new AgentRuntime({
       character: {
@@ -126,12 +144,12 @@ export class RuntimeFactory {
         id: agentId, // Use character's own ID
         settings, // All settings including API key are here
       },
-      plugins: filteredPlugins,
+      plugins: filteredPlugins, // Exclude plugin-sql (we provide adapter manually)
       agentId: agentId, // Use character's own ID
       settings,
     });
 
-    // 7. Register database adapter
+    // 7. Register the agent-specific database adapter
     runtime.registerDatabaseAdapter(dbAdapter);
 
     // 8. Ensure runtime has logger
@@ -191,6 +209,44 @@ export class RuntimeFactory {
       ...mcpSettings,
       servers: transformedServers,
     };
+  }
+
+  /**
+   * Create a FRESH database adapter for a specific agent
+   * 
+   * CRITICAL: NO CACHING!
+   * - Each call creates a new adapter instance
+   * - Adapter is scoped to the specific agentId
+   * - All database queries filter by this agentId
+   * 
+   * Why no caching?
+   * - Prevents cross-agent contamination
+   * - Each agent's data is isolated
+   * - ElizaOS runtime operations (createEntity, getMemories, etc.) are agent-tenanted
+   */
+  private async createDatabaseAdapter(agentId: UUID): Promise<IDatabaseAdapter> {
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL environment variable is required");
+    }
+
+    elizaLogger.info(`[RuntimeFactory] Creating FRESH database adapter for agent: ${agentId}`);
+    
+    const dbAdapter = createDatabaseAdapter(
+      { postgresUrl: process.env.DATABASE_URL },
+      agentId, // Adapter is scoped to THIS agent
+    );
+
+    await dbAdapter.init();
+    elizaLogger.success(`[RuntimeFactory] Database adapter initialized for agent: ${agentId}`);
+
+    return dbAdapter;
+  }
+
+  /**
+   * Filter out plugin-sql since we provide our own adapter
+   */
+  private filterPlugins(plugins: Plugin[]): Plugin[] {
+    return plugins.filter((p) => p.name !== "@elizaos/plugin-sql") as Plugin[];
   }
 
   /**
@@ -296,9 +352,7 @@ export class RuntimeFactory {
       // MCP Plugin Settings - Pass through MCP server configurations
       // Transform pathnames to full URLs for the current environment
       ...(character.settings?.mcp
-        ? {
-            mcp: this.transformMcpSettings(character.settings.mcp),
-          }
+        ? { mcp: this.transformMcpSettings(character.settings.mcp as any) }
         : {}),
 
       // User metadata for tracking (useful for debugging and analytics)
@@ -322,43 +376,19 @@ export class RuntimeFactory {
     return settings;
   }
 
-  /**
-   * Get or create database adapter (cached globally, safe to share)
-   */
-  private async getDbAdapter(): Promise<IDatabaseAdapter> {
-    if (globalAny.__elizaDatabaseAdapter) {
-      elizaLogger.info("[RuntimeFactory] Reusing cached database adapter");
-      return globalAny.__elizaDatabaseAdapter;
-    }
-
-    if (!process.env.DATABASE_URL) {
-      throw new Error("DATABASE_URL environment variable is required");
-    }
-
-    elizaLogger.info("[RuntimeFactory] Creating new database adapter");
-    // Use DEFAULT_AGENT_ID for the database adapter (shared across all characters)
-    const dbAdapter = createDatabaseAdapter(
-      { postgresUrl: process.env.DATABASE_URL },
-      this.DEFAULT_AGENT_ID,
-    );
-
-    await dbAdapter.init();
-    elizaLogger.info("[RuntimeFactory] Database adapter initialized");
-
-    // Cache globally for warm containers (connection pooling is safe)
-    globalAny.__elizaDatabaseAdapter = dbAdapter;
-    return dbAdapter;
-  }
-
-  /**
-   * Filter out plugin-sql since we provide our own adapter
-   */
-  private filterPlugins(plugins: Plugin[]): Plugin[] {
-    return plugins.filter((p) => p.name !== "@elizaos/plugin-sql") as Plugin[];
-  }
 
   /**
    * Initialize runtime with error handling for existing records
+   * 
+   * During initialization:
+   * - Database adapter was already registered (manually, before this call)
+   * - We skip migrations (skipMigrations: true) to avoid altering schema
+   * - The adapter is scoped to this specific agentId (all queries filter by it)
+   * 
+   * CRITICAL FIX: Ensure world exists BEFORE runtime.initialize()
+   * - runtime.initialize() creates a self-room with worldId: agentId
+   * - If world doesn't exist, room creation fails with FK constraint error
+   * - This is why default Eliza works (world exists) but custom chars fail
    */
   private async initializeRuntime(
     runtime: AgentRuntime,
@@ -367,8 +397,33 @@ export class RuntimeFactory {
   ): Promise<void> {
     try {
       elizaLogger.info("[RuntimeFactory] Starting runtime initialization...");
+      elizaLogger.info("[RuntimeFactory] Using agent-tenanted adapter for:", agentId);
+
+      // CRITICAL: Ensure world exists BEFORE runtime.initialize()
+      // runtime.initialize() will try to create a room with worldId: agentId
+      // If the world doesn't exist, room creation will fail
+      try {
+        await runtime.ensureWorldExists({
+          id: agentId,
+          name: `World for ${character.name}`,
+          agentId: agentId,
+          serverId: agentId,
+        } as any); // Type assertion for messageServerId vs serverId
+        elizaLogger.debug(`[RuntimeFactory] Ensured world exists for agent: ${agentId}`);
+      } catch (worldError) {
+        const msg = worldError instanceof Error ? worldError.message : String(worldError);
+        // Ignore duplicate errors (world already exists)
+        if (
+          !msg.toLowerCase().includes("duplicate") &&
+          !msg.toLowerCase().includes("unique constraint")
+        ) {
+          elizaLogger.error(`[RuntimeFactory] Failed to ensure world:`, msg);
+          throw worldError;
+        }
+      }
 
       try {
+        // skipMigrations: true - we manage schema separately, don't run plugin migrations
         await runtime.initialize({ skipMigrations: true });
         elizaLogger.success(
           "[RuntimeFactory] Runtime initialized successfully",
@@ -388,6 +443,10 @@ export class RuntimeFactory {
             "[RuntimeFactory] Agent/entity records already exist, continuing",
           );
         } else {
+          elizaLogger.error(
+            "[RuntimeFactory] Runtime initialization error:",
+            errorMsg,
+          );
           throw initError;
         }
       }
@@ -416,27 +475,10 @@ export class RuntimeFactory {
     agentId: UUID,
   ): Promise<void> {
     try {
-      await runtime.ensureAgentExists({
-        id: agentId,
-        name: character.name || "Eliza",
-        username: character.username,
-        system: character.system || "",
-        bio: character.bio || [],
-        messageExamples: character.messageExamples || [],
-        postExamples: character.postExamples || [],
-        topics: character.topics || [],
-        adjectives: character.adjectives || [],
-        knowledge: character.knowledge || [],
-        plugins: character.plugins || [],
-        settings: character.settings || {},
-        style: character.style || {},
-      } as Agent);
-
-      // Also ensure entity exists
       await runtime.createEntity({
         id: agentId,
-        agentId: agentId,
         names: [character.name || "Eliza"],
+        agentId: agentId,
         metadata: { name: character.name || "Eliza" },
       });
     } catch (entityError) {

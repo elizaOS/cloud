@@ -18,6 +18,13 @@ interface CharacterDetailClientProps {
   character: UserCharacter;
 }
 
+/**
+ * Client component for displaying detailed information about a marketplace character.
+ * Shows character avatar, bio, personality traits, topics, and statistics.
+ *
+ * @param character - The character data to display.
+ * @returns The rendered character detail page with character information and action buttons.
+ */
 export function CharacterDetailClient({
   character,
 }: CharacterDetailClientProps) {

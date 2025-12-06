@@ -1,3 +1,7 @@
+/**
+ * Character cache invalidation utilities.
+ */
+
 import { cache } from "@/lib/cache/client";
 import { CacheKeys } from "@/lib/cache/keys";
 import { logger } from "@/lib/utils/logger";
@@ -5,9 +9,11 @@ import { agentStateCache } from "@/lib/cache/agent-state-cache";
 import { marketplaceCache } from "@/lib/cache/marketplace-cache";
 
 /**
- * Invalidate all character-related caches
- * This should be called whenever character data is updated (e.g., MCP settings changed)
- * @param characterId - The character ID to invalidate
+ * Invalidates all character-related caches.
+ *
+ * Should be called whenever character data is updated (e.g., MCP settings changed).
+ *
+ * @param characterId - The character ID to invalidate.
  */
 export async function invalidateCharacterCache(
   characterId: string,
@@ -35,10 +41,12 @@ export async function invalidateCharacterCache(
 }
 
 /**
- * Invalidate character cache and all associated room caches
- * Use this when you know the specific rooms affected
- * @param characterId - The character ID to invalidate
- * @param roomIds - Optional list of room IDs using this character
+ * Invalidates character cache and all associated room caches.
+ *
+ * Use this when you know the specific rooms affected by the character update.
+ *
+ * @param characterId - The character ID to invalidate.
+ * @param roomIds - Optional list of room IDs using this character.
  */
 export async function invalidateCharacterAndRooms(
   characterId: string,

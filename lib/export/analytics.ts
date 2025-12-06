@@ -1,9 +1,19 @@
+/**
+ * Analytics export utilities for CSV, JSON, and Excel formats.
+ */
+
+/**
+ * Column definition for export.
+ */
 export interface ExportColumn {
   key: string;
   label: string;
   format?: (value: unknown) => string;
 }
 
+/**
+ * Options for export generation.
+ */
 export interface ExportOptions {
   includeTimestamp?: boolean;
   includeMetadata?: boolean;
@@ -26,6 +36,14 @@ function sanitizeCSVValue(value: string): string {
   return value;
 }
 
+/**
+ * Generates CSV content from data.
+ *
+ * @param data - Array of data objects.
+ * @param columns - Column definitions.
+ * @param options - Export options.
+ * @returns CSV string.
+ */
 export function generateCSV(
   data: Array<Record<string, unknown>>,
   columns: Array<ExportColumn>,
@@ -72,6 +90,13 @@ export function generateCSV(
   return rows.join("\n");
 }
 
+/**
+ * Generates JSON content from data.
+ *
+ * @param data - Data to export.
+ * @param options - Export options.
+ * @returns JSON string.
+ */
 export function generateJSON(data: unknown, options?: ExportOptions): string {
   const output: Record<string, unknown> = {};
 
@@ -90,6 +115,14 @@ export function generateJSON(data: unknown, options?: ExportOptions): string {
   return JSON.stringify(output, null, 2);
 }
 
+/**
+ * Generates Excel file buffer from data.
+ *
+ * @param data - Array of data objects.
+ * @param columns - Column definitions.
+ * @param options - Export options.
+ * @returns Excel file buffer.
+ */
 export async function generateExcel(
   data: Array<Record<string, unknown>>,
   columns: Array<ExportColumn>,
@@ -162,6 +195,11 @@ export async function generateExcel(
   return Buffer.from(excelBuffer);
 }
 
+/**
+ * Generates PDF file buffer from data.
+ *
+ * @throws Error indicating pdfkit package is required.
+ */
 export async function generatePDF(
   ..._args: [
     data: Array<Record<string, unknown>>,
@@ -175,6 +213,14 @@ export async function generatePDF(
   );
 }
 
+/**
+ * Creates a download response for text content.
+ *
+ * @param content - Content to download.
+ * @param filename - Filename for download.
+ * @param contentType - MIME type.
+ * @returns Response with download headers.
+ */
 export function createDownloadResponse(
   content: string,
   filename: string,
@@ -189,6 +235,14 @@ export function createDownloadResponse(
   });
 }
 
+/**
+ * Creates a download response for binary content.
+ *
+ * @param content - Binary content to download.
+ * @param filename - Filename for download.
+ * @param contentType - MIME type.
+ * @returns Response with download headers.
+ */
 export function createBinaryDownloadResponse(
   content: Buffer,
   filename: string,
@@ -204,11 +258,23 @@ export function createBinaryDownloadResponse(
   });
 }
 
+/**
+ * Formats a value as currency (cents to dollars).
+ *
+ * @param value - Value in cents.
+ * @returns Formatted currency string.
+ */
 export function formatCurrency(value: unknown): string {
   const num = Number(value);
   return isNaN(num) ? "0.00" : (num / 100).toFixed(2);
 }
 
+/**
+ * Formats a number with K/M suffixes for large values.
+ *
+ * @param value - Number to format.
+ * @returns Formatted number string.
+ */
 export function formatNumber(value: unknown): string {
   const num = Number(value);
   if (isNaN(num)) return "0";
@@ -217,11 +283,23 @@ export function formatNumber(value: unknown): string {
   return num.toString();
 }
 
+/**
+ * Formats a value as a percentage.
+ *
+ * @param value - Value between 0 and 1.
+ * @returns Formatted percentage string.
+ */
 export function formatPercentage(value: unknown): string {
   const num = Number(value);
   return isNaN(num) ? "0.0%" : `${(num * 100).toFixed(1)}%`;
 }
 
+/**
+ * Formats a value as an ISO date string.
+ *
+ * @param value - Date value (Date object or string).
+ * @returns ISO date string.
+ */
 export function formatDate(value: unknown): string {
   if (value instanceof Date) {
     return value.toISOString();

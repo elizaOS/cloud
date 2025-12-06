@@ -1,74 +1,27 @@
-import type { ElizaCharacter } from "@/lib/types";
+/**
+ * Marketplace type definitions.
+ */
 
-export type CategoryId =
-  | "assistant"
-  | "anime"
-  | "creative"
-  | "gaming"
-  | "learning"
-  | "entertainment"
-  | "history"
-  | "lifestyle";
+// Re-export shared character types
+export type {
+  CategoryId,
+  SortBy,
+  SortOrder,
+  CharacterSource,
+  CharacterStats,
+  ExtendedCharacter,
+  SearchFilters,
+  SortOptions,
+  PaginationOptions,
+  PaginationResult,
+  CategoryInfo,
+  CloneCharacterOptions,
+  TrackingResponse,
+} from "./characters";
 
-export type SortBy = "popularity" | "newest" | "name" | "updated";
-
-export type SortOrder = "asc" | "desc";
-
-export interface CharacterStats {
-  messageCount: number;
-  roomCount: number;
-  lastActiveAt: Date | null;
-  deploymentStatus: "deployed" | "draft" | "stopped";
-  uptime?: number;
-}
-
-export interface ExtendedCharacter extends ElizaCharacter {
-  id: string;
-  isTemplate: boolean;
-  isPublic: boolean;
-  creatorName?: string;
-  creatorId?: string;
-  avatarUrl?: string;
-  category?: CategoryId;
-  tags?: string[];
-  featured?: boolean;
-  popularity?: number;
-  viewCount?: number;
-  interactionCount?: number;
-  stats?: CharacterStats;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
-
-export interface SearchFilters {
-  search?: string;
-  category?: CategoryId;
-  hasVoice?: boolean;
-  deployed?: boolean;
-  template?: boolean;
-  myCharacters?: boolean;
-  public?: boolean;
-  featured?: boolean;
-}
-
-export interface SortOptions {
-  sortBy: SortBy;
-  order: SortOrder;
-}
-
-export interface PaginationOptions {
-  page: number;
-  limit: number;
-}
-
-export interface PaginationResult {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-  hasMore: boolean;
-}
-
+/**
+ * Result of a marketplace search query.
+ */
 export interface MarketplaceSearchResult {
   characters: ExtendedCharacter[];
   pagination: PaginationResult;
@@ -79,16 +32,10 @@ export interface MarketplaceSearchResult {
   cached: boolean;
 }
 
-export interface CategoryInfo {
-  id: CategoryId;
-  name: string;
-  description: string;
-  icon: string;
-  color: string;
-  characterCount: number;
-  featured: boolean;
-}
 
+/**
+ * State for marketplace UI component.
+ */
 export interface MarketplaceState {
   characters: ExtendedCharacter[];
   filteredCharacters: ExtendedCharacter[];
@@ -102,12 +49,3 @@ export interface MarketplaceState {
   isLoadingStats: boolean;
 }
 
-export interface CloneCharacterOptions {
-  name?: string;
-  makePublic?: boolean;
-}
-
-export interface TrackingResponse {
-  success: boolean;
-  count: number;
-}

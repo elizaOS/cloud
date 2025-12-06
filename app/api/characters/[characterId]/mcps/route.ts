@@ -46,19 +46,7 @@ const McpSettingsSchema = z.object({
   maxRetries: z.number().int().min(0).max(10).optional(),
 });
 
-/**
- * MCP Server Configuration
- */
-interface McpServerConfig {
-  type: "http" | "sse" | "streamable-http";
-  url: string;
-  timeout?: number;
-}
-
-interface McpSettings {
-  servers: Record<string, McpServerConfig>;
-  maxRetries?: number;
-}
+import type { McpServerConfig, McpSettings } from "@/lib/types/mcp";
 
 /**
  * SECURITY: Safe JSON parsing with depth and size limits
@@ -175,7 +163,11 @@ function parseMcpSettings(mcpSetting: unknown): McpSettings {
 
 /**
  * GET /api/characters/[characterId]/mcps
- * Get current MCP configuration for a character
+ * Gets the current MCP server configuration for a character.
+ *
+ * @param request - The Next.js request object.
+ * @param ctx - Route context containing the character ID parameter.
+ * @returns MCP settings with server configurations and plugin status.
  */
 export async function GET(
   request: NextRequest,
@@ -253,7 +245,12 @@ export async function GET(
 
 /**
  * PUT /api/characters/[characterId]/mcps
- * Update MCP configuration for a character
+ * Updates the complete MCP configuration for a character.
+ * Invalidates character cache after update.
+ *
+ * @param request - Request body with mcpSettings and optional enablePlugin flag.
+ * @param ctx - Route context containing the character ID parameter.
+ * @returns Updated MCP settings and server list.
  */
 export async function PUT(
   request: NextRequest,
@@ -374,7 +371,12 @@ export async function PUT(
 
 /**
  * POST /api/characters/[characterId]/mcps
- * Add a single MCP server to character configuration
+ * Adds a single MCP server to the character's configuration.
+ * Automatically enables the plugin-mcp plugin if not already enabled.
+ *
+ * @param request - Request body with serverId and serverConfig.
+ * @param ctx - Route context containing the character ID parameter.
+ * @returns Updated MCP settings with the new server added.
  */
 export async function POST(
   request: NextRequest,
@@ -504,7 +506,12 @@ export async function POST(
 
 /**
  * DELETE /api/characters/[characterId]/mcps
- * Remove a MCP server from character configuration
+ * Removes an MCP server from the character's configuration.
+ * Removes plugin-mcp plugin if no servers remain.
+ *
+ * @param request - Request with serverId query parameter.
+ * @param ctx - Route context containing the character ID parameter.
+ * @returns Updated MCP settings with the server removed.
  */
 export async function DELETE(
   request: NextRequest,

@@ -1,3 +1,7 @@
+/**
+ * SEO metadata generation utilities for Next.js pages.
+ */
+
 import type { Metadata } from "next";
 import { SEO_CONSTANTS } from "./constants";
 import type {
@@ -6,6 +10,11 @@ import type {
   OGImageParams,
 } from "./types";
 
+/**
+ * Gets the base URL for the application.
+ *
+ * @returns Base URL with priority: NEXT_PUBLIC_APP_URL > VERCEL_URL > localhost.
+ */
 function getBaseUrl(): string {
   // Priority 1: Explicitly set app URL (recommended for production)
   if (process.env.NEXT_PUBLIC_APP_URL) {
@@ -21,6 +30,12 @@ function getBaseUrl(): string {
   return "http://localhost:3000";
 }
 
+/**
+ * Generates an Open Graph image URL.
+ *
+ * @param params - OG image parameters.
+ * @returns URL to the OG image endpoint.
+ */
 export function generateOGImageUrl(params: OGImageParams): string {
   const baseUrl = getBaseUrl();
   const searchParams = new URLSearchParams();
@@ -34,6 +49,12 @@ export function generateOGImageUrl(params: OGImageParams): string {
   return `${baseUrl}/api/og?${searchParams.toString()}`;
 }
 
+/**
+ * Generates Next.js metadata for a page.
+ *
+ * @param options - Page metadata options.
+ * @returns Next.js Metadata object.
+ */
 export function generatePageMetadata(options: PageMetadataOptions): Metadata {
   const baseUrl = getBaseUrl();
   const canonicalUrl = `${baseUrl}${options.path}`;
@@ -91,6 +112,12 @@ export function generatePageMetadata(options: PageMetadataOptions): Metadata {
   return metadata;
 }
 
+/**
+ * Generates dynamic metadata for entity pages (characters, containers, etc.).
+ *
+ * @param options - Dynamic metadata options with entity information.
+ * @returns Next.js Metadata object.
+ */
 export function generateDynamicMetadata(
   options: DynamicMetadataOptions,
 ): Metadata {
@@ -114,6 +141,15 @@ export function generateDynamicMetadata(
   return baseMetadata;
 }
 
+/**
+ * Generates metadata for a container page.
+ *
+ * @param id - Container ID.
+ * @param name - Container name.
+ * @param description - Container description.
+ * @param characterName - Optional character name running in container.
+ * @returns Next.js Metadata object.
+ */
 export function generateContainerMetadata(
   id: string,
   name: string,
@@ -146,6 +182,16 @@ export function generateContainerMetadata(
   });
 }
 
+/**
+ * Generates metadata for a character page.
+ *
+ * @param id - Character ID.
+ * @param name - Character name.
+ * @param bio - Character bio (string or array).
+ * @param avatarUrl - Character avatar URL.
+ * @param tags - Optional tags for keywords.
+ * @returns Next.js Metadata object.
+ */
 export function generateCharacterMetadata(
   id: string,
   name: string,
@@ -176,6 +222,15 @@ export function generateCharacterMetadata(
   });
 }
 
+/**
+ * Generates metadata for a chat/room page.
+ *
+ * @param roomId - Room ID.
+ * @param characterName - Character name.
+ * @param messageCount - Number of messages in the conversation.
+ * @param characterAvatarUrl - Optional character avatar URL.
+ * @returns Next.js Metadata object.
+ */
 export function generateChatMetadata(
   roomId: string,
   characterName: string,

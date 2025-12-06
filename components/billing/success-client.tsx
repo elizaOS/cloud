@@ -1,3 +1,8 @@
+/**
+ * Credit balance display component showing current credit balance.
+ * Fetches and displays balance with loading state.
+ */
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -10,16 +15,9 @@ export function CreditBalanceDisplay() {
 
   useEffect(() => {
     async function fetchCreditBalance() {
-      try {
-        const balance = await getCreditBalance();
-        setCreditBalance(balance);
-      } catch (error) {
-        console.error("Failed to fetch credit balance:", error);
-        // Set to null to indicate error state rather than showing misleading "0.00"
-        setCreditBalance(null);
-      } finally {
-        setLoading(false);
-      }
+      const balance = await getCreditBalance();
+      setCreditBalance(balance);
+      setLoading(false);
     }
 
     fetchCreditBalance();

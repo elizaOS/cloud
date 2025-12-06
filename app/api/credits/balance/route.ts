@@ -5,6 +5,13 @@ import { organizationsRepository } from "@/db/repositories";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+/**
+ * GET /api/credits/balance
+ * Gets the credit balance for the authenticated user's organization.
+ *
+ * @param req - The Next.js request object.
+ * @returns JSON response with balance or error.
+ */
 export async function GET(req: NextRequest) {
   try {
     const user = await requireAuthWithOrg();

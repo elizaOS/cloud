@@ -11,6 +11,7 @@ import {
 } from "@/db/repositories/apps";
 import { usageRecordsRepository } from "@/db/repositories/usage-records";
 import { logger } from "@/lib/utils/logger";
+import type { App } from "@/lib/types";
 
 export class AppAnalyticsService {
   /**
@@ -29,44 +30,39 @@ export class AppAnalyticsService {
     responseTimeMs?: number;
     metadata?: Record<string, unknown>;
   }): Promise<void> {
-    try {
-      const {
+    const {
+      appId,
+      userId,
+      requestType,
+      success,
+      inputTokens = 0,
+      outputTokens = 0,
+      cost = "0.00",
+      creditsUsed = "0.00",
+      responseTimeMs,
+      metadata,
+    } = params;
+
+    // Track app usage
+    await appsRepository.incrementUsage(appId, creditsUsed);
+
+    // Track app user activity if userId is provided
+    if (userId) {
+      await appsRepository.trackAppUserActivity(
         appId,
         userId,
-        requestType,
-        success,
-        inputTokens = 0,
-        outputTokens = 0,
-        cost = "0.00",
-        creditsUsed = "0.00",
-        responseTimeMs,
-        metadata,
-      } = params;
-
-      // Track app usage
-      await appsRepository.incrementUsage(appId, creditsUsed);
-
-      // Track app user activity if userId is provided
-      if (userId) {
-        await appsRepository.trackAppUserActivity(
-          appId,
-          userId,
-          creditsUsed,
-          metadata,
-        );
-      }
-
-      logger.info("Tracked app request", {
-        appId,
-        userId,
-        requestType,
-        success,
         creditsUsed,
-      });
-    } catch (error) {
-      logger.error("Failed to track app request:", error);
-      // Don't throw - tracking failures shouldn't break the main flow
+        metadata,
+      );
     }
+
+    logger.info("Tracked app request", {
+      appId,
+      userId,
+      requestType,
+      success,
+      creditsUsed,
+    });
   }
 
   /**
@@ -79,54 +75,52 @@ export class AppAnalyticsService {
     periodEnd: Date,
     periodType: "hourly" | "daily" | "monthly",
   ): Promise<void> {
-    try {
-      // Get all usage records for this app in the period
-      // This requires querying usage_records by app_id (we need to add this)
+    // Get all usage records for this app in the period
+    // This requires querying usage_records by app_id (we need to add this)
+    
+    // For now, we'll create a placeholder analytics record
+    // In production, you'd query actual usage data
+    
+    const analyticsData: NewAppAnalytics = {
+      app_id: appId,
+      period_start: periodStart,
+      period_end: periodEnd,
+      period_type: periodType,
+      total_requests: 0,
+      successful_requests: 0,
+      failed_requests: 0,
+      unique_users: 0,
+      new_users: 0,
+      total_input_tokens: 0,
+      total_output_tokens: 0,
+      total_cost: "0.00",
+      total_credits_used: "0.00",
+      chat_requests: 0,
+      image_requests: 0,
+      video_requests: 0,
+      voice_requests: 0,
+      agent_requests: 0,
+      avg_response_time_ms: null,
+    };
 
-      // For now, we'll create a placeholder analytics record
-      // In production, you'd query actual usage data
+    await appsRepository.createAnalytics(analyticsData);
 
-      const analyticsData: NewAppAnalytics = {
-        app_id: appId,
-        period_start: periodStart,
-        period_end: periodEnd,
-        period_type: periodType,
-        total_requests: 0,
-        successful_requests: 0,
-        failed_requests: 0,
-        unique_users: 0,
-        new_users: 0,
-        total_input_tokens: 0,
-        total_output_tokens: 0,
-        total_cost: "0.00",
-        total_credits_used: "0.00",
-        chat_requests: 0,
-        image_requests: 0,
-        video_requests: 0,
-        voice_requests: 0,
-        agent_requests: 0,
-        avg_response_time_ms: null,
-      };
-
-      await appsRepository.createAnalytics(analyticsData);
-
-      logger.info("Aggregated analytics for app", {
-        appId,
-        periodStart,
-        periodEnd,
-        periodType,
-      });
-    } catch (error) {
-      logger.error("Failed to aggregate analytics:", error);
-      throw error;
-    }
+    logger.info("Aggregated analytics for app", {
+      appId,
+      periodStart,
+      periodEnd,
+      periodType,
+    });
   }
 
   /**
    * Calculate pricing for app usage
    * Takes into account custom pricing markup if enabled
    */
-  calculateAppPricing(params: { baseCost: number; app: any }): {
+  calculateAppPricing(params: {
+    baseCost: number;
+    app: App;
+  }): {
     baseCost: number;
     markup: number;
     finalCost: number;

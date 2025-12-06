@@ -5,7 +5,7 @@
 import type { IAgentRuntime, Memory, HandlerCallback } from "@elizaos/core";
 
 /**
- * Parameters for message received handler
+ * Parameters for message received handler.
  */
 export interface MessageReceivedHandlerParams {
   runtime: IAgentRuntime;

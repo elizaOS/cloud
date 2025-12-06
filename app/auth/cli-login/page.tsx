@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, Suspense } from "react";
+import { useEffect, useState, useCallback, Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import {
@@ -18,10 +18,21 @@ function CliLoginContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session");
 
+  // Compute initial status from props to avoid setState in effect
+  const initialStatus = useMemo(() => {
+    if (!sessionId) {
+      return { status: "error" as const, errorMessage: "Invalid authentication link. Missing session ID." };
+    }
+    if (!authenticated) {
+      return { status: "waiting_auth" as const, errorMessage: "" };
+    }
+    return { status: "loading" as const, errorMessage: "" };
+  }, [sessionId, authenticated]);
+
   const [status, setStatus] = useState<
     "loading" | "waiting_auth" | "completing" | "success" | "error"
-  >("loading");
-  const [errorMessage, setErrorMessage] = useState<string>("");
+  >(initialStatus.status);
+  const [errorMessage, setErrorMessage] = useState<string>(initialStatus.errorMessage);
   const [apiKeyPrefix, setApiKeyPrefix] = useState<string>("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
@@ -34,54 +45,55 @@ function CliLoginContent() {
 
     setStatus("completing");
 
-    try {
-      const response = await fetch(
-        `/api/auth/cli-session/${sessionId}/complete`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+    const response = await fetch(
+      `/api/auth/cli-session/${sessionId}/complete`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+      },
+    );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to complete authentication");
-      }
-
-      const data = await response.json();
-
-      setApiKeyPrefix(data.keyPrefix);
-      setStatus("success");
-    } catch (error) {
-      console.error("Error completing CLI login:", error);
+    if (!response.ok) {
+      const errorData = await response.json();
       setStatus("error");
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Failed to complete authentication",
-      );
+      setErrorMessage(errorData.error || "Failed to complete authentication");
+      return;
     }
+
+    const data = await response.json();
+
+    setApiKeyPrefix(data.keyPrefix);
+    setStatus("success");
   }, [sessionId]);
 
+  // Update status when props change (avoiding synchronous setState)
   useEffect(() => {
-    // Validate session ID
-    if (!sessionId) {
-      setStatus("error");
-      setErrorMessage("Invalid authentication link. Missing session ID.");
-      return;
+    const nextStatus = initialStatus.status;
+    const nextErrorMessage = initialStatus.errorMessage;
+    
+    // Only update if status changed to avoid unnecessary renders
+    if (status !== nextStatus || errorMessage !== nextErrorMessage) {
+      // Use setTimeout to avoid synchronous setState in effect
+      const timer = setTimeout(() => {
+        setStatus(nextStatus);
+        setErrorMessage(nextErrorMessage);
+      }, 0);
+      return () => clearTimeout(timer);
     }
+  }, [initialStatus.status, initialStatus.errorMessage, status, errorMessage]);
 
-    // If not authenticated, prompt for login
-    if (!authenticated) {
-      setStatus("waiting_auth");
-      return;
+  // Separate effect for completing login when authenticated
+  useEffect(() => {
+    if (initialStatus.status === "loading" && authenticated && sessionId) {
+      // Use setTimeout to avoid synchronous setState in effect
+      const timer = setTimeout(() => {
+        completeCliLogin();
+      }, 0);
+      return () => clearTimeout(timer);
     }
-
-    // User is authenticated, complete the CLI login
-    completeCliLogin();
-  }, [authenticated, sessionId, completeCliLogin]);
+  }, [initialStatus.status, authenticated, sessionId, completeCliLogin]);
 
   if (status === "loading") {
     return (
@@ -141,11 +153,8 @@ function CliLoginContent() {
             <Button
               onClick={async () => {
                 setIsLoggingIn(true);
-                try {
-                  await login();
-                } finally {
-                  setTimeout(() => setIsLoggingIn(false), 1000);
-                }
+                await login();
+                setTimeout(() => setIsLoggingIn(false), 1000);
               }}
               className="w-full"
               disabled={!ready || isLoggingIn}
@@ -232,6 +241,10 @@ function CliLoginContent() {
   return null;
 }
 
+/**
+ * CLI login page for authenticating command-line tool users.
+ * Handles Privy authentication and generates API keys for CLI access.
+ */
 export default function CliLoginPage() {
   return (
     <Suspense

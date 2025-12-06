@@ -1,3 +1,7 @@
+/**
+ * Table component system for displaying tabular data.
+ * Provides table, header, body, footer, row, and cell components with consistent styling.
+ */
 import * as React from "react";
 
 import { cn } from "@/lib/utils";

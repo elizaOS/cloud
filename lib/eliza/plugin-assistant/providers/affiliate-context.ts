@@ -143,9 +143,9 @@ export const affiliateContextProvider: Provider = {
     "Affiliate character vibe and social media context with behavioral instructions",
 
   get: async (runtime: IAgentRuntime, _message: Memory, _state?: State) => {
-    try {
-      const character = runtime.character;
+    const character = runtime.character;
 
+    try {
       // Get affiliate data from character settings
       const affiliate = character.settings?.affiliateData as
         | Record<string, unknown>

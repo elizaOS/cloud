@@ -1,3 +1,11 @@
+/**
+ * Key metrics grid component displaying analytics metrics in a responsive grid.
+ * Supports 2, 3, or 4 column layouts with trend indicators and accent colors.
+ *
+ * @param props - Key metrics grid configuration
+ * @param props.metrics - Array of metric objects to display
+ * @param props.columns - Number of columns (2, 3, or 4)
+ */
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 import { BrandCard } from "@/components/brand";

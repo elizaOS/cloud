@@ -6,10 +6,11 @@ import { organizationsRepository } from "@/db/repositories";
 
 /**
  * POST /api/auto-top-up/trigger
- * Manually trigger auto top-up check for the current organization
+ * Manually triggers an auto top-up check for the authenticated user's organization.
+ * Allows testing auto top-up functionality without waiting for the cron job.
  *
- * This endpoint allows users to test auto top-up functionality immediately
- * without waiting for the cron job to run
+ * @param req - The Next.js request object.
+ * @returns Success status with top-up amount and balance information.
  */
 async function handleTriggerAutoTopUp(req: NextRequest) {
   try {

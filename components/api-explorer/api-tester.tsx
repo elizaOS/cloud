@@ -1,3 +1,14 @@
+/**
+ * API tester component for testing API endpoints interactively.
+ * Supports request/response testing, audio input, parameter configuration,
+ * response visualization, and credit cost display.
+ *
+ * @param props - API tester configuration
+ * @param props.endpoint - API endpoint configuration to test
+ * @param props.authToken - Authentication token for API requests
+ * @param props.refreshCredits - Optional callback to refresh credit balance after request
+ */
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -60,6 +71,13 @@ interface TestResponse {
   headers: Record<string, string>;
   responseTime: number;
   timestamp: string;
+}
+
+interface AudioResponseData {
+  _type?: string;
+  _audioUrl?: string;
+  _size?: number;
+  message?: string;
 }
 
 export function ApiTester({
@@ -337,17 +355,22 @@ export function ApiTester({
         responseData = await fetchResponse.text();
       }
 
+      interface ErrorResponse {
+        error?: { message?: string };
+        message?: string;
+      }
+
+      const errorData = responseData as ErrorResponse;
+      const errorMessage = fetchResponse.ok
+        ? undefined
+        : errorData?.error?.message || errorData?.message || "Request failed";
+
       setResponse({
         success: fetchResponse.ok,
         status: fetchResponse.status,
         statusText: fetchResponse.statusText,
         data: responseData,
-        error: fetchResponse.ok
-          ? undefined
-          : (responseData as { error?: { message?: string }; message?: string })
-              ?.error?.message ||
-            (responseData as { message?: string })?.message ||
-            "Request failed",
+        error: errorMessage,
         headers: responseHeaders,
         responseTime,
         timestamp: new Date().toISOString(),
@@ -999,8 +1022,7 @@ export function ApiTester({
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle>Response Body</CardTitle>
-                      {(response.data as { _type?: string })?._type !==
-                        "audio" && (
+                      {(response.data as AudioResponseData)?._type !== "audio" && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -1022,8 +1044,9 @@ export function ApiTester({
                     </div>
                   </CardHeader>
                   <CardContent>
-                    {(response.data as { _type?: string })?._type ===
-                    "audio" ? (
+                    {(() => {
+                      const audioData = response.data as AudioResponseData;
+                      return audioData?._type === "audio" ? (
                       <div className="space-y-4">
                         <div className="rounded-none border border-border/60 bg-muted/30 p-4">
                           <div className="space-y-2">
@@ -1032,23 +1055,16 @@ export function ApiTester({
                                 Audio Response
                               </Badge>
                               <Badge variant="secondary" className="text-xs">
-                                {(
-                                  ((response.data as { _size?: number })
-                                    ?._size || 0) / 1024
-                                ).toFixed(2)}{" "}
-                                KB
+                                {((audioData?._size || 0) / 1024).toFixed(2)} KB
                               </Badge>
                             </div>
                             <p className="text-sm text-muted-foreground">
-                              {(response.data as { message?: string })?.message}
+                              {audioData?.message}
                             </p>
                             <audio
                               controls
                               className="w-full mt-4"
-                              src={
-                                (response.data as { _audioUrl?: string })
-                                  ?._audioUrl
-                              }
+                              src={audioData?._audioUrl}
                             >
                               <track kind="captions" />
                             </audio>
@@ -1057,9 +1073,7 @@ export function ApiTester({
                                 size="sm"
                                 variant="outline"
                                 onClick={() => {
-                                  const audioUrl = (
-                                    response.data as { _audioUrl?: string }
-                                  )?._audioUrl;
+                                  const audioUrl = audioData?._audioUrl;
                                   if (audioUrl) {
                                     const a = document.createElement("a");
                                     a.href = audioUrl;
@@ -1087,7 +1101,8 @@ export function ApiTester({
                           language="json"
                         />
                       </ScrollArea>
-                    )}
+                    );
+                    })()}
                   </CardContent>
                 </Card>
               )}

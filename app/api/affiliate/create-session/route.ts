@@ -23,25 +23,12 @@ const CreateSessionSchema = z.object({
 });
 
 /**
- * Create Anonymous Session
- *
  * POST /api/affiliate/create-session
+ * Creates an anonymous session for users to try chat without signing up.
+ * Creates a real anonymous user in the database and sets a session cookie.
  *
- * Creates an anonymous session for users who want to try the chat
- * without signing up first. This creates a REAL anonymous user in the
- * database so that getAnonymousUser() can find them later.
- *
- * Request Body:
- * {
- *   characterId: string (UUID),
- *   source?: string (affiliate source)
- * }
- *
- * Response:
- * {
- *   success: true,
- *   sessionToken: string (UUID)
- * }
+ * @param request - Request body with characterId and optional source.
+ * @returns Session token and user ID.
  */
 export async function POST(request: NextRequest) {
   try {

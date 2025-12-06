@@ -3,6 +3,13 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { creditsService } from "@/lib/services";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
+/**
+ * GET /api/credits/transactions
+ * Lists credit transactions for the authenticated user's organization.
+ *
+ * @param req - The Next.js request object with optional query params (hours, limit).
+ * @returns JSON response with transactions array and period information.
+ */
 async function handleGET(req: NextRequest) {
   try {
     const user = await requireAuthWithOrg();

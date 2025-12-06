@@ -1,3 +1,12 @@
+/**
+ * AI assistant component for character creation with chat interface.
+ * Provides AI-powered suggestions and character property updates with markdown support.
+ *
+ * @param props - AI assistant configuration
+ * @param props.character - Character being created/edited
+ * @param props.onCharacterUpdate - Callback when character is updated
+ */
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -69,51 +78,43 @@ export function AiAssistant({
   // Generate prompts on mount using a simple fetch
   useEffect(() => {
     const generatePrompts = async () => {
-      try {
-        const response = await fetch("/api/v1/generate-prompts", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            seed: `${Date.now()}-${Math.random()}`,
-          }),
-        });
+      const response = await fetch("/api/v1/generate-prompts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          seed: `${Date.now()}-${Math.random()}`,
+        }),
+      });
 
-        if (!response.ok) {
-          throw new Error("Failed to generate prompts");
-        }
-
-        // Read the streamed response
-        const reader = response.body?.getReader();
-        const decoder = new TextDecoder();
-        let fullText = "";
-
-        if (reader) {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            fullText += decoder.decode(value, { stream: true });
-          }
-        }
-
-        // Extract JSON array from the response
-        const jsonMatch = fullText.match(/\[[\s\S]*?\]/);
-        if (jsonMatch) {
-          try {
-            const prompts = JSON.parse(jsonMatch[0]);
-            if (Array.isArray(prompts) && prompts.length > 0) {
-              setQuickPrompts(prompts);
-            }
-          } catch (error) {
-            console.error("Failed to parse prompts:", error);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to generate prompts:", error);
-      } finally {
+      if (!response.ok) {
         setIsLoadingPrompts(false);
+        throw new Error("Failed to generate prompts");
       }
+
+      // Read the streamed response
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullText = "";
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          fullText += decoder.decode(value, { stream: true });
+        }
+      }
+
+      // Extract JSON array from the response
+      const jsonMatch = fullText.match(/\[[\s\S]*?\]/);
+      if (jsonMatch) {
+        const prompts = JSON.parse(jsonMatch[0]);
+        if (Array.isArray(prompts) && prompts.length > 0) {
+          setQuickPrompts(prompts);
+        }
+      }
+      setIsLoadingPrompts(false);
     };
 
     generatePrompts();
@@ -184,7 +185,12 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
     ) {
       const content = lastMessage.parts
         .filter((part) => part.type === "text")
-        .map((part) => (part as { text: string }).text)
+        .map((part) => {
+          if (part.type === "text" && "text" in part) {
+            return typeof part.text === "string" ? part.text : "";
+          }
+          return "";
+        })
         .join("");
 
       // Try to extract JSON from code blocks
@@ -244,16 +250,11 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
   };
 
   const copyToClipboard = async (text: string, messageId: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedMessageId(messageId);
-      toast.success("Message copied to clipboard");
-      // Reset after 2 seconds
-      setTimeout(() => setCopiedMessageId(null), 2000);
-    } catch (error) {
-      console.error("Failed to copy:", error);
-      toast.error("Failed to copy message");
-    }
+    await navigator.clipboard.writeText(text);
+    setCopiedMessageId(messageId);
+    toast.success("Message copied to clipboard");
+    // Reset after 2 seconds
+    setTimeout(() => setCopiedMessageId(null), 2000);
   };
 
   const isLoading = status === "streaming";
@@ -277,7 +278,12 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
             {messages.map((message) => {
               const messageText = message.parts
                 .filter((part) => part.type === "text")
-                .map((part) => (part as { text: string }).text)
+                .map((part) => {
+                  if (part.type === "text" && "text" in part) {
+                    return typeof part.text === "string" ? part.text : "";
+                  }
+                  return "";
+                })
                 .join("")
                 .trim();
 

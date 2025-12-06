@@ -7,34 +7,20 @@
  * 2. User logs in via Privy on Cloud
  * 3. Cloud generates auth token and redirects back
  * 4. Miniapp stores token and uses it for API calls
+ * 
+ * IMPORTANT: This file imports types from ./types.ts to ensure complete
+ * separation from the main app. Never import types from the parent app.
  */
 
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { AuthUser, AuthState } from "./types";
 
 const CLOUD_URL = process.env.NEXT_PUBLIC_ELIZA_CLOUD_URL || "http://localhost:3000";
 const AUTH_TOKEN_KEY = "miniapp_auth_token";
 const USER_ID_KEY = "miniapp_user_id";
 const ORG_ID_KEY = "miniapp_org_id";
-
-interface User {
-  id: string;
-  email: string | null;
-  name: string | null;
-  avatar: string | null;
-}
-
-interface AuthState {
-  ready: boolean;
-  authenticated: boolean;
-  user: User | null;
-  userId: string | null;
-  organizationId: string | null;
-  authToken: string | null;
-  login: () => Promise<void>;
-  logout: () => void;
-}
 
 /**
  * Auth hook that manages token-based authentication
@@ -44,7 +30,7 @@ export function useAuth(): AuthState {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
 
   // Clear auth state - defined first since it's used by other callbacks
   const clearAuth = useCallback(() => {
@@ -59,27 +45,23 @@ export function useAuth(): AuthState {
 
   // Fetch user info from Cloud API - defined before the useEffect that uses it
   const fetchUserInfo = useCallback(async (token: string) => {
-    try {
-      const response = await fetch("/api/proxy/user", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+    const response = await fetch("/api/proxy/user", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-      if (response.ok) {
-        const data = await response.json();
-        setUser({
-          id: data.user.id,
-          email: data.user.email,
-          name: data.user.name,
-          avatar: data.user.avatar,
-        });
-      } else {
-        // Token might be invalid, clear auth state
-        clearAuth();
-      }
-    } catch (error) {
-      console.error("Failed to fetch user info:", error);
+    if (response.ok) {
+      const data = await response.json();
+      setUser({
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.name,
+        avatar: data.user.avatar,
+      });
+    } else {
+      // Token might be invalid, clear auth state
+      clearAuth();
     }
   }, [clearAuth]);
 
@@ -143,38 +125,33 @@ export function useAuth(): AuthState {
 
   // Start the login flow
   const login = useCallback(async () => {
-    try {
-      // Get the callback URL for this miniapp
-      const callbackUrl = `${window.location.origin}/auth/callback`;
+    // Get the callback URL for this miniapp
+    const callbackUrl = `${window.location.origin}/auth/callback`;
 
-      // Create a session on Cloud
-      const response = await fetch(`${CLOUD_URL}/api/auth/miniapp-session`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          callbackUrl,
-          appId: "miniapp",
-        }),
-      });
+    // Create a session on Cloud
+    const response = await fetch(`${CLOUD_URL}/api/auth/miniapp-session`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        callbackUrl,
+        appId: "miniapp",
+      }),
+    });
 
-      if (!response.ok) {
-        throw new Error("Failed to create auth session");
-      }
-
-      const { loginUrl } = await response.json();
-
-      // Redirect to Cloud for authentication
-      // The loginUrl might be relative - ensure it's absolute
-      const absoluteLoginUrl = loginUrl.startsWith("http") 
-        ? loginUrl 
-        : `${CLOUD_URL}${loginUrl}`;
-      window.location.href = absoluteLoginUrl;
-    } catch (error) {
-      console.error("Login failed:", error);
-      throw error;
+    if (!response.ok) {
+      throw new Error("Failed to create auth session");
     }
+
+    const { loginUrl } = await response.json();
+
+    // Redirect to Cloud for authentication
+    // The loginUrl might be relative - ensure it's absolute
+    const absoluteLoginUrl = loginUrl.startsWith("http") 
+      ? loginUrl 
+      : `${CLOUD_URL}${loginUrl}`;
+    window.location.href = absoluteLoginUrl;
   }, []);
 
   // Logout

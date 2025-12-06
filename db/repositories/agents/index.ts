@@ -1,6 +1,7 @@
 /**
- * Agent repositories index
- * Direct database access to ElizaOS tables without spinning up runtime
+ * Agent repositories index.
+ * 
+ * Direct database access to ElizaOS tables without spinning up runtime.
  */
 
 export { roomsRepository } from "./rooms";
@@ -23,5 +24,7 @@ export type { CreateMemoryInput, SearchMemoriesOptions } from "./memories";
 export { agentsRepository } from "./agents";
 export type { AgentInfo } from "./agents";
 
-// Re-export core types
+/**
+ * Re-exported core types from ElizaOS.
+ */
 export type { Participant, Entity, Memory } from "@elizaos/core";

@@ -19,6 +19,21 @@ const BRAND_ACCENT_GRADIENT = `linear-gradient(135deg, ${BRAND_ORANGE} 0%, #FF7A
 const MONO_FONT =
   "'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace";
 
+/**
+ * GET /api/og
+ * Generates Open Graph images for various page types (character, chat, container, marketplace).
+ * Uses Next.js ImageResponse API to create dynamic OG images with brand styling.
+ *
+ * Query Parameters:
+ * - `type`: "character" | "chat" | "container" | "marketplace" | "default"
+ * - `title`: Page title
+ * - `description`: Page description
+ * - `name`: Character or entity name
+ * - `characterName`: Character name for chat/container types
+ *
+ * @param request - Request with query parameters for image customization.
+ * @returns ImageResponse with generated OG image.
+ */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

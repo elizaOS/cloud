@@ -1,4 +1,9 @@
-// Export ElizaOS plugin-sql schema for integration with Drizzle migrations
+/**
+ * ElizaOS schema exports.
+ * 
+ * Re-exports ElizaOS plugin-sql schema tables for integration with Drizzle migrations.
+ * Provides unified database access to ElizaOS tables.
+ */
 import plugin from "@elizaos/plugin-sql/node";
 import {
   longTermMemories,
@@ -6,7 +11,9 @@ import {
   memoryAccessLogs,
 } from "@elizaos/plugin-memory/node";
 
-// Re-export all tables from plugin-sql schema for unified database
+/**
+ * Re-exported ElizaOS plugin-sql tables.
+ */
 export const {
   agentTable,
   roomTable,
@@ -27,5 +34,7 @@ export const {
   channelParticipantsTable,
 } = plugin.schema;
 
-// Re-export memory plugin tables
+/**
+ * Re-exported ElizaOS memory plugin tables.
+ */
 export { longTermMemories, sessionSummaries, memoryAccessLogs };

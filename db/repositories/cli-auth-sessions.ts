@@ -8,7 +8,15 @@ import { eq, and, gt, lt } from "drizzle-orm";
 
 export type { CliAuthSession, NewCliAuthSession };
 
+/**
+ * Repository for CLI authentication session database operations.
+ */
 export class CliAuthSessionsRepository {
+  /**
+   * Creates a new CLI auth session.
+   * 
+   * @throws Error if session creation fails.
+   */
   async create(data: NewCliAuthSession): Promise<CliAuthSession> {
     const [session] = await db.insert(cliAuthSessions).values(data).returning();
 
@@ -19,6 +27,9 @@ export class CliAuthSessionsRepository {
     return session;
   }
 
+  /**
+   * Finds a CLI auth session by session ID.
+   */
   async findBySessionId(
     sessionId: string,
   ): Promise<CliAuthSession | undefined> {
@@ -31,6 +42,9 @@ export class CliAuthSessionsRepository {
     return session;
   }
 
+  /**
+   * Finds an active (non-expired) CLI auth session by session ID.
+   */
   async findActiveBySessionId(
     sessionId: string,
   ): Promise<CliAuthSession | undefined> {
@@ -49,6 +63,9 @@ export class CliAuthSessionsRepository {
     return session;
   }
 
+  /**
+   * Updates an existing CLI auth session.
+   */
   async update(
     sessionId: string,
     data: Partial<NewCliAuthSession>,
@@ -65,6 +82,9 @@ export class CliAuthSessionsRepository {
     return updated;
   }
 
+  /**
+   * Marks a session as authenticated and stores user/API key information.
+   */
   async markAuthenticated(
     sessionId: string,
     userId: string,
@@ -80,6 +100,9 @@ export class CliAuthSessionsRepository {
     });
   }
 
+  /**
+   * Clears the plain API key from a session (for security after retrieval).
+   */
   async clearPlainKey(sessionId: string): Promise<void> {
     await db
       .update(cliAuthSessions)
@@ -90,6 +113,9 @@ export class CliAuthSessionsRepository {
       .where(eq(cliAuthSessions.session_id, sessionId));
   }
 
+  /**
+   * Marks a session as expired.
+   */
   async markExpired(sessionId: string): Promise<void> {
     await db
       .update(cliAuthSessions)
@@ -100,10 +126,16 @@ export class CliAuthSessionsRepository {
       .where(eq(cliAuthSessions.session_id, sessionId));
   }
 
+  /**
+   * Deletes all expired CLI auth sessions.
+   */
   async deleteExpiredSessions(): Promise<void> {
     const now = new Date();
     await db.delete(cliAuthSessions).where(lt(cliAuthSessions.expires_at, now));
   }
 }
 
+/**
+ * Singleton instance of CliAuthSessionsRepository.
+ */
 export const cliAuthSessionsRepository = new CliAuthSessionsRepository();

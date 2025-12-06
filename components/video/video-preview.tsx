@@ -1,3 +1,11 @@
+/**
+ * Video preview component displaying generated video with playback controls.
+ * Supports video playback, download, URL copying, and moderation flag display.
+ *
+ * @param props - Video preview configuration
+ * @param props.video - Generated video data to display
+ */
+
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -68,12 +76,8 @@ export function VideoPreview({ video }: VideoPreviewProps) {
       return;
     }
 
-    try {
-      await navigator.clipboard.writeText(video.videoUrl);
-      showFeedback("Link copied to clipboard.");
-    } catch {
-      showFeedback("Copy failed — select and copy the URL manually.");
-    }
+    await navigator.clipboard.writeText(video.videoUrl);
+    showFeedback("Link copied to clipboard.");
   }, [showFeedback, video]);
 
   useEffect(() => {

@@ -1,8 +1,13 @@
 /**
- * Section Header Component
- * Reusable section header with orange dot indicator
+ * Section header component with orange dot indicator and optional title/description.
+ * Supports left, center, and right alignment with customizable styling.
+ *
+ * @param props - Section header configuration
+ * @param props.label - Label text displayed with dot indicator
+ * @param props.title - Optional title text
+ * @param props.description - Optional description text
+ * @param props.align - Text alignment (left, center, right)
  */
-
 import { cn } from "@/lib/utils";
 
 interface SectionHeaderProps {

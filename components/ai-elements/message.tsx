@@ -5,6 +5,12 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentProps, HTMLAttributes } from "react";
 import Image from "next/image";
 
+/**
+ * Message container component with role-based styling.
+ *
+ * @param props - Message props
+ * @param props.from - Message role (user or assistant)
+ */
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
   from: UIMessage["role"];
 };
@@ -42,6 +48,11 @@ const messageContentVariants = cva(
   },
 );
 
+/**
+ * Message content container with variant styling (contained or flat).
+ *
+ * @param props - Message content props including variant
+ */
 export type MessageContentProps = HTMLAttributes<HTMLDivElement> &
   VariantProps<typeof messageContentVariants>;
 
@@ -59,6 +70,13 @@ export const MessageContent = ({
   </div>
 );
 
+/**
+ * Avatar component for message display.
+ *
+ * @param props - Avatar props
+ * @param props.src - Image source URL
+ * @param props.name - Optional name for alt text
+ */
 export type MessageAvatarProps = ComponentProps<typeof Avatar> & {
   src: string;
   name?: string;

@@ -3,6 +3,11 @@ import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { organizations } from "./organizations";
 import { users } from "./users";
 
+/**
+ * Organization invites table schema.
+ * 
+ * Manages invitations to join organizations with token-based authentication.
+ */
 export const organizationInvites = pgTable(
   "organization_invites",
   {

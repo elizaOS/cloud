@@ -1,3 +1,9 @@
+/**
+ * Unified credit event emitter that switches between Redis and in-memory based on environment.
+ *
+ * Automatically uses Redis in serverless/production environments for multi-instance compatibility.
+ */
+
 import { EventEmitter } from "events";
 import { logger } from "@/lib/utils/logger";
 import { redisCreditEventEmitter } from "./credit-events-redis";
@@ -5,8 +11,14 @@ import type { CreditUpdateEvent } from "./credit-events-redis";
 
 export type { CreditUpdateEvent };
 
+/**
+ * Function to unsubscribe from credit updates.
+ */
 export type UnsubscribeFunction = () => void;
 
+/**
+ * Unified credit event emitter that adapts to environment.
+ */
 class UnifiedCreditEventEmitter {
   private static instance: UnifiedCreditEventEmitter;
   private inMemoryEmitter: EventEmitter | null = null;
@@ -78,12 +90,6 @@ class UnifiedCreditEventEmitter {
     if (useRedis) {
       redisCreditEventEmitter
         .subscribeToCreditUpdates(organizationId, handler)
-        .catch((error) => {
-          logger.error(
-            "[Credit Events] Failed to create Redis subscription:",
-            error,
-          );
-        });
 
       // Return sync unsubscribe function
       return () => {

@@ -22,6 +22,10 @@ export const metadata: Metadata = generatePageMetadata({
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Public marketplace page displaying available AI agents and characters.
+ * Accessible without authentication.
+ */
 export default function PublicMarketplacePage() {
   return <MarketplacePreview />;
 }

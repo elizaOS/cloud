@@ -1,3 +1,10 @@
+/**
+ * API key empty state component displayed when no API keys exist.
+ * Provides call-to-action button to create first API key.
+ *
+ * @param props - API key empty state configuration
+ * @param props.onCreateKey - Optional callback when create button is clicked
+ */
 import { KeyRound, Plus } from "lucide-react";
 
 import { BrandButton } from "@/components/brand";

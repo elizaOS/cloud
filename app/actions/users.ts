@@ -14,6 +14,12 @@ const updateEmailSchema = z.object({
   email: z.string().email("Invalid email address"),
 });
 
+/**
+ * Updates the authenticated user's profile (name and avatar).
+ *
+ * @param formData - Form data containing name and optional avatar URL.
+ * @returns Success status with message, or error details if validation fails.
+ */
 export async function updateProfile(formData: FormData) {
   try {
     const user = await requireAuth();
@@ -59,6 +65,13 @@ export async function updateProfile(formData: FormData) {
   }
 }
 
+/**
+ * Updates the authenticated user's email address.
+ * Only allows updates if the user doesn't already have an email set.
+ *
+ * @param formData - Form data containing the new email address.
+ * @returns Success status with message, or error if email is already set or in use.
+ */
 export async function updateEmail(formData: FormData) {
   try {
     const user = await requireAuth();
@@ -121,6 +134,13 @@ export async function updateEmail(formData: FormData) {
   }
 }
 
+/**
+ * Uploads a user avatar image.
+ * Validates file type (JPEG, PNG, WebP) and size (max 5MB).
+ *
+ * @param formData - Form data containing the avatar file.
+ * @returns Success status with avatar URL, or error details if validation fails.
+ */
 export async function uploadAvatar(formData: FormData) {
   try {
     const user = await requireAuth();

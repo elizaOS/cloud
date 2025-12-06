@@ -1,3 +1,10 @@
+/**
+ * Voice status badge component displaying voice clone processing status.
+ * Shows ready, processing, or failed states with estimated completion times.
+ *
+ * @param props - Voice status badge configuration
+ * @param props.voice - Voice object with clone type and status
+ */
 "use client";
 
 import { Badge } from "@/components/ui/badge";

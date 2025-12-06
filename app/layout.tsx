@@ -26,7 +26,9 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// Get base URL with automatic Vercel URL detection as fallback
+/**
+ * Gets the base URL for the application with automatic Vercel URL detection as fallback.
+ */
 const baseUrl =
   process.env.NEXT_PUBLIC_APP_URL ||
   (process.env.VERCEL_URL
@@ -106,6 +108,11 @@ export const metadata: Metadata = {
   manifest: "/site.webmanifest",
 };
 
+/**
+ * Root layout component that wraps all pages with providers and global styles.
+ *
+ * @param children - The page content to render.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{

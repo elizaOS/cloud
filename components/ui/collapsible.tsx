@@ -1,3 +1,7 @@
+/**
+ * Collapsible component system for expandable/collapsible content.
+ * Built on Radix UI primitives with trigger and content components.
+ */
 "use client";
 
 import * as CollapsiblePrimitive from "@radix-ui/react-collapsible";

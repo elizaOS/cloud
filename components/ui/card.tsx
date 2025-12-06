@@ -2,6 +2,9 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Card container component with rounded borders and shadow.
+ */
 function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -15,6 +18,9 @@ function Card({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/**
+ * Card header section with title and description layout.
+ */
 function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -28,6 +34,9 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/**
+ * Card title component with semibold font weight.
+ */
 function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -38,6 +47,9 @@ function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/**
+ * Card description text with muted foreground color.
+ */
 function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -48,6 +60,9 @@ function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/**
+ * Card action area positioned in the top-right corner of the header.
+ */
 function CardAction({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -61,6 +76,9 @@ function CardAction({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/**
+ * Card content section with horizontal padding.
+ */
 function CardContent({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -71,6 +89,9 @@ function CardContent({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/**
+ * Card footer section with horizontal padding and flex layout.
+ */
 function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div

@@ -8,13 +8,22 @@ import {
 
 export type { CreditTransaction, NewCreditTransaction };
 
+/**
+ * Repository for credit transaction database operations.
+ */
 export class CreditTransactionsRepository {
+  /**
+   * Finds a credit transaction by ID.
+   */
   async findById(id: string): Promise<CreditTransaction | undefined> {
     return await db.query.creditTransactions.findFirst({
       where: eq(creditTransactions.id, id),
     });
   }
 
+  /**
+   * Finds a credit transaction by Stripe payment intent ID.
+   */
   async findByStripePaymentIntent(
     paymentIntentId: string,
   ): Promise<CreditTransaction | undefined> {
@@ -23,6 +32,9 @@ export class CreditTransactionsRepository {
     });
   }
 
+  /**
+   * Lists credit transactions for an organization, ordered by creation date.
+   */
   async listByOrganization(
     organizationId: string,
     limit?: number,
@@ -34,6 +46,9 @@ export class CreditTransactionsRepository {
     });
   }
 
+  /**
+   * Lists credit transactions for an organization filtered by type.
+   */
   async listByOrganizationAndType(
     organizationId: string,
     type: string,
@@ -47,6 +62,9 @@ export class CreditTransactionsRepository {
     });
   }
 
+  /**
+   * Creates a new credit transaction.
+   */
   async create(data: NewCreditTransaction): Promise<CreditTransaction> {
     const [transaction] = await db
       .insert(creditTransactions)
@@ -56,5 +74,7 @@ export class CreditTransactionsRepository {
   }
 }
 
-// Export singleton instance
+/**
+ * Singleton instance of CreditTransactionsRepository.
+ */
 export const creditTransactionsRepository = new CreditTransactionsRepository();

@@ -10,9 +10,12 @@ export const metadata: Metadata = generatePageMetadata({
   description:
     "Privacy Policy for elizaOS Platform - Learn how we collect, use, and protect your data.",
   path: "/privacy-policy",
-  keywords: ["privacy policy", "data protection", "GDPR", "privacy", "elizaOS"],
+  keywords: ["privacy policy", "data protection", "GDPR", "privacy", "elizaOS"  ],
 });
 
+/**
+ * Privacy policy page displaying the platform's privacy policy and data handling practices.
+ */
 export default function PrivacyPolicyPage() {
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-hidden">

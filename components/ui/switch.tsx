@@ -1,3 +1,7 @@
+/**
+ * Switch component for toggling boolean values.
+ * Built on Radix UI primitives with checked/unchecked states.
+ */
 "use client";
 
 import * as React from "react";

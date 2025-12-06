@@ -1,3 +1,11 @@
+/**
+ * Provider breakdown component displaying cost and usage by AI provider.
+ * Shows cost distribution with progress bars and percentage breakdowns.
+ *
+ * @param props - Provider breakdown configuration
+ * @param props.providers - Array of provider usage data
+ */
+
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

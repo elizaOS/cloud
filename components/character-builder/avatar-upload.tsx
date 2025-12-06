@@ -1,3 +1,14 @@
+/**
+ * Avatar upload component with drag-and-drop support.
+ * Handles file validation, upload, and preview display.
+ *
+ * @param props - Avatar upload configuration
+ * @param props.value - Current avatar URL
+ * @param props.onChange - Callback when avatar URL changes
+ * @param props.name - Optional character name for display
+ * @param props.size - Avatar size variant (sm or lg)
+ */
+
 "use client";
 
 import { useState, useRef } from "react";
@@ -38,26 +49,20 @@ export function AvatarUpload({
     }
 
     setIsUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
+    const formData = new FormData();
+    formData.append("file", file);
 
-      const result = await uploadCharacterAvatar(formData);
+    const result = await uploadCharacterAvatar(formData);
 
-      if (result.success && result.url) {
-        onChange(result.url);
-        toast.success("Avatar uploaded! 🔥");
-      } else {
-        toast.error(result.error || "Failed to upload avatar");
-      }
-    } catch (error) {
-      console.error("Upload error:", error);
-      toast.error("Failed to upload avatar");
-    } finally {
-      setIsUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+    if (result.success && result.url) {
+      onChange(result.url);
+      toast.success("Avatar uploaded! 🔥");
+    } else {
+      toast.error(result.error || "Failed to upload avatar");
+    }
+    setIsUploading(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 

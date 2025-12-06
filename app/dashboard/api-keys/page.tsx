@@ -17,6 +17,13 @@ export const metadata: Metadata = {
 // Force dynamic rendering since we use server-side auth (cookies)
 export const dynamic = "force-dynamic";
 
+/**
+ * Determines the status of an API key based on its active state and expiration date.
+ *
+ * @param isActive - Whether the API key is active.
+ * @param expiresAt - The expiration date of the API key, or null if it doesn't expire.
+ * @returns The API key status: "active", "inactive", or "expired".
+ */
 function getApiKeyStatus(
   isActive: boolean,
   expiresAt: Date | null,
@@ -26,6 +33,12 @@ function getApiKeyStatus(
   return "active";
 }
 
+/**
+ * API Keys page displaying all API keys for the authenticated user's organization.
+ * Shows summary statistics and a table of API keys with their details.
+ *
+ * @returns The rendered API keys page with summary and keys table.
+ */
 export default async function ApiKeysPage() {
   const user = await requireAuthWithOrg();
   const keys = await apiKeysService.listByOrganization(user.organization_id);

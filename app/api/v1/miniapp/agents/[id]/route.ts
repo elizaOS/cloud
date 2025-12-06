@@ -25,6 +25,13 @@ import {
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
+/**
+ * OPTIONS /api/v1/miniapp/agents/[id]
+ * CORS preflight handler for miniapp agent management endpoint.
+ *
+ * @param request - The Next.js request object.
+ * @returns Preflight response with CORS headers.
+ */
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
   return createPreflightResponse(origin, [
@@ -38,7 +45,12 @@ export async function OPTIONS(request: NextRequest) {
 
 /**
  * GET /api/v1/miniapp/agents/[id]
- * Get agent details
+ * Gets detailed information about a specific agent.
+ * Only returns miniapp-created agents. Requires ownership verification.
+ *
+ * @param request - The Next.js request object.
+ * @param params - Route parameters containing the agent ID.
+ * @returns Complete agent details including configuration and metadata.
  */
 export async function GET(
   request: NextRequest,
@@ -65,6 +77,15 @@ export async function GET(
     const character = await charactersService.getById(id);
 
     if (!character) {
+      const response = NextResponse.json(
+        { success: false, error: "Agent not found" },
+        { status: 404 },
+      );
+      return addCorsHeaders(response, corsResult.origin);
+    }
+
+    // Verify this is a miniapp agent - miniapp API can only access miniapp-created agents
+    if (character.source !== "miniapp") {
       const response = NextResponse.json(
         { success: false, error: "Agent not found" },
         { status: 404 },
@@ -164,7 +185,27 @@ const UpdateAgentSchema = z.object({
 
 /**
  * PUT/PATCH /api/v1/miniapp/agents/[id]
- * Update agent
+ * Updates an agent's configuration (full or partial update).
+ * Only miniapp-created agents can be updated. Rate limited with stricter limits for write operations.
+ *
+ * Request Body (all fields optional):
+ * - `name`: Agent name (1-100 characters).
+ * - `bio`: Agent biography (string or array of strings).
+ * - `avatarUrl`: Avatar image URL (nullable).
+ * - `topics`: Array of topic strings.
+ * - `adjectives`: Array of personality adjectives.
+ * - `style`: Style configuration object.
+ * - `settings`: Settings object.
+ * - `knowledge`: Array of knowledge file paths.
+ * - `messageExamples`: Array of message example arrays.
+ * - `postExamples`: Array of post example strings.
+ * - `plugins`: Array of plugin names.
+ * - `isPublic`: Boolean for public visibility.
+ * - `characterData`: Character data object.
+ *
+ * @param request - Request body with fields to update.
+ * @param params - Route parameters containing the agent ID.
+ * @returns Updated agent details.
  */
 async function updateAgent(
   request: NextRequest,
@@ -192,6 +233,15 @@ async function updateAgent(
     const character = await charactersService.getById(id);
 
     if (!character) {
+      const response = NextResponse.json(
+        { success: false, error: "Agent not found" },
+        { status: 404 },
+      );
+      return addCorsHeaders(response, corsResult.origin);
+    }
+
+    // Verify this is a miniapp agent - miniapp API can only access miniapp-created agents
+    if (character.source !== "miniapp") {
       const response = NextResponse.json(
         { success: false, error: "Agent not found" },
         { status: 404 },
@@ -302,7 +352,13 @@ export { updateAgent as PUT, updateAgent as PATCH };
 
 /**
  * DELETE /api/v1/miniapp/agents/[id]
- * Delete agent
+ * Deletes an agent permanently.
+ * Only miniapp-created agents can be deleted. Requires ownership verification.
+ * Rate limited with stricter limits for write operations.
+ *
+ * @param request - The Next.js request object.
+ * @param params - Route parameters containing the agent ID.
+ * @returns Success confirmation.
  */
 export async function DELETE(
   request: NextRequest,
@@ -330,6 +386,15 @@ export async function DELETE(
     const character = await charactersService.getById(id);
 
     if (!character) {
+      const response = NextResponse.json(
+        { success: false, error: "Agent not found" },
+        { status: 404 },
+      );
+      return addCorsHeaders(response, corsResult.origin);
+    }
+
+    // Verify this is a miniapp agent - miniapp API can only access miniapp-created agents
+    if (character.source !== "miniapp") {
       const response = NextResponse.json(
         { success: false, error: "Agent not found" },
         { status: 404 },

@@ -13,7 +13,11 @@ const removePaymentMethodSchema = z.object({
 
 /**
  * POST /api/payment-methods/remove
- * Remove (detach) a payment method from the organization
+ * Removes (detaches) a payment method from the organization.
+ * Prevents removal if auto-top-up is enabled for the payment method.
+ *
+ * @param req - Request body containing paymentMethodId.
+ * @returns Success status.
  */
 async function handleRemovePaymentMethod(req: NextRequest) {
   try {

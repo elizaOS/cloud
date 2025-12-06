@@ -1,4 +1,8 @@
-// Export all schemas
+/**
+ * Schema exports index.
+ * 
+ * Central export point for all database table schemas.
+ */
 export * from "./organizations";
 export * from "./organization-invites";
 export * from "./users";
@@ -22,6 +26,10 @@ export * from "./user-voices";
 export * from "./containers";
 export * from "./alb-priorities";
 export * from "./apps";
+export * from "./app-credit-balances";
+export * from "./app-earnings";
+export * from "./referrals";
 export * from "./relations";
 export * from "./eliza";
 export * from "./eliza-room-characters";
+export * from "./agent-events";

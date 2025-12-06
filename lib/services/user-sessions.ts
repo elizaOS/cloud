@@ -1,6 +1,13 @@
+/**
+ * Service for managing user sessions and tracking usage.
+ */
+
 import { userSessionsRepository } from "@/db/repositories";
 import type { UserSession, NewUserSession } from "@/db/schemas/user-sessions";
 
+/**
+ * Parameters for creating a user session.
+ */
 export interface CreateSessionParams {
   user_id: string;
   organization_id: string;
@@ -10,6 +17,9 @@ export interface CreateSessionParams {
   device_info?: Record<string, unknown>;
 }
 
+/**
+ * Parameters for tracking session usage.
+ */
 export interface TrackUsageParams {
   session_token: string;
   credits_used?: number;
@@ -17,6 +27,9 @@ export interface TrackUsageParams {
   tokens_consumed?: number;
 }
 
+/**
+ * Service for user session management and usage tracking.
+ */
 class UserSessionsService {
   async getById(id: string): Promise<UserSession | undefined> {
     return await userSessionsRepository.findById(id);

@@ -5,6 +5,8 @@ import {
   EventType,
   logger,
   type Memory,
+  type Content,
+  type Media,
   ModelType,
   parseKeyValueXml,
   type UUID,
@@ -347,21 +349,41 @@ export async function handleMessage({
 
     // Merge attachments, preferring cached ones (which have already been validated)
     // Use a Map to dedupe by attachment ID
-    const attachmentMap = new Map<string, unknown>();
+    interface AttachmentWithId {
+      id?: string;
+      url?: string;
+      [key: string]: unknown;
+    }
+
+    const attachmentMap = new Map<string, AttachmentWithId>();
 
     // First add action result attachments
     for (const att of actionResultAttachments) {
-      const attachment = att as { id?: string; url?: string };
-      if (attachment.id) {
-        attachmentMap.set(attachment.id, att);
+      if (
+        typeof att === "object" &&
+        att !== null &&
+        "id" in att &&
+        typeof (att as AttachmentWithId).id === "string"
+      ) {
+        const attachment = att as AttachmentWithId;
+        if (attachment.id) {
+          attachmentMap.set(attachment.id, attachment);
+        }
       }
     }
 
     // Then add/override with cached attachments (these are validated HTTP URLs)
     for (const att of cachedAttachments) {
-      const attachment = att as { id?: string; url?: string };
-      if (attachment.id) {
-        attachmentMap.set(attachment.id, att);
+      if (
+        typeof att === "object" &&
+        att !== null &&
+        "id" in att &&
+        typeof (att as AttachmentWithId).id === "string"
+      ) {
+        const attachment = att as AttachmentWithId;
+        if (attachment.id) {
+          attachmentMap.set(attachment.id, attachment);
+        }
       }
     }
 
@@ -371,15 +393,50 @@ export async function handleMessage({
     );
 
     // Build response content
-    const content: Record<string, unknown> = {
+    // Convert attachments to Media format expected by Content type
+    interface AttachmentWithContentType extends AttachmentWithId {
+      contentType?: string;
+    }
+
+    const mediaAttachments: Media[] = attachments
+      .filter(
+        (att): att is AttachmentWithId & { url: string; id: string } => {
+          return (
+            typeof att === "object" &&
+            att !== null &&
+            "url" in att &&
+            typeof att.url === "string" &&
+            att.url.length > 0 &&
+            "id" in att &&
+            typeof att.id === "string" &&
+            att.id.length > 0
+          );
+        },
+      )
+      .map((att) => {
+        const attachmentWithType = att as AttachmentWithContentType;
+        const contentType =
+          attachmentWithType.contentType &&
+          typeof attachmentWithType.contentType === "string"
+            ? attachmentWithType.contentType
+            : undefined;
+
+        return {
+          id: att.id,
+          url: att.url,
+          ...(contentType && { mimeType: contentType }),
+        };
+      });
+
+    const content: Content = {
       text: responseContent,
       thought,
       source: "agent",
       inReplyTo: message.id,
+      ...(mediaAttachments.length > 0 && { attachments: mediaAttachments }),
     };
 
     if (attachments.length > 0) {
-      content.attachments = attachments;
       logger.info(
         `[ChatAssistant] Including ${attachments.length} attachment(s) in response`,
       );
@@ -388,7 +445,7 @@ export async function handleMessage({
     // Trigger callback with response content
     // Memory storage is handled by the MessageHandler callback
     if (callback) {
-      await callback(content as Memory["content"]);
+      await callback(content);
     }
 
     // Create memory reference for evaluators (without re-saving)
@@ -397,7 +454,7 @@ export async function handleMessage({
       entityId: runtime.agentId,
       roomId: message.roomId,
       worldId: message.worldId,
-      content: content as Memory["content"],
+      content,
     };
 
     // Run evaluators asynchronously (for future context enrichment)

@@ -1,3 +1,7 @@
+/**
+ * Service for managing CLI authentication sessions.
+ */
+
 import {
   cliAuthSessionsRepository,
   apiKeysRepository,
@@ -8,8 +12,14 @@ import type {
 } from "@/db/schemas/cli-auth-sessions";
 import { apiKeysService } from "./api-keys";
 
+/**
+ * Session expiry time in minutes.
+ */
 const SESSION_EXPIRY_MINUTES = 10; // Sessions expire after 10 minutes
 
+/**
+ * Service for CLI authentication flow and session management.
+ */
 export class CliAuthSessionsService {
   /**
    * Create a new CLI authentication session

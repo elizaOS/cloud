@@ -2,6 +2,14 @@ import { type NextRequest, NextResponse } from "next/server";
 import { invitesService } from "@/lib/services";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
+/**
+ * GET /api/invites/validate?token=xxx
+ * Validates an invitation token and returns invitation details.
+ * Public endpoint - no authentication required.
+ *
+ * @param request - Request with token query parameter.
+ * @returns Validation result with organization and role details if valid.
+ */
 async function handleGET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;

@@ -21,8 +21,12 @@ interface UploadResult {
 }
 
 /**
- * POST /api/v1/knowledge/upload-file - Upload files to knowledge base
- * Handles multiple files matching plugin-knowledge pattern
+ * POST /api/v1/knowledge/upload-file
+ * Uploads one or more files to the knowledge base.
+ * Processes files and creates knowledge fragments for semantic search.
+ *
+ * @param req - Form data with files array and optional characterId.
+ * @returns Upload results for each file including fragment counts.
  */
 async function handlePOST(req: NextRequest) {
   try {

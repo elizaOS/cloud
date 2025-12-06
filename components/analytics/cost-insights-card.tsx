@@ -1,3 +1,12 @@
+/**
+ * Cost insights card component displaying cost trends and projections.
+ * Shows burn rate, projected monthly spend, runway, and cost alerts.
+ *
+ * @param props - Cost insights card configuration
+ * @param props.costTrending - Cost trending data including projections
+ * @param props.creditBalance - Current credit balance
+ */
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";

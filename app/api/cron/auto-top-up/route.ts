@@ -25,6 +25,14 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minutes timeout for processing multiple orgs
 
+/**
+ * GET /api/cron/auto-top-up
+ * Cron job endpoint that checks and executes auto top-ups for all organizations.
+ * Protected by CRON_SECRET authentication.
+ *
+ * @param request - Request with Bearer token containing CRON_SECRET.
+ * @returns Summary of auto top-up checks and executions.
+ */
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
 

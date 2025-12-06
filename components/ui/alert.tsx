@@ -1,3 +1,7 @@
+/**
+ * Alert component for displaying important messages.
+ * Supports default and destructive variants with icon support.
+ */
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 

@@ -16,6 +16,10 @@ import {
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 
+/**
+ * Form provider component that wraps react-hook-form's FormProvider.
+ * Provides form context to all child form components.
+ */
 const Form = FormProvider;
 
 type FormFieldContextValue<
@@ -29,6 +33,12 @@ const FormFieldContext = React.createContext<FormFieldContextValue>(
   {} as FormFieldContextValue,
 );
 
+/**
+ * Form field component that wraps react-hook-form's Controller.
+ * Provides field context and manages form field state.
+ *
+ * @param props - Controller props from react-hook-form
+ */
 const FormField = <
   TFieldValues extends FieldValues = FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
@@ -46,6 +56,13 @@ const FormField = <
   );
 };
 
+/**
+ * Hook to access form field state and IDs.
+ * Must be used within a FormField component.
+ *
+ * @returns Field state including id, name, formItemId, formDescriptionId, formMessageId, and validation state
+ * @throws Error if used outside of FormField context
+ */
 const useFormField = () => {
   const fieldContext = React.useContext(FormFieldContext);
   const itemContext = React.useContext(FormItemContext);
@@ -77,6 +94,9 @@ const FormItemContext = React.createContext<FormItemContextValue>(
   {} as FormItemContextValue,
 );
 
+/**
+ * Form item container that provides unique ID context for form elements.
+ */
 function FormItem({ className, ...props }: React.ComponentProps<"div">) {
   const id = React.useId();
   const contextValue = React.useMemo(() => ({ id }), [id]);
@@ -92,6 +112,10 @@ function FormItem({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/**
+ * Form label component with error state styling.
+ * Automatically associates with form field via useFormField hook.
+ */
 function FormLabel({
   className,
   ...props
@@ -109,6 +133,10 @@ function FormLabel({
   );
 }
 
+/**
+ * Form control wrapper that applies accessibility attributes.
+ * Uses Radix Slot to merge props with the form input element.
+ */
 function FormControl({ ...props }: React.ComponentProps<typeof Slot>) {
   const { error, formItemId, formDescriptionId, formMessageId } =
     useFormField();
@@ -128,6 +156,10 @@ function FormControl({ ...props }: React.ComponentProps<typeof Slot>) {
   );
 }
 
+/**
+ * Form description text displayed below the form control.
+ * Automatically associated with form field for accessibility.
+ */
 function FormDescription({ className, ...props }: React.ComponentProps<"p">) {
   const { formDescriptionId } = useFormField();
 
@@ -141,6 +173,11 @@ function FormDescription({ className, ...props }: React.ComponentProps<"p">) {
   );
 }
 
+/**
+ * Form error message component.
+ * Displays validation errors from react-hook-form or custom children.
+ * Returns null if no error message is available.
+ */
 function FormMessage({ className, ...props }: React.ComponentProps<"p">) {
   const { error, formMessageId } = useFormField();
   const body = error ? String(error?.message ?? "") : props.children;

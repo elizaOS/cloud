@@ -1,3 +1,14 @@
+/**
+ * Document list component displaying knowledge base documents in a table.
+ * Supports deletion, refresh, and displays document metadata with relative timestamps.
+ *
+ * @param props - Document list configuration
+ * @param props.documents - Array of knowledge documents to display
+ * @param props.loading - Whether documents are loading
+ * @param props.onDelete - Callback when document is deleted
+ * @param props.onRefresh - Callback to refresh document list
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -23,20 +34,7 @@ import {
 import { Loader2, Trash2, RefreshCw, FileText } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
-interface KnowledgeDocument {
-  id: string;
-  content: {
-    text: string;
-  };
-  createdAt: number;
-  metadata?: {
-    fileName?: string;
-    fileSize?: number;
-    uploadedBy?: string;
-    uploadedAt?: number;
-    originalFilename?: string;
-  };
-}
+import type { KnowledgeDocument } from "@/lib/types/knowledge";
 
 interface DocumentListProps {
   documents: KnowledgeDocument[];
@@ -65,15 +63,10 @@ export function DocumentList({
     if (!documentToDelete) return;
 
     setDeleting(true);
-    try {
-      await onDelete(documentToDelete.id);
-      setDeleteDialogOpen(false);
-      setDocumentToDelete(null);
-    } catch (error) {
-      console.error("Error deleting document:", error);
-    } finally {
-      setDeleting(false);
-    }
+    await onDelete(documentToDelete.id);
+    setDeleteDialogOpen(false);
+    setDocumentToDelete(null);
+    setDeleting(false);
   };
 
   const getDocumentName = (doc: KnowledgeDocument): string => {
@@ -94,11 +87,7 @@ export function DocumentList({
 
   const getDocumentAge = (doc: KnowledgeDocument): string => {
     const timestamp = doc.metadata?.uploadedAt || doc.createdAt;
-    try {
-      return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
-    } catch {
-      return "Unknown";
-    }
+    return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
   };
 
   if (loading) {

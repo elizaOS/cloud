@@ -1,3 +1,7 @@
+/**
+ * Drawer component system for bottom sheet panels.
+ * Built on Vaul library with swipe-to-dismiss and overlay support.
+ */
 "use client";
 
 import * as React from "react";

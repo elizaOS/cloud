@@ -1,3 +1,8 @@
+/**
+ * Inline citation component for displaying source citations in AI responses.
+ * Supports hover cards, carousel navigation, and citation source display.
+ */
+
 "use client";
 
 import { Badge } from "@/components/ui/badge";

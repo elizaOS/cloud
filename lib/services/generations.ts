@@ -1,9 +1,16 @@
+/**
+ * Service for managing AI generation records (images, videos, etc.).
+ */
+
 import {
   generationsRepository,
   type Generation,
   type NewGeneration,
 } from "@/db/repositories";
 
+/**
+ * Service for tracking and managing AI generation jobs.
+ */
 export class GenerationsService {
   async getById(id: string): Promise<Generation | undefined> {
     return await generationsRepository.findById(id);

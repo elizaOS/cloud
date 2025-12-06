@@ -32,12 +32,7 @@ function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
 
       // Check for anonymous session token in localStorage
       // (httpOnly cookies can't be read via document.cookie, so we use localStorage as backup)
-      let sessionToken: string | null = null;
-      try {
-        sessionToken = localStorage.getItem("eliza-anon-session-token");
-      } catch (e) {
-        console.warn("[PrivyProvider] Failed to read localStorage:", e);
-      }
+      let sessionToken = localStorage.getItem("eliza-anon-session-token");
 
       // Also check document.cookie as fallback (in case cookie was set without httpOnly in dev)
       const hasAnonCookie = document.cookie.includes("eliza-anon-session");
@@ -101,11 +96,7 @@ function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
         };
 
         const cleanupAndNotify = () => {
-          try {
-            localStorage.removeItem("eliza-anon-session-token");
-          } catch (e) {
-            // Ignore cleanup errors
-          }
+          localStorage.removeItem("eliza-anon-session-token");
           window.dispatchEvent(new CustomEvent("anonymous-session-migrated"));
           console.log("[PrivyProvider] 📢 Dispatched anonymous-session-migrated event");
         };

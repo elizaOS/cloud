@@ -1,3 +1,7 @@
+/**
+ * Users service for managing user accounts and organization relationships.
+ */
+
 import {
   usersRepository,
   organizationsRepository,
@@ -6,6 +10,9 @@ import {
   type UserWithOrganization,
 } from "@/db/repositories";
 
+/**
+ * Service for user operations including organization lookups.
+ */
 export class UsersService {
   async getById(id: string): Promise<User | undefined> {
     return await usersRepository.findById(id);

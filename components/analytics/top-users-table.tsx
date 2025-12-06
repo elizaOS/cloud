@@ -1,3 +1,10 @@
+/**
+ * Top users table component displaying highest spending users.
+ * Shows rank, user info, requests, cost, and tokens with last active timestamp.
+ *
+ * @param props - Top users table configuration
+ * @param props.users - Array of user usage data
+ */
 import { formatDistanceToNowStrict } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

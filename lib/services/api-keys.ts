@@ -1,3 +1,7 @@
+/**
+ * API key management service for generating, validating, and managing API keys.
+ */
+
 import crypto from "crypto";
 import {
   apiKeysRepository,
@@ -6,12 +10,18 @@ import {
 } from "@/db/repositories";
 import { API_KEY_PREFIX_LENGTH } from "@/lib/pricing";
 
+/**
+ * Generated API key with hash and prefix.
+ */
 export interface GeneratedApiKey {
   key: string;
   hash: string;
   prefix: string;
 }
 
+/**
+ * Service for managing API keys including generation, validation, and CRUD operations.
+ */
 export class ApiKeysService {
   generateApiKey(): GeneratedApiKey {
     const randomBytes = crypto.randomBytes(32).toString("hex");

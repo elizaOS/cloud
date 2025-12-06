@@ -1,3 +1,7 @@
+/**
+ * Checkbox component for selecting boolean values.
+ * Built on Radix UI primitives with checked/unchecked states and focus management.
+ */
 import * as React from "react";
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
 import { Check } from "lucide-react";

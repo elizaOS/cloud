@@ -6,7 +6,11 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/v1/gallery
- * List all media (images and videos) for the authenticated user
+ * Lists all media (images and videos) for the authenticated user's organization.
+ * Supports filtering by type and pagination.
+ *
+ * @param request - Request with optional type, limit, and offset query parameters.
+ * @returns Paginated list of gallery items with metadata.
  */
 export async function GET(request: NextRequest) {
   try {

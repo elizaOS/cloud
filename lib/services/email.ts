@@ -1,5 +1,11 @@
+/**
+ * Email service for sending transactional emails via SendGrid or SMTP.
+ */
+
 import sgMail from "@sendgrid/mail";
 import nodemailer from "nodemailer";
+import type { Transporter } from "nodemailer";
+import type SMTPTransport from "nodemailer/lib/smtp-transport";
 import { logger } from "@/lib/utils/logger";
 import type {
   EmailOptions,
@@ -11,10 +17,13 @@ import type {
   PurchaseConfirmationEmailData,
 } from "@/lib/email/types";
 
+/**
+ * Email service supporting SendGrid API and SMTP.
+ */
 class EmailService {
   private initialized = false;
   private fromEmail: string | null = null;
-  private smtpTransporter: any = null;
+  private smtpTransporter: Transporter<SMTPTransport.SentMessageInfo> | null = null;
   private useSmtp = false;
 
   private initialize(): void {
@@ -59,6 +68,12 @@ class EmailService {
     logger.info("[EmailService] Initialized with SendGrid API");
   }
 
+  /**
+   * Sends an email using the configured provider (SendGrid or SMTP).
+   *
+   * @param options - Email options including recipient, subject, and content.
+   * @returns True if sent successfully, false otherwise.
+   */
   async send(options: EmailOptions): Promise<boolean> {
     this.initialize();
 
@@ -67,61 +82,55 @@ class EmailService {
       return false;
     }
 
-    try {
-      if (this.useSmtp) {
-        await this.smtpTransporter.sendMail({
-          from: options.from || this.fromEmail!,
-          to: options.to,
-          subject: options.subject,
-          text: options.text,
-          html: options.html,
-          replyTo: options.replyTo,
-          attachments: options.attachments?.map((att) => ({
-            filename: att.filename,
-            content: Buffer.from(att.content, "base64"),
-            contentType: att.type,
-          })),
-        });
+    if (this.useSmtp && this.smtpTransporter) {
+      await this.smtpTransporter.sendMail({
+        from: options.from || this.fromEmail!,
+        to: options.to,
+        subject: options.subject,
+        text: options.text,
+        html: options.html,
+        replyTo: options.replyTo,
+        attachments: options.attachments?.map((att) => ({
+          filename: att.filename,
+          content: Buffer.from(att.content, "base64"),
+          contentType: att.type,
+        })),
+      });
 
-        logger.info("[EmailService] Email sent via SMTP", {
-          to: options.to,
-          subject: options.subject,
-        });
-
-        return true;
-      } else {
-        const msg = {
-          to: options.to,
-          from: options.from || this.fromEmail!,
-          subject: options.subject,
-          text: options.text,
-          html: options.html,
-          replyTo: options.replyTo,
-          attachments: options.attachments,
-        };
-
-        await sgMail.send(msg);
-
-        logger.info("[EmailService] Email sent via API", {
-          to: options.to,
-          subject: options.subject,
-        });
-
-        return true;
-      }
-    } catch (error: any) {
-      logger.error("[EmailService] Failed to send email", {
-        method: this.useSmtp ? "SMTP" : "API",
-        error: error.message,
-        code: error.code,
+      logger.info("[EmailService] Email sent via SMTP", {
         to: options.to,
         subject: options.subject,
       });
 
-      return false;
+      return true;
+    } else {
+      const msg = {
+        to: options.to,
+        from: options.from || this.fromEmail!,
+        subject: options.subject,
+        text: options.text,
+        html: options.html,
+        replyTo: options.replyTo,
+        attachments: options.attachments,
+      };
+
+      await sgMail.send(msg);
+
+      logger.info("[EmailService] Email sent via API", {
+        to: options.to,
+        subject: options.subject,
+      });
+
+      return true;
     }
   }
 
+  /**
+   * Sends a welcome email to new users.
+   *
+   * @param data - Welcome email data.
+   * @returns True if sent successfully.
+   */
   async sendWelcomeEmail(data: WelcomeEmailData): Promise<boolean> {
     const { renderWelcomeTemplate } =
       await import("@/lib/email/utils/template-renderer");
@@ -135,6 +144,12 @@ class EmailService {
     });
   }
 
+  /**
+   * Sends a low credits warning email.
+   *
+   * @param data - Low credits email data.
+   * @returns True if sent successfully.
+   */
   async sendLowCreditsEmail(data: LowCreditsEmailData): Promise<boolean> {
     const { renderLowCreditsTemplate } =
       await import("@/lib/email/utils/template-renderer");
@@ -148,6 +163,12 @@ class EmailService {
     });
   }
 
+  /**
+   * Sends an organization invite email.
+   *
+   * @param data - Invite email data.
+   * @returns True if sent successfully.
+   */
   async sendInviteEmail(data: InviteEmailData): Promise<boolean> {
     const { renderInviteTemplate } =
       await import("@/lib/email/utils/template-renderer");
@@ -161,6 +182,12 @@ class EmailService {
     });
   }
 
+  /**
+   * Sends an auto top-up success notification email.
+   *
+   * @param data - Auto top-up success email data.
+   * @returns True if sent successfully.
+   */
   async sendAutoTopUpSuccessEmail(
     data: AutoTopUpSuccessEmailData,
   ): Promise<boolean> {
@@ -176,6 +203,12 @@ class EmailService {
     });
   }
 
+  /**
+   * Sends an auto top-up disabled notification email.
+   *
+   * @param data - Auto top-up disabled email data.
+   * @returns True if sent successfully.
+   */
   async sendAutoTopUpDisabledEmail(
     data: AutoTopUpDisabledEmailData,
   ): Promise<boolean> {
@@ -191,6 +224,12 @@ class EmailService {
     });
   }
 
+  /**
+   * Sends a purchase confirmation email.
+   *
+   * @param data - Purchase confirmation email data.
+   * @returns True if sent successfully.
+   */
   async sendPurchaseConfirmationEmail(
     data: PurchaseConfirmationEmailData,
   ): Promise<boolean> {

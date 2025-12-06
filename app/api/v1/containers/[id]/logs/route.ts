@@ -9,18 +9,16 @@ import {
 
 export const dynamic = "force-dynamic";
 
-type LogLevel = "error" | "warn" | "info" | "debug";
-
-interface ParsedLogEntry {
-  timestamp: string;
-  level: LogLevel;
-  message: string;
-  metadata?: Record<string, unknown>;
-}
+import type { LogLevel, ParsedLogEntry } from "@/lib/types/containers";
 
 /**
  * GET /api/v1/containers/[id]/logs
- * Get container logs from AWS CloudWatch
+ * Retrieves container logs from AWS CloudWatch.
+ * Supports filtering by log level, time range, and pagination.
+ *
+ * @param request - Request with optional limit, since, and level query parameters.
+ * @param params - Route parameters containing the container ID.
+ * @returns Parsed log entries with metadata.
  */
 export async function GET(
   request: NextRequest,

@@ -1,3 +1,15 @@
+/**
+ * Avatar generator component for selecting or generating character avatars.
+ * Supports built-in avatar selection, random generation, and AI-powered avatar generation.
+ *
+ * @param props - Avatar generator configuration
+ * @param props.characterName - Character name for avatar generation
+ * @param props.characterDescription - Optional character description
+ * @param props.currentAvatarUrl - Current avatar URL
+ * @param props.onAvatarChange - Callback when avatar changes
+ * @param props.className - Additional CSS classes
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -51,16 +63,16 @@ export function AvatarGenerator({
 
     setIsGeneratingAI(true);
 
+    const description = characterDescription || characterName;
+    const prompt = `Professional avatar portrait for an AI character named "${characterName}". ${description}. Clean circular composition, dark background (#0A0A0A), high quality digital illustration style, suitable for profile picture. Modern, sleek design.`;
+
+    const response = await fetch("/api/v1/generate-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, aspectRatio: "1:1", numImages: 1 }),
+    });
+
     try {
-      const description = characterDescription || characterName;
-      const prompt = `Professional avatar portrait for an AI character named "${characterName}". ${description}. Clean circular composition, dark background (#0A0A0A), high quality digital illustration style, suitable for profile picture. Modern, sleek design.`;
-
-      const response = await fetch("/api/v1/generate-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, aspectRatio: "1:1", numImages: 1 }),
-      });
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to generate avatar");

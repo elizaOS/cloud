@@ -1,4 +1,10 @@
-// lib/providers/types.ts
+/**
+ * Type definitions for AI provider interfaces.
+ */
+
+/**
+ * OpenAI-compatible chat message.
+ */
 export interface OpenAIChatMessage {
   role: "system" | "user" | "assistant" | "tool";
   content:
@@ -13,6 +19,9 @@ export interface OpenAIChatMessage {
   tool_call_id?: string;
 }
 
+/**
+ * OpenAI-compatible chat completion request.
+ */
 export interface OpenAIChatRequest {
   model: string;
   messages: OpenAIChatMessage[];
@@ -48,6 +57,9 @@ export interface OpenAIChatRequest {
   };
 }
 
+/**
+ * OpenAI-compatible chat completion response.
+ */
 export interface OpenAIChatResponse {
   id: string;
   object: "chat.completion";
@@ -73,6 +85,9 @@ export interface OpenAIChatResponse {
   };
 }
 
+/**
+ * OpenAI-compatible embeddings request.
+ */
 export interface OpenAIEmbeddingsRequest {
   input: string | string[];
   model: string;
@@ -81,6 +96,9 @@ export interface OpenAIEmbeddingsRequest {
   user?: string;
 }
 
+/**
+ * OpenAI-compatible embeddings response.
+ */
 export interface OpenAIEmbeddingsResponse {
   object: "list";
   data: Array<{
@@ -95,6 +113,9 @@ export interface OpenAIEmbeddingsResponse {
   };
 }
 
+/**
+ * OpenAI-compatible model information.
+ */
 export interface OpenAIModel {
   id: string;
   object: "model";
@@ -102,11 +123,17 @@ export interface OpenAIModel {
   owned_by: string;
 }
 
+/**
+ * OpenAI-compatible models list response.
+ */
 export interface OpenAIModelsResponse {
   object: "list";
   data: OpenAIModel[];
 }
 
+/**
+ * Interface for AI provider implementations.
+ */
 export interface AIProvider {
   name: string;
   chatCompletions(request: OpenAIChatRequest): Promise<Response>;

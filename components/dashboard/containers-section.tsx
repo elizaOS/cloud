@@ -1,6 +1,10 @@
 /**
- * Containers Section Component
- * Displays deployed containers table on dashboard
+ * Containers section component displaying deployed containers table on dashboard.
+ * Shows container count and provides link to full containers page.
+ *
+ * @param props - Containers section configuration
+ * @param props.containers - Array of container objects
+ * @param props.className - Additional CSS classes
  */
 
 "use client";
@@ -18,21 +22,7 @@ import Link from "next/link";
 import { ContainersTable } from "@/components/containers/containers-table";
 import { ContainersSkeleton } from "@/components/containers/containers-skeleton";
 
-interface Container {
-  id: string;
-  name: string;
-  description: string | null;
-  status: string;
-  ecs_service_arn: string | null;
-  load_balancer_url: string | null;
-  port: number;
-  desired_count: number;
-  cpu: number;
-  memory: number;
-  last_deployed_at: Date | null;
-  created_at: Date;
-  error_message: string | null;
-}
+import type { Container } from "@/db/repositories/containers";
 
 interface ContainersSectionProps {
   containers: Container[];

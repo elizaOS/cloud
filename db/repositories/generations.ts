@@ -8,19 +8,31 @@ import {
 
 export type { Generation, NewGeneration };
 
+/**
+ * Repository for generation (image/video) database operations.
+ */
 export class GenerationsRepository {
+  /**
+   * Finds a generation by ID.
+   */
   async findById(id: string): Promise<Generation | undefined> {
     return await db.query.generations.findFirst({
       where: eq(generations.id, id),
     });
   }
 
+  /**
+   * Finds a generation by job ID.
+   */
   async findByJobId(jobId: string): Promise<Generation | undefined> {
     return await db.query.generations.findFirst({
       where: eq(generations.job_id, jobId),
     });
   }
 
+  /**
+   * Lists generations for an organization, ordered by creation date.
+   */
   async listByOrganization(
     organizationId: string,
     limit?: number,
@@ -32,6 +44,9 @@ export class GenerationsRepository {
     });
   }
 
+  /**
+   * Lists generations for an organization filtered by type.
+   */
   async listByOrganizationAndType(
     organizationId: string,
     type: string,
@@ -47,6 +62,9 @@ export class GenerationsRepository {
     });
   }
 
+  /**
+   * Lists generations for an organization filtered by status with optional filters.
+   */
   async listByOrganizationAndStatus(
     organizationId: string,
     status: string,
@@ -78,11 +96,17 @@ export class GenerationsRepository {
     });
   }
 
+  /**
+   * Creates a new generation record.
+   */
   async create(data: NewGeneration): Promise<Generation> {
     const [generation] = await db.insert(generations).values(data).returning();
     return generation;
   }
 
+  /**
+   * Updates an existing generation.
+   */
   async update(
     id: string,
     data: Partial<NewGeneration>,
@@ -98,10 +122,16 @@ export class GenerationsRepository {
     return updated;
   }
 
+  /**
+   * Deletes a generation by ID.
+   */
   async delete(id: string): Promise<void> {
     await db.delete(generations).where(eq(generations.id, id));
   }
 
+  /**
+   * Gets generation statistics for an organization within an optional date range.
+   */
   async getStats(
     organizationId: string,
     startDate?: Date,
@@ -164,5 +194,7 @@ export class GenerationsRepository {
   }
 }
 
-// Export singleton instance
+/**
+ * Singleton instance of GenerationsRepository.
+ */
 export const generationsRepository = new GenerationsRepository();

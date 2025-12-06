@@ -1,3 +1,7 @@
+/**
+ * Enhanced server actions for analytics with projections and advanced breakdowns.
+ */
+
 "use server";
 
 import { requireAuthWithOrg } from "@/lib/auth";
@@ -17,13 +21,26 @@ import {
   generateProjectionAlerts,
 } from "@/lib/analytics/projections";
 
+/**
+ * Enhanced filters for analytics queries with time range presets.
+ */
 export interface EnhancedAnalyticsFilters {
+  /** Start date for the query. */
   startDate?: Date;
+  /** End date for the query. */
   endDate?: Date;
+  /** Time granularity for time series data. */
   granularity?: TimeGranularity;
+  /** Preset time range (overrides startDate/endDate if provided). */
   timeRange?: "daily" | "weekly" | "monthly";
 }
 
+/**
+ * Gets enhanced analytics data with provider/model breakdowns and trend comparisons.
+ *
+ * @param filters - Optional filters including time range presets.
+ * @returns Enhanced analytics data with breakdowns and trends.
+ */
 export async function getEnhancedAnalyticsData(
   filters: EnhancedAnalyticsFilters = {},
 ) {
@@ -105,6 +122,12 @@ export async function getEnhancedAnalyticsData(
   };
 }
 
+/**
+ * Gets cost projections and alerts based on historical usage data.
+ *
+ * @param periods - Number of periods to project ahead (default: 7 days).
+ * @returns Projections data with historical data, forecasts, and alerts.
+ */
 export async function getProjectionsData(periods: number = 7) {
   const user = await requireAuthWithOrg();
   const organizationId = user.organization_id!;

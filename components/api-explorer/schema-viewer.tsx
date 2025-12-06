@@ -1,3 +1,11 @@
+/**
+ * Schema viewer component displaying OpenAPI schema definitions in collapsible format.
+ * Supports schema expansion, copying schema JSON, and type information display.
+ *
+ * @param props - Schema viewer configuration
+ * @param props.spec - OpenAPI specification object
+ */
+
 "use client";
 
 import { useState } from "react";

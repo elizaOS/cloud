@@ -22,6 +22,9 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { dbPriorityManager } from "./alb-priority-manager";
 
+/**
+ * Configuration for a user's CloudFormation stack.
+ */
 export interface UserStackConfig {
   userId: string;
   projectName: string; // Project name for multi-project support
@@ -35,6 +38,9 @@ export interface UserStackConfig {
   environmentVars?: Record<string, string>;
 }
 
+/**
+ * Outputs from a CloudFormation stack.
+ */
 export interface StackOutputs {
   clusterName: string;
   clusterArn: string;
@@ -499,27 +505,9 @@ export class CloudFormationService {
         ],
       });
 
-      try {
-        const response = await this.client.send(command);
-        console.log(`✅ Stack update initiated for ${stackName}`);
-        return response.StackId!;
-      } catch (updateError: any) {
-        // Handle "No updates to perform" case gracefully
-        if (updateError.message?.includes("No updates are to be performed")) {
-          console.log(`ℹ️ No updates needed for stack ${stackName}`);
-          return stackName;
-        }
-
-        console.error(`❌ [CloudFormation] UpdateStack API call failed:`, {
-          error:
-            updateError instanceof Error
-              ? updateError.message
-              : String(updateError),
-          stack: updateError instanceof Error ? updateError.stack : undefined,
-          name: updateError instanceof Error ? updateError.name : undefined,
-        });
-        throw updateError;
-      }
+      const response = await this.client.send(command);
+      console.log(`✅ Stack update initiated for ${stackName}`);
+      return response.StackId!;
     });
   }
 
@@ -640,14 +628,8 @@ export class CloudFormationService {
           status: event.ResourceStatus || "Unknown",
         }));
     } catch (error) {
-      console.error("Failed to fetch stack events:", error);
-      return [
-        {
-          resource: "Unknown",
-          reason: "Could not fetch stack events",
-          status: "ERROR",
-        },
-      ];
+      console.error("Failed to get stack failure details", { stackName, error });
+      return [];
     }
   }
 
@@ -659,19 +641,12 @@ export class CloudFormationService {
 
     const stackName = this.getStackName(userId, projectName);
 
-    try {
-      const command = new DescribeStacksCommand({
-        StackName: stackName,
-      });
+    const command = new DescribeStacksCommand({
+      StackName: stackName,
+    });
 
-      const response = await this.client.send(command);
-      return response.Stacks?.[0] || null;
-    } catch (error: unknown) {
-      if (error instanceof Error && error.name === "ValidationError") {
-        return null; // Stack doesn't exist
-      }
-      throw error;
-    }
+    const response = await this.client.send(command);
+    return response.Stacks?.[0] || null;
   }
 
   /**
@@ -724,12 +699,7 @@ export class CloudFormationService {
 
       // Release ALB priority after stack deletion initiated
       // This will set expiry timestamp for cleanup
-      try {
-        await dbPriorityManager.releasePriority(userId);
-      } catch (error) {
-        console.error(`Failed to release ALB priority for ${userId}:`, error);
-        // Don't throw - stack deletion is more critical
-      }
+      await dbPriorityManager.releasePriority(userId);
     });
   }
 
@@ -837,12 +807,8 @@ export class CloudFormationService {
    * Check if shared infrastructure exists
    */
   async isSharedInfrastructureDeployed(): Promise<boolean> {
-    try {
-      await this.getSharedInfrastructureOutputs();
-      return true;
-    } catch {
-      return false;
-    }
+    await this.getSharedInfrastructureOutputs();
+    return true;
   }
 
   /**

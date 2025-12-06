@@ -1,18 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services";
 import { logger } from "@/lib/utils/logger";
 
 /**
  * GET /api/v1/apps/[id]/users
- * Get users for a specific app
+ * Gets a list of users who have interacted with a specific app.
+ * Supports pagination via limit query parameter. Requires ownership verification.
+ *
+ * Query Parameters:
+ * - `limit`: Maximum number of users to return.
+ *
+ * @param request - Request with optional limit query parameter.
+ * @param params - Route parameters containing the app ID.
+ * @returns List of app users with pagination information.
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get("limit")
@@ -48,7 +56,10 @@ export async function GET(
     return NextResponse.json({
       success: true,
       users: appUsers,
+      pagination: {
       total: appUsers.length,
+        limit: limit ?? appUsers.length,
+      },
     });
   } catch (error) {
     logger.error("Failed to get app users:", error);

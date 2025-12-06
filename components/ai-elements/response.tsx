@@ -1,3 +1,7 @@
+/**
+ * Response component for rendering AI responses using Streamdown.
+ * Memoized to prevent unnecessary re-renders when children haven't changed.
+ */
 "use client";
 
 import { cn } from "@/lib/utils";

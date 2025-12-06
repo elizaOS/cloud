@@ -14,12 +14,18 @@ import { logger } from "@/lib/utils/logger";
  * @see https://discord.js.org/docs/packages/rest/2.6.0
  */
 
+/**
+ * Discord embed field structure.
+ */
 export interface DiscordEmbedField {
   name: string;
   value: string;
   inline?: boolean;
 }
 
+/**
+ * Discord embed structure.
+ */
 export interface DiscordEmbed {
   title?: string;
   description?: string;
@@ -43,11 +49,17 @@ export interface DiscordEmbed {
   };
 }
 
+/**
+ * Options for Discord message.
+ */
 export interface DiscordMessageOptions {
   content?: string;
   embeds?: DiscordEmbed[];
 }
 
+/**
+ * Discord embed color constants.
+ */
 export enum DiscordColor {
   SUCCESS = 0x00ff00, // Green
   INFO = 0x0099ff, // Blue
@@ -56,6 +68,9 @@ export enum DiscordColor {
   DEFAULT = 0x5865f2, // Discord Blurple
 }
 
+/**
+ * Discord notification service for sending messages and embeds to Discord channels.
+ */
 class DiscordService {
   private rest: REST | null = null;
   private defaultChannelId: string | null = null;
@@ -97,23 +112,15 @@ class DiscordService {
 
     const targetChannel = channelId || this.defaultChannelId;
 
-    try {
-      await this.rest.post(Routes.channelMessages(targetChannel), {
-        body: {
-          content: options.content,
-          embeds: options.embeds,
-        },
-      });
+    await this.rest.post(Routes.channelMessages(targetChannel), {
+      body: {
+        content: options.content,
+        embeds: options.embeds,
+      },
+    });
 
-      logger.info(`[DiscordService] Message sent to channel ${targetChannel}`);
-      return true;
-    } catch (error: any) {
-      logger.error("[DiscordService] Failed to send message", {
-        error: error.message,
-        channelId: targetChannel,
-      });
-      return false;
-    }
+    logger.info(`[DiscordService] Message sent to channel ${targetChannel}`);
+    return true;
   }
 
   /**
@@ -147,38 +154,35 @@ class DiscordService {
       return { success: false, error: "Discord not initialized" };
     }
 
-    try {
-      // Create thread with optional initial message
-      const threadData: any = {
-        name: data.name.slice(0, 100), // Discord thread name limit
-        auto_archive_duration: data.autoArchiveDuration || 1440, // 24 hours default
-        type: 11, // PUBLIC_THREAD
-      };
-
-      if (data.message) {
-        threadData.message = { content: data.message };
-      }
-
-      const response = (await this.rest.post(
-        Routes.threads(this.defaultChannelId),
-        { body: threadData },
-      )) as any;
-
-      logger.info(`[DiscordService] Thread created: ${response.id}`);
-
-      return {
-        success: true,
-        threadId: response.id,
-      };
-    } catch (error: any) {
-      logger.error("[DiscordService] Failed to create thread", {
-        error: error.message,
-      });
-      return {
-        success: false,
-        error: error.message,
-      };
+    // Create thread with optional initial message
+    interface ThreadCreateData {
+      name: string;
+      auto_archive_duration: number;
+      type: number;
+      message?: { content: string };
     }
+    
+    const threadData: ThreadCreateData = {
+      name: data.name.slice(0, 100), // Discord thread name limit
+      auto_archive_duration: data.autoArchiveDuration || 1440, // 24 hours default
+      type: 11, // PUBLIC_THREAD
+    };
+
+    if (data.message) {
+      threadData.message = { content: data.message };
+    }
+
+    const response = (await this.rest.post(
+      Routes.threads(this.defaultChannelId),
+      { body: threadData },
+    )) as { id: string };
+
+    logger.info(`[DiscordService] Thread created: ${response.id}`);
+
+    return {
+      success: true,
+      threadId: response.id,
+    };
   }
 
   /**
@@ -192,20 +196,12 @@ class DiscordService {
       return false;
     }
 
-    try {
-      await this.rest.post(Routes.channelMessages(threadId), {
-        body: { content: message },
-      });
+    await this.rest.post(Routes.channelMessages(threadId), {
+      body: { content: message },
+    });
 
-      logger.info(`[DiscordService] Message sent to thread ${threadId}`);
-      return true;
-    } catch (error: any) {
-      logger.error("[DiscordService] Failed to send to thread", {
-        error: error.message,
-        threadId,
-      });
-      return false;
-    }
+    logger.info(`[DiscordService] Message sent to thread ${threadId}`);
+    return true;
   }
 
   /**

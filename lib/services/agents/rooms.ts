@@ -18,6 +18,9 @@ import { logger } from "@/lib/utils/logger";
 import { v4 as uuidv4 } from "uuid";
 import { eq, sql } from "drizzle-orm";
 
+/**
+ * Input for creating a room.
+ */
 export interface CreateRoomInput {
   id?: string; // Allow passing a pre-generated room ID
   agentId?: string; // Optional - will be set when runtime initializes
@@ -28,6 +31,9 @@ export interface CreateRoomInput {
   metadata?: Record<string, unknown>;
 }
 
+/**
+ * Room with associated messages.
+ */
 export interface RoomWithMessages {
   room: Room;
   messages: Memory[];
@@ -108,72 +114,24 @@ export class RoomsService {
   async createRoom(input: CreateRoomInput): Promise<Room> {
     const roomId = input.id || uuidv4();
 
-    // If no agentId, just create the room (no entity/participant needed yet)
-    if (!input.agentId) {
-      const room = await roomsRepository.create({
+    // Create room with agentId - required for ElizaOS room lookup
+    // The API route ensures agent exists before calling this
+    // ElizaOS's ensureConnection creates entity/participant when first message is sent
+    const [room] = await db
+      .insert(roomTable)
+      .values({
         id: roomId,
-        agentId: input.agentId,
+        agentId: input.agentId || null,
         source: input.source || "web",
         type: input.type || "DM",
         name: input.name,
         metadata: input.metadata,
-      });
-
-      logger.info(
-        `[Rooms Service] Created room ${roomId} for entity ${input.entityId} (no agent yet)`,
-      );
-      return room;
-    }
-
-    // Use transaction when creating room + entity + participant
-    // This ensures atomic creation - if any step fails, all are rolled back
-    const room = await db.transaction(async (tx) => {
-      // 1. Create the room
-      const [newRoom] = await tx
-        .insert(roomTable)
-        .values({
-          id: roomId,
-          agentId: input.agentId,
-          source: input.source || "web",
-          type: input.type || "DM",
-          name: input.name,
-          metadata: input.metadata,
-          createdAt: new Date(),
-        })
-        .returning();
-
-      // 2. Ensure entity exists (upsert-like behavior)
-      // First check if entity exists
-      const existingEntity = await tx
-        .select({ id: entityTable.id })
-        .from(entityTable)
-        .where(eq(entityTable.id, input.entityId))
-        .limit(1);
-
-      if (existingEntity.length === 0) {
-        // Entity doesn't exist, create it
-        await tx.insert(entityTable).values({
-          id: input.entityId,
-          agentId: input.agentId,
-          names: [input.entityId],
-          createdAt: new Date(),
-        });
-      }
-
-      // 3. Create participant (link entity to room)
-      await tx.insert(participantTable).values({
-        id: uuidv4(),
-        entityId: input.entityId,
-        roomId: roomId,
-        agentId: input.agentId,
         createdAt: new Date(),
-      });
-
-      return newRoom;
-    });
+      })
+      .returning();
 
     logger.info(
-      `[Rooms Service] Created room ${roomId} for entity ${input.entityId} with agent ${input.agentId}`,
+      `[Rooms Service] Created room ${roomId} for entity ${input.entityId || "none"} with agent ${input.agentId || "none"}`,
     );
     return room;
   }
@@ -245,17 +203,31 @@ export class RoomsService {
 
   /**
    * Check if entity has access to room
+   * Grants access if:
+   * 1. Entity is a participant in the room, OR
+   * 2. Entity is the room creator (stored in metadata)
    */
   async hasAccess(roomId: string, entityId: string): Promise<boolean> {
-    try {
-      return await participantsRepository.isParticipant(roomId, entityId);
-    } catch (error) {
-      logger.error(
-        `[Rooms Service] Error checking access for room ${roomId}:`,
-        error,
-      );
+    // First check if user is a participant
+    const isParticipant = await participantsRepository.isParticipant(roomId, entityId);
+    if (isParticipant) {
+      return true;
+    }
+
+    // If not a participant, check if user is the room creator
+    const room = await roomsRepository.findById(roomId);
+    if (!room) {
       return false;
     }
+
+    interface RoomMetadata {
+      creatorUserId?: string;
+      [key: string]: unknown;
+    }
+    const metadata = (room.metadata as RoomMetadata | null) ?? {};
+    const isCreator = metadata.creatorUserId === entityId;
+
+    return isCreator;
   }
 
   /**

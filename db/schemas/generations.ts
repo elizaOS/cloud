@@ -15,6 +15,11 @@ import { users } from "./users";
 import { apiKeys } from "./api-keys";
 import { usageRecords } from "./usage-records";
 
+/**
+ * Generations table schema.
+ * 
+ * Stores image and video generation requests and results with cost tracking.
+ */
 export const generations = pgTable(
   "generations",
   {

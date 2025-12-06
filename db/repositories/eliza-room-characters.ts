@@ -6,6 +6,12 @@ import {
   type NewElizaRoomCharacter,
 } from "../schemas";
 
+/**
+ * Repository for Eliza room-character mapping database operations.
+ * 
+ * Maps ElizaOS rooms to user-created characters, allowing each conversation
+ * room to use a different character.
+ */
 export const elizaRoomCharactersRepository = {
   /**
    * Count rooms for a specific user
@@ -65,9 +71,12 @@ export const elizaRoomCharactersRepository = {
     return countMap;
   },
 
+  /**
+   * Finds character mapping for a room ID.
+   * 
+   * Note: Always fetches from DB (caching disabled for Vercel serverless compatibility).
+   */
   async findByRoomId(roomId: string): Promise<ElizaRoomCharacter | undefined> {
-    // DISABLED: Caching causes stale data in Vercel serverless (isolated container caches)
-    // ALWAYS fetch from DB - character mapping lookups are fast (~5ms)
     console.log(
       `[RoomCharRepo] findByRoomId(${roomId.substring(0, 8)}...) - fetching from DB (cache disabled)`,
     );
@@ -87,6 +96,11 @@ export const elizaRoomCharactersRepository = {
     return character;
   },
 
+  /**
+   * Finds character mappings for multiple room IDs.
+   * 
+   * @returns Map of room ID to character ID.
+   */
   async findByRoomIds(roomIds: string[]): Promise<Map<string, string>> {
     if (roomIds.length === 0) {
       return new Map();
@@ -105,6 +119,9 @@ export const elizaRoomCharactersRepository = {
     return mappings;
   },
 
+  /**
+   * Creates a new room-character mapping.
+   */
   async create(data: NewElizaRoomCharacter): Promise<ElizaRoomCharacter> {
     const result = await db
       .insert(elizaRoomCharactersTable)
@@ -114,6 +131,9 @@ export const elizaRoomCharactersRepository = {
     return result[0];
   },
 
+  /**
+   * Updates the character mapping for a room.
+   */
   async update(
     roomId: string,
     characterId: string,
@@ -130,6 +150,9 @@ export const elizaRoomCharactersRepository = {
     return result[0];
   },
 
+  /**
+   * Deletes a room-character mapping.
+   */
   async delete(roomId: string): Promise<void> {
     await db
       .delete(elizaRoomCharactersTable)
@@ -137,9 +160,8 @@ export const elizaRoomCharactersRepository = {
   },
 
   /**
-   * Find affiliate characters that a user has interacted with (via rooms)
-   * but are still owned by anonymous/affiliate users.
-   * These are claimable by the user.
+   * Finds affiliate characters that a user has interacted with but are still
+   * owned by anonymous/affiliate users. These characters are claimable by the user.
    */
   async findClaimableAffiliateCharacters(userId: string): Promise<
     Array<{

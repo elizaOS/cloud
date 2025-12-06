@@ -1,3 +1,18 @@
+/**
+ * Character filters component providing search, view mode, and sort controls.
+ * Displays character count and supports filtering and sorting options.
+ *
+ * @param props - Character filters configuration
+ * @param props.searchQuery - Current search query
+ * @param props.onSearchChange - Callback when search changes
+ * @param props.viewMode - Current view mode (grid or list)
+ * @param props.onViewModeChange - Callback when view mode changes
+ * @param props.sortBy - Current sort option
+ * @param props.onSortChange - Callback when sort changes
+ * @param props.totalCount - Total number of characters
+ * @param props.filteredCount - Number of characters after filtering
+ */
+
 "use client";
 
 import { Input } from "@/components/ui/input";

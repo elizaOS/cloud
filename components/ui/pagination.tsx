@@ -1,3 +1,7 @@
+/**
+ * Pagination component system for navigating through pages.
+ * Provides previous/next navigation, page numbers, and ellipsis for large page counts.
+ */
 import * as React from "react";
 import {
   ChevronLeftIcon,

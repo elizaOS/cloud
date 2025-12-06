@@ -7,7 +7,11 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/v1/containers/[id]/deployments
- * Get deployment history for a specific container
+ * Retrieves deployment history for a specific container from usage records.
+ *
+ * @param request - The Next.js request object.
+ * @param params - Route parameters containing the container ID.
+ * @returns Deployment history with status, costs, and metadata.
  */
 export async function GET(
   request: NextRequest,
@@ -48,35 +52,42 @@ export async function GET(
     );
 
     // Filter for this specific container
-    const containerDeployments = deployments.filter(
-      (d) =>
-        (d.metadata as Record<string, string> | null)?.container_id === id ||
-        (d.metadata as Record<string, string> | null)?.container_name ===
-          container.name,
-    );
+    interface DeploymentMetadata {
+      container_id?: string;
+      container_name?: string;
+      desired_count?: string;
+      cpu?: string;
+      memory?: string;
+      port?: string;
+    }
+
+    const containerDeployments = deployments.filter((d) => {
+      const metadata = (d.metadata as DeploymentMetadata | null) ?? {};
+      return metadata.container_id === id || metadata.container_name === container.name;
+    });
 
     // Enhance with container status snapshots
-    const enhancedHistory = containerDeployments.map((deployment) => ({
-      id: deployment.id,
-      status: deployment.is_successful ? "success" : "failed",
-      cost: deployment.input_cost,
-      error: deployment.error_message,
-      metadata: {
-        container_id: (deployment.metadata as Record<string, string> | null)
-          ?.container_id,
-        container_name: (deployment.metadata as Record<string, string> | null)
-          ?.container_name,
-        desired_count: (deployment.metadata as Record<string, string> | null)
-          ?.desired_count,
-        cpu: (deployment.metadata as Record<string, string> | null)?.cpu,
-        memory: (deployment.metadata as Record<string, string> | null)?.memory,
-        port: (deployment.metadata as Record<string, string> | null)?.port,
-        image_tag: container.image_tag,
-        ecs_service_arn: container.ecs_service_arn,
-      },
-      deployed_at: deployment.created_at,
-      duration_ms: deployment.duration_ms,
-    }));
+    const enhancedHistory = containerDeployments.map((deployment) => {
+      const metadata = (deployment.metadata as DeploymentMetadata | null) ?? {};
+      return {
+        id: deployment.id,
+        status: deployment.is_successful ? "success" : "failed",
+        cost: deployment.input_cost,
+        error: deployment.error_message,
+        metadata: {
+          container_id: metadata.container_id,
+          container_name: metadata.container_name,
+          desired_count: metadata.desired_count,
+          cpu: metadata.cpu,
+          memory: metadata.memory,
+          port: metadata.port,
+          image_tag: container.image_tag,
+          ecs_service_arn: container.ecs_service_arn,
+        },
+        deployed_at: deployment.created_at,
+        duration_ms: deployment.duration_ms,
+      };
+    });
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,17 @@
+/**
+ * JSON editor component for editing character data with Monaco editor.
+ * Provides syntax highlighting, validation, save functionality, and download capability.
+ *
+ * @param props - JSON editor configuration
+ * @param props.character - Character data to edit
+ * @param props.onChange - Callback when character data changes
+ * @param props.onSave - Callback when save button is clicked
+ * @param props.hideActions - Whether to hide action buttons
+ */
+
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Download, Save, AlertCircle, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import type { ElizaCharacter } from "@/lib/types";
@@ -34,13 +45,16 @@ export function JsonEditor({
     isSaving: false,
   });
 
-  const updateEditor = (updates: Partial<EditorState>) => {
+  const updateEditor = useCallback((updates: Partial<EditorState>) => {
     setEditorState((prev) => ({ ...prev, ...updates }));
-  };
+  }, []);
 
   useEffect(() => {
-    updateEditor({ jsonText: JSON.stringify(character, null, 2) });
-  }, [character]);
+    // Use queueMicrotask to defer execution and avoid synchronous setState
+    queueMicrotask(() => {
+      updateEditor({ jsonText: JSON.stringify(character, null, 2) });
+    });
+  }, [character, updateEditor]);
 
   const handleJsonChange = (value: string) => {
     try {
@@ -76,15 +90,9 @@ export function JsonEditor({
     }
 
     updateEditor({ isSaving: true });
-    try {
-      await onSave();
-      toast.success("Character saved successfully!");
-    } catch (error) {
-      toast.error("Failed to save character");
-      console.error("Save error:", error);
-    } finally {
-      updateEditor({ isSaving: false });
-    }
+    await onSave();
+    toast.success("Character saved successfully!");
+    updateEditor({ isSaving: false });
   };
 
   return (

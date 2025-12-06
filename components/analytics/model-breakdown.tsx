@@ -1,3 +1,11 @@
+/**
+ * Model breakdown component displaying cost and usage by AI model.
+ * Shows expandable list with cost, requests, and token usage per model.
+ *
+ * @param props - Model breakdown configuration
+ * @param props.models - Array of model usage data
+ */
+
 "use client";
 
 import { useState } from "react";

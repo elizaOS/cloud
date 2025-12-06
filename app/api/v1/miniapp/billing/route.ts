@@ -10,6 +10,8 @@ import {
   organizationsService,
   creditsService,
   usageService,
+  appCreditsService,
+  appsService,
 } from "@/lib/services";
 import {
   addCorsHeaders,
@@ -24,6 +26,13 @@ import {
 } from "@/lib/middleware/miniapp-rate-limit";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * OPTIONS /api/v1/miniapp/billing
+ * CORS preflight handler for miniapp billing endpoint.
+ *
+ * @param request - The Next.js request object.
+ * @returns Preflight response with CORS headers.
+ */
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
   return createPreflightResponse(origin, ["GET", "OPTIONS"]);
@@ -31,7 +40,14 @@ export async function OPTIONS(request: NextRequest) {
 
 /**
  * GET /api/v1/miniapp/billing
- * Get billing and credits info
+ * Gets billing and credits information for the authenticated user's organization.
+ * Optionally includes app-specific billing if appId is provided (for monetized apps).
+ *
+ * Query Parameters:
+ * - `appId` (optional): Returns app-specific credit balance for monetized apps.
+ *
+ * @param request - Request with optional appId query parameter or X-App-Id header.
+ * @returns Billing information including credit balance, usage stats, and recent transactions.
  */
 export async function GET(request: NextRequest) {
   const corsResult = await validateOrigin(request);
@@ -50,6 +66,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
+
+    // Check for app-specific billing - from query param OR X-App-Id header
+    const queryAppId = request.nextUrl.searchParams.get("appId");
+    const headerAppId = request.headers.get("X-App-Id");
+    const appId = queryAppId || headerAppId;
 
     // Get organization with credit balance
     const org = await organizationsService.getById(user.organization_id);
@@ -85,7 +106,8 @@ export async function GET(request: NextRequest) {
       now,
     );
 
-    const response = NextResponse.json({
+    // Build base response
+    const responseData: Record<string, unknown> = {
       success: true,
       billing: {
         creditBalance: org.credit_balance,
@@ -112,7 +134,57 @@ export async function GET(request: NextRequest) {
         description: tx.description,
         createdAt: tx.created_at,
       })),
-    });
+    };
+
+    // If appId is provided, add app-specific billing info
+    if (appId) {
+      try {
+        const app = await appsService.getById(appId);
+
+        if (app && app.monetization_enabled) {
+          const appBalance = await appCreditsService.getBalance(
+            appId,
+            user.id,
+          );
+          const monetizationSettings =
+            await appCreditsService.getMonetizationSettings(appId);
+
+          responseData.appBilling = {
+            appId,
+            appName: app.name,
+            monetizationEnabled: app.monetization_enabled,
+            creditBalance: appBalance?.balance || 0,
+            totalPurchased: appBalance?.totalPurchased || 0,
+            totalSpent: appBalance?.totalSpent || 0,
+            // Pricing info for user transparency
+            inferenceMarkupPercentage:
+              monetizationSettings?.inferenceMarkupPercentage || 0,
+            // Creator attribution
+            createdBy: {
+              organizationId: app.organization_id,
+            },
+          };
+        } else if (app) {
+          // App exists but doesn't have monetization enabled
+          // User uses their regular org balance
+          responseData.appBilling = {
+            appId,
+            appName: app.name,
+            monetizationEnabled: false,
+            // User uses org balance
+            useOrgBalance: true,
+          };
+        }
+      } catch (appError) {
+        logger.error("[Miniapp API] Error getting app billing info", {
+          appError,
+          appId,
+        });
+        // Don't fail the whole request, just don't include app billing
+      }
+    }
+
+    const response = NextResponse.json(responseData);
 
     addRateLimitInfoToResponse(response, rateLimitResult);
     return addCorsHeaders(response, corsResult.origin);

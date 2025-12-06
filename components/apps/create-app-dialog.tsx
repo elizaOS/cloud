@@ -1,3 +1,13 @@
+/**
+ * Create app dialog component for creating new applications.
+ * Supports app name, description, URLs, and allowed origins configuration.
+ * Displays created app details with API key after successful creation.
+ *
+ * @param props - Create app dialog configuration
+ * @param props.open - Whether dialog is open
+ * @param props.onOpenChange - Callback when dialog open state changes
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -14,11 +24,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import { Loader2, Plus, X, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
+
+interface CreatedAppData {
+  appId: string;
+  apiKey: string;
+  appName: string;
+}
 
 interface CreateAppDialogProps {
   open: boolean;
@@ -30,6 +46,8 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [allowedOrigins, setAllowedOrigins] = useState<string[]>([]);
   const [newOrigin, setNewOrigin] = useState("");
+  const [createdApp, setCreatedApp] = useState<CreatedAppData | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -71,35 +89,17 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
 
       const data = await response.json();
 
+      // Show the API key in the success state
+      setCreatedApp({
+        appId: data.app.id,
+        apiKey: data.apiKey,
+        appName: formData.name,
+      });
+
       toast.success("App created successfully!", {
         description:
           "Your API key has been generated. Make sure to save it securely.",
       });
-
-      // Redirect to the new app's page
-      router.push(`/dashboard/apps/${data.app.id}?showApiKey=${data.apiKey}`);
-      router.refresh();
-
-      onOpenChange(false);
-
-      // Reset form
-      setFormData({
-        name: "",
-        description: "",
-        app_url: "",
-        website_url: "",
-        contact_email: "",
-        generate_affiliate_code: false,
-        features: {
-          chat: true,
-          image: false,
-          video: false,
-          voice: false,
-          agents: false,
-          embedding: false,
-        },
-      });
-      setAllowedOrigins([]);
     } catch (error) {
       console.error("Error creating app:", error);
       toast.error("Failed to create app", {
@@ -121,6 +121,105 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
   const removeOrigin = (origin: string) => {
     setAllowedOrigins(allowedOrigins.filter((o) => o !== origin));
   };
+
+  const copyApiKey = async () => {
+    if (!createdApp) return;
+    await navigator.clipboard.writeText(createdApp.apiKey);
+    setCopied(true);
+    toast.success("API key copied to clipboard");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleClose = () => {
+    if (createdApp) {
+      // Navigate to the app page after closing
+      router.push(`/dashboard/apps/${createdApp.appId}`);
+    }
+    // Reset all state
+    setCreatedApp(null);
+    setCopied(false);
+    setFormData({
+      name: "",
+      description: "",
+      app_url: "",
+      website_url: "",
+      contact_email: "",
+      generate_affiliate_code: false,
+      features: {
+        chat: true,
+        image: false,
+        video: false,
+        voice: false,
+        agents: false,
+        embedding: false,
+      },
+    });
+    setAllowedOrigins([]);
+    onOpenChange(false);
+  };
+
+  // Success state - show API key
+  if (createdApp) {
+    return (
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Check className="h-5 w-5 text-green-500" />
+              App Created
+            </DialogTitle>
+            <DialogDescription>
+              Copy your API key now — you won&apos;t see it again.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div>
+              <Label className="text-xs text-white/60">API Key</Label>
+              <div className="flex gap-2 mt-1">
+                <Input
+                  value={createdApp.apiKey}
+                  readOnly
+                  className="font-mono text-sm"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={copyApiKey}
+                  className="shrink-0"
+                >
+                  {copied ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              onClick={handleClose}
+              variant="outline"
+              className="w-full sm:w-auto"
+            >
+              Go to Overview
+            </Button>
+            <Button
+              onClick={() => {
+                router.push(`/dashboard/apps/${createdApp.appId}?tab=monetization`);
+                onOpenChange(false);
+              }}
+              className="bg-gradient-to-r from-[#FF5800] to-purple-600 w-full sm:w-auto"
+            >
+              Enable Monetization
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -174,9 +273,6 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                 placeholder="https://myapp.com"
                 required
               />
-              <p className="text-xs text-white/60 mt-1">
-                Primary URL where your app is hosted
-              </p>
             </div>
 
             <div>

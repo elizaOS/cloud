@@ -4,6 +4,15 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * GET /api/elevenlabs/voices/[id]
+ * Gets details for a specific voice by its internal UUID.
+ * Validates UUID format and verifies ownership.
+ *
+ * @param request - The Next.js request object.
+ * @param context - Route context containing the voice ID parameter.
+ * @returns Voice details including ElevenLabs voice ID and metadata.
+ */
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -84,6 +93,15 @@ export async function GET(
   }
 }
 
+/**
+ * DELETE /api/elevenlabs/voices/[id]
+ * Deletes a voice by its internal UUID.
+ * Validates UUID format and verifies ownership before deletion.
+ *
+ * @param request - The Next.js request object.
+ * @param context - Route context containing the voice ID parameter.
+ * @returns Success confirmation.
+ */
 export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -162,6 +180,21 @@ export async function DELETE(
   }
 }
 
+/**
+ * PATCH /api/elevenlabs/voices/[id]
+ * Updates a voice's metadata (name, description, settings, active status).
+ * Validates UUID format and verifies ownership.
+ *
+ * Request Body:
+ * - `name`: Optional voice name.
+ * - `description`: Optional voice description.
+ * - `settings`: Optional settings object.
+ * - `isActive`: Optional boolean for active status.
+ *
+ * @param request - Request body with fields to update.
+ * @param context - Route context containing the voice ID parameter.
+ * @returns Updated voice details.
+ */
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },

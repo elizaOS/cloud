@@ -16,6 +16,13 @@ interface PageProps {
   searchParams: Promise<{ id?: string }>;
 }
 
+/**
+ * Character Creator page for creating and customizing AI agent characters.
+ * Supports editing existing characters via the `id` search parameter.
+ *
+ * @param searchParams - Search parameters, including optional character `id` for editing.
+ * @returns The rendered character creator page client component.
+ */
 export default async function CharacterCreatorPage({
   searchParams,
 }: PageProps) {

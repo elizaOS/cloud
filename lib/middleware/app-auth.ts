@@ -11,11 +11,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { appsService, apiKeysService } from "@/lib/services";
 import { logger } from "@/lib/utils/logger";
+import type { App, ApiKey } from "@/lib/types";
 
+/**
+ * App authentication context with validated app and API key.
+ */
 export interface AppAuthContext {
   appId: string;
-  app: any;
-  apiKey: any;
+  app: App;
+  apiKey: ApiKey;
   origin: string;
 }
 
@@ -180,9 +184,7 @@ export async function requireAppAuth(
   await apiKeysService.incrementUsage(authResult.apiKey.id);
 
   // Track app usage (async, don't wait)
-  appsService.incrementUsage(authResult.appId, "0.00").catch((error) => {
-    logger.error("Failed to track app usage:", error);
-  });
+  void appsService.incrementUsage(authResult.appId, "0.00");
 
   // Call the handler with validated context
   return handler(authResult);
@@ -193,18 +195,13 @@ export async function requireAppAuth(
  * Useful for tracking purposes
  */
 export async function getAppFromApiKey(apiKey: string): Promise<string | null> {
-  try {
-    const validatedKey = await apiKeysService.validateApiKey(apiKey);
-    if (!validatedKey) return null;
+  const validatedKey = await apiKeysService.validateApiKey(apiKey);
+  if (!validatedKey) return null;
 
-    const apps = await appsService.listByOrganization(
-      validatedKey.organization_id,
-    );
-    const app = apps.find((a) => a.api_key_id === validatedKey.id);
+  const apps = await appsService.listByOrganization(
+    validatedKey.organization_id,
+  );
+  const app = apps.find((a) => a.api_key_id === validatedKey.id);
 
-    return app?.id || null;
-  } catch (error) {
-    logger.error("Failed to get app from API key:", error);
-    return null;
-  }
+  return app?.id || null;
 }

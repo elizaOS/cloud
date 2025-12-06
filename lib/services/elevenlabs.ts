@@ -11,6 +11,9 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * Configuration for ElevenLabs service.
+ */
 export interface ElevenLabsConfig {
   apiKey: string;
   voiceId?: string;
@@ -23,18 +26,27 @@ export interface ElevenLabsConfig {
   outputFormat?: string;
 }
 
+/**
+ * Options for text-to-speech conversion.
+ */
 export interface TTSOptions {
   text: string;
   voiceId?: string;
   modelId?: string;
 }
 
+/**
+ * Options for speech-to-text conversion.
+ */
 export interface STTOptions {
   audioFile: File | Blob;
   modelId?: string;
   languageCode?: string;
 }
 
+/**
+ * Service for ElevenLabs TTS and STT functionality.
+ */
 export class ElevenLabsService {
   private client: ElevenLabsClient;
   private config: ElevenLabsConfig;

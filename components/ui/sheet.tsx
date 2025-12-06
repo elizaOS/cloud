@@ -1,3 +1,7 @@
+/**
+ * Sheet component system for slide-out panels.
+ * Built on Radix UI dialog primitives with support for all sides (top, right, bottom, left).
+ */
 "use client";
 
 import * as React from "react";

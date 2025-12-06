@@ -1,3 +1,7 @@
+/**
+ * Dialog component system built on Radix UI primitives.
+ * Provides modal dialogs with overlay, content, header, footer, and close functionality.
+ */
 "use client";
 
 import * as React from "react";

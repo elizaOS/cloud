@@ -1,3 +1,7 @@
+/**
+ * Scroll area component with custom scrollbar styling.
+ * Built on Radix UI primitives with horizontal and vertical scrollbar support.
+ */
 "use client";
 
 import * as React from "react";

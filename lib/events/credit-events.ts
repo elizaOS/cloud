@@ -1,14 +1,16 @@
+/**
+ * In-memory credit event emitter with stale listener cleanup.
+ *
+ * Note: For serverless environments, use credit-events-unified.ts which
+ * automatically switches to Redis-backed events in production.
+ */
+
 import { EventEmitter } from "events";
+import type { CreditUpdateEvent } from "./credit-events-redis";
 
-export interface CreditUpdateEvent {
-  organizationId: string;
-  newBalance: number;
-  delta: number;
-  reason: string;
-  userId?: string;
-  timestamp: Date;
-}
-
+/**
+ * Metadata for tracking listener activity.
+ */
 interface ListenerMetadata {
   lastActivity: number;
   createdAt: number;

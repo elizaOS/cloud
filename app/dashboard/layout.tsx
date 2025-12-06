@@ -22,19 +22,25 @@ if (process.env.NODE_ENV === "development") {
 }
 
 /**
- * Dashboard Layout - Supports both authenticated and anonymous users
+ * Free Mode Paths (accessible without auth):
+ * - /dashboard/chat - AI agent chat
+ * - /dashboard/build - AI agent builder
+ */
+const FREE_MODE_PATHS = ["/dashboard/chat", "/dashboard/build"];
+
+/**
+ * Dashboard layout component that wraps all dashboard pages.
+ * Supports both authenticated and anonymous users for free mode paths.
  *
  * Free Mode Paths (accessible without auth):
- * - /dashboard/chat - AI agent chat (FREE!)
- * - /dashboard/build - AI agent builder (FREE!)
+ * - /dashboard/chat - AI agent chat
+ * - /dashboard/build - AI agent builder
  *
  * Protected Paths (require authentication):
  * - All other /dashboard/* routes
+ *
+ * @param children - The dashboard page content.
  */
-
-// Paths that allow anonymous/free access
-const FREE_MODE_PATHS = ["/dashboard/chat", "/dashboard/build"];
-
 export default function DashboardLayout({
   children,
 }: {

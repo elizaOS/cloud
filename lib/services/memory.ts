@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import { agentRuntime } from "@/lib/eliza/agent-runtime";
+import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import {
   memoryCache,
   type MemoryRoomContext,
@@ -10,6 +10,7 @@ import { logger } from "@/lib/utils/logger";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import type { Memory, UUID } from "@elizaos/core";
+import { ChannelType, stringToUuid } from "@elizaos/core";
 import { createHash } from "crypto";
 import { conversationsService } from "@/lib/services/conversations";
 import type { ConversationMessage } from "@/db/repositories";
@@ -17,6 +18,10 @@ import { db } from "@/db/client";
 import { eq, and, desc } from "drizzle-orm";
 import { users } from "@/db/schemas/users";
 import { participantTable, memoryTable } from "@/db/schemas/eliza";
+
+/**
+ * Memory service for managing Eliza agent memories and conversation summaries.
+ */
 
 export interface SaveMemoryInput {
   organizationId: string;
@@ -30,12 +35,18 @@ export interface SaveMemoryInput {
   persistent?: boolean;
 }
 
+/**
+ * Result of saving a memory.
+ */
 export interface SaveMemoryResult {
   memoryId: string;
   storage: "redis" | "postgres" | "both";
   expiresAt?: Date;
 }
 
+/**
+ * Input for retrieving memories.
+ */
 export interface RetrieveMemoriesInput {
   organizationId: string;
   roomId?: string;
@@ -47,6 +58,9 @@ export interface RetrieveMemoriesInput {
   sortBy?: "relevance" | "recent" | "importance";
 }
 
+/**
+ * Input for deleting memories.
+ */
 export interface DeleteMemoryInput {
   organizationId: string;
   memoryId?: string;
@@ -55,11 +69,17 @@ export interface DeleteMemoryInput {
   tags?: string[];
 }
 
+/**
+ * Result of deleting memories.
+ */
 export interface DeleteMemoryResult {
   deletedCount: number;
   storageFreed: number;
 }
 
+/**
+ * Input for summarizing a conversation.
+ */
 export interface SummarizeConversationInput {
   roomId: string;
   organizationId: string;
@@ -68,6 +88,9 @@ export interface SummarizeConversationInput {
   includeMetadata?: boolean;
 }
 
+/**
+ * Result of conversation summarization.
+ */
 export interface SummarizeConversationResult {
   summary: string;
   tokenCount: number;
@@ -75,108 +98,87 @@ export interface SummarizeConversationResult {
   participants: string[];
 }
 
+/**
+ * Service for managing agent memories, conversation context, and summaries.
+ */
 export class MemoryService {
   // PERFORMANCE FIX: Add method to check single room ownership efficiently
   private async checkRoomOwnership(
     organizationId: string,
     roomId: string,
   ): Promise<boolean> {
-    try {
-      const result = await db
-        .select({ exists: participantTable.roomId })
-        .from(participantTable)
-        .innerJoin(users, eq(participantTable.entityId, users.id))
-        .where(
-          and(
-            eq(participantTable.roomId, roomId),
-            eq(users.organization_id, organizationId),
-          ),
-        )
-        .limit(1);
+    const result = await db
+      .select({ exists: participantTable.roomId })
+      .from(participantTable)
+      .innerJoin(users, eq(participantTable.entityId, users.id))
+      .where(
+        and(
+          eq(participantTable.roomId, roomId),
+          eq(users.organization_id, organizationId),
+        ),
+      )
+      .limit(1);
 
-      return result.length > 0;
-    } catch (error) {
-      logger.error(
-        `[Memory Service] Failed to check room ownership for org ${organizationId}, room ${roomId}:`,
-        error,
-      );
-      return false;
-    }
+    return result.length > 0;
   }
 
   private async getRoomIdsForOrganization(
     organizationId: string,
   ): Promise<Set<string>> {
-    try {
-      logger.info(
-        `[Memory Service] getRoomIdsForOrganization called for org: ${organizationId}`,
-      );
+    logger.info(
+      `[Memory Service] getRoomIdsForOrganization called for org: ${organizationId}`,
+    );
 
-      const results = await db
-        .selectDistinct({ roomId: participantTable.roomId })
-        .from(participantTable)
-        .innerJoin(users, eq(participantTable.entityId, users.id))
-        .where(eq(users.organization_id, organizationId));
+    const results = await db
+      .selectDistinct({ roomId: participantTable.roomId })
+      .from(participantTable)
+      .innerJoin(users, eq(participantTable.entityId, users.id))
+      .where(eq(users.organization_id, organizationId));
 
-      logger.info(
-        `[Memory Service] Query returned ${results.length} results:`,
-        JSON.stringify(results, null, 2),
-      );
+    logger.info(
+      `[Memory Service] Query returned ${results.length} results:`,
+      JSON.stringify(results, null, 2),
+    );
 
-      const roomIds = new Set(results.map((r) => r.roomId));
-      logger.info(
-        `[Memory Service] Found ${roomIds.size} rooms for organization ${organizationId}: ${Array.from(roomIds).join(", ")}`,
-      );
-      return roomIds;
-    } catch (error) {
-      logger.error(
-        `[Memory Service] Failed to get room IDs for organization ${organizationId}:`,
-        error,
-      );
-      return new Set();
-    }
+    const roomIds = new Set(results.map((r) => r.roomId));
+    logger.info(
+      `[Memory Service] Found ${roomIds.size} rooms for organization ${organizationId}: ${Array.from(roomIds).join(", ")}`,
+    );
+    return roomIds;
   }
 
   async saveMemory(input: SaveMemoryInput): Promise<SaveMemoryResult> {
-    const runtime = await agentRuntime.getRuntime();
+    const runtime = await runtimeFactory.getSystemRuntime();
 
     // Ensure the room exists in the database
     const roomId = input.roomId as UUID;
-    const adapter = runtime.adapter as unknown as {
-      getRoomsByIds: (roomIds: UUID[]) => Promise<unknown[]>;
-      createRooms: (
-        rooms: { id: UUID; source: string; type: string }[],
-      ) => Promise<UUID[]>;
-      ensureEntityExists: (entity: {
-        id: UUID;
-        agentId: UUID;
-        names?: string[];
-      }) => Promise<boolean>;
-      addParticipant: (entityId: UUID, roomId: UUID) => Promise<boolean>;
-    };
-
-    const existingRooms = await adapter.getRoomsByIds([roomId]);
-    if (!existingRooms || existingRooms.length === 0) {
-      // source and type are required fields in the rooms table (notNull, no default)
-      await adapter.createRooms([
-        { id: roomId, source: "api", type: "DIRECT" },
-      ]);
-      logger.debug(`[Memory Service] Created room: ${roomId}`);
-    }
-
-    // Ensure the entity (user) exists in the database
     const entityId = input.entityId as UUID;
-    await adapter.ensureEntityExists({
-      id: entityId,
-      agentId: runtime.agentId,
-      names: [entityId], // Use ID as name if we don't have a proper name
-    });
-    logger.debug(`[Memory Service] Ensured entity exists: ${entityId}`);
 
-    // Ensure the entity is a participant in the room
-    await adapter.addParticipant(entityId, roomId);
+    // Ensure room exists
+    await runtime.ensureRoomExists({
+      id: roomId,
+      source: "memory",
+      type: ChannelType.DM,
+      channelId: input.roomId,
+      serverId: stringToUuid("eliza-server") as UUID,
+      worldId: stringToUuid("eliza-world") as UUID,
+      agentId: runtime.agentId,
+    });
+    logger.debug(`[Memory Service] Ensured room exists: ${roomId}`);
+
+    // Ensure entity exists and is participant in room
+    // ensureConnection handles: createEntity (if needed) + ensureParticipantInRoom
+    await runtime.ensureConnection({
+      entityId,
+      roomId,
+      worldId: stringToUuid("eliza-world") as UUID,
+      source: "memory",
+      type: ChannelType.DM,
+      channelId: input.roomId,
+      userName: input.entityId,
+    });
     logger.debug(
-      `[Memory Service] Ensured participant in room: ${entityId} -> ${roomId}`,
+      `[Memory Service] Ensured entity and participant: ${entityId} -> ${roomId}`,
     );
 
     const memory: Memory = {
@@ -196,42 +198,20 @@ export class MemoryService {
     const persistent = input.persistent !== false;
 
     if (persistent) {
-      try {
-        logger.debug(
-          `[Memory Service] Attempting to create memory in PostgreSQL:`,
-          {
-            memoryId: memory.id,
-            roomId: memory.roomId,
-            entityId: memory.entityId,
-            agentId: memory.agentId,
-            contentLength: JSON.stringify(memory.content).length,
-          },
-        );
-        await runtime.adapter.createMemory(memory, "memories", true);
-        logger.info(
-          `[Memory Service] Saved memory to PostgreSQL: ${memory.id}`,
-        );
-      } catch (dbError) {
-        logger.error(
-          `[Memory Service] PostgreSQL insert failed with full error:`,
-          {
-            error: dbError instanceof Error ? dbError.message : String(dbError),
-            errorName: dbError instanceof Error ? dbError.name : "Unknown",
-            errorStack: dbError instanceof Error ? dbError.stack : undefined,
-            errorCause:
-              dbError instanceof Error
-                ? JSON.stringify(dbError.cause)
-                : undefined,
-            memory: {
-              id: memory.id,
-              roomId: memory.roomId,
-              entityId: memory.entityId,
-              agentId: memory.agentId,
-            },
-          },
-        );
-        throw dbError;
-      }
+      logger.debug(
+        `[Memory Service] Attempting to create memory in PostgreSQL:`,
+        {
+          memoryId: memory.id,
+          roomId: memory.roomId,
+          entityId: memory.entityId,
+          agentId: memory.agentId,
+          contentLength: JSON.stringify(memory.content).length,
+        },
+      );
+      await runtime.createMemory(memory, "memories", true);
+      logger.info(
+        `[Memory Service] Saved memory to PostgreSQL: ${memory.id}`,
+      );
     }
 
     const ttl = input.ttl || CacheTTL.memory.item;
@@ -251,232 +231,222 @@ export class MemoryService {
   async retrieveMemories(
     input: RetrieveMemoriesInput,
   ): Promise<SearchResult[]> {
-    try {
+    logger.info(
+      `[Memory Service] retrieveMemories called with input:`,
+      JSON.stringify(
+        {
+          organizationId: input.organizationId,
+          roomId: input.roomId,
+          query: input.query,
+          limit: input.limit,
+          type: input.type,
+          tags: input.tags,
+        },
+        null,
+        2,
+      ),
+    );
+
+    const runtime = await runtimeFactory.getSystemRuntime();
+    logger.info(
+      `[Memory Service] Runtime initialized, agentId: ${runtime.agentId}`,
+    );
+
+    if (input.query) {
+      const queryHash = this.hashQuery(input.query, input);
+      const cached = await memoryCache.getSearchResults(queryHash);
+      if (cached) {
+        logger.debug(
+          `[Memory Service] Cache HIT for search query: ${input.query.substring(0, 50)}`,
+        );
+        return cached;
+      }
+    }
+
+    let memories: Memory[] = [];
+
+    // PERFORMANCE FIX: Use efficient single-room check when roomId is provided
+    // instead of fetching all room IDs for the organization
+    if (input.roomId) {
       logger.info(
-        `[Memory Service] retrieveMemories called with input:`,
-        JSON.stringify(
-          {
-            organizationId: input.organizationId,
-            roomId: input.roomId,
-            query: input.query,
-            limit: input.limit,
-            type: input.type,
-            tags: input.tags,
-          },
-          null,
-          2,
-        ),
+        `[Memory Service] Checking room ownership for roomId ${input.roomId}`,
       );
 
-      const runtime = await agentRuntime.getRuntime();
+      const hasAccess = await this.checkRoomOwnership(
+        input.organizationId,
+        input.roomId,
+      );
+
+      if (!hasAccess) {
+        logger.warn(
+          `[Memory Service] Room ${input.roomId} does not belong to organization ${input.organizationId}`,
+        );
+        return [];
+      }
+
       logger.info(
-        `[Memory Service] Runtime initialized, agentId: ${runtime.agentId}`,
+        `[Memory Service] Room ${input.roomId} is allowed, fetching memories`,
       );
 
       if (input.query) {
-        const queryHash = this.hashQuery(input.query, input);
-        const cached = await memoryCache.getSearchResults(queryHash);
-        if (cached) {
-          logger.debug(
-            `[Memory Service] Cache HIT for search query: ${input.query.substring(0, 50)}`,
-          );
-          return cached;
-        }
-      }
-
-      let memories: Memory[] = [];
-
-      // PERFORMANCE FIX: Use efficient single-room check when roomId is provided
-      // instead of fetching all room IDs for the organization
-      if (input.roomId) {
+        const embedding = new Array(1536).fill(0);
         logger.info(
-          `[Memory Service] Checking room ownership for roomId ${input.roomId}`,
+          `[Memory Service] Calling searchMemories with roomId: ${input.roomId}`,
         );
-
-        const hasAccess = await this.checkRoomOwnership(
-          input.organizationId,
-          input.roomId,
-        );
-
-        if (!hasAccess) {
-          logger.warn(
-            `[Memory Service] Room ${input.roomId} does not belong to organization ${input.organizationId}`,
-          );
-          return [];
-        }
-
-        logger.info(
-          `[Memory Service] Room ${input.roomId} is allowed, fetching memories`,
-        );
-
-        if (input.query) {
-          const embedding = new Array(1536).fill(0);
-          logger.info(
-            `[Memory Service] Calling searchMemories with roomId: ${input.roomId}`,
-          );
-          memories = await runtime.adapter.searchMemories({
-            embedding,
-            tableName: "memories",
-            count: input.limit || 10,
-            roomId: input.roomId as UUID,
-            match_threshold: 0.7,
-          });
-        } else {
-          logger.info(
-            `[Memory Service] Querying database directly for roomId: ${input.roomId}`,
-          );
-
-          const results = await db
-            .select()
-            .from(memoryTable)
-            .where(
-              and(
-                eq(memoryTable.roomId, input.roomId),
-                eq(memoryTable.agentId, runtime.agentId),
-              ),
-            )
-            .orderBy(desc(memoryTable.createdAt))
-            .limit(input.limit || 10);
-
-          memories = results.map(
-            (row) =>
-              ({
-                id: row.id as UUID,
-                type: row.type,
-                createdAt: new Date(row.createdAt).getTime(),
-                content: row.content,
-                entityId: row.entityId as UUID,
-                agentId: row.agentId as UUID,
-                roomId: row.roomId as UUID,
-                worldId: row.worldId as UUID | undefined,
-                unique: row.unique,
-              }) as Memory,
-          );
-        }
-
-        logger.info(
-          `[Memory Service] Database query returned ${memories.length} memories`,
-        );
+        memories = await runtime.searchMemories({
+          embedding,
+          tableName: "memories",
+          count: input.limit || 10,
+          roomId: input.roomId as UUID,
+          match_threshold: 0.7,
+        });
       } else {
         logger.info(
-          `[Memory Service] No specific roomId, fetching from all allowed rooms`,
+          `[Memory Service] Querying database directly for roomId: ${input.roomId}`,
         );
 
-        // Fetch all room IDs for the organization when no specific room is requested
-        const allowedRoomIds = await this.getRoomIdsForOrganization(
-          input.organizationId,
-        );
+        const results = await db
+          .select()
+          .from(memoryTable)
+          .where(
+            and(
+              eq(memoryTable.roomId, input.roomId),
+              eq(memoryTable.agentId, runtime.agentId),
+            ),
+          )
+          .orderBy(desc(memoryTable.createdAt))
+          .limit(input.limit || 10);
 
-        logger.info(
-          `[Memory Service] Allowed room IDs size: ${allowedRoomIds.size}`,
-        );
-
-        if (allowedRoomIds.size === 0) {
-          logger.warn(
-            `[Memory Service] No rooms found for organization ${input.organizationId}`,
-          );
-          return [];
-        }
-
-        const allMemories: Memory[] = [];
-        const limit = input.limit || 10;
-
-        for (const roomId of allowedRoomIds) {
-          logger.info(`[Memory Service] Fetching memories for room: ${roomId}`);
-
-          const results = await db
-            .select()
-            .from(memoryTable)
-            .where(
-              and(
-                eq(memoryTable.roomId, roomId),
-                eq(memoryTable.agentId, runtime.agentId),
-              ),
-            )
-            .orderBy(desc(memoryTable.createdAt))
-            .limit(limit);
-
-          const roomMemories = results.map(
-            (row) =>
-              ({
-                id: row.id as UUID,
-                type: row.type,
-                createdAt: new Date(row.createdAt).getTime(),
-                content: row.content,
-                entityId: row.entityId as UUID,
-                agentId: row.agentId as UUID,
-                roomId: row.roomId as UUID,
-                worldId: row.worldId as UUID | undefined,
-                unique: row.unique,
-              }) as Memory,
-          );
-
-          logger.info(
-            `[Memory Service] Room ${roomId} returned ${roomMemories.length} memories`,
-          );
-          allMemories.push(...roomMemories);
-
-          if (allMemories.length >= limit) {
-            break;
-          }
-        }
-
-        memories = allMemories.slice(0, limit);
-        logger.info(
-          `[Memory Service] Total memories collected: ${memories.length}`,
-        );
-      }
-
-      const filteredMemories = memories;
-
-      const results: SearchResult[] = filteredMemories.map((memory) => ({
-        memory,
-        score: 1.0,
-        context: [],
-      }));
-
-      if (input.query) {
-        const queryHash = this.hashQuery(input.query, input);
-        await memoryCache.cacheSearchResults(
-          queryHash,
-          results,
-          CacheTTL.memory.search,
+        memories = results.map(
+          (row) =>
+            ({
+              id: row.id as UUID,
+              type: row.type,
+              createdAt: new Date(row.createdAt).getTime(),
+              content: row.content,
+              entityId: row.entityId as UUID,
+              agentId: row.agentId as UUID,
+              roomId: row.roomId as UUID,
+              worldId: row.worldId as UUID | undefined,
+              unique: row.unique,
+            }) as Memory,
         );
       }
 
       logger.info(
-        `[Memory Service] Retrieved ${results.length} memories (filtered from ${memories.length}) for query`,
+        `[Memory Service] Database query returned ${memories.length} memories`,
       );
-      return results;
-    } catch (error) {
-      logger.error("[Memory Service] Failed to retrieve memories:", error);
-      throw error;
+    } else {
+      logger.info(
+        `[Memory Service] No specific roomId, fetching from all allowed rooms`,
+      );
+
+      // Fetch all room IDs for the organization when no specific room is requested
+      const allowedRoomIds = await this.getRoomIdsForOrganization(
+        input.organizationId,
+      );
+
+      logger.info(
+        `[Memory Service] Allowed room IDs size: ${allowedRoomIds.size}`,
+      );
+
+      if (allowedRoomIds.size === 0) {
+        logger.warn(
+          `[Memory Service] No rooms found for organization ${input.organizationId}`,
+        );
+        return [];
+      }
+
+      const allMemories: Memory[] = [];
+      const limit = input.limit || 10;
+
+      for (const roomId of allowedRoomIds) {
+        logger.info(`[Memory Service] Fetching memories for room: ${roomId}`);
+
+        const results = await db
+          .select()
+          .from(memoryTable)
+          .where(
+            and(
+              eq(memoryTable.roomId, roomId),
+              eq(memoryTable.agentId, runtime.agentId),
+            ),
+          )
+          .orderBy(desc(memoryTable.createdAt))
+          .limit(limit);
+
+        const roomMemories = results.map(
+          (row) =>
+            ({
+              id: row.id as UUID,
+              type: row.type,
+              createdAt: new Date(row.createdAt).getTime(),
+              content: row.content,
+              entityId: row.entityId as UUID,
+              agentId: row.agentId as UUID,
+              roomId: row.roomId as UUID,
+              worldId: row.worldId as UUID | undefined,
+              unique: row.unique,
+            }) as Memory,
+        );
+
+        logger.info(
+          `[Memory Service] Room ${roomId} returned ${roomMemories.length} memories`,
+        );
+        allMemories.push(...roomMemories);
+
+        if (allMemories.length >= limit) {
+          break;
+        }
+      }
+
+      memories = allMemories.slice(0, limit);
+      logger.info(
+        `[Memory Service] Total memories collected: ${memories.length}`,
+      );
     }
+
+    const filteredMemories = memories;
+
+    const results: SearchResult[] = filteredMemories.map((memory) => ({
+      memory,
+      score: 1.0,
+      context: [],
+    }));
+
+    if (input.query) {
+      const queryHash = this.hashQuery(input.query, input);
+      await memoryCache.cacheSearchResults(
+        queryHash,
+        results,
+        CacheTTL.memory.search,
+      );
+    }
+
+    logger.info(
+      `[Memory Service] Retrieved ${results.length} memories (filtered from ${memories.length}) for query`,
+    );
+    return results;
   }
 
   async deleteMemory(input: DeleteMemoryInput): Promise<DeleteMemoryResult> {
-    try {
-      const runtime = await agentRuntime.getRuntime();
-      let deletedCount = 0;
+    const runtime = await runtimeFactory.getSystemRuntime();
+    let deletedCount = 0;
 
-      if (input.memoryId) {
-        await runtime.adapter.deleteMemory(input.memoryId as UUID);
-        await memoryCache.invalidateMemory(input.memoryId);
-        deletedCount = 1;
-      }
-
-      logger.info(
-        `[Memory Service] Deleted ${deletedCount} memories for org ${input.organizationId}`,
-      );
-
-      return {
-        deletedCount,
-        storageFreed: deletedCount * 1024,
-      };
-    } catch (error) {
-      logger.error("[Memory Service] Failed to delete memory:", error);
-      throw error;
+    if (input.memoryId) {
+      await runtime.deleteMemory(input.memoryId as UUID);
+      await memoryCache.invalidateMemory(input.memoryId);
+      deletedCount = 1;
     }
+
+    logger.info(
+      `[Memory Service] Deleted ${deletedCount} memories for org ${input.organizationId}`,
+    );
+
+    return {
+      deletedCount,
+      storageFreed: deletedCount * 1024,
+    };
   }
 
   async getRoomContext(
@@ -484,122 +454,130 @@ export class MemoryService {
     organizationId: string,
     depth: number = 20,
   ): Promise<MemoryRoomContext> {
-    try {
-      const cached = await memoryCache.getRoomContext(roomId, organizationId);
-      if (cached && cached.depth >= depth) {
-        logger.debug(`[Memory Service] Cache HIT for room context: ${roomId}`);
-        return cached;
-      }
-
-      const runtime = await agentRuntime.getRuntime();
-
-      const memories = await runtime.adapter.getMemoriesByRoomIds({
-        tableName: "messages",
-        roomIds: [roomId as UUID],
-        limit: depth,
-      });
-
-      const participants = await runtime.adapter.getParticipantsForRoom(
-        roomId as UUID,
-      );
-
-      const rooms = await runtime.adapter.getRoomsByIds([roomId as UUID]);
-      const room = rooms && rooms.length > 0 ? rooms[0] : null;
-
-      const context: MemoryRoomContext = {
-        roomId,
-        messages: memories,
-        participants,
-        metadata: room?.metadata || {},
-        depth,
-        timestamp: new Date(),
-      };
-
-      await memoryCache.cacheRoomContext(
-        roomId,
-        organizationId,
-        context,
-        CacheTTL.memory.roomContext,
-      );
-
-      logger.info(
-        `[Memory Service] Retrieved room context: ${roomId} (${memories.length} messages)`,
-      );
-      return context;
-    } catch (error) {
-      logger.error("[Memory Service] Failed to get room context:", error);
-      throw error;
+    const cached = await memoryCache.getRoomContext(roomId, organizationId);
+    if (cached && cached.depth >= depth) {
+      logger.debug(`[Memory Service] Cache HIT for room context: ${roomId}`);
+      return cached;
     }
+
+    const runtime = await runtimeFactory.getSystemRuntime();
+
+    const memories = await runtime.getMemoriesByRoomIds({
+      tableName: "messages",
+      roomIds: [roomId as UUID],
+      limit: depth,
+    });
+
+    const participants = await runtime.getParticipantsForRoom(
+      roomId as UUID,
+    );
+
+    const rooms = await runtime.getRoomsByIds([roomId as UUID]);
+    const room = rooms && rooms.length > 0 ? rooms[0] : null;
+
+    const context: MemoryRoomContext = {
+      roomId,
+      messages: memories,
+      participants,
+      metadata: room?.metadata || {},
+      depth,
+      timestamp: new Date(),
+    };
+
+    await memoryCache.cacheRoomContext(
+      roomId,
+      organizationId,
+      context,
+      CacheTTL.memory.roomContext,
+    );
+
+    logger.info(
+      `[Memory Service] Retrieved room context: ${roomId} (${memories.length} messages)`,
+    );
+    return context;
   }
 
   async summarizeConversation(
     input: SummarizeConversationInput,
   ): Promise<SummarizeConversationResult> {
-    try {
-      const cacheKey = `${input.roomId}:${input.lastN}:${input.style}`;
-      const cached = await memoryCache.getMemory(
-        CacheKeys.memory.conversationSummary(input.organizationId, cacheKey),
+    const cacheKey = `${input.roomId}:${input.lastN}:${input.style}`;
+    const cached = await memoryCache.getMemory(
+      CacheKeys.memory.conversationSummary(input.organizationId, cacheKey),
+    );
+    if (cached) {
+      logger.debug(
+        `[Memory Service] Cache HIT for conversation summary: ${input.roomId}`,
       );
-      if (cached) {
-        logger.debug(
-          `[Memory Service] Cache HIT for conversation summary: ${input.roomId}`,
-        );
-        return cached.content as unknown as SummarizeConversationResult;
+      // Type guard to ensure cached content matches SummarizeConversationResult
+      const cachedContent = cached.content;
+      if (
+        typeof cachedContent === "object" &&
+        cachedContent !== null &&
+        "summary" in cachedContent &&
+        typeof (cachedContent as { summary: unknown }).summary === "string"
+      ) {
+        return cachedContent as SummarizeConversationResult;
       }
-
-      const context = await this.getRoomContext(
-        input.roomId,
-        input.organizationId,
-        input.lastN || 50,
-      );
-
-      const summaryPrompt = this.buildSummaryPrompt(
-        context,
-        input.style || "brief",
-      );
-
-      const result = await streamText({
-        model: gateway.languageModel("gpt-4o-mini"),
-        prompt: summaryPrompt,
-      });
-
-      let fullText = "";
-      for await (const delta of result.textStream) {
-        fullText += delta;
-      }
-
-      const usage = await result.usage;
-
-      const summary: SummarizeConversationResult = {
-        summary: fullText,
-        tokenCount: usage?.totalTokens || 0,
-        keyTopics: this.extractTopics(fullText),
-        participants: context.participants.map((p) => p.toString()),
-      };
-
-      const summaryMemory: Memory = {
-        id: uuidv4() as UUID,
-        roomId: input.roomId as UUID,
-        entityId: context.participants[0] || ("system" as UUID),
-        agentId: (await agentRuntime.getRuntime()).agentId,
-        createdAt: Date.now(),
-        content: summary as unknown as Record<string, unknown>,
-      };
-
-      await memoryCache.cacheMemory(
-        CacheKeys.memory.conversationSummary(input.organizationId, cacheKey),
-        summaryMemory,
-        CacheTTL.memory.conversationSummary,
-      );
-
-      logger.info(
-        `[Memory Service] Generated conversation summary: ${input.roomId} (${usage?.totalTokens} tokens)`,
-      );
-      return summary;
-    } catch (error) {
-      logger.error("[Memory Service] Failed to summarize conversation:", error);
-      throw error;
+      // If cached content doesn't match expected structure, continue to generate new summary
     }
+
+    const context = await this.getRoomContext(
+      input.roomId,
+      input.organizationId,
+      input.lastN || 50,
+    );
+
+    const summaryPrompt = this.buildSummaryPrompt(
+      context,
+      input.style || "brief",
+    );
+
+    const result = await streamText({
+      model: gateway.languageModel("gpt-4o-mini"),
+      prompt: summaryPrompt,
+    });
+
+    let fullText = "";
+    for await (const delta of result.textStream) {
+      fullText += delta;
+    }
+
+    const usage = await result.usage;
+
+    const summary: SummarizeConversationResult = {
+      summary: fullText,
+      tokenCount: usage?.totalTokens || 0,
+      keyTopics: this.extractTopics(fullText),
+      participants: context.participants.map((p) => p.toString()),
+    };
+
+    // Convert summary to Memory content format
+    const summaryContent: Record<string, unknown> = {
+      summary: summary.summary,
+      tokenCount: summary.tokenCount,
+      keyTopics: summary.keyTopics,
+      participants: summary.participants,
+    };
+
+    const summaryMemory: Memory = {
+      id: uuidv4() as UUID,
+      roomId: input.roomId as UUID,
+      entityId: context.participants[0] || ("system" as UUID),
+      agentId: (await runtimeFactory.getSystemRuntime()).agentId,
+      createdAt: Date.now(),
+      content: summaryContent,
+    };
+
+    await memoryCache.cacheMemory(
+      CacheKeys.memory.conversationSummary(input.organizationId, cacheKey),
+      summaryMemory,
+      CacheTTL.memory.conversationSummary,
+    );
+
+    logger.info(
+      `[Memory Service] Generated conversation summary: ${input.roomId} (${usage?.totalTokens} tokens)`,
+    );
+    return summary;
   }
 
   private hashQuery(
@@ -670,45 +648,33 @@ Summary:`;
     messageCount: number;
     relevanceScores: Array<{ messageId: string; score: number }>;
   }> {
-    try {
-      const context = await this.getRoomContext(roomId, organizationId, 100);
+    const context = await this.getRoomContext(roomId, organizationId, 100);
 
-      const recentMessages = context.messages.slice(0, preserveRecent);
-      const olderMessages = context.messages.slice(preserveRecent);
+    const recentMessages = context.messages.slice(0, preserveRecent);
+    const olderMessages = context.messages.slice(preserveRecent);
 
-      const selectedMessages = [...recentMessages];
-      let currentTokens = await this.estimateTokenCount(recentMessages);
+    const selectedMessages = [...recentMessages];
+    let currentTokens = await this.estimateTokenCount(recentMessages);
 
-      const relevanceScores: Array<{ messageId: string; score: number }> = [];
+    const relevanceScores: Array<{ messageId: string; score: number }> = [];
 
-      if (query) {
-        for (const msg of olderMessages) {
-          const msgText = msg.content.text || "";
-          const score = this.calculateRelevanceScore(msgText, query);
-          relevanceScores.push({
-            messageId: msg.id?.toString() || "",
-            score,
-          });
-        }
+    if (query) {
+      for (const msg of olderMessages) {
+        const msgText = msg.content.text || "";
+        const score = this.calculateRelevanceScore(msgText, query);
+        relevanceScores.push({
+          messageId: msg.id?.toString() || "",
+          score,
+        });
+      }
 
-        relevanceScores.sort((a, b) => b.score - a.score);
+      relevanceScores.sort((a, b) => b.score - a.score);
 
-        for (const scoreItem of relevanceScores) {
-          const msg = olderMessages.find(
-            (m) => m.id?.toString() === scoreItem.messageId,
-          );
-          if (msg) {
-            const msgTokens = await this.estimateTokenCount([msg]);
-            if (currentTokens + msgTokens <= maxTokens) {
-              selectedMessages.push(msg);
-              currentTokens += msgTokens;
-            } else {
-              break;
-            }
-          }
-        }
-      } else {
-        for (const msg of olderMessages) {
+      for (const scoreItem of relevanceScores) {
+        const msg = olderMessages.find(
+          (m) => m.id?.toString() === scoreItem.messageId,
+        );
+        if (msg) {
           const msgTokens = await this.estimateTokenCount([msg]);
           if (currentTokens + msgTokens <= maxTokens) {
             selectedMessages.push(msg);
@@ -718,24 +684,28 @@ Summary:`;
           }
         }
       }
-
-      logger.info(
-        `[Memory Service] Optimized context: ${selectedMessages.length}/${context.messages.length} messages, ${currentTokens}/${maxTokens} tokens`,
-      );
-
-      return {
-        messages: selectedMessages,
-        totalTokens: currentTokens,
-        messageCount: selectedMessages.length,
-        relevanceScores,
-      };
-    } catch (error) {
-      logger.error(
-        "[Memory Service] Failed to optimize context window:",
-        error,
-      );
-      throw error;
+    } else {
+      for (const msg of olderMessages) {
+        const msgTokens = await this.estimateTokenCount([msg]);
+        if (currentTokens + msgTokens <= maxTokens) {
+          selectedMessages.push(msg);
+          currentTokens += msgTokens;
+        } else {
+          break;
+        }
+      }
     }
+
+    logger.info(
+      `[Memory Service] Optimized context: ${selectedMessages.length}/${context.messages.length} messages, ${currentTokens}/${maxTokens} tokens`,
+    );
+
+    return {
+      messages: selectedMessages,
+      totalTokens: currentTokens,
+      messageCount: selectedMessages.length,
+      relevanceScores,
+    };
   }
 
   async exportConversation(
@@ -747,84 +717,79 @@ Summary:`;
     size: number;
     format: string;
   }> {
-    try {
-      const conversation =
-        await conversationsService.getWithMessages(conversationId);
+    const conversation =
+      await conversationsService.getWithMessages(conversationId);
 
-      if (!conversation) {
-        throw new Error("Conversation not found");
-      }
-
-      let content = "";
-
-      switch (format) {
-        case "json":
-          content = JSON.stringify(
-            {
-              id: conversation.id,
-              title: conversation.title,
-              model: conversation.model,
-              createdAt: conversation.created_at,
-              messages: conversation.messages.map((m: ConversationMessage) => ({
-                id: m.id,
-                role: m.role,
-                content: m.content,
-                tokens: m.tokens,
-                cost: m.cost,
-                createdAt: m.created_at,
-              })),
-              metadata: {
-                messageCount: conversation.message_count,
-                totalCost: conversation.total_cost,
-              },
-            },
-            null,
-            2,
-          );
-          break;
-
-        case "markdown":
-          content = `# ${conversation.title}\n\n`;
-          content += `**Model**: ${conversation.model}\n`;
-          content += `**Created**: ${conversation.created_at}\n`;
-          content += `**Messages**: ${conversation.message_count}\n\n`;
-          content += `---\n\n`;
-
-          for (const msg of conversation.messages) {
-            content += `## ${msg.role}\n\n`;
-            content += `${msg.content}\n\n`;
-            content += `_Tokens: ${msg.tokens || 0} | Cost: ${msg.cost || 0} credits_\n\n`;
-            content += `---\n\n`;
-          }
-          break;
-
-        case "txt":
-          content = `Conversation: ${conversation.title}\n`;
-          content += `Model: ${conversation.model}\n`;
-          content += `Created: ${conversation.created_at}\n`;
-          content += `\n${"=".repeat(80)}\n\n`;
-
-          for (const msg of conversation.messages) {
-            content += `[${msg.role.toUpperCase()}]\n`;
-            content += `${msg.content}\n`;
-            content += `\n${"-".repeat(80)}\n\n`;
-          }
-          break;
-      }
-
-      logger.info(
-        `[Memory Service] Exported conversation ${conversationId} as ${format}`,
-      );
-
-      return {
-        content,
-        size: content.length,
-        format,
-      };
-    } catch (error) {
-      logger.error("[Memory Service] Failed to export conversation:", error);
-      throw error;
+    if (!conversation) {
+      throw new Error("Conversation not found");
     }
+
+    let content = "";
+
+    switch (format) {
+      case "json":
+        content = JSON.stringify(
+          {
+            id: conversation.id,
+            title: conversation.title,
+            model: conversation.model,
+            createdAt: conversation.created_at,
+            messages: conversation.messages.map((m: ConversationMessage) => ({
+              id: m.id,
+              role: m.role,
+              content: m.content,
+              tokens: m.tokens,
+              cost: m.cost,
+              createdAt: m.created_at,
+            })),
+            metadata: {
+              messageCount: conversation.message_count,
+              totalCost: conversation.total_cost,
+            },
+          },
+          null,
+          2,
+        );
+        break;
+
+      case "markdown":
+        content = `# ${conversation.title}\n\n`;
+        content += `**Model**: ${conversation.model}\n`;
+        content += `**Created**: ${conversation.created_at}\n`;
+        content += `**Messages**: ${conversation.message_count}\n\n`;
+        content += `---\n\n`;
+
+        for (const msg of conversation.messages) {
+          content += `## ${msg.role}\n\n`;
+          content += `${msg.content}\n\n`;
+          content += `_Tokens: ${msg.tokens || 0} | Cost: ${msg.cost || 0} credits_\n\n`;
+          content += `---\n\n`;
+        }
+        break;
+
+      case "txt":
+        content = `Conversation: ${conversation.title}\n`;
+        content += `Model: ${conversation.model}\n`;
+        content += `Created: ${conversation.created_at}\n`;
+        content += `\n${"=".repeat(80)}\n\n`;
+
+        for (const msg of conversation.messages) {
+          content += `[${msg.role.toUpperCase()}]\n`;
+          content += `${msg.content}\n`;
+          content += `\n${"-".repeat(80)}\n\n`;
+        }
+        break;
+    }
+
+    logger.info(
+      `[Memory Service] Exported conversation ${conversationId} as ${format}`,
+    );
+
+    return {
+      content,
+      size: content.length,
+      format,
+    };
   }
 
   async cloneConversation(
@@ -841,52 +806,47 @@ Summary:`;
     conversationId: string;
     clonedMessageCount: number;
   }> {
-    try {
-      const sourceConversation =
-        await conversationsService.getWithMessages(conversationId);
+    const sourceConversation =
+      await conversationsService.getWithMessages(conversationId);
 
-      if (!sourceConversation) {
-        throw new Error("Source conversation not found");
-      }
-
-      const newConversation = await conversationsService.create({
-        organization_id: organizationId,
-        user_id: userId,
-        title: options.newTitle || `${sourceConversation.title} (Copy)`,
-        model: options.newModel || sourceConversation.model,
-        settings: sourceConversation.settings,
-      });
-
-      let clonedMessageCount = 0;
-
-      if (options.preserveMessages && sourceConversation.messages.length > 0) {
-        for (const msg of sourceConversation.messages) {
-          await conversationsService.addMessage(
-            newConversation.id,
-            msg.role,
-            msg.content,
-            msg.sequence_number,
-            {
-              tokens: msg.tokens,
-              cost: msg.cost,
-            },
-          );
-          clonedMessageCount++;
-        }
-      }
-
-      logger.info(
-        `[Memory Service] Cloned conversation ${conversationId} to ${newConversation.id} with ${clonedMessageCount} messages`,
-      );
-
-      return {
-        conversationId: newConversation.id,
-        clonedMessageCount,
-      };
-    } catch (error) {
-      logger.error("[Memory Service] Failed to clone conversation:", error);
-      throw error;
+    if (!sourceConversation) {
+      throw new Error("Source conversation not found");
     }
+
+    const newConversation = await conversationsService.create({
+      organization_id: organizationId,
+      user_id: userId,
+      title: options.newTitle || `${sourceConversation.title} (Copy)`,
+      model: options.newModel || sourceConversation.model,
+      settings: sourceConversation.settings,
+    });
+
+    let clonedMessageCount = 0;
+
+    if (options.preserveMessages && sourceConversation.messages.length > 0) {
+      for (const msg of sourceConversation.messages) {
+        await conversationsService.addMessage(
+          newConversation.id,
+          msg.role,
+          msg.content,
+          msg.sequence_number,
+          {
+            tokens: msg.tokens,
+            cost: msg.cost,
+          },
+        );
+        clonedMessageCount++;
+      }
+    }
+
+    logger.info(
+      `[Memory Service] Cloned conversation ${conversationId} to ${newConversation.id} with ${clonedMessageCount} messages`,
+    );
+
+    return {
+      conversationId: newConversation.id,
+      clonedMessageCount,
+    };
   }
 
   async analyzeMemoryPatterns(
@@ -898,135 +858,127 @@ Summary:`;
     data: Record<string, unknown>;
     chartData?: Array<{ label: string; value: number }>;
   }> {
-    try {
-      const memories = await this.retrieveMemories({
-        organizationId,
-        limit: 100,
-      });
+    const memories = await this.retrieveMemories({
+      organizationId,
+      limit: 100,
+    });
 
-      const memoriesText = memories
-        .map((m) => m.memory.content.text || "")
-        .join("\n");
+    const memoriesText = memories
+      .map((m) => m.memory.content.text || "")
+      .join("\n");
 
-      let insights: string[] = [];
-      let data: Record<string, unknown> = {};
-      let chartData: Array<{ label: string; value: number }> = [];
+    let insights: string[] = [];
+    let data: Record<string, unknown> = {};
+    let chartData: Array<{ label: string; value: number }> = [];
 
-      switch (analysisType) {
-        case "topics":
-          const topics = this.extractTopics(memoriesText);
-          insights = [
-            `Identified ${topics.length} key topics from ${memories.length} memories`,
-            `Most frequent: ${topics.slice(0, 3).join(", ")}`,
-          ];
-          data = { topics };
-          chartData = topics.map((topic, idx) => ({
-            label: topic,
-            value: topics.length - idx,
-          }));
-          break;
+    switch (analysisType) {
+      case "topics":
+        const topics = this.extractTopics(memoriesText);
+        insights = [
+          `Identified ${topics.length} key topics from ${memories.length} memories`,
+          `Most frequent: ${topics.slice(0, 3).join(", ")}`,
+        ];
+        data = { topics };
+        chartData = topics.map((topic, idx) => ({
+          label: topic,
+          value: topics.length - idx,
+        }));
+        break;
 
-        case "timeline":
-          const timelineData = memories.map((m) => ({
-            date: new Date(m.memory.createdAt || Date.now()),
-            type: m.memory.content.type || "unknown",
-          }));
+      case "timeline":
+        const timelineData = memories.map((m) => ({
+          date: new Date(m.memory.createdAt || Date.now()),
+          type: m.memory.content.type || "unknown",
+        }));
 
-          const groupedByDay = new Map<string, number>();
-          for (const item of timelineData) {
-            const day = item.date.toISOString().split("T")[0];
-            groupedByDay.set(day, (groupedByDay.get(day) || 0) + 1);
-          }
+        const groupedByDay = new Map<string, number>();
+        for (const item of timelineData) {
+          const day = item.date.toISOString().split("T")[0];
+          groupedByDay.set(day, (groupedByDay.get(day) || 0) + 1);
+        }
 
-          chartData = Array.from(groupedByDay.entries()).map(
-            ([label, value]) => ({ label, value }),
-          );
+        chartData = Array.from(groupedByDay.entries()).map(
+          ([label, value]) => ({ label, value }),
+        );
 
-          insights = [
-            `Analyzed ${memories.length} memories over ${groupedByDay.size} days`,
-            `Peak activity: ${Math.max(...Array.from(groupedByDay.values()))} memories in a single day`,
-          ];
-          data = { timelineData: Object.fromEntries(groupedByDay) };
-          break;
+        insights = [
+          `Analyzed ${memories.length} memories over ${groupedByDay.size} days`,
+          `Peak activity: ${Math.max(...Array.from(groupedByDay.values()))} memories in a single day`,
+        ];
+        data = { timelineData: Object.fromEntries(groupedByDay) };
+        break;
 
-        case "entities":
-          const words = memoriesText
-            .toLowerCase()
-            .split(/\W+/)
-            .filter((w) => w.length > 3);
-          const wordCounts = new Map<string, number>();
-          for (const word of words) {
-            wordCounts.set(word, (wordCounts.get(word) || 0) + 1);
-          }
+      case "entities":
+        const words = memoriesText
+          .toLowerCase()
+          .split(/\W+/)
+          .filter((w) => w.length > 3);
+        const wordCounts = new Map<string, number>();
+        for (const word of words) {
+          wordCounts.set(word, (wordCounts.get(word) || 0) + 1);
+        }
 
-          const topEntities = Array.from(wordCounts.entries())
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 10);
+        const topEntities = Array.from(wordCounts.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10);
 
-          chartData = topEntities.map(([label, value]) => ({ label, value }));
-          insights = [
-            `Extracted ${topEntities.length} key entities`,
-            `Total unique words: ${wordCounts.size}`,
-          ];
-          data = { entities: Object.fromEntries(topEntities) };
-          break;
+        chartData = topEntities.map(([label, value]) => ({ label, value }));
+        insights = [
+          `Extracted ${topEntities.length} key entities`,
+          `Total unique words: ${wordCounts.size}`,
+        ];
+        data = { entities: Object.fromEntries(topEntities) };
+        break;
 
-        case "sentiment":
-          const positiveWords = ["good", "great", "excellent", "happy", "love"];
-          const negativeWords = ["bad", "terrible", "hate", "sad", "poor"];
+      case "sentiment":
+        const positiveWords = ["good", "great", "excellent", "happy", "love"];
+        const negativeWords = ["bad", "terrible", "hate", "sad", "poor"];
 
-          let positiveCount = 0;
-          let negativeCount = 0;
+        let positiveCount = 0;
+        let negativeCount = 0;
 
-          const lowerText = memoriesText.toLowerCase();
-          for (const word of positiveWords) {
-            positiveCount += (lowerText.match(new RegExp(word, "g")) || [])
-              .length;
-          }
-          for (const word of negativeWords) {
-            negativeCount += (lowerText.match(new RegExp(word, "g")) || [])
-              .length;
-          }
+        const lowerText = memoriesText.toLowerCase();
+        for (const word of positiveWords) {
+          positiveCount += (lowerText.match(new RegExp(word, "g")) || [])
+            .length;
+        }
+        for (const word of negativeWords) {
+          negativeCount += (lowerText.match(new RegExp(word, "g")) || [])
+            .length;
+        }
 
-          const neutralCount = memories.length - positiveCount - negativeCount;
+        const neutralCount = memories.length - positiveCount - negativeCount;
 
-          chartData = [
-            { label: "Positive", value: positiveCount },
-            { label: "Neutral", value: neutralCount },
-            { label: "Negative", value: negativeCount },
-          ];
+        chartData = [
+          { label: "Positive", value: positiveCount },
+          { label: "Neutral", value: neutralCount },
+          { label: "Negative", value: negativeCount },
+        ];
 
-          insights = [
-            `Sentiment distribution: ${positiveCount} positive, ${neutralCount} neutral, ${negativeCount} negative`,
-            positiveCount > negativeCount
-              ? "Overall positive sentiment detected"
-              : "Overall negative sentiment detected",
-          ];
-          data = {
-            positive: positiveCount,
-            neutral: neutralCount,
-            negative: negativeCount,
-          };
-          break;
-      }
-
-      logger.info(
-        `[Memory Service] Analyzed ${memories.length} memories for ${analysisType}`,
-      );
-
-      return {
-        analysisType,
-        insights,
-        data,
-        chartData,
-      };
-    } catch (error) {
-      logger.error(
-        "[Memory Service] Failed to analyze memory patterns:",
-        error,
-      );
-      throw error;
+        insights = [
+          `Sentiment distribution: ${positiveCount} positive, ${neutralCount} neutral, ${negativeCount} negative`,
+          positiveCount > negativeCount
+            ? "Overall positive sentiment detected"
+            : "Overall negative sentiment detected",
+        ];
+        data = {
+          positive: positiveCount,
+          neutral: neutralCount,
+          negative: negativeCount,
+        };
+        break;
     }
+
+    logger.info(
+      `[Memory Service] Analyzed ${memories.length} memories for ${analysisType}`,
+    );
+
+    return {
+      analysisType,
+      insights,
+      data,
+      chartData,
+    };
   }
 
   private calculateRelevanceScore(text: string, query: string): number {

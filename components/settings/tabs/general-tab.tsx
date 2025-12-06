@@ -1,3 +1,11 @@
+/**
+ * General settings tab component for user profile and notification preferences.
+ * Allows users to update their name, nickname, work function, preferences, and notification settings.
+ *
+ * @param props - General tab configuration
+ * @param props.user - User data with organization information
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -51,36 +59,28 @@ export function GeneralTab({ user }: GeneralTabProps) {
     if (formState.saving) return;
     updateForm({ saving: true });
 
-    try {
-      const response = await fetch("/api/v1/user", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formState.fullName,
-          nickname: formState.nickname,
-          work_function: formState.workFunction,
-          preferences: formState.preferences,
-          response_notifications: formState.responseNotifications,
-          email_notifications: formState.emailNotifications,
-        }),
-      });
+    const response = await fetch("/api/v1/user", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: formState.fullName,
+        nickname: formState.nickname,
+        work_function: formState.workFunction,
+        preferences: formState.preferences,
+        response_notifications: formState.responseNotifications,
+        email_notifications: formState.emailNotifications,
+      }),
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || "Failed to save settings");
-      }
-
-      toast.success("Settings saved successfully");
-      router.refresh();
-    } catch (error) {
-      console.error("Error saving settings:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to save settings",
-      );
-    } finally {
-      updateForm({ saving: false });
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || "Failed to save settings");
     }
+
+    toast.success("Settings saved successfully");
+    router.refresh();
+    updateForm({ saving: false });
   };
 
   // Get user initials for avatar

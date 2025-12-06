@@ -1,3 +1,12 @@
+/**
+ * Character build mode component with split-pane layout.
+ * Combines build mode assistant and character editor in resizable panels.
+ * Supports mobile responsive view switching.
+ *
+ * @param props - Character build mode configuration
+ * @param props.initialCharacters - Initial list of characters
+ */
+
 "use client";
 
 import { useState, useCallback, useEffect, useMemo } from "react";
@@ -24,10 +33,12 @@ import { createDefaultCharacter } from "@/lib/utils/character-names";
 
 interface CharacterBuildModeProps {
   initialCharacters: ElizaCharacter[];
+  onUnsavedChanges?: (hasChanges: boolean) => void;
 }
 
 export function CharacterBuildMode({
   initialCharacters,
+  onUnsavedChanges,
 }: CharacterBuildModeProps) {
   const { selectedCharacterId, setSelectedCharacterId } = useChatStore();
   const { user } = usePrivy();
@@ -50,6 +61,13 @@ export function CharacterBuildMode({
   }, [selectedCharacterId, initialCharacters]);
 
   const [character, setCharacter] = useState<ElizaCharacter>(initialCharacter);
+
+  // Track unsaved changes
+  useEffect(() => {
+    const hasChanges =
+      JSON.stringify(character) !== JSON.stringify(initialCharacter);
+    onUnsavedChanges?.(hasChanges);
+  }, [character, initialCharacter, onUnsavedChanges]);
 
   // Update local state when derived character changes
   useEffect(() => {
@@ -101,7 +119,10 @@ export function CharacterBuildMode({
           : "Failed to save character. Please try again.",
       );
     }
-  }, [character, selectedCharacterId, setSelectedCharacterId]);
+
+    // Mark changes as saved after successful save
+    onUnsavedChanges?.(false);
+  }, [character, selectedCharacterId, setSelectedCharacterId, onUnsavedChanges]);
 
   const handleCharacterRefresh = useCallback(async () => {
     if (!character.id) {
@@ -109,15 +130,10 @@ export function CharacterBuildMode({
       return;
     }
 
-    try {
-      const refreshedCharacter = await getCharacter(character.id);
+    const refreshedCharacter = await getCharacter(character.id);
 
-      // Update local state with fresh data from database
-      setCharacter(refreshedCharacter);
-    } catch (error) {
-      console.error("[CharacterBuildMode] Error refreshing character:", error);
-      toast.error("Failed to refresh character data");
-    }
+    // Update local state with fresh data from database
+    setCharacter(refreshedCharacter);
   }, [character.id]);
 
   return (

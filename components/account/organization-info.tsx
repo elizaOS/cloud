@@ -1,3 +1,11 @@
+/**
+ * Organization info component displaying organization details and balance.
+ * Shows organization name, slug, balance, and creation date.
+ *
+ * @param props - Organization info configuration
+ * @param props.organization - Organization data to display
+ */
+
 "use client";
 
 import { Building2, CreditCard, Calendar } from "lucide-react";

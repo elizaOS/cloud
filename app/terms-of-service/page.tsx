@@ -19,6 +19,9 @@ export const metadata: Metadata = generatePageMetadata({
   ],
 });
 
+/**
+ * Terms of service page displaying the platform's terms and conditions.
+ */
 export default function TermsOfServicePage() {
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-hidden">

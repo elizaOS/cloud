@@ -1,3 +1,7 @@
+/**
+ * Select component system built on Radix UI primitives.
+ * Provides dropdown selection with search, grouping, and keyboard navigation.
+ */
 "use client";
 
 import * as React from "react";

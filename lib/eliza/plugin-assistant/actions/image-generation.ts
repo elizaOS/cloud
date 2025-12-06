@@ -174,79 +174,83 @@ async function getOrExtractAppearanceDescription(
     `[GENERATE_IMAGE] 🔬 Extracting appearance using VISION MODEL from ${config.referenceImageUrls.length} reference images...`,
   );
 
-  try {
-    const imageUrls = config.referenceImageUrls.slice(0, 4);
-    const appearanceDescriptions: string[] = [];
-    const detectedGenders: string[] = [];
+  const imageUrls = config.referenceImageUrls.slice(0, 4);
+  const appearanceDescriptions: string[] = [];
+  const detectedGenders: string[] = [];
 
-    for (let i = 0; i < imageUrls.length; i++) {
-      const imageUrl = imageUrls[i];
-      logger.info(
-        `[GENERATE_IMAGE] 🔍 Analyzing reference image ${i + 1}/${imageUrls.length} with vision model...`,
+  for (let i = 0; i < imageUrls.length; i++) {
+    const imageUrl = imageUrls[i];
+    logger.info(
+      `[GENERATE_IMAGE] 🔍 Analyzing reference image ${i + 1}/${imageUrls.length} with vision model...`,
+    );
+
+    try {
+      const visionResult = await runtime.useModel(
+        ModelType.IMAGE_DESCRIPTION,
+        {
+          imageUrl: imageUrl,
+          prompt: appearanceExtractionPrompt,
+        },
       );
 
-      try {
-        const visionResult = await runtime.useModel(
-          ModelType.IMAGE_DESCRIPTION,
-          {
-            imageUrl: imageUrl,
-            prompt: appearanceExtractionPrompt,
-          },
-        );
-
-        if (visionResult) {
-          let descriptionText = "";
-          if (typeof visionResult === "string") {
-            descriptionText = visionResult;
-          } else if (
-            typeof visionResult === "object" &&
-            "description" in visionResult
-          ) {
-            descriptionText = (visionResult as { description: string })
-              .description;
-          }
-
-          if (descriptionText) {
-            const parsed = parseKeyValueXml(descriptionText);
-            let appearance = parsed?.appearance || descriptionText;
-            const gender = parsed?.gender?.toLowerCase()?.trim();
-
-            if (gender === "woman" || gender === "man") {
-              detectedGenders.push(gender);
-              logger.info(
-                `[GENERATE_IMAGE] 👤 Image ${i + 1} detected gender: ${gender}`,
-              );
-            }
-
-            if (
-              appearance &&
-              typeof appearance === "string" &&
-              appearance.length > 20
-            ) {
-              if (
-                !appearance.toLowerCase().startsWith("woman") &&
-                !appearance.toLowerCase().startsWith("man") &&
-                !appearance.toLowerCase().startsWith("young woman") &&
-                !appearance.toLowerCase().startsWith("young man")
-              ) {
-                if (gender) {
-                  appearance = `${gender}, ${appearance}`;
-                }
-              }
-              logger.info(
-                `[GENERATE_IMAGE] ✅ Image ${i + 1} appearance: "${appearance.substring(0, 80)}..."`,
-              );
-              appearanceDescriptions.push(appearance);
-            }
+      if (visionResult) {
+        let descriptionText = "";
+        if (typeof visionResult === "string") {
+          descriptionText = visionResult;
+        } else if (
+          typeof visionResult === "object" &&
+          visionResult !== null &&
+          "description" in visionResult
+        ) {
+          const description = (visionResult as { description: unknown })
+            .description;
+          if (typeof description === "string") {
+            descriptionText = description;
           }
         }
-      } catch (imgError) {
-        logger.warn(
-          `[GENERATE_IMAGE] ⚠️ Failed to analyze image ${i + 1}: ${imgError instanceof Error ? imgError.message : String(imgError)}`,
-        );
-      }
-    }
 
+        if (descriptionText) {
+          const parsed = parseKeyValueXml(descriptionText);
+          let appearance = parsed?.appearance || descriptionText;
+          const gender = parsed?.gender?.toLowerCase()?.trim();
+
+          if (gender === "woman" || gender === "man") {
+            detectedGenders.push(gender);
+            logger.info(
+              `[GENERATE_IMAGE] 👤 Image ${i + 1} detected gender: ${gender}`,
+            );
+          }
+
+          if (
+            appearance &&
+            typeof appearance === "string" &&
+            appearance.length > 20
+          ) {
+            if (
+              !appearance.toLowerCase().startsWith("woman") &&
+              !appearance.toLowerCase().startsWith("man") &&
+              !appearance.toLowerCase().startsWith("young woman") &&
+              !appearance.toLowerCase().startsWith("young man")
+            ) {
+              if (gender) {
+                appearance = `${gender}, ${appearance}`;
+              }
+            }
+            logger.info(
+              `[GENERATE_IMAGE] ✅ Image ${i + 1} appearance: "${appearance.substring(0, 80)}..."`,
+            );
+            appearanceDescriptions.push(appearance);
+          }
+        }
+      }
+    } catch (imgError) {
+      logger.warn(
+        `[GENERATE_IMAGE] ⚠️ Failed to analyze image ${i + 1}: ${imgError instanceof Error ? imgError.message : String(imgError)}`,
+      );
+    }
+  }
+
+  try {
     const dominantGender =
       detectedGenders.length > 0
         ? detectedGenders.filter((g) => g === "woman").length >=
@@ -457,45 +461,17 @@ async function ensureBlobUrl(
     "[GENERATE_IMAGE] Converting base64 to blob storage to prevent token bloat",
   );
 
-  const maxRetries = 3;
-  let lastError: Error | null = null;
+  const timestamp = Date.now();
+  const result = await uploadBase64Image(imageUrl, {
+    filename: `generated-${timestamp}.png`,
+    folder: "images",
+    userId: userId || "system",
+  });
 
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const timestamp = Date.now();
-      const result = await uploadBase64Image(imageUrl, {
-        filename: `generated-${timestamp}.png`,
-        folder: "images",
-        userId: userId || "system",
-      });
-
-      logger.info(
-        `[GENERATE_IMAGE] ✅ Successfully uploaded to blob (attempt ${attempt}): ${result.url}`,
-      );
-      return result.url;
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      logger.warn(
-        `[GENERATE_IMAGE] ⚠️ Blob upload attempt ${attempt}/${maxRetries} failed:`,
-        lastError.message,
-      );
-
-      if (attempt < maxRetries) {
-        // Exponential backoff: 500ms, 1000ms, 2000ms
-        const delay = 500 * Math.pow(2, attempt - 1);
-        logger.info(`[GENERATE_IMAGE] Retrying in ${delay}ms...`);
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
-  }
-
-  logger.error(
-    "[GENERATE_IMAGE] ❌ All blob upload attempts failed:",
-    lastError?.message,
+  logger.info(
+    `[GENERATE_IMAGE] ✅ Successfully uploaded to blob: ${result.url}`,
   );
-  // Return null - the image was already shown to the user via the callback
-  // We don't store it in memory to avoid token bloat
-  return null;
+  return result.url;
 }
 
 /**
@@ -831,8 +807,7 @@ export const generateImageAction = {
     callback: HandlerCallback,
     responses?: Memory[],
   ): Promise<ActionResult> => {
-    try {
-      const allProviders =
+    const allProviders =
         responses?.flatMap((res) => res.content?.providers ?? []) ?? [];
 
       state = await runtime.composeState(message, [
@@ -840,9 +815,22 @@ export const generateImageAction = {
         "RECENT_MESSAGES",
       ]);
 
-      const characterId = runtime.character?.id as string | undefined;
+      const characterId =
+        runtime.character?.id && typeof runtime.character.id === "string"
+          ? runtime.character.id
+          : undefined;
       const affiliateConfig = extractAffiliateImageConfig(
-        runtime.character?.settings as Record<string, unknown> | undefined,
+        (() => {
+          const settings = runtime.character?.settings;
+          if (
+            settings &&
+            typeof settings === "object" &&
+            !Array.isArray(settings)
+          ) {
+            return settings as Record<string, unknown>;
+          }
+          return undefined;
+        })(),
       );
 
       if (affiliateConfig.isAffiliateCharacter) {
@@ -1181,7 +1169,6 @@ export const generateImageAction = {
       logger.info(`[GENERATE_IMAGE] Attempting to upload to blob storage...`);
 
       let blobUrl: string | null = null;
-      let blobError: string | null = null;
 
       try {
         // userId property does not exist on IAgentRuntime. If needed, update ensureBlobUrl to not require userId,
@@ -1191,7 +1178,7 @@ export const generateImageAction = {
           `[GENERATE_IMAGE] Blob upload result: ${blobUrl ? blobUrl.substring(0, 80) + "..." : "FAILED"}`,
         );
       } catch (err) {
-        blobError = err instanceof Error ? err.message : String(err);
+        const blobError = err instanceof Error ? err.message : String(err);
         logger.error(`[GENERATE_IMAGE] ❌ Blob upload threw error:`, blobError);
       }
 
@@ -1205,20 +1192,16 @@ export const generateImageAction = {
 
       // Determine file extension from URL or default to png
       const getFileExtension = (url: string): string => {
-        try {
-          const urlPath = new URL(url).pathname;
-          const extension = urlPath.split(".").pop()?.toLowerCase();
-          // Common image extensions
-          if (
-            extension &&
-            ["png", "jpg", "jpeg", "gif", "webp", "bmp"].includes(extension)
-          ) {
-            return extension;
-          }
-          // Extension not in allowed list, fall through to default
-        } catch {
-          // URL parsing failed (malformed URL), fall back to png
+        const urlPath = new URL(url).pathname;
+        const extension = urlPath.split(".").pop()?.toLowerCase();
+        // Common image extensions
+        if (
+          extension &&
+          ["png", "jpg", "jpeg", "gif", "webp", "bmp"].includes(extension)
+        ) {
+          return extension;
         }
+        // Extension not in allowed list, fall through to default
         return "png"; // Default fallback for invalid/unknown extensions
       };
 
@@ -1296,28 +1279,6 @@ export const generateImageAction = {
         },
         success: true,
       };
-    } catch (error) {
-      const err = error as Error;
-      logger.error(
-        {
-          message: err.message,
-          stack: err.stack,
-        },
-        "generateImageAction: Exception during image generation",
-      );
-      return {
-        text: "Image generation failed",
-        values: {
-          success: false,
-          error: "IMAGE_GENERATION_FAILED",
-        },
-        data: {
-          actionName: "GENERATE_IMAGE",
-          errorMessage: err.message,
-        },
-        success: false,
-      };
-    }
   },
   examples: [
     [

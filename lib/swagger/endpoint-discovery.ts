@@ -2,9 +2,12 @@
  * API Endpoint Discovery System
  *
  * Catalogs available API endpoints from the Eliza Cloud API
- * for automatic documentation and testing in API Explorer
+ * for automatic documentation and testing in API Explorer.
  */
 
+/**
+ * Pricing information for an API endpoint.
+ */
 export interface EndpointPricing {
   cost: number; // Cost in USD per request
   unit: "request" | "image" | "video" | "minute" | "1k tokens" | "clone";
@@ -14,6 +17,9 @@ export interface EndpointPricing {
   estimatedRange?: { min: number; max: number }; // For variable pricing
 }
 
+/**
+ * Parameter definition for an API endpoint.
+ */
 export interface EndpointParameter {
   name: string;
   type: "string" | "number" | "boolean" | "object" | "array";
@@ -28,6 +34,9 @@ export interface EndpointParameter {
   step?: number;
 }
 
+/**
+ * Response definition for an API endpoint.
+ */
 export interface EndpointResponse {
   statusCode: number;
   description: string;
@@ -35,6 +44,9 @@ export interface EndpointResponse {
   example?: Record<string, unknown>;
 }
 
+/**
+ * Complete API endpoint definition.
+ */
 export interface ApiEndpoint {
   id: string;
   path: string;
@@ -820,12 +832,12 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     category: "Voice Cloning",
     name: "Clone Voice",
     description:
-      "Create a custom voice clone using audio samples. Supports instant cloning (30s, $0.50) and professional cloning (1-3hrs, $2.00). Upload 1-10 audio files (max 100MB total). The API Explorer provides a built-in file uploader for easy testing.",
+      "Create a custom voice clone using audio samples. Supports instant cloning (30s, 50 credits) and professional cloning (1-3hrs, 200 credits). Upload 1-10 audio files (max 100MB total). The API Explorer provides a built-in file uploader for easy testing.",
     requiresAuth: true,
     pricing: {
       cost: 0.5,
       unit: "clone",
-      description: "Instant: $0.50, Professional: $2.00",
+      description: "Instant: 50 credits, Professional: 200 credits",
       isVariable: true,
       estimatedRange: { min: 0.5, max: 2.0 },
     },
@@ -850,7 +862,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
           type: "string",
           required: true,
           description:
-            "Cloning type: instant ($0.50, 30s) or professional ($2.00, 30-60min)",
+            "Cloning type: instant (50 credits, 30s) or professional (200 credits, 30-60min)",
           enum: ["instant", "professional"],
           example: "instant",
         },

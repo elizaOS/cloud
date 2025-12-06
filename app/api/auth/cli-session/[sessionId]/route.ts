@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cliAuthSessionsService } from "@/lib/services";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * GET /api/auth/cli-session/[sessionId]
@@ -66,7 +67,7 @@ export async function GET(
       { status: 200 },
     );
   } catch (error) {
-    console.error("Error getting CLI auth session:", error);
+    logger.error("[CLI Auth] Error getting CLI auth session", { error });
     return NextResponse.json(
       { error: "Failed to get session status" },
       { status: 500 },

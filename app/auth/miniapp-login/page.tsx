@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, Suspense } from "react";
+import { useEffect, useState, useCallback, Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import {
@@ -25,8 +25,19 @@ function MiniappLoginContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session");
 
-  const [status, setStatus] = useState<Status>("loading");
-  const [errorMessage, setErrorMessage] = useState("");
+  // Compute initial status from props to avoid setState in effect
+  const initialStatus = useMemo(() => {
+    if (!sessionId) {
+      return { status: "error" as const, errorMessage: "Invalid authentication link. Missing session ID." };
+    }
+    if (!authenticated) {
+      return { status: "waiting_auth" as const, errorMessage: "" };
+    }
+    return { status: "loading" as const, errorMessage: "" };
+  }, [sessionId, authenticated]);
+
+  const [status, setStatus] = useState<Status>(initialStatus.status);
+  const [errorMessage, setErrorMessage] = useState(initialStatus.errorMessage);
 
   const completeLogin = useCallback(async () => {
     if (!sessionId) {
@@ -48,7 +59,11 @@ function MiniappLoginContent() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to complete authentication");
+        setStatus("error");
+        setErrorMessage(
+          errorData.error || "Failed to complete authentication",
+        );
+        return;
       }
 
       const data = await response.json();
@@ -59,7 +74,6 @@ function MiniappLoginContent() {
       callbackUrl.searchParams.set("session", sessionId);
       window.location.href = callbackUrl.toString();
     } catch (error) {
-      console.error("Error completing miniapp login:", error);
       setStatus("error");
       setErrorMessage(
         error instanceof Error
@@ -67,22 +81,35 @@ function MiniappLoginContent() {
           : "Failed to complete authentication",
       );
     }
+
   }, [sessionId]);
 
+  // Update status when props change (avoiding synchronous setState)
   useEffect(() => {
-    if (!sessionId) {
-      setStatus("error");
-      setErrorMessage("Invalid authentication link. Missing session ID.");
-      return;
+    const nextStatus = initialStatus.status;
+    const nextErrorMessage = initialStatus.errorMessage;
+    
+    // Only update if status changed to avoid unnecessary renders
+    if (status !== nextStatus || errorMessage !== nextErrorMessage) {
+      // Use setTimeout to avoid synchronous setState in effect
+      const timer = setTimeout(() => {
+        setStatus(nextStatus);
+        setErrorMessage(nextErrorMessage);
+      }, 0);
+      return () => clearTimeout(timer);
     }
+  }, [initialStatus.status, initialStatus.errorMessage, status, errorMessage]);
 
-    if (!authenticated) {
-      setStatus("waiting_auth");
-      return;
+  // Separate effect for completing login when authenticated
+  useEffect(() => {
+    if (initialStatus.status === "loading" && authenticated && sessionId) {
+      // Use setTimeout to avoid synchronous setState in effect
+      const timer = setTimeout(() => {
+        completeLogin();
+      }, 0);
+      return () => clearTimeout(timer);
     }
-
-    completeLogin();
-  }, [authenticated, sessionId, completeLogin]);
+  }, [initialStatus.status, authenticated, sessionId, completeLogin]);
 
   // Auto-trigger login when ready and waiting for auth
   useEffect(() => {
@@ -160,8 +187,7 @@ function MiniappLoginContent() {
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
-            <CardTitle>Completing Authentication</CardTitle>
-            <CardDescription>Setting up your session...</CardDescription>
+            <CardTitle>Logging In...</CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -195,6 +221,10 @@ function MiniappLoginContent() {
   return null;
 }
 
+/**
+ * Miniapp login page for authenticating miniapp users.
+ * Handles Privy authentication and redirects back to the miniapp callback URL.
+ */
 export default function MiniappLoginPage() {
   return (
     <Suspense

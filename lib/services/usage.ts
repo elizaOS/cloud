@@ -1,3 +1,7 @@
+/**
+ * Usage tracking service for recording and querying AI operation usage.
+ */
+
 import {
   usageRecordsRepository,
   type UsageRecord,
@@ -5,6 +9,9 @@ import {
   type UsageStats,
 } from "@/db/repositories";
 
+/**
+ * Service for tracking and querying usage records.
+ */
 export class UsageService {
   async getById(id: string): Promise<UsageRecord | undefined> {
     return await usageRecordsRepository.findById(id);

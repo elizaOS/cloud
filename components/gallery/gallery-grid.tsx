@@ -1,3 +1,12 @@
+/**
+ * Gallery grid component displaying media items in a responsive grid layout.
+ * Supports image/video preview, deletion, and download functionality.
+ *
+ * @param props - Gallery grid configuration
+ * @param props.items - Array of gallery items to display
+ * @param props.onItemDeleted - Optional callback when item is deleted
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -33,38 +42,25 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
 
   const handleDelete = async (item: GalleryItem) => {
     setIsDeleting(true);
-    try {
-      await deleteMedia(item.id);
-      toast.success("Media deleted successfully");
-      setDeleteConfirmItem(null);
-      onItemDeleted?.();
-    } catch (error) {
-      console.error("Failed to delete media:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to delete media",
-      );
-    } finally {
-      setIsDeleting(false);
-    }
+    await deleteMedia(item.id);
+    toast.success("Media deleted successfully");
+    setDeleteConfirmItem(null);
+    onItemDeleted?.();
+    setIsDeleting(false);
   };
 
   const handleDownload = async (item: GalleryItem) => {
-    try {
-      const response = await fetch(item.url);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${item.type}-${item.id}.${item.mimeType?.split("/")[1] || "file"}`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      toast.success("Download started");
-    } catch (error) {
-      console.error("Failed to download:", error);
-      toast.error("Failed to download media");
-    }
+    const response = await fetch(item.url);
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${item.type}-${item.id}.${item.mimeType?.split("/")[1] || "file"}`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    toast.success("Download started");
   };
 
   if (items.length === 0) {

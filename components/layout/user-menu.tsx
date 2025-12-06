@@ -1,6 +1,7 @@
 /**
- * User Menu Component
- * Displays authentication state and user actions
+ * User menu dropdown component displaying authentication state and user actions.
+ * Shows user avatar, credit balance, and navigation options (settings, API keys, logout).
+ * Handles logout and chat data clearing.
  */
 
 "use client";
@@ -75,12 +76,8 @@ export default function UserMenu() {
     // Clear chat data (rooms, entityId, localStorage)
     clearChatData();
 
-    try {
-      // Call Privy's logout to clear authentication state
-      await logout();
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
+    // Call Privy's logout to clear authentication state
+    await logout();
 
     // Force redirect to home page (router.push doesn't throw)
     router.push("/");

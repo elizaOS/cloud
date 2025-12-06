@@ -12,6 +12,13 @@ import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { organizations } from "./organizations";
 import { users } from "./users";
 
+/**
+ * User characters table schema.
+ * 
+ * Stores character definitions created by users. Characters can be templates,
+ * public marketplace items, or private user characters. Supports both cloud
+ * and miniapp sources.
+ */
 export const userCharacters = pgTable(
   "user_characters",
   {
@@ -62,6 +69,10 @@ export const userCharacters = pgTable(
     view_count: integer("view_count").default(0).notNull(),
     interaction_count: integer("interaction_count").default(0).notNull(),
     popularity_score: integer("popularity_score").default(0).notNull(),
+    // Source tracking: where the character was created
+    // "cloud" = created in main Eliza Cloud dashboard
+    // "miniapp" = created via miniapp integration
+    source: text("source").default("cloud").notNull(),
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -80,6 +91,7 @@ export const userCharacters = pgTable(
     popularity_idx: index("user_characters_popularity_idx").on(
       table.popularity_score,
     ),
+    source_idx: index("user_characters_source_idx").on(table.source),
   }),
 );
 

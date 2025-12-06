@@ -1,3 +1,10 @@
+/**
+ * Email type definitions for the email service.
+ */
+
+/**
+ * Options for sending an email.
+ */
 export interface EmailOptions {
   to: string | string[];
   subject: string;
@@ -12,6 +19,9 @@ export interface EmailOptions {
   }>;
 }
 
+/**
+ * Data for welcome email template.
+ */
 export interface WelcomeEmailData {
   email: string;
   userName: string;
@@ -20,6 +30,9 @@ export interface WelcomeEmailData {
   dashboardUrl: string;
 }
 
+/**
+ * Data for low credits warning email template.
+ */
 export interface LowCreditsEmailData {
   email: string;
   organizationName: string;
@@ -28,6 +41,9 @@ export interface LowCreditsEmailData {
   billingUrl: string;
 }
 
+/**
+ * Data for organization invite email template.
+ */
 export interface InviteEmailData {
   email: string;
   inviterName: string;
@@ -37,6 +53,9 @@ export interface InviteEmailData {
   expiresAt: string;
 }
 
+/**
+ * Data for auto top-up success email template.
+ */
 export interface AutoTopUpSuccessEmailData {
   email: string;
   organizationName: string;
@@ -48,6 +67,9 @@ export interface AutoTopUpSuccessEmailData {
   billingUrl: string;
 }
 
+/**
+ * Data for auto top-up disabled email template.
+ */
 export interface AutoTopUpDisabledEmailData {
   email: string;
   organizationName: string;
@@ -56,6 +78,9 @@ export interface AutoTopUpDisabledEmailData {
   settingsUrl: string;
 }
 
+/**
+ * Data for purchase confirmation email template.
+ */
 export interface PurchaseConfirmationEmailData {
   email: string;
   organizationName: string;

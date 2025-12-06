@@ -1,4 +1,7 @@
-// lib/providers/index.ts
+/**
+ * AI provider implementations and singleton access.
+ */
+
 import { VercelGatewayProvider } from "./vercel-gateway";
 import type { AIProvider } from "./types";
 
@@ -9,8 +12,12 @@ export { VercelGatewayProvider } from "./vercel-gateway";
 let providerInstance: AIProvider | null = null;
 
 /**
- * Get the AI provider instance.
- * Uses Vercel AI Gateway by default.
+ * Gets the AI provider instance.
+ *
+ * Uses Vercel AI Gateway by default. Lazy initializes on first call.
+ *
+ * @returns AI provider instance.
+ * @throws Error if AI_GATEWAY_API_KEY is not configured.
  */
 export function getProvider(): AIProvider {
   if (!providerInstance) {

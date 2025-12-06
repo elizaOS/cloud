@@ -1,6 +1,15 @@
+/**
+ * Redis-backed credit event emitter for serverless environments.
+ *
+ * Uses Redis queues to coordinate credit update events across multiple serverless instances.
+ */
+
 import { Redis } from "@upstash/redis";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * Credit update event structure.
+ */
 export interface CreditUpdateEvent {
   organizationId: string;
   newBalance: number;
@@ -10,11 +19,46 @@ export interface CreditUpdateEvent {
   timestamp: Date;
 }
 
+/**
+ * Raw event data from Redis before timestamp conversion
+ */
+interface RawCreditUpdateEvent {
+  organizationId: string;
+  newBalance: number;
+  delta: number;
+  reason: string;
+  userId?: string;
+  timestamp: string;
+}
+
+/**
+ * Type guard to check if a value is a valid RawCreditUpdateEvent
+ */
+function isRawCreditUpdateEvent(value: unknown): value is RawCreditUpdateEvent {
+  if (typeof value !== "object" || value === null) return false;
+  const obj = value as Record<string, unknown>;
+  return (
+    typeof obj.organizationId === "string" &&
+    typeof obj.newBalance === "number" &&
+    typeof obj.delta === "number" &&
+    typeof obj.reason === "string" &&
+    typeof obj.timestamp === "string"
+  );
+}
+
+/**
+ * Redis subscription client for credit updates.
+ */
 export interface RedisSubscriptionClient {
+  /** Unsubscribe from credit updates. */
   unsubscribe: () => Promise<void>;
+  /** Organization ID being subscribed to. */
   organizationId: string;
 }
 
+/**
+ * Redis-backed credit event emitter for distributed environments.
+ */
 class RedisCreditEventEmitter {
   private static instance: RedisCreditEventEmitter;
   private redis: Redis | null = null;
@@ -57,12 +101,8 @@ class RedisCreditEventEmitter {
       timestamp: event.timestamp.toISOString(),
     });
 
-    try {
-      await this.redis.rpush(channel, message);
-      await this.redis.expire(channel, 300);
-    } catch (error) {
-      logger.error("[Credit Events Redis] Failed to publish event:", error);
-    }
+    await this.redis.rpush(channel, message);
+    await this.redis.expire(channel, 300);
   }
 
   public async subscribeToCreditUpdates(
@@ -88,26 +128,31 @@ class RedisCreditEventEmitter {
     const processMessage = async (
       message: string | Record<string, unknown>,
     ) => {
-      try {
-        // Upstash Redis client auto-parses JSON, so message might already be an object
-        let parsed: Record<string, unknown>;
-        if (typeof message === "string") {
-          parsed = JSON.parse(message);
-        } else if (typeof message === "object" && message !== null) {
-          parsed = message;
-        } else {
-          return;
-        }
-
-        const event = {
-          ...(parsed as unknown as CreditUpdateEvent),
-          timestamp: new Date(parsed.timestamp as string),
-        } as CreditUpdateEvent;
-
-        await handler(event);
-      } catch (error) {
-        logger.error("[Credit Events Redis] Error processing message:", error);
+      // Upstash Redis client auto-parses JSON, so message might already be an object
+      let parsed: unknown;
+      if (typeof message === "string") {
+        parsed = JSON.parse(message);
+      } else if (typeof message === "object" && message !== null) {
+        parsed = message;
+      } else {
+        return;
       }
+
+      if (!isRawCreditUpdateEvent(parsed)) {
+        logger.warn("[Credit Events Redis] Invalid event format:", parsed);
+        return;
+      }
+
+      const event: CreditUpdateEvent = {
+        organizationId: parsed.organizationId,
+        newBalance: parsed.newBalance,
+        delta: parsed.delta,
+        reason: parsed.reason,
+        userId: parsed.userId,
+        timestamp: new Date(parsed.timestamp),
+      };
+
+      await handler(event);
     };
 
     let isActive = true;
@@ -116,23 +161,16 @@ class RedisCreditEventEmitter {
       const queueKey = `${channel}:queue`;
 
       while (isActive) {
-        try {
-          const messages = await subscriptionRedis.lrange(queueKey, 0, -1);
+        const messages = await subscriptionRedis.lrange(queueKey, 0, -1);
 
-          if (messages && messages.length > 0) {
-            for (const message of messages) {
-              await processMessage(message);
-            }
-            await subscriptionRedis.del(queueKey);
+        if (messages && messages.length > 0) {
+          for (const message of messages) {
+            await processMessage(message);
           }
-
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        } catch (error) {
-          if (isActive) {
-            logger.error("[Credit Events Redis] Subscription error:", error);
-          }
-          break;
+          await subscriptionRedis.del(queueKey);
         }
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     };
 

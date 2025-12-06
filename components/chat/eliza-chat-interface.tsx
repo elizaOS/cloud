@@ -1,6 +1,16 @@
+/**
+ * Eliza chat interface component providing full-featured chat functionality.
+ * Supports text and voice messages, streaming responses, knowledge base integration,
+ * model tier selection, audio playback, and room management.
+ *
+ * @param props - Chat interface configuration
+ * @param props.onMessageSent - Optional callback when a message is sent
+ * @param props.character - Optional character data for the chat session
+ */
+
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -60,7 +70,13 @@ interface Message {
   createdAt: number;
 }
 
-interface AgentInfo {
+import type { AgentInfo } from "@/db/repositories/agents";
+
+/**
+ * Display version of AgentInfo with UI-specific fields.
+ * Used for chat interface display (simplified from full AgentInfo).
+ */
+interface AgentInfoDisplay {
   id?: string;
   name?: string;
   avatarUrl?: string;
@@ -81,12 +97,7 @@ interface ElizaChatInterfaceProps {
   character?: CharacterData;
 }
 
-interface CustomVoice {
-  id: string;
-  elevenlabsVoiceId: string;
-  name: string;
-  cloneType: string;
-}
+import type { Voice as CustomVoice } from "@/components/voices/types";
 
 const tierIcons: Record<string, React.ReactNode> = {
   fast: <Zap className="h-3.5 w-3.5" />,
@@ -117,23 +128,29 @@ export function ElizaChatInterface({
   const { authenticated } = usePrivy();
 
   const [messages, setMessages] = useState<Message[]>([]);
-  const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
+  const [agentInfo, setAgentInfo] = useState<AgentInfoDisplay | null>(null);
   const [inputText, setInputText] = useState("");
+  const inputTextRef = useRef(inputText);
   const isPendingMessageProcessingRef = useRef(false);
   const pendingMessageToSendRef = useRef<string | null>(null);
   const isCreatingRoomRef = useRef(false);
+  // Ref to hold sendMessage function - avoids TDZ error when used in effects before definition
+  const sendMessageRef = useRef<((textOverride?: string) => Promise<void>) | null>(null);
 
-  // Get character name from prop (preferred), store, or agentInfo
-  const selectedCharacter = availableCharacters.find(
-    (char) => char.id === selectedCharacterId,
+  // Get character name from prop (preferred), store, or agentInfo (memoized)
+  const selectedCharacter = useMemo(
+    () => availableCharacters.find((char) => char.id === selectedCharacterId),
+    [availableCharacters, selectedCharacterId],
   );
-  const characterName =
-    character?.name || selectedCharacter?.name || agentInfo?.name || "Agent";
+  const characterName = useMemo(
+    () =>
+      character?.name || selectedCharacter?.name || agentInfo?.name || "Agent",
+    [character?.name, selectedCharacter?.name, agentInfo?.name],
+  );
 
   // Consolidated loading states
   const [loadingState, setLoadingState] = useState({
     isSending: false,
-    isInitializing: false,
     isLoadingMessages: false,
     isProcessingSTT: false,
   });
@@ -173,6 +190,7 @@ export function ElizaChatInterface({
   const {
     selectedTier,
     selectedModelId,
+    displayInfo,
     tiers,
     setTier,
     isLoading: isLoadingModels,
@@ -194,7 +212,7 @@ export function ElizaChatInterface({
     } finally {
       setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
     }
-  }, []);
+  }, []); // Stable - no dependencies needed
 
   // Load messages when roomId from context changes
   useEffect(() => {
@@ -207,35 +225,24 @@ export function ElizaChatInterface({
       setError(null);
       setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
     }
-  }, [roomId, loadMessages]);
+  }, [roomId, loadMessages]); // loadMessages is stable, only roomId changes
 
   const createRoom = useCallback(
     async (characterId?: string | null) => {
       const charIdToUse =
         characterId !== undefined ? characterId : selectedCharacterId;
-      setLoadingState((prev) => ({ ...prev, isInitializing: true }));
       setError(null);
-      try {
-        // Use store's createRoom which handles the API call
-        const newRoomId = await createRoomInStore(charIdToUse);
+      // Use store's createRoom which handles the API call
+      const newRoomId = await createRoomInStore(charIdToUse);
 
-        if (!newRoomId) {
-          throw new Error("Failed to create room");
-        }
-
-        // Load initial messages for the new room
-        await loadMessages(newRoomId);
-
-        return newRoomId;
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to create room");
-        console.error("[ElizaChat] Error creating room:", err);
-        throw err; // Re-throw so caller can handle
-      } finally {
-        setLoadingState((prev) => ({ ...prev, isInitializing: false }));
+      if (!newRoomId) {
+        throw new Error("Failed to create room");
       }
+
+      // New rooms are empty - skip loading to avoid race with optimistic messages
+      return newRoomId;
     },
-    [createRoomInStore, loadMessages, selectedCharacterId],
+    [createRoomInStore, selectedCharacterId],
   );
 
   // Handle pending message from landing page
@@ -244,8 +251,7 @@ export function ElizaChatInterface({
     if (
       !pendingMessage ||
       isPendingMessageProcessingRef.current ||
-      loadingState.isSending ||
-      loadingState.isInitializing
+      loadingState.isSending
     ) {
       return;
     }
@@ -269,12 +275,8 @@ export function ElizaChatInterface({
           console.log("[ElizaChat] Room created for pending message");
         })
         .catch((err) => {
-          console.error(
-            "[ElizaChat] Failed to create room for pending message:",
-            err,
-          );
+          console.error("[ElizaChat] Failed to create room for pending message:", err);
           isPendingMessageProcessingRef.current = false;
-          pendingMessageToSendRef.current = null;
         });
       return;
     }
@@ -295,26 +297,37 @@ export function ElizaChatInterface({
       setTimeout(() => {
         setInputText(messageToSend);
         setTimeout(() => {
-          sendMessage(messageToSend).finally(() => {
+          // Use ref to avoid TDZ - sendMessage is defined later in the component
+          sendMessageRef.current?.(messageToSend).finally(() => {
             // Reset processing flag after message is sent
             isPendingMessageProcessingRef.current = false;
           });
         }, 100);
       }, 500);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     roomId,
     loadingState.isSending,
-    loadingState.isInitializing,
     pendingMessage,
     loadingState.isLoadingMessages,
+    createRoom,
+    setPendingMessage,
   ]);
+
+  // Extract stable values from audioState to prevent callback recreation
+  const selectedVoiceIdRef = useRef(audioState.selectedVoiceId);
+  const autoPlayTTSRef = useRef(audioState.autoPlayTTS);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    selectedVoiceIdRef.current = audioState.selectedVoiceId;
+    autoPlayTTSRef.current = audioState.autoPlayTTS;
+  }, [audioState.selectedVoiceId, audioState.autoPlayTTS]);
 
   const generateSpeech = useCallback(
     async (text: string, messageId: string) => {
       try {
-        const currentVoiceId = audioState.selectedVoiceId;
+        const currentVoiceId = selectedVoiceIdRef.current;
         const requestBody: { text: string; voiceId?: string } = { text };
         if (currentVoiceId) {
           requestBody.voiceId = currentVoiceId;
@@ -334,7 +347,7 @@ export function ElizaChatInterface({
         const audioUrl = URL.createObjectURL(audioBlob);
         messageAudioUrls.current.set(messageId, audioUrl);
 
-        if (audioState.autoPlayTTS) {
+        if (autoPlayTTSRef.current) {
           setAudioState((prev) => ({ ...prev, currentPlayingId: messageId }));
           await player.playAudio(audioUrl);
         }
@@ -343,9 +356,10 @@ export function ElizaChatInterface({
       } catch (error) {
         console.error("TTS error:", error);
         toast.error("Failed to generate speech");
+        throw error;
       }
     },
-    [audioState.autoPlayTTS, audioState.selectedVoiceId, player],
+    [player], // Only player is needed, audioState values accessed via refs
   );
 
   // Load custom voices on mount (only for authenticated users)
@@ -365,9 +379,8 @@ export function ElizaChatInterface({
             setAudioState((prev) => ({ ...prev, customVoices: data.voices }));
           }
         }
-        // Silently ignore 401 errors - user may not have voice features
-      } catch (error) {
-        console.error("Failed to load custom voices:", error);
+      } catch {
+        // 401 errors are expected for users without voice features
       }
     };
 
@@ -393,58 +406,55 @@ export function ElizaChatInterface({
 
       setLoadingState((prev) => ({ ...prev, isProcessingSTT: true }));
 
-      try {
-        // Ensure the blob is in proper audio format (fix Safari/macOS video/webm issue)
-        const audioBlob = await ensureAudioFormat(recorder.audioBlob);
+      // Ensure the blob is in proper audio format (fix Safari/macOS video/webm issue)
+      const audioBlob = await ensureAudioFormat(recorder.audioBlob);
 
-        // Create FormData with audio file
-        const formData = new FormData();
-        const audioFile = new File([audioBlob], "recording.webm", {
-          type: audioBlob.type || "audio/webm",
-        });
-        formData.append("audio", audioFile);
+      // Create FormData with audio file
+      const formData = new FormData();
+      const audioFile = new File([audioBlob], "recording.webm", {
+        type: audioBlob.type || "audio/webm",
+      });
+      formData.append("audio", audioFile);
 
-        // Call STT API
-        const response = await fetch("/api/elevenlabs/stt", {
-          method: "POST",
-          body: formData,
-        });
+      // Call STT API
+      const response = await fetch("/api/elevenlabs/stt", {
+        method: "POST",
+        body: formData,
+      });
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Failed to transcribe audio");
-        }
-
-        const { transcript } = await response.json();
-
-        if (!transcript || transcript.trim().length === 0) {
-          toast.error("No speech detected. Please try again.");
-          console.warn("[ElizaChat STT] Empty transcript received");
-          return;
-        }
-
-        // Auto-send the transcribed message (will create room if needed)
-        await sendMessage(transcript);
-      } catch (error) {
-        console.error("[ElizaChat STT] Error:", error);
-        toast.error(
-          error instanceof Error ? error.message : "Failed to transcribe audio",
-        );
-      } finally {
-        // Cleanup: Clear recording and reset processing state
+      if (!response.ok) {
+        const error = await response.json();
         recorder.clearRecording();
         setLoadingState((prev) => ({ ...prev, isProcessingSTT: false }));
+        throw new Error(error.error || "Failed to transcribe audio");
       }
+
+      const { transcript } = await response.json();
+
+      if (!transcript || transcript.trim().length === 0) {
+        recorder.clearRecording();
+        setLoadingState(prev => ({ ...prev, isProcessingSTT: false }));
+        toast.error("No speech detected. Please try again.");
+        console.warn("[ElizaChat STT] Empty transcript received");
+        return;
+      }
+
+      // Auto-send the transcribed message (will create room if needed)
+      // Use ref to avoid TDZ - sendMessage is defined later in the component
+      await sendMessageRef.current?.(transcript);
+      
+      // Cleanup: Clear recording and reset processing state
+      recorder.clearRecording();
+      setLoadingState(prev => ({ ...prev, isProcessingSTT: false }));
     };
 
     processAudioBlob();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recorder.audioBlob, loadingState.isProcessingSTT, recorder, roomId]);
+  }, [recorder.audioBlob, loadingState.isProcessingSTT, recorder]);
 
   // Auto-generate TTS for new agent messages (only if autoPlayTTS is enabled)
   useEffect(() => {
     // Only generate TTS if auto-play is enabled
-    if (!audioState.autoPlayTTS) return;
+    if (!autoPlayTTSRef.current) return;
 
     const newAgentMessages = messages.filter(
       (msg) =>
@@ -455,10 +465,10 @@ export function ElizaChatInterface({
 
     newAgentMessages.forEach((msg) => {
       if (msg.content.text) {
-        generateSpeech(msg.content.text, msg.id).catch(console.error);
+        void generateSpeech(msg.content.text, msg.id);
       }
     });
-  }, [messages, generateSpeech, audioState.autoPlayTTS]);
+  }, [messages, generateSpeech]); // generateSpeech is now stable
 
   // Handle streaming messages from the single endpoint
   const handleStreamMessage = useCallback((messageData: StreamingMessage) => {
@@ -546,29 +556,34 @@ export function ElizaChatInterface({
     }
   }, []);
 
+  // Keep inputTextRef in sync with inputText
+  useEffect(() => {
+    inputTextRef.current = inputText;
+  }, [inputText]);
+
   // Auto-scroll to bottom when messages change (with delayed scroll for late-loading content)
   useEffect(() => {
     scrollToBottom();
     const timer = setTimeout(() => scrollToBottom(), 100);
     return () => clearTimeout(timer);
-  }, [messages, scrollToBottom]);
+  }, [messages, scrollToBottom]); // scrollToBottom is stable
 
-  const sendMessage = async (textOverride?: string) => {
-    const messageText = textOverride?.trim() || inputText.trim();
-    if (!messageText || loadingState.isSending) return;
+  const sendMessage = useCallback(
+    async (textOverride?: string) => {
+      const messageText = textOverride?.trim() || inputTextRef.current.trim();
+      if (!messageText || loadingState.isSending) return;
 
-    if (!textOverride) {
-      setInputText("");
-    }
-    setLoadingState((prev) => ({ ...prev, isSending: true }));
-    setError(null);
+      if (!textOverride) {
+        setInputText("");
+      }
+      setLoadingState((prev) => ({ ...prev, isSending: true }));
+      setError(null);
 
-    try {
-      // If no room exists, create one first
-      let currentRoomId = roomId;
-      if (!currentRoomId) {
-        console.log("[ElizaChat] No room selected, creating new room...");
-        try {
+      try {
+        // If no room exists, create one first
+        let currentRoomId = roomId;
+        if (!currentRoomId) {
+          console.log("[ElizaChat] No room selected, creating new room...");
           // Prevent duplicate room creation attempts
           if (isCreatingRoomRef.current) {
             console.log(
@@ -577,111 +592,123 @@ export function ElizaChatInterface({
             await new Promise((resolve) => setTimeout(resolve, 1000));
             currentRoomId = roomId; // Use the room that was just created
             if (!currentRoomId) {
-              throw new Error("Room creation timed out");
+              setError("Room creation timed out");
+              setLoadingState(prev => ({ ...prev, isSending: false }));
+              return;
             }
           } else {
             isCreatingRoomRef.current = true;
             try {
               const newRoomId = await createRoom(selectedCharacterId);
+              isCreatingRoomRef.current = false;
               if (!newRoomId) {
-                throw new Error("Room creation returned empty ID");
+                setError("Room creation returned empty ID");
+                setLoadingState(prev => ({ ...prev, isSending: false }));
+                return;
               }
               currentRoomId = newRoomId;
               console.log("[ElizaChat] Created new room:", newRoomId);
-
-              // Wait briefly for room to be fully initialized
-              // createRoom already loaded messages, just give it a moment
-              await new Promise((resolve) => setTimeout(resolve, 300));
-            } finally {
+            } catch (err) {
               isCreatingRoomRef.current = false;
+              setError(err instanceof Error ? err.message : "Failed to create room");
+              setLoadingState(prev => ({ ...prev, isSending: false }));
+              return;
             }
           }
-        } catch (createError) {
-          console.error("[ElizaChat] Failed to create room:", createError);
-          isCreatingRoomRef.current = false;
-          const errorMsg =
-            createError instanceof Error
-              ? createError.message
-              : "Unable to create conversation. Please try again.";
-          setError(errorMsg);
-          toast.error(errorMsg);
-          return;
         }
-      }
 
-      // Add optimistic temp user message
-      const clientMessageId = `temp-${Date.now()}`;
-      const now = Date.now();
-      const tempUserMessage: Message = {
-        id: clientMessageId,
-        content: { text: messageText },
-        isAgent: false,
-        createdAt: now,
-      };
-      setMessages((prev) => [...prev, tempUserMessage]);
+        // Add optimistic temp user message
+        const clientMessageId = `temp-${Date.now()}`;
+        const now = Date.now();
+        const tempUserMessage: Message = {
+          id: clientMessageId,
+          content: { text: messageText },
+          isAgent: false,
+          createdAt: now,
+        };
+        setMessages((prev) => [...prev, tempUserMessage]);
+        // Clear loading state immediately so chat interface shows right away
+        setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
 
-      // Safety timeout: remove thinking indicator after 30 seconds if no response
-      thinkingTimeoutRef.current = setTimeout(() => {
-        setMessages((prev) =>
-          prev.filter((m) => !m.id.startsWith("thinking-")),
-        );
-        console.warn(
-          "[Chat] Thinking indicator timeout - agent took too long to respond",
-        );
-      }, 30000);
-
-      // Stream the response using single endpoint
-      await sendStreamingMessage({
-        roomId: currentRoomId,
-        text: messageText,
-        model: selectedModelId, // Pass selected model from tier
-        sessionToken: anonymousSessionToken || undefined, // Pass session token for anonymous users
-        onMessage: handleStreamMessage,
-        onError: (errorMsg) => {
-          setError(errorMsg);
-          toast.error(errorMsg);
-          // Remove temp and thinking messages on error
+        // Safety timeout: remove thinking indicator after 30 seconds if no response
+        thinkingTimeoutRef.current = setTimeout(() => {
           setMessages((prev) =>
-            prev.filter(
-              (msg) =>
-                msg.id !== tempUserMessage.id &&
-                !msg.id.startsWith("thinking-"),
-            ),
+            prev.filter((m) => !m.id.startsWith("thinking-")),
           );
-          if (thinkingTimeoutRef.current) {
-            clearTimeout(thinkingTimeoutRef.current);
-            thinkingTimeoutRef.current = null;
-          }
-        },
-        onComplete: () => {
-          loadRooms();
-          // Notify parent that a message was sent successfully (for anonymous message counting)
-          if (onMessageSent) {
-            onMessageSent();
-          }
-        },
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send message");
-      console.error("Error sending message:", err);
-      toast.error(
-        err instanceof Error ? err.message : "Failed to send message",
-      );
-      // Remove temp and thinking messages on error
-      setMessages((prev) =>
-        prev.filter(
-          (msg) =>
-            !msg.id.startsWith("temp-") && !msg.id.startsWith("thinking-"),
-        ),
-      );
-      if (thinkingTimeoutRef.current) {
-        clearTimeout(thinkingTimeoutRef.current);
-        thinkingTimeoutRef.current = null;
+          console.warn(
+            "[Chat] Thinking indicator timeout - agent took too long to respond",
+          );
+        }, 30000);
+
+        // Stream the response using single endpoint
+        await sendStreamingMessage({
+          roomId: currentRoomId,
+          text: messageText,
+          model: selectedModelId, // Pass selected model from tier
+          sessionToken: anonymousSessionToken || undefined, // Pass session token for anonymous users
+          onMessage: handleStreamMessage,
+          onError: (errorMsg) => {
+            setError(errorMsg);
+            toast.error(errorMsg);
+            // Remove temp and thinking messages on error
+            setMessages((prev) =>
+              prev.filter(
+                (msg) =>
+                  msg.id !== tempUserMessage.id &&
+                  !msg.id.startsWith("thinking-"),
+              ),
+            );
+            if (thinkingTimeoutRef.current) {
+              clearTimeout(thinkingTimeoutRef.current);
+              thinkingTimeoutRef.current = null;
+            }
+          },
+          onComplete: () => {
+            loadRooms();
+            // Notify parent that a message was sent successfully (for anonymous message counting)
+            if (onMessageSent) {
+              onMessageSent();
+            }
+          },
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to send message");
+        console.error("Error sending message:", err);
+        toast.error(
+          err instanceof Error ? err.message : "Failed to send message",
+        );
+        // Remove temp and thinking messages on error
+        setMessages((prev) =>
+          prev.filter(
+            (msg) =>
+              !msg.id.startsWith("temp-") && !msg.id.startsWith("thinking-"),
+          ),
+        );
+        if (thinkingTimeoutRef.current) {
+          clearTimeout(thinkingTimeoutRef.current);
+          thinkingTimeoutRef.current = null;
+        }
+      } finally {
+        setLoadingState((prev) => ({ ...prev, isSending: false }));
       }
-    } finally {
-      setLoadingState((prev) => ({ ...prev, isSending: false }));
-    }
-  };
+    },
+    [
+      loadingState.isSending,
+      roomId,
+      createRoom,
+      selectedCharacterId,
+      selectedModelId,
+      anonymousSessionToken,
+      handleStreamMessage,
+      loadRooms,
+      onMessageSent,
+    ],
+  );
+
+  // Keep sendMessageRef in sync - allows effects defined before sendMessage to call it
+  useEffect(() => {
+    sendMessageRef.current = sendMessage;
+  }, [sendMessage]);
 
   const formatTimestamp = (timestamp: number): string => {
     const date = new Date(timestamp);
@@ -705,77 +732,42 @@ export function ElizaChatInterface({
       contentType: string;
     }>,
   ) => {
-    try {
-      // Check if there are image attachments
-      const imageAttachment = attachments?.find(
-        (att) =>
-          att.contentType === "IMAGE" ||
-          att.contentType === "image" ||
-          att.contentType.startsWith("image/"),
-      );
-
-      if (imageAttachment) {
-        // Copy the actual image to clipboard
-        try {
-          const response = await fetch(imageAttachment.url);
-          const blob = await response.blob();
-
-          // Ensure the blob is an image type
-          const imageBlob = blob.type.startsWith("image/")
-            ? blob
-            : new Blob([blob], { type: "image/png" });
-
-          const clipboardItem = new ClipboardItem({
-            [imageBlob.type]: imageBlob,
-          });
-
-          await navigator.clipboard.write([clipboardItem]);
-          setCopiedMessageId(messageId);
-          toast.success("Image copied to clipboard");
-          setTimeout(() => setCopiedMessageId(null), 2000);
-          return;
-        } catch (imageError) {
-          console.error(
-            "Failed to copy image, falling back to text:",
-            imageError,
-          );
-          toast.error("Failed to copy image, try downloading instead");
-          return;
-        }
-      }
-
-      // Fall back to copying text if no image
-      await navigator.clipboard.writeText(text);
-      setCopiedMessageId(messageId);
-      toast.success("Message copied to clipboard");
-      // Reset after 2 seconds
-      setTimeout(() => setCopiedMessageId(null), 2000);
-    } catch (error) {
-      console.error("Failed to copy:", error);
-      toast.error("Failed to copy message");
-    }
-  };
-
-  if (loadingState.isInitializing) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        <div className="text-center space-y-3">
-          <ElizaAvatar
-            avatarUrl="https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png"
-            className="w-16 h-16 mx-auto shadow-lg"
-            iconClassName="h-8 w-8"
-            animate={true}
-          />
-          <div>
-            <p className="text-base font-semibold">Initializing Eliza...</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Setting up your conversation space
-            </p>
-          </div>
-        </div>
-      </div>
+    // Check if there are image attachments
+    const imageAttachment = attachments?.find(
+      (att) =>
+        att.contentType === "IMAGE" ||
+        att.contentType === "image" ||
+        att.contentType.startsWith("image/"),
     );
-  }
+
+    if (imageAttachment) {
+      // Copy the actual image to clipboard
+      const response = await fetch(imageAttachment.url);
+      const blob = await response.blob();
+
+      // Ensure the blob is an image type
+      const imageBlob = blob.type.startsWith("image/")
+        ? blob
+        : new Blob([blob], { type: "image/png" });
+
+      const clipboardItem = new ClipboardItem({
+        [imageBlob.type]: imageBlob,
+      });
+
+      await navigator.clipboard.write([clipboardItem]);
+      setCopiedMessageId(messageId);
+      toast.success("Image copied to clipboard");
+      setTimeout(() => setCopiedMessageId(null), 2000);
+      return;
+    }
+
+    // Fall back to copying text if no image
+    await navigator.clipboard.writeText(text);
+    setCopiedMessageId(messageId);
+    toast.success("Message copied to clipboard");
+    // Reset after 2 seconds
+    setTimeout(() => setCopiedMessageId(null), 2000);
+  };
 
   return (
     <div className="flex h-full w-full min-h-0 justify-center">
@@ -804,9 +796,6 @@ export function ElizaChatInterface({
                   <div className="space-y-2">
                     <p className="text-base font-semibold">
                       Loading conversation...
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Retrieving message history
                     </p>
                   </div>
                   {/* Message Skeletons */}
@@ -885,7 +874,7 @@ export function ElizaChatInterface({
                         if (charData?.description) {
                           return charData.description;
                         }
-                        return `Say hello to ${characterName}!`;
+                        return ``;
                       })()}
                     </p>
                   </div>
@@ -1178,10 +1167,15 @@ export function ElizaChatInterface({
                       <div className="flex items-center gap-2">
                         {tierIcons[tier.id]}
                         <div className="flex flex-col">
-                          <span className="font-medium">{tier.name}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {tier.description}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium">{tier.name}</span>
+                            {tier.recommended && (
+                              <span className="text-[10px] px-1 py-0.5 rounded bg-[#FF5800]/20 text-[#FF5800]">
+                                recommended
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-white/40 font-mono">{tier.modelId}</span>
                         </div>
                       </div>
                     </SelectItem>

@@ -24,9 +24,12 @@ interface BillingSuccessPageProps {
 }
 
 /**
- * Verify and process the Stripe checkout session
- * This acts as a fallback if webhook doesn't fire (e.g., local development)
- * The creditsService.addCredits has built-in idempotency to prevent duplicates
+ * Verifies and processes a Stripe checkout session.
+ * Acts as a fallback if the webhook doesn't fire (e.g., local development).
+ * The creditsService.addCredits has built-in idempotency to prevent duplicates.
+ *
+ * @param sessionId - The Stripe checkout session ID.
+ * @returns An object indicating success, error, credits added, and whether it was already processed.
  */
 async function verifyAndProcessSession(sessionId: string): Promise<{
   success: boolean;
@@ -34,144 +37,214 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
   credits?: number;
   alreadyProcessed?: boolean;
 }> {
-  try {
-    console.log(`[BillingSuccess] Verifying session: ${sessionId}`);
+  console.log(`[BillingSuccess] Verifying session: ${sessionId}`);
 
-    // Fetch the session from Stripe
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
+  // Fetch the session from Stripe
+  const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-    if (session.payment_status !== "paid") {
-      console.warn(
-        `[BillingSuccess] Session ${sessionId} not paid: ${session.payment_status}`,
-      );
-      return {
-        success: false,
-        error: `Payment not completed. Status: ${session.payment_status}`,
-      };
-    }
-
-    const organizationId = session.metadata?.organization_id;
-    const userId = session.metadata?.user_id;
-    const creditsStr = session.metadata?.credits || "0";
-    const credits = Number.parseFloat(creditsStr);
-    const purchaseType = session.metadata?.type || "checkout";
-    const paymentIntentId = session.payment_intent as string;
-
-    if (!organizationId || credits <= 0) {
-      console.warn(
-        `[BillingSuccess] Invalid metadata: org=${organizationId}, credits=${credits}`,
-      );
-      return {
-        success: false,
-        error: "Invalid session metadata",
-      };
-    }
-
-    if (!paymentIntentId) {
-      console.warn("[BillingSuccess] No payment intent ID in session");
-      return {
-        success: false,
-        error: "No payment intent found",
-      };
-    }
-
-    // Check if already processed (idempotency check)
-    const existingTransaction =
-      await creditsService.getTransactionByStripePaymentIntent(paymentIntentId);
-
-    if (existingTransaction) {
-      console.log(
-        `[BillingSuccess] Session already processed via webhook (transaction: ${existingTransaction.id})`,
-      );
-      return {
-        success: true,
-        credits,
-        alreadyProcessed: true,
-      };
-    }
-
-    // Add credits (with built-in idempotency)
-    console.log(
-      `[BillingSuccess] Adding ${credits} credits to org ${organizationId}`,
+  if (session.payment_status !== "paid") {
+    console.warn(
+      `[BillingSuccess] Session ${sessionId} not paid: ${session.payment_status}`,
     );
+    return {
+      success: false,
+      error: `Payment not completed. Status: ${session.payment_status}`,
+    };
+  }
 
-    await creditsService.addCredits({
-      organizationId,
-      amount: credits,
-      description: `Balance top-up - $${credits.toFixed(2)}`,
-      metadata: {
-        user_id: userId,
-        payment_intent_id: paymentIntentId,
-        session_id: sessionId,
-        type: purchaseType,
-        source: "success_page_fallback",
-      },
-      stripePaymentIntentId: paymentIntentId,
+  const organizationId = session.metadata?.organization_id;
+  const userId = session.metadata?.user_id;
+  const creditsStr = session.metadata?.credits || "0";
+  const credits = parseAndValidateCredits(creditsStr);
+  const purchaseType = session.metadata?.type || "checkout";
+  const paymentIntentId = session.payment_intent as string;
+
+  if (!organizationId || !credits) {
+    console.warn("[BillingSuccess] Invalid metadata", {
+      hasOrgId: !!organizationId,
+      hasValidCredits: !!credits,
     });
+    return {
+      success: false,
+      error: "Invalid session metadata",
+    };
+  }
 
-    console.log(
-      `[BillingSuccess] ✓ Credits added for session ${sessionId} (fallback)`,
-    );
+  if (!paymentIntentId) {
+    console.warn("[BillingSuccess] No payment intent ID in session");
+    return {
+      success: false,
+      error: "No payment intent found",
+    };
+  }
 
-    // Create invoice record
-    try {
-      const existingInvoice = await invoicesService.getByStripeInvoiceId(
-        `cs_${sessionId}`,
-      );
+  // Check if already processed (idempotency check)
+  const existingTransaction =
+    await creditsService.getTransactionByStripePaymentIntent(paymentIntentId);
 
-      if (!existingInvoice) {
-        const amountTotal = session.amount_total
-          ? (session.amount_total / 100).toString()
-          : credits.toString();
-
-        await invoicesService.create({
-          organization_id: organizationId,
-          stripe_invoice_id: `cs_${sessionId}`,
-          stripe_customer_id: session.customer as string,
-          stripe_payment_intent_id: paymentIntentId,
-          amount_due: amountTotal,
-          amount_paid: amountTotal,
-          currency: session.currency || "usd",
-          status: "paid",
-          invoice_type: purchaseType,
-          invoice_number: undefined,
-          invoice_pdf: undefined,
-          hosted_invoice_url: undefined,
-          credits_added: credits.toString(),
-          metadata: {
-            type: purchaseType,
-            session_id: sessionId,
-            source: "success_page_fallback",
-          },
-          paid_at: new Date(),
-        });
-
-        console.log(
-          `[BillingSuccess] ✓ Invoice created for session ${sessionId}`,
-        );
-      }
-    } catch (invoiceError) {
-      // Non-critical - credits were added successfully
-      console.error(
-        "[BillingSuccess] Invoice creation error (non-critical):",
-        invoiceError,
-      );
-    }
-
+  if (existingTransaction) {
+    console.log("[BillingSuccess] Session already processed via webhook");
     return {
       success: true,
       credits,
-      alreadyProcessed: false,
-    };
-  } catch (error) {
-    console.error("[BillingSuccess] Error processing session:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
+      alreadyProcessed: true,
     };
   }
+
+  // Add credits (with built-in idempotency)
+  console.log(
+    `[BillingSuccess] Adding ${credits} credits to org ${organizationId}`,
+  );
+
+  await creditsService.addCredits({
+    organizationId,
+    amount: credits,
+    description: `Balance top-up - $${credits.toFixed(2)}`,
+    metadata: {
+      user_id: userId,
+      payment_intent_id: paymentIntentId,
+      session_id: sessionId,
+      type: purchaseType,
+      source: "success_page_fallback",
+    },
+    stripePaymentIntentId: paymentIntentId,
+  });
+
+  console.log(
+    `[BillingSuccess] ✓ Credits added for session ${sessionId} (fallback)`,
+  );
+
+  // Create invoice record
+  try {
+    const existingInvoice = await invoicesService.getByStripeInvoiceId(
+      `cs_${sessionId}`,
+    );
+
+    if (!existingInvoice) {
+      const amountTotal = session.amount_total
+        ? (session.amount_total / 100).toString()
+        : credits.toString();
+
+      await invoicesService.create({
+        organization_id: organizationId,
+        stripe_invoice_id: `cs_${sessionId}`,
+        stripe_customer_id: session.customer as string,
+        stripe_payment_intent_id: paymentIntentId,
+        amount_due: amountTotal,
+        amount_paid: amountTotal,
+        currency: session.currency || "usd",
+        status: "paid",
+        invoice_type: purchaseType,
+        invoice_number: undefined,
+        invoice_pdf: undefined,
+        hosted_invoice_url: undefined,
+        credits_added: credits.toString(),
+        metadata: {
+          type: purchaseType,
+          session_id: sessionId,
+          source: "success_page_fallback",
+        },
+        paid_at: new Date(),
+      });
+
+      console.log(
+        `[BillingSuccess] ✓ Invoice created for session ${sessionId}`,
+      );
+    }
+  } catch (invoiceError) {
+    // Non-critical - credits were added successfully
+    console.error(
+      "[BillingSuccess] Invoice creation error (non-critical):",
+      invoiceError,
+    );
+  }
+
+  if (existingTransaction) {
+    console.log(
+      `[BillingSuccess] Session already processed via webhook (transaction: ${existingTransaction.id})`
+    );
+    return {
+      success: true,
+      credits,
+      alreadyProcessed: true,
+    };
+  }
+
+  // Add credits (with built-in idempotency)
+  console.log(
+    `[BillingSuccess] Adding ${credits} credits to org ${organizationId}`
+  );
+
+  await creditsService.addCredits({
+    organizationId,
+    amount: credits,
+    description: `Balance top-up - $${credits.toFixed(2)}`,
+    metadata: {
+      user_id: userId,
+      payment_intent_id: paymentIntentId,
+      session_id: sessionId,
+      type: purchaseType,
+      source: "success_page_fallback",
+    },
+    stripePaymentIntentId: paymentIntentId,
+  });
+
+  console.log(
+    `[BillingSuccess] ✓ Credits added for session ${sessionId} (fallback)`
+  );
+
+  // Create invoice record
+  const existingInvoice = await invoicesService.getByStripeInvoiceId(
+    `cs_${sessionId}`
+  );
+
+  if (!existingInvoice) {
+    const amountTotal = session.amount_total
+      ? (session.amount_total / 100).toString()
+      : credits.toString();
+
+    await invoicesService.create({
+      organization_id: organizationId,
+      stripe_invoice_id: `cs_${sessionId}`,
+      stripe_customer_id: session.customer as string,
+      stripe_payment_intent_id: paymentIntentId,
+      amount_due: amountTotal,
+      amount_paid: amountTotal,
+      currency: session.currency || "usd",
+      status: "paid",
+      invoice_type: purchaseType,
+      invoice_number: undefined,
+      invoice_pdf: undefined,
+      hosted_invoice_url: undefined,
+      credits_added: credits.toString(),
+      metadata: {
+        type: purchaseType,
+        session_id: sessionId,
+        source: "success_page_fallback",
+      },
+      paid_at: new Date(),
+    });
+
+    console.log(
+      `[BillingSuccess] ✓ Invoice created for session ${sessionId}`
+    );
+  }
+
+  return {
+    success: true,
+    credits,
+    alreadyProcessed: false,
+  };
 }
 
+/**
+ * Billing success page displayed after a successful Stripe checkout session.
+ * Verifies the payment and processes credit addition if not already handled by webhook.
+ * Shows success or error state based on payment verification.
+ *
+ * @param searchParams - Search parameters, including `from` (redirect source) and `session_id` (Stripe session ID).
+ * @returns The rendered billing success page with payment status and credit balance.
+ */
 export default async function BillingSuccessPage({
   searchParams,
 }: BillingSuccessPageProps) {

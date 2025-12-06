@@ -1,4 +1,4 @@
-import type { Character, Plugin } from "@elizaos/core";
+import type { Character, Plugin, Provider, Action } from "@elizaos/core";
 import { elizaOSCloudPlugin } from "@elizaos/plugin-elizacloud";
 import { memoryPlugin } from "@elizaos/plugin-memory";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
@@ -104,7 +104,7 @@ export class AgentLoader {
 
     return {
       character: defaultAgent.character,
-      plugins: plugins as unknown as Plugin[],
+      plugins,
     };
   }
 
@@ -277,7 +277,7 @@ export class AgentLoader {
     agentMode: AgentMode,
     characterPlugins: string[],
   ): Promise<Plugin[]> {
-    const plugins: unknown[] = [];
+    const plugins: Plugin[] = [];
 
     // ========================================
     // CORE PLUGINS - BASED ON AGENT MODE
@@ -346,15 +346,15 @@ export class AgentLoader {
 
     console.log(`[AgentLoader] Total plugins loaded: ${plugins.length}`);
 
-    return plugins as Plugin[];
+    return plugins;
   }
 
   /**
    * Get providers and actions from plugins
    */
   getProvidersAndActions(plugins: Plugin[]): {
-    providers: unknown[];
-    actions: unknown[];
+    providers: Provider[];
+    actions: Action[];
   } {
     const providers = plugins
       .map((plugin) => plugin.providers || [])
