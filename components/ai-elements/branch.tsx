@@ -5,7 +5,14 @@ import { cn } from "@/lib/utils";
 import type { UIMessage } from "ai";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import type { ComponentProps, HTMLAttributes, ReactElement } from "react";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 type BranchContextType = {
   currentBranch: number;
@@ -42,10 +49,13 @@ export const Branch = ({
   const [currentBranch, setCurrentBranch] = useState(defaultBranch);
   const [branches, setBranches] = useState<ReactElement[]>([]);
 
-  const handleBranchChange = useCallback((newBranch: number) => {
-    setCurrentBranch(newBranch);
-    onBranchChange?.(newBranch);
-  }, [onBranchChange]);
+  const handleBranchChange = useCallback(
+    (newBranch: number) => {
+      setCurrentBranch(newBranch);
+      onBranchChange?.(newBranch);
+    },
+    [onBranchChange],
+  );
 
   const goToPrevious = useCallback(() => {
     setCurrentBranch((prev) => {
@@ -63,14 +73,17 @@ export const Branch = ({
     });
   }, [branches.length, onBranchChange]);
 
-  const contextValue = useMemo<BranchContextType>(() => ({
-    currentBranch,
-    totalBranches: branches.length,
-    goToPrevious,
-    goToNext,
-    branches,
-    setBranches,
-  }), [currentBranch, branches, goToPrevious, goToNext]);
+  const contextValue = useMemo<BranchContextType>(
+    () => ({
+      currentBranch,
+      totalBranches: branches.length,
+      goToPrevious,
+      goToNext,
+      branches,
+      setBranches,
+    }),
+    [currentBranch, branches, goToPrevious, goToNext],
+  );
 
   return (
     <BranchContext.Provider value={contextValue}>

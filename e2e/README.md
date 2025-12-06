@@ -39,6 +39,7 @@ cp e2e/env.example e2e/.env
 ```
 
 Required variables:
+
 - `TEST_WALLET_SEED_PHRASE` - 12-word seed phrase for test wallet
 - `TEST_WALLET_PASSWORD` - Password for MetaMask (min 8 chars)
 
@@ -55,31 +56,37 @@ This creates a cached MetaMask state to speed up test execution.
 ## Running Tests
 
 ### Run All E2E Tests
+
 ```bash
 bun run test:e2e
 ```
 
 ### Run Tests with UI Mode (Interactive)
+
 ```bash
 bun run test:e2e:ui
 ```
 
 ### Run Tests with Browser Visible
+
 ```bash
 bun run test:e2e:headed
 ```
 
 ### Run Only Wallet Tests
+
 ```bash
 bun run test:e2e:wallet
 ```
 
 ### Run Only Social Login Tests
+
 ```bash
 bun run test:e2e:social
 ```
 
 ### View Test Report
+
 ```bash
 bun run test:e2e:report
 ```
@@ -105,6 +112,7 @@ e2e/
 ## Test Coverage
 
 ### Wallet Login Tests (`wallet-login.spec.ts`)
+
 - ✅ Display login page with wallet option
 - ✅ Open Privy modal on Connect Wallet click
 - ✅ Complete MetaMask connection and signature
@@ -113,6 +121,7 @@ e2e/
 - ✅ Persist authentication after page reload
 
 ### Social Login Tests (`social-login.spec.ts`)
+
 - ✅ Display all OAuth options (Google, Discord, GitHub)
 - ✅ Initiate OAuth flows
 - ✅ Show loading states during OAuth
@@ -123,22 +132,27 @@ e2e/
 ## Debugging
 
 ### Debug Wallet Setup Issues
+
 ```bash
 bun run synpress:debug
 ```
 
 ### Run Specific Test File
+
 ```bash
 bunx playwright test e2e/tests/wallet-login.spec.ts --config=e2e/playwright.config.ts
 ```
 
 ### Run Single Test by Name
+
 ```bash
 bunx playwright test -g "should successfully login with MetaMask" --config=e2e/playwright.config.ts
 ```
 
 ### View Trace on Failure
+
 Failed tests automatically generate traces. View them with:
+
 ```bash
 bunx playwright show-trace e2e/test-results/<test-name>/trace.zip
 ```
@@ -152,6 +166,7 @@ For CI environments:
 3. Consider using a dedicated test Privy app with test mode enabled
 
 Example GitHub Actions workflow:
+
 ```yaml
 - name: Run E2E Tests
   env:
@@ -167,21 +182,26 @@ Example GitHub Actions workflow:
 ## Troubleshooting
 
 ### "MetaMask not found" Error
+
 Ensure you've built the wallet cache: `bun run synpress:cache`
 
 ### Tests Timing Out
+
 - Increase timeout in `playwright.config.ts`
 - Ensure dev server is running: `bun run dev`
 - Check if localhost:3000 is accessible
 
 ### OAuth Tests Failing
+
 OAuth tests verify the flow starts but don't complete actual OAuth.
 For full OAuth testing, use:
+
 - Mock OAuth provider
 - Test accounts (Google, Discord, GitHub)
 - Privy test mode
 
 ### Wallet Connection Rejected Automatically
+
 Ensure `TEST_WALLET_SEED_PHRASE` is a valid 12-word mnemonic.
 
 ## Adding New Tests
@@ -192,6 +212,7 @@ Ensure `TEST_WALLET_SEED_PHRASE` is a valid 12-word mnemonic.
 4. Follow existing test patterns for consistency
 
 Example:
+
 ```typescript
 import { test, expect } from "../fixtures/test-fixtures";
 import { goToLogin, LoginSelectors } from "../fixtures/test-fixtures";
@@ -201,7 +222,3 @@ test("should do something", async ({ page }) => {
   // Your test logic
 });
 ```
-
-
-
-

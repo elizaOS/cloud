@@ -27,7 +27,9 @@ export interface ParsedResponse {
  * Parse planned items (providers or actions) from XML response
  * Handles both array and comma-separated string formats
  */
-export function parsePlannedItems(items: string | string[] | undefined): string[] {
+export function parsePlannedItems(
+  items: string | string[] | undefined,
+): string[] {
   if (!items) return [];
 
   const itemArray = Array.isArray(items)
@@ -46,4 +48,3 @@ export function canRespondImmediately(plan: ParsedPlan | null): boolean {
     plan?.canRespondNow === "true"
   );
 }
-

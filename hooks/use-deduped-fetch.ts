@@ -1,12 +1,12 @@
 /**
  * useDedupedFetch - Deduplicated Data Fetching Hook
- * 
+ *
  * This hook prevents duplicate API calls by:
  * 1. Deduplicating concurrent requests to the same endpoint
  * 2. Caching responses for a configurable TTL
  * 3. Providing stale-while-revalidate behavior
  * 4. Tracking in-flight requests to prevent race conditions
- * 
+ *
  * Usage:
  *   const { data, error, isLoading, refetch } = useDedupedFetch<MyType>(
  *     '/api/my-endpoint',
@@ -17,7 +17,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 
 // Global request cache and in-flight tracking
-const requestCache = new Map<string, { data: unknown; timestamp: number; expiresAt: number }>();
+const requestCache = new Map<
+  string,
+  { data: unknown; timestamp: number; expiresAt: number }
+>();
 const inFlightRequests = new Map<string, Promise<Response>>();
 
 // Default configuration
@@ -67,7 +70,7 @@ function getCacheKey(url: string, options?: RequestInit): string {
  */
 export function useDedupedFetch<T>(
   url: string | null,
-  options: UseDedupedFetchOptions = {}
+  options: UseDedupedFetchOptions = {},
 ): UseDedupedFetchResult<T> {
   const {
     dedupingInterval = DEFAULT_DEDUPING_INTERVAL,
@@ -93,7 +96,7 @@ export function useDedupedFetch<T>(
   // Memoize the cache key
   const cacheKey = useMemo(
     () => (url ? getCacheKey(url, fetchOptions) : null),
-    [url, fetchOptions]
+    [url, fetchOptions],
   );
 
   // Fetch function
@@ -138,8 +141,10 @@ export function useDedupedFetch<T>(
         try {
           const response = await inFlight;
           const responseData = await response.clone().json();
-          const transformedData = transform ? transform(responseData) : responseData;
-          
+          const transformedData = transform
+            ? transform(responseData)
+            : responseData;
+
           if (mountedRef.current) {
             setData(transformedData as T);
             setIsLoading(false);
@@ -179,11 +184,11 @@ export function useDedupedFetch<T>(
           ...fetchOptions,
           signal: abortController.signal,
         });
-        
+
         inFlightRequests.set(cacheKey, fetchPromise);
 
         const response = await fetchPromise;
-        
+
         // Remove from in-flight after response received
         inFlightRequests.delete(cacheKey);
 
@@ -192,7 +197,9 @@ export function useDedupedFetch<T>(
         }
 
         const responseData = await response.json();
-        const transformedData = transform ? transform(responseData) : responseData;
+        const transformedData = transform
+          ? transform(responseData)
+          : responseData;
 
         // Update cache
         requestCache.set(cacheKey, {
@@ -223,7 +230,17 @@ export function useDedupedFetch<T>(
         }
       }
     },
-    [url, cacheKey, skip, dedupingInterval, cacheTTL, staleTTL, fetchOptions, transform, data]
+    [
+      url,
+      cacheKey,
+      skip,
+      dedupingInterval,
+      cacheTTL,
+      staleTTL,
+      fetchOptions,
+      transform,
+      data,
+    ],
   );
 
   // Refetch function (forces revalidation)
@@ -234,10 +251,11 @@ export function useDedupedFetch<T>(
   // Mutate function (optimistic updates)
   const mutate = useCallback(
     (newData: T | ((prev: T | null) => T)) => {
-      const resolvedData = typeof newData === "function" 
-        ? (newData as (prev: T | null) => T)(data)
-        : newData;
-      
+      const resolvedData =
+        typeof newData === "function"
+          ? (newData as (prev: T | null) => T)(data)
+          : newData;
+
       setData(resolvedData);
 
       // Update cache
@@ -250,7 +268,7 @@ export function useDedupedFetch<T>(
         });
       }
     },
-    [data, cacheKey, cacheTTL]
+    [data, cacheKey, cacheTTL],
   );
 
   // Initial fetch
@@ -327,24 +345,23 @@ export function invalidateFetchCache(url: string, options?: RequestInit): void {
 export async function prefetch<T>(
   url: string,
   options?: RequestInit,
-  cacheTTL = DEFAULT_CACHE_TTL
+  cacheTTL = DEFAULT_CACHE_TTL,
 ): Promise<T> {
   const cacheKey = getCacheKey(url, options);
-  
+
   const response = await fetch(url, options);
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
-  
+
   const data = await response.json();
   const now = Date.now();
-  
+
   requestCache.set(cacheKey, {
     data,
     timestamp: now,
     expiresAt: now + cacheTTL,
   });
-  
+
   return data as T;
 }
-

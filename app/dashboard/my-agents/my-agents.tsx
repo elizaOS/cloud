@@ -13,8 +13,7 @@ export function MyAgentsClient() {
 
   useSetPageHeader({
     title: "My Agents",
-    description:
-      "Manage and interact with your personal AI agents.",
+    description: "Manage and interact with your personal AI agents.",
   });
 
   // Claim any affiliate characters the user has interacted with
@@ -41,12 +40,17 @@ export function MyAgentsClient() {
       .then((res) => res.json())
       .then((data) => {
         if (data.success && data.claimed?.length > 0) {
-          console.log("[My Agents] 🎯 Claimed affiliate characters:", data.claimed);
+          console.log(
+            "[My Agents] 🎯 Claimed affiliate characters:",
+            data.claimed,
+          );
           toast.success(
             `${data.claimed.length} agent(s) added to your library!`,
             {
-              description: data.claimed.map((c: { name: string }) => c.name).join(", "),
-            }
+              description: data.claimed
+                .map((c: { name: string }) => c.name)
+                .join(", "),
+            },
           );
           // Trigger a refresh of the character list
           window.dispatchEvent(new CustomEvent("characters-updated"));
@@ -55,7 +59,9 @@ export function MyAgentsClient() {
           if (sessionToken) {
             try {
               localStorage.removeItem("eliza-anon-session-token");
-              console.log("[My Agents] Cleaned up session token from localStorage");
+              console.log(
+                "[My Agents] Cleaned up session token from localStorage",
+              );
             } catch (e) {
               // Ignore cleanup errors
             }
@@ -63,7 +69,10 @@ export function MyAgentsClient() {
         }
       })
       .catch((error) => {
-        console.error("[My Agents] Failed to claim affiliate characters:", error);
+        console.error(
+          "[My Agents] Failed to claim affiliate characters:",
+          error,
+        );
         // Silent failure - this is a background optimization
       });
   }, []);

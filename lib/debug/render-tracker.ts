@@ -1,9 +1,9 @@
 /**
  * React Render Tracker - Development Only
- * 
+ *
  * Comprehensive render tracking with automatic profiling.
  * Tracks ALL component renders via React Profiler and warns about issues.
- * 
+ *
  * Features:
  * - Automatic tracking of all renders (no manual hook needed)
  * - Warns about excessive re-renders
@@ -55,7 +55,7 @@ function trackRender(
   actualDuration: number,
   _baseDuration: number,
   _startTime: number,
-  _commitTime: number
+  _commitTime: number,
 ): void {
   if (process.env.NODE_ENV !== "development") return;
 
@@ -76,7 +76,7 @@ function trackRender(
 
   const info = globalStats.componentStats.get(id)!;
   const timeSinceLastRender = now - info.lastRenderTime;
-  
+
   info.count += 1;
   info.timestamps.push(now);
   info.totalDuration += actualDuration;
@@ -85,9 +85,7 @@ function trackRender(
   info.lastRenderTime = now;
 
   // Clean up old timestamps
-  info.timestamps = info.timestamps.filter(
-    (ts) => now - ts < RENDER_WINDOW_MS
-  );
+  info.timestamps = info.timestamps.filter((ts) => now - ts < RENDER_WINDOW_MS);
 
   // Check for slow renders
   if (actualDuration > SLOW_RENDER_THRESHOLD_MS) {
@@ -98,16 +96,19 @@ function trackRender(
       `\n  This may cause dropped frames. Consider:`,
       `\n    - Breaking into smaller components`,
       `\n    - Using React.memo() for expensive subtrees`,
-      `\n    - Moving expensive computations to useMemo()`
+      `\n    - Moving expensive computations to useMemo()`,
     );
   }
 
   // Check for rapid renders
-  if (timeSinceLastRender > 0 && timeSinceLastRender < RAPID_RENDER_THRESHOLD_MS) {
+  if (
+    timeSinceLastRender > 0 &&
+    timeSinceLastRender < RAPID_RENDER_THRESHOLD_MS
+  ) {
     console.warn(
       `⚡ [RenderTracker] Rapid re-render in <${id}>`,
       `\n  Time since last: ${timeSinceLastRender}ms`,
-      `\n  This may indicate an infinite loop or cascading state updates.`
+      `\n  This may indicate an infinite loop or cascading state updates.`,
     );
   }
 
@@ -117,7 +118,7 @@ function trackRender(
       `🔄 [RenderTracker] Excessive re-renders in <${id}>`,
       `\n  ${info.timestamps.length} renders in ${RENDER_WINDOW_MS}ms`,
       `\n  Total: ${info.count} | Avg duration: ${info.avgDuration.toFixed(2)}ms`,
-      `\n  Consider: React.memo(), useMemo, useCallback, or splitting state`
+      `\n  Consider: React.memo(), useMemo, useCallback, or splitting state`,
     );
     // Reset timestamps to avoid spam
     info.timestamps = [];
@@ -134,7 +135,7 @@ export const onRenderCallback: ProfilerOnRenderCallback = (
   actualDuration,
   baseDuration,
   startTime,
-  commitTime
+  commitTime,
 ) => {
   trackRender(id, phase, actualDuration, baseDuration, startTime, commitTime);
 };
@@ -144,7 +145,7 @@ export const onRenderCallback: ProfilerOnRenderCallback = (
  */
 export function useRenderTracker(
   componentName: string,
-  props?: Record<string, unknown>
+  props?: Record<string, unknown>,
 ): void {
   const renderCountRef = useRef(0);
   const lastRenderRef = useRef<number>(0);
@@ -178,15 +179,18 @@ export function useRenderTracker(
 
     // Clean up old timestamps
     info.timestamps = info.timestamps.filter(
-      (ts) => now - ts < RENDER_WINDOW_MS
+      (ts) => now - ts < RENDER_WINDOW_MS,
     );
 
     // Warnings
-    if (timeSinceLastRender > 0 && timeSinceLastRender < RAPID_RENDER_THRESHOLD_MS) {
+    if (
+      timeSinceLastRender > 0 &&
+      timeSinceLastRender < RAPID_RENDER_THRESHOLD_MS
+    ) {
       console.warn(
         `⚡ [RenderTracker] Rapid re-render in <${componentName}>`,
         `\n  Time since last: ${timeSinceLastRender}ms`,
-        props ? `\n  Props: ${JSON.stringify(props, null, 2)}` : ""
+        props ? `\n  Props: ${JSON.stringify(props, null, 2)}` : "",
       );
     }
 
@@ -194,7 +198,7 @@ export function useRenderTracker(
       console.warn(
         `🔄 [RenderTracker] Excessive re-renders in <${componentName}>`,
         `\n  ${info.timestamps.length} renders in ${RENDER_WINDOW_MS}ms`,
-        `\n  Total: ${info.count}`
+        `\n  Total: ${info.count}`,
       );
       info.timestamps = [];
     }
@@ -206,7 +210,7 @@ export function useRenderTracker(
  */
 export function useWhyDidYouUpdate<T extends Record<string, unknown>>(
   componentName: string,
-  props: T
+  props: T,
 ): void {
   const previousProps = useRef<T | undefined>(undefined);
 
@@ -218,9 +222,9 @@ export function useWhyDidYouUpdate<T extends Record<string, unknown>>(
         ...Object.keys(previousProps.current),
         ...Object.keys(props),
       ]);
-      
+
       const changes: Record<string, { from: unknown; to: unknown }> = {};
-      
+
       allKeys.forEach((key) => {
         if (previousProps.current![key] !== props[key]) {
           changes[key] = {
@@ -233,7 +237,7 @@ export function useWhyDidYouUpdate<T extends Record<string, unknown>>(
       if (Object.keys(changes).length > 0) {
         console.log(
           `📝 [WhyDidYouUpdate] <${componentName}> changed:`,
-          changes
+          changes,
         );
       }
     }
@@ -267,9 +271,13 @@ export function resetRenderStats(): void {
 export function logRenderSummary(): void {
   if (process.env.NODE_ENV !== "development") return;
 
-  const sessionDuration = ((Date.now() - globalStats.sessionStart) / 1000).toFixed(1);
-  const sortedByCount = Array.from(globalStats.componentStats.entries())
-    .sort(([, a], [, b]) => b.count - a.count);
+  const sessionDuration = (
+    (Date.now() - globalStats.sessionStart) /
+    1000
+  ).toFixed(1);
+  const sortedByCount = Array.from(globalStats.componentStats.entries()).sort(
+    ([, a], [, b]) => b.count - a.count,
+  );
 
   if (sortedByCount.length === 0) {
     console.log("📊 [RenderTracker] No renders tracked yet.");
@@ -282,8 +290,10 @@ export function logRenderSummary(): void {
     .sort(([, a], [, b]) => b.avgDuration - a.avgDuration)
     .slice(0, 5);
 
-  console.group(`📊 Render Summary (${sessionDuration}s session, ${globalStats.totalRenders} total renders)`);
-  
+  console.group(
+    `📊 Render Summary (${sessionDuration}s session, ${globalStats.totalRenders} total renders)`,
+  );
+
   console.group("🔝 Most Rendered Components");
   top10.forEach(([name, info], i) => {
     const status = info.count > 50 ? "🔴" : info.count > 20 ? "🟡" : "🟢";
@@ -295,8 +305,11 @@ export function logRenderSummary(): void {
     console.group("🐢 Slowest Components (avg render time)");
     slowest.forEach(([name, info]) => {
       if (info.avgDuration > 1) {
-        const status = info.avgDuration > 16 ? "🔴" : info.avgDuration > 8 ? "🟡" : "🟢";
-        console.log(`  ${status} ${name}: ${info.avgDuration.toFixed(2)}ms avg, ${info.maxDuration.toFixed(2)}ms max`);
+        const status =
+          info.avgDuration > 16 ? "🔴" : info.avgDuration > 8 ? "🟡" : "🟢";
+        console.log(
+          `  ${status} ${name}: ${info.avgDuration.toFixed(2)}ms avg, ${info.maxDuration.toFixed(2)}ms max`,
+        );
       }
     });
     console.groupEnd();

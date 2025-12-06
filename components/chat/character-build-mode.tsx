@@ -35,7 +35,7 @@ export function CharacterBuildMode({
 
   // Mobile view state: 'assistant' or 'editor'
   const [mobileView, setMobileView] = useState<"assistant" | "editor">(
-    "assistant"
+    "assistant",
   );
 
   // Derive character from selectedCharacterId - avoid setState in effect
@@ -60,7 +60,7 @@ export function CharacterBuildMode({
     (updates: Partial<ElizaCharacter>) => {
       setCharacter((prev) => ({ ...prev, ...updates }));
     },
-    []
+    [],
   );
 
   const handleSave = useCallback(async () => {
@@ -98,7 +98,7 @@ export function CharacterBuildMode({
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to save character. Please try again."
+          : "Failed to save character. Please try again.",
       );
     }
   }, [character, selectedCharacterId, setSelectedCharacterId]);
@@ -138,7 +138,7 @@ export function CharacterBuildMode({
             "flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors",
             mobileView === "assistant"
               ? "bg-[#E500FF] text-white"
-              : "text-white/60 hover:text-white hover:bg-white/5"
+              : "text-white/60 hover:text-white hover:bg-white/5",
           )}
         >
           <MessageSquare className="h-4 w-4" />
@@ -150,7 +150,7 @@ export function CharacterBuildMode({
             "flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-l border-[#353535]",
             mobileView === "editor"
               ? "bg-[#E500FF] text-white"
-              : "text-white/60 hover:text-white hover:bg-white/5"
+              : "text-white/60 hover:text-white hover:bg-white/5",
           )}
         >
           <FileCode2 className="h-4 w-4" />

@@ -15,7 +15,10 @@
  */
 
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
+import {
+  getAnonymousUser,
+  getOrCreateAnonymousUser,
+} from "@/lib/auth-anonymous";
 import { getProvider } from "@/lib/providers";
 import {
   creditsService,
@@ -245,7 +248,7 @@ async function handlePOST(req: NextRequest) {
     } catch (authError) {
       // Fallback to anonymous user
       logger.info("[Responses API] Privy auth failed, trying anonymous...");
-      
+
       const anonData = await getAnonymousUser();
       if (anonData) {
         user = anonData.user;

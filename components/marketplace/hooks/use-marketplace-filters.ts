@@ -15,7 +15,7 @@ export function useMyAgentsFilters() {
       deployed: deployed || undefined,
       category: activeCategory || undefined,
     }),
-    [hasVoice, deployed, activeCategory]
+    [hasVoice, deployed, activeCategory],
   );
 
   const toggleFilter = useCallback((filterKey: keyof SearchFilters) => {

@@ -5,6 +5,7 @@
   "scripts": {
     "postinstall": "find node_modules -path '*/thread-stream/test' -type d -exec rm -rf {} + 2>/dev/null || true; find node_modules -path '*/thread-stream/bench.js' -delete 2>/dev/null || true; find node_modules -path '*/thread-stream/LICENSE' -delete 2>/dev/null || true; find node_modules -path '*/thread-stream/README.md' -delete 2>/dev/null || true",
     "dev": "next dev --turbopack",
+    "dev:all": "bun run db:miniapp:seed && concurrently -n cloud,miniapp -c blue,magenta \"bun run dev\" \"cd miniapp && bun run dev\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -22,6 +23,7 @@
     "db:local:clean": "docker-compose down -v && docker network prune -f",
     "db:local:logs": "docker-compose logs -f postgres",
     "db:local:seed": "tsx scripts/seed-local-dev.ts",
+    "db:miniapp:seed": "tsx scripts/seed-miniapp-dev.ts",
     "seed:credit-packs": "tsx scripts/seed-credit-packs.ts",
     "stripe:webhook": "stripe listen --forward-to localhost:3000/api/stripe/webhook",
     "cron:auto-top-up": "tsx scripts/trigger-auto-top-up.ts",
@@ -36,7 +38,9 @@
     "test:e2e": "playwright test --config=e2e/playwright.config.ts",
     "test:e2e:wallet:local": "playwright test wallet-login-local --config=e2e/playwright.config.ts --project=chromium",
     "test:e2e:pages": "playwright test all-pages --config=e2e/playwright.config.ts --project=chromium",
-    "test:e2e:login": "playwright test social-login --config=e2e/playwright.config.ts --project=chromium"
+    "test:e2e:login": "playwright test social-login --config=e2e/playwright.config.ts --project=chromium",
+    "test:e2e:miniapp": "playwright test miniapp --config=e2e/playwright.config.ts --project=miniapp",
+    "test:e2e:miniapp:auth": "playwright test miniapp-authenticated --config=e2e/playwright.config.ts --project=miniapp"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^2.0.18",
@@ -171,6 +175,7 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "@types/uuid": "^10.0.0",
     "@welldone-software/why-did-you-render": "^10.0.1",
+    "concurrently": "^9.2.1",
     "desm": "^1.3.1",
     "drizzle-kit": "^0.31.7",
     "eslint": "^9.39.0",

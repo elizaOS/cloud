@@ -12,8 +12,8 @@ const ANON_SESSION_COOKIE = "eliza-anon-session";
 
 // Get message limit from env or default
 const ANON_MESSAGE_LIMIT = Number.parseInt(
-  process.env.ANON_MESSAGE_LIMIT || "10",
-  10
+  process.env.ANON_MESSAGE_LIMIT || "5",
+  10,
 );
 
 // Schema validation for incoming request
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     if (!validationResult.success) {
       logger.warn(
         "[Create Session] Invalid request body:",
-        validationResult.error.format()
+        validationResult.error.format(),
       );
       return NextResponse.json(
         {
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
           error: "Invalid request body",
           details: validationResult.error.format(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
       {
         userId: result.user.id,
         source,
-      }
+      },
     );
 
     return NextResponse.json({
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
         success: false,
         error: "Failed to create session",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

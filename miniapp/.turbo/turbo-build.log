@@ -1,0 +1,35 @@
+
+[0m[2m[35m$[0m [2m[1mnext build[0m
+ [33m[1m⚠[22m[39m Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of /Users/shawwalters/cloud-mini-apps/bun.lockb as the root directory.
+ To silence this warning, set `outputFileTracingRoot` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/output#caveats for more information.
+ Detected additional lockfiles: 
+   * /Users/shawwalters/cloud-mini-apps/apps/clone-ur-crush/bun.lock
+
+   [1m[38;2;173;127;168m▲ Next.js 15.5.6[39m[22m
+   - Environments: .env.local
+
+ [37m[1m [22m[39m Creating an optimized production build ...
+ [32m[1m✓[22m[39m Compiled successfully in 2.6s
+[?25l [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G[1A[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G[1A[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G[1A[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G[1A[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G[1A[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G[1A[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G[1A[2K[1G[?25h[31m
+Failed to compile.[39m
+[?25l [36m.[39m [2K[1G[?25h
+./app/api/generate-field/route.ts
+1:1  Error: Run autofix to sort these imports!  simple-import-sort/imports
+
+./app/api/generate-photo/route.ts
+61:15  Warning: 'eventCount' is assigned a value but never used. Allowed unused vars must match /^_/u.  unused-imports/no-unused-vars
+61:15  Error: 'eventCount' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./components/cloneurcrush/build-your-crush-section.tsx
+3:1  Error: Run autofix to sort these imports!  simple-import-sort/imports
+160:22  Warning: 'e' is defined but never used.  unused-imports/no-unused-vars
+160:22  Error: 'e' is defined but never used.  @typescript-eslint/no-unused-vars
+199:16  Warning: 'corsError' is defined but never used.  unused-imports/no-unused-vars
+199:16  Error: 'corsError' is defined but never used.  @typescript-eslint/no-unused-vars
+504:23  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+564:27  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+[?25l [36m.[39m [?25h[0m[31merror[0m[2m:[0m script [1m"build"[0m exited with code 1[0m

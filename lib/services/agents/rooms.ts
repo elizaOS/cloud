@@ -40,10 +40,10 @@ export interface RoomWithMessages {
  */
 export interface RoomPreview {
   id: string;
-  title?: string;       // room name or generated title
+  title?: string; // room name or generated title
   characterId?: string; // agentId from room
-  lastTime?: number;    // from last message createdAt (ms timestamp)
-  lastText?: string;    // from last message content.text (truncated)
+  lastTime?: number; // from last message createdAt (ms timestamp)
+  lastText?: string; // from last message content.text (truncated)
 }
 
 // Re-export for convenience
@@ -78,16 +78,17 @@ export class RoomsService {
   /**
    * Get rooms for an entity (user) with last message preview
    * Uses a single optimized query - no N+1 problem
-   * 
+   *
    * @param entityId - The user's ID (from auth)
    * @returns Room previews sorted by most recent activity
    */
   async getRoomsForEntity(entityId: string): Promise<RoomPreview[]> {
     // Single query: participants → rooms → last message
-    const roomsWithPreview = await roomsRepository.findRoomsWithPreviewForEntity(entityId);
+    const roomsWithPreview =
+      await roomsRepository.findRoomsWithPreviewForEntity(entityId);
 
     // Transform to API response format
-    return roomsWithPreview.map(room => ({
+    return roomsWithPreview.map((room) => ({
       id: room.id,
       title: room.name || undefined,
       characterId: room.characterId || undefined,
@@ -100,7 +101,7 @@ export class RoomsService {
    * Create a new room with entity as participant
    * If agentId is not provided, we create a minimal room that will be
    * fully initialized when the first message is sent (runtime handles it)
-   * 
+   *
    * When agentId is provided, uses a database transaction to ensure
    * room + entity + participant are created atomically.
    */
@@ -117,7 +118,7 @@ export class RoomsService {
         name: input.name,
         metadata: input.metadata,
       });
-      
+
       logger.info(
         `[Rooms Service] Created room ${roomId} for entity ${input.entityId} (no agent yet)`,
       );
@@ -214,12 +215,13 @@ export class RoomsService {
     participantCount: number;
     lastMessage?: { time: number; text: string };
   } | null> {
-    const [room, messageCount, participantCount, lastMessage] = await Promise.all([
-      roomsRepository.findById(roomId),
-      memoriesRepository.countMessages(roomId),
-      participantsRepository.countByRoomId(roomId),
-      memoriesRepository.findLastMessageForRoom(roomId),
-    ]);
+    const [room, messageCount, participantCount, lastMessage] =
+      await Promise.all([
+        roomsRepository.findById(roomId),
+        memoriesRepository.countMessages(roomId),
+        participantsRepository.countByRoomId(roomId),
+        memoriesRepository.findLastMessageForRoom(roomId),
+      ]);
 
     if (!room) {
       return null;
@@ -229,10 +231,15 @@ export class RoomsService {
       roomId: room.id,
       messageCount,
       participantCount,
-      lastMessage: lastMessage ? {
-        time: lastMessage.createdAt || Date.now(),
-        text: ((lastMessage.content?.text as string) || "").substring(0, 100),
-      } : undefined,
+      lastMessage: lastMessage
+        ? {
+            time: lastMessage.createdAt || Date.now(),
+            text: ((lastMessage.content?.text as string) || "").substring(
+              0,
+              100,
+            ),
+          }
+        : undefined,
     };
   }
 

@@ -98,10 +98,12 @@ export function SidebarChatRooms() {
     toast.success("Conversation deleted");
   };
 
-  const getCharacterName = (room: typeof rooms[0]) => {
+  const getCharacterName = (room: (typeof rooms)[0]) => {
     if (room.characterName) return room.characterName;
     if (!room.characterId) return "Default (Eliza)";
-    const character = availableCharacters.find((c) => c.id === room.characterId);
+    const character = availableCharacters.find(
+      (c) => c.id === room.characterId,
+    );
     return character?.name || "Unknown";
   };
 

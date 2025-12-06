@@ -13,7 +13,7 @@ import { logger } from "@/lib/utils/logger";
 // Legacy compatibility layer
 class AgentRuntimeManager {
   private static instance: AgentRuntimeManager;
-  
+
   // Cache for the default system runtime to avoid expensive re-initialization
   private cachedSystemRuntime: AgentRuntime | null = null;
   private systemRuntimePromise: Promise<AgentRuntime> | null = null;
@@ -53,7 +53,9 @@ class AgentRuntimeManager {
       "[AgentRuntime] Creating default runtime with system context (will be cached)",
     );
     this.systemRuntimePromise = (async () => {
-      const systemContext = userContextService.createSystemContext(AgentMode.CHAT);
+      const systemContext = userContextService.createSystemContext(
+        AgentMode.CHAT,
+      );
       const runtime = await runtimeFactory.createRuntimeForUser(systemContext);
       this.cachedSystemRuntime = runtime;
       this.systemRuntimePromise = null;

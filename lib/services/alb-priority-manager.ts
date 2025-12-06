@@ -85,7 +85,10 @@ export class DatabasePriorityManager {
         return inserted.priority;
       });
     } catch (error) {
-      console.error(`[ALB] Failed to allocate priority for user ${userId}:`, error);
+      console.error(
+        `[ALB] Failed to allocate priority for user ${userId}:`,
+        error,
+      );
       throw error;
     }
   }

@@ -4,10 +4,13 @@ import { organizationInvites } from "./organization-invites";
 import { users } from "./users";
 import { conversations, conversationMessages } from "./conversations";
 import { userCharacters } from "./user-characters";
+import { apps, appUsers, appAnalytics } from "./apps";
+import { apiKeys } from "./api-keys";
 
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   users: many(users),
   invites: many(organizationInvites),
+  apps: many(apps),
 }));
 
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -71,3 +74,38 @@ export const organizationInvitesRelations = relations(
     }),
   }),
 );
+
+export const appsRelations = relations(apps, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [apps.organization_id],
+    references: [organizations.id],
+  }),
+  createdBy: one(users, {
+    fields: [apps.created_by_user_id],
+    references: [users.id],
+  }),
+  apiKey: one(apiKeys, {
+    fields: [apps.api_key_id],
+    references: [apiKeys.id],
+  }),
+  users: many(appUsers),
+  analytics: many(appAnalytics),
+}));
+
+export const appUsersRelations = relations(appUsers, ({ one }) => ({
+  app: one(apps, {
+    fields: [appUsers.app_id],
+    references: [apps.id],
+  }),
+  user: one(users, {
+    fields: [appUsers.user_id],
+    references: [users.id],
+  }),
+}));
+
+export const appAnalyticsRelations = relations(appAnalytics, ({ one }) => ({
+  app: one(apps, {
+    fields: [appAnalytics.app_id],
+    references: [apps.id],
+  }),
+}));

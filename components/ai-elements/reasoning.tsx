@@ -101,12 +101,15 @@ export const Reasoning = memo(
       setIsOpen(newOpen);
     };
 
-    const contextValue = useMemo(() => ({
-      isStreaming,
-      isOpen,
-      setIsOpen,
-      duration,
-    }), [isStreaming, isOpen, setIsOpen, duration]);
+    const contextValue = useMemo(
+      () => ({
+        isStreaming,
+        isOpen,
+        setIsOpen,
+        duration,
+      }),
+      [isStreaming, isOpen, setIsOpen, duration],
+    );
 
     return (
       <ReasoningContext.Provider value={contextValue}>

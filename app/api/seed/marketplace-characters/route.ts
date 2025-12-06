@@ -345,7 +345,7 @@ const TEMPLATE_CHARACTERS: TemplateCharacter[] = [
     category: "assistant",
     tags: ["voice", "tts", "accessibility", "assistant"],
     featured: true,
-    avatar_url: "https://api.dicebear.com/7.x/bottts/svg?seed=voiceai",
+    avatar_url: "/avatars/voiceai.png",
     system:
       "You are Voice Assistant, an AI with text-to-speech capabilities. Provide clear, well-spoken responses suitable for audio playback.",
     style: {

@@ -2,17 +2,17 @@
  * Signup Prompt Banner for Anonymous Users
  *
  * Shows progressive signup prompts based on message count
- * - After 3 messages: Subtle encouragement
- * - After 5 messages: Show remaining count
- * - After 8 messages: Urgent prompt
- * - At 10 messages: Final prompt (handled in chat API)
+ * - After 1 message: Encourage to save character
+ * - After 3 messages: Show remaining count
+ * - After 4 messages: Urgent prompt
+ * - At 5 messages: Final prompt (handled in chat API)
  */
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
-import { X, Sparkles, Clock, Zap } from "lucide-react";
+import { X, Sparkles, Clock, Zap, Save } from "lucide-react";
 import { BrandButton } from "@/components/brand";
 import { cn } from "@/lib/utils";
 
@@ -34,32 +34,32 @@ export function SignupPromptBanner({
 
   // Determine which prompt to show based on message count
   const getPromptConfig = () => {
-    if (messageCount >= 8) {
+    if (messageCount >= 4) {
       return {
         icon: Zap,
         iconColor: "#FF5800",
-        title: "2 messages left",
-        description: "Sign up to continue",
+        title: `${remaining} message${remaining === 1 ? "" : "s"} left`,
+        description: "Log in to save your character",
         bgColor: "bg-[#FF5800]/10",
         borderColor: "border-[#FF5800]/30",
         urgent: true,
       };
-    } else if (messageCount >= 5) {
+    } else if (messageCount >= 3) {
       return {
         icon: Clock,
         iconColor: "#FF5800",
         title: `${remaining} messages left`,
-        description: "Sign up for unlimited",
+        description: "Log in to save your character",
         bgColor: "bg-[#FF5800]/5",
         borderColor: "border-[#FF5800]/20",
         urgent: false,
       };
-    } else if (messageCount >= 3) {
+    } else if (messageCount >= 1) {
       return {
-        icon: Sparkles,
+        icon: Save,
         iconColor: "#6366F1",
-        title: "Enjoying Eliza?",
-        description: "Sign up to save chats",
+        title: "Log in to save your character",
+        description: "It's free! Keep chatting forever",
         bgColor: "bg-indigo-500/5",
         borderColor: "border-indigo-500/20",
         urgent: false,

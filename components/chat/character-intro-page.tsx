@@ -5,11 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Sparkles,
-  MessageCircle,
-  Heart,
-} from "lucide-react";
+import { Sparkles, MessageCircle, Heart } from "lucide-react";
 import type { UserCharacter } from "@/db/schemas";
 import { EmailCaptureModal } from "./email-capture-modal";
 import { motion } from "motion/react";
@@ -79,31 +75,11 @@ export function CharacterIntroPage({
   // Get CSS variables for theming
   const themeStyles = getThemeCSSVariables(theme);
 
-  // Determine theme type (includes romantic and e-dad themes)
-  const isRomanticTheme = theme.variants.introCard === "romantic";
-  const isEdadTheme = theme.id === "e-dad";
-  const isCustomTheme = isRomanticTheme || isEdadTheme;
-  const showAnimatedBackground = theme.features.animatedBackground;
-
   return (
     <div
       style={themeStyles}
-      className={`min-h-screen themed-intro ${
-        isCustomTheme
-          ? "bg-black bg-[radial-gradient(ellipse_at_top,rgba(var(--theme-primary),0.15),transparent_50%),radial-gradient(ellipse_at_bottom,rgba(var(--theme-accent),0.1),transparent_50%)]"
-          : "bg-gradient-to-b from-background to-muted/20"
-      }`}
+      className="min-h-screen themed-intro bg-gradient-to-b from-background to-muted/20"
     >
-      {/* Animated background for romantic theme */}
-      {showAnimatedBackground && (
-        <div className="fixed inset-0 -z-10">
-          <div
-            className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(var(--theme-primary),0.08),transparent_70%)] animate-pulse"
-            style={{ animationDuration: "4s" }}
-          />
-        </div>
-      )}
-
       <div className="container mx-auto px-4 py-12 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -114,48 +90,16 @@ export function CharacterIntroPage({
           {/* Header */}
           <div className="text-center mb-8">
             {theme.features.showSourceBadge && source && (
-              <Badge
-                variant="secondary"
-                className={`mb-4 ${
-                  isCustomTheme
-                    ? "bg-[rgba(var(--theme-primary),0.1)] text-[rgb(var(--theme-primary-light))] border-[rgba(var(--theme-primary),0.2)] hover:bg-[rgba(var(--theme-primary),0.2)]"
-                    : ""
-                }`}
-              >
-                {isRomanticTheme && <Heart className="w-3 h-3 mr-1" />}
+              <Badge variant="secondary" className="mb-4">
                 Created via {source}
               </Badge>
             )}
-            <h1
-              className={`text-4xl font-bold mb-2 ${
-                isCustomTheme
-                  ? "bg-gradient-to-r from-[rgb(var(--theme-primary-light))] via-[rgb(var(--theme-primary-light))] to-[rgb(var(--theme-accent))] bg-clip-text text-transparent"
-                  : ""
-              }`}
-            >
-              {theme.branding.title === "Clone Your Crush"
-                ? "Meet Your Crush"
-                : theme.branding.title === "Edad"
-                  ? "Meet Your AI Dad"
-                  : "Meet Your AI Companion"}
-            </h1>
-            <p
-              className={
-                isCustomTheme ? "text-white/60" : "text-muted-foreground"
-              }
-            >
-              {theme.branding.tagline}
-            </p>
+            <h1 className="text-4xl font-bold mb-2">Meet Your AI Companion</h1>
+            <p className="text-muted-foreground">{theme.branding.tagline}</p>
           </div>
 
           {/* Character Card */}
-          <Card
-            className={`mb-8 overflow-hidden ${
-              isCustomTheme
-                ? "border-2 border-white/10 bg-white/[0.02] backdrop-blur-xl"
-                : "border-2"
-            }`}
-          >
+          <Card className="mb-8 overflow-hidden border-2">
             <CardContent className="p-8">
               <div className="flex flex-col items-center text-center space-y-6">
                 {/* Avatar */}
@@ -165,25 +109,9 @@ export function CharacterIntroPage({
                   transition={{ delay: 0.2, duration: 0.4 }}
                 >
                   <div className="relative">
-                    {/* Glow effect for romantic theme */}
-                    {theme.variants.avatarStyle === "glow" && (
-                      <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[rgb(var(--theme-primary))] to-[rgb(var(--theme-accent))] opacity-20 blur-xl" />
-                    )}
-                    <Avatar
-                      className={`h-32 w-32 relative ${
-                        theme.variants.avatarStyle === "glow"
-                          ? "border-4 border-[rgba(var(--theme-primary),0.3)]"
-                          : "border-4 border-primary/20"
-                      }`}
-                    >
+                    <Avatar className="h-32 w-32 relative border-4 border-primary/20">
                       <AvatarImage src={character.avatar_url || undefined} />
-                      <AvatarFallback
-                        className={`text-4xl ${
-                          isCustomTheme
-                            ? "bg-gradient-to-br from-[rgba(var(--theme-primary),0.2)] to-[rgba(var(--theme-accent),0.2)] text-white"
-                            : "bg-gradient-to-br from-primary/20 to-primary/10"
-                        }`}
-                      >
+                      <AvatarFallback className="text-4xl bg-gradient-to-br from-primary/20 to-primary/10">
                         {character.name.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
@@ -192,20 +120,9 @@ export function CharacterIntroPage({
 
                 {/* Name and Vibe */}
                 <div>
-                  <h2
-                    className={`text-3xl font-bold mb-2 ${isCustomTheme ? "text-white" : ""}`}
-                  >
-                    {character.name}
-                  </h2>
+                  <h2 className="text-3xl font-bold mb-2">{character.name}</h2>
                   {theme.features.showVibeLabel && vibeLabel && (
-                    <Badge
-                      variant="outline"
-                      className={`text-lg px-3 py-1 ${
-                        isCustomTheme
-                          ? "bg-[rgba(var(--theme-primary),0.1)] border-[rgba(var(--theme-primary),0.3)] text-[rgb(var(--theme-primary-light))]"
-                          : ""
-                      }`}
-                    >
+                    <Badge variant="outline" className="text-lg px-3 py-1">
                       <Sparkles className="w-4 h-4 mr-2" />
                       {vibeLabel.charAt(0).toUpperCase() + vibeLabel.slice(1)}
                     </Badge>
@@ -213,11 +130,7 @@ export function CharacterIntroPage({
                 </div>
 
                 {/* Bio */}
-                <p
-                  className={`text-lg max-w-xl leading-relaxed ${
-                    isCustomTheme ? "text-white/70" : "text-muted-foreground"
-                  }`}
-                >
+                <p className="text-lg max-w-xl leading-relaxed text-muted-foreground">
                   {bioText}
                 </p>
 
@@ -230,11 +143,7 @@ export function CharacterIntroPage({
                 >
                   <Button
                     size="lg"
-                    className={`w-full text-lg h-14 ${
-                      isCustomTheme
-                        ? "bg-gradient-to-r from-[rgb(var(--theme-primary))] to-[rgb(var(--theme-gradient-to))] hover:from-[rgb(var(--theme-primary-light))] hover:to-[rgb(var(--theme-primary))] text-white border-0 shadow-lg shadow-[rgba(var(--theme-primary),0.3)]"
-                        : "bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
-                    }`}
+                    className="w-full text-lg h-14 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
                     onClick={handleStartChat}
                     disabled={isAnyLoading}
                   >
@@ -242,9 +151,7 @@ export function CharacterIntroPage({
                     Start Chatting (Free)
                   </Button>
 
-                  <p
-                    className={`text-sm ${isCustomTheme ? "text-white/50" : "text-muted-foreground"}`}
-                  >
+                  <p className="text-sm text-muted-foreground">
                     No credit card required • 10 free messages
                   </p>
                 </motion.div>

@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { error: "Session token is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       logger.warn("[Anonymous Session API] Invalid token format");
       return NextResponse.json(
         { error: "Invalid session token format" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -59,11 +59,11 @@ export async function GET(request: NextRequest) {
 
     if (!session) {
       logger.warn(
-        `[Anonymous Session API] Session not found for token hash: ${tokenHash}`
+        `[Anonymous Session API] Session not found for token hash: ${tokenHash}`,
       );
       return NextResponse.json(
         { error: "Session not found or expired" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
     logger.error("[Anonymous Session API] Error:", error);
     return NextResponse.json(
       { error: "Failed to get session data" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

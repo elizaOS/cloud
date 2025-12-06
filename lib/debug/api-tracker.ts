@@ -1,9 +1,9 @@
 /**
  * API Call Tracker - Development Only
- * 
+ *
  * Comprehensive API call tracking with automatic profiling.
  * Patches fetch() to track all API calls and warn about issues.
- * 
+ *
  * Features:
  * - Automatic tracking of all fetch calls
  * - Warns about duplicate/spam calls
@@ -71,7 +71,7 @@ function trackApiCall(
   url: string,
   method: string,
   startTime: number,
-  body?: string
+  body?: string,
 ): { key: string; info: ApiCallInfo } {
   const key = getCallKey(url, method);
   const now = Date.now();
@@ -98,12 +98,12 @@ function trackApiCall(
 
   // Clean up old timestamps
   info.timestamps = info.timestamps.filter(
-    (ts) => now - ts < DUPLICATE_CALL_WINDOW_MS * 2
+    (ts) => now - ts < DUPLICATE_CALL_WINDOW_MS * 2,
   );
 
   // Count recent calls
   const recentCalls = info.timestamps.filter(
-    (ts) => now - ts < DUPLICATE_CALL_WINDOW_MS
+    (ts) => now - ts < DUPLICATE_CALL_WINDOW_MS,
   ).length;
 
   // Check for infinite loops
@@ -112,7 +112,7 @@ function trackApiCall(
       `🚨 [API] POTENTIAL INFINITE LOOP`,
       `\n  ${method} ${url}`,
       `\n  ${recentCalls} calls in ${DUPLICATE_CALL_WINDOW_MS}ms`,
-      `\n  Check useEffect dependencies or state update loops`
+      `\n  Check useEffect dependencies or state update loops`,
     );
     info.timestamps = [];
   } else if (recentCalls >= SPAM_THRESHOLD) {
@@ -120,7 +120,7 @@ function trackApiCall(
       `🔁 [API] Duplicate calls detected`,
       `\n  ${method} ${url}`,
       `\n  ${recentCalls} calls in ${DUPLICATE_CALL_WINDOW_MS}ms`,
-      `\n  Consider using useDedupedFetch() or request caching`
+      `\n  Consider using useDedupedFetch() or request caching`,
     );
   }
 
@@ -130,23 +130,19 @@ function trackApiCall(
 /**
  * Track API response
  */
-function trackApiResponse(
-  key: string,
-  startTime: number,
-  ok: boolean
-): void {
+function trackApiResponse(key: string, startTime: number, ok: boolean): void {
   const info = globalApiStats.endpointStats.get(key);
   if (!info) return;
 
   const responseTime = Date.now() - startTime;
   info.responseTimes.push(responseTime);
-  
+
   // Keep only last 20 response times
   if (info.responseTimes.length > 20) {
     info.responseTimes.shift();
   }
-  
-  info.avgResponseTime = 
+
+  info.avgResponseTime =
     info.responseTimes.reduce((a, b) => a + b, 0) / info.responseTimes.length;
 
   if (!ok) {
@@ -159,7 +155,7 @@ function trackApiResponse(
     console.warn(
       `🐢 [API] Slow response`,
       `\n  ${info.method} ${info.url}`,
-      `\n  ${responseTime}ms (threshold: ${SLOW_API_THRESHOLD_MS}ms)`
+      `\n  ${responseTime}ms (threshold: ${SLOW_API_THRESHOLD_MS}ms)`,
     );
   }
 }
@@ -191,20 +187,30 @@ export function resetApiStats(): void {
 export function logApiSummary(): void {
   if (process.env.NODE_ENV !== "development") return;
 
-  const sessionDuration = ((Date.now() - globalApiStats.sessionStart) / 1000).toFixed(1);
-  const sortedByCount = Array.from(globalApiStats.endpointStats.entries())
-    .sort(([, a], [, b]) => b.count - a.count);
+  const sessionDuration = (
+    (Date.now() - globalApiStats.sessionStart) /
+    1000
+  ).toFixed(1);
+  const sortedByCount = Array.from(globalApiStats.endpointStats.entries()).sort(
+    ([, a], [, b]) => b.count - a.count,
+  );
 
   if (sortedByCount.length === 0) {
     console.log("📡 [API] No API calls tracked yet.");
     return;
   }
 
-  const errorRate = globalApiStats.totalCalls > 0
-    ? ((globalApiStats.totalErrors / globalApiStats.totalCalls) * 100).toFixed(1)
-    : "0";
+  const errorRate =
+    globalApiStats.totalCalls > 0
+      ? (
+          (globalApiStats.totalErrors / globalApiStats.totalCalls) *
+          100
+        ).toFixed(1)
+      : "0";
 
-  console.group(`📡 API Summary (${sessionDuration}s session, ${globalApiStats.totalCalls} calls, ${errorRate}% errors)`);
+  console.group(
+    `📡 API Summary (${sessionDuration}s session, ${globalApiStats.totalCalls} calls, ${errorRate}% errors)`,
+  );
 
   // Most called endpoints
   console.group("🔝 Most Called Endpoints");
@@ -212,7 +218,7 @@ export function logApiSummary(): void {
     const status = info.count > 20 ? "🔴" : info.count > 10 ? "🟡" : "🟢";
     const errorInfo = info.errors > 0 ? ` (${info.errors} errors)` : "";
     console.log(
-      `  ${i + 1}. ${status} ${info.method} ${info.url}: ${info.count} calls${errorInfo}`
+      `  ${i + 1}. ${status} ${info.method} ${info.url}: ${info.count} calls${errorInfo}`,
     );
   });
   console.groupEnd();
@@ -226,9 +232,14 @@ export function logApiSummary(): void {
   if (slowest.length > 0) {
     console.group("🐢 Slowest Endpoints (avg response time)");
     slowest.forEach(([, info]) => {
-      const status = info.avgResponseTime > 2000 ? "🔴" : info.avgResponseTime > 500 ? "🟡" : "🟢";
+      const status =
+        info.avgResponseTime > 2000
+          ? "🔴"
+          : info.avgResponseTime > 500
+            ? "🟡"
+            : "🟢";
       console.log(
-        `  ${status} ${info.method} ${info.url}: ${info.avgResponseTime.toFixed(0)}ms avg`
+        `  ${status} ${info.method} ${info.url}: ${info.avgResponseTime.toFixed(0)}ms avg`,
       );
     });
     console.groupEnd();
@@ -241,7 +252,7 @@ export function logApiSummary(): void {
     withErrors.forEach(([, info]) => {
       const errorRate = ((info.errors / info.count) * 100).toFixed(0);
       console.log(
-        `  🔴 ${info.method} ${info.url}: ${info.errors}/${info.count} failed (${errorRate}%)`
+        `  🔴 ${info.method} ${info.url}: ${info.errors}/${info.count} failed (${errorRate}%)`,
       );
     });
     console.groupEnd();
@@ -261,16 +272,17 @@ export function shouldAutoLog(): boolean {
 // Patch global fetch in development mode
 if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   const originalFetch = window.fetch;
-  
+
   window.fetch = async function patchedFetch(
     input: RequestInfo | URL,
-    init?: RequestInit
+    init?: RequestInit,
   ): Promise<Response> {
-    const url = typeof input === "string" 
-      ? input 
-      : input instanceof URL 
-        ? input.toString() 
-        : input.url;
+    const url =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url;
     const method = init?.method || "GET";
     const body = init?.body ? String(init.body) : undefined;
 

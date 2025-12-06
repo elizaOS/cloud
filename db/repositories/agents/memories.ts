@@ -42,7 +42,13 @@ export class MemoriesRepository {
       beforeTimestamp?: number;
     } = {},
   ): Promise<Memory[]> {
-    const { agentId, limit = 50, offset = 0, afterTimestamp, beforeTimestamp } = options;
+    const {
+      agentId,
+      limit = 50,
+      offset = 0,
+      afterTimestamp,
+      beforeTimestamp,
+    } = options;
 
     const conditions = [
       eq(memoryTable.roomId, roomId),
@@ -53,10 +59,14 @@ export class MemoriesRepository {
       conditions.push(eq(memoryTable.agentId, agentId));
     }
     if (afterTimestamp) {
-      conditions.push(sql`${memoryTable.createdAt} > ${new Date(afterTimestamp)}`);
+      conditions.push(
+        sql`${memoryTable.createdAt} > ${new Date(afterTimestamp)}`,
+      );
     }
     if (beforeTimestamp) {
-      conditions.push(sql`${memoryTable.createdAt} < ${new Date(beforeTimestamp)}`);
+      conditions.push(
+        sql`${memoryTable.createdAt} < ${new Date(beforeTimestamp)}`,
+      );
     }
 
     const results = await db
@@ -128,10 +138,7 @@ export class MemoriesRepository {
       .select({ count: sql<number>`count(*)` })
       .from(memoryTable)
       .where(
-        and(
-          eq(memoryTable.agentId, agentId),
-          eq(memoryTable.type, "messages"),
-        ),
+        and(eq(memoryTable.agentId, agentId), eq(memoryTable.type, "messages")),
       );
 
     return Number(result[0]?.count || 0);
@@ -145,10 +152,7 @@ export class MemoriesRepository {
       .select({ createdAt: memoryTable.createdAt })
       .from(memoryTable)
       .where(
-        and(
-          eq(memoryTable.agentId, agentId),
-          eq(memoryTable.type, "messages"),
-        ),
+        and(eq(memoryTable.agentId, agentId), eq(memoryTable.type, "messages")),
       )
       .orderBy(desc(memoryTable.createdAt))
       .limit(1);
@@ -163,10 +167,7 @@ export class MemoriesRepository {
     const result = await db
       .delete(memoryTable)
       .where(
-        and(
-          eq(memoryTable.roomId, roomId),
-          eq(memoryTable.type, "messages"),
-        ),
+        and(eq(memoryTable.roomId, roomId), eq(memoryTable.type, "messages")),
       )
       .returning({ id: memoryTable.id });
 
@@ -434,10 +435,7 @@ export class MemoriesRepository {
       .select()
       .from(memoryTable)
       .where(
-        and(
-          eq(memoryTable.roomId, roomId),
-          eq(memoryTable.type, "messages"),
-        ),
+        and(eq(memoryTable.roomId, roomId), eq(memoryTable.type, "messages")),
       )
       .orderBy(desc(memoryTable.createdAt))
       .limit(1);
