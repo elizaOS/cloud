@@ -324,7 +324,6 @@ export async function POST(
         );
 
         // Extract response from result
-        // Note: SendMessageResult has `result` (not `processing`) containing MessageProcessingResult
         const responseContent = result.result?.responseContent;
         const responseText = responseContent?.text || "";
 
