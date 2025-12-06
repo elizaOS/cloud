@@ -429,6 +429,7 @@ export function AppSettings({ app }: AppSettingsProps) {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+            </div>
           </div>
         </div>
       </BrandCard>
