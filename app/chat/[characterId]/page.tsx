@@ -1,7 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { charactersService, anonymousSessionsService } from "@/lib/services";
 import { getCurrentUser } from "@/lib/auth";
-import { getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
+import { getAnonymousUser } from "@/lib/auth-anonymous";
 import { ChatInterface } from "@/components/chat/chat-interface";
 import { logger } from "@/lib/utils/logger";
 import { resolveCharacterTheme } from "@/lib/config/affiliate-themes";
@@ -103,24 +103,28 @@ export default async function ChatPage({
       );
     }
 
-    // Otherwise, use cookie-based session (creates one if needed)
-    const { user: anonUser, session: cookieSession } =
-      await getOrCreateAnonymousUser();
+    // Otherwise, use cookie-based session (read-only check)
+    const existingSession = await getAnonymousUser();
 
-    if (!cookieSession) {
-      logger.error(`[Chat Page] Failed to create anonymous session`);
-      notFound();
+    if (!existingSession) {
+      // No session exists - redirect to API route to create one
+      // The API route will set the cookie and redirect back here
+      const returnUrl = `/chat/${characterId}${source ? `?source=${source}` : ""}`;
+      logger.info(`[Chat Page] No anonymous session found, redirecting to create one`);
+      redirect(`/api/auth/create-anonymous-session?returnUrl=${encodeURIComponent(returnUrl)}`);
     }
 
+    const { user: anonUser, session: cookieSession } = existingSession;
+
     const messagesRemaining =
-      cookieSession.messages_limit - cookieSession.message_count;
-    const shouldShowSignupPrompt = cookieSession.message_count >= 1; // Show after first message
+      cookieSession!.messages_limit - cookieSession!.message_count;
+    const shouldShowSignupPrompt = cookieSession!.message_count >= 1; // Show after first message
 
     logger.info(
       `[Chat Page] Anonymous session from cookie with theme ${theme.id}`,
       {
         userId: anonUser.id,
-        messageCount: cookieSession.message_count,
+        messageCount: cookieSession!.message_count,
         messagesRemaining,
       },
     );
@@ -129,16 +133,16 @@ export default async function ChatPage({
       <ChatInterface
         character={character}
         session={{
-          id: cookieSession.id,
-          token: cookieSession.session_token,
-          userId: cookieSession.user_id,
-          messageCount: cookieSession.message_count,
-          messagesLimit: cookieSession.messages_limit,
+          id: cookieSession!.id,
+          token: cookieSession!.session_token,
+          userId: cookieSession!.user_id,
+          messageCount: cookieSession!.message_count,
+          messagesLimit: cookieSession!.messages_limit,
           messagesRemaining,
         }}
         showSignupPrompt={shouldShowSignupPrompt}
         source={source}
-        sessionTokenFromUrl={cookieSession.session_token}
+        sessionTokenFromUrl={cookieSession!.session_token}
         theme={theme}
       />
     );
