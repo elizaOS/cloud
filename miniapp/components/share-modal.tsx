@@ -245,9 +245,8 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
         </div>
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-3">
+          <div className="flex items-center justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
-            <p className="text-sm text-white/40">Loading your rewards...</p>
           </div>
         ) : error ? (
           <div className="p-6 text-center space-y-4">
@@ -277,16 +276,11 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
             {/* Share Buttons Section */}
             {shareStatus?.x.claimed && shareStatus?.farcaster.claimed ? (
               // All shares claimed today - show success message
-              <div className="space-y-3">
-                <div className="flex items-center justify-center gap-2 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                  <Sparkles className="h-5 w-5 text-emerald-400" />
-                  <span className="text-sm font-medium text-emerald-400">
-                    Today&apos;s share rewards collected!
-                  </span>
-                </div>
-                <p className="text-xs text-white/40 text-center">
-                  Come back tomorrow for 50 credits more. Your referral link always works!
-                </p>
+              <div className="flex items-center justify-center gap-2 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                <Sparkles className="h-5 w-5 text-emerald-400" />
+                <span className="text-sm font-medium text-emerald-400">
+                  Today&apos;s rewards collected
+                </span>
               </div>
             ) : (
               // Show share buttons for unclaimed platforms
@@ -395,9 +389,6 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
                   )}
                 </button>
               </div>
-            <p className="text-xs text-white/40 text-center">
-              Friends get 50 credits • You get 100 credits (+50 when they link) + 5% forever
-            </p>
             </div>
 
             {/* Copy Link - Primary CTA */}

@@ -507,7 +507,7 @@ function CharacterCreatorSection() {
                   id="personality"
                   value={personality}
                   onChange={(e) => updateFormState({ personality: e.target.value })}
-                  placeholder="Describe your character. What makes them unique?"
+                  placeholder="What are they like?"
                   rows={3}
                   maxLength={1000}
                   className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 backdrop-blur-sm transition-colors hover:border-white/20 focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/20 focus:outline-hidden resize-none"
@@ -596,7 +596,7 @@ function CharacterCreatorSection() {
                           <textarea
                             value={imagePrompt}
                             onChange={(e) => updateFormState({ imagePrompt: e.target.value })}
-                            placeholder="Describe the image you want to generate..."
+                            placeholder="Describe how they look..."
                             className="flex-1 w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-white/30 backdrop-blur-sm transition-colors hover:border-white/20 focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/20 focus:outline-hidden resize-none"
                           />
                         </div>
@@ -654,7 +654,7 @@ function CharacterCreatorSection() {
                       >
                         <Upload className="mb-1 size-8 text-white/30 transition-colors group-hover:text-white/50" />
                         <p className="text-sm text-white/50 text-center px-4">
-                          Click to upload
+                          Upload
                         </p>
                         <input
                           id="photos"
@@ -707,33 +707,25 @@ function CharacterCreatorSection() {
                 </div>
             )}
 
-            <div className="space-y-2 pt-1">
+            <div className="pt-1">
                 <Button
                   type="submit"
                   disabled={
-                    isSubmitting || 
-                    isUploadingImages || 
-                    !name.trim() || 
-                    !personality.trim() || 
+                    isSubmitting ||
+                    isUploadingImages ||
+                    !name.trim() ||
+                    !personality.trim() ||
                     !backstory.trim()
                   }
                   size="lg"
                   className="h-11 w-full bg-gradient-to-b from-pink-500 to-pink-600 text-base font-semibold shadow-lg hover:from-pink-400 hover:to-pink-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isUploadingImages
-                    ? "Uploading images..."
+                    ? "Uploading..."
                     : isSubmitting
                     ? "Creating..."
-                    : "Create My Character"}
+                    : "Create"}
                 </Button>
-
-                <p className="text-center text-xs text-white/40">
-                  {(!name.trim() || !personality.trim() || !backstory.trim()) && (
-                    <span className="block text-white/30">
-                      Please fill in all fields to continue
-                    </span>
-                  )}
-                </p>
             </div>
           </form>
       </div>
