@@ -350,7 +350,7 @@ function AgentDetailPage() {
   if (!ready || !authenticated) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
       </div>
     );
   }
@@ -358,7 +358,7 @@ function AgentDetailPage() {
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
       </div>
     );
   }
@@ -398,7 +398,7 @@ function AgentDetailPage() {
       {/* Hero section with avatar */}
       <div className="mb-8 flex flex-col items-center text-center sm:flex-row sm:items-start sm:text-left">
         {/* Large avatar */}
-        <div className="relative mb-4 h-32 w-32 flex-shrink-0 overflow-hidden rounded-2xl bg-gradient-to-br from-pink-500/20 to-purple-500/20 sm:mb-0 sm:mr-6">
+        <div className="relative mb-4 h-32 w-32 flex-shrink-0 overflow-hidden rounded-2xl bg-gradient-to-br from-brand/20 to-accent-brand/20 sm:mb-0 sm:mr-6">
           {displayImage ? (
             <Image
               src={displayImage}
@@ -409,7 +409,7 @@ function AgentDetailPage() {
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center">
-              <Bot className="h-16 w-16 text-pink-400" />
+              <Bot className="h-16 w-16 text-brand-400" />
             </div>
           )}
         </div>
@@ -424,7 +424,7 @@ function AgentDetailPage() {
           <div className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start">
             <Link
               href={`/chats/${agentId}`}
-              className="flex items-center gap-2 rounded-lg bg-pink-500 px-4 py-2 text-sm font-medium text-white hover:bg-pink-600"
+              className="flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-600"
             >
               <MessageSquare className="h-4 w-4" />
               <span>Chat Now</span>
@@ -454,7 +454,7 @@ function AgentDetailPage() {
           onClick={() => setMode("simple")}
           className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
             mode === "simple"
-              ? "bg-pink-500 text-white"
+              ? "bg-brand text-white"
               : "text-white/60 hover:text-white"
           }`}
         >
@@ -465,7 +465,7 @@ function AgentDetailPage() {
           onClick={() => setMode("advanced")}
           className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
             mode === "advanced"
-              ? "bg-pink-500 text-white"
+              ? "bg-brand text-white"
               : "text-white/60 hover:text-white"
           }`}
         >
@@ -498,7 +498,7 @@ function AgentDetailPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Character name"
-            className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-pink-500 focus:outline-none"
+            className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-brand focus:outline-none"
           />
         </div>
 
@@ -526,7 +526,7 @@ function AgentDetailPage() {
             onChange={(e) => setBio(e.target.value)}
             placeholder="Describe your character..."
             rows={4}
-            className="mt-1 w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-pink-500 focus:outline-none"
+            className="mt-1 w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-brand focus:outline-none"
           />
         </div>
 
@@ -543,7 +543,7 @@ function AgentDetailPage() {
               }}
               className={`px-3 py-1.5 text-sm font-medium transition-colors ${
                 imageTab === "generate"
-                  ? "text-white border-b-2 border-pink-500"
+                  ? "text-white border-b-2 border-brand"
                   : "text-white/50 hover:text-white/70"
               }`}
             >
@@ -554,7 +554,7 @@ function AgentDetailPage() {
               onClick={() => setImageTab("upload")}
               className={`px-3 py-1.5 text-sm font-medium transition-colors ${
                 imageTab === "upload"
-                  ? "text-white border-b-2 border-pink-500"
+                  ? "text-white border-b-2 border-brand"
                   : "text-white/50 hover:text-white/70"
               }`}
             >
@@ -607,7 +607,7 @@ function AgentDetailPage() {
                         value={imagePrompt}
                         onChange={(e) => setImagePrompt(e.target.value)}
                         placeholder="Describe the image you want to generate..."
-                        className="flex-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-pink-500 focus:outline-none resize-none"
+                        className="flex-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-brand focus:outline-none resize-none"
                       />
                     </div>
                     <button
@@ -684,7 +684,7 @@ function AgentDetailPage() {
                 value={topics}
                 onChange={(e) => setTopics(e.target.value)}
                 placeholder="technology, music, travel..."
-                className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-pink-500 focus:outline-none"
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-brand focus:outline-none"
               />
             </div>
 
@@ -698,7 +698,7 @@ function AgentDetailPage() {
                 value={adjectives}
                 onChange={(e) => setAdjectives(e.target.value)}
                 placeholder="friendly, witty, helpful..."
-                className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-pink-500 focus:outline-none"
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-brand focus:outline-none"
               />
             </div>
 
@@ -712,7 +712,7 @@ function AgentDetailPage() {
                 onChange={(e) => setStyleAll(e.target.value)}
                 placeholder="Keep responses concise&#10;Use casual language&#10;Be helpful and friendly"
                 rows={3}
-                className="mt-1 w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-pink-500 focus:outline-none"
+                className="mt-1 w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-brand focus:outline-none"
               />
             </div>
 
@@ -726,7 +726,7 @@ function AgentDetailPage() {
                 onChange={(e) => setStyleChat(e.target.value)}
                 placeholder="Use emojis sparingly&#10;Ask follow-up questions&#10;Show empathy"
                 rows={3}
-                className="mt-1 w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-pink-500 focus:outline-none"
+                className="mt-1 w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-brand focus:outline-none"
               />
             </div>
 
@@ -739,7 +739,7 @@ function AgentDetailPage() {
                 <button
                   type="button"
                   onClick={addMessageExample}
-                  className="flex items-center gap-1 text-xs text-pink-400 hover:text-pink-300"
+                  className="flex items-center gap-1 text-xs text-brand-400 hover:text-brand-300"
                 >
                   <Plus className="h-3 w-3" />
                   Add Example
@@ -779,7 +779,7 @@ function AgentDetailPage() {
                             value={example.user}
                             onChange={(e) => updateMessageExample(index, "user", e.target.value)}
                             placeholder="What the user might say..."
-                            className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-pink-500 focus:outline-none"
+                            className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-brand focus:outline-none"
                           />
                         </div>
                         <div>
@@ -791,7 +791,7 @@ function AgentDetailPage() {
                             onChange={(e) => updateMessageExample(index, "agent", e.target.value)}
                             placeholder="How the character should respond..."
                             rows={2}
-                            className="mt-1 w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-pink-500 focus:outline-none"
+                            className="mt-1 w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-brand focus:outline-none"
                           />
                         </div>
                       </div>
@@ -807,7 +807,7 @@ function AgentDetailPage() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-pink-500 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-pink-600 disabled:opacity-50"
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-brand px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-brand-600 disabled:opacity-50"
         >
           {saving ? (
             <Loader2 className="h-4 w-4 animate-spin" />
