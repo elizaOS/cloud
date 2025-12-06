@@ -1,18 +1,18 @@
 /**
  * Agent Runtime Service
- * 
+ *
  * This service deals ONLY with runtime agents (agents table - ElizaOS framework).
- * 
+ *
  * Domain: Agents (agents table - DO NOT MODIFY, ElizaOS framework)
  * - Runtime agent information
  * - Room/message operations
  * - Agent-to-room communication
- * 
+ *
  * What this service DOES NOT do:
  * - Character management (use charactersService)
  * - Deployment operations (use deploymentsService)
  * - Character discovery (use characterDeploymentDiscoveryService)
- * 
+ *
  * Key Distinction:
  * - Agent = Running instance from ElizaOS (agents table)
  * - Character = User-created definition (user_characters table)
@@ -253,9 +253,8 @@ class AgentsService {
       `[Agents Service] Cache miss for room ${roomId}, fetching from DB`,
     );
 
-    const { memoriesRepository, participantsRepository } = await import(
-      "@/db/repositories"
-    );
+    const { memoriesRepository, participantsRepository } =
+      await import("@/db/repositories");
 
     const messages = await memoriesRepository.findMessages(roomId, {
       limit: 20,

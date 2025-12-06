@@ -6,11 +6,11 @@ const EXPLORER_KEY_NAME = "API Explorer Key";
 
 /**
  * GET /api/v1/api-keys/explorer
- * 
+ *
  * Gets or creates an API key specifically for the API Explorer page.
  * This key bills to the user's organization account and is used for
  * testing API endpoints in the explorer.
- * 
+ *
  * The key is automatically created if it doesn't exist, ensuring
  * a seamless experience for users testing APIs.
  */
@@ -20,11 +20,11 @@ export async function GET() {
 
     // Check if user already has an explorer key
     const existingKeys = await apiKeysService.listByOrganization(
-      user.organization_id
+      user.organization_id,
     );
 
     const explorerKey = existingKeys.find(
-      (key) => key.name === EXPLORER_KEY_NAME && key.user_id === user.id
+      (key) => key.name === EXPLORER_KEY_NAME && key.user_id === user.id,
     );
 
     if (explorerKey) {
@@ -74,7 +74,7 @@ export async function GET() {
         },
         isNew: true,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("Error getting/creating explorer API key:", error);
@@ -82,20 +82,20 @@ export async function GET() {
     if (error instanceof Error && error.message.includes("Unauthorized")) {
       return NextResponse.json(
         { error: "Please sign in to use the API Explorer" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     if (error instanceof Error && error.message.includes("Forbidden")) {
       return NextResponse.json(
         { error: "Please complete your account setup to use the API Explorer" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     return NextResponse.json(
       { error: "Failed to get API key for explorer" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

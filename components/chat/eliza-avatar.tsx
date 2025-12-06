@@ -16,7 +16,11 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import { isBuiltInAvatar, ensureAvatarUrl, DEFAULT_AVATAR } from "@/lib/utils/default-avatar";
+import {
+  isBuiltInAvatar,
+  ensureAvatarUrl,
+  DEFAULT_AVATAR,
+} from "@/lib/utils/default-avatar";
 
 interface ElizaAvatarProps {
   avatarUrl?: string;
@@ -48,7 +52,7 @@ export function ElizaAvatar({
 }: ElizaAvatarProps) {
   // Always ensure we have an avatar URL - use Eliza as fallback
   const resolvedAvatarUrl = ensureAvatarUrl(avatarUrl);
-  
+
   return (
     <Avatar className={cn(className)}>
       <Image
@@ -69,12 +73,7 @@ export function ElizaAvatar({
           fallbackClassName,
         )}
       >
-        <Image
-          src={DEFAULT_AVATAR}
-          alt="Eliza"
-          fill
-          className="object-cover"
-        />
+        <Image src={DEFAULT_AVATAR} alt="Eliza" fill className="object-cover" />
       </AvatarFallback>
     </Avatar>
   );

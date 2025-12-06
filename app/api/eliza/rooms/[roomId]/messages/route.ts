@@ -44,13 +44,16 @@ export async function POST(
   } catch {
     // Fallback to anonymous user
     logger.info("[Messages API] Privy auth failed, trying anonymous...");
-    
+
     let anonData = await getAnonymousUser();
-    
+
     if (!anonData) {
       // Create new anonymous session if none exists
-      logger.info("[Messages API] No session cookie - creating new anonymous session");
-      const { getOrCreateAnonymousUser } = await import("@/lib/auth-anonymous");
+      logger.info(
+        "[Messages API] No session cookie - creating new anonymous session",
+      );
+      const { getOrCreateAnonymousUser } =
+        await import("@/lib/auth-anonymous");
       const newAnonData = await getOrCreateAnonymousUser();
       anonData = {
         user: newAnonData.user,

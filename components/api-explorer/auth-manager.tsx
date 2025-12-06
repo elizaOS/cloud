@@ -51,25 +51,31 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
     setIsLoading(true);
     setError(null);
 
-    const response = await fetch("/api/v1/api-keys/explorer");
-    const data = await response.json();
+    try {
+      const response = await fetch("/api/v1/api-keys/explorer");
+      const data = await response.json();
 
-    if (!response.ok) {
+      if (!response.ok) {
+        setError(data.error || "Failed to fetch API key");
+        return;
+      }
+
+      setExplorerKey(data.apiKey);
+      onTokenChange(data.apiKey.key);
+
+      if (data.isNew) {
+        toast({
+          message:
+            "API Explorer key created! Usage will be billed to your account.",
+          mode: "success",
+        });
+      }
+    } catch (err) {
+      console.error("Failed to fetch explorer key:", err);
+      setError("Failed to connect to server");
+    } finally {
       setIsLoading(false);
-      setError(data.error || "Failed to fetch API key");
-      return;
     }
-
-    setExplorerKey(data.apiKey);
-    onTokenChange(data.apiKey.key);
-
-    if (data.isNew) {
-      toast({
-        message: "API Explorer key created! Usage will be billed to your account.",
-        mode: "success",
-      });
-    }
-    setIsLoading(false);
   }, [onTokenChange]);
 
   // Auto-fetch explorer key on mount
@@ -80,7 +86,9 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
     }, 0);
   }, [fetchExplorerKey]);
 
-  const isValidKey = authToken && (authToken.startsWith("eliza_") || authToken.startsWith("sk-"));
+  const isValidKey =
+    authToken &&
+    (authToken.startsWith("eliza_") || authToken.startsWith("sk-"));
 
   return (
     <div className="space-y-4">
@@ -174,7 +182,8 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
           <div className="flex items-start gap-2 p-3 rounded-none bg-[#FF580015] border border-[#FF580030]">
             <CreditCardIcon className="h-3 w-3 mt-0.5 shrink-0 text-[#FF5800]" />
             <p className="text-xs text-[#FF5800]/80 leading-relaxed">
-              API calls made here are billed to your account. Credits will be deducted based on usage.
+              API calls made here are billed to your account. Credits will be
+              deducted based on usage.
             </p>
           </div>
         </div>
@@ -182,7 +191,8 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
         <div className="flex items-start gap-2 p-3 rounded-none bg-white/5 border border-white/10">
           <InfoIcon className="h-3 w-3 mt-0.5 shrink-0 text-white/50" />
           <p className="text-xs text-white/50 leading-relaxed">
-            No API key available. Please sign in to test authenticated endpoints.
+            No API key available. Please sign in to test authenticated
+            endpoints.
           </p>
         </div>
       )}

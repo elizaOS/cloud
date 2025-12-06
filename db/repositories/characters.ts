@@ -44,11 +44,11 @@ export class UserCharactersRepository {
       .where(
         and(
           eq(userCharacters.source, source),
-        or(
-          eq(userCharacters.user_id, userId),
-          inArray(userCharacters.id, interactedCharacterIds)
-          )
-        )
+          or(
+            eq(userCharacters.user_id, userId),
+            inArray(userCharacters.id, interactedCharacterIds),
+          ),
+        ),
       )
       .orderBy(desc(userCharacters.created_at));
   }
@@ -193,8 +193,8 @@ export class UserCharactersRepository {
     conditions.push(
       or(
         eq(userCharacters.user_id, userId),
-        inArray(userCharacters.id, interactedCharacterIds)
-      )!
+        inArray(userCharacters.id, interactedCharacterIds),
+      )!,
     );
 
     const { sortBy, order } = sortOptions;
@@ -292,8 +292,8 @@ export class UserCharactersRepository {
     conditions.push(
       or(
         eq(userCharacters.user_id, userId),
-        inArray(userCharacters.id, interactedCharacterIds)
-      )!
+        inArray(userCharacters.id, interactedCharacterIds),
+      )!,
     );
 
     const result = await db

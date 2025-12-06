@@ -21,11 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Sparkles,
-  MessageCircle,
-  Heart,
-} from "lucide-react";
+import { Sparkles, MessageCircle, Heart } from "lucide-react";
 import type { UserCharacter } from "@/db/schemas";
 import { EmailCaptureModal } from "./email-capture-modal";
 import { motion } from "motion/react";
@@ -100,7 +96,6 @@ export function CharacterIntroPage({
       style={themeStyles}
       className="min-h-screen themed-intro bg-gradient-to-b from-background to-muted/20"
     >
-
       <div className="container mx-auto px-4 py-12 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -115,12 +110,8 @@ export function CharacterIntroPage({
                 Created via {source}
               </Badge>
             )}
-            <h1 className="text-4xl font-bold mb-2">
-              Meet Your AI Companion
-            </h1>
-            <p className="text-muted-foreground">
-              {theme.branding.tagline}
-            </p>
+            <h1 className="text-4xl font-bold mb-2">Meet Your AI Companion</h1>
+            <p className="text-muted-foreground">{theme.branding.tagline}</p>
           </div>
 
           {/* Character Card */}
@@ -145,9 +136,7 @@ export function CharacterIntroPage({
 
                 {/* Name and Vibe */}
                 <div>
-                  <h2 className="text-3xl font-bold mb-2">
-                    {character.name}
-                  </h2>
+                  <h2 className="text-3xl font-bold mb-2">{character.name}</h2>
                   {theme.features.showVibeLabel && vibeLabel && (
                     <Badge variant="outline" className="text-lg px-3 py-1">
                       <Sparkles className="w-4 h-4 mr-2" />

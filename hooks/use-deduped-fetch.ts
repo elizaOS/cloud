@@ -19,7 +19,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 
 // Global request cache and in-flight tracking
-const requestCache = new Map<string, { data: unknown; timestamp: number; expiresAt: number }>();
+const requestCache = new Map<
+  string,
+  { data: unknown; timestamp: number; expiresAt: number }
+>();
 const inFlightRequests = new Map<string, Promise<Response>>();
 
 // Default configuration
@@ -85,7 +88,7 @@ function getCacheKey(url: string, options?: RequestInit): string {
  */
 export function useDedupedFetch<T>(
   url: string | null,
-  options: UseDedupedFetchOptions = {}
+  options: UseDedupedFetchOptions = {},
 ): UseDedupedFetchResult<T> {
   const {
     dedupingInterval = DEFAULT_DEDUPING_INTERVAL,
@@ -111,7 +114,7 @@ export function useDedupedFetch<T>(
   // Memoize the cache key
   const cacheKey = useMemo(
     () => (url ? getCacheKey(url, fetchOptions) : null),
-    [url, fetchOptions]
+    [url, fetchOptions],
   );
 
   // Fetch function
@@ -153,15 +156,25 @@ export function useDedupedFetch<T>(
       const inFlight = inFlightRequests.get(cacheKey);
       if (inFlight && !forceRevalidate) {
         console.debug(`[useDedupedFetch] Joining in-flight request to ${url}`);
-        const response = await inFlight;
-        const responseData = await response.clone().json();
-        const transformedData = transform ? transform(responseData) : responseData;
-        
-        if (mountedRef.current) {
-          setData(transformedData as T);
-          setIsLoading(false);
-          setIsValidating(false);
-          setError(null);
+        try {
+          const response = await inFlight;
+          const responseData = await response.clone().json();
+          const transformedData = transform
+            ? transform(responseData)
+            : responseData;
+
+          if (mountedRef.current) {
+            setData(transformedData as T);
+            setIsLoading(false);
+            setIsValidating(false);
+            setError(null);
+          }
+        } catch (err) {
+          if (mountedRef.current) {
+            setError(err instanceof Error ? err : new Error(String(err)));
+            setIsLoading(false);
+            setIsValidating(false);
+          }
         }
         return;
       }
@@ -183,43 +196,64 @@ export function useDedupedFetch<T>(
       }
       setIsValidating(true);
 
-      // Create the fetch promise and store it for deduplication
-      const fetchPromise = fetch(url, {
-        ...fetchOptions,
-        signal: abortController.signal,
-      });
-      
-      inFlightRequests.set(cacheKey, fetchPromise);
+      try {
+        // Create the fetch promise and store it for deduplication
+        const fetchPromise = fetch(url, {
+          ...fetchOptions,
+          signal: abortController.signal,
+        });
 
-      const response = await fetchPromise;
-      
-      // Remove from in-flight after response received
-      inFlightRequests.delete(cacheKey);
+        inFlightRequests.set(cacheKey, fetchPromise);
 
-      if (!response.ok) {
+        const response = await fetchPromise;
+
+        // Remove from in-flight after response received
+        inFlightRequests.delete(cacheKey);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const responseData = await response.json();
+        const transformedData = transform
+          ? transform(responseData)
+          : responseData;
+
+        // Update cache
+        requestCache.set(cacheKey, {
+          data: transformedData,
+          timestamp: now,
+          expiresAt: now + cacheTTL,
+        });
+
+        if (mountedRef.current) {
+          setData(transformedData as T);
+          setError(null);
+          setIsLoading(false);
+          setIsValidating(false);
+        }
+      } catch (err) {
         // Remove from in-flight on error
         inFlightRequests.delete(cacheKey);
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const responseData = await response.json();
-      const transformedData = transform ? transform(responseData) : responseData;
-
-      // Update cache
-      requestCache.set(cacheKey, {
-        data: transformedData,
-        timestamp: now,
-        expiresAt: now + cacheTTL,
-      });
-
-      if (mountedRef.current) {
-        setData(transformedData as T);
-        setError(null);
-        setIsLoading(false);
-        setIsValidating(false);
+        if (mountedRef.current) {
+          setError(err instanceof Error ? err : new Error(String(err)));
+          setIsLoading(false);
+          setIsValidating(false);
+        }
+        throw err;
       }
     },
-    [url, cacheKey, skip, dedupingInterval, cacheTTL, staleTTL, fetchOptions, transform, data]
+    [
+      url,
+      cacheKey,
+      skip,
+      dedupingInterval,
+      cacheTTL,
+      staleTTL,
+      fetchOptions,
+      transform,
+      data,
+    ],
   );
 
   // Refetch function (forces revalidation)
@@ -230,10 +264,11 @@ export function useDedupedFetch<T>(
   // Mutate function (optimistic updates)
   const mutate = useCallback(
     (newData: T | ((prev: T | null) => T)) => {
-      const resolvedData = typeof newData === "function" 
-        ? (newData as (prev: T | null) => T)(data)
-        : newData;
-      
+      const resolvedData =
+        typeof newData === "function"
+          ? (newData as (prev: T | null) => T)(data)
+          : newData;
+
       setData(resolvedData);
 
       // Update cache
@@ -246,7 +281,7 @@ export function useDedupedFetch<T>(
         });
       }
     },
-    [data, cacheKey, cacheTTL]
+    [data, cacheKey, cacheTTL],
   );
 
   // Initial fetch
@@ -334,24 +369,23 @@ export function invalidateFetchCache(url: string, options?: RequestInit): void {
 export async function prefetch<T>(
   url: string,
   options?: RequestInit,
-  cacheTTL = DEFAULT_CACHE_TTL
+  cacheTTL = DEFAULT_CACHE_TTL,
 ): Promise<T> {
   const cacheKey = getCacheKey(url, options);
-  
+
   const response = await fetch(url, options);
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
-  
+
   const data = await response.json();
   const now = Date.now();
-  
+
   requestCache.set(cacheKey, {
     data,
     timestamp: now,
     expiresAt: now + cacheTTL,
   });
-  
+
   return data as T;
 }
-

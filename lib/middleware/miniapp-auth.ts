@@ -1,6 +1,6 @@
 /**
  * Miniapp Authentication Middleware
- * 
+ *
  * Verifies miniapp auth tokens and attaches user context to requests.
  * This handles authentication for miniapp API requests that come with
  * an X-Miniapp-Token header.
@@ -11,20 +11,22 @@ import { miniappAuthSessionsService } from "@/lib/services/miniapp-auth-sessions
 import { usersService } from "@/lib/services";
 import type { UserWithOrganization } from "@/lib/types";
 
-type MiniappAuthResult = {
-  success: true;
-  user: UserWithOrganization;
-} | {
-  success: false;
-  error: string;
-  status: number;
-}
+type MiniappAuthResult =
+  | {
+      success: true;
+      user: UserWithOrganization;
+    }
+  | {
+      success: false;
+      error: string;
+      status: number;
+    };
 
 /**
  * Verify miniapp token and get user
  */
 export async function verifyMiniappToken(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<MiniappAuthResult> {
   const token = request.headers.get("x-miniapp-token");
 
@@ -87,15 +89,12 @@ export async function verifyMiniappToken(
  * Returns the user if authenticated, or throws an error response
  */
 export async function requireMiniappAuth(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<UserWithOrganization> {
   const result = await verifyMiniappToken(request);
 
   if (!result.success) {
-    throw NextResponse.json(
-      { error: result.error },
-      { status: result.status }
-    );
+    throw NextResponse.json({ error: result.error }, { status: result.status });
   }
 
   return result.user;
@@ -106,20 +105,19 @@ export async function requireMiniappAuth(
  * Returns the user if authenticated, or null if not
  */
 export async function optionalMiniappAuth(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<UserWithOrganization | null> {
   const token = request.headers.get("x-miniapp-token");
-  
+
   if (!token) {
     return null;
   }
 
   const result = await verifyMiniappToken(request);
-  
+
   if (!result.success) {
     return null;
   }
 
   return result.user;
 }
-

@@ -239,7 +239,15 @@ Tell me about your vision!`;
       return () => clearTimeout(timer);
     }
     // Including character fields used in the welcome message
-  }, [builderRoomId, messages.length, isEditMode, character.name, character.bio, character.adjectives, character.topics]);
+  }, [
+    builderRoomId,
+    messages.length,
+    isEditMode,
+    character.name,
+    character.bio,
+    character.adjectives,
+    character.topics,
+  ]);
 
   // Send message to ElizaOS stream endpoint with BUILD workflow
   const sendElizaMessage = async (text: string) => {
@@ -256,23 +264,27 @@ Tell me about your vision!`;
     };
     setMessages((prev) => [...prev, userMessage]);
 
-    const response = await fetch(`/api/eliza/rooms/${builderRoomId}/messages/stream`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text,
-        agentMode: {
-          mode: AgentMode.BUILD,
-          metadata: {
-            targetCharacterId: character.id,
-          },
+    try {
+      const response = await fetch(
+        `/api/eliza/rooms/${builderRoomId}/messages/stream`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text,
+            agentMode: {
+              mode: AgentMode.BUILD,
+              metadata: {
+                targetCharacterId: character.id,
+              },
+            },
+          }),
         },
-      }),
-    });
+      );
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
@@ -399,14 +411,23 @@ Tell me about your vision!`;
           }
         }
       }
-    setIsLoading(false);
+    } catch (error) {
+      console.error("[BuildMode] Error sending message:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to send message. Please try again.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Robust scroll to bottom function
   const scrollToBottom = useCallback((smooth = false) => {
     if (scrollAreaRef.current) {
       const viewport = scrollAreaRef.current.querySelector(
-        "[data-radix-scroll-area-viewport]"
+        "[data-radix-scroll-area-viewport]",
       );
       if (viewport) {
         // Use requestAnimationFrame to ensure DOM has updated
@@ -458,7 +479,7 @@ Tell me about your vision!`;
         } catch {
           try {
             const fieldMatches = jsonText.matchAll(
-              /"(\w+)":\s*("(?:[^"\\]|\\.)*"|true|false|null|\d+(?:\.\d+)?|\[[^\]]*\])/g
+              /"(\w+)":\s*("(?:[^"\\]|\\.)*"|true|false|null|\d+(?:\.\d+)?|\[[^\]]*\])/g,
             );
             const partialUpdates: Record<string, unknown> = {};
 
@@ -537,7 +558,8 @@ Tell me about your vision!`;
                   What would you like to create?
                 </h3>
                 <p className="text-sm text-white/60 max-w-md font-[family-name:var(--font-roboto-flex)]">
-                  Describe your character idea and I&apos;ll help bring it to life
+                  Describe your character idea and I&apos;ll help bring it to
+                  life
                 </p>
               </div>
             )}
@@ -559,7 +581,9 @@ Tell me about your vision!`;
                       {/* Agent Name Row with Avatar */}
                       <div className="flex items-center gap-2">
                         <ElizaAvatar
-                          avatarUrl={character.avatarUrl || character.avatar_url}
+                          avatarUrl={
+                            character.avatarUrl || character.avatar_url
+                          }
                           name={character.name || "Build Assistant"}
                           className="flex-shrink-0 w-4 h-4"
                           iconClassName="h-3 w-3"
@@ -825,40 +849,38 @@ Tell me about your vision!`;
       {/* Input Area - Matching main chat style */}
       <form
         onSubmit={handleSubmit}
-        className="border-t p-3 mb-4 mx-4"
-        style={{ backgroundColor: "#1D1D1D" }}
+        className="border-t border-white/[0.06] p-4"
       >
-        <div className="max-w-5xl mx-auto space-y-2">
-          {/* Text Input Box */}
-          <div className="relative rounded-none border-2 border-border shadow-sm bg-black/20 overflow-hidden">
+        <div className="space-y-3">
+          {/* Text Input Box - Prominent standalone */}
+          <div className="relative rounded-lg border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
             {/* Robot Eye Visor Scanner - Animated line on top edge with randomness - Only show when waiting for agent */}
             {isLoading && (
               <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
                 {/* Primary scanner */}
                 <div
-                  className={cn([
-                    `absolute h-full w-24 bg-gradient-to-r from-transparent ${mode === "build" ? "via-[#E500FF]" : "via-[#FF5800]"} to-transparent`,
-                  ])}
+                  className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#E500FF] to-transparent"
                   style={{
                     animation:
                       "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-                    boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
+                    boxShadow: "0 0 15px 3px rgba(229, 0, 255, 0.7)",
                     filter: "blur(0.5px)",
                   }}
                 />
                 {/* Secondary scanner for organic feel */}
                 <div
-                  className={`absolute h-full w-16 bg-gradient-to-r from-transparent ${mode === "build" ? "via-[#E500FF]" : "via-[#FF5800]/60"} to-transparent`}
+                  className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#E500FF]/60 to-transparent"
                   style={{
                     animation:
                       "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
-                    boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
+                    boxShadow: "0 0 10px 2px rgba(229, 0, 255, 0.5)",
                     filter: "blur(1px)",
                   }}
                 />
               </div>
             )}
-            <input
+            <textarea
+              rows={1}
               value={inputText}
               onChange={(e) => setInputText(e.currentTarget.value)}
               onKeyDown={(e) => {
@@ -867,9 +889,18 @@ Tell me about your vision!`;
                   handleSubmit(e);
                 }
               }}
+              onInput={(e) => {
+                const target = e.currentTarget;
+                target.style.height = "auto";
+                target.style.height = `${Math.min(target.scrollHeight, 140)}px`;
+              }}
               placeholder="Describe your character or ask for help..."
               disabled={isLoading}
-              className="w-full bg-transparent px-3 py-2.5 text-sm text-white placeholder:text-white/60 focus:outline-none disabled:opacity-50"
+              className="w-full bg-transparent px-4 py-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
+              style={{
+                minHeight: "44px",
+                maxHeight: "140px",
+              }}
             />
           </div>
 
@@ -879,16 +910,12 @@ Tell me about your vision!`;
               type="submit"
               disabled={isLoading || !inputText.trim()}
               size="icon"
-              className="h-10 w-10 rounded-none border-none"
-              style={{ backgroundColor: "rgba(255, 88, 0, 0.25)" }}
+              className="h-9 w-9 rounded-lg bg-[#E500FF]/20 border border-[#E500FF]/30 hover:bg-[#E500FF]/30 disabled:opacity-40 transition-colors"
             >
               {isLoading ? (
-                <Loader2
-                  className="h-4 w-4 animate-spin"
-                  style={{ color: "#FF5800" }}
-                />
+                <Loader2 className="h-4 w-4 animate-spin text-[#E500FF]" />
               ) : (
-                <Send className="h-4 w-4" style={{ color: "#FF5800" }} />
+                <Send className="h-4 w-4 text-[#E500FF]" />
               )}
             </Button>
           </div>

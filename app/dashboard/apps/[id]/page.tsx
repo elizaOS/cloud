@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services";
 import { redirect } from "next/navigation";
-import {
-  ArrowLeft,
-  Grid3x3,
-} from "lucide-react";
+import { AppOverview } from "@/components/apps/app-overview";
+import { AppSettings } from "@/components/apps/app-settings";
+import { AppAnalytics } from "@/components/apps/app-analytics";
+import { AppUsers } from "@/components/apps/app-users";
+import { BrandCard, CornerBrackets } from "@/components/brand";
+import { ArrowLeft, Grid3x3, Settings, BarChart3, Users } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { AppDetailsTabs } from "@/components/apps/app-details-tabs";
@@ -54,7 +56,10 @@ export async function generateMetadata({
  * @param searchParams - Search parameters, including optional `showApiKey` flag.
  * @returns The rendered app details page with tabs.
  */
-export default async function AppDetailsPage({ params, searchParams }: PageProps) {
+export default async function AppDetailsPage({
+  params,
+  searchParams,
+}: PageProps) {
   const user = await requireAuthWithOrg();
   const { id } = await params;
   const search = await searchParams;
@@ -114,4 +119,3 @@ export default async function AppDetailsPage({ params, searchParams }: PageProps
     </div>
   );
 }
-

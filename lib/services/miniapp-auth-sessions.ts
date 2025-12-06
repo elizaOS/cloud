@@ -1,6 +1,6 @@
 /**
  * Miniapp Auth Sessions Service
- * 
+ *
  * Business logic for managing miniapp authentication sessions.
  * Handles the pass-through auth flow where:
  * 1. Miniapp creates a session and redirects to Cloud
@@ -27,7 +27,10 @@ class MiniappAuthSessionsService {
     const sessionId = nanoid(32);
     const expiresAt = new Date(Date.now() + SESSION_EXPIRY_MINUTES * 60 * 1000);
 
-    logger.info("[Miniapp Auth] Creating session", { sessionId: sessionId.slice(0, 8), callbackUrl });
+    logger.info("[Miniapp Auth] Creating session", {
+      sessionId: sessionId.slice(0, 8),
+      callbackUrl,
+    });
 
     const session = await miniappAuthSessionsRepository.create({
       session_id: sessionId,
@@ -57,7 +60,7 @@ class MiniappAuthSessionsService {
   async completeAuthentication(
     sessionId: string,
     userId: string,
-    organizationId: string
+    organizationId: string,
   ) {
     // Generate a secure auth token
     const authToken = `miniapp_${randomBytes(32).toString("hex")}`;
@@ -74,7 +77,7 @@ class MiniappAuthSessionsService {
       userId,
       organizationId,
       authToken,
-      authTokenHash
+      authTokenHash,
     );
 
     if (!session) {
@@ -82,7 +85,9 @@ class MiniappAuthSessionsService {
     }
 
     // Update expiry for the token (30 days from now)
-    const tokenExpiresAt = new Date(Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+    const tokenExpiresAt = new Date(
+      Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+    );
 
     return {
       callbackUrl: session.callback_url,
@@ -96,7 +101,8 @@ class MiniappAuthSessionsService {
    * Called by miniapp after redirect back
    */
   async getAuthToken(sessionId: string) {
-    const result = await miniappAuthSessionsRepository.getAndClearAuthToken(sessionId);
+    const result =
+      await miniappAuthSessionsRepository.getAndClearAuthToken(sessionId);
 
     if (!result) {
       logger.warn("[Miniapp Auth] Auth token not found or already retrieved", {
@@ -126,7 +132,8 @@ class MiniappAuthSessionsService {
    * Get session status (for polling)
    */
   async getSessionStatus(sessionId: string) {
-    const session = await miniappAuthSessionsRepository.getBySessionId(sessionId);
+    const session =
+      await miniappAuthSessionsRepository.getBySessionId(sessionId);
 
     if (!session) {
       return { status: "not_found" as const };
@@ -148,11 +155,12 @@ class MiniappAuthSessionsService {
   async cleanupExpired() {
     const deleted = await miniappAuthSessionsRepository.deleteExpired();
     if (deleted > 0) {
-      logger.info("[Miniapp Auth] Cleaned up expired sessions", { count: deleted });
+      logger.info("[Miniapp Auth] Cleaned up expired sessions", {
+        count: deleted,
+      });
     }
     return deleted;
   }
 }
 
 export const miniappAuthSessionsService = new MiniappAuthSessionsService();
-

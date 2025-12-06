@@ -1,14 +1,14 @@
 /**
  * Character Marketplace Service
- * 
+ *
  * Unified service for character marketplace operations.
  * This service handles BOTH public marketplace AND user's personal character library.
- * 
+ *
  * Domain: Characters (user_characters table)
  * - Public characters (templates, published characters)
  * - User's personal characters
  * - Character search, filtering, and statistics
- * 
+ *
  * Note: This does NOT deal with agents or deployments.
  * For deployment status, use characterDeploymentDiscoveryService.
  */
@@ -22,9 +22,7 @@ import { characterDeploymentDiscoveryService } from "../deployments/discovery";
 import type { AgentStats } from "../deployments/discovery";
 import { marketplaceCache } from "@/lib/cache/marketplace-cache";
 import { logger } from "@/lib/utils/logger";
-import {
-  getAllCategories,
-} from "@/lib/constants/character-categories";
+import { getAllCategories } from "@/lib/constants/character-categories";
 import type {
   SearchFilters,
   SortOptions,
@@ -78,7 +76,7 @@ export class CharacterMarketplaceService {
         sortOptions,
         // Fetch more if we need to filter by deployed status
         deployed !== undefined ? pagination.limit * 3 : pagination.limit,
-        deployed !== undefined ? 0 : offset
+        deployed !== undefined ? 0 : offset,
       ),
       userCharactersRepository.count(dbFilters, userId, organizationId),
     ]);
@@ -89,7 +87,7 @@ export class CharacterMarketplaceService {
 
     // Convert to extended characters
     let enrichedCharacters = characters.map((char) =>
-      this.toExtendedCharacter(char)
+      this.toExtendedCharacter(char),
     );
 
     // Fetch stats if needed (either for display or filtering by deployed)
@@ -145,7 +143,7 @@ export class CharacterMarketplaceService {
       adjustedTotal = enrichedCharacters.length;
       paginatedCharacters = enrichedCharacters.slice(
         offset,
-        offset + pagination.limit
+        offset + pagination.limit,
       );
     }
 
@@ -173,7 +171,7 @@ export class CharacterMarketplaceService {
    */
   async getCategories(
     organizationId: string,
-    userId: string
+    userId: string,
   ): Promise<CategoryInfo[]> {
     const cached = await marketplaceCache.getCategories(organizationId);
     if (cached) {
@@ -187,7 +185,7 @@ export class CharacterMarketplaceService {
         const count = await userCharactersRepository.count(
           { category: category.id },
           userId,
-          organizationId
+          organizationId,
         );
 
         return {
@@ -199,7 +197,7 @@ export class CharacterMarketplaceService {
           characterCount: count,
           featured: false,
         };
-      })
+      }),
     );
 
     await marketplaceCache.setCategories(organizationId, categoriesWithCounts);
@@ -212,7 +210,7 @@ export class CharacterMarketplaceService {
    */
   async getCharacterById(
     characterId: string,
-    includeStats: boolean = false
+    includeStats: boolean = false,
   ): Promise<ExtendedCharacter | null> {
     const cached = await marketplaceCache.getCharacter(characterId);
     if (cached && (!includeStats || cached.stats)) {
@@ -255,7 +253,7 @@ export class CharacterMarketplaceService {
     characterId: string,
     userId: string,
     organizationId: string,
-    options?: CloneCharacterOptions
+    options?: CloneCharacterOptions,
   ): Promise<ExtendedCharacter> {
     logger.info(
       `[Character Marketplace] Cloning character ${characterId} for user ${userId}`,
@@ -373,12 +371,12 @@ export class CharacterMarketplaceService {
       this.calculateRecencyScore(character.updated_at) * recencyWeight;
 
     const popularityScore = Math.round(
-      viewScore + interactionScore + recencyScore
+      viewScore + interactionScore + recencyScore,
     );
 
     await userCharactersRepository.updatePopularityScore(
       characterId,
-      popularityScore
+      popularityScore,
     );
 
     logger.debug(
@@ -401,18 +399,20 @@ export class CharacterMarketplaceService {
    */
   async getFeaturedCharacters(
     limit: number = 10,
-    includeStats: boolean = false
+    includeStats: boolean = false,
   ): Promise<ExtendedCharacter[]> {
     const featured = await userCharactersRepository.getFeatured(limit);
 
     let extendedCharacters = featured.map((char) =>
-      this.toExtendedCharacter(char)
+      this.toExtendedCharacter(char),
     );
 
     if (includeStats) {
       const ids = extendedCharacters.map((c) => c.id);
       const statsMap =
-        await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(ids);
+        await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(
+          ids,
+        );
 
       extendedCharacters = extendedCharacters.map((char) => {
         const stats = statsMap.get(char.id);
@@ -440,18 +440,20 @@ export class CharacterMarketplaceService {
    */
   async getPopularCharacters(
     limit: number = 20,
-    includeStats: boolean = false
+    includeStats: boolean = false,
   ): Promise<ExtendedCharacter[]> {
     const popular = await userCharactersRepository.getPopular(limit);
 
     let extendedCharacters = popular.map((char) =>
-      this.toExtendedCharacter(char)
+      this.toExtendedCharacter(char),
     );
 
     if (includeStats) {
       const ids = extendedCharacters.map((c) => c.id);
       const statsMap =
-        await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(ids);
+        await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(
+          ids,
+        );
 
       extendedCharacters = extendedCharacters.map((char) => {
         const stats = statsMap.get(char.id);
@@ -497,7 +499,7 @@ export class CharacterMarketplaceService {
 
     const cached = await marketplaceCache.getSearchResult(
       organizationId,
-      cacheKey
+      cacheKey,
     );
     if (cached) {
       logger.debug("[Character Marketplace] Public cache hit");
@@ -513,7 +515,7 @@ export class CharacterMarketplaceService {
         filters,
         sortOptions,
         pagination.limit,
-        offset
+        offset,
       ),
       userCharactersRepository.countPublic(filters),
     ]);
@@ -523,13 +525,15 @@ export class CharacterMarketplaceService {
     );
 
     let enrichedCharacters = characters.map((char) =>
-      this.toExtendedCharacter(char)
+      this.toExtendedCharacter(char),
     );
 
     if (includeStats) {
       const ids = enrichedCharacters.map((c) => c.id);
       const statsMap =
-        await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(ids);
+        await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(
+          ids,
+        );
 
       enrichedCharacters = enrichedCharacters.map((char) => {
         const stats = statsMap.get(char.id);
@@ -569,7 +573,7 @@ export class CharacterMarketplaceService {
       organizationId,
       cacheKey,
       result,
-      30 * 60
+      30 * 60,
     );
 
     return result;
@@ -602,17 +606,17 @@ export class CharacterMarketplaceService {
           characterCount: count,
           featured: false,
         };
-      })
+      }),
     );
 
     const nonEmptyCategories = categoriesWithCounts.filter(
-      (cat) => cat.characterCount > 0
+      (cat) => cat.characterCount > 0,
     );
 
     await marketplaceCache.setCategories(
       organizationId,
       nonEmptyCategories,
-      60 * 60
+      60 * 60,
     );
 
     return nonEmptyCategories;
@@ -628,7 +632,8 @@ export class CharacterMarketplaceService {
       username: character.username || undefined,
       system: character.system || undefined,
       bio: character.bio,
-      messageExamples: character.message_examples as ExtendedCharacter["messageExamples"],
+      messageExamples:
+        character.message_examples as ExtendedCharacter["messageExamples"],
       postExamples: character.post_examples as string[] | undefined,
       topics: character.topics as string[] | undefined,
       adjectives: character.adjectives as string[] | undefined,
@@ -657,7 +662,7 @@ export class CharacterMarketplaceService {
    */
   private async invalidateUserCache(
     userId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<void> {
     await Promise.all([
       marketplaceCache.invalidateSearchResults(organizationId),

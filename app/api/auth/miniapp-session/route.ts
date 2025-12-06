@@ -36,14 +36,17 @@ export async function POST(request: NextRequest) {
     if (!validation.success) {
       return NextResponse.json(
         { error: "Invalid request", details: validation.error.format() },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: corsHeaders },
       );
     }
 
     const { callbackUrl, appId } = validation.data;
 
     // Create new session
-    const session = await miniappAuthSessionsService.createSession(callbackUrl, appId);
+    const session = await miniappAuthSessionsService.createSession(
+      callbackUrl,
+      appId,
+    );
 
     return NextResponse.json(
       {
@@ -52,14 +55,13 @@ export async function POST(request: NextRequest) {
         // URL where miniapp should redirect the user
         loginUrl: `${process.env.NEXT_PUBLIC_APP_URL || ""}/auth/miniapp-login?session=${session.sessionId}`,
       },
-      { status: 201, headers: corsHeaders }
+      { status: 201, headers: corsHeaders },
     );
   } catch (error) {
     console.error("Error creating miniapp auth session:", error);
     return NextResponse.json(
       { error: "Failed to create authentication session" },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: corsHeaders },
     );
   }
 }
-

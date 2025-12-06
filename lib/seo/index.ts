@@ -22,4 +22,3 @@ export {
   generateBreadcrumbSchema,
   generateStructuredData,
 } from "./schema";
-

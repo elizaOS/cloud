@@ -89,7 +89,14 @@ export function useInfiniteCharacters({
 
       return params.toString();
     },
-    [filters.search, filters.category, filters.hasVoice, filters.deployed, sortBy, includeStats]
+    [
+      filters.search,
+      filters.category,
+      filters.hasVoice,
+      filters.deployed,
+      sortBy,
+      includeStats,
+    ],
   );
 
   const fetchPage = useCallback(
@@ -112,23 +119,27 @@ export function useInfiniteCharacters({
         return;
       }
 
-      const queryString = buildQueryParams(pageNum);
-      const response = await fetch(`/api/my-agents/characters?${queryString}`, {
-        signal: abortControllerRef.current.signal,
-      });
+      try {
+        const queryString = buildQueryParams(pageNum);
+        const response = await fetch(
+          `/api/my-agents/characters?${queryString}`,
+          {
+            signal: abortControllerRef.current.signal,
+          },
+        );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to fetch characters");
-      }
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to fetch characters");
+        }
 
-      const json = await response.json();
+        const json = await response.json();
 
-      if (!json.success) {
-        throw new Error(json.error || "API returned unsuccessful response");
-      }
+        if (!json.success) {
+          throw new Error(json.error || "API returned unsuccessful response");
+        }
 
-      const result: MyAgentsSearchResult = json.data;
+        const result: MyAgentsSearchResult = json.data;
 
         setState((prev) => {
           let newCharacters: ExtendedCharacter[];
@@ -151,8 +162,20 @@ export function useInfiniteCharacters({
             error: null,
           };
         });
+      } catch (error) {
+        // Don't set error state if request was aborted
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          isLoadingMore: false,
+          error: error instanceof Error ? error.message : "Failed to fetch characters",
+        }));
+      }
     },
-    [buildQueryParams]
+    [buildQueryParams],
   );
 
   // Initial fetch and filter change handling
@@ -176,7 +199,6 @@ export function useInfiniteCharacters({
   // Listen for external events that should trigger a refresh (e.g., affiliate character claims)
   useEffect(() => {
     const handleCharactersUpdated = () => {
-      logger.debug("[useInfiniteCharacters] Received characters-updated event, refreshing...");
       setPage(1);
       fetchPage(1, false);
     };

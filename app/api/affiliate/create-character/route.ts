@@ -16,7 +16,7 @@ import { logger } from "@/lib/utils/logger";
 // Get message limit from env or default to 5 (matching auth-anonymous.ts)
 const ANON_MESSAGE_LIMIT = Number.parseInt(
   process.env.ANON_MESSAGE_LIMIT || "5",
-  10
+  10,
 );
 
 // Custom validator for URL or base64 data URL
@@ -32,7 +32,7 @@ const urlOrBase64 = z.string().refine(
       return false;
     }
   },
-  { message: "Must be a valid URL or base64 data URL" }
+  { message: "Must be a valid URL or base64 data URL" },
 );
 
 // Schema validation for incoming character data
@@ -59,7 +59,7 @@ const CreateCharacterSchema = z.object({
           z.number(),
           z.boolean(),
           z.record(z.string(), z.unknown()),
-        ])
+        ]),
       )
       .optional(),
     secrets: z
@@ -84,7 +84,7 @@ const CreateCharacterSchema = z.object({
           z.object({
             type: z.enum(["url", "base64"]),
             data: z.string(),
-          })
+          }),
         )
         .optional(),
       avatarBase64: z.string().optional(),
@@ -97,7 +97,7 @@ const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 function checkRateLimit(
   apiKeyId: string,
-  limit = 100
+  limit = 100,
 ): { allowed: boolean; remaining: number } {
   const now = Date.now();
   const hourInMs = 60 * 60 * 1000;
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
           error:
             "Missing or invalid Authorization header. Expected: Bearer <api_key>",
         },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -154,14 +154,14 @@ export async function POST(request: NextRequest) {
           success: false,
           error: "Invalid API key",
         },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     // 2. CHECK PERMISSIONS - Ensure API key has affiliate permissions
     if (!apiKey.permissions.includes("affiliate:create-character")) {
       logger.warn(
-        `[Affiliate API] API key ${apiKey.key_prefix} lacks affiliate permissions`
+        `[Affiliate API] API key ${apiKey.key_prefix} lacks affiliate permissions`,
       );
       return NextResponse.json(
         {
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
           error:
             "This API key does not have permission to create characters via affiliate API",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
     const rateLimit = checkRateLimit(apiKey.id);
     if (!rateLimit.allowed) {
       logger.warn(
-        `[Affiliate API] Rate limit exceeded for key ${apiKey.key_prefix}`
+        `[Affiliate API] Rate limit exceeded for key ${apiKey.key_prefix}`,
       );
       return NextResponse.json(
         {
@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
         {
           status: 429,
           headers: { "X-RateLimit-Remaining": "0" },
-        }
+        },
       );
     }
 
@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
           error: "Invalid request body",
           details: error instanceof z.ZodError ? error.issues : undefined,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -223,7 +223,7 @@ export async function POST(request: NextRequest) {
         hasSessionId: !!providedSessionId,
         hasImageUrls: !!(metadata?.imageUrls && metadata.imageUrls.length > 0),
         imageCount: metadata?.imageUrls?.length || 0,
-      }
+      },
     );
 
     // 5. GET OR CREATE AFFILIATE ORGANIZATION
@@ -232,7 +232,7 @@ export async function POST(request: NextRequest) {
     try {
       // Try to find existing affiliate organization by slug
       affiliateOrg = await organizationsService.getBySlug(
-        "affiliate-characters"
+        "affiliate-characters",
       );
 
       if (!affiliateOrg) {
@@ -249,14 +249,14 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       logger.error(
         "[Affiliate API] Failed to get/create affiliate organization",
-        error
+        error,
       );
       return NextResponse.json(
         {
           success: false,
           error: "Internal server error while setting up affiliate account",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -283,7 +283,7 @@ export async function POST(request: NextRequest) {
           success: false,
           error: "Internal server error while creating user",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -336,7 +336,7 @@ export async function POST(request: NextRequest) {
 
         processedImages = await processAffiliateImages(
           affiliateMetadata,
-          tempCharacterId
+          tempCharacterId,
         );
 
         logger.info("[Affiliate API] Processed affiliate images", {
@@ -349,7 +349,7 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         logger.error(
           "[Affiliate API] Failed to process affiliate images",
-          error
+          error,
         );
       }
     }
@@ -419,9 +419,10 @@ export async function POST(request: NextRequest) {
             instagram: metadata?.instagram,
             twitter: metadata?.twitter,
             socialContent: metadata?.socialContent,
-            imageUrls: processedImages.referenceImageUrls.length > 0
-              ? processedImages.referenceImageUrls
-              : metadata?.imageUrls || [],
+            imageUrls:
+              processedImages.referenceImageUrls.length > 0
+                ? processedImages.referenceImageUrls
+                : metadata?.imageUrls || [],
             createdAt: new Date().toISOString(),
           },
         } as Record<string, unknown>,
@@ -442,7 +443,7 @@ export async function POST(request: NextRequest) {
           error: "Failed to create character",
           details: error instanceof Error ? error.message : "Unknown error",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -466,7 +467,7 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info(
-      `[Affiliate API] Generated redirect URL for affiliate ${affiliateId}: ${redirectUrl.toString()}`
+      `[Affiliate API] Generated redirect URL for affiliate ${affiliateId}: ${redirectUrl.toString()}`,
     );
 
     // 12. RETURN SUCCESS RESPONSE
@@ -490,13 +491,13 @@ export async function POST(request: NextRequest) {
         headers: {
           "X-RateLimit-Remaining": rateLimit.remaining.toString(),
         },
-      }
+      },
     );
   } catch (error) {
     const duration = Date.now() - startTime;
     logger.error(
       `[Affiliate API] ❌ Request failed after ${duration}ms`,
-      error
+      error,
     );
 
     return NextResponse.json(
@@ -505,7 +506,7 @@ export async function POST(request: NextRequest) {
         error: "Internal server error",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

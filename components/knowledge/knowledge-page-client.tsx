@@ -51,7 +51,8 @@ export function KnowledgePageClient({
     serviceAvailable: true,
     activeTab: "documents",
     isMounted: false,
-    selectedCharacterId: initialCharacters.length > 0 ? initialCharacters[0].id! : null,
+    selectedCharacterId:
+      initialCharacters.length > 0 ? initialCharacters[0].id! : null,
   });
 
   const updatePageState = useCallback((updates: Partial<PageState>) => {
@@ -144,7 +145,9 @@ export function KnowledgePageClient({
           <InfoIcon className="h-4 w-4" />
           <AlertDescription>
             <p className="font-semibold">Service unavailable</p>
-            {pageState.error && <p className="text-sm mt-1">{pageState.error}</p>}
+            {pageState.error && (
+              <p className="text-sm mt-1">{pageState.error}</p>
+            )}
           </AlertDescription>
         </Alert>
       </div>
@@ -201,7 +204,10 @@ export function KnowledgePageClient({
         {/* Mobile Dropdown */}
         {pageState.isMounted && (
           <div className="block md:hidden mb-4">
-            <Select value={pageState.activeTab} onValueChange={(v) => updatePageState({ activeTab: v })}>
+            <Select
+              value={pageState.activeTab}
+              onValueChange={(v) => updatePageState({ activeTab: v })}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue>
                   <div className="flex items-center gap-2">

@@ -42,6 +42,7 @@ interface SendMessageOptions {
  * Sends a message and streams the response via Server-Sent Events (SSE).
  * 
  * The entityId is derived from the authenticated user on the server.
+ * Single endpoint handles everything - no cross-container issues!
  * 
  * @param options - Message sending options including callbacks.
  */

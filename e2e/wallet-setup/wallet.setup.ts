@@ -27,7 +27,7 @@ export default defineWalletSetup(PASSWORD, async (context, walletPage) => {
   // The wallet setup will be handled by Synpress automatically
   // This callback receives the context and walletPage for custom setup if needed
   console.log("[Wallet Setup] MetaMask wallet setup initiated");
-  
+
   // Note: The actual wallet import is handled by the defineWalletSetup function
   // which uses the password provided and sets up the MetaMask extension
 });

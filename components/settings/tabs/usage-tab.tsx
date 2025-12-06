@@ -57,23 +57,31 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
     const fetchDailyBurn = async () => {
       setLoading(true);
 
-      const response = await fetch("/api/credits/transactions?hours=24");
+      try {
+        const response = await fetch("/api/credits/transactions?hours=24");
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch transactions");
+        if (!response.ok) {
+          throw new Error("Failed to fetch transactions");
+        }
+
+        const data = await response.json();
+
+        interface Transaction {
+          amount: string | number;
+        }
+        const burn = (data.transactions || ([] as Transaction[]))
+          .filter((t: Transaction) => Number(t.amount) < 0)
+          .reduce(
+            (sum: number, t: Transaction) => sum + Math.abs(Number(t.amount)),
+            0,
+          );
+
+        setDailyBurn(burn);
+      } catch (error) {
+        console.error("Error fetching daily burn:", error);
+      } finally {
+        setLoading(false);
       }
-
-      const data = await response.json();
-
-      interface Transaction {
-        amount: string | number;
-      }
-      const burn = (data.transactions || [] as Transaction[])
-        .filter((t: Transaction) => Number(t.amount) < 0)
-        .reduce((sum: number, t: Transaction) => sum + Math.abs(Number(t.amount)), 0);
-
-      setDailyBurn(burn);
-      setLoading(false);
     };
 
     fetchDailyBurn();

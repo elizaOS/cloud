@@ -88,15 +88,15 @@ export function VoiceStudioAdvanced({
   const router = useRouter();
   const [voices, setVoices] = useState<Voice[]>(initialVoices);
   const [selectedVoice, setSelectedVoice] = useState<Voice | null>(
-    voices[0] || null
+    voices[0] || null,
   );
-  
+
   const [previewState, setPreviewState] = useState<PreviewState>({
     voice: null,
     audioUrl: null,
     isLoading: false,
   });
-  
+
   const [operationState, setOperationState] = useState<OperationState>({
     deleteDialogVoice: null,
     isDeleting: false,
@@ -130,13 +130,13 @@ export function VoiceStudioAdvanced({
     if (newVoice.cloneType === "professional") {
       toast.success(
         `Voice "${newVoice.name}" is being processed. This may take 30-60 minutes. Refresh the page to check status.`,
-        { duration: 8000 }
+        { duration: 8000 },
       );
       // Add with processing status
       setVoices([{ ...newVoice, status: "processing" }, ...voices]);
     } else {
       toast.success(
-        `Voice "${newVoice.name}" created successfully and ready to use!`
+        `Voice "${newVoice.name}" created successfully and ready to use!`,
       );
       setVoices([newVoice, ...voices]);
       setSelectedVoice(newVoice);
@@ -147,7 +147,7 @@ export function VoiceStudioAdvanced({
     // Check if professional voice is still processing based on time
     const minutesElapsed = Math.max(
       0,
-      (new Date().getTime() - new Date(voice.createdAt).getTime()) / 1000 / 60
+      (new Date().getTime() - new Date(voice.createdAt).getTime()) / 1000 / 60,
     );
     const isProcessing =
       voice.cloneType === "professional" && minutesElapsed < 30;
@@ -155,7 +155,7 @@ export function VoiceStudioAdvanced({
     if (isProcessing) {
       toast.error(
         "Voice is still being processed. Professional voice clones typically take 30-60 minutes. Please check back later.",
-        { duration: 6000 }
+        { duration: 6000 },
       );
       return;
     }
@@ -196,21 +196,26 @@ export function VoiceStudioAdvanced({
 
   const handleDelete = async (voice: Voice) => {
     updateOperation({ isDeleting: true });
-    const response = await fetch(`/api/elevenlabs/voices/${voice.id}`, {
-      method: "DELETE",
-    });
+    try {
+      const response = await fetch(`/api/elevenlabs/voices/${voice.id}`, {
+        method: "DELETE",
+      });
 
-    if (!response.ok) {
+      if (!response.ok) throw new Error("Failed to delete voice");
+
+      toast.success("Voice deleted successfully");
+      setVoices(voices.filter((v) => v.id !== voice.id));
+      if (selectedVoice?.id === voice.id) {
+        setSelectedVoice(voices[0] || null);
+      }
+      updateOperation({ deleteDialogVoice: null });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete voice",
+      );
+    } finally {
       updateOperation({ isDeleting: false });
-      throw new Error("Failed to delete voice");
     }
-
-    toast.success("Voice deleted successfully");
-    setVoices(voices.filter((v) => v.id !== voice.id));
-    if (selectedVoice?.id === voice.id) {
-      setSelectedVoice(voices[0] || null);
-    }
-    updateOperation({ deleteDialogVoice: null, isDeleting: false });
   };
 
   const handleUseInTTS = (voice: Voice) => {
@@ -226,7 +231,7 @@ export function VoiceStudioAdvanced({
 
   // Count professional voices
   const professionalVoiceCount = voices.filter(
-    (v) => v.cloneType === "professional"
+    (v) => v.cloneType === "professional",
   ).length;
   const professionalVoicesRemaining = Math.max(0, 1 - professionalVoiceCount);
 
@@ -296,7 +301,7 @@ export function VoiceStudioAdvanced({
                         (new Date().getTime() -
                           new Date(v.createdAt).getTime()) /
                           1000 /
-                          60
+                          60,
                       );
                       return v.cloneType === "professional" && mins < 60;
                     }) && " • Some may still be processing"}
@@ -325,7 +330,7 @@ export function VoiceStudioAdvanced({
                     "border px-2 py-1 text-xs font-mono whitespace-nowrap",
                     professionalVoicesRemaining === 0
                       ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
-                      : "border-white/20 bg-white/10 text-white"
+                      : "border-white/20 bg-white/10 text-white",
                   )}
                   title="Professional voice slots (ElevenLabs limitation)"
                 >
@@ -425,7 +430,7 @@ export function VoiceStudioAdvanced({
                                 (now.getTime() -
                                   new Date(voice.createdAt).getTime()) /
                                   1000 /
-                                  60
+                                  60,
                               );
                               const isProcessing =
                                 voice.cloneType === "professional" && mins < 60;
@@ -464,7 +469,7 @@ export function VoiceStudioAdvanced({
                                 (now.getTime() -
                                   new Date(voice.createdAt).getTime()) /
                                   1000 /
-                                  60
+                                  60,
                               );
                               const isProcessing =
                                 voice.cloneType === "professional" && mins < 60;
@@ -512,7 +517,9 @@ export function VoiceStudioAdvanced({
                                     size="sm"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      updateOperation({ deleteDialogVoice: voice });
+                                      updateOperation({
+                                        deleteDialogVoice: voice,
+                                      });
                                     }}
                                     className="h-8 px-2 text-rose-400 hover:text-rose-400 hover:bg-rose-500/10"
                                   >
@@ -570,7 +577,7 @@ export function VoiceStudioAdvanced({
                             </span>
                             <span className="font-medium text-white">
                               {formatDuration(
-                                selectedVoice.totalAudioDurationSeconds ?? null
+                                selectedVoice.totalAudioDurationSeconds ?? null,
                               )}
                             </span>
                           </div>
@@ -591,7 +598,7 @@ export function VoiceStudioAdvanced({
                                 new Date(selectedVoice.createdAt),
                                 {
                                   addSuffix: true,
-                                }
+                                },
                               )}
                             </span>
                           </div>
@@ -603,7 +610,7 @@ export function VoiceStudioAdvanced({
                                   new Date(selectedVoice.lastUsedAt),
                                   {
                                     addSuffix: true,
-                                  }
+                                  },
                                 )}
                               </span>
                             </div>
@@ -669,15 +676,18 @@ export function VoiceStudioAdvanced({
             <AlertDialogTitle>Delete Voice Clone?</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete &ldquo;
-              {operationState.deleteDialogVoice?.name}&rdquo;? This action cannot be undone and
-              the voice will be permanently removed.
+              {operationState.deleteDialogVoice?.name}&rdquo;? This action
+              cannot be undone and the voice will be permanently removed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={operationState.isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={operationState.isDeleting}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={() =>
-                operationState.deleteDialogVoice && handleDelete(operationState.deleteDialogVoice)
+                operationState.deleteDialogVoice &&
+                handleDelete(operationState.deleteDialogVoice)
               }
               disabled={operationState.isDeleting}
               className="bg-destructive hover:bg-destructive/90"

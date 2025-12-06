@@ -50,7 +50,7 @@ export class AgentLoader {
    */
   async loadCharacter(
     characterId: string,
-    agentMode: AgentMode
+    agentMode: AgentMode,
   ): Promise<{
     character: Character;
     plugins: Plugin[];
@@ -275,7 +275,7 @@ export class AgentLoader {
    */
   private async resolvePlugins(
     agentMode: AgentMode,
-    characterPlugins: string[]
+    characterPlugins: string[],
   ): Promise<Plugin[]> {
     const plugins: Plugin[] = [];
 
@@ -287,7 +287,7 @@ export class AgentLoader {
 
     console.log(
       `[AgentLoader] Loading plugins for ${agentMode} mode:`,
-      corePluginNames
+      corePluginNames,
     );
 
     for (const pluginName of corePluginNames) {
@@ -325,7 +325,7 @@ export class AgentLoader {
         if (!plugins.some((p) => p === knowledgePlugin)) {
           plugins.push(knowledgePlugin);
           console.log(
-            `[AgentLoader] ✓ Loaded character plugin: ${pluginName} (lazy-loaded)`
+            `[AgentLoader] ✓ Loaded character plugin: ${pluginName} (lazy-loaded)`,
           );
         }
         continue;

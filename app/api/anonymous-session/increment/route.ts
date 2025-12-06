@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
             "Retry-After": "60",
             "X-RateLimit-Remaining": "0",
           },
-        }
+        },
       );
     }
 
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
       logger.warn("[Increment API] Missing or invalid session token");
       return NextResponse.json(
         { error: "Session token is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -134,13 +134,13 @@ export async function POST(request: NextRequest) {
       logger.warn("[Increment API] Invalid session token format");
       return NextResponse.json(
         { error: "Invalid session token format" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const tokenHash = hashTokenForLogging(sessionToken);
     logger.info(
-      `[Increment API] Incrementing message count for token: ${tokenHash}`
+      `[Increment API] Incrementing message count for token: ${tokenHash}`,
     );
 
     // Use query builder instead of raw SQL to prevent injection
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
       logger.warn(`[Increment API] Session not found for token: ${tokenHash}`);
       return NextResponse.json(
         { error: "Session not found", code: "SESSION_NOT_FOUND" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
 
     // Increment the message count (uses atomic update)
     const updatedSession = await anonymousSessionsService.incrementMessageCount(
-      session.id
+      session.id,
     );
 
     logger.info("[Increment API] Message count incremented:", {
@@ -186,7 +186,7 @@ export async function POST(request: NextRequest) {
         headers: {
           "X-RateLimit-Remaining": String(rateLimit.remaining),
         },
-      }
+      },
     );
   } catch (error) {
     logger.error("[Increment API] Error incrementing message count:", error);
@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
       {
         error: "Failed to increment message count",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -239,13 +239,15 @@ export async function handleMessage({
 
         // Check if an action already sent a complete response
         // If so, skip generating another response to avoid duplicates
-        const actionAlreadyResponded = hasActionSentResponse(message.roomId as string);
+        const actionAlreadyResponded = hasActionSentResponse(
+          message.roomId as string,
+        );
         if (actionAlreadyResponded) {
           logger.info(
             "[ChatAssistant] ⏭️ Action already sent response - skipping final response generation",
           );
           clearActionResponseFlag(message.roomId as string);
-          
+
           // Clear any cached attachments (they were already sent via the wrapped callback)
           getAndClearCachedAttachments(message.roomId as string);
 
@@ -364,7 +366,9 @@ export async function handleMessage({
     }
 
     const attachments = Array.from(attachmentMap.values());
-    logger.info(`[ChatAssistant] Final attachments count: ${attachments.length}`);
+    logger.info(
+      `[ChatAssistant] Final attachments count: ${attachments.length}`,
+    );
 
     // Build response content
     const content: Record<string, unknown> = {

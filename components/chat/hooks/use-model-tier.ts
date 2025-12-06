@@ -48,7 +48,11 @@ interface UseModelTierResult {
 }
 
 export function useModelTier(): UseModelTierResult {
-  const selectedTier = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const selectedTier = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getServerSnapshot,
+  );
 
   const setTier = useCallback((tier: ModelTier) => {
     if (isValidModelTier(tier)) {
@@ -57,7 +61,10 @@ export function useModelTier(): UseModelTierResult {
     }
   }, []);
 
-  const selectedModelId = useMemo(() => getModelIdFromTier(selectedTier), [selectedTier]);
+  const selectedModelId = useMemo(
+    () => getModelIdFromTier(selectedTier),
+    [selectedTier],
+  );
   const selectedConfig = useMemo(() => MODEL_TIERS[selectedTier], [selectedTier]);
   const displayInfo = useMemo(() => getTierDisplayInfo(selectedTier), [selectedTier]);
 

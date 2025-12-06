@@ -29,11 +29,11 @@ const checkoutRequestSchema = z
       .number()
       .min(
         CUSTOM_AMOUNT_LIMITS.MIN_AMOUNT,
-        `Amount must be at least $${CUSTOM_AMOUNT_LIMITS.MIN_AMOUNT}`
+        `Amount must be at least $${CUSTOM_AMOUNT_LIMITS.MIN_AMOUNT}`,
       )
       .max(
         CUSTOM_AMOUNT_LIMITS.MAX_AMOUNT,
-        `Amount cannot exceed $${CUSTOM_AMOUNT_LIMITS.MAX_AMOUNT}`
+        `Amount cannot exceed $${CUSTOM_AMOUNT_LIMITS.MAX_AMOUNT}`,
       )
       .finite("Amount must be a valid number")
       .optional(),
@@ -76,7 +76,7 @@ async function handleCheckoutSession(req: NextRequest) {
           error: "Validation failed",
           details: validationResult.error.flatten().fieldErrors,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -91,7 +91,7 @@ async function handleCheckoutSession(req: NextRequest) {
     if (!organizationId) {
       return NextResponse.json(
         { error: "Organization not found" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -100,7 +100,7 @@ async function handleCheckoutSession(req: NextRequest) {
       if (!creditPack || !creditPack.is_active) {
         return NextResponse.json(
           { error: "Invalid or inactive credit pack" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
@@ -142,7 +142,7 @@ async function handleCheckoutSession(req: NextRequest) {
     } else {
       return NextResponse.json(
         { error: "Either creditPackId or amount must be provided" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -192,7 +192,7 @@ async function handleCheckoutSession(req: NextRequest) {
     } else {
       if (requestOrigin) {
         logger.warn(
-          `[Stripe Checkout] Untrusted origin rejected: ${requestOrigin}`
+          `[Stripe Checkout] Untrusted origin rejected: ${requestOrigin}`,
         );
       }
       baseUrl = "http://localhost:3000";
@@ -234,7 +234,7 @@ async function handleCheckoutSession(req: NextRequest) {
     logger.error("[Stripe Checkout] Error creating checkout session:", error);
     return NextResponse.json(
       { error: "Failed to create checkout session" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -242,5 +242,5 @@ async function handleCheckoutSession(req: NextRequest) {
 // Export rate-limited handler with standard preset
 export const POST = withRateLimit(
   handleCheckoutSession,
-  RateLimitPresets.STRICT
+  RateLimitPresets.STRICT,
 );

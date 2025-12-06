@@ -266,15 +266,19 @@ export class RuntimeFactory {
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    
+
     const transformedServers: Record<string, McpServerConfigInput> = {};
-    
-    for (const [serverId, serverConfig] of Object.entries(mcpSettings.servers)) {
+
+    for (const [serverId, serverConfig] of Object.entries(
+      mcpSettings.servers,
+    )) {
       const config = serverConfig;
       transformedServers[serverId] = {
         ...config,
         // If URL starts with /, prepend baseUrl; otherwise use as-is
-        url: config.url?.startsWith("/") ? `${baseUrl}${config.url}` : config.url,
+        url: config.url?.startsWith("/")
+          ? `${baseUrl}${config.url}`
+          : config.url,
       };
     }
 

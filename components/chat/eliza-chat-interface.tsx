@@ -105,7 +105,10 @@ const tierIcons: Record<string, React.ReactNode> = {
   ultra: <Crown className="h-3.5 w-3.5" />,
 };
 
-export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterfaceProps) {
+export function ElizaChatInterface({
+  onMessageSent,
+  character,
+}: ElizaChatInterfaceProps) {
   // Track renders in development
   useRenderTracker("ElizaChatInterface");
 
@@ -120,10 +123,10 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
     setPendingMessage,
     anonymousSessionToken,
   } = useChatStore();
-  
+
   // Check authentication status for features that require it
   const { authenticated } = usePrivy();
-  
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [agentInfo, setAgentInfo] = useState<AgentInfoDisplay | null>(null);
   const [inputText, setInputText] = useState("");
@@ -135,8 +138,9 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
   const selectedCharacter = availableCharacters.find(
     (char) => char.id === selectedCharacterId,
   );
-  const characterName = character?.name || selectedCharacter?.name || agentInfo?.name || "Agent";
-  
+  const characterName =
+    character?.name || selectedCharacter?.name || agentInfo?.name || "Agent";
+
   // Consolidated loading states
   const [loadingState, setLoadingState] = useState({
     isSending: false,
@@ -144,11 +148,11 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
     isLoadingMessages: false,
     isProcessingSTT: false,
   });
-  
+
   const [error, setError] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   const [audioState, setAudioState] = useState<{
     autoPlayTTS: boolean;
     currentPlayingId: string | null;
@@ -157,12 +161,13 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
   }>(() => ({
     autoPlayTTS: false,
     currentPlayingId: null,
-    selectedVoiceId: typeof window !== "undefined" 
-      ? localStorage.getItem("eliza-selected-voice-id") 
-      : null,
+    selectedVoiceId:
+      typeof window !== "undefined"
+        ? localStorage.getItem("eliza-selected-voice-id")
+        : null,
     customVoices: [],
   }));
-  
+
   const messageAudioUrls = useRef<Map<string, string>>(new Map());
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
@@ -176,19 +181,31 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
   const recorder = useAudioRecorder();
   const player = useAudioPlayer();
 
-  const { selectedTier, selectedModelId, displayInfo, tiers, setTier, isLoading: isLoadingModels } = useModelTier();
+  const {
+    selectedTier,
+    selectedModelId,
+    displayInfo,
+    tiers,
+    setTier,
+    isLoading: isLoadingModels,
+  } = useModelTier();
 
   const loadMessages = useCallback(async (targetRoomId: string) => {
-    setLoadingState(prev => ({ ...prev, isLoadingMessages: true }));
-    const response = await fetch(`/api/eliza/rooms/${targetRoomId}`);
-    if (response.ok) {
-      const data = await response.json();
-      setMessages(data.messages || []);
-      if (data.agent) {
-        setAgentInfo(data.agent);
+    setLoadingState((prev) => ({ ...prev, isLoadingMessages: true }));
+    try {
+      const response = await fetch(`/api/eliza/rooms/${targetRoomId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setMessages(data.messages || []);
+        if (data.agent) {
+          setAgentInfo(data.agent);
+        }
       }
+    } catch (err) {
+      console.error("Error loading messages:", err);
+    } finally {
+      setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
     }
-    setLoadingState(prev => ({ ...prev, isLoadingMessages: false }));
   }, []);
 
   // Load messages when roomId from context changes
@@ -200,7 +217,7 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
       setMessages([]);
       setAgentInfo(null);
       setError(null);
-      setLoadingState(prev => ({ ...prev, isLoadingMessages: false }));
+      setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
     }
   }, [roomId, loadMessages]);
 
@@ -208,21 +225,27 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
     async (characterId?: string | null) => {
       const charIdToUse =
         characterId !== undefined ? characterId : selectedCharacterId;
-      setLoadingState(prev => ({ ...prev, isInitializing: true }));
+      setLoadingState((prev) => ({ ...prev, isInitializing: true }));
       setError(null);
       // Use store's createRoom which handles the API call
-      const newRoomId = await createRoomInStore(charIdToUse);
+      try {
+        const newRoomId = await createRoomInStore(charIdToUse);
 
-      if (!newRoomId) {
-        setLoadingState(prev => ({ ...prev, isInitializing: false }));
-        throw new Error("Failed to create room");
+        if (!newRoomId) {
+          throw new Error("Failed to create room");
+        }
+
+        // Load initial messages for the new room
+        await loadMessages(newRoomId);
+
+        return newRoomId;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to create room");
+        console.error("[ElizaChat] Error creating room:", err);
+        throw err; // Re-throw so caller can handle
+      } finally {
+        setLoadingState((prev) => ({ ...prev, isInitializing: false }));
       }
-
-      // Load initial messages for the new room
-      await loadMessages(newRoomId);
-      setLoadingState(prev => ({ ...prev, isInitializing: false }));
-
-      return newRoomId;
     },
     [createRoomInStore, loadMessages, selectedCharacterId],
   );
@@ -261,7 +284,11 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
     }
 
     // If we have a roomId and a pending message in ref (after room creation), send it
-    if (roomId && pendingMessageToSendRef.current && !loadingState.isLoadingMessages) {
+    if (
+      roomId &&
+      pendingMessageToSendRef.current &&
+      !loadingState.isLoadingMessages
+    ) {
       const messageToSend = pendingMessageToSendRef.current;
       console.log("[ElizaChat] Auto-sending pending message:", messageToSend);
 
@@ -280,36 +307,48 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
       }, 500);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId, loadingState.isSending, loadingState.isInitializing, pendingMessage, loadingState.isLoadingMessages]);
+  }, [
+    roomId,
+    loadingState.isSending,
+    loadingState.isInitializing,
+    pendingMessage,
+    loadingState.isLoadingMessages,
+  ]);
 
   const generateSpeech = useCallback(
     async (text: string, messageId: string) => {
-      const currentVoiceId = audioState.selectedVoiceId;
-      const requestBody: { text: string; voiceId?: string } = { text };
-      if (currentVoiceId) {
-        requestBody.voiceId = currentVoiceId;
+      try {
+        const currentVoiceId = audioState.selectedVoiceId;
+        const requestBody: { text: string; voiceId?: string } = { text };
+        if (currentVoiceId) {
+          requestBody.voiceId = currentVoiceId;
+        }
+
+        const response = await fetch("/api/elevenlabs/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to generate speech");
+        }
+
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        messageAudioUrls.current.set(messageId, audioUrl);
+
+        if (audioState.autoPlayTTS) {
+          setAudioState((prev) => ({ ...prev, currentPlayingId: messageId }));
+          await player.playAudio(audioUrl);
+        }
+
+        return audioUrl;
+      } catch (error) {
+        console.error("TTS error:", error);
+        toast.error("Failed to generate speech");
+        throw error;
       }
-
-      const response = await fetch("/api/elevenlabs/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to generate speech");
-      }
-
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      messageAudioUrls.current.set(messageId, audioUrl);
-
-      if (audioState.autoPlayTTS) {
-        setAudioState(prev => ({ ...prev, currentPlayingId: messageId }));
-        await player.playAudio(audioUrl);
-      }
-
-      return audioUrl;
     },
     [audioState.autoPlayTTS, audioState.selectedVoiceId, player],
   );
@@ -323,14 +362,17 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
     }
 
     const fetchCustomVoices = async () => {
-      const response = await fetch("/api/elevenlabs/voices/user");
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && Array.isArray(data.voices)) {
-          setAudioState(prev => ({ ...prev, customVoices: data.voices }));
+      try {
+        const response = await fetch("/api/elevenlabs/voices/user");
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && Array.isArray(data.voices)) {
+            setAudioState((prev) => ({ ...prev, customVoices: data.voices }));
+          }
         }
+      } catch {
+        // 401 errors are expected for users without voice features
       }
-      // 401 errors are expected for users without voice features
     };
 
     fetchCustomVoices();
@@ -353,7 +395,7 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
       // Guard: Don't process if no audio blob or already processing
       if (!recorder.audioBlob || loadingState.isProcessingSTT) return;
 
-      setLoadingState(prev => ({ ...prev, isProcessingSTT: true }));
+      setLoadingState((prev) => ({ ...prev, isProcessingSTT: true }));
 
       // Ensure the blob is in proper audio format (fix Safari/macOS video/webm issue)
       const audioBlob = await ensureAudioFormat(recorder.audioBlob);
@@ -374,7 +416,7 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
       if (!response.ok) {
         const error = await response.json();
         recorder.clearRecording();
-        setLoadingState(prev => ({ ...prev, isProcessingSTT: false }));
+        setLoadingState((prev) => ({ ...prev, isProcessingSTT: false }));
         throw new Error(error.error || "Failed to transcribe audio");
       }
 
@@ -519,7 +561,7 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
     if (!textOverride) {
       setInputText("");
     }
-    setLoadingState(prev => ({ ...prev, isSending: true }));
+    setLoadingState((prev) => ({ ...prev, isSending: true }));
     setError(null);
 
     // If no room exists, create one first
@@ -554,63 +596,79 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
         // createRoom already loaded messages, just give it a moment
         await new Promise((resolve) => setTimeout(resolve, 300));
       }
-    }
 
-    // Add optimistic temp user message
-    const clientMessageId = `temp-${Date.now()}`;
-    const now = Date.now();
-    const tempUserMessage: Message = {
-      id: clientMessageId,
-      content: { text: messageText },
-      isAgent: false,
-      createdAt: now,
-    };
-    setMessages((prev) => [...prev, tempUserMessage]);
+      // Add optimistic temp user message
+      const clientMessageId = `temp-${Date.now()}`;
+      const now = Date.now();
+      const tempUserMessage: Message = {
+        id: clientMessageId,
+        content: { text: messageText },
+        isAgent: false,
+        createdAt: now,
+      };
+      setMessages((prev) => [...prev, tempUserMessage]);
 
-    // Safety timeout: remove thinking indicator after 30 seconds if no response
-    thinkingTimeoutRef.current = setTimeout(() => {
-      setMessages((prev) =>
-        prev.filter((m) => !m.id.startsWith("thinking-")),
-      );
-      console.warn(
-        "[Chat] Thinking indicator timeout - agent took too long to respond",
-      );
-    }, 30000);
-
-    // Stream the response using single endpoint
-    // Errors are handled via onError callback
-    await sendStreamingMessage({
-      roomId: currentRoomId,
-      text: messageText,
-      model: selectedModelId, // Pass selected model from tier
-      sessionToken: anonymousSessionToken || undefined, // Pass session token for anonymous users
-      onMessage: handleStreamMessage,
-      onError: (errorMsg) => {
-        setError(errorMsg);
-        toast.error(errorMsg);
-        // Remove temp and thinking messages on error
+      // Safety timeout: remove thinking indicator after 30 seconds if no response
+      thinkingTimeoutRef.current = setTimeout(() => {
         setMessages((prev) =>
-          prev.filter(
-            (msg) =>
-              msg.id !== tempUserMessage.id &&
-              !msg.id.startsWith("thinking-"),
-          ),
+          prev.filter((m) => !m.id.startsWith("thinking-")),
         );
-        if (thinkingTimeoutRef.current) {
-          clearTimeout(thinkingTimeoutRef.current);
-          thinkingTimeoutRef.current = null;
-        }
-        setLoadingState(prev => ({ ...prev, isSending: false }));
-      },
-      onComplete: () => {
-        loadRooms();
-        // Notify parent that a message was sent successfully (for anonymous message counting)
-        if (onMessageSent) {
-          onMessageSent();
-        }
-        setLoadingState(prev => ({ ...prev, isSending: false }));
-      },
-    });
+        console.warn(
+          "[Chat] Thinking indicator timeout - agent took too long to respond",
+        );
+      }, 30000);
+
+      // Stream the response using single endpoint
+      await sendStreamingMessage({
+        roomId: currentRoomId,
+        text: messageText,
+        model: selectedModelId, // Pass selected model from tier
+        sessionToken: anonymousSessionToken || undefined, // Pass session token for anonymous users
+        onMessage: handleStreamMessage,
+        onError: (errorMsg) => {
+          setError(errorMsg);
+          toast.error(errorMsg);
+          // Remove temp and thinking messages on error
+          setMessages((prev) =>
+            prev.filter(
+              (msg) =>
+                msg.id !== tempUserMessage.id &&
+                !msg.id.startsWith("thinking-"),
+            ),
+          );
+          if (thinkingTimeoutRef.current) {
+            clearTimeout(thinkingTimeoutRef.current);
+            thinkingTimeoutRef.current = null;
+          }
+        },
+        onComplete: () => {
+          loadRooms();
+          // Notify parent that a message was sent successfully (for anonymous message counting)
+          if (onMessageSent) {
+            onMessageSent();
+          }
+        },
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send message");
+      console.error("Error sending message:", err);
+      toast.error(
+        err instanceof Error ? err.message : "Failed to send message",
+      );
+      // Remove temp and thinking messages on error
+      setMessages((prev) =>
+        prev.filter(
+          (msg) =>
+            !msg.id.startsWith("temp-") && !msg.id.startsWith("thinking-"),
+        ),
+      );
+      if (thinkingTimeoutRef.current) {
+        clearTimeout(thinkingTimeoutRef.current);
+        thinkingTimeoutRef.current = null;
+      }
+    } finally {
+      setLoadingState((prev) => ({ ...prev, isSending: false }));
+    }
   };
 
   const formatTimestamp = (timestamp: number): string => {
@@ -757,46 +815,55 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
                 </div>
               )}
 
-              {!loadingState.isLoadingMessages && messages.length === 0 && !error && (
-                <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                  <ElizaAvatar
-                    avatarUrl={agentInfo?.avatarUrl}
-                    name={characterName}
-                    className="h-16 w-16 mb-4"
-                    fallbackClassName="bg-muted"
-                    iconClassName="h-8 w-8 text-muted-foreground"
-                  />
-                  <h3 className="text-lg font-semibold mb-2">
-                    Send the first message to {characterName}
-                  </h3>
-                  <p className="text-sm text-muted-foreground max-w-md">
-                    {(() => {
-                      // Get character description from character data
-                      const charData = character?.character_data;
-                      // Check for personality traits first (stored in bio)
-                      if (charData?.bio) {
-                        const bioArray = Array.isArray(charData.bio) ? charData.bio : [charData.bio];
-                        // Look for personality line first, then use first bio line
-                        const personalityLine = bioArray.find(line => 
-                          typeof line === 'string' && line.toLowerCase().includes('personality')
-                        );
-                        if (personalityLine) {
-                          // Remove "Personality traits: " prefix for cleaner display
-                          return personalityLine.replace(/^personality traits?:\s*/i, '');
+              {!loadingState.isLoadingMessages &&
+                messages.length === 0 &&
+                !error && (
+                  <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                    <ElizaAvatar
+                      avatarUrl={agentInfo?.avatarUrl}
+                      name={characterName}
+                      className="h-16 w-16 mb-4"
+                      fallbackClassName="bg-muted"
+                      iconClassName="h-8 w-8 text-muted-foreground"
+                    />
+                    <h3 className="text-lg font-semibold mb-2">
+                      Send the first message to {characterName}
+                    </h3>
+                    <p className="text-sm text-muted-foreground max-w-md">
+                      {(() => {
+                        // Get character description from character data
+                        const charData = character?.character_data;
+                        // Check for personality traits first (stored in bio)
+                        if (charData?.bio) {
+                          const bioArray = Array.isArray(charData.bio)
+                            ? charData.bio
+                            : [charData.bio];
+                          // Look for personality line first, then use first bio line
+                          const personalityLine = bioArray.find(
+                            (line) =>
+                              typeof line === "string" &&
+                              line.toLowerCase().includes("personality"),
+                          );
+                          if (personalityLine) {
+                            // Remove "Personality traits: " prefix for cleaner display
+                            return personalityLine.replace(
+                              /^personality traits?:\s*/i,
+                              "",
+                            );
+                          }
+                          return bioArray[0];
                         }
-                        return bioArray[0];
-                      }
-                      if (charData?.personality) {
-                        return charData.personality;
-                      }
-                      if (charData?.description) {
-                        return charData.description;
-                      }
-                      return `Say hello to ${characterName}!`;
-                    })()}
-                  </p>
-                </div>
-              )}
+                        if (charData?.personality) {
+                          return charData.personality;
+                        }
+                        if (charData?.description) {
+                          return charData.description;
+                        }
+                        return `Say hello to ${characterName}!`;
+                      })()}
+                    </p>
+                  </div>
+                )}
 
               {!loadingState.isLoadingMessages &&
                 messages.map((message, index) => {
@@ -917,20 +984,27 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
                                           );
                                         if (url) {
                                           if (
-                                            audioState.currentPlayingId === message.id &&
+                                            audioState.currentPlayingId ===
+                                              message.id &&
                                             player.isPlaying
                                           ) {
                                             player.stopAudio();
-                                            setAudioState(prev => ({ ...prev, currentPlayingId: null }));
+                                            setAudioState((prev) => ({
+                                              ...prev,
+                                              currentPlayingId: null,
+                                            }));
                                           } else {
-                                            setAudioState(prev => ({ ...prev, currentPlayingId: message.id }));
+                                            setAudioState((prev) => ({
+                                              ...prev,
+                                              currentPlayingId: message.id,
+                                            }));
                                             player.playAudio(url);
                                           }
                                         }
                                       }}
                                     >
-                                      {audioState.currentPlayingId === message.id &&
-                                      player.isPlaying ? (
+                                      {audioState.currentPlayingId ===
+                                        message.id && player.isPlaying ? (
                                         <Square className="h-3.5 w-3.5 text-white/50" />
                                       ) : (
                                         <Volume2 className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
@@ -1033,7 +1107,8 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
                 onInput={(e) => {
                   const target = e.target as HTMLTextAreaElement;
                   target.style.height = "44px";
-                  target.style.height = Math.min(target.scrollHeight, 140) + "px";
+                  target.style.height =
+                    Math.min(target.scrollHeight, 140) + "px";
                 }}
                 placeholder={
                   recorder.isRecording
@@ -1056,7 +1131,7 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
                 value={selectedTier}
                 onValueChange={(value) => {
                   setTier(value as "fast" | "pro" | "ultra");
-                  const tier = tiers.find(t => t.id === value);
+                  const tier = tiers.find((t) => t.id === value);
                   if (tier) {
                     toast.success(`Model: ${tier.name}`);
                   }
@@ -1067,7 +1142,7 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
                   <SelectValue placeholder="Select model">
                     <span className="flex items-center gap-2">
                       {tierIcons[selectedTier]}
-                      {tiers.find(t => t.id === selectedTier)?.name || "Pro"}
+                      {tiers.find((t) => t.id === selectedTier)?.name || "Pro"}
                     </span>
                   </SelectValue>
                 </SelectTrigger>
@@ -1124,7 +1199,12 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
                             <Switch
                               id="auto-tts-pop"
                               checked={audioState.autoPlayTTS}
-                              onCheckedChange={(checked) => setAudioState(prev => ({ ...prev, autoPlayTTS: checked }))}
+                              onCheckedChange={(checked) =>
+                                setAudioState((prev) => ({
+                                  ...prev,
+                                  autoPlayTTS: checked,
+                                }))
+                              }
                             />
                           </div>
 
@@ -1141,7 +1221,10 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
                                 onValueChange={(value) => {
                                   const newVoiceId =
                                     value === "default" ? null : value;
-                                  setAudioState(prev => ({ ...prev, selectedVoiceId: newVoiceId }));
+                                  setAudioState((prev) => ({
+                                    ...prev,
+                                    selectedVoiceId: newVoiceId,
+                                  }));
 
                                   if (typeof window !== "undefined") {
                                     if (newVoiceId) {
@@ -1240,4 +1323,3 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
     </div>
   );
 }
-

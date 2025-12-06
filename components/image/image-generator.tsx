@@ -67,7 +67,7 @@ export function ImageGenerator() {
     aspectRatio: "1:1",
     stylePreset: "none",
   });
-  
+
   const [generationState, setGenerationState] = useState<GenerationState>({
     images: [],
     isLoading: false,
@@ -88,38 +88,47 @@ export function ImageGenerator() {
 
     updateGeneration({ isLoading: true, error: null });
 
-    const response = await fetch("/api/v1/generate-image", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        prompt: formState.prompt,
-        numImages: formState.numImages,
-        aspectRatio: formState.aspectRatio,
-        stylePreset: formState.stylePreset !== "none" ? formState.stylePreset : undefined,
-      }),
-    });
+    try {
+      const response = await fetch("/api/v1/generate-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt: formState.prompt,
+          numImages: formState.numImages,
+          aspectRatio: formState.aspectRatio,
+          stylePreset:
+            formState.stylePreset !== "none"
+              ? formState.stylePreset
+              : undefined,
+        }),
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (!response.ok) {
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to generate image");
+      }
+
+      // Handle multiple images response
+      if (data.images && Array.isArray(data.images)) {
+        const processedImages = data.images.map((img: GeneratedImage) => ({
+          image: img.image.startsWith("data:")
+            ? img.image
+            : `data:image/png;base64,${img.image}`,
+          url: img.url,
+          text: img.text || "",
+        }));
+        updateGeneration({ images: processedImages });
+      }
+    } catch (err) {
+      updateGeneration({
+        error: err instanceof Error ? err.message : "An error occurred",
+      });
+    } finally {
       updateGeneration({ isLoading: false });
-      throw new Error(data.error || "Failed to generate image");
     }
-
-    // Handle multiple images response
-    if (data.images && Array.isArray(data.images)) {
-      const processedImages = data.images.map((img: GeneratedImage) => ({
-        image: img.image.startsWith("data:")
-          ? img.image
-          : `data:image/png;base64,${img.image}`,
-        url: img.url,
-        text: img.text || "",
-      }));
-      updateGeneration({ images: processedImages });
-    }
-    updateGeneration({ isLoading: false });
   };
 
   const handleDownload = useCallback((imageData: string, index: number) => {
@@ -153,7 +162,9 @@ export function ImageGenerator() {
 
       {generationState.error && (
         <div className="rounded-xl border-2 border-destructive bg-destructive/10 px-6 py-4 animate-in fade-in slide-in-from-top-4 duration-300">
-          <p className="text-sm text-destructive font-medium">{generationState.error}</p>
+          <p className="text-sm text-destructive font-medium">
+            {generationState.error}
+          </p>
         </div>
       )}
 
@@ -172,7 +183,9 @@ export function ImageGenerator() {
                 generatedText={img.text}
                 onDownload={() => handleDownload(img.image, index)}
                 onGenerateAnother={handleGenerateAnother}
-                showGenerateAnother={index === generationState.images.length - 1}
+                showGenerateAnother={
+                  index === generationState.images.length - 1
+                }
               />
             ))}
           </div>

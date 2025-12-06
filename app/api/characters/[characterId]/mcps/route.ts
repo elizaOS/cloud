@@ -13,31 +13,36 @@ const McpServerConfigSchema = z.object({
   type: z.enum(["http", "sse", "streamable-http"]),
   // Accept either full URLs or pathnames (starting with /)
   // Pathnames will be expanded to full URLs at runtime
-  url: z.string().max(2048).refine(
-    (val) => {
-      // Accept pathnames starting with /
-      if (val.startsWith("/")) return true;
-      // Accept full URLs
-      try {
-        new URL(val);
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    { message: "Must be a valid URL or pathname starting with /" }
-  ),
+  url: z
+    .string()
+    .max(2048)
+    .refine(
+      (val) => {
+        // Accept pathnames starting with /
+        if (val.startsWith("/")) return true;
+        // Accept full URLs
+        try {
+          new URL(val);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      { message: "Must be a valid URL or pathname starting with /" },
+    ),
   timeout: z.number().int().min(0).max(300000).optional(), // Max 5 minutes
 });
 
 const McpSettingsSchema = z.object({
-  servers: z.record(
-    z.string().max(100), // Server ID max 100 chars
-    McpServerConfigSchema
-  ).refine(
-    (servers) => Object.keys(servers).length <= 50, // Max 50 servers
-    { message: "Maximum 50 MCP servers allowed" }
-  ),
+  servers: z
+    .record(
+      z.string().max(100), // Server ID max 100 chars
+      McpServerConfigSchema,
+    )
+    .refine(
+      (servers) => Object.keys(servers).length <= 50, // Max 50 servers
+      { message: "Maximum 50 MCP servers allowed" },
+    ),
   maxRetries: z.number().int().min(0).max(10).optional(),
 });
 
@@ -47,10 +52,16 @@ import type { McpServerConfig, McpSettings } from "@/lib/types/mcp";
  * SECURITY: Safe JSON parsing with depth and size limits
  * Prevents DoS attacks from deeply nested or large JSON structures
  */
-function safeJsonParse(jsonString: string, maxDepth: number = 10, maxSize: number = 100000): unknown {
+function safeJsonParse(
+  jsonString: string,
+  maxDepth: number = 10,
+  maxSize: number = 100000,
+): unknown {
   // Check size limit (100KB default)
   if (jsonString.length > maxSize) {
-    throw new Error(`JSON string too large: ${jsonString.length} bytes (max: ${maxSize})`);
+    throw new Error(
+      `JSON string too large: ${jsonString.length} bytes (max: ${maxSize})`,
+    );
   }
 
   // Parse JSON
@@ -58,7 +69,9 @@ function safeJsonParse(jsonString: string, maxDepth: number = 10, maxSize: numbe
   try {
     parsed = JSON.parse(jsonString);
   } catch (error) {
-    throw new Error(`Invalid JSON: ${error instanceof Error ? error.message : 'Parse error'}`);
+    throw new Error(
+      `Invalid JSON: ${error instanceof Error ? error.message : "Parse error"}`,
+    );
   }
 
   // Check depth limit
@@ -67,7 +80,7 @@ function safeJsonParse(jsonString: string, maxDepth: number = 10, maxSize: numbe
       throw new Error(`JSON structure too deep: exceeds ${maxDepth} levels`);
     }
 
-    if (obj && typeof obj === 'object') {
+    if (obj && typeof obj === "object") {
       if (Array.isArray(obj)) {
         for (const item of obj) {
           checkDepth(item, currentDepth + 1);
@@ -90,7 +103,7 @@ function safeJsonParse(jsonString: string, maxDepth: number = 10, maxSize: numbe
  */
 function transformMcpUrlsForDisplay(
   mcpSettings: McpSettings,
-  request: NextRequest
+  request: NextRequest,
 ): McpSettings {
   if (!mcpSettings?.servers) {
     return mcpSettings;
@@ -138,10 +151,10 @@ function parseMcpSettings(mcpSetting: unknown): McpSettings {
 
   // Validate with Zod schema
   const validationResult = McpSettingsSchema.safeParse(parsed);
-  
+
   if (!validationResult.success) {
     throw new Error(
-      `Invalid MCP settings structure: ${validationResult.error.issues.map(i => i.message).join(", ")}`
+      `Invalid MCP settings structure: ${validationResult.error.issues.map((i) => i.message).join(", ")}`,
     );
   }
 
@@ -193,7 +206,7 @@ export async function GET(
       mcpSettings = parseMcpSettings(mcpSetting);
     } catch (error) {
       logger.warn(
-        `[Characters/MCPs] Invalid MCP settings for character ${characterId}: ${error instanceof Error ? error.message : 'Parse error'}`,
+        `[Characters/MCPs] Invalid MCP settings for character ${characterId}: ${error instanceof Error ? error.message : "Parse error"}`,
       );
       // Return empty settings on validation failure
       mcpSettings = { servers: {} };
@@ -204,7 +217,10 @@ export async function GET(
     const pluginMcpEnabled = plugins.includes("@elizaos/plugin-mcp");
 
     // Transform pathnames to full URLs for display/testing in the UI
-    const mcpSettingsForDisplay = transformMcpUrlsForDisplay(mcpSettings, request);
+    const mcpSettingsForDisplay = transformMcpUrlsForDisplay(
+      mcpSettings,
+      request,
+    );
 
     return NextResponse.json({
       characterId,
@@ -252,7 +268,7 @@ export async function PUT(
     });
 
     const validationResult = requestSchema.safeParse(body);
-    
+
     if (!validationResult.success) {
       return NextResponse.json(
         {
@@ -316,9 +332,12 @@ export async function PUT(
     // CRITICAL FIX: Invalidate any cached character data
     // This ensures the next runtime creation will use fresh MCP settings
     try {
-      const { invalidateCharacterCache } = await import("@/lib/cache/character-cache");
+      const { invalidateCharacterCache } =
+        await import("@/lib/cache/character-cache");
       await invalidateCharacterCache(characterId);
-      logger.info(`[Characters/MCPs] Invalidated cache for character ${characterId}`);
+      logger.info(
+        `[Characters/MCPs] Invalidated cache for character ${characterId}`,
+      );
     } catch (cacheError) {
       // Don't fail the update if cache invalidation fails
       logger.warn(`[Characters/MCPs] Failed to invalidate cache:`, cacheError);
@@ -375,7 +394,7 @@ export async function POST(
     });
 
     const validationResult = requestSchema.safeParse(body);
-    
+
     if (!validationResult.success) {
       return NextResponse.json(
         {
@@ -420,7 +439,7 @@ export async function POST(
       mcpSettings = parseMcpSettings(mcpSetting);
     } catch (error) {
       logger.warn(
-        `[Characters/MCPs] Could not parse existing MCP settings for character ${characterId}, starting fresh: ${error instanceof Error ? error.message : 'Parse error'}`,
+        `[Characters/MCPs] Could not parse existing MCP settings for character ${characterId}, starting fresh: ${error instanceof Error ? error.message : "Parse error"}`,
       );
       // Start fresh on validation failure
       mcpSettings = { servers: {} };
@@ -452,9 +471,12 @@ export async function POST(
 
     // CRITICAL FIX: Invalidate any cached character data
     try {
-      const { invalidateCharacterCache } = await import("@/lib/cache/character-cache");
+      const { invalidateCharacterCache } =
+        await import("@/lib/cache/character-cache");
       await invalidateCharacterCache(characterId);
-      logger.info(`[Characters/MCPs] Invalidated cache for character ${characterId}`);
+      logger.info(
+        `[Characters/MCPs] Invalidated cache for character ${characterId}`,
+      );
     } catch (cacheError) {
       logger.warn(`[Characters/MCPs] Failed to invalidate cache:`, cacheError);
     }
@@ -538,7 +560,7 @@ export async function DELETE(
       mcpSettings = parseMcpSettings(mcpSetting);
     } catch (error) {
       logger.warn(
-        `[Characters/MCPs] Could not parse MCP settings for character ${characterId} during deletion: ${error instanceof Error ? error.message : 'Parse error'}`,
+        `[Characters/MCPs] Could not parse MCP settings for character ${characterId} during deletion: ${error instanceof Error ? error.message : "Parse error"}`,
       );
       // Nothing to delete if settings are invalid
       return NextResponse.json({
@@ -572,9 +594,12 @@ export async function DELETE(
 
     // CRITICAL FIX: Invalidate any cached character data
     try {
-      const { invalidateCharacterCache } = await import("@/lib/cache/character-cache");
+      const { invalidateCharacterCache } =
+        await import("@/lib/cache/character-cache");
       await invalidateCharacterCache(characterId);
-      logger.info(`[Characters/MCPs] Invalidated cache for character ${characterId}`);
+      logger.info(
+        `[Characters/MCPs] Invalidated cache for character ${characterId}`,
+      );
     } catch (cacheError) {
       logger.warn(`[Characters/MCPs] Failed to invalidate cache:`, cacheError);
     }

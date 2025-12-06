@@ -129,7 +129,7 @@ function StepCard({
         "relative transition-all duration-200",
         step.completed
           ? "border-green-500/20 bg-green-500/5"
-          : "hover:border-[#FF5800]/40"
+          : "hover:border-[#FF5800]/40",
       )}
     >
       <div className="space-y-3">
@@ -139,7 +139,7 @@ function StepCard({
               "inline-flex p-2 rounded-sm border",
               step.completed
                 ? "bg-green-500/20 border-green-500/30 text-green-400"
-                : "bg-[#FF5800]/10 border-[#FF5800]/20 text-[#FF5800]"
+                : "bg-[#FF5800]/10 border-[#FF5800]/20 text-[#FF5800]",
             )}
           >
             {step.completed ? <Check className="h-5 w-5" /> : step.icon}
@@ -154,7 +154,7 @@ function StepCard({
             <h3
               className={cn(
                 "text-sm font-medium",
-                step.completed ? "text-white/50" : "text-white"
+                step.completed ? "text-white/50" : "text-white",
               )}
             >
               {step.title}

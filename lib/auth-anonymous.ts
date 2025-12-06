@@ -36,15 +36,15 @@ import { migrateAnonymousSession } from "@/lib/session";
 const ANON_SESSION_COOKIE = "eliza-anon-session";
 const ANON_SESSION_EXPIRY_DAYS = Number.parseInt(
   process.env.ANON_SESSION_EXPIRY_DAYS || "7",
-  10
+  10,
 );
 const ANON_MESSAGE_LIMIT = Number.parseInt(
   process.env.ANON_MESSAGE_LIMIT || "5",
-  10
+  10,
 );
 const ANON_HOURLY_LIMIT = Number.parseInt(
   process.env.ANON_HOURLY_LIMIT || "10",
-  10
+  10,
 );
 
 /**
@@ -74,6 +74,7 @@ async function getClientIp(): Promise<string | undefined> {
   if (realIp) {
     return realIp;
   }
+  // Fallback to x-forwarded-for (first IP in the chain)
   const forwardedFor = headersList
     .get("x-forwarded-for")
     ?.split(",")[0]
@@ -141,7 +142,7 @@ export async function getOrCreateAnonymousUser(): Promise<{
 
   const newSessionToken = nanoid(32);
   const expiresAt = new Date(
-    Date.now() + ANON_SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+    Date.now() + ANON_SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
   );
   const ipAddress = await getClientIp();
   const userAgent = await getUserAgent();
@@ -149,13 +150,13 @@ export async function getOrCreateAnonymousUser(): Promise<{
   if (process.env.NODE_ENV === "production") {
     if (!ipAddress) {
       logger.warn(
-        "[auth-anonymous] Missing IP address in production - abuse detection bypassed"
+        "[auth-anonymous] Missing IP address in production - abuse detection bypassed",
       );
     } else {
       const isAbuse = await anonymousSessionsService.checkIpAbuse(ipAddress);
       if (isAbuse) {
         const error = new Error(
-          "Too many anonymous sessions from this IP address. Please sign up for continued access."
+          "Too many anonymous sessions from this IP address. Please sign up for continued access.",
         );
         error.name = "RateLimitError";
         throw error;
@@ -224,7 +225,7 @@ export async function getOrCreateAnonymousUser(): Promise<{
  */
 export async function convertAnonymousToReal(
   anonymousUserId: string,
-  privyUserId: string
+  privyUserId: string,
 ): Promise<void> {
   logger.info("[auth-anonymous] convertAnonymousToReal called (deprecated)", {
     anonymousUserId,
@@ -270,7 +271,7 @@ export async function checkAnonymousLimit(sessionId: string): Promise<{
   }
 
   const rateLimitResult = await anonymousSessionsService.checkRateLimit(
-    session.id
+    session.id,
   );
 
   if (!rateLimitResult.allowed) {
@@ -315,7 +316,7 @@ export async function getAnonymousUser(): Promise<{
   if (!session) {
     logger.debug(
       "[getAnonymousUser] Session not found in DB for token hash:",
-      hashTokenForLogging(sessionToken)
+      hashTokenForLogging(sessionToken),
     );
     return null;
   }

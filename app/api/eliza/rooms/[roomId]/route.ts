@@ -8,7 +8,7 @@ import { logger } from "@/lib/utils/logger";
 
 /**
  * GET /api/eliza/rooms/[roomId] - Get room details and messages
- * 
+ *
  * Pure database operation - no runtime needed
  * Uses agentsService to get agent display info
  * Requires the authenticated user to be a participant of the room
@@ -19,7 +19,7 @@ export async function GET(
 ) {
   // Get authenticated user ID
   let userId: string;
-  
+
   try {
     const authResult = await requireAuthOrApiKey(request);
     userId = authResult.user.id;
@@ -28,7 +28,8 @@ export async function GET(
     const anonData = await getAnonymousUser();
     if (!anonData) {
       // Create new anonymous session if none exists
-      const { getOrCreateAnonymousUser } = await import("@/lib/auth-anonymous");
+      const { getOrCreateAnonymousUser } =
+        await import("@/lib/auth-anonymous");
       const newAnonData = await getOrCreateAnonymousUser();
       userId = newAnonData.user.id;
     } else {
@@ -193,7 +194,7 @@ export async function GET(
 
 /**
  * DELETE /api/eliza/rooms/[roomId] - Delete a room and all related data
- * 
+ *
  * Pure database operation - no runtime needed
  * Requires the authenticated user to be a participant of the room
  */
@@ -203,7 +204,7 @@ export async function DELETE(
 ) {
   // Get authenticated user ID
   let userId: string;
-  
+
   try {
     const authResult = await requireAuthOrApiKey(request);
     userId = authResult.user.id;

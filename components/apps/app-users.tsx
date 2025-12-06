@@ -11,7 +11,13 @@
 import { useState, useEffect } from "react";
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Loader2, Users as UsersIcon, DollarSign, Activity } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  Loader2,
+  Users as UsersIcon,
+  DollarSign,
+  Activity,
+} from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import type { AppUser } from "@/lib/types";
 
@@ -37,13 +43,18 @@ export function AppUsers({ appId }: AppUsersProps) {
 
   const fetchUsers = async () => {
     setIsLoading(true);
-    const response = await fetch(`/api/v1/apps/${appId}/users?limit=50`);
-    const data = await response.json();
-    
-    if (data.success) {
-      setUsers(data.users);
+    try {
+      const response = await fetch(`/api/v1/apps/${appId}/users?limit=50`);
+      const data = await response.json();
+
+      if (data.success) {
+        setUsers(data.users);
+      }
+    } catch (error) {
+      console.error("Failed to fetch users:", error);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -67,7 +78,9 @@ export function AppUsers({ appId }: AppUsersProps) {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/5 mb-4">
             <UsersIcon className="h-8 w-8 text-white/40" />
           </div>
-          <h3 className="text-lg font-semibold text-white mb-2">No users yet</h3>
+          <h3 className="text-lg font-semibold text-white mb-2">
+            No users yet
+          </h3>
           <p className="text-white/60">
             Users will appear here once they start using your app
           </p>
@@ -110,8 +123,8 @@ export function AppUsers({ appId }: AppUsersProps) {
                       {appUser.total_requests} requests
                     </span>
                     <span className="flex items-center gap-1">
-                      <DollarSign className="h-3 w-3" />
-                      ${parseFloat(appUser.total_credits_used).toFixed(2)}
+                      <DollarSign className="h-3 w-3" />$
+                      {parseFloat(appUser.total_credits_used).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -138,4 +151,3 @@ export function AppUsers({ appId }: AppUsersProps) {
     </BrandCard>
   );
 }
-

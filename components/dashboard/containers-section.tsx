@@ -62,7 +62,12 @@ export function ContainersSection({
           </div>
         </div>
         {containers.length > 0 && (
-          <BrandButton variant="outline" asChild size="sm" className="h-8 text-xs">
+          <BrandButton
+            variant="outline"
+            asChild
+            size="sm"
+            className="h-8 text-xs"
+          >
             <Link href="/dashboard/containers">View All</Link>
           </BrandButton>
         )}
@@ -106,7 +111,12 @@ function ContainersEmptyState() {
         </div>
 
         <div className="pt-1">
-          <BrandButton variant="outline" asChild size="sm" className="h-8 text-xs">
+          <BrandButton
+            variant="outline"
+            asChild
+            size="sm"
+            className="h-8 text-xs"
+          >
             <Link href="/dashboard/containers">
               <Terminal className="h-3.5 w-3.5 mr-1.5" />
               Learn More

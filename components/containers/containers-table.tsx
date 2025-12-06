@@ -100,7 +100,7 @@ export function ContainersTable({ containers }: ContainersTableProps) {
   const router = useRouter();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  
+
   // Consolidated filter and sort state
   const [filters, setFilters] = useState<TableFilters>(DEFAULT_FILTERS);
 
@@ -113,10 +113,13 @@ export function ContainersTable({ containers }: ContainersTableProps) {
   };
 
   const handleSort = (field: SortField) => {
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
       sortField: field,
-      sortDirection: prev.sortField === field && prev.sortDirection === "asc" ? "desc" : "asc",
+      sortDirection:
+        prev.sortField === field && prev.sortDirection === "asc"
+          ? "desc"
+          : "asc",
     }));
   };
 
@@ -124,13 +127,16 @@ export function ContainersTable({ containers }: ContainersTableProps) {
     let filtered = containers.filter((container) => {
       const matchesSearch =
         filters.searchQuery === "" ||
-        container.name.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
+        container.name
+          .toLowerCase()
+          .includes(filters.searchQuery.toLowerCase()) ||
         container.description
           ?.toLowerCase()
           .includes(filters.searchQuery.toLowerCase());
 
       const matchesStatus =
-        filters.statusFilter === "all" || container.status === filters.statusFilter;
+        filters.statusFilter === "all" ||
+        container.status === filters.statusFilter;
 
       return matchesSearch && matchesStatus;
     });
@@ -246,12 +252,22 @@ export function ContainersTable({ containers }: ContainersTableProps) {
               <Input
                 placeholder="Search containers by name or description..."
                 value={filters.searchQuery}
-                onChange={(e) => setFilters(prev => ({ ...prev, searchQuery: e.target.value }))}
+                onChange={(e) =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    searchQuery: e.target.value,
+                  }))
+                }
                 className="pl-9 rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus-visible:ring-[#FF5800]/50"
                 style={{ fontFamily: "var(--font-roboto-mono)" }}
               />
             </div>
-            <Select value={filters.statusFilter} onValueChange={(value) => setFilters(prev => ({ ...prev, statusFilter: value }))}>
+            <Select
+              value={filters.statusFilter}
+              onValueChange={(value) =>
+                setFilters((prev) => ({ ...prev, statusFilter: value }))
+              }
+            >
               <SelectTrigger
                 className="w-full sm:w-[180px] rounded-none border-white/10 bg-black/40"
                 style={{ fontFamily: "var(--font-roboto-mono)" }}

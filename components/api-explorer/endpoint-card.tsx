@@ -96,7 +96,9 @@ export function EndpointCard({
         {/* Pricing */}
         {endpoint.pricing && (
           <div className="flex items-center gap-2">
-            <div className={`flex items-center gap-1.5 ${getPricingTextStyle(endpoint.pricing)}`}>
+            <div
+              className={`flex items-center gap-1.5 ${getPricingTextStyle(endpoint.pricing)}`}
+            >
               {endpoint.pricing.isFree ? (
                 <Sparkles className="h-3.5 w-3.5" />
               ) : (
@@ -128,7 +130,7 @@ export function EndpointCard({
               </span>
             )}
           </div>
-          
+
           {endpoint.tags.length > 0 && (
             <div className="flex gap-1.5">
               {endpoint.tags.slice(0, 2).map((tag) => (

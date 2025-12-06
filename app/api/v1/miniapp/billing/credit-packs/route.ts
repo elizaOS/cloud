@@ -39,10 +39,13 @@ export async function GET(request: NextRequest) {
   // Rate limiting
   const rateLimitResult = await checkMiniappRateLimit(
     request,
-    MINIAPP_RATE_LIMITS
+    MINIAPP_RATE_LIMITS,
   );
   if (!rateLimitResult.allowed) {
-    return createRateLimitErrorResponse(rateLimitResult, corsResult.origin ?? undefined);
+    return createRateLimitErrorResponse(
+      rateLimitResult,
+      corsResult.origin ?? undefined,
+    );
   }
 
   try {
@@ -74,10 +77,9 @@ export async function GET(request: NextRequest) {
         success: false,
         error: "Failed to fetch credit packs",
       },
-      { status: 500 }
+      { status: 500 },
     );
 
     return addCorsHeaders(response, corsResult.origin);
   }
 }
-
