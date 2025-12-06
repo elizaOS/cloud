@@ -228,7 +228,7 @@ export async function POST(
     {
       text,
       attachments: attachments || [],
-      source: "api",
+      source: "client_chat",
     },
     userContext,
     characterId,
