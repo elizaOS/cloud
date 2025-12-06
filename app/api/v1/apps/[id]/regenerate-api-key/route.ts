@@ -50,7 +50,8 @@ export async function POST(
     return NextResponse.json({
       success: true,
       apiKey: newApiKey, // Only returned once
-      message: "API key regenerated successfully. Make sure to save it securely.",
+      message:
+        "API key regenerated successfully. Make sure to save it securely.",
     });
   } catch (error) {
     logger.error("Failed to regenerate API key:", error);
@@ -66,4 +67,3 @@ export async function POST(
     );
   }
 }
-

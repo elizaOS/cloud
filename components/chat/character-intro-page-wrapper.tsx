@@ -79,7 +79,9 @@ export function CharacterIntroPageWrapper({
     }
 
     // Navigate to chat with session
-    router.push(`/chat/${characterId}?session=${sessionId}&source=${source || "direct"}`);
+    router.push(
+      `/chat/${characterId}?session=${sessionId}&source=${source || "direct"}`,
+    );
   }
 
   return (

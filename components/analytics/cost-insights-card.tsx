@@ -93,10 +93,7 @@ export function CostInsightsCard({
           </div>
         </div>
 
-        <CostAlerts
-          costTrending={costTrending}
-          creditBalance={creditBalance}
-        />
+        <CostAlerts costTrending={costTrending} creditBalance={creditBalance} />
       </CardContent>
     </Card>
   );

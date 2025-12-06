@@ -1,6 +1,6 @@
 /**
  * /api/v1/miniapp/agents/[id]/chats
- * 
+ *
  * GET  - List all chats for an agent
  * POST - Create a new chat with an agent
  */
@@ -8,9 +8,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { charactersService } from "@/lib/services";
-import { addCorsHeaders, validateOrigin, createPreflightResponse } from "@/lib/middleware/cors-apps";
-import { 
-  checkMiniappRateLimit, 
+import {
+  addCorsHeaders,
+  validateOrigin,
+  createPreflightResponse,
+} from "@/lib/middleware/cors-apps";
+import {
+  checkMiniappRateLimit,
   createRateLimitErrorResponse,
   MINIAPP_RATE_LIMITS,
   MINIAPP_WRITE_LIMITS,
@@ -32,49 +36,61 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const corsResult = await validateOrigin(request);
   const { id: agentId } = await params;
-  
+
   // Rate limiting
-  const rateLimitResult = await checkMiniappRateLimit(request, MINIAPP_RATE_LIMITS);
+  const rateLimitResult = await checkMiniappRateLimit(
+    request,
+    MINIAPP_RATE_LIMITS,
+  );
   if (!rateLimitResult.allowed) {
-    return createRateLimitErrorResponse(rateLimitResult, corsResult.origin ?? undefined);
+    return createRateLimitErrorResponse(
+      rateLimitResult,
+      corsResult.origin ?? undefined,
+    );
   }
-  
+
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { searchParams } = new URL(request.url);
-    
+
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "20", 10)));
+    const limit = Math.min(
+      50,
+      Math.max(1, parseInt(searchParams.get("limit") || "20", 10)),
+    );
     const offset = (page - 1) * limit;
-    
+
     // Verify agent exists and user has access
     const character = await charactersService.getById(agentId);
-    
+
     if (!character) {
       const response = NextResponse.json(
         { success: false, error: "Agent not found" },
-        { status: 404 }
+        { status: 404 },
       );
       return addCorsHeaders(response, corsResult.origin);
     }
-    
-    if (character.user_id !== user.id && character.organization_id !== user.organization_id) {
+
+    if (
+      character.user_id !== user.id &&
+      character.organization_id !== user.organization_id
+    ) {
       const response = NextResponse.json(
         { success: false, error: "Access denied" },
-        { status: 403 }
+        { status: 403 },
       );
       return addCorsHeaders(response, corsResult.origin);
     }
-    
+
     // Find rooms for this user and agent
     // Query in two ways to catch both:
     // 1. Rooms where user is a participant (after first message is sent)
     // 2. Rooms where user is the creator (stored in metadata, before any messages)
-    
+
     // First, get rooms where user is a participant
     const roomsWithParticipants = await db
       .select({
@@ -86,13 +102,13 @@ export async function GET(
         and(
           eq(participantTable.entityId, user.id as UUID),
           eq(roomTable.agentId, agentId as UUID),
-          eq(roomTable.type, "DIRECT")
-        )
+          eq(roomTable.type, "DIRECT"),
+        ),
       )
       .orderBy(desc(roomTable.createdAt))
       .limit(limit)
       .offset(offset);
-    
+
     // Then get rooms where user is creator (in metadata) - for newly created rooms
     // that haven't had messages sent yet
     const roomsFromMetadata = await db
@@ -102,13 +118,13 @@ export async function GET(
         and(
           eq(roomTable.agentId, agentId as UUID),
           eq(roomTable.type, "DIRECT"),
-          sql`${roomTable.metadata}->>'creatorUserId' = ${user.id}`
-        )
+          sql`${roomTable.metadata}->>'creatorUserId' = ${user.id}`,
+        ),
       )
       .orderBy(desc(roomTable.createdAt))
       .limit(limit)
       .offset(offset);
-    
+
     // Merge and deduplicate rooms
     const roomMap = new Map<string, typeof roomTable.$inferSelect>();
     for (const { room } of roomsWithParticipants) {
@@ -120,7 +136,7 @@ export async function GET(
       }
     }
     const rooms = Array.from(roomMap.values()).slice(0, limit);
-    
+
     // Get last message and count for each room
     const chatsWithMessages = await Promise.all(
       rooms.map(async (room) => {
@@ -128,22 +144,26 @@ export async function GET(
         const [lastMessage] = await db
           .select()
           .from(memoryTable)
-          .where(and(
-            eq(memoryTable.roomId, room.id),
-            eq(memoryTable.type, "messages")
-          ))
+          .where(
+            and(
+              eq(memoryTable.roomId, room.id),
+              eq(memoryTable.type, "messages"),
+            ),
+          )
           .orderBy(desc(memoryTable.createdAt))
           .limit(1);
-        
+
         // Count messages
         const messageCount = await db
           .select()
           .from(memoryTable)
-          .where(and(
-            eq(memoryTable.roomId, room.id),
-            eq(memoryTable.type, "messages")
-          ));
-        
+          .where(
+            and(
+              eq(memoryTable.roomId, room.id),
+              eq(memoryTable.type, "messages"),
+            ),
+          );
+
         return {
           id: room.id,
           agentId,
@@ -151,20 +171,23 @@ export async function GET(
           createdAt: room.createdAt,
           // Use last message time as updatedAt if available, otherwise use createdAt
           updatedAt: lastMessage?.createdAt || room.createdAt,
-          lastMessage: lastMessage ? {
-            content: typeof lastMessage.content === 'string' 
-              ? lastMessage.content 
-              : (lastMessage.content as { text?: string })?.text || '',
-            role: lastMessage.entityId === agentId ? 'assistant' : 'user',
-            createdAt: lastMessage.createdAt,
-          } : null,
+          lastMessage: lastMessage
+            ? {
+                content:
+                  typeof lastMessage.content === "string"
+                    ? lastMessage.content
+                    : (lastMessage.content as { text?: string })?.text || "",
+                role: lastMessage.entityId === agentId ? "assistant" : "user",
+                createdAt: lastMessage.createdAt,
+              }
+            : null,
           messageCount: messageCount.length,
         };
-      })
+      }),
     );
-    
+
     const chats = chatsWithMessages;
-    
+
     const response = NextResponse.json({
       success: true,
       chats,
@@ -176,17 +199,23 @@ export async function GET(
         hasMore: chats.length === limit,
       },
     });
-    
+
     return addCorsHeaders(response, corsResult.origin);
   } catch (error) {
     logger.error("[Miniapp API] Error listing chats", { error, agentId });
-    
-    const status = error instanceof Error && error.message.includes("Unauthorized") ? 401 : 500;
+
+    const status =
+      error instanceof Error && error.message.includes("Unauthorized")
+        ? 401
+        : 500;
     const response = NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Failed to list chats" },
-      { status }
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to list chats",
+      },
+      { status },
     );
-    
+
     return addCorsHeaders(response, corsResult.origin);
   }
 }
@@ -197,39 +226,49 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const corsResult = await validateOrigin(request);
   const { id: agentId } = await params;
-  
+
   // Rate limiting (stricter for write operations)
-  const rateLimitResult = await checkMiniappRateLimit(request, MINIAPP_WRITE_LIMITS);
+  const rateLimitResult = await checkMiniappRateLimit(
+    request,
+    MINIAPP_WRITE_LIMITS,
+  );
   if (!rateLimitResult.allowed) {
-    return createRateLimitErrorResponse(rateLimitResult, corsResult.origin ?? undefined);
+    return createRateLimitErrorResponse(
+      rateLimitResult,
+      corsResult.origin ?? undefined,
+    );
   }
-  
+
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
-    
+
     // Verify agent exists and user has access
     const character = await charactersService.getById(agentId);
-    
+
     if (!character) {
       const response = NextResponse.json(
         { success: false, error: "Agent not found" },
-        { status: 404 }
+        { status: 404 },
       );
       return addCorsHeaders(response, corsResult.origin);
     }
-    
-    if (character.user_id !== user.id && character.organization_id !== user.organization_id && !character.is_public) {
+
+    if (
+      character.user_id !== user.id &&
+      character.organization_id !== user.organization_id &&
+      !character.is_public
+    ) {
       const response = NextResponse.json(
         { success: false, error: "Access denied" },
-        { status: 403 }
+        { status: 403 },
       );
       return addCorsHeaders(response, corsResult.origin);
     }
-    
+
     // Create room (source and type are required fields - notNull, no defaults)
     // Store the creator's user ID in metadata so we can query rooms by user later.
     // We don't create entities or participants here - the ElizaOS runtime
@@ -246,35 +285,43 @@ export async function POST(
         createdAt: new Date(),
       })
       .returning();
-    
-    logger.info("[Miniapp API] Created chat", { 
-      roomId: room.id, 
-      agentId, 
-      userId: user.id 
+
+    logger.info("[Miniapp API] Created chat", {
+      roomId: room.id,
+      agentId,
+      userId: user.id,
     });
-    
-    const response = NextResponse.json({
-      success: true,
-      chat: {
-        id: room.id,
-        agentId,
-        createdAt: room.createdAt,
-        // New room, so updatedAt is same as createdAt
-        updatedAt: room.createdAt,
+
+    const response = NextResponse.json(
+      {
+        success: true,
+        chat: {
+          id: room.id,
+          agentId,
+          createdAt: room.createdAt,
+          // New room, so updatedAt is same as createdAt
+          updatedAt: room.createdAt,
+        },
       },
-    }, { status: 201 });
-    
+      { status: 201 },
+    );
+
     return addCorsHeaders(response, corsResult.origin);
   } catch (error) {
     logger.error("[Miniapp API] Error creating chat", { error, agentId });
-    
-    const status = error instanceof Error && error.message.includes("Unauthorized") ? 401 : 500;
+
+    const status =
+      error instanceof Error && error.message.includes("Unauthorized")
+        ? 401
+        : 500;
     const response = NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Failed to create chat" },
-      { status }
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to create chat",
+      },
+      { status },
     );
-    
+
     return addCorsHeaders(response, corsResult.origin);
   }
 }
-

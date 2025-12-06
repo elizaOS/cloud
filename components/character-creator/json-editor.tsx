@@ -48,7 +48,11 @@ export function JsonEditor({
       updateEditor({ jsonText: value, isValid: true, error: null });
       onChange(parsed as ElizaCharacter);
     } catch (err) {
-      updateEditor({ jsonText: value, isValid: false, error: (err as Error).message });
+      updateEditor({
+        jsonText: value,
+        isValid: false,
+        error: (err as Error).message,
+      });
     }
   };
 

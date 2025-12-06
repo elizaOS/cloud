@@ -60,9 +60,12 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
         interface Transaction {
           amount: string | number;
         }
-        const burn = (data.transactions || [] as Transaction[])
+        const burn = (data.transactions || ([] as Transaction[]))
           .filter((t: Transaction) => Number(t.amount) < 0)
-          .reduce((sum: number, t: Transaction) => sum + Math.abs(Number(t.amount)), 0);
+          .reduce(
+            (sum: number, t: Transaction) => sum + Math.abs(Number(t.amount)),
+            0,
+          );
 
         setDailyBurn(burn);
       } catch (error) {

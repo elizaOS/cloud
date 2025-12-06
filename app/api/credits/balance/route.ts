@@ -38,13 +38,15 @@ export async function GET(req: NextRequest) {
       },
     );
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Failed to fetch balance";
-    
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to fetch balance";
+
     // Return 401 for authentication errors
-    const isAuthError = errorMessage.includes("Unauthorized") || 
-                        errorMessage.includes("Authentication required") ||
-                        errorMessage.includes("Forbidden");
-    
+    const isAuthError =
+      errorMessage.includes("Unauthorized") ||
+      errorMessage.includes("Authentication required") ||
+      errorMessage.includes("Forbidden");
+
     if (isAuthError) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -58,7 +60,7 @@ export async function GET(req: NextRequest) {
         },
       );
     }
-    
+
     console.error("[Balance API] Error:", error);
     return NextResponse.json(
       { error: errorMessage },

@@ -55,7 +55,7 @@ export function ImageGenerator() {
     aspectRatio: "1:1",
     stylePreset: "none",
   });
-  
+
   const [generationState, setGenerationState] = useState<GenerationState>({
     images: [],
     isLoading: false,
@@ -86,7 +86,10 @@ export function ImageGenerator() {
           prompt: formState.prompt,
           numImages: formState.numImages,
           aspectRatio: formState.aspectRatio,
-          stylePreset: formState.stylePreset !== "none" ? formState.stylePreset : undefined,
+          stylePreset:
+            formState.stylePreset !== "none"
+              ? formState.stylePreset
+              : undefined,
         }),
       });
 
@@ -108,7 +111,9 @@ export function ImageGenerator() {
         updateGeneration({ images: processedImages });
       }
     } catch (err) {
-      updateGeneration({ error: err instanceof Error ? err.message : "An error occurred" });
+      updateGeneration({
+        error: err instanceof Error ? err.message : "An error occurred",
+      });
     } finally {
       updateGeneration({ isLoading: false });
     }
@@ -144,7 +149,9 @@ export function ImageGenerator() {
 
       {generationState.error && (
         <div className="rounded-xl border-2 border-destructive bg-destructive/10 px-6 py-4 animate-in fade-in slide-in-from-top-4 duration-300">
-          <p className="text-sm text-destructive font-medium">{generationState.error}</p>
+          <p className="text-sm text-destructive font-medium">
+            {generationState.error}
+          </p>
         </div>
       )}
 
@@ -163,7 +170,9 @@ export function ImageGenerator() {
                 generatedText={img.text}
                 onDownload={() => handleDownload(img.image, index)}
                 onGenerateAnother={handleGenerateAnother}
-                showGenerateAnother={index === generationState.images.length - 1}
+                showGenerateAnother={
+                  index === generationState.images.length - 1
+                }
               />
             ))}
           </div>

@@ -9,7 +9,7 @@ import type { Memory } from "@elizaos/core";
 
 /**
  * GET /api/eliza/rooms/[roomId] - Get room details and messages
- * 
+ *
  * Pure database operation - no runtime needed
  * Uses agentsService to get agent display info
  * Requires the authenticated user to be a participant of the room
@@ -21,7 +21,7 @@ export async function GET(
   try {
     // Get authenticated user ID
     let userId: string;
-    
+
     try {
       const authResult = await requireAuthOrApiKey(request);
       userId = authResult.user.id;
@@ -30,7 +30,8 @@ export async function GET(
       const anonData = await getAnonymousUser();
       if (!anonData) {
         // Create new anonymous session if none exists
-        const { getOrCreateAnonymousUser } = await import("@/lib/auth-anonymous");
+        const { getOrCreateAnonymousUser } =
+          await import("@/lib/auth-anonymous");
         const newAnonData = await getOrCreateAnonymousUser();
         userId = newAnonData.user.id;
       } else {
@@ -68,20 +69,14 @@ export async function GET(
     );
 
     if (!roomData) {
-      return NextResponse.json(
-        { error: "Room not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "Room not found" }, { status: 404 });
     }
 
     // Get character ID from room agentId (single source of truth)
     const characterId = roomData.room.agentId || undefined;
 
     if (characterId) {
-      logger.info(
-        "[Eliza Room API] Loading room with character:",
-        characterId,
-      );
+      logger.info("[Eliza Room API] Loading room with character:", characterId);
     } else {
       logger.info("[Eliza Room API] Loading room with default character");
     }
@@ -96,11 +91,17 @@ export async function GET(
         parsedContent = msg.content;
       }
 
-      const content = parsedContent as { text?: string; attachments?: unknown[]; source?: string };
+      const content = parsedContent as {
+        text?: string;
+        attachments?: unknown[];
+        source?: string;
+      };
 
       // Debug: Log attachment info for agent messages
       if (content?.source === "agent" && content?.attachments) {
-        logger.info(`[Eliza Room API] 📎 Message ${msg.id?.substring(0, 8)} has ${content.attachments.length} attachment(s)`);
+        logger.info(
+          `[Eliza Room API] 📎 Message ${msg.id?.substring(0, 8)} has ${content.attachments.length} attachment(s)`,
+        );
       }
 
       // CRITICAL: Determine isAgent based on content.source field (most reliable)
@@ -122,7 +123,10 @@ export async function GET(
     // Deduplicate messages: Remove duplicate agent responses that might have been
     // stored twice (once by action callback, once by handler). Keep the one with
     // attachments or the first one if both/neither have attachments.
-    const seenTexts = new Map<string, { index: number; hasAttachments: boolean; isAgent: boolean }>();
+    const seenTexts = new Map<
+      string,
+      { index: number; hasAttachments: boolean; isAgent: boolean }
+    >();
     const indicesToRemove = new Set<number>();
 
     mapped.forEach((msg, index) => {
@@ -136,19 +140,29 @@ export async function GET(
 
       const existing = seenTexts.get(key);
       if (existing) {
-        const currentHasAttachments = Array.isArray(content?.attachments) && content.attachments.length > 0;
+        const currentHasAttachments =
+          Array.isArray(content?.attachments) && content.attachments.length > 0;
 
         if (currentHasAttachments && !existing.hasAttachments) {
           indicesToRemove.add(existing.index);
-          seenTexts.set(key, { index, hasAttachments: currentHasAttachments, isAgent: msg.isAgent });
+          seenTexts.set(key, {
+            index,
+            hasAttachments: currentHasAttachments,
+            isAgent: msg.isAgent,
+          });
         } else if (msg.isAgent && !existing.isAgent) {
           indicesToRemove.add(existing.index);
-          seenTexts.set(key, { index, hasAttachments: currentHasAttachments, isAgent: msg.isAgent });
+          seenTexts.set(key, {
+            index,
+            hasAttachments: currentHasAttachments,
+            isAgent: msg.isAgent,
+          });
         } else {
           indicesToRemove.add(index);
         }
       } else {
-        const hasAttachments = Array.isArray(content?.attachments) && content.attachments.length > 0;
+        const hasAttachments =
+          Array.isArray(content?.attachments) && content.attachments.length > 0;
         seenTexts.set(key, { index, hasAttachments, isAgent: msg.isAgent });
       }
     });
@@ -158,11 +172,14 @@ export async function GET(
       .sort((a, b) => a.createdAt - b.createdAt);
 
     if (indicesToRemove.size > 0) {
-      logger.info(`[Eliza Room API] 🧹 Removed ${indicesToRemove.size} duplicate message(s)`);
+      logger.info(
+        `[Eliza Room API] 🧹 Removed ${indicesToRemove.size} duplicate message(s)`,
+      );
     }
 
     // Get agent display info from database (no runtime needed!)
-    let agentInfo: { id: string; name: string; avatarUrl?: string } | null = null;
+    let agentInfo: { id: string; name: string; avatarUrl?: string } | null =
+      null;
 
     if (characterId) {
       agentInfo = await agentsService.getDisplayInfo(characterId);
@@ -205,7 +222,7 @@ export async function GET(
 
 /**
  * DELETE /api/eliza/rooms/[roomId] - Delete a room and all related data
- * 
+ *
  * Pure database operation - no runtime needed
  * Requires the authenticated user to be a participant of the room
  */
@@ -216,7 +233,7 @@ export async function DELETE(
   try {
     // Get authenticated user ID
     let userId: string;
-    
+
     try {
       const authResult = await requireAuthOrApiKey(request);
       userId = authResult.user.id;

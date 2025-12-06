@@ -7,13 +7,7 @@ import { AppSettings } from "@/components/apps/app-settings";
 import { AppAnalytics } from "@/components/apps/app-analytics";
 import { AppUsers } from "@/components/apps/app-users";
 import { BrandCard, CornerBrackets } from "@/components/brand";
-import {
-  ArrowLeft,
-  Grid3x3,
-  Settings,
-  BarChart3,
-  Users,
-} from "lucide-react";
+import { ArrowLeft, Grid3x3, Settings, BarChart3, Users } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -43,7 +37,8 @@ export async function generateMetadata({
 
     return {
       title: `${app.name} - App Details | Eliza Cloud`,
-      description: app.description || `Manage ${app.name} app settings and analytics`,
+      description:
+        app.description || `Manage ${app.name} app settings and analytics`,
       robots: { index: false, follow: false },
     };
   } catch (error) {
@@ -54,7 +49,10 @@ export async function generateMetadata({
   }
 }
 
-export default async function AppDetailsPage({ params, searchParams }: PageProps) {
+export default async function AppDetailsPage({
+  params,
+  searchParams,
+}: PageProps) {
   const user = await requireAuthWithOrg();
   const { id } = await params;
   const search = await searchParams;
@@ -185,4 +183,3 @@ export default async function AppDetailsPage({ params, searchParams }: PageProps
     </div>
   );
 }
-

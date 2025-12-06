@@ -44,7 +44,9 @@ export class ParticipantsRepository {
   /**
    * Get all rooms for multiple entities
    */
-  async findRoomsByEntityIds(entityIds: string[]): Promise<Map<string, string[]>> {
+  async findRoomsByEntityIds(
+    entityIds: string[],
+  ): Promise<Map<string, string[]>> {
     if (entityIds.length === 0) return new Map();
 
     const results = await db
@@ -196,4 +198,3 @@ export class ParticipantsRepository {
 }
 
 export const participantsRepository = new ParticipantsRepository();
-

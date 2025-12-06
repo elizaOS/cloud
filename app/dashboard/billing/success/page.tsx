@@ -42,7 +42,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
 
     if (session.payment_status !== "paid") {
       console.warn(
-        `[BillingSuccess] Session ${sessionId} not paid: ${session.payment_status}`
+        `[BillingSuccess] Session ${sessionId} not paid: ${session.payment_status}`,
       );
       return {
         success: false,
@@ -59,7 +59,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
 
     if (!organizationId || credits <= 0) {
       console.warn(
-        `[BillingSuccess] Invalid metadata: org=${organizationId}, credits=${credits}`
+        `[BillingSuccess] Invalid metadata: org=${organizationId}, credits=${credits}`,
       );
       return {
         success: false,
@@ -81,7 +81,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
 
     if (existingTransaction) {
       console.log(
-        `[BillingSuccess] Session already processed via webhook (transaction: ${existingTransaction.id})`
+        `[BillingSuccess] Session already processed via webhook (transaction: ${existingTransaction.id})`,
       );
       return {
         success: true,
@@ -92,7 +92,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
 
     // Add credits (with built-in idempotency)
     console.log(
-      `[BillingSuccess] Adding ${credits} credits to org ${organizationId}`
+      `[BillingSuccess] Adding ${credits} credits to org ${organizationId}`,
     );
 
     await creditsService.addCredits({
@@ -110,13 +110,13 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
     });
 
     console.log(
-      `[BillingSuccess] ✓ Credits added for session ${sessionId} (fallback)`
+      `[BillingSuccess] ✓ Credits added for session ${sessionId} (fallback)`,
     );
 
     // Create invoice record
     try {
       const existingInvoice = await invoicesService.getByStripeInvoiceId(
-        `cs_${sessionId}`
+        `cs_${sessionId}`,
       );
 
       if (!existingInvoice) {
@@ -147,14 +147,14 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
         });
 
         console.log(
-          `[BillingSuccess] ✓ Invoice created for session ${sessionId}`
+          `[BillingSuccess] ✓ Invoice created for session ${sessionId}`,
         );
       }
     } catch (invoiceError) {
       // Non-critical - credits were added successfully
       console.error(
         "[BillingSuccess] Invoice creation error (non-critical):",
-        invoiceError
+        invoiceError,
       );
     }
 

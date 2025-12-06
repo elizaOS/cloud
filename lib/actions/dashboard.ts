@@ -68,14 +68,15 @@ async function fetchDashboardDataInternal(
   const organizationId = user.organization_id!;
 
   // Fetch only the data needed for the new dashboard
-  const [generationStats, userCharacters, containers, apiKeys, userRooms] = await Promise.all([
-    generationsService.getStats(organizationId),
-    charactersService.listByUser(user.id),
-    listContainers(organizationId),
-    apiKeysService.listByOrganization(organizationId),
-    roomsService.getRoomsForEntity(user.id),
-  ]);
-  
+  const [generationStats, userCharacters, containers, apiKeys, userRooms] =
+    await Promise.all([
+      generationsService.getStats(organizationId),
+      charactersService.listByUser(user.id),
+      listContainers(organizationId),
+      apiKeysService.listByOrganization(organizationId),
+      roomsService.getRoomsForEntity(user.id),
+    ]);
+
   const chatRoomCount = userRooms.length;
 
   const totalGenerations = generationStats.totalGenerations;
@@ -91,10 +92,11 @@ async function fetchDashboardDataInternal(
   // Fetch agent stats in batch
   const characterIds = userCharacters.map((c) => c.id);
   const agentStatsMap = new Map<string, AgentStats>();
-  
+
   if (characterIds.length > 0) {
     try {
-      const statsMap = await agentDiscoveryService.getCharacterStatisticsBatch(characterIds);
+      const statsMap =
+        await agentDiscoveryService.getCharacterStatisticsBatch(characterIds);
       statsMap.forEach((stats, id) => {
         agentStatsMap.set(id, {
           roomCount: stats.roomCount,
@@ -121,7 +123,7 @@ async function fetchDashboardDataInternal(
     onboarding: {
       hasAgents: userCharacters.length > 0,
       hasApiKey: apiKeys.some(
-        (key) => key.name !== "Default API Key" || (key.usage_count ?? 0) > 0
+        (key) => key.name !== "Default API Key" || (key.usage_count ?? 0) > 0,
       ),
       hasChatHistory: chatRoomCount > 0,
     },

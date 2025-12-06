@@ -1,6 +1,6 @@
 /**
  * App Authentication and Origin Validation Middleware
- * 
+ *
  * This middleware validates requests from apps by:
  * 1. Checking if the API key belongs to an app
  * 2. Validating the origin against the app's allowed origins
@@ -22,7 +22,10 @@ export interface AppAuthContext {
 /**
  * Validate origin against app's allowed origins
  */
-export function validateOrigin(allowedOrigins: string[], requestOrigin: string): boolean {
+export function validateOrigin(
+  allowedOrigins: string[],
+  requestOrigin: string,
+): boolean {
   // Allow requests with no origin (e.g., server-to-server)
   if (!requestOrigin) {
     return true;
@@ -56,14 +59,14 @@ export function validateOrigin(allowedOrigins: string[], requestOrigin: string):
  * Validate and authenticate app from API key
  */
 export async function validateAppAuth(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<AppAuthContext | NextResponse> {
   // Get API key from header
   const apiKeyHeader = request.headers.get("X-API-Key");
   const authHeader = request.headers.get("authorization");
-  
+
   let apiKeyValue: string | null = null;
-  
+
   if (apiKeyHeader) {
     apiKeyValue = apiKeyHeader;
   } else if (authHeader?.startsWith("Bearer ")) {
@@ -77,13 +80,13 @@ export async function validateAppAuth(
         error: "API key is required",
         code: "MISSING_API_KEY",
       },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
   // Validate API key
   const apiKey = await apiKeysService.validateApiKey(apiKeyValue);
-  
+
   if (!apiKey) {
     return NextResponse.json(
       {
@@ -91,7 +94,7 @@ export async function validateAppAuth(
         error: "Invalid or expired API key",
         code: "INVALID_API_KEY",
       },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
@@ -109,7 +112,7 @@ export async function validateAppAuth(
         error: "This API key is not associated with an app",
         code: "NOT_AN_APP_KEY",
       },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -121,12 +124,13 @@ export async function validateAppAuth(
         error: "App is inactive",
         code: "APP_INACTIVE",
       },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
   // Get and validate origin
-  const origin = request.headers.get("origin") || request.headers.get("referer") || "";
+  const origin =
+    request.headers.get("origin") || request.headers.get("referer") || "";
   const allowedOrigins = app.allowed_origins as string[];
 
   if (!validateOrigin(allowedOrigins, origin)) {
@@ -144,7 +148,7 @@ export async function validateAppAuth(
         origin,
         allowedOrigins,
       },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -163,7 +167,7 @@ export async function validateAppAuth(
  */
 export async function requireAppAuth(
   request: NextRequest,
-  handler: (context: AppAuthContext) => Promise<NextResponse>
+  handler: (context: AppAuthContext) => Promise<NextResponse>,
 ): Promise<NextResponse> {
   const authResult = await validateAppAuth(request);
 
@@ -193,7 +197,9 @@ export async function getAppFromApiKey(apiKey: string): Promise<string | null> {
     const validatedKey = await apiKeysService.validateApiKey(apiKey);
     if (!validatedKey) return null;
 
-    const apps = await appsService.listByOrganization(validatedKey.organization_id);
+    const apps = await appsService.listByOrganization(
+      validatedKey.organization_id,
+    );
     const app = apps.find((a) => a.api_key_id === validatedKey.id);
 
     return app?.id || null;
@@ -202,4 +208,3 @@ export async function getAppFromApiKey(apiKey: string): Promise<string | null> {
     return null;
   }
 }
-

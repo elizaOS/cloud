@@ -30,7 +30,7 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [allowedOrigins, setAllowedOrigins] = useState<string[]>([]);
   const [newOrigin, setNewOrigin] = useState("");
-  
+
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -58,7 +58,8 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
-          allowed_origins: allowedOrigins.length > 0 ? allowedOrigins : [formData.app_url],
+          allowed_origins:
+            allowedOrigins.length > 0 ? allowedOrigins : [formData.app_url],
           features_enabled: formData.features,
         }),
       });
@@ -69,17 +70,18 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
       }
 
       const data = await response.json();
-      
+
       toast.success("App created successfully!", {
-        description: "Your API key has been generated. Make sure to save it securely.",
+        description:
+          "Your API key has been generated. Make sure to save it securely.",
       });
 
       // Redirect to the new app's page
       router.push(`/dashboard/apps/${data.app.id}?showApiKey=${data.apiKey}`);
       router.refresh();
-      
+
       onOpenChange(false);
-      
+
       // Reset form
       setFormData({
         name: "",
@@ -101,7 +103,8 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
     } catch (error) {
       console.error("Error creating app:", error);
       toast.error("Failed to create app", {
-        description: error instanceof Error ? error.message : "Please try again",
+        description:
+          error instanceof Error ? error.message : "Please try again",
       });
     } finally {
       setIsLoading(false);
@@ -125,8 +128,8 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
         <DialogHeader>
           <DialogTitle>Create New App</DialogTitle>
           <DialogDescription>
-            Create an app to integrate Eliza Cloud services into your website or application.
-            You&apos;ll receive an API key for authentication.
+            Create an app to integrate Eliza Cloud services into your website or
+            application. You&apos;ll receive an API key for authentication.
           </DialogDescription>
         </DialogHeader>
 
@@ -138,7 +141,9 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 placeholder="My Awesome App"
                 required
               />
@@ -149,7 +154,9 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 placeholder="A brief description of your app..."
                 rows={3}
               />
@@ -161,7 +168,9 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                 id="app_url"
                 type="url"
                 value={formData.app_url}
-                onChange={(e) => setFormData({ ...formData, app_url: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, app_url: e.target.value })
+                }
                 placeholder="https://myapp.com"
                 required
               />
@@ -176,7 +185,9 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                 id="website_url"
                 type="url"
                 value={formData.website_url}
-                onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, website_url: e.target.value })
+                }
                 placeholder="https://website.com"
               />
             </div>
@@ -187,7 +198,9 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                 id="contact_email"
                 type="email"
                 value={formData.contact_email}
-                onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, contact_email: e.target.value })
+                }
                 placeholder="contact@myapp.com"
               />
             </div>
@@ -197,9 +210,10 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
           <div className="space-y-2">
             <Label>Allowed Origins (URL Whitelist)</Label>
             <p className="text-xs text-white/60">
-              Specify which domains can make requests with your API key. Leave empty to only allow the app URL.
+              Specify which domains can make requests with your API key. Leave
+              empty to only allow the app URL.
             </p>
-            
+
             <div className="flex gap-2">
               <Input
                 value={newOrigin}
@@ -245,7 +259,7 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
             <p className="text-xs text-white/60">
               Select which Eliza Cloud features this app can access
             </p>
-            
+
             <div className="grid grid-cols-2 gap-3">
               {Object.entries({
                 chat: "Chat & Text Generation",
@@ -258,7 +272,9 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                 <div key={key} className="flex items-center space-x-2">
                   <Checkbox
                     id={`feature-${key}`}
-                    checked={formData.features[key as keyof typeof formData.features]}
+                    checked={
+                      formData.features[key as keyof typeof formData.features]
+                    }
                     onCheckedChange={(checked) =>
                       setFormData({
                         ...formData,
@@ -282,7 +298,8 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
             <div className="flex-1">
               <Label htmlFor="affiliate">Generate Affiliate Code</Label>
               <p className="text-xs text-white/60 mt-1">
-                Create a unique referral code to track user signups from your app
+                Create a unique referral code to track user signups from your
+                app
               </p>
             </div>
             <Switch
@@ -323,4 +340,3 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
     </Dialog>
   );
 }
-

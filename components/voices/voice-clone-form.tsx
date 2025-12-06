@@ -307,7 +307,9 @@ export function VoiceCloneForm({
           { duration: 10000 },
         );
       } else {
-        toast.success(`Voice "${formData.name}" created successfully and ready to use!`);
+        toast.success(
+          `Voice "${formData.name}" created successfully and ready to use!`,
+        );
       }
 
       // Update credit balance
@@ -377,7 +379,9 @@ export function VoiceCloneForm({
               id="name"
               placeholder="My Voice"
               value={formData.name}
-              onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, name: e.target.value }))
+              }
               disabled={isUploading}
               required
               className="border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
@@ -396,7 +400,12 @@ export function VoiceCloneForm({
               id="description"
               placeholder="A clone of my voice for content creation"
               value={formData.description}
-              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
               disabled={isUploading}
               rows={3}
               className="border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
@@ -416,7 +425,9 @@ export function VoiceCloneForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => setFormData((prev) => ({ ...prev, cloneType: "instant" }))}
+                onClick={() =>
+                  setFormData((prev) => ({ ...prev, cloneType: "instant" }))
+                }
                 disabled={isUploading}
                 className={cn(
                   "relative border p-3 text-left transition-all",
@@ -451,7 +462,12 @@ export function VoiceCloneForm({
 
               <button
                 type="button"
-                onClick={() => setFormData((prev) => ({ ...prev, cloneType: "professional" }))}
+                onClick={() =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    cloneType: "professional",
+                  }))
+                }
                 disabled={isUploading}
                 className={cn(
                   "relative border p-3 text-left transition-all",
@@ -793,7 +809,9 @@ export function VoiceCloneForm({
                     min={0}
                     max={1}
                     step={0.01}
-                    onValueChange={(v) => setSettings((prev) => ({ ...prev, stability: v[0] }))}
+                    onValueChange={(v) =>
+                      setSettings((prev) => ({ ...prev, stability: v[0] }))
+                    }
                     disabled={isUploading}
                   />
                   <p className="text-xs text-muted-foreground">
@@ -810,7 +828,12 @@ export function VoiceCloneForm({
                     min={0}
                     max={1}
                     step={0.01}
-                    onValueChange={(v) => setSettings((prev) => ({ ...prev, similarityBoost: v[0] }))}
+                    onValueChange={(v) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        similarityBoost: v[0],
+                      }))
+                    }
                     disabled={isUploading}
                   />
                   <p className="text-xs text-muted-foreground">
@@ -827,7 +850,9 @@ export function VoiceCloneForm({
                     min={0}
                     max={1}
                     step={0.01}
-                    onValueChange={(v) => setSettings((prev) => ({ ...prev, style: v[0] }))}
+                    onValueChange={(v) =>
+                      setSettings((prev) => ({ ...prev, style: v[0] }))
+                    }
                     disabled={isUploading}
                   />
                   <p className="text-xs text-muted-foreground">

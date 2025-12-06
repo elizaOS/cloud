@@ -203,4 +203,3 @@ export function AppsTable({ apps }: AppsTableProps) {
     </div>
   );
 }
-

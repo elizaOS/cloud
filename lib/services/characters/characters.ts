@@ -174,8 +174,12 @@ export class CharactersService {
         | (string | { path: string; shared?: boolean })[]
         | undefined,
       plugins: character.plugins as string[] | undefined,
-      settings: mergedSettings as Record<string, string | number | boolean | Record<string, unknown>> | undefined,
-      secrets: character.secrets as Record<string, string | number | boolean> | undefined,
+      settings: mergedSettings as
+        | Record<string, string | number | boolean | Record<string, unknown>>
+        | undefined,
+      secrets: character.secrets as
+        | Record<string, string | number | boolean>
+        | undefined,
       style: character.style as
         | {
             all?: string[];
@@ -200,7 +204,7 @@ export class CharactersService {
     reason?: string;
   }> {
     const character = await userCharactersRepository.findById(characterId);
-    
+
     if (!character) {
       return { claimable: false, reason: "Character not found" };
     }
@@ -208,25 +212,29 @@ export class CharactersService {
     // Get the owner user
     const { usersService } = await import("../users");
     const owner = await usersService.getById(character.user_id);
-    
+
     if (!owner) {
       return { claimable: false, reason: "Owner not found" };
     }
 
     // Check if owned by an affiliate anonymous user
-    const isAffiliateUser = owner.email?.includes("@anonymous.elizacloud.ai") || false;
+    const isAffiliateUser =
+      owner.email?.includes("@anonymous.elizacloud.ai") || false;
     const isAnonymous = owner.is_anonymous === true;
     const hasNoPrivyId = !owner.privy_user_id;
 
     if (isAffiliateUser && (isAnonymous || hasNoPrivyId)) {
-      return { 
-        claimable: true, 
+      return {
+        claimable: true,
         ownerId: owner.id,
-        reason: "Affiliate character available for claiming"
+        reason: "Affiliate character available for claiming",
       };
     }
 
-    return { claimable: false, reason: "Character already owned by a real user" };
+    return {
+      claimable: false,
+      reason: "Character already owned by a real user",
+    };
   }
 
   /**
@@ -237,7 +245,7 @@ export class CharactersService {
   async claimAffiliateCharacter(
     characterId: string,
     userId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<{ success: boolean; message: string }> {
     const { logger } = await import("@/lib/utils/logger");
     const { db } = await import("@/db/client");
@@ -248,14 +256,19 @@ export class CharactersService {
     const claimCheck = await this.isClaimableAffiliateCharacter(characterId);
 
     if (!claimCheck.claimable) {
-      logger.info(`[Characters] Character ${characterId} not claimable: ${claimCheck.reason}`);
+      logger.info(
+        `[Characters] Character ${characterId} not claimable: ${claimCheck.reason}`,
+      );
       return { success: false, message: claimCheck.reason || "Not claimable" };
     }
 
     const previousOwnerId = claimCheck.ownerId;
-    logger.info(`[Characters] 🎯 Claiming affiliate character ${characterId} for user ${userId}`, {
-      previousOwnerId,
-    });
+    logger.info(
+      `[Characters] 🎯 Claiming affiliate character ${characterId} for user ${userId}`,
+      {
+        previousOwnerId,
+      },
+    );
 
     try {
       // Transfer character ownership
@@ -279,35 +292,42 @@ export class CharactersService {
           .where(
             and(
               eq(elizaRoomCharactersTable.character_id, characterId),
-              eq(elizaRoomCharactersTable.user_id, previousOwnerId)
-            )
+              eq(elizaRoomCharactersTable.user_id, previousOwnerId),
+            ),
           )
           .returning({ room_id: elizaRoomCharactersTable.room_id });
 
         if (roomUpdateResult.length > 0) {
-          logger.info(`[Characters] Transferred ${roomUpdateResult.length} room association(s)`, {
-            characterId,
-            fromUserId: previousOwnerId,
-            toUserId: userId,
-          });
+          logger.info(
+            `[Characters] Transferred ${roomUpdateResult.length} room association(s)`,
+            {
+              characterId,
+              fromUserId: previousOwnerId,
+              toUserId: userId,
+            },
+          );
         }
       }
 
-      logger.info(`[Characters] ✅ Successfully claimed character ${characterId}`, {
-        characterName: updated.name,
-        newOwnerId: userId,
-        newOrgId: organizationId,
-      });
+      logger.info(
+        `[Characters] ✅ Successfully claimed character ${characterId}`,
+        {
+          characterName: updated.name,
+          newOwnerId: userId,
+          newOrgId: organizationId,
+        },
+      );
 
       return {
         success: true,
-        message: `Character "${updated.name}" has been added to your account`
+        message: `Character "${updated.name}" has been added to your account`,
       };
     } catch (error) {
       logger.error(`[Characters] ❌ Failed to claim character:`, error);
       return {
         success: false,
-        message: error instanceof Error ? error.message : "Failed to claim character"
+        message:
+          error instanceof Error ? error.message : "Failed to claim character",
       };
     }
   }

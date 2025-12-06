@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
+import {
+  getAnonymousUser,
+  getOrCreateAnonymousUser,
+} from "@/lib/auth-anonymous";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { anonymousSessionsService, usersService } from "@/lib/services";
 
@@ -11,7 +14,7 @@ import { anonymousSessionsService, usersService } from "@/lib/services";
  *
  * Single optimized query - no runtime needed
  * Returns rooms sorted by most recent activity
- * 
+ *
  * Security: entityId is derived from authenticated user, not client-supplied
  */
 export async function GET(request: NextRequest) {
@@ -66,7 +69,7 @@ export async function GET(request: NextRequest) {
  * Minimal room creation - just creates room record in database
  * The runtime will handle entity/participant setup when first message is sent
  * via ensureConnection in message-handler.ts
- * 
+ *
  * Security: entityId is derived from authenticated user, not client-supplied
  */
 export async function POST(request: NextRequest) {

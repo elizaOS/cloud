@@ -68,7 +68,7 @@ export function ChatSidebar({
     selectedCharacterId,
     availableCharacters,
   } = useChatStore();
-  
+
   const [operationState, setOperationState] = useState<OperationState>({
     deletingRoomId: null,
     isCreatingRoom: false,
@@ -148,7 +148,11 @@ export function ChatSidebar({
 
   // Clear loading state when roomId changes
   useEffect(() => {
-    if (roomId && operationState.loadingRoomId && roomId === operationState.loadingRoomId) {
+    if (
+      roomId &&
+      operationState.loadingRoomId &&
+      roomId === operationState.loadingRoomId
+    ) {
       // Small delay to show the loading state
       const timer = setTimeout(() => {
         updateOperation({ loadingRoomId: null });
@@ -251,7 +255,8 @@ export function ChatSidebar({
                 {selectedCharacter?.name || "Eliza"}
               </div>
               <div className="text-[10px] text-white/40 truncate">
-                {filteredRooms.length} chat{filteredRooms.length !== 1 ? "s" : ""}
+                {filteredRooms.length} chat
+                {filteredRooms.length !== 1 ? "s" : ""}
               </div>
             </div>
 
@@ -351,9 +356,7 @@ export function ChatSidebar({
               {filteredRooms.length === 0 && !isLoadingRooms && (
                 <div className="px-3 py-6 text-center">
                   <MessageSquare className="h-8 w-8 text-white/15 mx-auto mb-2" />
-                  <p className="text-[10px] text-white/40">
-                    No chats yet
-                  </p>
+                  <p className="text-[10px] text-white/40">No chats yet</p>
                 </div>
               )}
             </div>

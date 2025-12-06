@@ -234,7 +234,7 @@ export function CharacterCard({
                 <MessageSquare className="h-3 w-3" />
                 {(character.stats.roomCount ?? 0) > 1000
                   ? `${((character.stats.roomCount ?? 0) / 1000).toFixed(1)}k`
-                  : character.stats.roomCount ?? 0}{" "}
+                  : (character.stats.roomCount ?? 0)}{" "}
                 chats
               </span>
               {character.stats.lastActiveAt && (
@@ -286,7 +286,9 @@ interface CharacterCardSkeletonProps {
   view?: "grid" | "list";
 }
 
-export function CharacterCardSkeleton({ view = "grid" }: CharacterCardSkeletonProps) {
+export function CharacterCardSkeleton({
+  view = "grid",
+}: CharacterCardSkeletonProps) {
   // List view skeleton
   if (view === "list") {
     return (

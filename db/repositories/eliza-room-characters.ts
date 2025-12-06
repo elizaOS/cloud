@@ -35,7 +35,7 @@ export const elizaRoomCharactersRepository = {
    * Count rooms for multiple characters in one query
    */
   async countByCharacterIds(
-    characterIds: string[]
+    characterIds: string[],
   ): Promise<Map<string, number>> {
     if (characterIds.length === 0) {
       return new Map();
@@ -69,7 +69,7 @@ export const elizaRoomCharactersRepository = {
     // DISABLED: Caching causes stale data in Vercel serverless (isolated container caches)
     // ALWAYS fetch from DB - character mapping lookups are fast (~5ms)
     console.log(
-      `[RoomCharRepo] findByRoomId(${roomId.substring(0, 8)}...) - fetching from DB (cache disabled)`
+      `[RoomCharRepo] findByRoomId(${roomId.substring(0, 8)}...) - fetching from DB (cache disabled)`,
     );
 
     const result = await db
@@ -81,7 +81,7 @@ export const elizaRoomCharactersRepository = {
     const character = result[0];
     console.log(
       `[RoomCharRepo] DB result - characterId:`,
-      character?.character_id || "none"
+      character?.character_id || "none",
     );
 
     return character;
@@ -116,7 +116,7 @@ export const elizaRoomCharactersRepository = {
 
   async update(
     roomId: string,
-    characterId: string
+    characterId: string,
   ): Promise<ElizaRoomCharacter | undefined> {
     const result = await db
       .update(elizaRoomCharactersTable)

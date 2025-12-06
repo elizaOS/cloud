@@ -305,7 +305,7 @@ export class AgentStateCache {
       // If not, treat as cache miss so we refetch fresh data
       if (typeof cached.roomCount !== "number") {
         logger.debug(
-          `[Agent State Cache] Stale cache data for ${agentId} (missing roomCount), treating as miss`
+          `[Agent State Cache] Stale cache data for ${agentId} (missing roomCount), treating as miss`,
         );
         // Invalidate the stale cache entry
         await cacheClient.del(key);

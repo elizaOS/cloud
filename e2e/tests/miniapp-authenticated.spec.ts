@@ -2,10 +2,10 @@ import { test, expect } from "@playwright/test";
 
 /**
  * Authenticated Miniapp API Tests
- * 
+ *
  * Tests all miniapp API endpoints with authentication.
  * Supports both API key and miniapp token authentication.
- * 
+ *
  * Prerequisites:
  * - Run: bun run db:miniapp:seed (generates API key)
  * - Set TEST_API_KEY or TEST_MINIAPP_TOKEN environment variable
@@ -21,7 +21,7 @@ const MINIAPP_TOKEN = process.env.TEST_MINIAPP_TOKEN;
 // Helper for authenticated requests with API key
 function apiKeyHeaders() {
   return {
-    "Authorization": `Bearer ${API_KEY}`,
+    Authorization: `Bearer ${API_KEY}`,
     "Content-Type": "application/json",
   };
 }
@@ -45,7 +45,7 @@ test.describe("Authenticated API Tests (API Key)", () => {
       });
 
       expect(response.status()).toBe(200);
-      
+
       const data = await response.json();
       expect(data.success).toBe(true);
       expect(data.user).toHaveProperty("id");
@@ -56,18 +56,21 @@ test.describe("Authenticated API Tests (API Key)", () => {
 
   test.describe("Agents API - CRUD", () => {
     test("POST /agents creates new agent", async ({ request }) => {
-      const response = await request.post(`${CLOUD_URL}/api/v1/miniapp/agents`, {
-        headers: apiKeyHeaders(),
-        data: {
-          name: "Test Agent",
-          bio: "A test agent for e2e testing",
-          topics: ["testing", "automation"],
-          adjectives: ["helpful", "friendly"],
+      const response = await request.post(
+        `${CLOUD_URL}/api/v1/miniapp/agents`,
+        {
+          headers: apiKeyHeaders(),
+          data: {
+            name: "Test Agent",
+            bio: "A test agent for e2e testing",
+            topics: ["testing", "automation"],
+            adjectives: ["helpful", "friendly"],
+          },
         },
-      });
+      );
 
       expect(response.status()).toBe(201);
-      
+
       const data = await response.json();
       expect(data.success).toBe(true);
       expect(data.agent.name).toBe("Test Agent");
@@ -75,26 +78,35 @@ test.describe("Authenticated API Tests (API Key)", () => {
       expect(data.agent).toHaveProperty("createdAt");
 
       // Cleanup
-      await request.delete(`${CLOUD_URL}/api/v1/miniapp/agents/${data.agent.id}`, {
-        headers: apiKeyHeaders(),
-      });
+      await request.delete(
+        `${CLOUD_URL}/api/v1/miniapp/agents/${data.agent.id}`,
+        {
+          headers: apiKeyHeaders(),
+        },
+      );
     });
 
     test("GET /agents lists user's agents", async ({ request }) => {
       // Create a test agent first
-      const createResponse = await request.post(`${CLOUD_URL}/api/v1/miniapp/agents`, {
-        headers: apiKeyHeaders(),
-        data: { name: "List Test Agent", bio: "For list test" },
-      });
+      const createResponse = await request.post(
+        `${CLOUD_URL}/api/v1/miniapp/agents`,
+        {
+          headers: apiKeyHeaders(),
+          data: { name: "List Test Agent", bio: "For list test" },
+        },
+      );
       const { agent: createdAgent } = await createResponse.json();
 
       // List agents
-      const response = await request.get(`${CLOUD_URL}/api/v1/miniapp/agents?limit=10`, {
-        headers: apiKeyHeaders(),
-      });
+      const response = await request.get(
+        `${CLOUD_URL}/api/v1/miniapp/agents?limit=10`,
+        {
+          headers: apiKeyHeaders(),
+        },
+      );
 
       expect(response.status()).toBe(200);
-      
+
       const data = await response.json();
       expect(data.success).toBe(true);
       expect(Array.isArray(data.agents)).toBe(true);
@@ -102,104 +114,136 @@ test.describe("Authenticated API Tests (API Key)", () => {
       expect(data.pagination).toHaveProperty("limit");
 
       // Cleanup
-      await request.delete(`${CLOUD_URL}/api/v1/miniapp/agents/${createdAgent.id}`, {
-        headers: apiKeyHeaders(),
-      });
+      await request.delete(
+        `${CLOUD_URL}/api/v1/miniapp/agents/${createdAgent.id}`,
+        {
+          headers: apiKeyHeaders(),
+        },
+      );
     });
 
     test("GET /agents/:id returns agent details", async ({ request }) => {
       // Create agent
-      const createResponse = await request.post(`${CLOUD_URL}/api/v1/miniapp/agents`, {
-        headers: apiKeyHeaders(),
-        data: { name: "Detail Test Agent", bio: "For detail test" },
-      });
+      const createResponse = await request.post(
+        `${CLOUD_URL}/api/v1/miniapp/agents`,
+        {
+          headers: apiKeyHeaders(),
+          data: { name: "Detail Test Agent", bio: "For detail test" },
+        },
+      );
       const { agent: createdAgent } = await createResponse.json();
 
       // Get details
-      const response = await request.get(`${CLOUD_URL}/api/v1/miniapp/agents/${createdAgent.id}`, {
-        headers: apiKeyHeaders(),
-      });
+      const response = await request.get(
+        `${CLOUD_URL}/api/v1/miniapp/agents/${createdAgent.id}`,
+        {
+          headers: apiKeyHeaders(),
+        },
+      );
 
       expect(response.status()).toBe(200);
-      
+
       const data = await response.json();
       expect(data.success).toBe(true);
       expect(data.agent.id).toBe(createdAgent.id);
       expect(data.agent.name).toBe("Detail Test Agent");
 
       // Cleanup
-      await request.delete(`${CLOUD_URL}/api/v1/miniapp/agents/${createdAgent.id}`, {
-        headers: apiKeyHeaders(),
-      });
+      await request.delete(
+        `${CLOUD_URL}/api/v1/miniapp/agents/${createdAgent.id}`,
+        {
+          headers: apiKeyHeaders(),
+        },
+      );
     });
 
     test("PATCH /agents/:id updates agent", async ({ request }) => {
       // Create agent
-      const createResponse = await request.post(`${CLOUD_URL}/api/v1/miniapp/agents`, {
-        headers: apiKeyHeaders(),
-        data: { name: "Update Test Agent", bio: "Original bio" },
-      });
+      const createResponse = await request.post(
+        `${CLOUD_URL}/api/v1/miniapp/agents`,
+        {
+          headers: apiKeyHeaders(),
+          data: { name: "Update Test Agent", bio: "Original bio" },
+        },
+      );
       const { agent: createdAgent } = await createResponse.json();
 
       // Update
-      const response = await request.patch(`${CLOUD_URL}/api/v1/miniapp/agents/${createdAgent.id}`, {
-        headers: apiKeyHeaders(),
-        data: {
-          name: "Updated Agent Name",
-          bio: "Updated bio content",
+      const response = await request.patch(
+        `${CLOUD_URL}/api/v1/miniapp/agents/${createdAgent.id}`,
+        {
+          headers: apiKeyHeaders(),
+          data: {
+            name: "Updated Agent Name",
+            bio: "Updated bio content",
+          },
         },
-      });
+      );
 
       expect(response.status()).toBe(200);
-      
+
       const data = await response.json();
       expect(data.success).toBe(true);
       expect(data.agent.name).toBe("Updated Agent Name");
 
       // Cleanup
-      await request.delete(`${CLOUD_URL}/api/v1/miniapp/agents/${createdAgent.id}`, {
-        headers: apiKeyHeaders(),
-      });
+      await request.delete(
+        `${CLOUD_URL}/api/v1/miniapp/agents/${createdAgent.id}`,
+        {
+          headers: apiKeyHeaders(),
+        },
+      );
     });
 
     test("DELETE /agents/:id deletes agent", async ({ request }) => {
       // Create agent
-      const createResponse = await request.post(`${CLOUD_URL}/api/v1/miniapp/agents`, {
-        headers: apiKeyHeaders(),
-        data: { name: "Delete Test Agent", bio: "Will be deleted" },
-      });
+      const createResponse = await request.post(
+        `${CLOUD_URL}/api/v1/miniapp/agents`,
+        {
+          headers: apiKeyHeaders(),
+          data: { name: "Delete Test Agent", bio: "Will be deleted" },
+        },
+      );
       const { agent: createdAgent } = await createResponse.json();
 
       // Delete
-      const response = await request.delete(`${CLOUD_URL}/api/v1/miniapp/agents/${createdAgent.id}`, {
-        headers: apiKeyHeaders(),
-      });
+      const response = await request.delete(
+        `${CLOUD_URL}/api/v1/miniapp/agents/${createdAgent.id}`,
+        {
+          headers: apiKeyHeaders(),
+        },
+      );
 
       expect(response.status()).toBe(200);
-      
+
       const data = await response.json();
       expect(data.success).toBe(true);
     });
   });
 
   test.describe("Billing API", () => {
-    test("GET /billing returns credit balance and usage", async ({ request }) => {
-      const response = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
-        headers: apiKeyHeaders(),
-      });
+    test("GET /billing returns credit balance and usage", async ({
+      request,
+    }) => {
+      const response = await request.get(
+        `${CLOUD_URL}/api/v1/miniapp/billing`,
+        {
+          headers: apiKeyHeaders(),
+        },
+      );
 
       expect(response.status()).toBe(200);
-      
+
       const data = await response.json();
       expect(data.success).toBe(true);
-      
+
       // Check billing info
       expect(data.billing).toHaveProperty("creditBalance");
       expect(data.billing).toHaveProperty("autoTopUpEnabled");
-      
+
       // Check usage info
       expect(data.usage).toHaveProperty("currentMonth");
-      
+
       // Check transactions
       expect(Array.isArray(data.recentTransactions)).toBe(true);
     });
@@ -208,7 +252,10 @@ test.describe("Authenticated API Tests (API Key)", () => {
 
 test.describe("Authenticated API Tests (Miniapp Token)", () => {
   // Skip all if no miniapp token
-  test.skip(() => !MINIAPP_TOKEN, "TEST_MINIAPP_TOKEN environment variable required");
+  test.skip(
+    () => !MINIAPP_TOKEN,
+    "TEST_MINIAPP_TOKEN environment variable required",
+  );
 
   test("GET /user with miniapp token", async ({ request }) => {
     const response = await request.get(`${CLOUD_URL}/api/v1/miniapp/user`, {
@@ -216,7 +263,7 @@ test.describe("Authenticated API Tests (Miniapp Token)", () => {
     });
 
     expect(response.status()).toBe(200);
-    
+
     const data = await response.json();
     expect(data.success).toBe(true);
     expect(data.user).toHaveProperty("id");
@@ -228,7 +275,7 @@ test.describe("Authenticated API Tests (Miniapp Token)", () => {
     });
 
     expect(response.status()).toBe(200);
-    
+
     const data = await response.json();
     expect(data.success).toBe(true);
     expect(Array.isArray(data.agents)).toBe(true);
@@ -236,31 +283,43 @@ test.describe("Authenticated API Tests (Miniapp Token)", () => {
 
   test("Full CRUD flow with miniapp token", async ({ request }) => {
     // Create
-    const createResponse = await request.post(`${CLOUD_URL}/api/v1/miniapp/agents`, {
-      headers: miniappTokenHeaders(),
-      data: { name: "Token Test Agent", bio: "Created with miniapp token" },
-    });
+    const createResponse = await request.post(
+      `${CLOUD_URL}/api/v1/miniapp/agents`,
+      {
+        headers: miniappTokenHeaders(),
+        data: { name: "Token Test Agent", bio: "Created with miniapp token" },
+      },
+    );
     expect(createResponse.status()).toBe(201);
     const { agent } = await createResponse.json();
     expect(agent.name).toBe("Token Test Agent");
 
     // Read
-    const readResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/agents/${agent.id}`, {
-      headers: miniappTokenHeaders(),
-    });
+    const readResponse = await request.get(
+      `${CLOUD_URL}/api/v1/miniapp/agents/${agent.id}`,
+      {
+        headers: miniappTokenHeaders(),
+      },
+    );
     expect(readResponse.status()).toBe(200);
 
     // Update
-    const updateResponse = await request.patch(`${CLOUD_URL}/api/v1/miniapp/agents/${agent.id}`, {
-      headers: miniappTokenHeaders(),
-      data: { name: "Updated Token Agent" },
-    });
+    const updateResponse = await request.patch(
+      `${CLOUD_URL}/api/v1/miniapp/agents/${agent.id}`,
+      {
+        headers: miniappTokenHeaders(),
+        data: { name: "Updated Token Agent" },
+      },
+    );
     expect(updateResponse.status()).toBe(200);
 
     // Delete
-    const deleteResponse = await request.delete(`${CLOUD_URL}/api/v1/miniapp/agents/${agent.id}`, {
-      headers: miniappTokenHeaders(),
-    });
+    const deleteResponse = await request.delete(
+      `${CLOUD_URL}/api/v1/miniapp/agents/${agent.id}`,
+      {
+        headers: miniappTokenHeaders(),
+      },
+    );
     expect(deleteResponse.status()).toBe(200);
   });
 });
@@ -271,12 +330,12 @@ test.describe("Miniapp Proxy with Auth", () => {
   test("proxy forwards auth header to cloud", async ({ request }) => {
     const response = await request.get(`${MINIAPP_URL}/api/proxy/user`, {
       headers: {
-        "Authorization": `Bearer ${API_KEY}`,
+        Authorization: `Bearer ${API_KEY}`,
       },
     });
 
     expect(response.status()).toBe(200);
-    
+
     const data = await response.json();
     expect(data.success).toBe(true);
     expect(data.user).toHaveProperty("id");
@@ -285,12 +344,12 @@ test.describe("Miniapp Proxy with Auth", () => {
   test("proxy forwards agents request with auth", async ({ request }) => {
     const response = await request.get(`${MINIAPP_URL}/api/proxy/agents`, {
       headers: {
-        "Authorization": `Bearer ${API_KEY}`,
+        Authorization: `Bearer ${API_KEY}`,
       },
     });
 
     expect(response.status()).toBe(200);
-    
+
     const data = await response.json();
     expect(data.success).toBe(true);
     expect(Array.isArray(data.agents)).toBe(true);
@@ -300,7 +359,9 @@ test.describe("Miniapp Proxy with Auth", () => {
 test.describe("Character Creation (Authenticated)", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("create-character with auth creates agent directly", async ({ request }) => {
+  test("create-character with auth creates agent directly", async ({
+    request,
+  }) => {
     const response = await request.post(`${MINIAPP_URL}/api/create-character`, {
       data: {
         name: "Auth Test Character",
@@ -312,18 +373,21 @@ test.describe("Character Creation (Authenticated)", () => {
 
     // Should succeed or fail gracefully
     expect([200, 201, 401, 502]).toContain(response.status());
-    
+
     if (response.status() === 200) {
       const data = await response.json();
       expect(data.success).toBe(true);
       expect(data).toHaveProperty("characterId");
       expect(data.authenticated).toBe(true);
-      
+
       // Cleanup
       if (data.characterId) {
-        await request.delete(`${CLOUD_URL}/api/v1/miniapp/agents/${data.characterId}`, {
-          headers: apiKeyHeaders(),
-        });
+        await request.delete(
+          `${CLOUD_URL}/api/v1/miniapp/agents/${data.characterId}`,
+          {
+            headers: apiKeyHeaders(),
+          },
+        );
       }
     }
   });
@@ -340,9 +404,9 @@ test.describe("Error Handling", () => {
         bio: "Bio without name",
       },
     });
-    
+
     expect(response.status()).toBe(400);
-    
+
     const data = await response.json();
     expect(data.success).toBe(false);
   });
@@ -355,9 +419,9 @@ test.describe("Error Handling", () => {
         bio: "Bio with empty name",
       },
     });
-    
+
     expect(response.status()).toBe(400);
-    
+
     const data = await response.json();
     expect(data.success).toBe(false);
   });
@@ -365,11 +429,11 @@ test.describe("Error Handling", () => {
   test("invalid API key returns 401", async ({ request }) => {
     const response = await request.get(`${CLOUD_URL}/api/v1/miniapp/user`, {
       headers: {
-        "Authorization": "Bearer invalid-key-12345",
+        Authorization: "Bearer invalid-key-12345",
         "Content-Type": "application/json",
       },
     });
-    
+
     expect([401, 403]).toContain(response.status());
   });
 
@@ -380,7 +444,7 @@ test.describe("Error Handling", () => {
         "Content-Type": "application/json",
       },
     });
-    
+
     expect([401, 403]).toContain(response.status());
   });
 });
@@ -390,27 +454,36 @@ test.describe("Chats API", () => {
 
   test("full chat lifecycle", async ({ request }) => {
     // 1. Create an agent
-    const agentResponse = await request.post(`${CLOUD_URL}/api/v1/miniapp/agents`, {
-      headers: apiKeyHeaders(),
-      data: { name: "Chat Test Agent", bio: "For chat testing" },
-    });
+    const agentResponse = await request.post(
+      `${CLOUD_URL}/api/v1/miniapp/agents`,
+      {
+        headers: apiKeyHeaders(),
+        data: { name: "Chat Test Agent", bio: "For chat testing" },
+      },
+    );
     expect(agentResponse.status()).toBe(201);
     const { agent } = await agentResponse.json();
 
     // 2. Create a chat
-    const chatResponse = await request.post(`${CLOUD_URL}/api/v1/miniapp/agents/${agent.id}/chats`, {
-      headers: apiKeyHeaders(),
-    });
-    
+    const chatResponse = await request.post(
+      `${CLOUD_URL}/api/v1/miniapp/agents/${agent.id}/chats`,
+      {
+        headers: apiKeyHeaders(),
+      },
+    );
+
     // Chat creation may or may not be implemented
     if (chatResponse.status() === 201) {
       const { chat } = await chatResponse.json();
       expect(chat).toHaveProperty("id");
 
       // 3. List chats
-      const listResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/agents/${agent.id}/chats`, {
-        headers: apiKeyHeaders(),
-      });
+      const listResponse = await request.get(
+        `${CLOUD_URL}/api/v1/miniapp/agents/${agent.id}/chats`,
+        {
+          headers: apiKeyHeaders(),
+        },
+      );
       expect(listResponse.status()).toBe(200);
       const { chats } = await listResponse.json();
       expect(Array.isArray(chats)).toBe(true);
@@ -418,7 +491,7 @@ test.describe("Chats API", () => {
       // 4. Delete chat
       const deleteResponse = await request.delete(
         `${CLOUD_URL}/api/v1/miniapp/agents/${agent.id}/chats/${chat.id}`,
-        { headers: apiKeyHeaders() }
+        { headers: apiKeyHeaders() },
       );
       expect([200, 204]).toContain(deleteResponse.status());
     }

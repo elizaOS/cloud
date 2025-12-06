@@ -1,10 +1,14 @@
 /**
  * App Analytics Service
- * 
+ *
  * Handles tracking and aggregation of app usage analytics
  */
 
-import { appsRepository, type AppAnalytics, type NewAppAnalytics } from "@/db/repositories/apps";
+import {
+  appsRepository,
+  type AppAnalytics,
+  type NewAppAnalytics,
+} from "@/db/repositories/apps";
 import { usageRecordsRepository } from "@/db/repositories/usage-records";
 import { logger } from "@/lib/utils/logger";
 
@@ -48,7 +52,7 @@ export class AppAnalyticsService {
           appId,
           userId,
           creditsUsed,
-          metadata
+          metadata,
         );
       }
 
@@ -73,15 +77,15 @@ export class AppAnalyticsService {
     appId: string,
     periodStart: Date,
     periodEnd: Date,
-    periodType: "hourly" | "daily" | "monthly"
+    periodType: "hourly" | "daily" | "monthly",
   ): Promise<void> {
     try {
       // Get all usage records for this app in the period
       // This requires querying usage_records by app_id (we need to add this)
-      
+
       // For now, we'll create a placeholder analytics record
       // In production, you'd query actual usage data
-      
+
       const analyticsData: NewAppAnalytics = {
         app_id: appId,
         period_start: periodStart,
@@ -122,10 +126,7 @@ export class AppAnalyticsService {
    * Calculate pricing for app usage
    * Takes into account custom pricing markup if enabled
    */
-  calculateAppPricing(params: {
-    baseCost: number;
-    app: any;
-  }): {
+  calculateAppPricing(params: { baseCost: number; app: any }): {
     baseCost: number;
     markup: number;
     finalCost: number;
@@ -157,7 +158,10 @@ export class AppAnalyticsService {
   /**
    * Get app usage summary
    */
-  async getAppUsageSummary(appId: string, days: number = 30): Promise<{
+  async getAppUsageSummary(
+    appId: string,
+    days: number = 30,
+  ): Promise<{
     totalRequests: number;
     totalUsers: number;
     totalCost: string;
@@ -165,7 +169,7 @@ export class AppAnalyticsService {
     avgCostPerDay: string;
   }> {
     const app = await appsRepository.findById(appId);
-    
+
     if (!app) {
       throw new Error("App not found");
     }
@@ -186,4 +190,3 @@ export class AppAnalyticsService {
 
 // Export singleton instance
 export const appAnalyticsService = new AppAnalyticsService();
-

@@ -18,7 +18,7 @@ const ANON_SESSION_COOKIE = "eliza-anon-session";
  */
 export async function POST(request: NextRequest) {
   logger.info("[Set Session] Received request to set anonymous session cookie");
-  
+
   try {
     // Parse request body
     let body;
@@ -26,10 +26,7 @@ export async function POST(request: NextRequest) {
       body = await request.json();
     } catch (parseError) {
       logger.error("[Set Session] Failed to parse request body:", parseError);
-      return NextResponse.json(
-        { error: "Invalid JSON body" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
     const { sessionToken } = body;
@@ -42,23 +39,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    logger.info("[Set Session] Looking up session:", sessionToken.substring(0, 8) + "...");
+    logger.info(
+      "[Set Session] Looking up session:",
+      sessionToken.substring(0, 8) + "...",
+    );
 
     // Validate that the session exists
     const session = await anonymousSessionsService.getByToken(sessionToken);
 
     if (!session) {
-      logger.warn("[Set Session] Session not found for token:", sessionToken.substring(0, 8) + "...");
+      logger.warn(
+        "[Set Session] Session not found for token:",
+        sessionToken.substring(0, 8) + "...",
+      );
       return NextResponse.json(
         { error: "Invalid session token", code: "SESSION_NOT_FOUND" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    logger.info("[Set Session] Session found:", { 
-      sessionId: session.id, 
+    logger.info("[Set Session] Session found:", {
+      sessionId: session.id,
       userId: session.user_id,
-      expiresAt: session.expires_at 
+      expiresAt: session.expires_at,
     });
 
     // Check if session is expired
@@ -66,17 +69,20 @@ export async function POST(request: NextRequest) {
       logger.warn("[Set Session] Session expired:", session.id);
       return NextResponse.json(
         { error: "Session has expired", code: "SESSION_EXPIRED" },
-        { status: 410 }
+        { status: 410 },
       );
     }
 
     // Check if the user exists (handles old-style sessions with placeholder user_id)
     let user = await usersService.getById(session.user_id);
-    
+
     if (!user) {
       // User doesn't exist - create a real anonymous user
-      logger.info("[Set Session] User not found, creating anonymous user for session:", session.id);
-      
+      logger.info(
+        "[Set Session] User not found, creating anonymous user for session:",
+        session.id,
+      );
+
       try {
         const [newUser] = await db
           .insert(users)
@@ -103,7 +109,7 @@ export async function POST(request: NextRequest) {
         logger.error("[Set Session] Failed to create anonymous user:", dbError);
         return NextResponse.json(
           { error: "Failed to create user", code: "USER_CREATE_FAILED" },
-          { status: 500 }
+          { status: 500 },
         );
       }
     }
@@ -143,7 +149,7 @@ export async function POST(request: NextRequest) {
         code: "INTERNAL_ERROR",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

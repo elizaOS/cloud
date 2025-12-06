@@ -81,7 +81,10 @@ export async function uploadBase64Image(
 export function isFalAiUrl(url: string): boolean {
   try {
     const urlObj = new URL(url);
-    return urlObj.hostname.includes("fal.media") || urlObj.hostname.includes("fal.ai");
+    return (
+      urlObj.hostname.includes("fal.media") ||
+      urlObj.hostname.includes("fal.ai")
+    );
   } catch {
     return false;
   }
@@ -128,14 +131,17 @@ export async function ensureElizaCloudUrl(
     const result = await uploadFromUrl(sourceUrl, options);
     return result.url;
   } catch (error) {
-    console.error("[ensureElizaCloudUrl] Failed to upload Fal.ai URL to our storage:", error);
-    
+    console.error(
+      "[ensureElizaCloudUrl] Failed to upload Fal.ai URL to our storage:",
+      error,
+    );
+
     // If fallback is allowed, return original URL
     if (options.fallbackToOriginal !== false) {
       console.warn("[ensureElizaCloudUrl] Falling back to original Fal.ai URL");
       return sourceUrl;
     }
-    
+
     // Otherwise, throw the error
     throw error;
   }

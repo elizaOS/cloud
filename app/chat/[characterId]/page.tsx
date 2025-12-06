@@ -88,7 +88,8 @@ export default async function ChatPage({
     }
 
     // Otherwise, use cookie-based session (creates one if needed)
-    const { user: anonUser, session: cookieSession } = await getOrCreateAnonymousUser();
+    const { user: anonUser, session: cookieSession } =
+      await getOrCreateAnonymousUser();
 
     if (!cookieSession) {
       logger.error(`[Chat Page] Failed to create anonymous session`);
@@ -135,20 +136,26 @@ export default async function ChatPage({
   // CRITICAL: If authenticated user has a session token in URL, migrate the anonymous session data
   // This handles the case where user was already authenticated when redirected from affiliate
   if (sessionId && user!.privy_user_id) {
-    logger.info(`[Chat Page] Authenticated user with session token - triggering server-side migration`, {
-      sessionId,
-      userId: user!.id,
-      privyUserId: user!.privy_user_id,
-    });
+    logger.info(
+      `[Chat Page] Authenticated user with session token - triggering server-side migration`,
+      {
+        sessionId,
+        userId: user!.id,
+        privyUserId: user!.privy_user_id,
+      },
+    );
 
     try {
       const anonSession = await anonymousSessionsService.getByToken(sessionId);
 
       if (anonSession && !anonSession.converted_at) {
-        logger.info(`[Chat Page] Found unconverted anonymous session, migrating...`, {
-          sessionId: anonSession.id,
-          anonymousUserId: anonSession.user_id,
-        });
+        logger.info(
+          `[Chat Page] Found unconverted anonymous session, migrating...`,
+          {
+            sessionId: anonSession.id,
+            anonymousUserId: anonSession.user_id,
+          },
+        );
 
         const { convertAnonymousToReal } = await import("@/lib/auth-anonymous");
         await convertAnonymousToReal(anonSession.user_id, user!.privy_user_id);
@@ -157,7 +164,9 @@ export default async function ChatPage({
       } else if (anonSession?.converted_at) {
         logger.info(`[Chat Page] Session already converted`, { sessionId });
       } else {
-        logger.warn(`[Chat Page] Session not found for token`, { sessionId: sessionId.slice(0, 8) + "..." });
+        logger.warn(`[Chat Page] Session not found for token`, {
+          sessionId: sessionId.slice(0, 8) + "...",
+        });
       }
     } catch (error) {
       logger.error(`[Chat Page] Migration failed:`, error);
@@ -168,23 +177,29 @@ export default async function ChatPage({
   // If this is an affiliate-created character owned by an anonymous user,
   // automatically transfer ownership to the authenticated user
   if (user!.organization_id) {
-    const claimCheck = await charactersService.isClaimableAffiliateCharacter(characterId);
+    const claimCheck =
+      await charactersService.isClaimableAffiliateCharacter(characterId);
 
     if (claimCheck.claimable) {
-      logger.info(`[Chat Page] 🎯 Detected claimable affiliate character, initiating transfer...`, {
-        characterId,
-        userId: user!.id,
-        previousOwnerId: claimCheck.ownerId,
-      });
+      logger.info(
+        `[Chat Page] 🎯 Detected claimable affiliate character, initiating transfer...`,
+        {
+          characterId,
+          userId: user!.id,
+          previousOwnerId: claimCheck.ownerId,
+        },
+      );
 
       const claimResult = await charactersService.claimAffiliateCharacter(
         characterId,
         user!.id,
-        user!.organization_id
+        user!.organization_id,
       );
 
       if (claimResult.success) {
-        logger.info(`[Chat Page] ✅ Successfully claimed affiliate character: ${characterId}`);
+        logger.info(
+          `[Chat Page] ✅ Successfully claimed affiliate character: ${characterId}`,
+        );
         // Reload the character to get updated ownership
         const updatedCharacter = await charactersService.getById(characterId);
         if (updatedCharacter) {
@@ -202,7 +217,9 @@ export default async function ChatPage({
           );
         }
       } else {
-        logger.warn(`[Chat Page] Failed to claim affiliate character: ${claimResult.message}`);
+        logger.warn(
+          `[Chat Page] Failed to claim affiliate character: ${claimResult.message}`,
+        );
       }
     }
   }

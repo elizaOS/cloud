@@ -35,7 +35,7 @@ export function AppSettings({ app }: AppSettingsProps) {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [allowedOrigins, setAllowedOrigins] = useState<string[]>(
-    (app.allowed_origins as string[]) || []
+    (app.allowed_origins as string[]) || [],
   );
   const [newOrigin, setNewOrigin] = useState("");
 
@@ -72,7 +72,8 @@ export function AppSettings({ app }: AppSettingsProps) {
     } catch (error) {
       console.error("Error updating app:", error);
       toast.error("Failed to update app", {
-        description: error instanceof Error ? error.message : "Please try again",
+        description:
+          error instanceof Error ? error.message : "Please try again",
       });
     } finally {
       setIsLoading(false);
@@ -82,9 +83,12 @@ export function AppSettings({ app }: AppSettingsProps) {
   const handleRegenerateApiKey = async () => {
     setIsRegenerating(true);
     try {
-      const response = await fetch(`/api/v1/apps/${app.id}/regenerate-api-key`, {
-        method: "POST",
-      });
+      const response = await fetch(
+        `/api/v1/apps/${app.id}/regenerate-api-key`,
+        {
+          method: "POST",
+        },
+      );
 
       if (!response.ok) {
         const error = await response.json();
@@ -92,19 +96,23 @@ export function AppSettings({ app }: AppSettingsProps) {
       }
 
       const data = await response.json();
-      
+
       // Show the new API key in an alert
       toast.success("API key regenerated", {
-        description: "Your new API key has been generated. Make sure to save it!",
+        description:
+          "Your new API key has been generated. Make sure to save it!",
       });
 
       // Redirect to overview tab with the new API key
-      router.push(`/dashboard/apps/${app.id}?showApiKey=${data.apiKey}&tab=overview`);
+      router.push(
+        `/dashboard/apps/${app.id}?showApiKey=${data.apiKey}&tab=overview`,
+      );
       router.refresh();
     } catch (error) {
       console.error("Error regenerating API key:", error);
       toast.error("Failed to regenerate API key", {
-        description: error instanceof Error ? error.message : "Please try again",
+        description:
+          error instanceof Error ? error.message : "Please try again",
       });
     } finally {
       setIsRegenerating(false);
@@ -129,7 +137,8 @@ export function AppSettings({ app }: AppSettingsProps) {
     } catch (error) {
       console.error("Error deleting app:", error);
       toast.error("Failed to delete app", {
-        description: error instanceof Error ? error.message : "Please try again",
+        description:
+          error instanceof Error ? error.message : "Please try again",
       });
       setIsDeleting(false);
     }
@@ -160,7 +169,9 @@ export function AppSettings({ app }: AppSettingsProps) {
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 placeholder="My Awesome App"
               />
             </div>
@@ -367,8 +378,8 @@ export function AppSettings({ app }: AppSettingsProps) {
               <div>
                 <p className="font-semibold text-white">Regenerate API Key</p>
                 <p className="text-xs text-white/60 mt-1">
-                  This will invalidate the current API key. Your app will stop working
-                  until you update it.
+                  This will invalidate the current API key. Your app will stop
+                  working until you update it.
                 </p>
               </div>
               <AlertDialog>
@@ -392,9 +403,9 @@ export function AppSettings({ app }: AppSettingsProps) {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Regenerate API Key?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This action will immediately invalidate your current API key. Your app
-                      will stop working until you update it with the new key. This cannot be
-                      undone.
+                      This action will immediately invalidate your current API
+                      key. Your app will stop working until you update it with
+                      the new key. This cannot be undone.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -414,8 +425,8 @@ export function AppSettings({ app }: AppSettingsProps) {
               <div>
                 <p className="font-semibold text-white">Delete App</p>
                 <p className="text-xs text-white/60 mt-1">
-                  Permanently delete this app and all associated data. This cannot be
-                  undone.
+                  Permanently delete this app and all associated data. This
+                  cannot be undone.
                 </p>
               </div>
               <AlertDialog>
@@ -439,9 +450,11 @@ export function AppSettings({ app }: AppSettingsProps) {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete App?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete the app
-                      <strong className="text-white"> {app.name}</strong> and remove all
-                      associated data including analytics and user tracking.
+                      This action cannot be undone. This will permanently delete
+                      the app
+                      <strong className="text-white"> {app.name}</strong> and
+                      remove all associated data including analytics and user
+                      tracking.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -462,4 +475,3 @@ export function AppSettings({ app }: AppSettingsProps) {
     </div>
   );
 }
-

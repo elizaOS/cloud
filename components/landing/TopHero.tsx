@@ -83,7 +83,8 @@ const TopHero = () => {
             className="mb-10 md:mb-12 text-base sm:text-lg md:text-xl lg:text-2xl text-white/70 mx-auto relative z-10 px-4 max-w-3xl"
             style={{ textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}
           >
-            Create and deploy an agent in one command. Open source. Zero lock-in.
+            Create and deploy an agent in one command. Open source. Zero
+            lock-in.
           </p>
 
           {/* Terminal Display */}

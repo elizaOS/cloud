@@ -43,13 +43,16 @@ export async function POST(
     } catch (error) {
       // Fallback to anonymous user
       logger.info("[Messages API] Privy auth failed, trying anonymous...");
-      
+
       let anonData = await getAnonymousUser();
-      
+
       if (!anonData) {
         // Create new anonymous session if none exists
-        logger.info("[Messages API] No session cookie - creating new anonymous session");
-        const { getOrCreateAnonymousUser } = await import("@/lib/auth-anonymous");
+        logger.info(
+          "[Messages API] No session cookie - creating new anonymous session",
+        );
+        const { getOrCreateAnonymousUser } =
+          await import("@/lib/auth-anonymous");
         const newAnonData = await getOrCreateAnonymousUser();
         anonData = {
           user: newAnonData.user,
@@ -72,7 +75,7 @@ export async function POST(
     const { roomId } = await ctx.params;
     const body = await request.json();
     const { text, attachments } = body;
-    
+
     // IMPORTANT: Use authenticated user's ID as entityId (not from request body)
     const entityId = user.id;
 
@@ -186,25 +189,26 @@ export async function POST(
       if (room) {
         characterId = room.agentId || undefined;
         if (characterId) {
-        logger.info(
-          "[Eliza Messages API] ✓ Using custom character:",
-          characterId,
-          "for room:",
-          roomId,
-        );
+          logger.info(
+            "[Eliza Messages API] ✓ Using custom character:",
+            characterId,
+            "for room:",
+            roomId,
+          );
 
-        // Get character name
-        const runtime = await agentRuntime.getRuntimeForCharacter(characterId);
-        characterName = runtime.character.name || "Agent";
-      } else {
-        logger.info(
-          "[Eliza Messages API] ⓘ No character mapping found for room:",
-          roomId,
-          "- using default character",
-        );
-        // Get default character name
-        const runtime = await agentRuntime.getRuntime();
-        characterName = runtime.character.name || "Agent";
+          // Get character name
+          const runtime =
+            await agentRuntime.getRuntimeForCharacter(characterId);
+          characterName = runtime.character.name || "Agent";
+        } else {
+          logger.info(
+            "[Eliza Messages API] ⓘ No character mapping found for room:",
+            roomId,
+            "- using default character",
+          );
+          // Get default character name
+          const runtime = await agentRuntime.getRuntime();
+          characterName = runtime.character.name || "Agent";
         }
       }
     } catch (lookupError) {

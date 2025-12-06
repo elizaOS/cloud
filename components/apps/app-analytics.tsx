@@ -3,9 +3,25 @@
 import { useState, useEffect } from "react";
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Loader2, TrendingUp, Users, Activity, DollarSign } from "lucide-react";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import { formatDistanceToNow } from "date-fns";
 
 interface AppAnalyticsProps {
@@ -22,10 +38,10 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
     setIsLoading(true);
     try {
       const response = await fetch(
-        `/api/v1/apps/${appId}/analytics?period=${period}`
+        `/api/v1/apps/${appId}/analytics?period=${period}`,
       );
       const data = await response.json();
-      
+
       if (data.success) {
         setAnalytics(data.analytics);
         setTotalStats(data.totalStats);
@@ -135,17 +151,20 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
           {chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis 
-                  dataKey="date" 
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="rgba(255,255,255,0.1)"
+                />
+                <XAxis
+                  dataKey="date"
                   stroke="rgba(255,255,255,0.6)"
                   style={{ fontSize: "12px" }}
                 />
-                <YAxis 
+                <YAxis
                   stroke="rgba(255,255,255,0.6)"
                   style={{ fontSize: "12px" }}
                 />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{
                     backgroundColor: "rgba(0,0,0,0.9)",
                     border: "1px solid rgba(255,255,255,0.1)",
@@ -172,23 +191,24 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
       <BrandCard>
         <CornerBrackets className="opacity-20" />
         <div className="relative z-10">
-          <h3 className="text-lg font-semibold text-white mb-4">
-            User Growth
-          </h3>
+          <h3 className="text-lg font-semibold text-white mb-4">User Growth</h3>
           {chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis 
-                  dataKey="date" 
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="rgba(255,255,255,0.1)"
+                />
+                <XAxis
+                  dataKey="date"
                   stroke="rgba(255,255,255,0.6)"
                   style={{ fontSize: "12px" }}
                 />
-                <YAxis 
+                <YAxis
                   stroke="rgba(255,255,255,0.6)"
                   style={{ fontSize: "12px" }}
                 />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{
                     backgroundColor: "rgba(0,0,0,0.9)",
                     border: "1px solid rgba(255,255,255,0.1)",
@@ -216,17 +236,20 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
           {chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis 
-                  dataKey="date" 
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="rgba(255,255,255,0.1)"
+                />
+                <XAxis
+                  dataKey="date"
                   stroke="rgba(255,255,255,0.6)"
                   style={{ fontSize: "12px" }}
                 />
-                <YAxis 
+                <YAxis
                   stroke="rgba(255,255,255,0.6)"
                   style={{ fontSize: "12px" }}
                 />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{
                     backgroundColor: "rgba(0,0,0,0.9)",
                     border: "1px solid rgba(255,255,255,0.1)",
@@ -252,4 +275,3 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
     </div>
   );
 }
-

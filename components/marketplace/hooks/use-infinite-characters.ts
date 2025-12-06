@@ -79,7 +79,14 @@ export function useInfiniteCharacters({
 
       return params.toString();
     },
-    [filters.search, filters.category, filters.hasVoice, filters.deployed, sortBy, includeStats]
+    [
+      filters.search,
+      filters.category,
+      filters.hasVoice,
+      filters.deployed,
+      sortBy,
+      includeStats,
+    ],
   );
 
   const fetchPage = useCallback(
@@ -99,9 +106,12 @@ export function useInfiniteCharacters({
 
       try {
         const queryString = buildQueryParams(pageNum);
-        const response = await fetch(`/api/my-agents/characters?${queryString}`, {
-          signal: abortControllerRef.current.signal,
-        });
+        const response = await fetch(
+          `/api/my-agents/characters?${queryString}`,
+          {
+            signal: abortControllerRef.current.signal,
+          },
+        );
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
@@ -156,7 +166,7 @@ export function useInfiniteCharacters({
         }));
       }
     },
-    [buildQueryParams]
+    [buildQueryParams],
   );
 
   // Initial fetch and filter change handling
@@ -177,7 +187,9 @@ export function useInfiniteCharacters({
   // Listen for external events that should trigger a refresh (e.g., affiliate character claims)
   useEffect(() => {
     const handleCharactersUpdated = () => {
-      logger.debug("[useInfiniteCharacters] Received characters-updated event, refreshing...");
+      logger.debug(
+        "[useInfiniteCharacters] Received characters-updated event, refreshing...",
+      );
       setPage(1);
       fetchPage(1, false);
     };

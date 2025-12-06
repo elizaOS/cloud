@@ -48,10 +48,14 @@ import { cn } from "@/lib/utils";
 
 const categoryDescriptions: Record<string, string> = {
   All: "Explore the complete set of API endpoints available in the Eliza platform. Use these endpoints to build agents, manage memory, and integrate AI capabilities into your applications.",
-  Authentication: "Securely authenticate users and manage access tokens. These endpoints handle login, registration, and session management.",
-  Agents: "Create, configure, and manage your AI agents. Control their behavior, personality, and interaction styles.",
-  Memories: "Access and manipulate agent memory systems. Store, retrieve, and search through long-term and short-term memories.",
-  Documents: "Upload and process documents for RAG (Retrieval-Augmented Generation). Manage the knowledge base your agents use.",
+  Authentication:
+    "Securely authenticate users and manage access tokens. These endpoints handle login, registration, and session management.",
+  Agents:
+    "Create, configure, and manage your AI agents. Control their behavior, personality, and interaction styles.",
+  Memories:
+    "Access and manipulate agent memory systems. Store, retrieve, and search through long-term and short-term memories.",
+  Documents:
+    "Upload and process documents for RAG (Retrieval-Augmented Generation). Manage the knowledge base your agents use.",
   Chat: "Interact with agents via chat interfaces. Send messages and receive streaming responses.",
   Usage: "Track API usage, quotas, and billing information.",
 };
@@ -64,7 +68,7 @@ export default function ApiExplorerPage() {
   });
 
   const [selectedEndpoint, setSelectedEndpoint] = useState<ApiEndpoint | null>(
-    null
+    null,
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
@@ -81,7 +85,7 @@ export default function ApiExplorerPage() {
   useEffect(() => {
     try {
       const spec = generateOpenAPISpec(
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000",
       );
       setOpenApiSpec(spec);
     } catch {
@@ -145,15 +149,19 @@ export default function ApiExplorerPage() {
 
   const getPricingIcon = (pricing: ApiEndpoint["pricing"]) => {
     if (!pricing) return null;
-    if (pricing.isFree) return <Sparkles className="h-4 w-4 text-emerald-400" />;
-    if (pricing.isVariable) return <TrendingUp className="h-4 w-4 text-amber-400" />;
+    if (pricing.isFree)
+      return <Sparkles className="h-4 w-4 text-emerald-400" />;
+    if (pricing.isVariable)
+      return <TrendingUp className="h-4 w-4 text-amber-400" />;
     return <Coins className="h-4 w-4 text-[#FF5800]" />;
   };
 
   const getPricingStyle = (pricing: ApiEndpoint["pricing"]) => {
     if (!pricing) return "";
-    if (pricing.isFree) return "bg-emerald-500/10 text-emerald-400 border-emerald-500/30";
-    if (pricing.isVariable) return "bg-amber-500/10 text-amber-400 border-amber-500/30";
+    if (pricing.isFree)
+      return "bg-emerald-500/10 text-emerald-400 border-emerald-500/30";
+    if (pricing.isVariable)
+      return "bg-amber-500/10 text-amber-400 border-amber-500/30";
     return "bg-[#FF5800]/10 text-[#FF5800] border-[#FF5800]/30";
   };
 
@@ -183,7 +191,9 @@ export default function ApiExplorerPage() {
                   <div className="flex items-center gap-2 flex-wrap">
                     {/* Pricing Badge in Header */}
                     {selectedEndpoint.pricing && (
-                      <div className={`flex items-center gap-1.5 rounded-none border px-2.5 py-1 ${getPricingStyle(selectedEndpoint.pricing)}`}>
+                      <div
+                        className={`flex items-center gap-1.5 rounded-none border px-2.5 py-1 ${getPricingStyle(selectedEndpoint.pricing)}`}
+                      >
                         {getPricingIcon(selectedEndpoint.pricing)}
                         <span className="text-xs font-semibold">
                           {formatPrice(selectedEndpoint.pricing)}
@@ -242,52 +252,55 @@ export default function ApiExplorerPage() {
                         "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-all rounded-none border",
                         selectedCategory === category
                           ? "bg-[#FF5800]/20 text-[#FF5800] border-[#FF5800]/40"
-                          : "text-white/60 hover:bg-white/5 hover:text-white border-white/10"
+                          : "text-white/60 hover:bg-white/5 hover:text-white border-white/10",
                       )}
                     >
                       {getCategoryIcon(category)}
                       <span>{category}</span>
                       <span className="text-[10px] opacity-50">
-                        ({category === "All"
+                        (
+                        {category === "All"
                           ? API_ENDPOINTS.length
-                          : getEndpointsByCategory(category).length})
+                          : getEndpointsByCategory(category).length}
+                        )
                       </span>
                     </button>
                   ))}
                 </div>
 
                 <div className="flex flex-col gap-4">
-                    <div className="flex items-center justify-between shrink-0 flex-wrap gap-4">
-                      <h2 className="text-xl font-semibold text-white flex items-center">
-                        {selectedCategory === "All"
-                          ? "All Endpoints"
-                          : selectedCategory}
-                        <span className="ml-2 text-sm font-normal text-white/50">
-                          ({filteredEndpoints.length})
-                        </span>
-                      </h2>
-                      <div className="relative w-full sm:w-72">
-                        <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-white/40 pointer-events-none" />
-                        <input
-                          placeholder="Search endpoints..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="w-full rounded-none border border-white/10 bg-black/40 px-3 py-2 pl-10 pr-10 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                  <div className="flex items-center justify-between shrink-0 flex-wrap gap-4">
+                    <h2 className="text-xl font-semibold text-white flex items-center">
+                      {selectedCategory === "All"
+                        ? "All Endpoints"
+                        : selectedCategory}
+                      <span className="ml-2 text-sm font-normal text-white/50">
+                        ({filteredEndpoints.length})
+                      </span>
+                    </h2>
+                    <div className="relative w-full sm:w-72">
+                      <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-white/40 pointer-events-none" />
+                      <input
+                        placeholder="Search endpoints..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full rounded-none border border-white/10 bg-black/40 px-3 py-2 pl-10 pr-10 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                      />
+                      {searchQuery && (
+                        <X
+                          className="absolute right-3 top-3 h-4 w-4 text-white cursor-pointer transition-colors hover:text-[#FF5800]"
+                          onClick={() => setSearchQuery("")}
                         />
-                        {searchQuery && (
-                          <X
-                            className="absolute right-3 top-3 h-4 w-4 text-white cursor-pointer transition-colors hover:text-[#FF5800]"
-                            onClick={() => setSearchQuery("")}
-                          />
-                        )}
-                      </div>
+                      )}
                     </div>
-                    
-                    {!searchQuery && (
-                        <p className="text-white/60 max-w-4xl text-sm leading-relaxed">
-                            {categoryDescriptions[selectedCategory] || `Browse and test ${selectedCategory} endpoints.`}
-                        </p>
-                    )}
+                  </div>
+
+                  {!searchQuery && (
+                    <p className="text-white/60 max-w-4xl text-sm leading-relaxed">
+                      {categoryDescriptions[selectedCategory] ||
+                        `Browse and test ${selectedCategory} endpoints.`}
+                    </p>
+                  )}
                 </div>
 
                 {filteredEndpoints.length === 0 ? (
@@ -326,12 +339,14 @@ export default function ApiExplorerPage() {
               <BrandCard className="relative">
                 <CornerBrackets size="sm" className="opacity-50" />
                 <div className="relative z-10">
-                  <AuthManager authToken={authToken} onTokenChange={setAuthToken} />
+                  <AuthManager
+                    authToken={authToken}
+                    onTokenChange={setAuthToken}
+                  />
                 </div>
               </BrandCard>
             </div>
           </BrandTabsContent>
-
 
           <BrandTabsContent value="openapi" className="mt-0">
             <BrandCard className="relative">
@@ -355,7 +370,7 @@ export default function ApiExplorerPage() {
                     onClick={() => {
                       if (openApiSpec) {
                         navigator.clipboard.writeText(
-                          JSON.stringify(openApiSpec, null, 2)
+                          JSON.stringify(openApiSpec, null, 2),
                         );
                         toast({
                           message: "OpenAPI spec copied to clipboard",
