@@ -5,6 +5,8 @@ import type { NextRequest } from "next/server";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { agentsService } from "@/lib/services/agents/agents";
 import { logger } from "@/lib/utils/logger";
+import { parseMessageContent, type MessageContent } from "@/lib/types/message-content";
+import type { Memory } from "@elizaos/core";
 
 /**
  * GET /api/eliza/rooms/[roomId] - Get room details and messages
@@ -86,16 +88,8 @@ export async function GET(
   }
 
   // Format messages for response with deduplication
-  const mapped = roomData.messages.map((msg) => {
-    let parsedContent: unknown = msg.content;
-    try {
-      if (typeof msg.content === "string")
-        parsedContent = JSON.parse(msg.content as string);
-    } catch {
-      parsedContent = msg.content;
-    }
-
-    const content = parsedContent as { text?: string; attachments?: unknown[]; source?: string };
+  const mapped = roomData.messages.map((msg: Memory) => {
+    const content = parseMessageContent(msg.content);
 
     // Debug: Log attachment info for agent messages
     if (content?.source === "agent" && content?.attachments) {
@@ -125,7 +119,7 @@ export async function GET(
   const indicesToRemove = new Set<number>();
 
   mapped.forEach((msg, index) => {
-    const content = msg.content as { text?: string; attachments?: unknown[] };
+    const content = msg.content as MessageContent;
     const text = content?.text?.trim();
     if (!text) return;
 
@@ -135,7 +129,8 @@ export async function GET(
 
     const existing = seenTexts.get(key);
     if (existing) {
-      const currentHasAttachments = Array.isArray(content?.attachments) && content.attachments.length > 0;
+      const currentHasAttachments =
+        Array.isArray(content?.attachments) && content.attachments.length > 0;
 
       if (currentHasAttachments && !existing.hasAttachments) {
         indicesToRemove.add(existing.index);

@@ -292,15 +292,15 @@ export function CharacterCreatorClient({
 
             <BrandTabs
               id="character-editor-tabs"
-              defaultValue="json"
+              defaultValue="form"
               className="flex h-full flex-col relative z-10"
             >
               <BrandTabsList className="mx-4 mb-2 mt-4 w-[calc(100%-2rem)]">
-                <BrandTabsTrigger value="json" className="flex-1">
-                  JSON Editor
+              <BrandTabsTrigger value="form" className="flex-1">
+                  Form
                 </BrandTabsTrigger>
-                <BrandTabsTrigger value="form" className="flex-1">
-                  Form View
+                <BrandTabsTrigger value="json" className="flex-1">
+                  JSON
                 </BrandTabsTrigger>
               </BrandTabsList>
               <BrandTabsContent

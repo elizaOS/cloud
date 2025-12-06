@@ -130,11 +130,14 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
               return { ...part, type: "text" };
             }
             // Also handle "input_image" -> "image_url" if needed
-            if (part.type === "input_image" && "image" in part) {
-              const imagePart = part as { type: string; image: string };
+            if (
+              part.type === "input_image" &&
+              "image" in part &&
+              typeof part.image === "string"
+            ) {
               return {
                 type: "image_url",
-                image_url: { url: imagePart.image },
+                image_url: { url: part.image },
               };
             }
           }
@@ -192,12 +195,24 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
         ];
       } else if (Array.isArray(message.content)) {
         // Already array (multimodal)
-        type ContentPart = string | { text?: string; [key: string]: unknown };
-        content = (message.content as ContentPart[]).map((part) =>
-          typeof part === "string"
-            ? { type: "output_text", text: part, annotations: [] }
-            : { type: "output_text", text: part.text || "", annotations: [] },
-        );
+        content = message.content.map((part) => {
+          if (typeof part === "string") {
+            return { type: "output_text", text: part, annotations: [] };
+          }
+          if (
+            typeof part === "object" &&
+            part !== null &&
+            "text" in part &&
+            typeof part.text === "string"
+          ) {
+            return {
+              type: "output_text",
+              text: part.text,
+              annotations: [],
+            };
+          }
+          return { type: "output_text", text: "", annotations: [] };
+        });
       } else {
         // null or other type
         content = [
@@ -362,6 +377,15 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Validate and clean message content
+    // Filter out empty system messages (characters may not have system prompts configured)
+    request.messages = request.messages.filter((msg, i) => {
+      if (msg.role === "system" && (!msg.content || (typeof msg.content === "string" && msg.content.trim() === ""))) {
+        logger.debug("[Responses API] Filtering out empty system message", { messageIndex: i });
+        return false;
+      }
+      return true;
+    });
+
     for (let i = 0; i < request.messages.length; i++) {
       const msg = request.messages[i];
 
@@ -584,20 +608,25 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Check if error is a structured gateway error
+    interface GatewayError {
+      status: number;
+      error: { message: string; type?: string; code?: string };
+    }
+
     if (
       error &&
       typeof error === "object" &&
       "error" in error &&
       "status" in error
     ) {
-      const gatewayError = error as {
-        status: number;
-        error: { message: string; type?: string; code?: string };
-      };
-      return Response.json(
-        { error: gatewayError.error },
-        { status: gatewayError.status },
-      );
+      const status = (error as { status: unknown }).status;
+      if (typeof status === "number") {
+        const gatewayError = error as GatewayError;
+        return Response.json(
+          { error: gatewayError.error },
+          { status: gatewayError.status },
+        );
+      }
     }
 
     // Fallback to generic error

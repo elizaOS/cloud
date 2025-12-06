@@ -44,7 +44,19 @@ export async function POST(
 
   // Step 1: Parse request body FIRST (needed for session token check and agent mode)
   const { roomId } = await ctx.params;
-  const body = await request.json();
+  let body;
+  try {
+    body = await request.json();
+  } catch (error) {
+    logger.error("[Stream] Failed to parse request body:", error);
+    return new Response(
+      JSON.stringify({
+        error: "Invalid request body",
+        details: "The request body must be valid JSON.",
+      }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    );
+  }
   const { text, model, agentMode, sessionToken, attachments, appId: bodyAppId } = body;
   
   // App ID can come from body OR X-App-Id header (miniapp proxy uses header)
@@ -239,8 +251,33 @@ export async function POST(
   }
 
   // Step 6: Create runtime and get ElizaOS instance
-  const elizaOS = runtimeFactory.getElizaOS();
-  const agentRuntime = await runtimeFactory.createRuntimeForUser(userContext);
+  // Wrap in try-catch to handle runtime creation errors before stream starts
+  let elizaOS;
+  let agentRuntime;
+  try {
+    elizaOS = runtimeFactory.getElizaOS();
+    agentRuntime = await runtimeFactory.createRuntimeForUser(userContext);
+  } catch (error) {
+    logger.error("[Stream] Failed to create runtime:", error);
+    return new Response(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Failed to initialize agent runtime",
+        details: "The agent runtime could not be created. Please try again.",
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  // Step 6.5: Verify room agentId matches runtime agentId
+  // Room should already have correct agentId from POST /api/eliza/rooms
+  // This sync handles legacy rooms or edge cases where they don't match
+  const runtimeAgentId = agentRuntime.agentId;
+  if (room && room.agentId !== runtimeAgentId) {
+    logger.warn(
+      `[Stream] Room agentId mismatch: room ${roomId} has ${room.agentId}, runtime has ${runtimeAgentId} - syncing`,
+    );
+    await roomsRepository.update(roomId, { agentId: runtimeAgentId });
+  }
 
   // Step 7: Create streaming response
   const stream = new ReadableStream({
@@ -287,7 +324,8 @@ export async function POST(
         );
 
         // Extract response from result
-        const responseContent = result.processing?.responseContent;
+        // Note: SendMessageResult has `result` (not `processing`) containing MessageProcessingResult
+        const responseContent = result.result?.responseContent;
         const responseText = responseContent?.text || "";
 
         // Build response content payload

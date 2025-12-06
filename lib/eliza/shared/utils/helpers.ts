@@ -108,20 +108,31 @@ export function cleanPrompt(prompt: string): string {
  * @param actionResults - Array of action results with optional attachments.
  * @returns Array of sanitized attachments.
  */
-export function extractAttachments(
-  actionResults: Array<{ data?: { attachments?: unknown[] } }>,
-): unknown[] {
+interface Attachment {
+  url?: string;
+  id?: string;
+  [key: string]: unknown;
+}
+
+interface ActionResult {
+  data?: {
+    attachments?: Attachment[];
+    [key: string]: unknown;
+  };
+}
+
+export function extractAttachments(actionResults: ActionResult[]): Attachment[] {
   return actionResults
     .flatMap((result) => result.data?.attachments ?? [])
-    .filter(Boolean)
-    .map((att) => {
-      const attachment = att as { url?: string; id?: string };
+    .filter((att): att is Attachment => {
+      if (!att || typeof att !== "object") return false;
+      const attachment = att as Attachment;
       // Skip base64 URLs to prevent token bloat
       if (attachment.url && isBase64DataUrl(attachment.url)) {
         logger.warn(
           "[extractAttachments] Skipping base64 attachment to prevent token bloat",
         );
-        return null;
+        return false;
       }
       // Skip invalid URLs
       if (
@@ -131,11 +142,10 @@ export function extractAttachments(
           !attachment.url.startsWith("http"))
       ) {
         logger.warn("[extractAttachments] Skipping invalid URL attachment");
-        return null;
+        return false;
       }
-      return att;
-    })
-    .filter(Boolean);
+      return true;
+    });
 }
 
 /**
@@ -231,13 +241,23 @@ export async function executeActions(
         actionAttachmentCache.get(message.roomId as string) || [];
 
       // Only add attachments with valid HTTP URLs (not base64)
+      interface AttachmentWithMetadata {
+        url?: string;
+        id?: string;
+        title?: string;
+        contentType?: string;
+      }
+
       for (const att of content.attachments) {
-        const attachment = att as {
-          url?: string;
-          id?: string;
-          title?: string;
-          contentType?: string;
-        };
+        if (
+          !att ||
+          typeof att !== "object" ||
+          !("url" in att) ||
+          typeof (att as AttachmentWithMetadata).url !== "string"
+        ) {
+          continue;
+        }
+        const attachment = att as AttachmentWithMetadata;
         const url = attachment.url;
 
         logger.info(

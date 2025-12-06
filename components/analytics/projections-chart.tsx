@@ -202,13 +202,14 @@ export function ProjectionsChart({ data }: ProjectionsChartProps) {
                           typeof source === "object" &&
                           "payload" in source
                         ) {
-                          const inner = source as {
+                          interface TooltipPayload {
                             payload?: {
                               fullDate?: string;
                               isProjected?: boolean;
                               confidence?: number;
                             };
-                          };
+                          }
+                          const inner = source as TooltipPayload;
                           const fullDate = inner.payload?.fullDate ?? "";
                           const isProjected = inner.payload?.isProjected;
                           const confidence = inner.payload?.confidence;

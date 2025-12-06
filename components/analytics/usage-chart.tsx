@@ -222,9 +222,10 @@ export function UsageChart({ data, granularity }: UsageChartProps) {
                     typeof source === "object" &&
                     "payload" in source
                   ) {
-                    const inner = (
-                      source as { payload?: { fullLabel?: string } }
-                    ).payload;
+                    interface TooltipPayload {
+                      payload?: { fullLabel?: string };
+                    }
+                    const inner = (source as TooltipPayload).payload;
                     return inner?.fullLabel ?? "";
                   }
                   return "";

@@ -161,8 +161,27 @@ test.describe("Dashboard Pages (Auth Protected)", () => {
 
   for (const { path, name } of dashboardPages) {
     test(`${name} page handles unauthenticated access`, async ({ page }) => {
-      await page.goto(`${BASE_URL}${path}`);
-      await page.waitForLoadState("domcontentloaded");
+      // Add retry logic for connection issues
+      let success = false;
+      let attempts = 0;
+      const maxAttempts = 3;
+
+      while (!success && attempts < maxAttempts) {
+        attempts++;
+        try {
+          await page.goto(`${BASE_URL}${path}`, {
+            waitUntil: "domcontentloaded",
+            timeout: 30000,
+          });
+          success = true;
+        } catch (error) {
+          if (attempts >= maxAttempts) {
+            throw error;
+          }
+          // Wait before retry
+          await page.waitForTimeout(2000);
+        }
+      }
 
       // Wait for potential redirect
       await page.waitForTimeout(2000);

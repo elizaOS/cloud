@@ -185,7 +185,12 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
     ) {
       const content = lastMessage.parts
         .filter((part) => part.type === "text")
-        .map((part) => (part as { text: string }).text)
+        .map((part) => {
+          if (part.type === "text" && "text" in part) {
+            return typeof part.text === "string" ? part.text : "";
+          }
+          return "";
+        })
         .join("");
 
       // Try to extract JSON from code blocks
@@ -273,7 +278,12 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
             {messages.map((message) => {
               const messageText = message.parts
                 .filter((part) => part.type === "text")
-                .map((part) => (part as { text: string }).text)
+                .map((part) => {
+                  if (part.type === "text" && "text" in part) {
+                    return typeof part.text === "string" ? part.text : "";
+                  }
+                  return "";
+                })
                 .join("")
                 .trim();
 

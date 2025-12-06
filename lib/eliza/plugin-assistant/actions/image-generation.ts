@@ -199,10 +199,14 @@ async function getOrExtractAppearanceDescription(
           descriptionText = visionResult;
         } else if (
           typeof visionResult === "object" &&
+          visionResult !== null &&
           "description" in visionResult
         ) {
-          descriptionText = (visionResult as { description: string })
+          const description = (visionResult as { description: unknown })
             .description;
+          if (typeof description === "string") {
+            descriptionText = description;
+          }
         }
 
         if (descriptionText) {
@@ -811,9 +815,22 @@ export const generateImageAction = {
         "RECENT_MESSAGES",
       ]);
 
-      const characterId = runtime.character?.id as string | undefined;
+      const characterId =
+        runtime.character?.id && typeof runtime.character.id === "string"
+          ? runtime.character.id
+          : undefined;
       const affiliateConfig = extractAffiliateImageConfig(
-        runtime.character?.settings as Record<string, unknown> | undefined,
+        (() => {
+          const settings = runtime.character?.settings;
+          if (
+            settings &&
+            typeof settings === "object" &&
+            !Array.isArray(settings)
+          ) {
+            return settings as Record<string, unknown>;
+          }
+          return undefined;
+        })(),
       );
 
       if (affiliateConfig.isAffiliateCharacter) {

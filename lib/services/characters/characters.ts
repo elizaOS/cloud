@@ -10,6 +10,7 @@ import {
 import { agentsRepository } from "@/db/repositories/agents/agents";
 import type { ElizaCharacter } from "@/lib/types";
 import type { Agent } from "@elizaos/core";
+import type { ElizaCharacter } from "@/lib/types";
 
 /**
  * Service for character CRUD operations.
@@ -169,18 +170,26 @@ export class CharactersService {
       username: character.username ?? undefined,
       system: character.system ?? undefined,
       bio: character.bio,
-      messageExamples: character.message_examples as unknown[] as
-        | Array<
-            Array<{
-              name: string;
-              content: {
-                text: string;
-                action?: string;
-                [key: string]: unknown;
-              };
-            }>
-          >
-        | undefined,
+      messageExamples: (() => {
+        const examples = character.message_examples;
+        if (
+          Array.isArray(examples) &&
+          examples.every(
+            (ex) =>
+              Array.isArray(ex) &&
+              ex.every(
+                (msg) =>
+                  typeof msg === "object" &&
+                  msg !== null &&
+                  "name" in msg &&
+                  "content" in msg,
+              ),
+          )
+        ) {
+          return examples as ElizaCharacter["messageExamples"];
+        }
+        return undefined;
+      })(),
       postExamples: character.post_examples as string[] | undefined,
       topics: character.topics as string[] | undefined,
       adjectives: character.adjectives as string[] | undefined,

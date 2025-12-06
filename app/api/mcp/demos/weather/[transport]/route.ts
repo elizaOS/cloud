@@ -596,11 +596,21 @@ const handler = createPaidMcpHandler(
           );
 
           // Sort by temperature
-          const validResults = results.filter((r) => !("error" in r));
+          interface ValidWeatherResult {
+            city: string;
+            temperature: number;
+            feelsLike: number;
+            humidity: number;
+            wind: number;
+            condition: string;
+            icon: string;
+          }
+
+          const validResults = results.filter(
+            (r): r is ValidWeatherResult => !("error" in r),
+          );
           validResults.sort(
-            (a, b) =>
-              (b as { temperature: number }).temperature -
-              (a as { temperature: number }).temperature,
+            (a, b) => b.temperature - a.temperature,
           );
 
           return {

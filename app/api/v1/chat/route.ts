@@ -73,9 +73,14 @@ async function handlePOST(req: NextRequest) {
     const selectedModel = modelConfig.modelId;
     const provider = modelConfig.provider;
     const lastMessage = messages[messages.length - 1];
-    const conversationId = lastMessage?.metadata
-      ? (lastMessage.metadata as { conversationId?: string }).conversationId
-      : undefined;
+    interface MessageMetadata {
+      conversationId?: string;
+    }
+    const metadata =
+      lastMessage?.metadata && typeof lastMessage.metadata === "object"
+        ? (lastMessage.metadata as MessageMetadata)
+        : null;
+    const conversationId = metadata?.conversationId;
 
     // Handle anonymous user rate limiting
     if (isAnonymous && anonymousSession) {

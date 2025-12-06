@@ -41,7 +41,10 @@ function normalizeMessageExamples(raw: unknown): MessageExamples | null {
   }
 
   // Check if it's already properly formatted (array of arrays)
-  const isNestedArray = raw.length > 0 && Array.isArray(raw[0]);
+  const isNestedArray =
+    raw.length > 0 &&
+    Array.isArray(raw[0]) &&
+    raw.every((item) => Array.isArray(item));
   const conversations: unknown[][] = isNestedArray
     ? (raw as unknown[][])
     : [raw];
@@ -54,18 +57,37 @@ function normalizeMessageExamples(raw: unknown): MessageExamples | null {
     const normalizedConversation: MessageExampleConversation = [];
 
     for (const message of conversation) {
-      if (!message || typeof message !== "object") continue;
+      if (!message || typeof message !== "object" || Array.isArray(message)) {
+        continue;
+      }
 
-      const msg = message as Record<string, unknown>;
-      const name = msg.name as string;
-      if (!name || typeof name !== "string") continue;
+      interface MessageShape {
+        name?: unknown;
+        content?: unknown;
+        [key: string]: unknown;
+      }
+
+      const msg = message as MessageShape;
+
+      if (!("name" in msg) || typeof msg.name !== "string" || !msg.name) {
+        continue;
+      }
+
+      const name = msg.name;
 
       let content: { text: string; [key: string]: unknown };
 
-      if (msg.content && typeof msg.content === "object") {
+      if (
+        msg.content &&
+        typeof msg.content === "object" &&
+        !Array.isArray(msg.content) &&
+        msg.content !== null
+      ) {
         const contentObj = msg.content as Record<string, unknown>;
+        if (!("text" in contentObj) || typeof contentObj.text !== "string") {
+          continue;
+        }
         const text = contentObj.text;
-        if (typeof text !== "string") continue;
         content = { text, ...contentObj };
       } else if (typeof msg.text === "string") {
         content = { text: msg.text };
@@ -280,9 +302,17 @@ function mapChangesToDbFormat(
 
   if (hasStyleUpdate) {
     // Start with current style or empty object
-    const currentStyle =
-      (currentCharacter.style as Record<string, unknown>) || {};
-    const styleUpdate: Record<string, unknown> = { ...currentStyle };
+    interface StyleShape {
+      all?: unknown;
+      chat?: unknown;
+      post?: unknown;
+      [key: string]: unknown;
+    }
+    const currentStyle: StyleShape =
+      currentCharacter.style && typeof currentCharacter.style === "object"
+        ? (currentCharacter.style as StyleShape)
+        : {};
+    const styleUpdate: StyleShape = { ...currentStyle };
 
     // Apply only the fields that were updated
     if ("style.all" in changes) {
@@ -415,16 +445,34 @@ export const applyCharacterChangesAction = {
           if (!updatedCharacter.style) {
             updatedCharacter.style = {};
           }
-          const styleProp = key.split(".")[1] as "all" | "chat" | "post";
-          (updatedCharacter.style as Record<string, unknown>)[styleProp] =
-            value;
+          const styleProp = key.split(".")[1];
+          if (
+            styleProp === "all" ||
+            styleProp === "chat" ||
+            styleProp === "post"
+          ) {
+            if (
+              typeof updatedCharacter.style === "object" &&
+              updatedCharacter.style !== null
+            ) {
+              (updatedCharacter.style as { [key: string]: unknown })[
+                styleProp
+              ] = value;
+            }
+          }
         } else if (key === "messageExamples") {
           // Normalize messageExamples for in-memory character
           const normalized = normalizeMessageExamples(value);
-          (updatedCharacter as Record<string, unknown>)[key] =
-            normalized || value;
+          if (normalized) {
+            (updatedCharacter as { messageExamples?: unknown }).messageExamples =
+              normalized;
+          } else {
+            (updatedCharacter as { messageExamples?: unknown }).messageExamples =
+              value;
+          }
         } else {
-          (updatedCharacter as Record<string, unknown>)[key] = value;
+          // Use index signature for dynamic property assignment
+          (updatedCharacter as { [key: string]: unknown })[key] = value;
         }
       }
 
@@ -443,10 +491,17 @@ export const applyCharacterChangesAction = {
       );
 
       // Map ElizaOS format to database format, passing current character for style merging
-      const dbUpdates = mapChangesToDbFormat(
-        changesObj,
-        runtime.character as unknown as Record<string, unknown>,
-      );
+      // Character type from @elizaos/core has index signature, so we can safely convert
+      interface CharacterAsRecord {
+        [key: string]: unknown;
+      }
+      const characterRecord: CharacterAsRecord = {};
+      if (runtime.character) {
+        for (const [key, value] of Object.entries(runtime.character)) {
+          characterRecord[key] = value;
+        }
+      }
+      const dbUpdates = mapChangesToDbFormat(changesObj, characterRecord);
 
       logger.debug(
         `[APPLY_CHARACTER_CHANGES] DB updates: ${JSON.stringify(dbUpdates, null, 2)}`,
@@ -496,10 +551,16 @@ export const applyCharacterChangesAction = {
         "messageExamples",
       ];
       const updatedCharacterForConfirm: Record<string, unknown> = {};
-      const characterAsRecord = updatedCharacter as Record<string, unknown>;
       for (const field of relevantFields) {
-        if (field in characterAsRecord) {
-          updatedCharacterForConfirm[field] = characterAsRecord[field];
+        if (
+          field in updatedCharacter &&
+          typeof updatedCharacter === "object" &&
+          updatedCharacter !== null
+        ) {
+          const value = (updatedCharacter as { [key: string]: unknown })[field];
+          if (value !== undefined) {
+            updatedCharacterForConfirm[field] = value;
+          }
         }
       }
 

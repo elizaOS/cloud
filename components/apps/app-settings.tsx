@@ -42,9 +42,12 @@ export function AppSettings({ app }: AppSettingsProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
 
-  const [allowedOrigins, setAllowedOrigins] = useState<string[]>(
-    (app.allowed_origins as string[]) || [],
-  );
+  const [allowedOrigins, setAllowedOrigins] = useState<string[]>(() => {
+    const origins = app.allowed_origins;
+    return Array.isArray(origins)
+      ? origins.filter((origin): origin is string => typeof origin === "string")
+      : [];
+  });
   const [newOrigin, setNewOrigin] = useState("");
 
   const [formData, setFormData] = useState({

@@ -117,7 +117,11 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
     setIsRegenerating(false);
   };
 
-  const allowedOrigins = app.allowed_origins as string[];
+  const allowedOrigins: string[] = Array.isArray(app.allowed_origins)
+    ? app.allowed_origins.filter(
+        (origin): origin is string => typeof origin === "string",
+      )
+    : [];
   const maskedApiKey = "elizakey_" + "•".repeat(32);
 
   return (

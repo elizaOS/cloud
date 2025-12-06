@@ -122,20 +122,26 @@ export class AgentStateCache {
         entityId: msg.entityId?.toString() || "",
         agentId: msg.agentId?.toString() || "",
         roomId: msg.roomId?.toString() || "",
-        content: {
-          text:
-            typeof msg.content === "object" && msg.content !== null
-              ? (msg.content as { text?: string }).text
-              : String(msg.content),
-          action:
-            typeof msg.content === "object" && msg.content !== null
-              ? (msg.content as { action?: string }).action
-              : undefined,
-          source:
-            typeof msg.content === "object" && msg.content !== null
-              ? (msg.content as { source?: string }).source
-              : undefined,
-        },
+        content: (() => {
+          if (typeof msg.content === "object" && msg.content !== null) {
+            const content = msg.content as {
+              text?: string;
+              action?: string;
+              source?: string;
+            };
+            return {
+              text:
+                typeof content.text === "string" ? content.text : String(msg.content),
+              action: typeof content.action === "string" ? content.action : undefined,
+              source: typeof content.source === "string" ? content.source : undefined,
+            };
+          }
+          return {
+            text: String(msg.content),
+            action: undefined,
+            source: undefined,
+          };
+        })(),
         createdAt: msg.createdAt || Date.now(),
       })),
       participants: context.participants,

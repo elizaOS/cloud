@@ -16,8 +16,26 @@ import { test, expect } from "@playwright/test";
 
 const MINIAPP_URL = process.env.MINIAPP_URL ?? "http://localhost:3001";
 
+// Check if miniapp is available
+let miniappAvailable = false;
+
+test.beforeAll(async ({ request }) => {
+  const miniappResponse = await request.get(MINIAPP_URL).catch(() => null);
+  miniappAvailable = miniappResponse?.ok() ?? false;
+  
+  if (!miniappAvailable) {
+    console.log(
+      `⚠️ Miniapp not available at ${MINIAPP_URL}. Skipping miniapp tests. Start with: cd miniapp && bun run dev`,
+    );
+  }
+});
+
 test.describe("Miniapp Pages", () => {
   test.beforeEach(async ({ page }) => {
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     await page.context().clearCookies();
   });
 

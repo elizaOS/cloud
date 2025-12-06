@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from "uuid";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { userContextService } from "@/lib/eliza/user-context";
 import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
+import type { QueryResult } from "@/lib/types/knowledge";
 
 export const maxDuration = 60;
 
@@ -84,10 +85,22 @@ async function handlePOST(req: NextRequest) {
 
     return NextResponse.json({
       query,
-      results: limitedResults.map((item) => ({
+      results: limitedResults.map((item): QueryResult => ({
         id: item.id,
         content: item.content.text,
-        similarity: (item as { similarity?: number }).similarity || 0,
+        similarity: (() => {
+          if (
+            typeof item === "object" &&
+            item !== null &&
+            "similarity" in item
+          ) {
+            const similarity = (item as { similarity: unknown }).similarity;
+            if (typeof similarity === "number") {
+              return similarity;
+            }
+          }
+          return 0;
+        })(),
         metadata: item.metadata,
       })),
       count: limitedResults.length,

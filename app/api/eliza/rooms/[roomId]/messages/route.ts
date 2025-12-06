@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { stringToUuid, type UUID } from "@elizaos/core";
+import { stringToUuid, type UUID, type Memory } from "@elizaos/core";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
 import { organizationsService } from "@/lib/services";
@@ -236,7 +236,8 @@ export async function POST(
     characterId,
   );
 
-  const responseContent = result.processing?.responseContent;
+  // Note: SendMessageResult has `result` (not `processing`) containing MessageProcessingResult
+  const responseContent = result.result?.responseContent;
 
   logger.debug(`[Eliza Messages API] Message sent`, {
     roomId,
@@ -305,27 +306,20 @@ export async function GET(
     Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
   const isValidAfter = afterTimestampNum > 0;
   const filteredMessages = isValidAfter
-    ? messages.filter((msg) => {
-        const msgTime = (msg as { createdAt: number }).createdAt;
+    ? messages.filter((msg: Memory) => {
+        const msgTime = msg.createdAt ?? 0;
         return msgTime > afterTimestampNum;
       })
     : messages;
 
   const simple = filteredMessages
-    .map((msg) => {
-      let parsedContent: unknown = msg.content;
-      try {
-        if (typeof msg.content === "string")
-          parsedContent = JSON.parse(msg.content);
-      } catch {
-        parsedContent = msg.content;
-      }
+    .map((msg: Memory) => {
       return {
         id: msg.id,
         entityId: msg.entityId,
         agentId: msg.agentId,
-        content: parsedContent,
-        createdAt: (msg as { createdAt: number }).createdAt,
+        content: msg.content,
+        createdAt: msg.createdAt ?? Date.now(),
         isAgent: msg.entityId === msg.agentId,
       };
     })

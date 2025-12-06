@@ -160,14 +160,13 @@ export async function getOrCreateSessionUser(
           const privyUser = await privyClient.getUser(verifiedClaims.userId);
           if (privyUser) {
             const { syncUserFromPrivy } = await import("../privy-sync");
-            user = await syncUserFromPrivy(
-              privyUser as unknown as {
-                id: string;
-                email?: { address: string };
-                name?: string | null;
-                linkedAccounts?: Array<Record<string, unknown>>;
-              }
-            );
+            interface PrivyUserShape {
+              id: string;
+              email?: { address: string };
+              name?: string | null;
+              linkedAccounts?: Array<Record<string, unknown>>;
+            }
+            user = await syncUserFromPrivy(privyUser as PrivyUserShape);
           }
         }
 
@@ -293,8 +292,9 @@ async function buildAnonymousSessionUser(
     },
     user: {
       ...user,
-      organization: null as any,
-    },
+      organization_id: null,
+      organization: null,
+    } as SessionUser["user"],
     anonymousSession: session,
   };
 }
@@ -362,8 +362,9 @@ async function createNewAnonymousSession(): Promise<SessionUser> {
     },
     user: {
       ...newUser,
-      organization: null as any,
-    },
+      organization_id: null,
+      organization: null,
+    } as SessionUser["user"],
     anonymousSession: newSession,
   };
 }

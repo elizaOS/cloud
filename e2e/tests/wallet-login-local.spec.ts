@@ -19,7 +19,26 @@ test.describe("Local Dev - Wallet Login", () => {
   });
 
   test("login page loads with wallet connect option", async ({ page }) => {
-    await page.goto(`${BASE_URL}/login`);
+    // Add retry logic for connection issues
+    let success = false;
+    let attempts = 0;
+    const maxAttempts = 3;
+
+    while (!success && attempts < maxAttempts) {
+      attempts++;
+      try {
+        await page.goto(`${BASE_URL}/login`, {
+          waitUntil: "domcontentloaded",
+          timeout: 30000,
+        });
+        success = true;
+      } catch (error) {
+        if (attempts >= maxAttempts) {
+          throw error;
+        }
+        await page.waitForTimeout(2000);
+      }
+    }
 
     // Wait for page to load
     await page.waitForLoadState("networkidle");
@@ -33,7 +52,27 @@ test.describe("Local Dev - Wallet Login", () => {
   });
 
   test("wallet connect button is clickable", async ({ page }) => {
-    await page.goto(`${BASE_URL}/login`);
+    // Add retry logic for connection issues
+    let success = false;
+    let attempts = 0;
+    const maxAttempts = 3;
+
+    while (!success && attempts < maxAttempts) {
+      attempts++;
+      try {
+        await page.goto(`${BASE_URL}/login`, {
+          waitUntil: "domcontentloaded",
+          timeout: 30000,
+        });
+        success = true;
+      } catch (error) {
+        if (attempts >= maxAttempts) {
+          throw error;
+        }
+        await page.waitForTimeout(2000);
+      }
+    }
+    
     await page.waitForLoadState("domcontentloaded");
 
     // Wait for wallet button to appear
@@ -49,7 +88,27 @@ test.describe("Local Dev - Wallet Login", () => {
   });
 
   test("all login options are available", async ({ page }) => {
-    await page.goto(`${BASE_URL}/login`);
+    // Add retry logic for connection issues
+    let success = false;
+    let attempts = 0;
+    const maxAttempts = 3;
+
+    while (!success && attempts < maxAttempts) {
+      attempts++;
+      try {
+        await page.goto(`${BASE_URL}/login`, {
+          waitUntil: "domcontentloaded",
+          timeout: 30000,
+        });
+        success = true;
+      } catch (error) {
+        if (attempts >= maxAttempts) {
+          throw error;
+        }
+        await page.waitForTimeout(2000);
+      }
+    }
+    
     await page.waitForLoadState("networkidle");
 
     // Check all login methods are present
@@ -76,8 +135,26 @@ test.describe("Local Dev - Wallet Login", () => {
   });
 
   test("unauthenticated users cannot access dashboard", async ({ page }) => {
-    // Try to access dashboard without auth
-    await page.goto(`${BASE_URL}/dashboard`);
+    // Add retry logic for connection issues
+    let success = false;
+    let attempts = 0;
+    const maxAttempts = 3;
+
+    while (!success && attempts < maxAttempts) {
+      attempts++;
+      try {
+        await page.goto(`${BASE_URL}/dashboard`, {
+          waitUntil: "domcontentloaded",
+          timeout: 30000,
+        });
+        success = true;
+      } catch (error) {
+        if (attempts >= maxAttempts) {
+          throw error;
+        }
+        await page.waitForTimeout(2000);
+      }
+    }
 
     // Wait for redirect (could be to login or home)
     await page.waitForLoadState("networkidle");

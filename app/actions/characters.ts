@@ -70,7 +70,14 @@ export async function createCharacter(elizaCharacter: ElizaCharacter) {
     settings: elizaCharacter.settings ?? {},
     secrets: elizaCharacter.secrets ?? {},
     style: elizaCharacter.style ?? {},
-    character_data: elizaCharacter as unknown as Record<string, unknown>,
+    character_data: (() => {
+      // Convert ElizaCharacter to Record format for database storage
+      const record: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(elizaCharacter)) {
+        record[key] = value;
+      }
+      return record;
+    })(),
     avatar_url: elizaCharacter.avatarUrl ?? null,
     is_template: false,
     is_public: false,
@@ -131,7 +138,14 @@ export async function updateCharacter(
     settings: elizaCharacter.settings ?? {},
     secrets: elizaCharacter.secrets ?? {},
     style: elizaCharacter.style ?? {},
-    character_data: elizaCharacter as unknown as Record<string, unknown>,
+    character_data: (() => {
+      // Convert ElizaCharacter to Record format for database storage
+      const record: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(elizaCharacter)) {
+        record[key] = value;
+      }
+      return record;
+    })(),
     avatar_url: elizaCharacter.avatarUrl ?? null,
   };
 

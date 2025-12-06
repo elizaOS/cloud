@@ -20,12 +20,15 @@ import { getElizaCloudApiUrl, getDefaultModels } from "./config";
 import { userContextService, type UserContext } from "./user-context";
 import { AgentMode } from "./agent-mode-types";
 import { logger } from "@/lib/utils/logger";
+import type { ElizaCharacter } from "@/lib/types";
 
 // Initialize DOM polyfills first (before any imports that might need them)
 import "@/lib/polyfills/dom-polyfills";
 
 interface GlobalWithEliza {
   __elizaDatabaseAdapter?: IDatabaseAdapter; // Keep DB adapter cached (connections are safe to share)
+  __elizaDatabaseAdapters?: Map<string, IDatabaseAdapter>; // Cache adapters per agentId
+  __elizaAdapterPending?: Map<string, Promise<IDatabaseAdapter>>; // Track pending adapter creation
   __elizaOS?: ElizaOS; // Keep ElizaOS instance cached
   logger?: Logger;
 }
@@ -113,18 +116,20 @@ export class RuntimeFactory {
       context.characterId || "default",
     );
 
-    // 1. Get or create database adapter (cached, safe to share)
-    const dbAdapter = await this.getDbAdapter();
-
-    // 2. Load character with appropriate plugins for the AgentMode
+    // 1. Load character with appropriate plugins for the AgentMode
+    // We load character first to get its ID for the database adapter
     const { character, plugins } = context.characterId
       ? await agentLoader.loadCharacter(context.characterId, context.agentMode)
       : await agentLoader.getDefaultCharacter(context.agentMode);
 
-    // 3. Extract agentId from character (use character's ID or default)
+    // 2. Extract agentId from character (use character's ID or default)
     const agentId = (
       character.id ? stringToUuid(character.id) : this.DEFAULT_AGENT_ID
     ) as UUID;
+
+    // 3. Create database adapter with the CORRECT agentId
+    // Each runtime needs its own adapter because ElizaOS queries filter by agentId
+    const dbAdapter = await this.getOrCreateDbAdapter(agentId);
 
     elizaLogger.info(
       "[RuntimeFactory] Loaded character:",
@@ -161,34 +166,93 @@ export class RuntimeFactory {
       );
     }
 
-    // 5. Use ElizaOS.addAgents() with serverless options
-    // Note: plugin-sql is auto-filtered when databaseAdapter is provided
+    // 5. Use ElizaOS.addAgents() to create the agent
     const elizaOS = this.getElizaOS();
-    const [runtime] = await elizaOS.addAgents(
+    const [agentUuid] = await elizaOS.addAgents(
       [
         {
           character: {
             ...character,
             id: agentId,
-            settings,
+            settings: settings as NonNullable<ElizaCharacter["settings"]>,
           },
           plugins,
-          settings,
-          databaseAdapter: dbAdapter,
+          settings: (() => {
+            const result: Record<string, string | undefined> = {};
+            for (const [key, value] of Object.entries(settings)) {
+              if (typeof value === "string" || value === undefined) {
+                result[key] = value;
+              }
+            }
+            return result;
+          })(),
         },
       ],
-      {
-        ephemeral: true, // Don't store in registry (serverless)
-        skipMigrations: true, // Warm container, migrations already done
-        autoStart: true, // Initialize automatically
-        returnRuntimes: true, // Return runtime instead of UUID
-      },
     );
 
-    // 6. Ensure runtime has logger
+    // 5.5. Get the runtime and register database adapter BEFORE starting
+    // The runtime needs the adapter during initialize() which is called by startAgents()
+    const runtime = elizaOS.getAgent(agentUuid);
+    if (!runtime) {
+      throw new Error(`Failed to create runtime for agent ${agentUuid}`);
+    }
+
+    // Register the database adapter on the runtime
+    // This must be done before startAgents() calls runtime.initialize()
+    elizaLogger.info("[RuntimeFactory] Registering database adapter on runtime...");
+    runtime.registerDatabaseAdapter(dbAdapter);
+    elizaLogger.success("[RuntimeFactory] Database adapter registered on runtime");
+
+    // 6. Start the agent (initializes runtime and sets up messageService)
+    // Call initialize directly with skipMigrations option instead of using startAgents
+    // This prevents migration lock contention since the database is already migrated
+    elizaLogger.info(
+      "[RuntimeFactory] Starting agent to initialize runtime and messageService (migrations skipped)...",
+    );
+    
+    // Call initialize directly with skipMigrations option
+    // This prevents migration lock contention since the database is already migrated
+    const initPromise = runtime.initialize({ skipMigrations: true });
+    
+    // Add timeout wrapper to handle any initialization issues
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(
+          new Error(
+            "Runtime initialization timed out after 90s.",
+          ),
+        );
+      }, 90000); // 90 second timeout
+    });
+
+    try {
+      await Promise.race([initPromise, timeoutPromise]);
+      
+      // After initialize completes, trigger the agent started event manually
+      // (startAgents() normally does this, but we're calling initialize directly)
+      elizaOS.dispatchEvent(new CustomEvent("agent:started", {
+        detail: { agentId: agentUuid }
+      }));
+    } catch (error) {
+      // If timeout occurs, log detailed error and rethrow
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      elizaLogger.error(
+        `[RuntimeFactory] Runtime initialization failed: ${errorMessage}`,
+      );
+      elizaLogger.error(
+        "[RuntimeFactory] This may be due to concurrent migration attempts. " +
+        "Consider reducing concurrent runtime creation or ensuring migrations complete first.",
+      );
+      throw error;
+    }
+    elizaLogger.success(
+      "[RuntimeFactory] Agent started successfully",
+    );
+
+    // 7. Ensure runtime has logger
     this.ensureRuntimeLogger(runtime);
 
-    // 7. Debug: Check if MCP service was registered and wait for it to connect
+    // 9. Debug: Check if MCP service was registered and wait for it to connect
     const mcpService = runtime.getService("mcp") as McpServiceInterface | undefined;
     if (mcpService) {
       elizaLogger.success(
@@ -418,31 +482,68 @@ export class RuntimeFactory {
   }
 
   /**
-   * Get or create database adapter (cached globally, safe to share)
+   * Get or create database adapter for a specific agent
+   * 
+   * ElizaOS queries filter by agentId, so each agent needs its own adapter.
+   * Adapters are cached per agentId to reuse connections.
+   * Uses a lock to prevent concurrent adapter creation for the same agent.
    */
-  private async getDbAdapter(): Promise<IDatabaseAdapter> {
-    if (globalAny.__elizaDatabaseAdapter) {
-      elizaLogger.info("[RuntimeFactory] Reusing cached database adapter");
-      return globalAny.__elizaDatabaseAdapter;
+  private async getOrCreateDbAdapter(agentId: UUID): Promise<IDatabaseAdapter> {
+    // Initialize global storage for adapters and pending promises
+    if (!globalAny.__elizaDatabaseAdapters) {
+      globalAny.__elizaDatabaseAdapters = new Map<string, IDatabaseAdapter>();
+    }
+    if (!globalAny.__elizaAdapterPending) {
+      globalAny.__elizaAdapterPending = new Map<string, Promise<IDatabaseAdapter>>();
+    }
+
+    const agentIdString = agentId as string;
+
+    // Check if adapter already exists
+    const cached = globalAny.__elizaDatabaseAdapters.get(agentIdString);
+    if (cached) {
+      elizaLogger.info(`[RuntimeFactory] Reusing cached database adapter for agent ${agentId}`);
+      return cached;
+    }
+
+    // Check if another request is already creating this adapter
+    const pending = globalAny.__elizaAdapterPending.get(agentIdString);
+    if (pending) {
+      elizaLogger.info(`[RuntimeFactory] Waiting for pending adapter creation for agent ${agentId}`);
+      return pending;
     }
 
     if (!process.env.DATABASE_URL) {
       throw new Error("DATABASE_URL environment variable is required");
     }
 
-    elizaLogger.info("[RuntimeFactory] Creating new database adapter");
-    // Use DEFAULT_AGENT_ID for the database adapter (shared across all characters)
-    const dbAdapter = createDatabaseAdapter(
-      { postgresUrl: process.env.DATABASE_URL },
-      this.DEFAULT_AGENT_ID,
-    );
+    // Create a promise for this adapter and store it to prevent concurrent creation
+    const createPromise = (async () => {
+      elizaLogger.info(`[RuntimeFactory] Creating database adapter for agent ${agentId}`);
+      const dbAdapter = createDatabaseAdapter(
+        { postgresUrl: process.env.DATABASE_URL },
+        agentId,
+      );
 
-    await dbAdapter.init();
-    elizaLogger.info("[RuntimeFactory] Database adapter initialized");
+      await dbAdapter.init();
+      elizaLogger.info(`[RuntimeFactory] Database adapter initialized for agent ${agentId}`);
 
-    // Cache globally for warm containers (connection pooling is safe)
-    globalAny.__elizaDatabaseAdapter = dbAdapter;
-    return dbAdapter;
+      // Cache the adapter (we know it's defined because we initialized it above)
+      globalAny.__elizaDatabaseAdapters!.set(agentIdString, dbAdapter);
+      
+      return dbAdapter;
+    })();
+
+    // Store the pending promise
+    globalAny.__elizaAdapterPending.set(agentIdString, createPromise);
+
+    try {
+      const adapter = await createPromise;
+      return adapter;
+    } finally {
+      // Remove from pending once complete (success or failure)
+      globalAny.__elizaAdapterPending.delete(agentIdString);
+    }
   }
 
   /**

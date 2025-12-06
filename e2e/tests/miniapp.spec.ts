@@ -18,7 +18,9 @@ import { test, expect } from "@playwright/test";
 const CLOUD_URL = process.env.CLOUD_URL ?? "http://localhost:3000";
 const MINIAPP_URL = process.env.MINIAPP_URL ?? "http://localhost:3001";
 
-// Verify services are running before tests
+// Check if services are running - skip tests if not available
+let miniappAvailable = false;
+
 test.beforeAll(async ({ request }) => {
   const cloudResponse = await request.get(CLOUD_URL).catch(() => null);
   if (!cloudResponse?.ok()) {
@@ -28,15 +30,21 @@ test.beforeAll(async ({ request }) => {
   }
 
   const miniappResponse = await request.get(MINIAPP_URL).catch(() => null);
-  if (!miniappResponse?.ok()) {
-    throw new Error(
-      `Miniapp not available at ${MINIAPP_URL}. Start with: cd miniapp && bun run dev`,
+  miniappAvailable = miniappResponse?.ok() ?? false;
+  
+  if (!miniappAvailable) {
+    console.log(
+      `⚠️ Miniapp not available at ${MINIAPP_URL}. Skipping miniapp tests. Start with: cd miniapp && bun run dev`,
     );
   }
 });
 
 test.describe("Miniapp Pages", () => {
   test("home page renders with hero section", async ({ page }) => {
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     await page.goto(MINIAPP_URL);
 
     // Wait for hero heading

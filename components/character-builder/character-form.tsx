@@ -1,6 +1,6 @@
 /**
  * Character form component for editing character properties.
- * Supports name, bio, personality, topics, adjectives, post examples, and avatar management.
+ * Supports name, bio, personality, message examples, post examples, style, and avatar management.
  *
  * @param props - Character form configuration
  * @param props.character - Character data to edit
@@ -31,10 +31,17 @@ interface CharacterFormProps {
   onChange: (character: ElizaCharacter) => void;
 }
 
-type TagType = "topics" | "adjectives" | "postExamples";
+type TagType = "postExamples";
+
+interface MessageExample {
+  name: string;
+  content: { text: string };
+}
 
 export function CharacterForm({ character, onChange }: CharacterFormProps) {
   const [newTag, setNewTag] = useState("");
+  const [newUserMessage, setNewUserMessage] = useState("");
+  const [newAgentMessage, setNewAgentMessage] = useState("");
 
   const updateField = (field: keyof ElizaCharacter, value: unknown) => {
     onChange({ ...character, [field]: value });
@@ -43,16 +50,44 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
   const addTag = (type: TagType) => {
     if (!newTag.trim()) return;
 
-    const currentArray = (character[type] as string[]) || [];
+    const currentValue = character[type];
+    const currentArray: string[] = Array.isArray(currentValue)
+      ? currentValue.filter((item): item is string => typeof item === "string")
+      : [];
     updateField(type, [...currentArray, newTag.trim()]);
     setNewTag("");
   };
 
   const removeTag = (type: TagType, index: number) => {
-    const currentArray = (character[type] as string[]) || [];
+    const currentValue = character[type];
+    const currentArray: string[] = Array.isArray(currentValue)
+      ? currentValue.filter((item): item is string => typeof item === "string")
+      : [];
     updateField(
       type,
       currentArray.filter((_, i) => i !== index),
+    );
+  };
+
+  const addMessageExample = () => {
+    if (!newUserMessage.trim() || !newAgentMessage.trim()) return;
+
+    const conversation: MessageExample[] = [
+      { name: "user", content: { text: newUserMessage.trim() } },
+      { name: character.name || "agent", content: { text: newAgentMessage.trim() } },
+    ];
+
+    const currentExamples = character.messageExamples || [];
+    updateField("messageExamples", [...currentExamples, conversation]);
+    setNewUserMessage("");
+    setNewAgentMessage("");
+  };
+
+  const removeMessageExample = (index: number) => {
+    const currentExamples = character.messageExamples || [];
+    updateField(
+      "messageExamples",
+      currentExamples.filter((_, i) => i !== index),
     );
   };
 
@@ -73,7 +108,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
           defaultValue="basics"
           className="w-full"
         >
-          <BrandTabsList className="grid w-full grid-cols-4">
+          <BrandTabsList className="grid w-full grid-cols-3">
             <BrandTabsTrigger value="basics" className="flex-1">
               Basics
             </BrandTabsTrigger>
@@ -83,43 +118,42 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
             <BrandTabsTrigger value="style" className="flex-1">
               Style
             </BrandTabsTrigger>
-            <BrandTabsTrigger value="advanced" className="flex-1">
-              Advanced
-            </BrandTabsTrigger>
           </BrandTabsList>
 
           {/* Basics Tab */}
           <BrandTabsContent value="basics" className="space-y-4">
-            <div className="space-y-2">
-              <label
-                htmlFor="name"
-                className="text-xs font-medium text-white/70 uppercase tracking-wide"
-              >
-                Name *
-              </label>
-              <Input
-                id="name"
-                value={character.name || ""}
-                onChange={(e) => updateField("name", e.target.value)}
-                placeholder="Character name"
-                className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-              />
-            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label
+                  htmlFor="name"
+                  className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                >
+                  Name *
+                </label>
+                <Input
+                  id="name"
+                  value={character.name || ""}
+                  onChange={(e) => updateField("name", e.target.value)}
+                  placeholder="Character name"
+                  className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <label
-                htmlFor="username"
-                className="text-xs font-medium text-white/70 uppercase tracking-wide"
-              >
-                Username
-              </label>
-              <Input
-                id="username"
-                value={character.username || ""}
-                onChange={(e) => updateField("username", e.target.value)}
-                placeholder="@username"
-                className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-              />
+              <div className="space-y-2">
+                <label
+                  htmlFor="username"
+                  className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                >
+                  Username
+                </label>
+                <Input
+                  id="username"
+                  value={character.username || ""}
+                  onChange={(e) => updateField("username", e.target.value)}
+                  placeholder="@username"
+                  className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -153,98 +187,123 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                 className="min-h-[80px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
+
+            {/* Avatar Section */}
+            <div className="space-y-4">
+              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                Avatar
+              </label>
+
+              {/* Avatar Generator - Quick styles and AI generation */}
+              <AvatarGenerator
+                characterName={character.name || "Character"}
+                characterDescription={
+                  typeof character.bio === "string"
+                    ? character.bio
+                    : character.bio?.join(" ") || ""
+                }
+                currentAvatarUrl={character.avatarUrl || character.avatar_url}
+                onAvatarChange={(url) => updateField("avatarUrl", url)}
+              />
+
+              {/* Divider */}
+              <div className="flex items-center gap-4 py-2">
+                <div className="flex-1 h-px bg-white/10" />
+                <span className="text-xs text-white/40">or upload custom</span>
+                <div className="flex-1 h-px bg-white/10" />
+              </div>
+
+              {/* Manual Upload */}
+              <div className="flex flex-col items-center space-y-2">
+                <AvatarUpload
+                  value={character.avatarUrl || character.avatar_url}
+                  onChange={(url) => updateField("avatarUrl", url)}
+                  name={character.name || "Character"}
+                  size="sm"
+                />
+                <p className="text-xs text-white/40 text-center max-w-xs">
+                  Upload a custom image (max 5MB)
+                </p>
+              </div>
+            </div>
           </BrandTabsContent>
 
           {/* Personality Tab */}
           <BrandTabsContent value="personality" className="space-y-4">
-            <div className="space-y-2">
+            {/* Message Examples */}
+            <div className="space-y-3">
               <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                Topics
+                Conversation Examples
               </label>
-              <div className="flex gap-2">
-                <Input
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  placeholder="Add a topic..."
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addTag("topics");
-                    }
-                  }}
-                  className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-                />
+              <p className="text-xs text-white/50">
+                Add example conversations to teach your agent how to respond
+              </p>
+
+              {/* Add new conversation example */}
+              <div className="space-y-2 rounded-none border border-white/10 bg-black/20 p-3">
+                <div className="space-y-1">
+                  <label className="text-xs text-white/50">User says:</label>
+                  <Input
+                    value={newUserMessage}
+                    onChange={(e) => setNewUserMessage(e.target.value)}
+                    placeholder="Example user message..."
+                    className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-white/50">Agent responds:</label>
+                  <Textarea
+                    value={newAgentMessage}
+                    onChange={(e) => setNewAgentMessage(e.target.value)}
+                    placeholder="Example agent response..."
+                    className="min-h-[60px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                  />
+                </div>
                 <BrandButton
                   type="button"
-                  variant="icon-primary"
-                  size="icon"
-                  onClick={() => addTag("topics")}
+                  variant="secondary"
+                  size="sm"
+                  onClick={addMessageExample}
+                  disabled={!newUserMessage.trim() || !newAgentMessage.trim()}
+                  className="w-full"
                 >
-                  <Plus className="h-4 w-4" style={{ color: "#FF5800" }} />
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Example
                 </BrandButton>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {character.topics?.map((topic, index) => (
-                  <span
+
+              {/* Existing conversation examples */}
+              <div className="space-y-2">
+                {character.messageExamples?.map((conversation, index) => (
+                  <div
                     key={index}
-                    className="inline-flex items-center gap-2 rounded-none bg-white/10 px-2 py-1 text-xs text-white"
+                    className="rounded-none bg-black/40 border border-white/10 p-3 space-y-2"
                   >
-                    {topic}
-                    <button
-                      onClick={() => removeTag("topics", index)}
-                      className="hover:text-rose-400 transition-colors"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
+                    <div className="flex items-start justify-between">
+                      <span className="text-xs text-white/50">Example {index + 1}</span>
+                      <button
+                        onClick={() => removeMessageExample(index)}
+                        className="hover:text-rose-400 transition-colors"
+                      >
+                        <X className="h-4 w-4 text-white/70" />
+                      </button>
+                    </div>
+                    {conversation.map((message, msgIndex) => (
+                      <div key={msgIndex} className="space-y-1">
+                        <span className="text-xs font-medium text-[#FF5800]">
+                          {message.name === "user" ? "User" : character.name || "Agent"}:
+                        </span>
+                        <p className="text-sm text-white pl-2 border-l border-white/10">
+                          {message.content.text}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 ))}
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                Adjectives (Personality Traits)
-              </label>
-              <div className="flex gap-2">
-                <Input
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  placeholder="Add a trait..."
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addTag("adjectives");
-                    }
-                  }}
-                  className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-                />
-                <BrandButton
-                  type="button"
-                  variant="icon-primary"
-                  size="icon"
-                  onClick={() => addTag("adjectives")}
-                >
-                  <Plus className="h-4 w-4" style={{ color: "#FF5800" }} />
-                </BrandButton>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {character.adjectives?.map((adj, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center gap-2 rounded-none bg-white/10 px-2 py-1 text-xs text-white"
-                  >
-                    {adj}
-                    <button
-                      onClick={() => removeTag("adjectives", index)}
-                      className="hover:text-rose-400 transition-colors"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            </div>
-
+            {/* Post Examples */}
             <div className="space-y-2">
               <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
                 Post Examples
@@ -374,58 +433,6 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
             </div>
           </BrandTabsContent>
 
-          {/* Advanced Tab */}
-          <BrandTabsContent value="advanced" className="space-y-6">
-            {/* Avatar Section */}
-            <div className="space-y-4">
-              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                Avatar
-              </label>
-
-              {/* Avatar Generator - Quick styles and AI generation */}
-              <AvatarGenerator
-                characterName={character.name || "Character"}
-                characterDescription={
-                  typeof character.bio === "string"
-                    ? character.bio
-                    : character.bio?.join(" ") || ""
-                }
-                currentAvatarUrl={character.avatarUrl || character.avatar_url}
-                onAvatarChange={(url) => updateField("avatarUrl", url)}
-              />
-
-              {/* Divider */}
-              <div className="flex items-center gap-4 py-2">
-                <div className="flex-1 h-px bg-white/10" />
-                <span className="text-xs text-white/40">or upload custom</span>
-                <div className="flex-1 h-px bg-white/10" />
-              </div>
-
-              {/* Manual Upload */}
-              <div className="flex flex-col items-center space-y-2">
-                <AvatarUpload
-                  value={character.avatarUrl || character.avatar_url}
-                  onChange={(url) => updateField("avatarUrl", url)}
-                  name={character.name || "Character"}
-                  size="sm"
-                />
-                <p className="text-xs text-white/40 text-center max-w-xs">
-                  Upload a custom image (max 5MB)
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-none bg-black/40 border border-white/10 p-4">
-              <p className="text-sm text-white/60">
-                Additional settings like{" "}
-                <code className="text-[#FF5800]">knowledge</code>,{" "}
-                <code className="text-[#FF5800]">settings</code>,{" "}
-                <code className="text-[#FF5800]">plugins</code>, and{" "}
-                <code className="text-[#FF5800]">messageExamples</code> can be
-                configured directly in the JSON editor.
-              </p>
-            </div>
-          </BrandTabsContent>
         </BrandTabs>
       </div>
     </BrandCard>

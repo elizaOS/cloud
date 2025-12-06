@@ -104,6 +104,53 @@ class AgentsService {
   }
 
   /**
+   * Ensure agent exists in database, creating from character if needed.
+   * 
+   * @param characterId - Character ID to ensure exists as an agent
+   * @returns The agent ID that was ensured to exist
+   */
+  async ensureAgentExists(characterId: string): Promise<string> {
+    // Check if agent already exists
+    const exists = await agentsRepository.exists(characterId);
+    if (exists) {
+      logger.debug(`[Agents Service] Agent ${characterId} already exists`);
+      return characterId;
+    }
+
+    // Load character data to create agent
+    const { charactersService } = await import("@/lib/services/characters");
+    const character = await charactersService.getById(characterId);
+    
+    if (!character) {
+      throw new Error(`Character ${characterId} not found`);
+    }
+
+    // Extract character data
+    const characterData = character.character_data as Record<string, unknown> | undefined;
+    
+    // Create agent from character
+    const created = await agentsRepository.create({
+      id: characterId,
+      name: character.name,
+      bio: characterData?.bio as string | string[] | undefined,
+      settings: {
+        avatarUrl: character.avatar_url,
+        ...(characterData?.settings as Record<string, unknown> | undefined),
+      },
+      enabled: true,
+    });
+
+    if (!created) {
+      // Agent was created by another process (race condition), that's fine
+      logger.debug(`[Agents Service] Agent ${characterId} already exists (race condition)`);
+    } else {
+      logger.info(`[Agents Service] Created agent ${characterId} from character ${character.name}`);
+    }
+
+    return characterId;
+  }
+
+  /**
    * Get agent display info (id, name, avatarUrl)
    * Useful for UI without loading full agent data
    */
