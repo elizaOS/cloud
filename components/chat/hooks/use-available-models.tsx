@@ -1,3 +1,9 @@
+/**
+ * Hook to fetch available models from the gateway API.
+ * Filters to only show curated models from ALLOWED_CHAT_MODELS configuration.
+ *
+ * @returns {object} Models array, loading state, and error state
+ */
 "use client";
 
 import { useState, useEffect } from "react";

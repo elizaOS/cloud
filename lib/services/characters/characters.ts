@@ -1,3 +1,7 @@
+/**
+ * Service for managing user characters (CRUD operations).
+ */
+
 import {
   userCharactersRepository,
   type UserCharacter,
@@ -7,6 +11,9 @@ import { agentsRepository } from "@/db/repositories/agents/agents";
 import type { ElizaCharacter } from "@/lib/types";
 import type { Agent } from "@elizaos/core";
 
+/**
+ * Service for character CRUD operations.
+ */
 export class CharactersService {
   async getById(id: string): Promise<UserCharacter | undefined> {
     return await userCharactersRepository.findById(id);

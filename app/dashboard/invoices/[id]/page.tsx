@@ -11,6 +11,13 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Invoice detail page displaying information for a specific invoice.
+ * Verifies the invoice belongs to the authenticated user's organization.
+ *
+ * @param params - Route parameters containing the invoice ID.
+ * @returns The rendered invoice detail page client component, or redirects to 404 if not found.
+ */
 export default async function InvoiceDetailPage({
   params,
 }: {

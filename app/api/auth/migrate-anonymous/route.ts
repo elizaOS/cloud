@@ -18,19 +18,19 @@ function hashTokenForLogging(token: string): string {
 
 /**
  * POST /api/auth/migrate-anonymous
- *
  * Migrates anonymous user data to the authenticated user.
  * Should be called from the frontend after successful Privy authentication.
  *
  * This endpoint:
  * 1. Gets the anonymous session from the cookie (or request body)
  * 2. Verifies the authenticated user
- * 3. Calls convertAnonymousToReal to migrate all data
+ * 3. Calls convertAnonymousToReal to migrate all data (rooms, messages, characters)
  *
- * Request body (optional):
- * {
- *   sessionToken?: string  // Anonymous session token if cookie not available
- * }
+ * Request Body (optional):
+ * - `sessionToken`: Anonymous session token if cookie is not available.
+ *
+ * @param request - Request body with optional sessionToken.
+ * @returns Migration result with success status and migrated data details.
  */
 export async function POST(request: NextRequest) {
   try {

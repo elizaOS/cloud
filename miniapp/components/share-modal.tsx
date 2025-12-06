@@ -58,17 +58,12 @@ export function useShareStatus() {
 
   useEffect(() => {
     async function fetchStatus() {
-      try {
-        const rewardsStatus = await getRewardsStatus();
-        setShareStatus({
-          x: rewardsStatus.sharing.status.x,
-          farcaster: rewardsStatus.sharing.status.farcaster,
-        });
-      } catch (error) {
-        console.error("[useShareStatus] Error fetching share status", error);
-      } finally {
-        setLoading(false);
-      }
+      const rewardsStatus = await getRewardsStatus();
+      setShareStatus({
+        x: rewardsStatus.sharing.status.x,
+        farcaster: rewardsStatus.sharing.status.farcaster,
+      });
+      setLoading(false);
     }
     fetchStatus();
   }, []);
@@ -121,28 +116,22 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
   const loadData = async () => {
     setLoading(true);
     setError(null);
-    try {
-      const [referralInfo, rewardsStatus] = await Promise.all([
-        getReferralInfo(),
-        getRewardsStatus(),
-      ]);
+    const [referralInfo, rewardsStatus] = await Promise.all([
+      getReferralInfo(),
+      getRewardsStatus(),
+    ]);
 
-      setReferralCode(referralInfo.code);
-      setShareUrl(referralInfo.shareUrl);
-      setShareStatus({
-        x: rewardsStatus.sharing.status.x,
-        farcaster: rewardsStatus.sharing.status.farcaster,
-      });
-      setStats({
-        totalReferrals: referralInfo.stats.totalReferrals,
-        totalEarnings: referralInfo.stats.totalEarnings,
-      });
-    } catch (err) {
-      console.error("[ShareModal] Error loading data", err);
-      setError("Failed to load sharing info. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    setReferralCode(referralInfo.code);
+    setShareUrl(referralInfo.shareUrl);
+    setShareStatus({
+      x: rewardsStatus.sharing.status.x,
+      farcaster: rewardsStatus.sharing.status.farcaster,
+    });
+    setStats({
+      totalReferrals: referralInfo.stats.totalReferrals,
+      totalEarnings: referralInfo.stats.totalEarnings,
+    });
+    setLoading(false);
   };
 
   const copyCode = async () => {
@@ -171,31 +160,25 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
     
     // Claim reward immediately (server-side tracking)
     setClaiming("x");
-    try {
-      const result = await claimShareReward("x", "app_share", url);
-      if (result.success) {
-        toast.success(`🎉 +$${result.amount?.toFixed(2)} earned!`, {
-          description: "Thanks for sharing on X!",
-        });
-        setShareStatus(prev => prev ? { ...prev, x: { ...prev.x, claimed: true } } : null);
-        // Open share window only after successful claim
-        const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
-        window.open(tweetUrl, "_blank", "width=550,height=420");
-      } else if (result.alreadyAwarded) {
-        // Not an error - just informational
-        toast.info("X share already claimed today", {
-          description: "Come back tomorrow for more rewards!",
-        });
-        setShareStatus(prev => prev ? { ...prev, x: { ...prev.x, claimed: true } } : null);
-      } else {
-        toast.error(result.message || "Failed to claim reward");
-      }
-    } catch (err) {
-      toast.error("Something went wrong. Please try again.");
-      console.error("[ShareModal] Error claiming X share reward", err);
-    } finally {
-      setClaiming(null);
+    const result = await claimShareReward("x", "app_share", url);
+    if (result.success) {
+      toast.success(`🎉 +$${result.amount?.toFixed(2)} earned!`, {
+        description: "Thanks for sharing on X!",
+      });
+      setShareStatus(prev => prev ? { ...prev, x: { ...prev.x, claimed: true } } : null);
+      // Open share window only after successful claim
+      const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+      window.open(tweetUrl, "_blank", "width=550,height=420");
+    } else if (result.alreadyAwarded) {
+      // Not an error - just informational
+      toast.info("X share already claimed today", {
+        description: "Come back tomorrow for more rewards!",
+      });
+      setShareStatus(prev => prev ? { ...prev, x: { ...prev.x, claimed: true } } : null);
+    } else {
+      toast.error(result.message || "Failed to claim reward");
     }
+    setClaiming(null);
   };
 
   const shareOnFarcaster = async () => {
@@ -209,31 +192,25 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
     
     // Claim reward immediately (server-side tracking)
     setClaiming("farcaster");
-    try {
-      const result = await claimShareReward("farcaster", "app_share", url);
-      if (result.success) {
-        toast.success(`🎉 +$${result.amount?.toFixed(2)} earned!`, {
-          description: "Thanks for sharing on Farcaster!",
-        });
-        setShareStatus(prev => prev ? { ...prev, farcaster: { ...prev.farcaster, claimed: true } } : null);
-        // Open share window only after successful claim
-        const castUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(url)}`;
-        window.open(castUrl, "_blank", "width=550,height=420");
-      } else if (result.alreadyAwarded) {
-        // Not an error - just informational
-        toast.info("Farcaster share already claimed today", {
-          description: "Come back tomorrow for more rewards!",
-        });
-        setShareStatus(prev => prev ? { ...prev, farcaster: { ...prev.farcaster, claimed: true } } : null);
-      } else {
-        toast.error(result.message || "Failed to claim reward");
-      }
-    } catch (err) {
-      toast.error("Something went wrong. Please try again.");
-      console.error("[ShareModal] Error claiming Farcaster share reward", err);
-    } finally {
-      setClaiming(null);
+    const result = await claimShareReward("farcaster", "app_share", url);
+    if (result.success) {
+      toast.success(`🎉 +$${result.amount?.toFixed(2)} earned!`, {
+        description: "Thanks for sharing on Farcaster!",
+      });
+      setShareStatus(prev => prev ? { ...prev, farcaster: { ...prev.farcaster, claimed: true } } : null);
+      // Open share window only after successful claim
+      const castUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(url)}`;
+      window.open(castUrl, "_blank", "width=550,height=420");
+    } else if (result.alreadyAwarded) {
+      // Not an error - just informational
+      toast.info("Farcaster share already claimed today", {
+        description: "Come back tomorrow for more rewards!",
+      });
+      setShareStatus(prev => prev ? { ...prev, farcaster: { ...prev.farcaster, claimed: true } } : null);
+    } else {
+      toast.error(result.message || "Failed to claim reward");
     }
+    setClaiming(null);
   };
 
   // Handle backdrop click to close

@@ -91,37 +91,32 @@ export function BillingTab({ user }: BillingTabProps) {
 
     setIsProcessingCheckout(true);
 
-    try {
-      const response = await fetch("/api/stripe/create-checkout-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount,
-          returnUrl: "settings",
-        }),
-      });
+    const response = await fetch("/api/stripe/create-checkout-session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        amount,
+        returnUrl: "settings",
+      }),
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create checkout session");
-      }
-
-      const data = await response.json();
-      const { url } = data;
-
-      if (!url) {
-        throw new Error("No checkout URL returned");
-      }
-
-      window.location.href = url;
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to initiate checkout. Please try again."
-      );
+    if (!response.ok) {
+      const errorData = await response.json();
+      toast.error(errorData.error || "Failed to create checkout session");
       setIsProcessingCheckout(false);
+      return;
     }
+
+    const data = await response.json();
+    const { url } = data;
+
+    if (!url) {
+      toast.error("No checkout URL returned");
+      setIsProcessingCheckout(false);
+      return;
+    }
+
+    window.location.href = url;
   };
 
   const handleViewInvoice = (invoice: InvoiceDisplay) => {

@@ -66,29 +66,23 @@ export function CharacterIntroPageWrapper({
     // If no existing session, CREATE one in the database
     if (!sessionId) {
       setIsCreatingSession(true);
-      try {
-        const response = await fetch("/api/affiliate/create-session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            characterId,
-            source: source || "direct",
-          }),
-        });
+      const response = await fetch("/api/affiliate/create-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          characterId,
+          source: source || "direct",
+        }),
+      });
 
-        if (response.ok) {
-          const data = await response.json();
-          sessionId = data.sessionToken;
-        } else {
-          // Fallback: generate UUID (won't have message tracking)
-          sessionId = crypto.randomUUID();
-        }
-      } catch (error) {
-        console.error("Failed to create session:", error);
+      if (response.ok) {
+        const data = await response.json();
+        sessionId = data.sessionToken;
+      } else {
+        // Fallback: generate UUID (won't have message tracking)
         sessionId = crypto.randomUUID();
-      } finally {
-        setIsCreatingSession(false);
       }
+      setIsCreatingSession(false);
     }
 
     // Navigate to chat with session

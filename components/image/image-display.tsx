@@ -1,3 +1,16 @@
+/**
+ * Image display component showing generated image with download and regenerate actions.
+ * Displays image with prompt overlay and optional generated text.
+ *
+ * @param props - Image display configuration
+ * @param props.imageUrl - URL of generated image
+ * @param props.prompt - Prompt used to generate image
+ * @param props.generatedText - Optional generated text to display
+ * @param props.onDownload - Callback when download button is clicked
+ * @param props.onGenerateAnother - Callback when generate another button is clicked
+ * @param props.showGenerateAnother - Whether to show generate another button
+ */
+
 "use client";
 
 import Image from "next/image";

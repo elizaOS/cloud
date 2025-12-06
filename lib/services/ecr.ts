@@ -19,6 +19,9 @@ import {
 /**
  * Configuration for ECR client
  */
+/**
+ * Configuration for ECR client.
+ */
 export interface ECRConfig {
   region: string;
   accessKeyId: string;
@@ -27,6 +30,9 @@ export interface ECRConfig {
 
 /**
  * Result of image push operation
+ */
+/**
+ * Result of pushing an image to ECR.
  */
 export interface ImagePushResult {
   repositoryUri: string;
@@ -37,6 +43,9 @@ export interface ImagePushResult {
 
 /**
  * Repository creation result
+ */
+/**
+ * Result of creating an ECR repository.
  */
 export interface RepositoryResult {
   repositoryUri: string;

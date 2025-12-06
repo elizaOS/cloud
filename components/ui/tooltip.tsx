@@ -1,3 +1,7 @@
+/**
+ * Tooltip component system built on Radix UI primitives.
+ * Provides hover tooltips with configurable delay and positioning.
+ */
 "use client";
 
 import * as React from "react";

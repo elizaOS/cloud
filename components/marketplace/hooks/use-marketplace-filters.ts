@@ -1,3 +1,9 @@
+/**
+ * Hook for managing marketplace filters and sorting state.
+ * Provides filter toggles, category selection, and clear functionality.
+ *
+ * @returns {object} Filter state and control functions
+ */
 "use client";
 
 import { useState, useCallback, useMemo } from "react";

@@ -1,3 +1,12 @@
+/**
+ * Container deployment history component displaying past deployment records.
+ * Shows deployment status, cost, duration, and configuration details.
+ *
+ * @param props - Container deployment history configuration
+ * @param props.containerId - Container ID to fetch deployment history for
+ * @param props.containerName - Container name for display
+ */
+
 "use client";
 
 import { useEffect, useState } from "react";

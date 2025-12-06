@@ -4,9 +4,11 @@ import { userSessionsService } from "@/lib/services";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 /**
+ * GET /api/sessions/current
  * Gets statistics for the current user session.
+ * Returns credits used, requests made, and tokens consumed for the active session.
  *
- * @returns JSON response with credits used, requests made, and tokens consumed.
+ * @returns JSON response with session statistics.
  */
 async function handleGET() {
   try {

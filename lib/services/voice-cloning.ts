@@ -103,53 +103,52 @@ export class VoiceCloningService {
 
     logger.info(`[VoiceCloning] Created job ${job.id}`, { jobId: job.id });
 
-    try {
-      // Upload files to Vercel Blob for backup/reference (optional - skip if no token)
-      const hasVercelToken = !!process.env.BLOB_READ_WRITE_TOKEN;
+    // Upload files to Vercel Blob for backup/reference (optional - skip if no token)
+    const hasVercelToken = !!process.env.BLOB_READ_WRITE_TOKEN;
 
-      if (hasVercelToken) {
-        await Promise.all(
-          files.map(async (file) => {
-            // Upload to Vercel Blob
-            const blob = await put(
-              `voice-samples/${organizationId}/${job.id}/${file.name}`,
-              file,
-              {
-                access: "public",
-                addRandomSuffix: true,
-              },
-            );
+    if (hasVercelToken) {
+      await Promise.all(
+        files.map(async (file) => {
+          // Upload to Vercel Blob
+          const blob = await put(
+            `voice-samples/${organizationId}/${job.id}/${file.name}`,
+            file,
+            {
+              access: "public",
+              addRandomSuffix: true,
+            },
+          );
 
-            logger.info("[VoiceCloning] Uploaded sample to blob storage", {
-              jobId: job.id,
-              fileName: file.name,
-              blobUrl: blob.url,
-            });
-
-            // Store sample metadata in database
-            await db.insert(voiceSamples).values({
-              jobId: job.id,
-              organizationId,
-              userId,
-              fileName: file.name,
-              fileSize: file.size,
-              fileType: file.type,
-              blobUrl: blob.url,
-            });
-          }),
-        );
-      } else {
-        logger.info(
-          "[VoiceCloning] Skipping blob storage (no token configured)",
-          {
+          logger.info("[VoiceCloning] Uploaded sample to blob storage", {
             jobId: job.id,
-          },
-        );
-      }
+            fileName: file.name,
+            blobUrl: blob.url,
+          });
 
-      logger.info("[VoiceCloning] Creating voice in ElevenLabs", {
-        jobId: job.id,
-      });
+          // Store sample metadata in database
+          await db.insert(voiceSamples).values({
+            jobId: job.id,
+            organizationId,
+            userId,
+            fileName: file.name,
+            fileSize: file.size,
+            fileType: file.type,
+            blobUrl: blob.url,
+          });
+        }),
+      );
+    } else {
+      logger.info(
+        "[VoiceCloning] Skipping blob storage (no token configured)",
+        {
+          jobId: job.id,
+        },
+      );
+    }
+
+    logger.info("[VoiceCloning] Creating voice in ElevenLabs", {
+      jobId: job.id,
+    });
 
       // Create voice clone in ElevenLabs (use original files)
       const elevenlabs = getElevenLabsService();

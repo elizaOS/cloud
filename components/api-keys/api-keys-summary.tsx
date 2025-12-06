@@ -1,3 +1,10 @@
+/**
+ * API keys summary component displaying key statistics in a grid layout.
+ * Shows total keys, active keys, monthly usage, and last generated timestamp.
+ *
+ * @param props - API keys summary configuration
+ * @param props.summary - Summary data including key counts and usage statistics
+ */
 import { CalendarClock, KeyRound, ShieldCheck, Signal } from "lucide-react";
 
 import type { ApiKeysSummaryData } from "./types";

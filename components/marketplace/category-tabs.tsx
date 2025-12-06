@@ -1,3 +1,12 @@
+/**
+ * Category tabs component for filtering characters by category.
+ * Supports desktop tab view and mobile dropdown selection.
+ *
+ * @param props - Category tabs configuration
+ * @param props.activeCategory - Currently active category ID
+ * @param props.onCategoryChange - Callback when category changes
+ */
+
 "use client";
 
 import * as React from "react";

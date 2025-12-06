@@ -15,6 +15,12 @@ export const metadata: Metadata = generatePageMetadata({
 // Force dynamic rendering since we use server-side auth (cookies)
 export const dynamic = "force-dynamic";
 
+/**
+ * Knowledge Management page for managing RAG knowledge base.
+ * Allows users to upload documents and query them for enhanced AI responses.
+ *
+ * @returns The rendered knowledge page client component, or an authentication required message.
+ */
 export default async function KnowledgePage() {
   // Check if user is authenticated
   const user = await getCurrentUser();

@@ -7,6 +7,9 @@ import { db } from "@/db/client";
 import { containers } from "@/db/schemas";
 import { eq, and } from "drizzle-orm";
 
+/**
+ * Result of a container health check.
+ */
 export interface HealthCheckResult {
   containerId: string;
   healthy: boolean;
@@ -16,6 +19,9 @@ export interface HealthCheckResult {
   checkedAt: Date;
 }
 
+/**
+ * Configuration for health monitoring.
+ */
 export interface HealthMonitorConfig {
   checkIntervalMs: number;
   timeout: number;
@@ -31,7 +37,12 @@ const DEFAULT_CONFIG: HealthMonitorConfig = {
 };
 
 /**
- * Perform health check on a container
+ * Performs health check on a container.
+ *
+ * @param containerUrl - Container base URL.
+ * @param healthCheckPath - Health check endpoint path.
+ * @param timeoutMs - Timeout in milliseconds.
+ * @returns Health check result.
  */
 export async function checkContainerHealth(
   containerUrl: string,
@@ -69,9 +80,12 @@ export async function checkContainerHealth(
 }
 
 /**
- * Update container health status in database
- * Only updates status to 'failed' if container is currently 'running'
- * This prevents overwriting transitional states like 'building' or 'deploying'
+ * Updates container health status in database.
+ * Only updates status to 'failed' if container is currently 'running'.
+ * This prevents overwriting transitional states like 'building' or 'deploying'.
+ *
+ * @param containerId - Container ID.
+ * @param healthResult - Health check result.
  */
 export async function updateContainerHealth(
   containerId: string,

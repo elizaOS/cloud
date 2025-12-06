@@ -1,3 +1,7 @@
+/**
+ * Alert dialog component system for confirmation dialogs.
+ * Built on Radix UI primitives with destructive action support.
+ */
 "use client";
 
 import * as React from "react";

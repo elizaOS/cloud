@@ -11,6 +11,11 @@ interface PageProps {
 // Force dynamic rendering since we use server-side auth (cookies)
 export const dynamic = "force-dynamic";
 
+/**
+ * Generates metadata for the build page.
+ *
+ * @returns Metadata object with title and description for the build page.
+ */
 export async function generateMetadata(): Promise<Metadata> {
   return generatePageMetadata({
     ...ROUTE_METADATA.eliza,
@@ -19,6 +24,13 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
+/**
+ * Build page for creating and configuring AI agents/characters.
+ * Supports both authenticated and anonymous users.
+ *
+ * @param searchParams - Search parameters, including optional `characterId` for editing an existing character.
+ * @returns The rendered build page client component with initial characters and character ID.
+ */
 export default async function BuildPage({ searchParams }: PageProps) {
   // Check if user is authenticated
   const user = await getCurrentUser();

@@ -1,3 +1,13 @@
+/**
+ * Code display component with syntax highlighting using Prism.
+ * Provides custom theme matching application design system.
+ *
+ * @param props - Code display configuration
+ * @param props.code - Code string to display
+ * @param props.language - Programming language for syntax highlighting
+ * @param props.className - Additional CSS classes
+ */
+
 "use client";
 
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";

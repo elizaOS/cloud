@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { stringToUuid, type UUID } from "@elizaos/core";
 import { organizationsService, charactersService, appCreditsService } from "@/lib/services";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
@@ -6,7 +7,7 @@ import { logger } from "@/lib/utils/logger";
 import { roomsRepository } from "@/db/repositories";
 import { userContextService } from "@/lib/eliza/user-context";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
-import { createMessageHandler } from "@/lib/eliza/message-handler";
+import { sendMessageWithSideEffects } from "@/lib/eliza/send-message";
 import type { AgentModeConfig } from "@/lib/eliza/agent-mode-types";
 import {
   AgentMode,
@@ -22,6 +23,11 @@ export const maxDuration = 60;
  * Single-endpoint streaming architecture for Eliza agent messages.
  * Receives message via POST and streams back thinking indicator and agent response via SSE.
  *
+ * Single-endpoint streaming architecture:
+ * - Receives message via POST
+ * - Streams back thinking indicator and agent response via SSE
+ * - Uses core ElizaOS.sendMessage() for iso behavior (server/serverless)
+ *
  * @param request - Request body with text, optional model, agentMode, sessionToken, attachments, and appId.
  * @param ctx - Route context containing the room ID parameter.
  * @returns SSE stream with thinking indicators and agent response.
@@ -32,333 +38,314 @@ export async function POST(
 ) {
   const encoder = new TextEncoder();
 
-  try {
-    // Step 1: Parse request body FIRST (needed for session token check and agent mode)
-    const { roomId } = await ctx.params;
-    const body = await request.json();
-    const { text, model, agentMode, sessionToken, attachments, appId: bodyAppId } = body;
-    
-    // App ID can come from body OR X-App-Id header (miniapp proxy uses header)
-    const appId = bodyAppId || request.headers.get("X-App-Id");
+  // Step 1: Parse request body FIRST (needed for session token check and agent mode)
+  const { roomId } = await ctx.params;
+  const body = await request.json();
+  const { text, model, agentMode, sessionToken, attachments, appId: bodyAppId } = body;
+  
+  // App ID can come from body OR X-App-Id header (miniapp proxy uses header)
+  const appId = bodyAppId || request.headers.get("X-App-Id");
 
-    if (!roomId || !text?.trim()) {
+  if (!roomId || !text?.trim()) {
+    return new Response(
+      JSON.stringify({ error: "Missing required fields" }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  // Validate agentMode if provided, default to CHAT
+  let agentModeConfig: AgentModeConfig;
+  if (agentMode) {
+    if (!isValidAgentModeConfig(agentMode)) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
+        JSON.stringify({ error: "Invalid agent mode configuration" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
+    agentModeConfig = agentMode;
+    logger.info(`[Stream] Using agent mode: ${agentModeConfig.mode}`);
+  } else {
+    // Default to CHAT mode
+    agentModeConfig = { mode: AgentMode.CHAT };
+    logger.info("[Stream] No agent mode specified, defaulting to CHAT");
+  }
 
-    // Validate agentMode if provided, default to CHAT
-    let agentModeConfig: AgentModeConfig;
-    if (agentMode) {
-      if (!isValidAgentModeConfig(agentMode)) {
-        return new Response(
-          JSON.stringify({ error: "Invalid agent mode configuration" }),
-          { status: 400, headers: { "Content-Type": "application/json" } }
-        );
-      }
-      agentModeConfig = agentMode;
-      logger.info(`[Stream] Using agent mode: ${agentModeConfig.mode}`);
-    } else {
-      // Default to CHAT mode
-      agentModeConfig = { mode: AgentMode.CHAT };
-      logger.info("[Stream] No agent mode specified, defaulting to CHAT");
+  if (model) {
+    logger.debug("[Stream] User selected model:", model);
+  }
+
+  // Step 2: Authentication & Context Building
+  logger.info(
+    `[Stream] 📊 Session token from body: ${sessionToken ? `${sessionToken.slice(0, 8)}...` : "N/A"}`
+  );
+  const userContext = await authenticateAndBuildContext(
+    request,
+    agentModeConfig.mode,
+    { sessionToken, appId }
+  );
+
+  logger.info("[Stream] 📊 UserContext after auth:", {
+    isAnonymous: userContext.isAnonymous,
+    hasSessionToken: !!userContext.sessionToken,
+    sessionTokenPreview: `${userContext.sessionToken?.slice(0, 8)}...`,
+    userId: userContext.userId,
+  });
+
+  // Step 3: Rate limiting for anonymous users
+  if (userContext.isAnonymous && userContext.sessionToken) {
+    const limitCheck = await checkAnonymousLimit(userContext.sessionToken);
+
+    if (!limitCheck.allowed) {
+      const errorMessage =
+        limitCheck.reason === "message_limit"
+          ? `You've reached your free message limit (${limitCheck.limit} messages). Sign up to continue!`
+          : "Hourly rate limit reached. Wait an hour or sign up for unlimited access.";
+
+      return new Response(
+        JSON.stringify({
+          error: errorMessage,
+          requiresSignup: true,
+          reason: limitCheck.reason,
+        }),
+        { status: 429, headers: { "Content-Type": "application/json" } }
+      );
     }
+  }
 
-    if (model) {
-      logger.debug("[Stream] User selected model:", model);
-    }
+  // Step 3.5: App credit balance check (miniapp billing)
+  // Only check if app has monetization enabled - otherwise user uses org credits
+  if (userContext.appId) {
+    const monetizationSettings = await appCreditsService.getMonetizationSettings(userContext.appId);
+    
+    // Only enforce app-specific credit check if monetization is enabled
+    if (monetizationSettings?.monetizationEnabled) {
+      // Estimate minimum cost (actual cost calculated after processing)
+      const MINIMUM_MESSAGE_COST = 0.001; // $0.001 minimum to ensure some balance exists
+      
+      const balanceCheck = await appCreditsService.checkBalance(
+        userContext.appId,
+        userContext.userId,
+        MINIMUM_MESSAGE_COST
+      );
 
-    // Step 2: Authentication & Context Building
-    logger.info(
-      `[Stream] 📊 Session token from body: ${sessionToken ? `${sessionToken.slice(0, 8)}...` : "N/A"}`
-    );
-    const userContext = await authenticateAndBuildContext(
-      request,
-      agentModeConfig.mode,
-      { sessionToken, appId }
-    );
-
-    logger.info("[Stream] 📊 UserContext after auth:", {
-      isAnonymous: userContext.isAnonymous,
-      hasSessionToken: !!userContext.sessionToken,
-      sessionTokenPreview: `${userContext.sessionToken?.slice(0, 8)}...`,
-      userId: userContext.userId,
-    });
-
-    // Step 3: Rate limiting for anonymous users
-    if (userContext.isAnonymous && userContext.sessionToken) {
-      const limitCheck = await checkAnonymousLimit(userContext.sessionToken);
-
-      if (!limitCheck.allowed) {
-        const errorMessage =
-          limitCheck.reason === "message_limit"
-            ? `You've reached your free message limit (${limitCheck.limit} messages). Sign up to continue!`
-            : "Hourly rate limit reached. Wait an hour or sign up for unlimited access.";
+      if (!balanceCheck.sufficient) {
+        logger.warn("[Stream] Insufficient app credits", {
+          appId: userContext.appId,
+          userId: userContext.userId,
+          balance: balanceCheck.balance,
+          required: MINIMUM_MESSAGE_COST,
+        });
 
         return new Response(
           JSON.stringify({
-            error: errorMessage,
-            requiresSignup: true,
-            reason: limitCheck.reason,
+            error: "Insufficient credits",
+            details: `Your balance ($${balanceCheck.balance.toFixed(2)}) is too low. Please purchase more credits to continue.`,
+            requiresPurchase: true,
           }),
-          { status: 429, headers: { "Content-Type": "application/json" } }
+          { status: 402, headers: { "Content-Type": "application/json" } }
         );
       }
     }
+  }
 
-    // Step 3.5: App credit balance check (miniapp billing)
-    // Only check if app has monetization enabled - otherwise user uses org credits
-    if (userContext.appId) {
-      const monetizationSettings = await appCreditsService.getMonetizationSettings(userContext.appId);
-      
-      // Only enforce app-specific credit check if monetization is enabled
-      if (monetizationSettings?.monetizationEnabled) {
-        // Estimate minimum cost (actual cost calculated after processing)
-        const MINIMUM_MESSAGE_COST = 0.001; // $0.001 minimum to ensure some balance exists
-        
-        const balanceCheck = await appCreditsService.checkBalance(
-          userContext.appId,
-          userContext.userId,
-          MINIMUM_MESSAGE_COST
-        );
+  // Step 4: Get character assignment for room from agentId (single source of truth)
+  const room = await roomsRepository.findById(roomId);
+  let characterId: string | undefined = room?.agentId || undefined;
 
-        if (!balanceCheck.sufficient) {
-          logger.warn("[Stream] Insufficient app credits", {
-            appId: userContext.appId,
-            userId: userContext.userId,
-            balance: balanceCheck.balance,
-            required: MINIMUM_MESSAGE_COST,
-          });
+  // Step 4.5: Check if this is an affiliate character and switch to ASSISTANT mode
+  // Affiliate characters need ASSISTANT mode for image generation capability
+  // The image generation action's validate function ensures images are only generated
+  // when explicitly requested (e.g., "send me a pic", "generate an image")
+  if (characterId && agentModeConfig.mode === AgentMode.CHAT) {
+    const character = await charactersService.getById(characterId);
+    if (character) {
+      const characterData = character.character_data as
+        | Record<string, unknown>
+        | undefined;
+      const affiliateData = characterData?.affiliate as
+        | Record<string, unknown>
+        | undefined;
 
-          return new Response(
-            JSON.stringify({
-              error: "Insufficient credits",
-              details: `Your balance ($${balanceCheck.balance.toFixed(2)}) is too low. Please purchase more credits to continue.`,
-              requiresPurchase: true,
-            }),
-            { status: 402, headers: { "Content-Type": "application/json" } }
-          );
-        }
-      }
-    }
-
-    // Step 4: Get character assignment for room from agentId (single source of truth)
-    const room = await roomsRepository.findById(roomId);
-    let characterId: string | undefined = room?.agentId || undefined;
-
-    // Step 4.5: Check if this is an affiliate character and switch to ASSISTANT mode
-    // Affiliate characters need ASSISTANT mode for image generation capability
-    // The image generation action's validate function ensures images are only generated
-    // when explicitly requested (e.g., "send me a pic", "generate an image")
-    if (characterId && agentModeConfig.mode === AgentMode.CHAT) {
-      const character = await charactersService.getById(characterId);
-      if (character) {
-        const characterData = character.character_data as
-          | Record<string, unknown>
-          | undefined;
-        const affiliateData = characterData?.affiliate as
-          | Record<string, unknown>
-          | undefined;
-
-        if (affiliateData && Object.keys(affiliateData).length > 0) {
-          logger.info(
-            `[Stream] 🎭 Detected affiliate character - switching to ASSISTANT mode for image generation`
-          );
-          agentModeConfig = { mode: AgentMode.ASSISTANT };
-          // CRITICAL: Also update userContext so runtime loads correct plugins
-          userContext.agentMode = AgentMode.ASSISTANT;
-        }
-      }
-    }
-
-    // For BUILD mode, use the targetCharacterId from agent mode metadata
-    // This ensures we're editing the correct character, not the default
-    if (
-      agentModeConfig.mode === AgentMode.BUILD &&
-      agentModeConfig.metadata?.targetCharacterId
-    ) {
-      characterId = String(agentModeConfig.metadata.targetCharacterId);
-      logger.info(
-        `[Stream] BUILD mode - Using character from metadata: ${characterId}`
-      );
-
-      // Update room agentId for build mode (proper column, not metadata)
-      if (characterId && room && room.agentId !== characterId) {
-        await roomsRepository.update(roomId, { agentId: characterId });
+      if (affiliateData && Object.keys(affiliateData).length > 0) {
         logger.info(
-          `[Stream] BUILD mode - Updated room agentId: room ${roomId} → agent ${characterId}`
+          `[Stream] 🎭 Detected affiliate character - switching to ASSISTANT mode for image generation`
         );
+        agentModeConfig = { mode: AgentMode.ASSISTANT };
+        // CRITICAL: Also update userContext so runtime loads correct plugins
+        userContext.agentMode = AgentMode.ASSISTANT;
       }
     }
+  }
 
+  // For BUILD mode, use the targetCharacterId from agent mode metadata
+  if (
+    agentModeConfig.mode === AgentMode.BUILD &&
+    agentModeConfig.metadata?.targetCharacterId
+  ) {
+    characterId = String(agentModeConfig.metadata.targetCharacterId);
     logger.info(
-      `[Stream] Room ${roomId} - Character lookup:`,
-      characterId ? `Using character ${characterId}` : "Using default character"
+      `[Stream] BUILD mode - Using character from metadata: ${characterId}`
     );
 
-    // Step 5: Apply model preferences if provided
-    if (model) {
-      userContext.modelPreferences = {
-        smallModel: model,
-        largeModel: model,
-      };
-      logger.info(`[Stream] User selected model: ${model}`);
-    } else if (userContext.modelPreferences) {
+    // Update room agentId for build mode (proper column, not metadata)
+    if (characterId && room && room.agentId !== characterId) {
+      await roomsRepository.update(roomId, { agentId: characterId });
       logger.info(
-        `[Stream] Using stored model preferences: ${userContext.modelPreferences.smallModel} / ${userContext.modelPreferences.largeModel}`
+        `[Stream] BUILD mode - Updated room agentId: room ${roomId} → agent ${characterId}`
       );
-    } else {
-      logger.info("[Stream] No model preference set, using defaults");
     }
+  }
 
-    // Apply character if specified
-    if (characterId) {
-      userContext.characterId = characterId;
-      logger.info(`[Stream] Set characterId in userContext: ${characterId}`);
-    }
+  logger.info(
+    `[Stream] Room ${roomId} - Character lookup:`,
+    characterId ? `Using character ${characterId}` : "Using default character"
+  );
 
-    // Step 6: Create runtime with user context (clean, no key fetching here!)
-    const runtime = await runtimeFactory.createRuntimeForUser(userContext);
+  // Step 5: Apply model preferences if provided
+  if (model) {
+    userContext.modelPreferences = {
+      smallModel: model,
+      largeModel: model,
+    };
+    logger.info(`[Stream] User selected model: ${model}`);
+  } else if (userContext.modelPreferences) {
+    logger.info(
+      `[Stream] Using stored model preferences: ${userContext.modelPreferences.smallModel} / ${userContext.modelPreferences.largeModel}`
+    );
+  } else {
+    logger.info("[Stream] No model preference set, using defaults");
+  }
 
-    // Step 7: Create message handler
-    const messageHandler = createMessageHandler(runtime, userContext);
+  // Apply character if specified
+  if (characterId) {
+    userContext.characterId = characterId;
+    logger.info(`[Stream] Set characterId in userContext: ${characterId}`);
+  }
 
-    // Step 8: Create streaming response
-    const stream = new ReadableStream({
-      async start(controller) {
-        const sendEvent = (event: string, data: unknown) => {
-          const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-          controller.enqueue(encoder.encode(message));
+  // Step 6: Create runtime and get ElizaOS instance
+  const elizaOS = runtimeFactory.getElizaOS();
+  const agentRuntime = await runtimeFactory.createRuntimeForUser(userContext);
+
+  // Step 7: Create streaming response
+  const stream = new ReadableStream({
+    async start(controller) {
+      const sendEvent = (event: string, data: unknown) => {
+        const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+        controller.enqueue(encoder.encode(message));
+      };
+
+      try {
+        // Send connection confirmation
+        sendEvent("connected", { roomId, timestamp: Date.now() });
+
+        // Send user message event
+        sendEvent("message", {
+          id: `user-${Date.now()}`,
+          entityId: userContext.userId,
+          content: { text, attachments: attachments || undefined },
+          createdAt: Date.now(),
+          isAgent: false,
+          type: "user",
+        });
+
+        // Send thinking indicator
+        sendEvent("message", {
+          id: `thinking-${Date.now()}`,
+          entityId: "agent",
+          content: { text: "" },
+          createdAt: Date.now(),
+          isAgent: true,
+          type: "thinking",
+        });
+
+        // Process message using core ElizaOS.sendMessage() with side effects
+        logger.info("[Stream] Processing message via sendMessageWithSideEffects...");
+        const result = await sendMessageWithSideEffects(
+          elizaOS,
+          agentRuntime,
+          roomId as UUID,
+          stringToUuid(userContext.entityId) as UUID,
+          { text, source: "cloud" },
+          userContext,
+          characterId,
+        );
+
+        // Extract response from result
+        const responseContent = result.processing?.responseContent;
+        const responseText = responseContent?.text || "";
+
+        // Build response content payload
+        const responseContentPayload: Record<string, unknown> = {
+          text: responseText,
+          source: responseContent?.source || "agent",
         };
 
-        try {
-          // Send connection confirmation
-          sendEvent("connected", { roomId, timestamp: Date.now() });
-
-          // Send user message event
-          sendEvent("message", {
-            id: `user-${Date.now()}`,
-            entityId: userContext.userId,
-            content: { text, attachments: attachments || undefined },
-            createdAt: Date.now(),
-            isAgent: false,
-            type: "user",
-          });
-
-          // Send thinking indicator
-          sendEvent("message", {
-            id: `thinking-${Date.now()}`,
-            entityId: "agent",
-            content: { text: "" },
-            createdAt: Date.now(),
-            isAgent: true,
-            type: "thinking",
-          });
-
-          // Process message and get response (using user's actual ID)
-          logger.info("[Stream Messages] Processing message...");
-          const result = await messageHandler.process({
-            roomId,
-            text,
-            model,
-            agentModeConfig,
-            attachments,
-          });
-
-          // Extract content - the full Content object is now stored in memory
-          const messageContent = result.message.content;
-          const responseText =
-            typeof messageContent === "string"
-              ? messageContent
-              : messageContent?.text || "";
-
-          // Build response content, preserving all Content fields
-          const responseContentPayload: Record<string, unknown> = {
-            text: responseText,
-            source: messageContent?.source || "agent",
-          };
-
-          // Include attachments if present
-          if (
-            typeof messageContent === "object" &&
-            messageContent?.attachments
-          ) {
-            responseContentPayload.attachments = messageContent.attachments;
-          }
-
-          // Include actions if present (needed for frontend to detect APPLY_CHARACTER_CHANGES)
-          if (typeof messageContent === "object" && messageContent?.actions) {
-            responseContentPayload.actions = messageContent.actions;
-          }
-
-          // Include thought if present
-          if (typeof messageContent === "object" && messageContent?.thought) {
-            responseContentPayload.thought = messageContent.thought;
-          }
-
-          // Include metadata if present (for PROPOSE_CHARACTER_CHANGES with updatedCharacter)
-          if (typeof messageContent === "object" && messageContent?.metadata) {
-            responseContentPayload.metadata = messageContent.metadata;
-          }
-
-          // Send agent response
-          sendEvent("message", {
-            id: result.message.id,
-            entityId: result.message.entityId,
-            agentId: result.message.agentId,
-            content: responseContentPayload,
-            createdAt: result.message.createdAt || Date.now(),
-            isAgent: true,
-            type: "agent",
-          });
-
-          // Credits and side effects are handled by MessageHandler
-          // Check if we should send low credit warning
-          if (result.usage && !userContext.isAnonymous) {
-            // This is just for the warning event, actual credit deduction happened in MessageHandler
-            const remainingCredits = await checkUserCredits(
-              userContext.organizationId
-            );
-            if (remainingCredits < 1.0) {
-              sendEvent("warning", {
-                message: "Low credits - please top up to continue",
-              });
-            }
-          }
-
-          // Send completion event
-          sendEvent("done", { timestamp: Date.now() });
-
-          controller.close();
-        } catch (error) {
-          logger.error("[Stream Messages] Error:", error);
-          sendEvent("error", {
-            message:
-              error instanceof Error ? error.message : "Processing failed",
-          });
-          controller.close();
+        // Include attachments if present
+        if (responseContent?.attachments) {
+          responseContentPayload.attachments = responseContent.attachments;
         }
-      },
-    });
 
-    return new Response(stream, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache, no-transform",
-        Connection: "keep-alive",
-        "X-Accel-Buffering": "no",
-      },
-    });
-  } catch (error) {
-    logger.error("[Stream Messages] Request error:", error);
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : "Request failed",
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
-  }
+        // Include actions if present
+        if (responseContent?.actions) {
+          responseContentPayload.actions = responseContent.actions;
+        }
+
+        // Include thought if present
+        if (responseContent?.thought) {
+          responseContentPayload.thought = responseContent.thought;
+        }
+
+        // Include metadata if present
+        if (responseContent?.metadata) {
+          responseContentPayload.metadata = responseContent.metadata;
+        }
+
+        // Send agent response
+        sendEvent("message", {
+          id: result.messageId,
+          entityId: agentRuntime.agentId,
+          agentId: agentRuntime.agentId,
+          content: responseContentPayload,
+          createdAt: Date.now(),
+          isAgent: true,
+          type: "agent",
+        });
+
+        // Check low credits warning (billing handled by gateway)
+        if (!userContext.isAnonymous) {
+          const remainingCredits = await checkUserCredits(
+            userContext.organizationId
+          );
+          if (remainingCredits < 1.0) {
+            sendEvent("warning", {
+              message: "Low credits - please top up to continue",
+            });
+          }
+        }
+
+        // Send completion event
+        sendEvent("done", { timestamp: Date.now() });
+
+        controller.close();
+      } catch (error) {
+        logger.error("[Stream] Error:", error);
+        sendEvent("error", {
+          message:
+            error instanceof Error ? error.message : "Processing failed",
+        });
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    },
+  });
 }
 
 /**
@@ -537,14 +524,9 @@ async function authenticateAndBuildContext(
  * Helper function to check user credits
  */
 async function checkUserCredits(organizationId: string): Promise<number> {
-  try {
-    const org = await organizationsService.getById(organizationId);
-    if (!org) {
-      return 0;
-    }
-    return Number.parseFloat(String(org.credit_balance));
-  } catch (error) {
-    logger.error("[Stream] Failed to check credits:", error);
+  const org = await organizationsService.getById(organizationId);
+  if (!org) {
     return 0;
   }
+  return Number.parseFloat(String(org.credit_balance));
 }

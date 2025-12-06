@@ -26,6 +26,9 @@ import type { UserCharacter } from "@/db/repositories";
 // Re-export AgentStats for convenience
 export type { AgentStats };
 
+/**
+ * Filters for character discovery.
+ */
 export interface CharacterDiscoveryFilters {
   deployed?: boolean;
   template?: boolean;
@@ -57,6 +60,9 @@ export interface DiscoveredCharacterInfo {
   lastActiveAt?: Date | null;
 }
 
+/**
+ * Result of listing characters with discovery information.
+ */
 export interface CharacterListResult {
   characters: DiscoveredCharacterInfo[];
   total: number;

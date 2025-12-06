@@ -60,9 +60,8 @@ export function VoiceCard({ voice, onDelete, onPreview }: VoiceCardProps) {
 
     toast.success("Voice deleted successfully");
     onDelete(voice.id);
-    setIsDeleteDialogOpen(false); finally {
-      setIsDeleting(false);
-    }
+    setIsDeleteDialogOpen(false);
+    setIsDeleting(false);
   };
 
   const handleUseInTTS = () => {

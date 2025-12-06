@@ -1,3 +1,7 @@
+/**
+ * Service for processing and uploading affiliate character images.
+ */
+
 import { uploadBase64Image, uploadFromUrl } from "@/lib/blob";
 import { logger } from "@/lib/utils/logger";
 import type {
@@ -6,14 +10,37 @@ import type {
   AffiliateImageReference,
 } from "@/lib/types/affiliate";
 
+/**
+ * Maximum number of images allowed.
+ */
 const MAX_IMAGES = 10;
+
+/**
+ * Maximum concurrent uploads.
+ */
 const MAX_CONCURRENT_UPLOADS = 3;
+
+/**
+ * Upload timeout in milliseconds.
+ */
 const UPLOAD_TIMEOUT_MS = 30000;
 
+/**
+ * Checks if a string is a base64 data URL.
+ *
+ * @param str - String to check.
+ * @returns True if string is a base64 data URL.
+ */
 function isBase64DataUrl(str: string): boolean {
   return typeof str === "string" && str.startsWith("data:image/");
 }
 
+/**
+ * Checks if a string is a valid HTTP/HTTPS URL.
+ *
+ * @param str - String to check.
+ * @returns True if string is a valid HTTP URL.
+ */
 function isValidHttpUrl(str: string): boolean {
   if (!str || typeof str !== "string") return false;
   try {
@@ -24,6 +51,12 @@ function isValidHttpUrl(str: string): boolean {
   }
 }
 
+/**
+ * Checks if a URL is a Vercel Blob storage URL.
+ *
+ * @param str - URL string to check.
+ * @returns True if URL is a Vercel Blob URL.
+ */
 function isVercelBlobUrl(str: string): boolean {
   if (!isValidHttpUrl(str)) return false;
   try {
@@ -34,6 +67,13 @@ function isVercelBlobUrl(str: string): boolean {
   }
 }
 
+/**
+ * Uploads with timeout protection.
+ *
+ * @param promise - Upload promise.
+ * @param timeoutMs - Timeout in milliseconds.
+ * @returns Upload result.
+ */
 async function uploadWithTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
@@ -44,6 +84,15 @@ async function uploadWithTimeout<T>(
   return Promise.race([promise, timeout]);
 }
 
+/**
+ * Uploads a single image to blob storage.
+ *
+ * @param imageData - Image data (base64 or URL).
+ * @param index - Image index.
+ * @param characterId - Character ID.
+ * @param isAvatar - Whether this is an avatar image.
+ * @returns Uploaded image URL or null if failed.
+ */
 async function uploadSingleImage(
   imageData: string,
   index: number,
@@ -92,6 +141,13 @@ async function uploadSingleImage(
   }
 }
 
+/**
+ * Processes and uploads affiliate character images.
+ *
+ * @param metadata - Affiliate metadata with image references.
+ * @param characterId - Character ID.
+ * @returns Processed images with uploaded URLs.
+ */
 export async function processAffiliateImages(
   metadata: AffiliateMetadata | undefined,
   characterId: string,

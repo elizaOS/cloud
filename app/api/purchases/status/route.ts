@@ -4,11 +4,16 @@ import { purchasesService } from "@/lib/services/purchases";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 /**
- * GET /api/purchases/status?paymentIntentId=pi_xxxxx
- * Get the status of a PaymentIntent
+ * GET /api/purchases/status
+ * Gets the status of a PaymentIntent.
+ * Allows the frontend to poll for payment status updates.
+ * Used to check if a payment has completed successfully.
  *
- * This endpoint allows the frontend to poll for payment status updates
- * Used to check if a payment has completed successfully
+ * Query Parameters:
+ * - `paymentIntentId`: Stripe PaymentIntent ID (required, pi_* format).
+ *
+ * @param req - Request with paymentIntentId query parameter.
+ * @returns PaymentIntent status, amount, currency, and metadata.
  */
 async function handleGetPurchaseStatus(req: NextRequest) {
   try {

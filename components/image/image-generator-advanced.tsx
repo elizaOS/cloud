@@ -155,33 +155,33 @@ export function ImageGeneratorAdvanced() {
           .filter((g: GeneratedImage) => Boolean(g.url));
 
         if (generatedBatch.length > 0) {
-          setImageState(prev => ({
-            ...prev,
-            currentImages: generatedBatch,
-            currentImage: generatedBatch[0],
-            currentIndex: 0,
-            history: [...generatedBatch, ...prev.history].slice(0, 12),
-          }));
-        }
-      } else if (data.image) {
-        // Backward compatibility: single image response
-        const imageData = data.image.startsWith("data:")
-          ? data.image
-          : `data:image/png;base64,${data.image}`;
-
-        const newImage: GeneratedImage = {
-          id: Date.now().toString(),
-          url: imageData,
-          prompt,
-          timestamp: new Date(),
-          settings: { ...settings },
-        };
-
         setImageState(prev => ({
           ...prev,
-          currentImages: [newImage],
-          currentImage: newImage,
+          currentImages: generatedBatch,
+          currentImage: generatedBatch[0],
           currentIndex: 0,
+          history: [...generatedBatch, ...prev.history].slice(0, 12),
+        }));
+      }
+    } else if (data.image) {
+      // Backward compatibility: single image response
+      const imageData = data.image.startsWith("data:")
+        ? data.image
+        : `data:image/png;base64,${data.image}`;
+
+      const newImage: GeneratedImage = {
+        id: Date.now().toString(),
+        url: imageData,
+        prompt,
+        timestamp: new Date(),
+        settings: { ...settings },
+      };
+
+      setImageState(prev => ({
+        ...prev,
+        currentImages: [newImage],
+        currentImage: newImage,
+        currentIndex: 0,
           history: [newImage, ...prev.history].slice(0, 12),
         }));
       }

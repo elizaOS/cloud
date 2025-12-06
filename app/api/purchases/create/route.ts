@@ -25,11 +25,17 @@ const createPurchaseSchema = z.object({
 
 /**
  * POST /api/purchases/create
- * Create a PaymentIntent for a one-time credit purchase
+ * Creates a Stripe PaymentIntent for a one-time credit purchase.
+ * Supports custom amounts ($1-$1000). Can be confirmed immediately if a payment method is provided,
+ * or the client secret can be used with Stripe Elements for frontend confirmation.
  *
- * This endpoint creates a Stripe PaymentIntent for a custom amount purchase ($1-$1000)
- * The PaymentIntent can be confirmed immediately if a payment method is provided,
- * or the client secret can be used with Stripe Elements for frontend confirmation
+ * Request Body:
+ * - `amount`: Purchase amount in dollars (required, $1-$1000).
+ * - `paymentMethodId`: Optional Stripe payment method ID (pm_*).
+ * - `confirmImmediately`: Optional boolean to confirm payment immediately (default: false).
+ *
+ * @param req - Request body with purchase details.
+ * @returns PaymentIntent details including client secret and status.
  */
 async function handleCreatePurchase(req: NextRequest) {
   try {

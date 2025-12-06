@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import { agentRuntime } from "@/lib/eliza/agent-runtime";
+import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import {
   memoryCache,
   type MemoryRoomContext,
@@ -10,6 +10,7 @@ import { logger } from "@/lib/utils/logger";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import type { Memory, UUID } from "@elizaos/core";
+import { ChannelType, stringToUuid } from "@elizaos/core";
 import { createHash } from "crypto";
 import { conversationsService } from "@/lib/services/conversations";
 import type { ConversationMessage } from "@/db/repositories";
@@ -147,41 +148,37 @@ export class MemoryService {
   }
 
   async saveMemory(input: SaveMemoryInput): Promise<SaveMemoryResult> {
-    const runtime = await agentRuntime.getRuntime();
+    const runtime = await runtimeFactory.getSystemRuntime();
 
     // Ensure the room exists in the database
     const roomId = input.roomId as UUID;
-    const adapter = runtime.adapter as unknown as {
-      getRoomsByIds: (roomIds: UUID[]) => Promise<unknown[]>;
-      createRooms: (rooms: { id: UUID; source: string; type: string }[]) => Promise<UUID[]>;
-      ensureEntityExists: (entity: {
-        id: UUID;
-        agentId: UUID;
-        names?: string[];
-      }) => Promise<boolean>;
-      addParticipant: (entityId: UUID, roomId: UUID) => Promise<boolean>;
-    };
-
-    const existingRooms = await adapter.getRoomsByIds([roomId]);
-    if (!existingRooms || existingRooms.length === 0) {
-      // source and type are required fields in the rooms table (notNull, no default)
-      await adapter.createRooms([{ id: roomId, source: "api", type: "DIRECT" }]);
-      logger.debug(`[Memory Service] Created room: ${roomId}`);
-    }
-
-    // Ensure the entity (user) exists in the database
     const entityId = input.entityId as UUID;
-    await adapter.ensureEntityExists({
-      id: entityId,
-      agentId: runtime.agentId,
-      names: [entityId], // Use ID as name if we don't have a proper name
-    });
-    logger.debug(`[Memory Service] Ensured entity exists: ${entityId}`);
 
-    // Ensure the entity is a participant in the room
-    await adapter.addParticipant(entityId, roomId);
+    // Ensure room exists
+    await runtime.ensureRoomExists({
+      id: roomId,
+      source: "memory",
+      type: ChannelType.DM,
+      channelId: input.roomId,
+      serverId: stringToUuid("eliza-server") as UUID,
+      worldId: stringToUuid("eliza-world") as UUID,
+      agentId: runtime.agentId,
+    });
+    logger.debug(`[Memory Service] Ensured room exists: ${roomId}`);
+
+    // Ensure entity exists and is participant in room
+    // ensureConnection handles: createEntity (if needed) + ensureParticipantInRoom
+    await runtime.ensureConnection({
+      entityId,
+      roomId,
+      worldId: stringToUuid("eliza-world") as UUID,
+      source: "memory",
+      type: ChannelType.DM,
+      channelId: input.roomId,
+      userName: input.entityId,
+    });
     logger.debug(
-      `[Memory Service] Ensured participant in room: ${entityId} -> ${roomId}`,
+      `[Memory Service] Ensured entity and participant: ${entityId} -> ${roomId}`,
     );
 
     const memory: Memory = {
@@ -211,7 +208,7 @@ export class MemoryService {
           contentLength: JSON.stringify(memory.content).length,
         },
       );
-      await runtime.adapter.createMemory(memory, "memories", true);
+      await runtime.createMemory(memory, "memories", true);
       logger.info(
         `[Memory Service] Saved memory to PostgreSQL: ${memory.id}`,
       );
@@ -250,194 +247,194 @@ export class MemoryService {
       ),
     );
 
-      const runtime = await agentRuntime.getRuntime();
+    const runtime = await runtimeFactory.getSystemRuntime();
+    logger.info(
+      `[Memory Service] Runtime initialized, agentId: ${runtime.agentId}`,
+    );
+
+    if (input.query) {
+      const queryHash = this.hashQuery(input.query, input);
+      const cached = await memoryCache.getSearchResults(queryHash);
+      if (cached) {
+        logger.debug(
+          `[Memory Service] Cache HIT for search query: ${input.query.substring(0, 50)}`,
+        );
+        return cached;
+      }
+    }
+
+    let memories: Memory[] = [];
+
+    // PERFORMANCE FIX: Use efficient single-room check when roomId is provided
+    // instead of fetching all room IDs for the organization
+    if (input.roomId) {
       logger.info(
-        `[Memory Service] Runtime initialized, agentId: ${runtime.agentId}`,
+        `[Memory Service] Checking room ownership for roomId ${input.roomId}`,
+      );
+
+      const hasAccess = await this.checkRoomOwnership(
+        input.organizationId,
+        input.roomId,
+      );
+
+      if (!hasAccess) {
+        logger.warn(
+          `[Memory Service] Room ${input.roomId} does not belong to organization ${input.organizationId}`,
+        );
+        return [];
+      }
+
+      logger.info(
+        `[Memory Service] Room ${input.roomId} is allowed, fetching memories`,
       );
 
       if (input.query) {
-        const queryHash = this.hashQuery(input.query, input);
-        const cached = await memoryCache.getSearchResults(queryHash);
-        if (cached) {
-          logger.debug(
-            `[Memory Service] Cache HIT for search query: ${input.query.substring(0, 50)}`,
-          );
-          return cached;
-        }
-      }
-
-      let memories: Memory[] = [];
-
-      // PERFORMANCE FIX: Use efficient single-room check when roomId is provided
-      // instead of fetching all room IDs for the organization
-      if (input.roomId) {
+        const embedding = new Array(1536).fill(0);
         logger.info(
-          `[Memory Service] Checking room ownership for roomId ${input.roomId}`,
+          `[Memory Service] Calling searchMemories with roomId: ${input.roomId}`,
         );
-
-        const hasAccess = await this.checkRoomOwnership(
-          input.organizationId,
-          input.roomId,
-        );
-
-        if (!hasAccess) {
-          logger.warn(
-            `[Memory Service] Room ${input.roomId} does not belong to organization ${input.organizationId}`,
-          );
-          return [];
-        }
-
-        logger.info(
-          `[Memory Service] Room ${input.roomId} is allowed, fetching memories`,
-        );
-
-        if (input.query) {
-          const embedding = new Array(1536).fill(0);
-          logger.info(
-            `[Memory Service] Calling searchMemories with roomId: ${input.roomId}`,
-          );
-          memories = await runtime.adapter.searchMemories({
-            embedding,
-            tableName: "memories",
-            count: input.limit || 10,
-            roomId: input.roomId as UUID,
-            match_threshold: 0.7,
-          });
-        } else {
-          logger.info(
-            `[Memory Service] Querying database directly for roomId: ${input.roomId}`,
-          );
-
-          const results = await db
-            .select()
-            .from(memoryTable)
-            .where(
-              and(
-                eq(memoryTable.roomId, input.roomId),
-                eq(memoryTable.agentId, runtime.agentId),
-              ),
-            )
-            .orderBy(desc(memoryTable.createdAt))
-            .limit(input.limit || 10);
-
-          memories = results.map(
-            (row) =>
-              ({
-                id: row.id as UUID,
-                type: row.type,
-                createdAt: new Date(row.createdAt).getTime(),
-                content: row.content,
-                entityId: row.entityId as UUID,
-                agentId: row.agentId as UUID,
-                roomId: row.roomId as UUID,
-                worldId: row.worldId as UUID | undefined,
-                unique: row.unique,
-              }) as Memory,
-          );
-        }
-
-        logger.info(
-          `[Memory Service] Database query returned ${memories.length} memories`,
-        );
+        memories = await runtime.searchMemories({
+          embedding,
+          tableName: "memories",
+          count: input.limit || 10,
+          roomId: input.roomId as UUID,
+          match_threshold: 0.7,
+        });
       } else {
         logger.info(
-          `[Memory Service] No specific roomId, fetching from all allowed rooms`,
+          `[Memory Service] Querying database directly for roomId: ${input.roomId}`,
         );
 
-        // Fetch all room IDs for the organization when no specific room is requested
-        const allowedRoomIds = await this.getRoomIdsForOrganization(
-          input.organizationId,
-        );
+        const results = await db
+          .select()
+          .from(memoryTable)
+          .where(
+            and(
+              eq(memoryTable.roomId, input.roomId),
+              eq(memoryTable.agentId, runtime.agentId),
+            ),
+          )
+          .orderBy(desc(memoryTable.createdAt))
+          .limit(input.limit || 10);
 
-        logger.info(
-          `[Memory Service] Allowed room IDs size: ${allowedRoomIds.size}`,
-        );
-
-        if (allowedRoomIds.size === 0) {
-          logger.warn(
-            `[Memory Service] No rooms found for organization ${input.organizationId}`,
-          );
-          return [];
-        }
-
-        const allMemories: Memory[] = [];
-        const limit = input.limit || 10;
-
-        for (const roomId of allowedRoomIds) {
-          logger.info(`[Memory Service] Fetching memories for room: ${roomId}`);
-
-          const results = await db
-            .select()
-            .from(memoryTable)
-            .where(
-              and(
-                eq(memoryTable.roomId, roomId),
-                eq(memoryTable.agentId, runtime.agentId),
-              ),
-            )
-            .orderBy(desc(memoryTable.createdAt))
-            .limit(limit);
-
-          const roomMemories = results.map(
-            (row) =>
-              ({
-                id: row.id as UUID,
-                type: row.type,
-                createdAt: new Date(row.createdAt).getTime(),
-                content: row.content,
-                entityId: row.entityId as UUID,
-                agentId: row.agentId as UUID,
-                roomId: row.roomId as UUID,
-                worldId: row.worldId as UUID | undefined,
-                unique: row.unique,
-              }) as Memory,
-          );
-
-          logger.info(
-            `[Memory Service] Room ${roomId} returned ${roomMemories.length} memories`,
-          );
-          allMemories.push(...roomMemories);
-
-          if (allMemories.length >= limit) {
-            break;
-          }
-        }
-
-        memories = allMemories.slice(0, limit);
-        logger.info(
-          `[Memory Service] Total memories collected: ${memories.length}`,
-        );
-      }
-
-      const filteredMemories = memories;
-
-      const results: SearchResult[] = filteredMemories.map((memory) => ({
-        memory,
-        score: 1.0,
-        context: [],
-      }));
-
-      if (input.query) {
-        const queryHash = this.hashQuery(input.query, input);
-        await memoryCache.cacheSearchResults(
-          queryHash,
-          results,
-          CacheTTL.memory.search,
+        memories = results.map(
+          (row) =>
+            ({
+              id: row.id as UUID,
+              type: row.type,
+              createdAt: new Date(row.createdAt).getTime(),
+              content: row.content,
+              entityId: row.entityId as UUID,
+              agentId: row.agentId as UUID,
+              roomId: row.roomId as UUID,
+              worldId: row.worldId as UUID | undefined,
+              unique: row.unique,
+            }) as Memory,
         );
       }
 
       logger.info(
-        `[Memory Service] Retrieved ${results.length} memories (filtered from ${memories.length}) for query`,
+        `[Memory Service] Database query returned ${memories.length} memories`,
       );
-      return results;
+    } else {
+      logger.info(
+        `[Memory Service] No specific roomId, fetching from all allowed rooms`,
+      );
+
+      // Fetch all room IDs for the organization when no specific room is requested
+      const allowedRoomIds = await this.getRoomIdsForOrganization(
+        input.organizationId,
+      );
+
+      logger.info(
+        `[Memory Service] Allowed room IDs size: ${allowedRoomIds.size}`,
+      );
+
+      if (allowedRoomIds.size === 0) {
+        logger.warn(
+          `[Memory Service] No rooms found for organization ${input.organizationId}`,
+        );
+        return [];
+      }
+
+      const allMemories: Memory[] = [];
+      const limit = input.limit || 10;
+
+      for (const roomId of allowedRoomIds) {
+        logger.info(`[Memory Service] Fetching memories for room: ${roomId}`);
+
+        const results = await db
+          .select()
+          .from(memoryTable)
+          .where(
+            and(
+              eq(memoryTable.roomId, roomId),
+              eq(memoryTable.agentId, runtime.agentId),
+            ),
+          )
+          .orderBy(desc(memoryTable.createdAt))
+          .limit(limit);
+
+        const roomMemories = results.map(
+          (row) =>
+            ({
+              id: row.id as UUID,
+              type: row.type,
+              createdAt: new Date(row.createdAt).getTime(),
+              content: row.content,
+              entityId: row.entityId as UUID,
+              agentId: row.agentId as UUID,
+              roomId: row.roomId as UUID,
+              worldId: row.worldId as UUID | undefined,
+              unique: row.unique,
+            }) as Memory,
+        );
+
+        logger.info(
+          `[Memory Service] Room ${roomId} returned ${roomMemories.length} memories`,
+        );
+        allMemories.push(...roomMemories);
+
+        if (allMemories.length >= limit) {
+          break;
+        }
+      }
+
+      memories = allMemories.slice(0, limit);
+      logger.info(
+        `[Memory Service] Total memories collected: ${memories.length}`,
+      );
+    }
+
+    const filteredMemories = memories;
+
+    const results: SearchResult[] = filteredMemories.map((memory) => ({
+      memory,
+      score: 1.0,
+      context: [],
+    }));
+
+    if (input.query) {
+      const queryHash = this.hashQuery(input.query, input);
+      await memoryCache.cacheSearchResults(
+        queryHash,
+        results,
+        CacheTTL.memory.search,
+      );
+    }
+
+    logger.info(
+      `[Memory Service] Retrieved ${results.length} memories (filtered from ${memories.length}) for query`,
+    );
+    return results;
   }
 
   async deleteMemory(input: DeleteMemoryInput): Promise<DeleteMemoryResult> {
-    const runtime = await agentRuntime.getRuntime();
+    const runtime = await runtimeFactory.getSystemRuntime();
     let deletedCount = 0;
 
     if (input.memoryId) {
-      await runtime.adapter.deleteMemory(input.memoryId as UUID);
+      await runtime.deleteMemory(input.memoryId as UUID);
       await memoryCache.invalidateMemory(input.memoryId);
       deletedCount = 1;
     }
@@ -463,19 +460,19 @@ export class MemoryService {
       return cached;
     }
 
-    const runtime = await agentRuntime.getRuntime();
+    const runtime = await runtimeFactory.getSystemRuntime();
 
-    const memories = await runtime.adapter.getMemoriesByRoomIds({
+    const memories = await runtime.getMemoriesByRoomIds({
       tableName: "messages",
       roomIds: [roomId as UUID],
       limit: depth,
     });
 
-    const participants = await runtime.adapter.getParticipantsForRoom(
+    const participants = await runtime.getParticipantsForRoom(
       roomId as UUID,
     );
 
-    const rooms = await runtime.adapter.getRoomsByIds([roomId as UUID]);
+    const rooms = await runtime.getRoomsByIds([roomId as UUID]);
     const room = rooms && rooms.length > 0 ? rooms[0] : null;
 
     const context: MemoryRoomContext = {
@@ -548,7 +545,7 @@ export class MemoryService {
       id: uuidv4() as UUID,
       roomId: input.roomId as UUID,
       entityId: context.participants[0] || ("system" as UUID),
-      agentId: (await agentRuntime.getRuntime()).agentId,
+      agentId: (await runtimeFactory.getSystemRuntime()).agentId,
       createdAt: Date.now(),
       content: summary as unknown as Record<string, unknown>,
     };
@@ -848,122 +845,122 @@ Summary:`;
       limit: 100,
     });
 
-      const memoriesText = memories
-        .map((m) => m.memory.content.text || "")
-        .join("\n");
+    const memoriesText = memories
+      .map((m) => m.memory.content.text || "")
+      .join("\n");
 
-      let insights: string[] = [];
-      let data: Record<string, unknown> = {};
-      let chartData: Array<{ label: string; value: number }> = [];
+    let insights: string[] = [];
+    let data: Record<string, unknown> = {};
+    let chartData: Array<{ label: string; value: number }> = [];
 
-      switch (analysisType) {
-        case "topics":
-          const topics = this.extractTopics(memoriesText);
-          insights = [
-            `Identified ${topics.length} key topics from ${memories.length} memories`,
-            `Most frequent: ${topics.slice(0, 3).join(", ")}`,
-          ];
-          data = { topics };
-          chartData = topics.map((topic, idx) => ({
-            label: topic,
-            value: topics.length - idx,
-          }));
-          break;
+    switch (analysisType) {
+      case "topics":
+        const topics = this.extractTopics(memoriesText);
+        insights = [
+          `Identified ${topics.length} key topics from ${memories.length} memories`,
+          `Most frequent: ${topics.slice(0, 3).join(", ")}`,
+        ];
+        data = { topics };
+        chartData = topics.map((topic, idx) => ({
+          label: topic,
+          value: topics.length - idx,
+        }));
+        break;
 
-        case "timeline":
-          const timelineData = memories.map((m) => ({
-            date: new Date(m.memory.createdAt || Date.now()),
-            type: m.memory.content.type || "unknown",
-          }));
+      case "timeline":
+        const timelineData = memories.map((m) => ({
+          date: new Date(m.memory.createdAt || Date.now()),
+          type: m.memory.content.type || "unknown",
+        }));
 
-          const groupedByDay = new Map<string, number>();
-          for (const item of timelineData) {
-            const day = item.date.toISOString().split("T")[0];
-            groupedByDay.set(day, (groupedByDay.get(day) || 0) + 1);
-          }
+        const groupedByDay = new Map<string, number>();
+        for (const item of timelineData) {
+          const day = item.date.toISOString().split("T")[0];
+          groupedByDay.set(day, (groupedByDay.get(day) || 0) + 1);
+        }
 
-          chartData = Array.from(groupedByDay.entries()).map(
-            ([label, value]) => ({ label, value }),
-          );
+        chartData = Array.from(groupedByDay.entries()).map(
+          ([label, value]) => ({ label, value }),
+        );
 
-          insights = [
-            `Analyzed ${memories.length} memories over ${groupedByDay.size} days`,
-            `Peak activity: ${Math.max(...Array.from(groupedByDay.values()))} memories in a single day`,
-          ];
-          data = { timelineData: Object.fromEntries(groupedByDay) };
-          break;
+        insights = [
+          `Analyzed ${memories.length} memories over ${groupedByDay.size} days`,
+          `Peak activity: ${Math.max(...Array.from(groupedByDay.values()))} memories in a single day`,
+        ];
+        data = { timelineData: Object.fromEntries(groupedByDay) };
+        break;
 
-        case "entities":
-          const words = memoriesText
-            .toLowerCase()
-            .split(/\W+/)
-            .filter((w) => w.length > 3);
-          const wordCounts = new Map<string, number>();
-          for (const word of words) {
-            wordCounts.set(word, (wordCounts.get(word) || 0) + 1);
-          }
+      case "entities":
+        const words = memoriesText
+          .toLowerCase()
+          .split(/\W+/)
+          .filter((w) => w.length > 3);
+        const wordCounts = new Map<string, number>();
+        for (const word of words) {
+          wordCounts.set(word, (wordCounts.get(word) || 0) + 1);
+        }
 
-          const topEntities = Array.from(wordCounts.entries())
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 10);
+        const topEntities = Array.from(wordCounts.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10);
 
-          chartData = topEntities.map(([label, value]) => ({ label, value }));
-          insights = [
-            `Extracted ${topEntities.length} key entities`,
-            `Total unique words: ${wordCounts.size}`,
-          ];
-          data = { entities: Object.fromEntries(topEntities) };
-          break;
+        chartData = topEntities.map(([label, value]) => ({ label, value }));
+        insights = [
+          `Extracted ${topEntities.length} key entities`,
+          `Total unique words: ${wordCounts.size}`,
+        ];
+        data = { entities: Object.fromEntries(topEntities) };
+        break;
 
-        case "sentiment":
-          const positiveWords = ["good", "great", "excellent", "happy", "love"];
-          const negativeWords = ["bad", "terrible", "hate", "sad", "poor"];
+      case "sentiment":
+        const positiveWords = ["good", "great", "excellent", "happy", "love"];
+        const negativeWords = ["bad", "terrible", "hate", "sad", "poor"];
 
-          let positiveCount = 0;
-          let negativeCount = 0;
+        let positiveCount = 0;
+        let negativeCount = 0;
 
-          const lowerText = memoriesText.toLowerCase();
-          for (const word of positiveWords) {
-            positiveCount += (lowerText.match(new RegExp(word, "g")) || [])
-              .length;
-          }
-          for (const word of negativeWords) {
-            negativeCount += (lowerText.match(new RegExp(word, "g")) || [])
-              .length;
-          }
+        const lowerText = memoriesText.toLowerCase();
+        for (const word of positiveWords) {
+          positiveCount += (lowerText.match(new RegExp(word, "g")) || [])
+            .length;
+        }
+        for (const word of negativeWords) {
+          negativeCount += (lowerText.match(new RegExp(word, "g")) || [])
+            .length;
+        }
 
-          const neutralCount = memories.length - positiveCount - negativeCount;
+        const neutralCount = memories.length - positiveCount - negativeCount;
 
-          chartData = [
-            { label: "Positive", value: positiveCount },
-            { label: "Neutral", value: neutralCount },
-            { label: "Negative", value: negativeCount },
-          ];
+        chartData = [
+          { label: "Positive", value: positiveCount },
+          { label: "Neutral", value: neutralCount },
+          { label: "Negative", value: negativeCount },
+        ];
 
-          insights = [
-            `Sentiment distribution: ${positiveCount} positive, ${neutralCount} neutral, ${negativeCount} negative`,
-            positiveCount > negativeCount
-              ? "Overall positive sentiment detected"
-              : "Overall negative sentiment detected",
-          ];
-          data = {
-            positive: positiveCount,
-            neutral: neutralCount,
-            negative: negativeCount,
-          };
-          break;
-      }
+        insights = [
+          `Sentiment distribution: ${positiveCount} positive, ${neutralCount} neutral, ${negativeCount} negative`,
+          positiveCount > negativeCount
+            ? "Overall positive sentiment detected"
+            : "Overall negative sentiment detected",
+        ];
+        data = {
+          positive: positiveCount,
+          neutral: neutralCount,
+          negative: negativeCount,
+        };
+        break;
+    }
 
-      logger.info(
-        `[Memory Service] Analyzed ${memories.length} memories for ${analysisType}`,
-      );
+    logger.info(
+      `[Memory Service] Analyzed ${memories.length} memories for ${analysisType}`,
+    );
 
-      return {
-        analysisType,
-        insights,
-        data,
-        chartData,
-      };
+    return {
+      analysisType,
+      insights,
+      data,
+      chartData,
+    };
   }
 
   private calculateRelevanceScore(text: string, query: string): number {

@@ -1,3 +1,11 @@
+/**
+ * OpenAPI viewer component displaying OpenAPI specification in Monaco editor.
+ * Provides syntax highlighting with custom theme matching application design.
+ *
+ * @param props - OpenAPI viewer configuration
+ * @param props.value - OpenAPI specification JSON string
+ */
+
 "use client";
 
 import { useRef } from "react";

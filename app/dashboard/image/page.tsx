@@ -10,6 +10,11 @@ export const metadata: Metadata = generatePageMetadata({
   noIndex: true,
 });
 
+/**
+ * Image Generation page for creating AI-generated images.
+ *
+ * @returns The rendered image generation page client component.
+ */
 export default function ImagePage() {
   return <ImagePageClient />;
 }

@@ -1,3 +1,11 @@
+/**
+ * Account details component displaying user account information and status.
+ * Shows account ID, email verification, wallet address, and important dates.
+ *
+ * @param props - Account details configuration
+ * @param props.user - User data with organization information
+ */
+
 "use client";
 
 import { Info, CheckCircle2, XCircle, Calendar, Wallet } from "lucide-react";

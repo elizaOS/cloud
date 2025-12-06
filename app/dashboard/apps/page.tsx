@@ -9,6 +9,12 @@ import { CreateAppButton } from "@/components/apps/create-app-button";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Apps page displaying all apps for the authenticated user's organization.
+ * Shows statistics (total apps, active apps, total users, total requests) and a table of apps.
+ *
+ * @returns The rendered apps page with statistics and apps table.
+ */
 export default async function AppsPage() {
   const user = await requireAuthWithOrg();
   const apps = await appsService.listByOrganization(user.organization_id);
