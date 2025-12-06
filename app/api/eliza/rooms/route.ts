@@ -169,18 +169,26 @@ export async function POST(request: NextRequest) {
   const agentId = characterId || DEFAULT_AGENT_ID;
 
   // Ensure the agent exists in the database before creating the room
-  // For custom characters, this creates an agent record from the character data
-  // For the default agent, this verifies it exists (should be seeded)
-  await agentsService.ensureAgentExists(agentId);
+  if (!characterId || characterId === DEFAULT_AGENT_ID) {
+    // Ensure default Eliza agent exists in database
+    await agentsService.ensureDefaultAgentExists();
+  } else {
+    // Ensure custom character agent exists in database
+    await agentsService.ensureAgentExists(agentId);
+  }
 
   // Create room via service (pure DB operation)
+  // NOTE: We only create a minimal room record here
+  // The full setup (worldId, serverId, entities, participants) happens
+  // when the first message is sent via message-handler.ensureConnection()
+  // This keeps room creation fast and lightweight
   const roomId = uuidv4();
   const createdAt = Date.now();
 
   await roomsService.createRoom({
     id: roomId,
     agentId, // Always set - either characterId or DEFAULT_AGENT_ID
-    entityId: userId, // User's ID (from auth)
+    entityId: userId, // User's ID (from auth) - not used in ElizaOS schema but useful for our queries
     source: "web",
     type: "DM",
     metadata: {
@@ -192,7 +200,9 @@ export async function POST(request: NextRequest) {
   logger.info(
     "[Eliza Rooms API POST] ✓ Room created:",
     roomId,
-    "for user:",
+    "| agentId:",
+    agentId,
+    "| user:",
     userId,
   );
 
