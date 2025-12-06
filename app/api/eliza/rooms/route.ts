@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
+import {
+  getAnonymousUser,
+  getOrCreateAnonymousUser,
+} from "@/lib/auth-anonymous";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { anonymousSessionsService, usersService } from "@/lib/services";
 
@@ -11,8 +14,8 @@ import { anonymousSessionsService, usersService } from "@/lib/services";
  * Gets all rooms for the authenticated or anonymous user with last message preview.
  * Returns rooms sorted by most recent activity.
  *
- * @param request - The Next.js request object.
- * @returns Array of rooms with last message preview.
+ * Single optimized query - no runtime needed
+ * Security: entityId is derived from authenticated user, not client-supplied
  */
 export async function GET(request: NextRequest) {
   // Support both authenticated and anonymous users
@@ -54,8 +57,11 @@ export async function GET(request: NextRequest) {
  * Creates a new chat room for the authenticated or anonymous user.
  * Supports both authenticated and anonymous users via session tokens.
  *
- * @param request - Request body with characterId and optional sessionToken.
- * @returns Created room ID, character ID, and creation timestamp.
+ * Minimal room creation - just creates room record in database
+ * The runtime will handle entity/participant setup when first message is sent
+ * via ensureConnection in message-handler.ts
+ *
+ * Security: entityId is derived from authenticated user, not client-supplied
  */
 export async function POST(request: NextRequest) {
   const body = await request.json();

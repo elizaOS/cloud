@@ -32,3 +32,4 @@ export * from "./referrals";
 export * from "./relations";
 export * from "./eliza";
 export * from "./eliza-room-characters";
+export * from "./agent-events";

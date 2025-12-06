@@ -8,16 +8,17 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ChevronDown } from "lucide-react";
 import { SidebarNavigationItem } from "./sidebar-item";
-import type { SidebarSection } from "./sidebar-data";
+import type { SidebarSection, SidebarItem } from "./sidebar-data";
 import {
   Collapsible,
   CollapsibleTrigger,
   CollapsibleContent,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { isFeatureEnabled } from "@/lib/config/feature-flags";
 
 interface SidebarNavigationSectionProps {
   section: SidebarSection;
@@ -26,6 +27,13 @@ interface SidebarNavigationSectionProps {
 export function SidebarNavigationSection({
   section,
 }: SidebarNavigationSectionProps) {
+  const filteredItems = useMemo(() => {
+    return section.items.filter((item: SidebarItem) => {
+      if (!item.featureFlag) return true;
+      return isFeatureEnabled(item.featureFlag);
+    });
+  }, [section.items]);
+
   // Generate a storage key based on section title
   const storageKey = section.title
     ? `sidebar-section-${section.title.toLowerCase().replace(/\s+/g, "-")}`
@@ -44,6 +52,10 @@ export function SidebarNavigationSection({
       localStorage.setItem(storageKey, String(isOpen));
     }
   }, [isOpen, storageKey]);
+
+  if (filteredItems.length === 0) {
+    return null;
+  }
 
   // Assign colors based on section type
   const getSectionColor = () => {
@@ -67,7 +79,7 @@ export function SidebarNavigationSection({
   if (!section.title) {
     return (
       <nav className="space-y-1">
-        {section.items.map((item) => (
+        {filteredItems.map((item) => (
           <SidebarNavigationItem key={item.id} item={item} />
         ))}
       </nav>
@@ -100,7 +112,7 @@ export function SidebarNavigationSection({
       </CollapsibleTrigger>
       <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
         <nav className="space-y-1">
-          {section.items.map((item) => (
+          {filteredItems.map((item) => (
             <SidebarNavigationItem key={item.id} item={item} />
           ))}
         </nav>

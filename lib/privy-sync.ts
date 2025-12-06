@@ -14,8 +14,28 @@ import {
   invitesService,
   discordService,
   apiKeysService,
+  creditsService,
+  abuseDetectionService,
+  type SignupContext,
 } from "@/lib/services";
 import type { UserWithOrganization } from "@/lib/types";
+
+const DEFAULT_INITIAL_CREDITS = 5.0;
+const getInitialCredits = (): number => {
+  const envValue = process.env.INITIAL_FREE_CREDITS;
+  if (envValue) {
+    const parsed = parseFloat(envValue);
+    if (!isNaN(parsed) && parsed >= 0) {
+      return parsed;
+    }
+  }
+  return DEFAULT_INITIAL_CREDITS;
+};
+
+export interface SyncOptions {
+  signupContext?: SignupContext;
+  skipAbuseCheck?: boolean;
+}
 
 /**
  * Generates a unique organization slug from an email address.
@@ -68,7 +88,9 @@ interface PrivyUserData {
  */
 export async function syncUserFromPrivy(
   privyUser: PrivyUserData,
+  options: SyncOptions = {},
 ): Promise<UserWithOrganization> {
+  const { signupContext, skipAbuseCheck = false } = options;
   const privyUserId = privyUser.id;
 
   // Extract email
@@ -260,6 +282,26 @@ export async function syncUserFromPrivy(
   }
 
   // Create new user and organization
+
+  // Check for abuse before creating new account
+  if (!skipAbuseCheck && signupContext) {
+    const abuseCheck = await abuseDetectionService.checkSignupAbuse({
+      email,
+      ipAddress: signupContext.ipAddress,
+      fingerprint: signupContext.fingerprint,
+      userAgent: signupContext.userAgent,
+    });
+
+    if (!abuseCheck.allowed) {
+      console.warn("[PrivySync] Signup blocked due to abuse detection:", {
+        privyUserId,
+        riskScore: abuseCheck.riskScore,
+        flags: abuseCheck.flags,
+      });
+      throw new Error(abuseCheck.reason || "Signup blocked due to suspicious activity");
+    }
+  }
+
   let orgSlug: string;
   if (email) {
     orgSlug = generateSlugFromEmail(email);
@@ -283,13 +325,39 @@ export async function syncUserFromPrivy(
       : generateSlugFromWallet(walletAddress!);
   }
 
-  // Create organization
-  const INITIAL_BALANCE = 5.0; // $5.00 USD starting balance
+  // Create organization with zero balance initially
   const organization = await organizationsService.create({
     name: `${name}'s Organization`,
     slug: orgSlug,
-    credit_balance: String(INITIAL_BALANCE),
+    credit_balance: "0.00",
   });
+
+  // Record signup metadata for future abuse detection
+  if (signupContext) {
+    await abuseDetectionService.recordSignupMetadata(organization.id, signupContext);
+  }
+
+  // Add initial free credits via creditsService for proper tracking
+  const initialCredits = getInitialCredits();
+  if (initialCredits > 0) {
+    try {
+      await creditsService.addCredits({
+        organizationId: organization.id,
+        amount: initialCredits,
+        description: "Initial free credits - Welcome bonus",
+        metadata: {
+          type: "initial_free_credits",
+          source: "signup",
+        },
+      });
+    } catch (error) {
+      console.error("[PrivySync] Failed to add initial credits:", error);
+      // Fallback: update organization balance directly if addCredits fails
+      await organizationsService.update(organization.id, {
+        credit_balance: String(initialCredits),
+      });
+    }
+  }
 
   // Create user - handle race condition where another request created the user
   try {
@@ -392,7 +460,9 @@ export async function syncUserFromPrivy(
       email: recipientEmail,
       userName: name || "there",
       organizationName: userWithOrg.organization?.name || "",
-      creditBalance: Number(userWithOrg.organization?.credit_balance || 0),
+      creditBalance: initialCredits,
+    }).catch((error) => {
+      console.error("[PrivySync] Failed to send welcome email:", error);
     });
   } else {
     console.warn("[PrivySync] No email available for welcome email", {

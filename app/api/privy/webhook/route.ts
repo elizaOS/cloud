@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers, cookies } from "next/headers";
 import crypto from "crypto";
-import { syncUserFromPrivy } from "@/lib/privy-sync";
-import { convertAnonymousToReal } from "@/lib/auth-anonymous";
+import { syncUserFromPrivy, type SyncOptions } from "@/lib/privy-sync";
+import { migrateAnonymousSession } from "@/lib/session";
 import { anonymousSessionsService } from "@/lib/services";
+import { logger } from "@/lib/utils/logger";
 
 // Verify webhook signature from Privy using their recommended method
 async function verifyWebhookSignature(
@@ -88,13 +89,27 @@ export async function POST(request: NextRequest) {
 
     console.log("Received Privy webhook:", payload.type);
 
+    // Extract IP address from headers (for abuse tracking)
+    const forwardedFor = headersList.get("x-forwarded-for");
+    const realIp = headersList.get("x-real-ip");
+    const ipAddress = forwardedFor?.split(",")[0]?.trim() || realIp || undefined;
+    const userAgent = headersList.get("user-agent") || undefined;
+
     // Handle different webhook events
     switch (payload.type) {
       case "user.created":
       case "user.linked_account":
       case "user.authenticated": {
+        // Build sync options with signup context
+        const syncOptions: SyncOptions = {
+          signupContext: {
+            ipAddress,
+            userAgent,
+          },
+        };
+
         // Sync user on creation, linking new account, or authentication
-        const user = await syncUserFromPrivy(payload.user);
+        const user = await syncUserFromPrivy(payload.user, syncOptions);
         console.log("User synced via webhook:", user.id);
 
         // Check for anonymous session cookie and migrate data
@@ -102,8 +117,9 @@ export async function POST(request: NextRequest) {
         const anonSessionToken = cookieStore.get("eliza-anon-session")?.value;
 
         if (anonSessionToken) {
-          console.log(
-            "Anonymous session detected during signup, initiating migration...",
+          logger.info(
+            "[Privy Webhook] Anonymous session detected, initiating migration...",
+            { tokenPreview: anonSessionToken.slice(0, 8) + "..." }
           );
 
           try {
@@ -111,25 +127,28 @@ export async function POST(request: NextRequest) {
               await anonymousSessionsService.getByToken(anonSessionToken);
 
             if (anonSession) {
-              // Migrate anonymous data to real account
-              await convertAnonymousToReal(
+              const migrationResult = await migrateAnonymousSession(
                 anonSession.user_id,
-                payload.user.id,
+                payload.user.id
               );
 
-              console.log(
-                "Successfully migrated anonymous user to real account",
+              logger.info(
+                "[Privy Webhook] Migration completed",
                 {
+                  success: migrationResult.success,
                   anonymousUserId: anonSession.user_id,
                   realUserId: user.id,
                   privyUserId: payload.user.id,
-                  messageCount: anonSession.message_count,
-                },
+                  ...migrationResult.mergedData,
+                }
+              );
+            } else {
+              logger.debug(
+                "[Privy Webhook] Anonymous session token not found in DB"
               );
             }
           } catch (migrationError) {
-            // Log error but don't fail the webhook
-            console.error("Error migrating anonymous user:", migrationError);
+            logger.error("[Privy Webhook] Migration failed:", migrationError);
           }
         }
 

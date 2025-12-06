@@ -107,6 +107,19 @@ export { invoicesService } from "./invoices";
 // Referral & rewards services
 export { referralsService, socialRewardsService, REWARDS } from "./referrals";
 
+// Abuse detection
+export { abuseDetectionService } from "./abuse-detection";
+export type { AbuseCheckResult, SignupContext } from "./abuse-detection";
+
+// Agent monitoring
+export { agentMonitoringService } from "./agent-monitoring";
+export type {
+  AgentStatus,
+  AgentLogEntry,
+  AgentStatusResponse,
+  AgentEventResponse,
+} from "./agent-monitoring";
+
 // ============================================
 // Backward Compatibility (Deprecated)
 // Will be removed in future version
