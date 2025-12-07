@@ -409,8 +409,8 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                       })
                     }
                   >
-                    <Icon className="w-5 h-5 text-white/80" />
-                    <span className="text-sm">{label}</span>
+                    <Icon className="w-4 h-5 text-white/80" />
+                    <span className="text-xs flex-1">{label}</span>
                   </div>
                 );
               })}
