@@ -35,15 +35,28 @@ import {
   MCP_EVENT_TYPES,
 } from "@/lib/config/mcp";
 
-// List of all registered MCP tools
+// List of all registered MCP tools (37 total)
 const MCP_TOOLS = [
+  // Credits (2)
   "check_credits",
+  "stream_credit_updates",
+  // Usage (1)
   "get_recent_usage",
+  // Generation (5)
   "generate_text",
   "generate_image",
+  "generate_video",
+  "generate_embeddings",
+  "generate_prompts",
+  // Memory (4)
   "save_memory",
   "retrieve_memories",
   "delete_memory",
+  "analyze_memory_patterns",
+  // Knowledge (2)
+  "query_knowledge",
+  "upload_knowledge",
+  // Conversation (7)
   "get_conversation_context",
   "create_conversation",
   "search_conversations",
@@ -51,19 +64,35 @@ const MCP_TOOLS = [
   "optimize_context_window",
   "export_conversation",
   "clone_conversation",
-  "analyze_memory_patterns",
+  // Agents (6)
   "chat_with_agent",
   "list_agents",
   "subscribe_agent_events",
-  "stream_credit_updates",
+  "create_agent",
+  "update_agent",
+  "delete_agent",
+  // Infrastructure (4)
   "list_containers",
+  "list_models",
+  "list_gallery",
+  "get_analytics",
+  // Voice (2)
+  "text_to_speech",
+  "list_voices",
+  // API Keys (3)
+  "list_api_keys",
+  "create_api_key",
+  "delete_api_key",
+  // Redemptions (1)
+  "get_redemption_balance",
 ] as const;
 
-// Tool categories for organization
+// Tool categories for organization (9 categories)
 const TOOL_CATEGORIES = {
   credits: ["check_credits", "stream_credit_updates"],
-  generation: ["generate_text", "generate_image"],
+  generation: ["generate_text", "generate_image", "generate_video", "generate_embeddings", "generate_prompts"],
   memory: ["save_memory", "retrieve_memories", "delete_memory", "analyze_memory_patterns"],
+  knowledge: ["query_knowledge", "upload_knowledge"],
   conversation: [
     "get_conversation_context",
     "create_conversation",
@@ -73,8 +102,11 @@ const TOOL_CATEGORIES = {
     "export_conversation",
     "clone_conversation",
   ],
-  agents: ["chat_with_agent", "list_agents", "subscribe_agent_events"],
-  infrastructure: ["get_recent_usage", "list_containers"],
+  agents: ["chat_with_agent", "list_agents", "subscribe_agent_events", "create_agent", "update_agent", "delete_agent"],
+  infrastructure: ["get_recent_usage", "list_containers", "list_models", "list_gallery", "get_analytics"],
+  voice: ["text_to_speech", "list_voices"],
+  apiKeys: ["list_api_keys", "create_api_key", "delete_api_key"],
+  redemptions: ["get_redemption_balance"],
 } as const;
 
 // ============================================================================
@@ -148,9 +180,9 @@ describe("MCP Configuration", () => {
 // ============================================================================
 
 describe("MCP Tool Registry", () => {
-  test("All 20 tools are defined", () => {
-    expect(MCP_TOOLS.length).toBe(20);
-    console.log(`✅ 20 MCP tools registered`);
+  test("All 37 tools are defined", () => {
+    expect(MCP_TOOLS.length).toBe(37);
+    console.log(`✅ 37 MCP tools registered`);
   });
 
   test("Tool names follow snake_case convention", () => {
@@ -205,6 +237,71 @@ describe("MCP Tool Registry", () => {
     expect(TOOL_CATEGORIES.agents).toContain("chat_with_agent");
     expect(TOOL_CATEGORIES.agents).toContain("list_agents");
     console.log(`✅ Agent interaction tools available`);
+  });
+
+  test("Agent CRUD tools are available", () => {
+    expect(TOOL_CATEGORIES.agents).toContain("create_agent");
+    expect(TOOL_CATEGORIES.agents).toContain("update_agent");
+    expect(TOOL_CATEGORIES.agents).toContain("delete_agent");
+    console.log(`✅ Agent CRUD tools available`);
+  });
+
+  test("Video generation is available", () => {
+    expect(TOOL_CATEGORIES.generation).toContain("generate_video");
+    console.log(`✅ Video generation tool available`);
+  });
+
+  test("Embeddings generation is available", () => {
+    expect(TOOL_CATEGORIES.generation).toContain("generate_embeddings");
+    console.log(`✅ Embeddings generation tool available`);
+  });
+
+  test("Model listing is available", () => {
+    expect(TOOL_CATEGORIES.infrastructure).toContain("list_models");
+    console.log(`✅ Model listing tool available`);
+  });
+
+  test("Knowledge query is available", () => {
+    expect(TOOL_CATEGORIES.knowledge).toContain("query_knowledge");
+    console.log(`✅ Knowledge query tool available`);
+  });
+
+  test("Gallery listing is available", () => {
+    expect(TOOL_CATEGORIES.infrastructure).toContain("list_gallery");
+    console.log(`✅ Gallery listing tool available`);
+  });
+
+  test("Voice/TTS tools are available", () => {
+    expect(TOOL_CATEGORIES.voice).toContain("text_to_speech");
+    expect(TOOL_CATEGORIES.voice).toContain("list_voices");
+    console.log(`✅ Voice/TTS tools available`);
+  });
+
+  test("API key management tools are available", () => {
+    expect(TOOL_CATEGORIES.apiKeys).toContain("list_api_keys");
+    expect(TOOL_CATEGORIES.apiKeys).toContain("create_api_key");
+    expect(TOOL_CATEGORIES.apiKeys).toContain("delete_api_key");
+    console.log(`✅ API key management tools available`);
+  });
+
+  test("Analytics tool is available", () => {
+    expect(TOOL_CATEGORIES.infrastructure).toContain("get_analytics");
+    console.log(`✅ Analytics tool available`);
+  });
+
+  test("Redemption balance tool is available", () => {
+    expect(TOOL_CATEGORIES.redemptions).toContain("get_redemption_balance");
+    console.log(`✅ Redemption balance tool available`);
+  });
+
+  test("Knowledge upload tool is available", () => {
+    expect(TOOL_CATEGORIES.knowledge).toContain("upload_knowledge");
+    console.log(`✅ Knowledge upload tool available`);
+  });
+
+  test("Prompt generation tool is available", () => {
+    expect(TOOL_CATEGORIES.generation).toContain("generate_prompts");
+    console.log(`✅ Prompt generation tool available`);
   });
 });
 

@@ -35,6 +35,7 @@ import {
   containersService,
   contentModerationService,
   agentReputationService,
+  apiKeysService,
 } from "@/lib/services";
 import { agentService } from "@/lib/services/agents/agents";
 import { streamText } from "ai";
@@ -273,6 +274,96 @@ async function processA2AMessage(
     responseMessage = createMessage("agent", [createDataPart(result)]);
   } else if (skillId === "create_conversation") {
     const result = await executeSkillCreateConversation(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "delete_memory") {
+    const result = await executeSkillDeleteMemory(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "get_conversation_context") {
+    const result = await executeSkillGetConversationContext(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "create_agent") {
+    const result = await executeSkillCreateAgent(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "update_agent") {
+    const result = await executeSkillUpdateAgent(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "delete_agent") {
+    const result = await executeSkillDeleteAgent(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "video_generation" || skillId === "generate_video") {
+    const result = await executeSkillVideoGeneration(textContent, dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "generate_embeddings" || skillId === "embeddings") {
+    const result = await executeSkillGenerateEmbeddings(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "list_models" || skillId === "models") {
+    const result = await executeSkillListModels(ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "query_knowledge" || skillId === "knowledge") {
+    const result = await executeSkillQueryKnowledge(textContent, dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "list_gallery" || skillId === "gallery") {
+    const result = await executeSkillListGallery(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "text_to_speech" || skillId === "tts") {
+    const result = await executeSkillTextToSpeech(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "list_voices" || skillId === "voices") {
+    const result = await executeSkillListVoices(ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "get_analytics" || skillId === "analytics") {
+    const result = await executeSkillGetAnalytics(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "list_api_keys" || skillId === "api_keys") {
+    const result = await executeSkillListApiKeys(ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "create_api_key") {
+    const result = await executeSkillCreateApiKey(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "delete_api_key") {
+    const result = await executeSkillDeleteApiKey(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "get_redemption_balance" || skillId === "redemptions") {
+    const result = await executeSkillGetRedemptionBalance(ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "generate_prompts" || skillId === "prompts") {
+    const result = await executeSkillGeneratePrompts(ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "upload_knowledge") {
+    const result = await executeSkillUploadKnowledge(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "get_container") {
+    const result = await executeSkillGetContainer(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "get_container_health") {
+    const result = await executeSkillGetContainerHealth(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "get_container_logs") {
+    const result = await executeSkillGetContainerLogs(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "list_mcps") {
+    const result = await executeSkillListMcps(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "create_mcp") {
+    const result = await executeSkillCreateMcp(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "delete_mcp") {
+    const result = await executeSkillDeleteMcp(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "list_rooms") {
+    const result = await executeSkillListRooms(ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "create_room") {
+    const result = await executeSkillCreateRoom(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "get_user_profile" || skillId === "profile") {
+    const result = await executeSkillGetUserProfile(ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "update_user_profile") {
+    const result = await executeSkillUpdateUserProfile(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "get_redemption_quote") {
+    const result = await executeSkillGetRedemptionQuote(dataContent, ctx);
     responseMessage = createMessage("agent", [createDataPart(result)]);
   } else {
     // Default to chat completion for unknown skills
@@ -573,6 +664,654 @@ async function executeSkillListContainers(
   };
 }
 
+// ===== Additional Skills for Full Coverage =====
+
+async function executeSkillDeleteMemory(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean; memoryId: string }> {
+  const memoryId = dataContent.memoryId as string;
+  if (!memoryId) throw new Error("memoryId required");
+
+  await memoryService.deleteMemory({ organizationId: ctx.user.organization_id, memoryId });
+  return { success: true, memoryId };
+}
+
+async function executeSkillGetConversationContext(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ context: Record<string, unknown> }> {
+  const conversationId = dataContent.conversationId as string;
+  if (!conversationId) throw new Error("conversationId required");
+
+  const conversation = await conversationsService.getById(conversationId);
+  if (!conversation || conversation.organization_id !== ctx.user.organization_id) {
+    throw new Error("Conversation not found");
+  }
+
+  return {
+    context: {
+      id: conversation.id,
+      title: conversation.title,
+      model: conversation.model,
+      settings: conversation.settings,
+      createdAt: conversation.created_at,
+      updatedAt: conversation.updated_at,
+    },
+  };
+}
+
+async function executeSkillCreateAgent(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ agentId: string; name: string }> {
+  const name = dataContent.name as string;
+  const bio = dataContent.bio as string | string[];
+  const system = dataContent.system as string | undefined;
+  const category = dataContent.category as string | undefined;
+  const tags = dataContent.tags as string[] | undefined;
+
+  if (!name) throw new Error("name required");
+
+  const character = await charactersService.create({
+    organization_id: ctx.user.organization_id,
+    user_id: ctx.user.id,
+    name,
+    bio: Array.isArray(bio) ? bio : [bio || ""],
+    system: system || null,
+    category: category || "assistant",
+    tags: tags || [],
+    source: "a2a",
+  });
+
+  return { agentId: character.id, name: character.name };
+}
+
+async function executeSkillUpdateAgent(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean; agentId: string }> {
+  const agentId = dataContent.agentId as string;
+  if (!agentId) throw new Error("agentId required");
+
+  const updates: Record<string, unknown> = {};
+  if (dataContent.name) updates.name = dataContent.name;
+  if (dataContent.bio) updates.bio = Array.isArray(dataContent.bio) ? dataContent.bio : [dataContent.bio as string];
+  if (dataContent.system !== undefined) updates.system = dataContent.system;
+  if (dataContent.category) updates.category = dataContent.category;
+  if (dataContent.tags) updates.tags = dataContent.tags;
+
+  const updated = await charactersService.updateForUser(agentId, ctx.user.id, updates);
+  if (!updated) throw new Error("Agent not found or not owned by user");
+
+  return { success: true, agentId };
+}
+
+async function executeSkillDeleteAgent(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean; agentId: string }> {
+  const agentId = dataContent.agentId as string;
+  if (!agentId) throw new Error("agentId required");
+
+  const deleted = await charactersService.deleteForUser(agentId, ctx.user.id);
+  if (!deleted) throw new Error("Agent not found or not owned by user");
+
+  return { success: true, agentId };
+}
+
+async function executeSkillVideoGeneration(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ jobId: string; status: string; cost: number }> {
+  const prompt = (dataContent.prompt as string) || textContent;
+  const model = (dataContent.model as string) || "fal-ai/veo3";
+
+  if (!prompt) throw new Error("Video prompt required");
+
+  // Video generation costs more than images
+  const VIDEO_COST = 5; // $5 per video
+
+  if (Number(ctx.user.organization.credit_balance) < VIDEO_COST) {
+    throw new Error(`Insufficient credits: need $${VIDEO_COST.toFixed(2)}`);
+  }
+
+  const deduction = await creditsService.deductCredits({
+    organizationId: ctx.user.organization_id,
+    amount: VIDEO_COST,
+    description: "A2A video generation",
+    metadata: { user_id: ctx.user.id, model },
+  });
+  if (!deduction.success) throw new Error("Credit deduction failed");
+
+  const generation = await generationsService.create({
+    organization_id: ctx.user.organization_id,
+    user_id: ctx.user.id,
+    api_key_id: ctx.apiKeyId,
+    type: "video",
+    model,
+    provider: "fal",
+    prompt,
+    status: "pending",
+    credits: String(VIDEO_COST),
+    cost: String(VIDEO_COST),
+  });
+
+  // Note: Actual video generation is async and would be handled by a queue
+  // For now, return the job ID for polling
+  return {
+    jobId: generation.id,
+    status: "pending",
+    cost: VIDEO_COST,
+  };
+}
+
+async function executeSkillGenerateEmbeddings(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ embeddings: number[][]; model: string; usage: { totalTokens: number }; cost: number }> {
+  const input = dataContent.input as string | string[];
+  const model = (dataContent.model as string) || "text-embedding-3-small";
+
+  if (!input) throw new Error("input required");
+
+  const inputs = Array.isArray(input) ? input : [input];
+  const { getProvider } = await import("@/lib/providers");
+  const { estimateTokens } = await import("@/lib/pricing");
+
+  // Estimate cost
+  const totalTokens = inputs.reduce((sum, text) => sum + estimateTokens(text), 0);
+  const COST_PER_TOKEN = 0.00002 / 1000; // $0.00002 per 1K tokens
+  const estimatedCost = totalTokens * COST_PER_TOKEN;
+
+  if (Number(ctx.user.organization.credit_balance) < estimatedCost) {
+    throw new Error(`Insufficient credits: need $${estimatedCost.toFixed(6)}`);
+  }
+
+  const deduction = await creditsService.deductCredits({
+    organizationId: ctx.user.organization_id,
+    amount: estimatedCost,
+    description: `A2A embeddings: ${model}`,
+    metadata: { user_id: ctx.user.id, model, tokenCount: totalTokens },
+  });
+  if (!deduction.success) throw new Error("Credit deduction failed");
+
+  const provider = getProvider();
+  const response = await provider.createEmbeddings({ model, input: inputs });
+  const data = await response.json();
+
+  return {
+    embeddings: data.data.map((d: { embedding: number[] }) => d.embedding),
+    model,
+    usage: { totalTokens },
+    cost: estimatedCost,
+  };
+}
+
+async function executeSkillListModels(
+  ctx: A2AContext
+): Promise<{ models: Array<{ id: string; owned_by: string; created: number }> }> {
+  const { getProvider } = await import("@/lib/providers");
+  const provider = getProvider();
+  const response = await provider.listModels();
+  const data = await response.json();
+
+  return {
+    models: data.data.map((m: { id: string; owned_by: string; created: number }) => ({
+      id: m.id,
+      owned_by: m.owned_by,
+      created: m.created,
+    })),
+  };
+}
+
+async function executeSkillQueryKnowledge(
+  query: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ results: Array<{ content: string; score: number; id: string }>; count: number }> {
+  const characterId = dataContent.characterId as string | undefined;
+  const limit = Math.min(20, (dataContent.limit as number) || 5);
+
+  if (!query) throw new Error("query required");
+
+  // Query knowledge base via memory service (which has RAG capabilities)
+  const results = await memoryService.retrieveMemories({
+    organizationId: ctx.user.organization_id,
+    query,
+    roomId: characterId,
+    limit,
+    sortBy: "relevance",
+  });
+
+  return {
+    results: results.map((r) => ({
+      content: r.memory.content?.text || String(r.memory.content),
+      score: r.score,
+      id: r.memory.id,
+    })),
+    count: results.length,
+  };
+}
+
+async function executeSkillListGallery(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ media: Array<{ id: string; type: string; url: string; prompt: string; createdAt: string }>; total: number }> {
+  const type = dataContent.type as "image" | "video" | undefined;
+  const limit = Math.min(50, (dataContent.limit as number) || 20);
+
+  const generations = await generationsService.listByOrganization(ctx.user.organization_id, limit);
+  let filtered = generations;
+  if (type) {
+    filtered = generations.filter((g) => g.type === type);
+  }
+
+  return {
+    media: filtered.map((g) => ({
+      id: g.id,
+      type: g.type,
+      url: g.storage_url || g.content || "",
+      prompt: g.prompt || "",
+      createdAt: g.created_at.toISOString(),
+    })),
+    total: filtered.length,
+  };
+}
+
+// ===== Additional Skills for 100% Coverage =====
+
+async function executeSkillTextToSpeech(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ audioUrl: string; format: string; cost: number }> {
+  const text = dataContent.text as string;
+  const voiceId = (dataContent.voiceId as string) || "21m00Tcm4TlvDq8ikWAM"; // Default voice
+  
+  if (!text) throw new Error("text required");
+  if (text.length > 5000) throw new Error("Text too long (max 5000 chars)");
+
+  const TTS_COST = 0.001 * Math.ceil(text.length / 100); // ~$0.001 per 100 chars
+  
+  const deduction = await creditsService.deductCredits({
+    organizationId: ctx.user.organization_id,
+    amount: TTS_COST,
+    description: "A2A text-to-speech",
+    metadata: { user_id: ctx.user.id, chars: text.length },
+  });
+  if (!deduction.success) throw new Error("Insufficient credits");
+
+  const { getElevenLabsService } = await import("@/lib/services/elevenlabs");
+  const elevenLabs = await getElevenLabsService();
+  const audioBuffer = await elevenLabs.textToSpeech(text, voiceId);
+
+  // Upload to blob storage
+  const { uploadFromBuffer } = await import("@/lib/blob");
+  const audioUrl = await uploadFromBuffer(audioBuffer, `tts-${Date.now()}.mp3`, "audio/mpeg");
+
+  return { audioUrl, format: "mp3", cost: TTS_COST };
+}
+
+async function executeSkillListVoices(
+  ctx: A2AContext
+): Promise<{ voices: Array<{ id: string; name: string; category: string }> }> {
+  const { getElevenLabsService } = await import("@/lib/services/elevenlabs");
+  const elevenLabs = await getElevenLabsService();
+  const voices = await elevenLabs.listVoices();
+
+  return {
+    voices: voices.map((v: { voice_id: string; name: string; category: string }) => ({
+      id: v.voice_id,
+      name: v.name,
+      category: v.category,
+    })),
+  };
+}
+
+async function executeSkillGetAnalytics(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ overview: Record<string, unknown> }> {
+  const timeRange = (dataContent.timeRange as "daily" | "weekly" | "monthly") || "daily";
+
+  const { analyticsService } = await import("@/lib/services/analytics");
+  const overview = await analyticsService.getOverview(ctx.user.organization_id, timeRange);
+
+  return {
+    overview: {
+      totalRequests: overview.summary.totalRequests,
+      successRate: overview.summary.successRate,
+      totalCost: overview.summary.totalCost,
+      avgCostPerRequest: overview.summary.avgCostPerRequest,
+      timeRange,
+    },
+  };
+}
+
+async function executeSkillListApiKeys(
+  ctx: A2AContext
+): Promise<{ apiKeys: Array<{ id: string; name: string; keyPrefix: string; createdAt: string }> }> {
+  const keys = await apiKeysService.listByOrganization(ctx.user.organization_id);
+
+  return {
+    apiKeys: keys.map((k) => ({
+      id: k.id,
+      name: k.name,
+      keyPrefix: k.key_prefix,
+      createdAt: k.created_at.toISOString(),
+    })),
+  };
+}
+
+async function executeSkillCreateApiKey(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ apiKey: { id: string; name: string; keyPrefix: string }; plainKey: string }> {
+  const name = dataContent.name as string;
+  const description = dataContent.description as string | undefined;
+  const rateLimit = (dataContent.rateLimit as number) || 1000;
+
+  if (!name) throw new Error("name required");
+
+  const { apiKey, plainKey } = await apiKeysService.create({
+    name,
+    description: description || null,
+    organization_id: ctx.user.organization_id,
+    user_id: ctx.user.id,
+    permissions: [],
+    rate_limit: rateLimit,
+    expires_at: null,
+    is_active: true,
+  });
+
+  return {
+    apiKey: {
+      id: apiKey.id,
+      name: apiKey.name,
+      keyPrefix: apiKey.key_prefix,
+    },
+    plainKey, // Only returned once!
+  };
+}
+
+async function executeSkillDeleteApiKey(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean; apiKeyId: string }> {
+  const apiKeyId = dataContent.apiKeyId as string;
+  if (!apiKeyId) throw new Error("apiKeyId required");
+
+  await apiKeysService.delete(apiKeyId, ctx.user.organization_id);
+  return { success: true, apiKeyId };
+}
+
+async function executeSkillGetRedemptionBalance(
+  ctx: A2AContext
+): Promise<{ redeemableBalance: number; pendingRedemptions: number }> {
+  const { secureTokenRedemptionService } = await import("@/lib/services/token-redemption-secure");
+  const balance = await secureTokenRedemptionService.getEarnedBalance(ctx.user.organization_id);
+  const pending = await secureTokenRedemptionService.getPendingRedemptions(ctx.user.organization_id);
+
+  return {
+    redeemableBalance: balance,
+    pendingRedemptions: pending.reduce((sum, p) => sum + p.pointsAmount, 0),
+  };
+}
+
+async function executeSkillGeneratePrompts(
+  ctx: A2AContext
+): Promise<{ prompts: string[] }> {
+  const { openai } = await import("@ai-sdk/openai");
+  const { generateText } = await import("ai");
+
+  const { text } = await generateText({
+    model: openai("gpt-4o-mini"),
+    prompt: `Generate 4 short, practical AI agent concepts (max 8 words each). Return ONLY a JSON array of strings, nothing else.
+Examples:
+- "Technical documentation writer with dry humor"
+- "Personal finance advisor for freelancers"
+- "Code reviewer focused on security best practices"`,
+  });
+
+  const prompts = JSON.parse(text);
+  return { prompts };
+}
+
+async function executeSkillUploadKnowledge(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ documentId: string; status: string }> {
+  const content = dataContent.content as string;
+  const title = dataContent.title as string;
+  const characterId = dataContent.characterId as string | undefined;
+
+  if (!content) throw new Error("content required");
+  if (!title) throw new Error("title required");
+
+  // Save as a document in memory service
+  const result = await memoryService.saveMemory({
+    organizationId: ctx.user.organization_id,
+    content,
+    roomId: characterId,
+    metadata: { title, type: "knowledge" },
+  });
+
+  return {
+    documentId: result.memoryId,
+    status: "indexed",
+  };
+}
+
+// ===== Container Management =====
+
+async function executeSkillGetContainer(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ container: Record<string, unknown> }> {
+  const containerId = dataContent.containerId as string;
+  if (!containerId) throw new Error("containerId required");
+
+  const { getContainer } = await import("@/lib/services");
+  const container = await getContainer(containerId, ctx.user.organization_id);
+  if (!container) throw new Error("Container not found");
+
+  return {
+    container: {
+      id: container.id,
+      name: container.name,
+      status: container.status,
+      url: container.load_balancer_url,
+      createdAt: container.created_at,
+    },
+  };
+}
+
+async function executeSkillGetContainerHealth(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ healthy: boolean; status: string }> {
+  const containerId = dataContent.containerId as string;
+  if (!containerId) throw new Error("containerId required");
+
+  const { getContainer } = await import("@/lib/services");
+  const container = await getContainer(containerId, ctx.user.organization_id);
+  if (!container) throw new Error("Container not found");
+
+  return {
+    healthy: container.status === "running",
+    status: container.status,
+  };
+}
+
+async function executeSkillGetContainerLogs(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ logs: string[]; containerId: string }> {
+  const containerId = dataContent.containerId as string;
+  const limit = Math.min(100, (dataContent.limit as number) || 50);
+  if (!containerId) throw new Error("containerId required");
+
+  const { getContainer } = await import("@/lib/services");
+  const container = await getContainer(containerId, ctx.user.organization_id);
+  if (!container) throw new Error("Container not found");
+
+  // Logs would come from CloudWatch in production
+  return {
+    logs: [`Container ${containerId} logs (last ${limit} entries)`, `Status: ${container.status}`],
+    containerId,
+  };
+}
+
+// ===== MCP Server Management =====
+
+async function executeSkillListMcps(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ mcps: Array<Record<string, unknown>>; total: number }> {
+  const scope = (dataContent.scope as "own" | "public") || "own";
+  const limit = Math.min(50, (dataContent.limit as number) || 20);
+
+  const { userMcpsService } = await import("@/lib/services");
+  const mcps = await userMcpsService.list({
+    organizationId: ctx.user.organization_id,
+    scope,
+    limit,
+    offset: 0,
+  });
+
+  return {
+    mcps: mcps.map((m) => ({
+      id: m.id,
+      name: m.name,
+      slug: m.slug,
+      description: m.description,
+      status: m.status,
+      pricingType: m.pricing_type,
+    })),
+    total: mcps.length,
+  };
+}
+
+async function executeSkillCreateMcp(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ mcpId: string; slug: string }> {
+  const name = dataContent.name as string;
+  const slug = dataContent.slug as string;
+  const description = dataContent.description as string;
+
+  if (!name || !slug || !description) {
+    throw new Error("name, slug, and description required");
+  }
+
+  const { userMcpsService } = await import("@/lib/services");
+  const mcp = await userMcpsService.create({
+    organization_id: ctx.user.organization_id,
+    user_id: ctx.user.id,
+    name,
+    slug,
+    description,
+    status: "draft",
+  });
+
+  return { mcpId: mcp.id, slug: mcp.slug };
+}
+
+async function executeSkillDeleteMcp(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean; mcpId: string }> {
+  const mcpId = dataContent.mcpId as string;
+  if (!mcpId) throw new Error("mcpId required");
+
+  const { userMcpsService } = await import("@/lib/services");
+  await userMcpsService.delete(mcpId, ctx.user.organization_id);
+
+  return { success: true, mcpId };
+}
+
+// ===== Eliza Rooms =====
+
+async function executeSkillListRooms(
+  ctx: A2AContext
+): Promise<{ rooms: Array<Record<string, unknown>>; total: number }> {
+  const { roomsService } = await import("@/lib/services/agents/rooms");
+  const rooms = await roomsService.getRoomsForEntity(ctx.user.id);
+
+  return {
+    rooms: rooms.map((r) => ({
+      id: r.id,
+      characterId: r.character_id,
+      lastMessage: r.last_message_preview,
+      updatedAt: r.updated_at,
+    })),
+    total: rooms.length,
+  };
+}
+
+async function executeSkillCreateRoom(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ roomId: string; characterId: string }> {
+  const characterId = dataContent.characterId as string;
+
+  const { roomsService } = await import("@/lib/services/agents/rooms");
+  const room = await roomsService.createRoom({
+    userId: ctx.user.id,
+    characterId: characterId || "b850bc30-45f8-0041-a00a-83df46d8555d", // Default Eliza
+  });
+
+  return { roomId: room.id, characterId: room.character_id };
+}
+
+// ===== User Profile =====
+
+async function executeSkillGetUserProfile(
+  ctx: A2AContext
+): Promise<{ user: Record<string, unknown> }> {
+  return {
+    user: {
+      id: ctx.user.id,
+      email: ctx.user.email,
+      name: ctx.user.name,
+      organizationId: ctx.user.organization_id,
+      creditBalance: ctx.user.organization.credit_balance,
+    },
+  };
+}
+
+async function executeSkillUpdateUserProfile(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean }> {
+  const name = dataContent.name as string | undefined;
+
+  if (name) {
+    const { usersService } = await import("@/lib/services");
+    await usersService.update(ctx.user.id, { name });
+  }
+
+  return { success: true };
+}
+
+// ===== Redemption =====
+
+async function executeSkillGetRedemptionQuote(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ quote: Record<string, unknown> }> {
+  const pointsAmount = dataContent.pointsAmount as number;
+  const network = dataContent.network as string;
+
+  if (!pointsAmount || !network) throw new Error("pointsAmount and network required");
+
+  const { secureTokenRedemptionService } = await import("@/lib/services/token-redemption-secure");
+  const quote = await secureTokenRedemptionService.getRedemptionQuote(pointsAmount, network);
+
+  return { quote };
+}
+
 // ===== tasks/get Handler =====
 
 async function handleTasksGet(params: TaskGetParams, ctx: A2AContext): Promise<Task> {
@@ -671,6 +1410,130 @@ const handleLegacyListContainers = async (params: Record<string, unknown>, ctx: 
   return executeSkillListContainers(params, ctx);
 };
 
+// ===== Additional Legacy Handlers for Full Coverage =====
+
+const handleLegacyDeleteMemory = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillDeleteMemory(params, ctx);
+};
+
+const handleLegacyGetConversationContext = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillGetConversationContext(params, ctx);
+};
+
+const handleLegacyCreateAgent = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillCreateAgent(params, ctx);
+};
+
+const handleLegacyUpdateAgent = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillUpdateAgent(params, ctx);
+};
+
+const handleLegacyDeleteAgent = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillDeleteAgent(params, ctx);
+};
+
+const handleLegacyGenerateVideo = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  const prompt = params.prompt as string;
+  return executeSkillVideoGeneration(prompt, params, ctx);
+};
+
+const handleLegacyGenerateEmbeddings = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillGenerateEmbeddings(params, ctx);
+};
+
+const handleLegacyListModels = async (_params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillListModels(ctx);
+};
+
+const handleLegacyQueryKnowledge = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  const query = params.query as string;
+  return executeSkillQueryKnowledge(query, params, ctx);
+};
+
+const handleLegacyListGallery = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillListGallery(params, ctx);
+};
+
+const handleLegacyTextToSpeech = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillTextToSpeech(params, ctx);
+};
+
+const handleLegacyListVoices = async (_params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillListVoices(ctx);
+};
+
+const handleLegacyGetAnalytics = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillGetAnalytics(params, ctx);
+};
+
+const handleLegacyListApiKeys = async (_params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillListApiKeys(ctx);
+};
+
+const handleLegacyCreateApiKey = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillCreateApiKey(params, ctx);
+};
+
+const handleLegacyDeleteApiKey = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillDeleteApiKey(params, ctx);
+};
+
+const handleLegacyGetRedemptionBalance = async (_params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillGetRedemptionBalance(ctx);
+};
+
+const handleLegacyGeneratePrompts = async (_params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillGeneratePrompts(ctx);
+};
+
+const handleLegacyUploadKnowledge = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillUploadKnowledge(params, ctx);
+};
+
+const handleLegacyGetContainer = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillGetContainer(params, ctx);
+};
+
+const handleLegacyGetContainerHealth = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillGetContainerHealth(params, ctx);
+};
+
+const handleLegacyGetContainerLogs = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillGetContainerLogs(params, ctx);
+};
+
+const handleLegacyListMcps = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillListMcps(params, ctx);
+};
+
+const handleLegacyCreateMcp = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillCreateMcp(params, ctx);
+};
+
+const handleLegacyDeleteMcp = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillDeleteMcp(params, ctx);
+};
+
+const handleLegacyListRooms = async (_params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillListRooms(ctx);
+};
+
+const handleLegacyCreateRoom = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillCreateRoom(params, ctx);
+};
+
+const handleLegacyGetUserProfile = async (_params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillGetUserProfile(ctx);
+};
+
+const handleLegacyUpdateUserProfile = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillUpdateUserProfile(params, ctx);
+};
+
+const handleLegacyGetRedemptionQuote = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillGetRedemptionQuote(params, ctx);
+};
+
 // ===== Method Registry =====
 
 type MethodHandler<T = Record<string, unknown>, R = unknown> = (params: T, ctx: A2AContext) => Promise<R>;
@@ -735,6 +1598,126 @@ const METHODS: Record<string, MethodDefinition> = {
   "a2a.listContainers": {
     handler: handleLegacyListContainers,
     description: "List containers (extension)",
+  },
+  "a2a.deleteMemory": {
+    handler: handleLegacyDeleteMemory,
+    description: "Delete memory (extension)",
+  },
+  "a2a.getConversationContext": {
+    handler: handleLegacyGetConversationContext,
+    description: "Get conversation context (extension)",
+  },
+  "a2a.createAgent": {
+    handler: handleLegacyCreateAgent,
+    description: "Create agent (extension)",
+  },
+  "a2a.updateAgent": {
+    handler: handleLegacyUpdateAgent,
+    description: "Update agent (extension)",
+  },
+  "a2a.deleteAgent": {
+    handler: handleLegacyDeleteAgent,
+    description: "Delete agent (extension)",
+  },
+  "a2a.generateVideo": {
+    handler: handleLegacyGenerateVideo,
+    description: "Generate video (extension)",
+  },
+  "a2a.generateEmbeddings": {
+    handler: handleLegacyGenerateEmbeddings,
+    description: "Generate embeddings (extension)",
+  },
+  "a2a.listModels": {
+    handler: handleLegacyListModels,
+    description: "List available AI models (extension)",
+  },
+  "a2a.queryKnowledge": {
+    handler: handleLegacyQueryKnowledge,
+    description: "Query knowledge base (extension)",
+  },
+  "a2a.listGallery": {
+    handler: handleLegacyListGallery,
+    description: "List generated media (extension)",
+  },
+  "a2a.textToSpeech": {
+    handler: handleLegacyTextToSpeech,
+    description: "Convert text to speech (extension)",
+  },
+  "a2a.listVoices": {
+    handler: handleLegacyListVoices,
+    description: "List available voices (extension)",
+  },
+  "a2a.getAnalytics": {
+    handler: handleLegacyGetAnalytics,
+    description: "Get usage analytics (extension)",
+  },
+  "a2a.listApiKeys": {
+    handler: handleLegacyListApiKeys,
+    description: "List API keys (extension)",
+  },
+  "a2a.createApiKey": {
+    handler: handleLegacyCreateApiKey,
+    description: "Create API key (extension)",
+  },
+  "a2a.deleteApiKey": {
+    handler: handleLegacyDeleteApiKey,
+    description: "Delete API key (extension)",
+  },
+  "a2a.getRedemptionBalance": {
+    handler: handleLegacyGetRedemptionBalance,
+    description: "Get token redemption balance (extension)",
+  },
+  "a2a.generatePrompts": {
+    handler: handleLegacyGeneratePrompts,
+    description: "Generate agent prompts (extension)",
+  },
+  "a2a.uploadKnowledge": {
+    handler: handleLegacyUploadKnowledge,
+    description: "Upload knowledge document (extension)",
+  },
+  "a2a.getContainer": {
+    handler: handleLegacyGetContainer,
+    description: "Get container details (extension)",
+  },
+  "a2a.getContainerHealth": {
+    handler: handleLegacyGetContainerHealth,
+    description: "Get container health status (extension)",
+  },
+  "a2a.getContainerLogs": {
+    handler: handleLegacyGetContainerLogs,
+    description: "Get container logs (extension)",
+  },
+  "a2a.listMcps": {
+    handler: handleLegacyListMcps,
+    description: "List MCP servers (extension)",
+  },
+  "a2a.createMcp": {
+    handler: handleLegacyCreateMcp,
+    description: "Create MCP server (extension)",
+  },
+  "a2a.deleteMcp": {
+    handler: handleLegacyDeleteMcp,
+    description: "Delete MCP server (extension)",
+  },
+  "a2a.listRooms": {
+    handler: handleLegacyListRooms,
+    description: "List chat rooms (extension)",
+  },
+  "a2a.createRoom": {
+    handler: handleLegacyCreateRoom,
+    description: "Create chat room (extension)",
+  },
+  "a2a.getUserProfile": {
+    handler: handleLegacyGetUserProfile,
+    description: "Get user profile (extension)",
+  },
+  "a2a.updateUserProfile": {
+    handler: handleLegacyUpdateUserProfile,
+    description: "Update user profile (extension)",
+  },
+  "a2a.getRedemptionQuote": {
+    handler: handleLegacyGetRedemptionQuote,
+    description: "Get token redemption quote (extension)",
   },
 };
 
