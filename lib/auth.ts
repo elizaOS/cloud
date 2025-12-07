@@ -416,7 +416,8 @@ export async function getUserFromRequest(
 
 // Re-export x402 utilities for permissionless access
 export {
-  requireX402OrCredits,
+  requireCreditsWithX402Fallback,
+  requireX402OrCredits, // @deprecated - use requireCreditsWithX402Fallback
   hasX402Payment,
   getX402Price,
   generate402Response,

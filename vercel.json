@@ -21,6 +21,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/api/cron/agent-budgets",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/cron/release-pending-earnings",
       "schedule": "0 0 * * *"
     },

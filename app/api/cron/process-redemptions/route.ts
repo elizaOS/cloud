@@ -76,8 +76,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   logger.info("[Redemption Cron] Starting redemption processing");
 
-  // Check if payout processor is configured
-  const evmConfigured = !!process.env.EVM_PAYOUT_PRIVATE_KEY;
+  // Check if payout processor is configured (support both naming conventions)
+  const evmConfigured = !!(process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY);
   const solanaConfigured = !!process.env.SOLANA_PAYOUT_PRIVATE_KEY;
 
   if (!evmConfigured && !solanaConfigured) {
@@ -114,8 +114,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
  * GET - Health check for monitoring
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  // Allow health checks without auth for monitoring
-  const evmConfigured = !!process.env.EVM_PAYOUT_PRIVATE_KEY;
+  // Allow health checks without auth for monitoring (support both naming conventions)
+  const evmConfigured = !!(process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY);
   const solanaConfigured = !!process.env.SOLANA_PAYOUT_PRIVATE_KEY;
 
   return NextResponse.json({

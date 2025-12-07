@@ -127,8 +127,9 @@ export const POST =
     : async () => {
         return NextResponse.json(
           {
-            error: "x402 payments not enabled",
-            message: "Configure ENABLE_X402_PAYMENTS=true and X402_RECIPIENT_ADDRESS in environment",
+            error: "x402 payments not configured",
+            message: "Set X402_RECIPIENT_ADDRESS to your wallet address in .env.local",
+            docs: "https://x402.org",
           },
           { status: 501 }
         );

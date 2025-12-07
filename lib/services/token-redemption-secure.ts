@@ -41,6 +41,7 @@ import {
   verifyTypedData,
 } from "viem";
 import { mainnet, base, bsc } from "viem/chains";
+import { privateKeyToAccount } from "viem/accounts";
 import {
   checkKnownAddress,
   getNonEOAWarning,
@@ -909,10 +910,6 @@ export class SecureTokenRedemptionService {
     network: SupportedNetwork,
     requiredAmount: number
   ): Promise<{ available: boolean; balance: number; error?: string }> {
-    const hotWalletAddress =
-      process.env.EVM_PAYOUT_WALLET_ADDRESS ||
-      process.env.SOLANA_PAYOUT_WALLET_ADDRESS;
-
     if (network === "solana") {
       const solanaAddress = process.env.SOLANA_PAYOUT_WALLET_ADDRESS;
       if (!solanaAddress) {
@@ -924,7 +921,21 @@ export class SecureTokenRedemptionService {
       }
       return await this.checkSolanaBalance(solanaAddress, requiredAmount);
     } else {
-      const evmAddress = process.env.EVM_PAYOUT_WALLET_ADDRESS;
+      // Try explicit wallet address first, then derive from private key
+      let evmAddress = process.env.EVM_PAYOUT_WALLET_ADDRESS;
+      
+      if (!evmAddress) {
+        // Derive from private key (matches payout-processor.ts logic)
+        const evmKey = process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY;
+        if (evmKey) {
+          const formattedKey = evmKey.startsWith("0x") 
+            ? evmKey as `0x${string}` 
+            : `0x${evmKey}` as `0x${string}`;
+          const account = privateKeyToAccount(formattedKey);
+          evmAddress = account.address;
+        }
+      }
+      
       if (!evmAddress) {
         return {
           available: false,

@@ -164,8 +164,8 @@ export class TokenRedemptionService {
   ): Promise<{ available: boolean; balance: number; error?: string }> {
     // Get hot wallet address from env
     const hotWalletAddress = process.env.EVM_PAYOUT_WALLET_ADDRESS || 
-      (process.env.EVM_PAYOUT_PRIVATE_KEY 
-        ? this.deriveEvmAddress(process.env.EVM_PAYOUT_PRIVATE_KEY)
+      ((process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY)
+        ? this.deriveEvmAddress(process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY!)
         : null);
     
     const solanaWalletAddress = process.env.SOLANA_PAYOUT_WALLET_ADDRESS ||

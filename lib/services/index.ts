@@ -138,7 +138,7 @@ export { abuseDetectionService } from "./abuse-detection";
 export type { AbuseCheckResult, SignupContext } from "./abuse-detection";
 
 // Content moderation (async, non-blocking)
-export { contentModerationService } from "./content-moderation";
+export { contentModerationService, ModerationBlockedError } from "./content-moderation";
 export type {
   AsyncModerationResult,
   ModerationViolation as ContentModerationViolation,

@@ -16,7 +16,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAuthOrApiKeyWithOrg, hasX402Payment } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { creditsService } from "@/lib/services";
 import { charactersService } from "@/lib/services/characters/characters";
 import { agentRegistryService } from "@/lib/services/agent-registry";
@@ -129,29 +129,49 @@ export async function POST(
 
   const { method, params, id: rpcId } = validation.data;
 
-  // Authenticate - either API key or x402
-  let authResult;
-  let paymentMethod: "credits" | "x402" = "credits";
-
-  if (hasX402Payment(request) && X402_ENABLED && isX402Configured()) {
-    // x402 payment - permissionless access
-    paymentMethod = "x402";
-    // For x402, we still try to get auth for logging purposes
-    authResult = await requireAuthOrApiKeyWithOrg(request).catch(() => null);
-  } else {
-    // Standard auth
-    authResult = await requireAuthOrApiKeyWithOrg(request).catch(() => null);
-    if (!authResult) {
+  // Authenticate with API key or session
+  // NOTE: This endpoint uses credit-based auth. For x402 payments, clients should:
+  // 1. Top up credits via /api/v1/credits/topup (x402 enabled)
+  // 2. Then use their API key or session here
+  const authResult = await requireAuthOrApiKeyWithOrg(request).catch(() => null);
+  
+  if (!authResult) {
+    // Return 402 with x402 topup info if enabled
+    if (X402_ENABLED && isX402Configured()) {
+      const { getDefaultNetwork, X402_RECIPIENT_ADDRESS, USDC_ADDRESSES, TOPUP_PRICE, CREDITS_PER_DOLLAR } = await import("@/lib/config/x402");
       return NextResponse.json(
         {
           jsonrpc: "2.0",
-          error: { code: -32002, message: "Authentication required" },
+          error: {
+            code: -32002,
+            message: "Authentication required. Top up credits via x402 at /api/v1/credits/topup",
+            data: {
+              x402: {
+                topupEndpoint: "/api/v1/credits/topup",
+                network: getDefaultNetwork(),
+                asset: USDC_ADDRESSES[getDefaultNetwork()],
+                payTo: X402_RECIPIENT_ADDRESS,
+                minimumTopup: TOPUP_PRICE,
+                creditsPerDollar: CREDITS_PER_DOLLAR,
+              },
+            },
+          },
           id: rpcId,
         },
-        { status: 401 }
+        { status: 402 }
       );
     }
+    return NextResponse.json(
+      {
+        jsonrpc: "2.0",
+        error: { code: -32002, message: "Authentication required" },
+        id: rpcId,
+      },
+      { status: 401 }
+    );
   }
+  
+  const paymentMethod = "credits" as const;
 
   // Handle method
   if (method === "chat") {

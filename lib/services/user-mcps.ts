@@ -14,6 +14,7 @@ import {
 } from "@/db/repositories";
 import { creditsService } from "./credits";
 import { containersService } from "./containers";
+import { redeemableEarningsService } from "./redeemable-earnings";
 import { logger } from "@/lib/utils/logger";
 
 // ============================================================================
@@ -400,7 +401,7 @@ class UserMcpsService {
       }
     }
 
-    // Credit the creator
+    // Credit the creator's organization credits (for platform operations)
     if (creatorEarnings > 0) {
       await creditsService.addCredits({
         organizationId: mcp.organization_id,
@@ -413,6 +414,33 @@ class UserMcpsService {
           payment_type: params.paymentType,
         },
       });
+
+      // CRITICAL: Also credit the creator's redeemable_earnings for token redemption
+      if (mcp.created_by_user_id) {
+        const result = await redeemableEarningsService.addEarnings({
+          userId: mcp.created_by_user_id,
+          amount: creatorEarnings / 100, // Convert credits to dollars (100 credits = $1)
+          source: "mcp",
+          sourceId: mcp.id,
+          description: `MCP earnings: ${mcp.name} - ${params.toolName}`,
+          metadata: {
+            mcpId: mcp.id,
+            mcpName: mcp.name,
+            toolName: params.toolName,
+            consumerOrgId: params.organizationId,
+            paymentType: params.paymentType,
+            creditsEarned: creatorEarnings,
+          },
+        });
+
+        if (!result.success) {
+          logger.error("[UserMcps] Failed to credit redeemable earnings", {
+            mcpId: mcp.id,
+            creatorId: mcp.created_by_user_id,
+            error: result.error,
+          });
+        }
+      }
     }
 
     // Record usage

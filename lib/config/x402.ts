@@ -66,7 +66,8 @@ export const USDC_ADDRESSES: Record<X402Network, Address> = {
 };
 
 // Environment configuration
-export const X402_ENABLED = process.env.ENABLE_X402_PAYMENTS === "true";
+// x402 is enabled by default - disable with ENABLE_X402_PAYMENTS=false
+export const X402_ENABLED = process.env.ENABLE_X402_PAYMENTS !== "false";
 export const X402_RECIPIENT_ADDRESS: Address = (process.env.X402_RECIPIENT_ADDRESS || ZERO_ADDRESS) as Address;
 
 // Credit pricing from config
