@@ -1,25 +1,15 @@
 import type { Character } from "@elizaos/core";
 import { elizaOSCloudPlugin } from "@elizaos/plugin-elizacloud";
 import { memoryPlugin } from "@elizaos/plugin-memory";
-// Lazy-load knowledge plugin to avoid SSR issues with pdfjs-dist (DOMMatrix not available in Node.js)
-// import { knowledgePluginCore } from "@elizaos/plugin-knowledge";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
 import { assistantPlugin } from "./plugin-assistant";
 import { getElizaCloudApiUrl, getDefaultModels } from "./config";
-// NOTE: plugin-sql is provided via a pre-initialized adapter in agent-runtime
 
-/**
- * Lazy-load the knowledge plugin to avoid SSR issues with pdfjs-dist
- * This prevents DOMMatrix errors when pages are server-rendered
- */
 async function loadKnowledgePlugin() {
   const { knowledgePluginCore } = await import("@elizaos/plugin-knowledge");
   return knowledgePluginCore;
 }
 
-/**
- * Default Eliza character configuration for serverless implementation.
- */
 const character: Character = {
   id: "b850bc30-45f8-0041-a00a-83df46d8555d", // existing agent id in DB
   name: "Eliza",
@@ -130,33 +120,12 @@ const character: Character = {
 
 const agent = {
   character,
-  // Full plugin architecture with events, providers, and actions
-  // Includes ElizaCloud for LLM, ElevenLabs for TTS/STT, and knowledge/memory plugins
-  // Note: knowledgePluginCore is loaded asynchronously via getPlugins()
-  plugins: [
-    elizaOSCloudPlugin,
-    elevenLabsPlugin,
-    assistantPlugin,
-    memoryPlugin,
-  ],
-  providers: [
-    ...(elevenLabsPlugin.providers || []),
-    ...(assistantPlugin.providers || []),
-  ].flat(),
-  actions: [
-    ...(elevenLabsPlugin.actions || []),
-    ...(assistantPlugin.actions || []),
-  ].flat(),
-  // Async method to get plugins including the lazy-loaded knowledge plugin
+  plugins: [elizaOSCloudPlugin, elevenLabsPlugin, assistantPlugin, memoryPlugin],
+  providers: [...(elevenLabsPlugin.providers || []), ...(assistantPlugin.providers || [])].flat(),
+  actions: [...(elevenLabsPlugin.actions || []), ...(assistantPlugin.actions || [])].flat(),
   async getPlugins() {
     const knowledgePlugin = await loadKnowledgePlugin();
-    return [
-      elizaOSCloudPlugin,
-      elevenLabsPlugin,
-      assistantPlugin,
-      memoryPlugin,
-      knowledgePlugin,
-    ];
+    return [elizaOSCloudPlugin, elevenLabsPlugin, assistantPlugin, memoryPlugin, knowledgePlugin];
   },
 };
 
