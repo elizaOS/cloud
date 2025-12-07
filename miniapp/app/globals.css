@@ -7,6 +7,18 @@
 @theme inline {
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-accent-brand: var(--accent-brand-500);
+  --color-accent-brand-400: var(--accent-brand-400);
+  --color-accent-brand-500: var(--accent-brand-500);
+  --color-accent-brand-600: var(--accent-brand-600);
   --color-light: var(--light);
   --color-light-foreground: var(--light-foreground);
   --color-background: var(--background);
@@ -110,9 +122,25 @@
 }
 
 :root {
-  /* Accent colors */
-  --brand: oklch(66.5% 0.1804 47.04);
-  --brand-foreground: oklch(75.77% 0.159 55.91);
+  /**
+   * Brand Colors - Change these to rebrand the app
+   * These are the primary colors used throughout the UI
+   */
+  --brand-50: oklch(97% 0.02 350);
+  --brand-100: oklch(94% 0.04 350);
+  --brand-200: oklch(88% 0.08 350);
+  --brand-300: oklch(80% 0.12 350);
+  --brand-400: oklch(70% 0.16 350);
+  --brand-500: oklch(63% 0.2 350);
+  --brand-600: oklch(55% 0.2 350);
+  --brand-700: oklch(45% 0.18 350);
+  --brand: var(--brand-500);
+  --brand-foreground: oklch(100% 0 0);
+
+  /* Accent colors - secondary brand color for gradients */
+  --accent-brand-400: oklch(65% 0.2 300);
+  --accent-brand-500: oklch(55% 0.2 300);
+  --accent-brand-600: oklch(45% 0.2 300);
 
   /* Customized shadcn/ui colors */
   --background: oklch(97.65% 0.001 17.18);
@@ -121,7 +149,7 @@
   --card-foreground: oklch(0.141 0.005 285.823);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.141 0.005 285.823);
-  --primary: oklch(66.5% 0.1804 47.04);
+  --primary: var(--brand);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.967 0.001 286.375);
   --secondary-foreground: oklch(0.21 0.006 285.885);
@@ -159,9 +187,24 @@
 }
 
 .dark {
-  /* Accent colors */
-  --brand: oklch(83.6% 0.1177 66.87);
-  --brand-foreground: oklch(75.77% 0.159 55.91);
+  /**
+   * Brand Colors - Dark mode variants
+   */
+  --brand-50: oklch(20% 0.02 350);
+  --brand-100: oklch(25% 0.04 350);
+  --brand-200: oklch(30% 0.06 350);
+  --brand-300: oklch(40% 0.1 350);
+  --brand-400: oklch(55% 0.14 350);
+  --brand-500: oklch(70% 0.16 350);
+  --brand-600: oklch(75% 0.14 350);
+  --brand-700: oklch(80% 0.12 350);
+  --brand: var(--brand-500);
+  --brand-foreground: oklch(100% 0 0);
+
+  /* Accent colors - dark mode */
+  --accent-brand-400: oklch(70% 0.18 300);
+  --accent-brand-500: oklch(65% 0.2 300);
+  --accent-brand-600: oklch(55% 0.2 300);
 
   /* Customized shadcn/ui colors */
   --background: oklch(0.141 0.005 285.823);
@@ -170,7 +213,7 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.141 0.005 285.823);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
+  --primary: var(--brand);
   --primary-foreground: oklch(0.21 0.006 285.885);
   --secondary: oklch(0.274 0.006 286.033);
   --secondary-foreground: oklch(0.985 0 0);

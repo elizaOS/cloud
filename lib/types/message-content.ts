@@ -45,19 +45,44 @@ export function hasText(content: unknown): content is MessageContent & { text: s
 
 /**
  * Safely parse message content from unknown
+ * Handles various formats: string, JSON string, double-encoded JSON, or object
  */
 export function parseMessageContent(content: unknown): MessageContent {
+  // Handle string content (may be JSON or plain text)
   if (typeof content === "string") {
     try {
       const parsed = JSON.parse(content);
+      // Check if result is still a string (double-encoded)
+      if (typeof parsed === "string") {
+        try {
+          return JSON.parse(parsed) as MessageContent;
+        } catch {
+          return { text: parsed };
+        }
+      }
       return parsed as MessageContent;
     } catch {
       return { text: content };
     }
   }
+
+  // Handle object content
   if (typeof content === "object" && content !== null) {
+    // Check if the object has a stringified content field
+    const obj = content as Record<string, unknown>;
+    if (typeof obj.content === "string") {
+      try {
+        const innerParsed = JSON.parse(obj.content);
+        if (typeof innerParsed === "object" && innerParsed !== null) {
+          return { ...obj, ...innerParsed } as MessageContent;
+        }
+      } catch {
+        // content field is plain text, not JSON
+      }
+    }
     return content as MessageContent;
   }
+
   return {};
 }
 

@@ -7,7 +7,8 @@ import { Suspense, useEffect, useState } from "react";
 function BillingSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const sessionId = searchParams.get("session_id");
+  const _sessionId = searchParams.get("session_id");
+  void _sessionId;
 
   const [countdown, setCountdown] = useState(3);
 
@@ -33,24 +34,18 @@ function BillingSuccessContent() {
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/20">
           <CheckCircle2 className="h-8 w-8 text-green-400" />
         </div>
-        <h1 className="text-2xl font-bold text-white">Payment Successful!</h1>
+        <h1 className="text-2xl font-bold text-white">Payment Successful</h1>
         <p className="mt-3 text-white/60">
-          Your credits have been added to your account.
+          Credits added to your account.
         </p>
 
-        {sessionId && (
-          <p className="mt-2 text-xs text-white/40">
-            Transaction ID: {sessionId.slice(0, 20)}...
-          </p>
-        )}
-
-        <div className="mt-6 text-sm text-white/50">
-          Redirecting to settings in {countdown}...
+        <div className="mt-6 text-sm text-white/40">
+          Redirecting in {countdown}s
         </div>
 
         <button
           onClick={() => router.push("/settings")}
-          className="mt-4 rounded-lg bg-pink-500 px-6 py-2 text-sm font-medium text-white hover:bg-pink-600"
+          className="mt-4 rounded-lg bg-brand px-6 py-2 text-sm font-medium text-white hover:bg-brand-600"
         >
           Go to Settings Now
         </button>
@@ -65,7 +60,7 @@ export default function BillingSuccessPage() {
       fallback={
         <div className="flex min-h-screen flex-col items-center justify-center bg-[#050109] p-4">
           <div className="w-full max-w-md rounded-xl border border-white/10 bg-white/5 p-8 text-center">
-            <Loader2 className="mx-auto h-8 w-8 animate-spin text-pink-400" />
+            <Loader2 className="mx-auto h-8 w-8 animate-spin text-brand-400" />
           </div>
         </div>
       }
