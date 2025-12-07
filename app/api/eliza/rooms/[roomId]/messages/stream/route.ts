@@ -101,25 +101,35 @@ export async function POST(
       );
     }
 
-    // Step 2.6: Start async content moderation (runs in background, doesn't block)
-    // This checks for sexual/minors and self-harm content using OpenAI's free moderation API
-    contentModerationService.moderateInBackground(
+    // Step 2.6: Start content moderation in parallel (non-blocking race pattern)
+    // Moderation runs alongside processing - if it flags content BEFORE we start streaming, we block
+    // If streaming starts first, moderation continues in background and tracks violations
+    const moderationCheck = contentModerationService.startModerationCheck(
       text,
       userContext.userId,
-      roomId,
-      (result) => {
-        // Handle violations - these are logged and tracked for escalation
-        logger.warn("[Stream] Async moderation detected violation", {
-          userId: userContext.userId,
-          roomId,
-          categories: result.flaggedCategories,
-          scores: result.scores,
-          action: result.action,
-        });
-        // Note: The message has already been sent, but we track the violation
-        // for future requests. Escalation happens on subsequent attempts.
-      }
+      roomId
     );
+
+    // The moderation continues in background - violations are logged and tracked
+    if (moderationCheck.moderationPromise) {
+      moderationCheck.moderationPromise
+        .then((result) => {
+          if (result.flagged && result.action) {
+            logger.warn("[Stream] Async moderation detected violation", {
+              userId: userContext.userId,
+              roomId,
+              categories: result.flaggedCategories,
+              scores: result.scores,
+              action: result.action,
+            });
+          }
+        })
+        .catch((error) => {
+          logger.error("[Stream] Background moderation failed", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
+    }
 
     // Step 3: Rate limiting for anonymous users
     if (userContext.isAnonymous && userContext.sessionToken) {
@@ -271,6 +281,27 @@ export async function POST(
 
     // Step 7: Create message handler
     const messageHandler = createMessageHandler(runtime, userContext);
+
+    // Step 7.5: Check if moderation has flagged before we start streaming
+    // If moderation completed with a violation, block the response
+    try {
+      await moderationCheck.checkBeforeStream();
+    } catch (error) {
+      if (error instanceof Error && error.name === "ModerationBlockedError") {
+        logger.warn("[Stream] Moderation blocked before stream", {
+          userId: userContext.userId,
+          error: error.message,
+        });
+        return new Response(
+          JSON.stringify({
+            error: "Your message was blocked due to content policy violations.",
+            details: error.message,
+          }),
+          { status: 403, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      throw error;
+    }
 
     // Step 8: Create streaming response
     const stream = new ReadableStream({

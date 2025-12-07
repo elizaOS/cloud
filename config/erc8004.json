@@ -48,13 +48,12 @@
       "blockExplorer": "https://basescan.org",
       "isTestnet": false,
       "contracts": {
-        "_comment": "Official agent0 contracts not yet deployed on mainnet. Deploy your own: cd docs/docs/erc-8004-contracts && npm run deploy:upgradeable:base",
-        "_note": "After deployment, update these addresses and run: bun run onchain:register --network base",
-        "identity": null,
-        "reputation": null,
-        "validation": null
+        "_comment": "Eliza Cloud deployed ERC-8004 contracts on Base Mainnet",
+        "identity": "0x46e470b3655ff9efc772cfb927507ac65fee0267",
+        "reputation": "0xecfe47302d941c8ce5b0009c0ac2e6d6ee2a42de",
+        "validation": "0x43b16111e30d218444ac7ee8ad86210c589205ed"
       },
-      "agentId": null,
+      "agentId": 0,
       "subgraphUrl": null
     }
   },

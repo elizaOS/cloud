@@ -25,10 +25,11 @@ export type { MetaMask };
 
 /**
  * Wait for the page to be fully loaded
+ * Has a timeout to prevent tests from hanging
  */
 export async function waitForPageLoad(page: Page): Promise<void> {
-  await page.waitForLoadState("networkidle");
-  await page.waitForLoadState("domcontentloaded");
+  await page.waitForLoadState("domcontentloaded").catch(() => {});
+  await page.waitForLoadState("networkidle", { timeout: 30000 }).catch(() => {});
 }
 
 /**
@@ -59,19 +60,29 @@ export async function isOnDashboard(page: Page): Promise<boolean> {
 
 /**
  * Navigate to login page
+ * Returns true if navigation succeeded, false otherwise
  */
-export async function goToLogin(page: Page): Promise<void> {
-  await page.goto("/login");
+export async function goToLogin(page: Page): Promise<boolean> {
+  const response = await page.goto("/login").catch(() => null);
+  if (!response) {
+    return false;
+  }
   await waitForPageLoad(page);
   await waitForPrivyReady(page);
+  return true;
 }
 
 /**
  * Navigate to dashboard
+ * Returns true if navigation succeeded, false otherwise
  */
-export async function goToDashboard(page: Page): Promise<void> {
-  await page.goto("/dashboard");
+export async function goToDashboard(page: Page): Promise<boolean> {
+  const response = await page.goto("/dashboard").catch(() => null);
+  if (!response) {
+    return false;
+  }
   await waitForPageLoad(page);
+  return true;
 }
 
 /**

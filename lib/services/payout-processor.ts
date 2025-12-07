@@ -138,8 +138,8 @@ export class PayoutProcessorService {
   private readonly solanaConnection: Connection | null;
 
   constructor() {
-    // Load EVM private key
-    const evmKey = process.env.EVM_PAYOUT_PRIVATE_KEY;
+    // Load EVM private key (support both naming conventions)
+    const evmKey = process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY;
     if (evmKey) {
       this.evmPrivateKey = evmKey.startsWith("0x") 
         ? evmKey as `0x${string}` 
@@ -147,7 +147,7 @@ export class PayoutProcessorService {
       logger.info("[PayoutProcessor] EVM hot wallet configured");
     } else {
       this.evmPrivateKey = null;
-      logger.warn("[PayoutProcessor] EVM_PAYOUT_PRIVATE_KEY not set - EVM payouts disabled");
+      logger.warn("[PayoutProcessor] EVM_PAYOUT_PRIVATE_KEY or EVM_PRIVATE_KEY not set - EVM payouts disabled");
     }
 
     // Load Solana keypair

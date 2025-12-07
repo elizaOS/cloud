@@ -80,8 +80,8 @@ class PayoutStatusService {
     const networks: NetworkStatus[] = [];
     const warnings: string[] = [];
 
-    // Check EVM networks
-    const evmPrivateKey = process.env.EVM_PAYOUT_PRIVATE_KEY;
+    // Check EVM networks (support both naming conventions)
+    const evmPrivateKey = process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY;
     const evmWalletAddress = evmPrivateKey
       ? this.getEvmWalletAddress(evmPrivateKey)
       : null;
@@ -160,7 +160,7 @@ class PayoutStatusService {
    * Get user-friendly message for payout unavailability
    */
   getUserMessage(network?: SupportedNetwork): string | null {
-    const evmConfigured = !!process.env.EVM_PAYOUT_PRIVATE_KEY;
+    const evmConfigured = !!(process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY);
     const solanaConfigured = !!process.env.SOLANA_PAYOUT_PRIVATE_KEY;
 
     if (!evmConfigured && !solanaConfigured) {

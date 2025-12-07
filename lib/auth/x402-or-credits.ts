@@ -1,13 +1,20 @@
 /**
- * x402 or Credits Authentication
+ * x402 or Credits Authentication Utilities
  *
- * Provides permissionless access via x402 payment OR authenticated access via API key/credits.
- * This enables agents to use our services without pre-registration.
+ * IMPORTANT: For direct x402 payment verification on API routes, use:
+ * - `withX402` from 'x402-next' - wraps handler with payment verification
+ * - `createPaidMcpHandler` from 'x402-mcp' - for MCP servers
  *
- * Flow:
- * 1. Check for X-PAYMENT header (x402 payment)
- * 2. If present, verify payment and proceed (no account needed)
- * 3. If not, fall back to standard auth and credit deduction
+ * This module provides helper functions for:
+ * - Checking if x402 payment header is present
+ * - Generating 402 responses with payment requirements
+ * - Getting estimated prices for different models
+ * - Credit-based authentication with x402 fallback messaging
+ *
+ * The recommended pattern is:
+ * 1. For credit topup: use withX402 wrapper (see /api/v1/credits/topup)
+ * 2. For paid MCP: use createPaidMcpHandler (see /api/mcp/demos/*)
+ * 3. For credit-based routes: use requireAuthOrApiKeyWithOrg, return 402 with topup info on failure
  *
  * @see https://x402.org
  */
@@ -16,7 +23,6 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg, type AuthResult } from "@/lib/auth";
 import { X402_ENABLED, isX402Configured, getDefaultNetwork, X402_RECIPIENT_ADDRESS } from "@/lib/config/x402";
-import { getFacilitator } from "@/lib/middleware/x402-payment";
 import { creditsService } from "@/lib/services";
 import { logger } from "@/lib/utils/logger";
 
@@ -106,61 +112,29 @@ export function generate402Response(
 }
 
 /**
- * Authenticate via x402 OR credits
+ * Authenticate via credits, with messaging about x402 as alternative
  *
- * Checks for x402 payment first (permissionless), then falls back to credits auth.
+ * NOTE: This does NOT accept x402 payments directly. For accepting x402 payments:
+ * - Use `withX402` wrapper from 'x402-next' for your route handler
+ * - Use `createPaidMcpHandler` from 'x402-mcp' for MCP servers
+ *
+ * This function:
+ * 1. Requires API key or session authentication
+ * 2. Deducts credits from the organization
+ * 3. Returns helpful error messages mentioning x402 as an alternative if credits are insufficient
  *
  * @param request - The incoming request
  * @param estimatedCost - Estimated cost in USD for credit check
  * @param description - Description for credit transaction
  * @returns PaymentContext with payment method and auth info
- * @throws Error if neither payment method is valid
+ * @throws Error if auth fails or insufficient credits
  */
-export async function requireX402OrCredits(
+export async function requireCreditsWithX402Fallback(
   request: NextRequest,
   estimatedCost: number,
   description: string
 ): Promise<PaymentContext> {
-  // Check for x402 payment first
-  if (X402_ENABLED && isX402Configured() && hasX402Payment(request)) {
-    const paymentHeader = request.headers.get("X-PAYMENT");
-    
-    // Verify x402 payment using the facilitator
-    // Note: In production, you'd verify the payment here
-    // For now, we trust the withX402 wrapper to handle this
-    
-    let payerAddress = "unknown";
-    if (paymentHeader) {
-      try {
-        const decoded = JSON.parse(Buffer.from(paymentHeader, "base64").toString());
-        payerAddress = decoded.payload?.authorization?.from || "unknown";
-      } catch {
-        // Ignore decode errors
-      }
-    }
-
-    logger.info("[x402OrCredits] x402 payment detected", {
-      payerAddress,
-      path: request.nextUrl.pathname,
-    });
-
-    // Try to get auth context if available (optional for x402)
-    let auth: AuthResult | null = null;
-    try {
-      auth = await requireAuthOrApiKeyWithOrg(request);
-    } catch {
-      // x402 doesn't require auth
-    }
-
-    return {
-      paymentMethod: "x402",
-      auth,
-      amountPaid: estimatedCost,
-      payerAddress,
-    };
-  }
-
-  // Fall back to credits auth
+  // Require standard auth
   const auth = await requireAuthOrApiKeyWithOrg(request);
 
   // Deduct credits
@@ -177,7 +151,7 @@ export async function requireX402OrCredits(
     if (X402_ENABLED && isX402Configured()) {
       throw new Error(
         `Insufficient credits ($${deductResult.newBalance.toFixed(2)} available). ` +
-        `You can pay via x402 instead: send $${estimatedCost.toFixed(4)} USDC.`
+        `Top up via x402 at /api/v1/credits/topup with $${Math.max(1, estimatedCost).toFixed(2)} USDC.`
       );
     }
     throw new Error(
@@ -192,6 +166,12 @@ export async function requireX402OrCredits(
     amountPaid: estimatedCost,
   };
 }
+
+/**
+ * @deprecated Use requireCreditsWithX402Fallback instead.
+ * This function name was misleading - it doesn't actually verify x402 payments.
+ */
+export const requireX402OrCredits = requireCreditsWithX402Fallback;
 
 /**
  * Refund credits if using credit payment method

@@ -206,7 +206,8 @@ export function isERC8004Configured(network?: ERC8004Network): boolean {
  */
 export function isAgentRegistered(network?: ERC8004Network): boolean {
   const net = network || getDefaultNetwork();
-  return ELIZA_CLOUD_AGENT_ID[net] !== null;
+  const agentId = ELIZA_CLOUD_AGENT_ID[net];
+  return agentId !== null && agentId !== 0;
 }
 
 /**
@@ -291,7 +292,7 @@ export function generateRegistrationFile(baseUrl: string): ERC8004RegistrationFi
       { agentId: ELIZA_CLOUD_AGENT_ID["anvil"], network: "eip155:31337" },
       { agentId: ELIZA_CLOUD_AGENT_ID["base-sepolia"], network: "eip155:84532" },
       { agentId: ELIZA_CLOUD_AGENT_ID["base"], network: "eip155:8453" },
-    ].filter((r) => r.agentId !== null),
+    ].filter((r) => r.agentId !== null && r.agentId !== 0), // Filter out null and 0 (not registered)
     supportedTrust: SERVICE_INFO.supportedTrust,
   };
 }
