@@ -29,6 +29,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Loader2, Plus, X, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
+import { MessageSquare, Image, Video, Mic, Bot, Database } from "lucide-react";
 
 interface CreatedAppData {
   appId: string;
@@ -48,6 +49,15 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
   const [newOrigin, setNewOrigin] = useState("");
   const [createdApp, setCreatedApp] = useState<CreatedAppData | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const featureIcons = {
+    chat: MessageSquare,
+    image: Image,
+    video: Video,
+    voice: Mic,
+    agents: Bot,
+    embedding: Database,
+  };
 
   const [formData, setFormData] = useState({
     name: "",
@@ -376,28 +386,34 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                 voice: "Voice Cloning",
                 agents: "Agent Runtime",
                 embedding: "Embeddings",
-              }).map(([key, label]) => (
-                <div key={key} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`feature-${key}`}
-                    checked={
-                      formData.features[key as keyof typeof formData.features]
-                    }
-                    onCheckedChange={(checked) =>
+              }).map(([key, label]) => {
+                const Icon = featureIcons[key as keyof typeof featureIcons];
+                const isChecked =
+                  formData.features[key as keyof typeof formData.features];
+
+                return (
+                  <div
+                    key={key}
+                    className={`flex items-center space-x-3 p-3 transition-colors cursor-pointer ${
+                      isChecked
+                        ? "bg-white/20 border border-white/30"
+                        : "bg-white/10 border border-transparent hover:bg-white/15"
+                    }`}
+                    onClick={() =>
                       setFormData({
                         ...formData,
                         features: {
                           ...formData.features,
-                          [key]: checked,
+                          [key]: !isChecked,
                         },
                       })
                     }
-                  />
-                  <Label htmlFor={`feature-${key}`} className="text-sm">
-                    {label}
-                  </Label>
-                </div>
-              ))}
+                  >
+                    <Icon className="w-5 h-5 text-white/80" />
+                    <span className="text-sm">{label}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
