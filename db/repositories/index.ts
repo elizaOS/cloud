@@ -76,7 +76,6 @@ export * from "./generations";
 // ============================================
 // App Domain
 // ============================================
-export * from "./eliza-room-characters";
 export * from "./apps";
 export * from "./app-credit-balances";
 export * from "./app-earnings";
