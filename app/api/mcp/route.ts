@@ -3243,8 +3243,10 @@ async function handleRequest(req: NextRequest) {
     }
 
     // Run MCP handler within auth context using AsyncLocalStorage
+    // NextRequest extends Request, but the mcp-handler declares a global Request augmentation
+    // that adds an optional `auth` property. Direct cast is safe since NextRequest is a subtype.
     return await authContextStorage.run(authResult, async () => {
-      return await mcpHandler(req as unknown as Request);
+      return await mcpHandler(req as Request);
     });
   } catch (error) {
     // Return auth error in MCP format

@@ -32,6 +32,13 @@ type MessageExampleConversation = MessageExample[];
 type MessageExamples = MessageExampleConversation[];
 
 /**
+ * Type guard to check if all elements of an array are arrays
+ */
+function isArrayOfArrays(arr: unknown[]): arr is unknown[][] {
+  return arr.length > 0 && arr.every((item) => Array.isArray(item));
+}
+
+/**
  * Normalizes message examples to the correct format:
  * Array<Array<{ name: string; content: { text: string } }>>
  */
@@ -41,13 +48,8 @@ function normalizeMessageExamples(raw: unknown): MessageExamples | null {
   }
 
   // Check if it's already properly formatted (array of arrays)
-  const isNestedArray =
-    raw.length > 0 &&
-    Array.isArray(raw[0]) &&
-    raw.every((item) => Array.isArray(item));
-  const conversations: unknown[][] = isNestedArray
-    ? (raw as unknown[][])
-    : [raw];
+  // Use type guard to properly narrow the type
+  const conversations: unknown[][] = isArrayOfArrays(raw) ? raw : [raw];
 
   const normalized: MessageExamples = [];
 

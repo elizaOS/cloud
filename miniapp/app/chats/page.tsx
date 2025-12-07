@@ -17,7 +17,6 @@ import {
   type Agent,
   createAgent,
   listAgents,
-  type Pagination,
 } from "@/lib/cloud-api";
 import { useAuth } from "@/lib/use-auth";
 
@@ -26,7 +25,6 @@ export default function ChatsPage() {
   const { ready, authenticated } = useAuth();
   const { allClaimedToday, availableToday } = useShareStatus();
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +43,6 @@ export default function ChatsPage() {
     setError(null);
     const result = await listAgents();
     setAgents(result.agents);
-    setPagination(result.pagination);
     setLoading(false);
   }, []);
 
