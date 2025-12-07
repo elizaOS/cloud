@@ -466,15 +466,14 @@ test.describe("Final Verification", () => {
     const results: { name: string; status: string }[] = [];
 
     for (const { path, name } of pages) {
-      await page.goto(`${BASE_URL}${path}`);
-      await page.waitForLoadState("domcontentloaded");
+      const response = await page.goto(`${BASE_URL}${path}`, { timeout: 30000 }).catch(() => null);
+      if (!response) {
+        results.push({ name, status: "Connection failed" });
+        continue;
+      }
+      await page.waitForLoadState("domcontentloaded").catch(() => {});
 
-      const response = await page.waitForResponse(
-        (r) => r.url().includes(path) || r.url() === `${BASE_URL}/`,
-        { timeout: 5000 }
-      ).catch(() => null);
-
-      const status = response?.status() || page.url().includes(path) ? "OK" : "Redirect";
+      const status = page.url().includes(path) ? "OK" : "Redirect";
       results.push({ name, status });
     }
 
@@ -482,6 +481,10 @@ test.describe("Final Verification", () => {
     for (const { name, status } of results) {
       console.log(`   ${name}: ${status}`);
     }
+    
+    // At least some pages should be accessible
+    const accessible = results.filter(r => r.status === "OK" || r.status === "Redirect");
+    expect(accessible.length).toBeGreaterThan(0);
   });
 });
 

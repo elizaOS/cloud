@@ -3245,6 +3245,692 @@ const mcpHandler = createMcpHandler(
         }
       },
     );
+
+    // Tool 21: Create Agent
+    server.registerTool(
+      "create_agent",
+      {
+        description: "Create a new agent/character. Cost: FREE",
+        inputSchema: {
+          name: z.string().describe("Agent name"),
+          bio: z.union([z.string(), z.array(z.string())]).describe("Agent bio"),
+          system: z.string().optional().describe("System prompt"),
+          category: z.string().optional().default("assistant").describe("Agent category"),
+          tags: z.array(z.string()).optional().describe("Agent tags"),
+        },
+      },
+      async ({ name, bio, system, category, tags }) => {
+        try {
+          const { user } = getAuthContext();
+          const { charactersService } = await import("@/lib/services/characters/characters");
+
+          const character = await charactersService.create({
+            organization_id: user.organization_id!,
+            user_id: user.id,
+            name,
+            bio: Array.isArray(bio) ? bio : [bio],
+            system: system || null,
+            category: category || "assistant",
+            tags: tags || [],
+            source: "mcp",
+          });
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ success: true, agentId: character.id, name: character.name }, null, 2),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to create agent" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 22: Update Agent
+    server.registerTool(
+      "update_agent",
+      {
+        description: "Update an existing agent/character. Cost: FREE",
+        inputSchema: {
+          agentId: z.string().describe("Agent ID to update"),
+          name: z.string().optional().describe("New agent name"),
+          bio: z.union([z.string(), z.array(z.string())]).optional().describe("New agent bio"),
+          system: z.string().optional().describe("New system prompt"),
+          category: z.string().optional().describe("New category"),
+          tags: z.array(z.string()).optional().describe("New tags"),
+        },
+      },
+      async ({ agentId, name, bio, system, category, tags }) => {
+        try {
+          const { user } = getAuthContext();
+          const { charactersService } = await import("@/lib/services/characters/characters");
+
+          const updates: Record<string, unknown> = {};
+          if (name) updates.name = name;
+          if (bio) updates.bio = Array.isArray(bio) ? bio : [bio];
+          if (system !== undefined) updates.system = system;
+          if (category) updates.category = category;
+          if (tags) updates.tags = tags;
+
+          const updated = await charactersService.updateForUser(agentId, user.id, updates);
+          if (!updated) throw new Error("Agent not found or not owned by user");
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, agentId }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to update agent" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 23: Delete Agent
+    server.registerTool(
+      "delete_agent",
+      {
+        description: "Delete an agent/character. Cost: FREE",
+        inputSchema: {
+          agentId: z.string().describe("Agent ID to delete"),
+        },
+      },
+      async ({ agentId }) => {
+        try {
+          const { user } = getAuthContext();
+          const { charactersService } = await import("@/lib/services/characters/characters");
+
+          const deleted = await charactersService.deleteForUser(agentId, user.id);
+          if (!deleted) throw new Error("Agent not found or not owned by user");
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, agentId }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to delete agent" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 24: Generate Video
+    server.registerTool(
+      "generate_video",
+      {
+        description: "Generate a video using AI models. Cost: $5 per video",
+        inputSchema: {
+          prompt: z.string().describe("Video generation prompt"),
+          model: z.string().optional().default("fal-ai/veo3").describe("Model to use for generation"),
+        },
+      },
+      async ({ prompt, model }) => {
+        try {
+          const { user, apiKey } = getAuthContext();
+          const VIDEO_COST = 5;
+
+          if (Number(user.organization.credit_balance) < VIDEO_COST) {
+            throw new Error(`Insufficient credits: need $${VIDEO_COST.toFixed(2)}`);
+          }
+
+          const deduction = await creditsService.deductCredits({
+            organizationId: user.organization_id!,
+            amount: VIDEO_COST,
+            description: `MCP video generation: ${model}`,
+            metadata: { user_id: user.id, model },
+          });
+          if (!deduction.success) throw new Error("Credit deduction failed");
+
+          const generation = await generationsService.create({
+            organization_id: user.organization_id!,
+            user_id: user.id,
+            api_key_id: apiKey?.id || null,
+            type: "video",
+            model,
+            provider: "fal",
+            prompt,
+            status: "pending",
+            credits: String(VIDEO_COST),
+            cost: String(VIDEO_COST),
+          });
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({
+                  success: true,
+                  jobId: generation.id,
+                  status: "pending",
+                  cost: VIDEO_COST,
+                  message: "Video generation started. Poll /api/v1/gallery to check status.",
+                }, null, 2),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to generate video" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 25: Generate Embeddings
+    server.registerTool(
+      "generate_embeddings",
+      {
+        description: "Generate vector embeddings for text. Cost: ~$0.00002 per 1K tokens",
+        inputSchema: {
+          input: z.union([z.string(), z.array(z.string())]).describe("Text or array of texts to embed"),
+          model: z.string().optional().default("text-embedding-3-small").describe("Embedding model"),
+        },
+      },
+      async ({ input, model }) => {
+        try {
+          const { user } = getAuthContext();
+          const { getProvider } = await import("@/lib/providers");
+          const { estimateTokens } = await import("@/lib/pricing");
+
+          const inputs = Array.isArray(input) ? input : [input];
+          const totalTokens = inputs.reduce((sum, text) => sum + estimateTokens(text), 0);
+          const COST_PER_TOKEN = 0.00002 / 1000;
+          const cost = totalTokens * COST_PER_TOKEN;
+
+          if (Number(user.organization.credit_balance) < cost) {
+            throw new Error(`Insufficient credits: need $${cost.toFixed(6)}`);
+          }
+
+          const deduction = await creditsService.deductCredits({
+            organizationId: user.organization_id!,
+            amount: cost,
+            description: `MCP embeddings: ${model}`,
+            metadata: { user_id: user.id, tokenCount: totalTokens },
+          });
+          if (!deduction.success) throw new Error("Credit deduction failed");
+
+          const provider = getProvider();
+          const response = await provider.createEmbeddings({ model, input: inputs });
+          const data = await response.json();
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              embeddings: data.data.map((d: { embedding: number[] }) => d.embedding),
+              model,
+              usage: { totalTokens },
+              cost,
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to generate embeddings" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 26: List Models
+    server.registerTool(
+      "list_models",
+      {
+        description: "List all available AI models. FREE tool.",
+        inputSchema: {},
+      },
+      async () => {
+        try {
+          const { getProvider } = await import("@/lib/providers");
+          const provider = getProvider();
+          const response = await provider.listModels();
+          const data = await response.json();
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              models: data.data.map((m: { id: string; owned_by: string }) => ({
+                id: m.id,
+                owned_by: m.owned_by,
+              })),
+              total: data.data.length,
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list models" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 27: Query Knowledge
+    server.registerTool(
+      "query_knowledge",
+      {
+        description: "Query the knowledge base using semantic search. Cost: varies by result count",
+        inputSchema: {
+          query: z.string().describe("Search query"),
+          characterId: z.string().optional().describe("Filter by character/agent ID"),
+          limit: z.number().int().min(1).max(20).optional().default(5).describe("Max results"),
+        },
+      },
+      async ({ query, characterId, limit }) => {
+        try {
+          const { user } = getAuthContext();
+
+          const results = await memoryService.retrieveMemories({
+            organizationId: user.organization_id!,
+            query,
+            roomId: characterId,
+            limit,
+            sortBy: "relevance",
+          });
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              results: results.map((r) => ({
+                content: r.memory.content?.text || String(r.memory.content),
+                score: r.score,
+                id: r.memory.id,
+              })),
+              count: results.length,
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to query knowledge" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 28: List Gallery
+    server.registerTool(
+      "list_gallery",
+      {
+        description: "List all generated media (images and videos). FREE tool.",
+        inputSchema: {
+          type: z.enum(["image", "video"]).optional().describe("Filter by media type"),
+          limit: z.number().int().min(1).max(50).optional().default(20).describe("Max results"),
+        },
+      },
+      async ({ type, limit }) => {
+        try {
+          const { user } = getAuthContext();
+
+          let generations = await generationsService.listByOrganization(user.organization_id!, limit);
+          if (type) {
+            generations = generations.filter((g) => g.type === type);
+          }
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              media: generations.map((g) => ({
+                id: g.id,
+                type: g.type,
+                url: g.storage_url || g.content || "",
+                prompt: g.prompt || "",
+                status: g.status,
+                createdAt: g.created_at,
+              })),
+              total: generations.length,
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list gallery" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 29: Text to Speech
+    server.registerTool(
+      "text_to_speech",
+      {
+        description: "Convert text to speech audio. Cost: ~$0.001 per 100 chars",
+        inputSchema: {
+          text: z.string().max(5000).describe("Text to convert to speech"),
+          voiceId: z.string().optional().describe("ElevenLabs voice ID"),
+        },
+      },
+      async ({ text, voiceId }) => {
+        try {
+          const { user } = getAuthContext();
+          const TTS_COST = 0.001 * Math.ceil(text.length / 100);
+
+          const deduction = await creditsService.deductCredits({
+            organizationId: user.organization_id!,
+            amount: TTS_COST,
+            description: "MCP text-to-speech",
+            metadata: { user_id: user.id, chars: text.length },
+          });
+          if (!deduction.success) throw new Error("Insufficient credits");
+
+          const { getElevenLabsService } = await import("@/lib/services/elevenlabs");
+          const elevenLabs = await getElevenLabsService();
+          const audioBuffer = await elevenLabs.textToSpeech(text, voiceId || "21m00Tcm4TlvDq8ikWAM");
+          const { uploadFromBuffer } = await import("@/lib/blob");
+          const audioUrl = await uploadFromBuffer(audioBuffer, `tts-${Date.now()}.mp3`, "audio/mpeg");
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, audioUrl, format: "mp3", cost: TTS_COST }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to generate speech" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 30: List Voices
+    server.registerTool(
+      "list_voices",
+      {
+        description: "List available TTS voices. FREE tool.",
+        inputSchema: {},
+      },
+      async () => {
+        try {
+          const { getElevenLabsService } = await import("@/lib/services/elevenlabs");
+          const elevenLabs = await getElevenLabsService();
+          const voices = await elevenLabs.listVoices();
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              voices: voices.map((v: { voice_id: string; name: string; category: string }) => ({
+                id: v.voice_id,
+                name: v.name,
+                category: v.category,
+              })),
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list voices" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 31: Get Analytics
+    server.registerTool(
+      "get_analytics",
+      {
+        description: "Get usage analytics overview. FREE tool.",
+        inputSchema: {
+          timeRange: z.enum(["daily", "weekly", "monthly"]).optional().default("daily").describe("Time range"),
+        },
+      },
+      async ({ timeRange }) => {
+        try {
+          const { user } = getAuthContext();
+          const { analyticsService } = await import("@/lib/services/analytics");
+          const overview = await analyticsService.getOverview(user.organization_id!, timeRange);
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              overview: {
+                totalRequests: overview.summary.totalRequests,
+                successRate: overview.summary.successRate,
+                totalCost: overview.summary.totalCost,
+                avgCostPerRequest: overview.summary.avgCostPerRequest,
+                timeRange,
+              },
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get analytics" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 32: List API Keys
+    server.registerTool(
+      "list_api_keys",
+      {
+        description: "List all API keys. FREE tool.",
+        inputSchema: {},
+      },
+      async () => {
+        try {
+          const { user } = getAuthContext();
+          const { apiKeysService } = await import("@/lib/services");
+          const keys = await apiKeysService.listByOrganization(user.organization_id!);
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              apiKeys: keys.map((k) => ({
+                id: k.id,
+                name: k.name,
+                keyPrefix: k.key_prefix,
+                isActive: k.is_active,
+                createdAt: k.created_at,
+              })),
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list API keys" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 33: Create API Key
+    server.registerTool(
+      "create_api_key",
+      {
+        description: "Create a new API key. FREE tool. Returns plain key only once!",
+        inputSchema: {
+          name: z.string().min(1).describe("API key name"),
+          description: z.string().optional().describe("Description"),
+          rateLimit: z.number().int().min(1).optional().default(1000).describe("Rate limit per minute"),
+        },
+      },
+      async ({ name, description, rateLimit }) => {
+        try {
+          const { user } = getAuthContext();
+          const { apiKeysService } = await import("@/lib/services");
+
+          const { apiKey, plainKey } = await apiKeysService.create({
+            name,
+            description: description || null,
+            organization_id: user.organization_id!,
+            user_id: user.id,
+            permissions: [],
+            rate_limit: rateLimit,
+            expires_at: null,
+            is_active: true,
+          });
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              apiKey: { id: apiKey.id, name: apiKey.name, keyPrefix: apiKey.key_prefix },
+              plainKey, // IMPORTANT: Only shown once!
+              warning: "Store this key securely - it will not be shown again!",
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to create API key" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 34: Delete API Key
+    server.registerTool(
+      "delete_api_key",
+      {
+        description: "Delete an API key. FREE tool.",
+        inputSchema: {
+          apiKeyId: z.string().uuid().describe("API key ID to delete"),
+        },
+      },
+      async ({ apiKeyId }) => {
+        try {
+          const { user } = getAuthContext();
+          const { apiKeysService } = await import("@/lib/services");
+          await apiKeysService.delete(apiKeyId, user.organization_id!);
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, apiKeyId }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to delete API key" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 35: Get Redemption Balance
+    server.registerTool(
+      "get_redemption_balance",
+      {
+        description: "Get redeemable token balance. FREE tool.",
+        inputSchema: {},
+      },
+      async () => {
+        try {
+          const { user } = getAuthContext();
+          const { secureTokenRedemptionService } = await import("@/lib/services/token-redemption-secure");
+          const balance = await secureTokenRedemptionService.getEarnedBalance(user.organization_id!);
+          const pending = await secureTokenRedemptionService.getPendingRedemptions(user.organization_id!);
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              redeemableBalance: balance,
+              pendingRedemptions: pending.reduce((sum, p) => sum + p.pointsAmount, 0),
+              pendingCount: pending.length,
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get redemption balance" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 36: Generate Prompts
+    server.registerTool(
+      "generate_prompts",
+      {
+        description: "Generate AI agent concept prompts. Cost: ~$0.01",
+        inputSchema: {},
+      },
+      async () => {
+        try {
+          const { user } = getAuthContext();
+          const COST = 0.01;
+
+          const deduction = await creditsService.deductCredits({
+            organizationId: user.organization_id!,
+            amount: COST,
+            description: "MCP prompt generation",
+            metadata: { user_id: user.id },
+          });
+          if (!deduction.success) throw new Error("Insufficient credits");
+
+          const { openai } = await import("@ai-sdk/openai");
+          const { generateText } = await import("ai");
+
+          const { text } = await generateText({
+            model: openai("gpt-4o-mini"),
+            prompt: `Generate 4 short, practical AI agent concepts (max 8 words each). Return ONLY a JSON array of strings.`,
+          });
+
+          const prompts = JSON.parse(text);
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, prompts, cost: COST }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to generate prompts" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 37: Upload Knowledge
+    server.registerTool(
+      "upload_knowledge",
+      {
+        description: "Upload a knowledge document for RAG. Cost: ~$0.01",
+        inputSchema: {
+          content: z.string().describe("Document content"),
+          title: z.string().describe("Document title"),
+          characterId: z.string().optional().describe("Associate with specific agent"),
+        },
+      },
+      async ({ content, title, characterId }) => {
+        try {
+          const { user } = getAuthContext();
+          const COST = 0.01;
+
+          const deduction = await creditsService.deductCredits({
+            organizationId: user.organization_id!,
+            amount: COST,
+            description: "MCP knowledge upload",
+            metadata: { user_id: user.id, title },
+          });
+          if (!deduction.success) throw new Error("Insufficient credits");
+
+          const result = await memoryService.saveMemory({
+            organizationId: user.organization_id!,
+            content,
+            roomId: characterId,
+            metadata: { title, type: "knowledge" },
+          });
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              documentId: result.memoryId,
+              status: "indexed",
+              cost: COST,
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to upload knowledge" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
   },
   {},
   { basePath: "/api" },
