@@ -208,7 +208,9 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
             </Button>
             <Button
               onClick={() => {
-                router.push(`/dashboard/apps/${createdApp.appId}?tab=monetization`);
+                router.push(
+                  `/dashboard/apps/${createdApp.appId}?tab=monetization`
+                );
                 onOpenChange(false);
               }}
               className="bg-gradient-to-r from-[#FF5800] to-purple-600 w-full sm:w-auto"
@@ -234,9 +236,11 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Info */}
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div>
-              <Label htmlFor="name">App Name *</Label>
+              <Label className="mb-3" htmlFor="name">
+                App Name *
+              </Label>
               <Input
                 id="name"
                 value={formData.name}
@@ -249,7 +253,9 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
             </div>
 
             <div>
-              <Label htmlFor="description">Description</Label>
+              <Label className="mb-3" htmlFor="description">
+                Description
+              </Label>
               <Textarea
                 id="description"
                 value={formData.description}
@@ -262,7 +268,9 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
             </div>
 
             <div>
-              <Label htmlFor="app_url">App URL *</Label>
+              <Label className="mb-3" htmlFor="app_url">
+                App URL *
+              </Label>
               <Input
                 id="app_url"
                 type="url"
@@ -276,7 +284,9 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
             </div>
 
             <div>
-              <Label htmlFor="website_url">Website URL</Label>
+              <Label className="mb-3" htmlFor="website_url">
+                Website URL
+              </Label>
               <Input
                 id="website_url"
                 type="url"
@@ -289,7 +299,9 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
             </div>
 
             <div>
-              <Label htmlFor="contact_email">Contact Email</Label>
+              <Label className="mb-3" htmlFor="contact_email">
+                Contact Email
+              </Label>
               <Input
                 id="contact_email"
                 type="email"
