@@ -254,7 +254,7 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
           <div className="space-y-5">
             <div>
               <Label className="mb-3" htmlFor="name">
-                App Name *
+                App Name <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="name"
@@ -284,7 +284,7 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
 
             <div>
               <Label className="mb-3" htmlFor="app_url">
-                App URL *
+                App URL <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="app_url"
