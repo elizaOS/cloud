@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { z } from "zod";
+import { userMcpsService } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
 
@@ -300,27 +301,50 @@ export async function GET(request: NextRequest) {
 
     const { category, status, limit, search } = validationResult.data;
 
-    // Process registry entries - keep pathnames, don't inject baseUrl
-    // This allows configs to work across dev/prod/localhost environments
-    const registry = MCP_REGISTRY.map((entry) => ({
+    // Process built-in registry entries
+    const builtInRegistry = MCP_REGISTRY.map((entry) => ({
       ...entry,
+      source: "platform" as const,
       configTemplate: {
         servers: Object.fromEntries(
           Object.entries(entry.configTemplate.servers).map(([key, value]) => [
             key,
             {
               ...value,
-              // Remove ${BASE_URL} placeholder - store as pathname only
               url: value.url.replace("${BASE_URL}", ""),
             },
           ]),
         ),
       },
-      // Include full endpoint URL for display/testing purposes only
       fullEndpoint: entry.endpoint.startsWith("http")
         ? entry.endpoint
         : `${baseUrl}${entry.endpoint}`,
     }));
+
+    // Fetch user MCPs (public, live)
+    let userMcpRegistry: typeof builtInRegistry = [];
+    try {
+      const userMcps = await userMcpsService.listPublic({
+        category: category !== "all" ? category : undefined,
+        search,
+        limit: 50,
+      });
+
+      userMcpRegistry = userMcps.map((mcp) => {
+        const formatted = userMcpsService.toRegistryFormat(mcp, baseUrl);
+        return {
+          ...formatted,
+          source: "community" as const,
+          fullEndpoint: formatted.endpoint,
+        };
+      });
+    } catch (error) {
+      // If user MCPs fail to load, continue with built-in only
+      console.warn("[MCP Registry] Failed to load user MCPs:", error);
+    }
+
+    // Combine registries
+    const registry = [...builtInRegistry, ...userMcpRegistry];
 
     let filteredRegistry = registry;
 
@@ -350,16 +374,18 @@ export async function GET(request: NextRequest) {
     // Apply limit with validated input
     filteredRegistry = filteredRegistry.slice(0, limit);
 
-    // Get unique categories from the full registry (not filtered)
-    const categories = [...new Set(MCP_REGISTRY.map((e) => e.category))];
-    const statuses = [...new Set(MCP_REGISTRY.map((e) => e.status))];
+    // Get unique categories from the full registry
+    const categories = [...new Set(registry.map((e) => e.category))];
+    const statuses = [...new Set(registry.map((e) => e.status))];
 
     return NextResponse.json({
       registry: filteredRegistry,
       categories,
       statuses,
       total: filteredRegistry.length,
-      totalInRegistry: MCP_REGISTRY.length,
+      totalInRegistry: registry.length,
+      platformMcps: builtInRegistry.length,
+      communityMcps: userMcpRegistry.length,
       appliedFilters: {
         category: category !== "all" ? category : null,
         status: status !== "all" ? status : null,

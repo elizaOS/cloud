@@ -11,6 +11,22 @@
     {
       "path": "/api/v1/cron/health-check",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/sample-eliza-price",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/process-redemptions",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/release-pending-earnings",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-anonymous-sessions",
+      "schedule": "0 */6 * * *"
     }
   ]
 }

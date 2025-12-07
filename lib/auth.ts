@@ -413,3 +413,42 @@ export async function getUserFromRequest(
   // Check cookies
   return getCurrentUser();
 }
+
+// Re-export x402 utilities for permissionless access
+export {
+  requireX402OrCredits,
+  hasX402Payment,
+  getX402Price,
+  generate402Response,
+  refundIfCredits,
+  chargeAdditionalIfCredits,
+  type PaymentContext,
+} from "./auth/x402-or-credits";
+
+// Admin authentication - requires wallet connection and admin role
+import { adminService } from "@/lib/services/admin";
+
+export interface AdminAuthResult {
+  user: UserWithOrganization;
+  isAdmin: boolean;
+  role: string | null;
+}
+
+export async function requireAdmin(
+  request: NextRequest
+): Promise<AdminAuthResult> {
+  const { user } = await requireAuthOrApiKeyWithOrg(request);
+
+  if (!user.wallet_address) {
+    throw new Error("Wallet connection required for admin access");
+  }
+
+  const isAdmin = await adminService.isAdmin(user.wallet_address);
+  if (!isAdmin) {
+    throw new Error("Admin access required");
+  }
+
+  const role = await adminService.getAdminRole(user.wallet_address);
+
+  return { user, isAdmin: true, role };
+}

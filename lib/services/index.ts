@@ -86,6 +86,22 @@ export * from "./alb-priority-manager";
 // External Integration Services
 // ============================================
 
+// Agent0 (ERC-8004) services
+export { agent0Service } from "./agent0";
+export type { Agent0Agent, Agent0SearchFilters } from "./agent0";
+
+// Agent Registry (ERC-8004 on-chain registration for public agents)
+export { agentRegistryService } from "./agent-registry";
+export type {
+  AgentRegistrationParams,
+  AgentRegistrationResult,
+  AgentCardData,
+} from "./agent-registry";
+
+// User MCPs (Monetizable MCP Servers)
+export { userMcpsService } from "./user-mcps";
+export type { CreateMcpParams, UpdateMcpParams, UseMcpParams, UseMcpResult } from "./user-mcps";
+
 // Voice services
 export { voiceCloningService } from "./voice-cloning";
 
@@ -101,12 +117,39 @@ export { purchasesService, PURCHASE_LIMITS } from "./purchases";
 export { autoTopUpService, AUTO_TOP_UP_LIMITS } from "./auto-top-up";
 export { invoicesService } from "./invoices";
 
+// Token Redemption services
+export { elizaTokenPriceService, ELIZA_TOKEN_ADDRESSES } from "./eliza-token-price";
+export type { SupportedNetwork } from "./eliza-token-price";
+export { tokenRedemptionService } from "./token-redemption";
+export { secureTokenRedemptionService } from "./token-redemption-secure";
+export { payoutProcessorService } from "./payout-processor";
+export { twapPriceOracle, TWAP_CONFIG, SYSTEM_LIMITS } from "./twap-price-oracle";
+export { payoutAlertsService } from "./payout-alerts";
+export { redeemableEarningsService } from "./redeemable-earnings";
+export { agentMonetizationService } from "./agent-monetization";
+export { agentBudgetService } from "./agent-budgets";
+export { payoutStatusService } from "./payout-status";
+
 // Referral & rewards services
 export { referralsService, socialRewardsService, REWARDS } from "./referrals";
 
 // Abuse detection
 export { abuseDetectionService } from "./abuse-detection";
 export type { AbuseCheckResult, SignupContext } from "./abuse-detection";
+
+// Content moderation (async, non-blocking)
+export { contentModerationService } from "./content-moderation";
+export type {
+  AsyncModerationResult,
+  ModerationViolation as ContentModerationViolation,
+  CriticalCategory,
+} from "./content-moderation";
+
+// Admin service
+export { adminService } from "./admin";
+
+// Agent reputation (ERC-8004/A2A)
+export { agentReputationService } from "./agent-reputation";
 
 // Agent monitoring
 export { agentMonitoringService } from "./agent-monitoring";

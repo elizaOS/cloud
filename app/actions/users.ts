@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth";
 import { usersService } from "@/lib/services";
+import { uploadToBlob } from "@/lib/blob";
 import { z } from "zod";
 
 const updateProfileSchema = z.object({
@@ -170,11 +171,23 @@ export async function uploadAvatar(formData: FormData) {
       };
     }
 
-    // TODO: Implement actual file upload to your storage service
-    // For now, we'll just return a placeholder URL
-    // Use the default Eliza avatar for user profiles
-    // In production, you'd upload to S3, Cloudflare R2, etc.
-    const avatarUrl = "/avatars/eliza.png";
+    // Convert File to Buffer for upload
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Generate filename with extension from mime type
+    const ext = file.type.split("/")[1] || "jpg";
+    const filename = `avatar.${ext}`;
+
+    // Upload to Vercel Blob storage
+    const result = await uploadToBlob(buffer, {
+      filename,
+      contentType: file.type,
+      folder: "avatars",
+      userId: user.id,
+    });
+
+    const avatarUrl = result.url;
 
     await usersService.update(user.id, {
       avatar: avatarUrl,

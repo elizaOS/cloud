@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://elizacloud.ai/schemas/erc8004.json",
+  "title": "ERC-8004 Configuration",
+  "description": "Configuration for ERC-8004 agent registration and discovery",
+  "type": "object",
+  "required": ["service", "networks", "endpoints", "defaults"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "_comment": { "type": "string" },
+    "service": {
+      "type": "object",
+      "required": ["name", "description"],
+      "properties": {
+        "name": { "type": "string", "description": "Agent service name" },
+        "description": { "type": "string", "description": "Agent service description" },
+        "image": { "type": "string", "description": "Path to logo image" },
+        "version": { "type": "string", "description": "Service version" },
+        "category": { "type": "string", "description": "OASF category" },
+        "protocols": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Supported protocols"
+        },
+        "supportedTrust": {
+          "type": "array",
+          "items": { "enum": ["reputation", "crypto-economic", "tee-attestation"] },
+          "description": "Supported trust mechanisms"
+        }
+      }
+    },
+    "networks": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["name", "chainId", "rpcUrl"],
+        "properties": {
+          "name": { "type": "string" },
+          "chainId": { "type": "integer" },
+          "rpcUrl": { "type": "string", "format": "uri" },
+          "blockExplorer": { "type": "string", "format": "uri" },
+          "isTestnet": { "type": "boolean" },
+          "contracts": {
+            "type": "object",
+            "properties": {
+              "_comment": { "type": "string" },
+              "identity": { "type": ["string", "null"] },
+              "reputation": { "type": ["string", "null"] },
+              "validation": { "type": ["string", "null"] }
+            }
+          },
+          "agentId": { "type": ["integer", "null"] },
+          "subgraphUrl": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "endpoints": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["path"],
+        "properties": {
+          "path": { "type": "string" },
+          "version": { "type": "string" },
+          "capabilities": { "type": "object" }
+        }
+      }
+    },
+    "defaults": {
+      "type": "object",
+      "properties": {
+        "network": { "type": "string" },
+        "productionNetwork": { "type": "string" }
+      }
+    }
+  }
+}
+

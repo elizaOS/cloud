@@ -136,10 +136,6 @@ export default async function MCPsPage() {
               MCP Servers
             </h1>
           </div>
-          <p className="text-white/60 mt-2">
-            Model Context Protocol servers hosted on Vercel serverless. Connect
-            your AI agents to powerful tools.
-          </p>
         </div>
       </div>
 

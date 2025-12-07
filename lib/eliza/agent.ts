@@ -3,6 +3,7 @@ import { elizaOSCloudPlugin } from "@elizaos/plugin-elizacloud";
 import { memoryPlugin } from "@elizaos/plugin-memory";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
 import { assistantPlugin } from "./plugin-assistant";
+import { cloudBillingPlugin } from "./plugin-cloud-billing";
 import { getElizaCloudApiUrl, getDefaultModels } from "./config";
 
 async function loadKnowledgePlugin() {
@@ -120,12 +121,16 @@ const character: Character = {
 
 const agent = {
   character,
-  plugins: [elizaOSCloudPlugin, elevenLabsPlugin, assistantPlugin, memoryPlugin],
-  providers: [...(elevenLabsPlugin.providers || []), ...(assistantPlugin.providers || [])].flat(),
+  plugins: [elizaOSCloudPlugin, elevenLabsPlugin, assistantPlugin, memoryPlugin, cloudBillingPlugin],
+  providers: [
+    ...(elevenLabsPlugin.providers || []),
+    ...(assistantPlugin.providers || []),
+    ...(cloudBillingPlugin.providers || []),
+  ].flat(),
   actions: [...(elevenLabsPlugin.actions || []), ...(assistantPlugin.actions || [])].flat(),
   async getPlugins() {
     const knowledgePlugin = await loadKnowledgePlugin();
-    return [elizaOSCloudPlugin, elevenLabsPlugin, assistantPlugin, memoryPlugin, knowledgePlugin];
+    return [elizaOSCloudPlugin, elevenLabsPlugin, assistantPlugin, memoryPlugin, cloudBillingPlugin, knowledgePlugin];
   },
 };
 

@@ -47,19 +47,13 @@ function ConnectingContent() {
         // If we have a sessionId, this is an unauthenticated user
         // They need to go to the Cloud chat page where their session is valid
         if (sessionId) {
-          console.log(`[Connecting] Redirecting unauthenticated user to Cloud chat: ${characterId}`);
           const cloudChatUrl = `${CLOUD_URL}/chat/${characterId}?session=${sessionId}`;
           window.location.href = cloudChatUrl;
         } else {
           // Authenticated user - go to miniapp chat
-          console.log(`[Connecting] Redirecting authenticated user to miniapp chat: ${characterId}`);
           window.location.href = `/chats/${characterId}`;
         }
       }, 6000); // 6 seconds for animation
-    } else {
-      console.warn(
-        "[Connecting] Missing characterId, redirect cancelled",
-      );
     }
 
     return () => {

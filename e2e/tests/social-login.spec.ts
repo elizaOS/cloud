@@ -232,8 +232,8 @@ test.describe("Email Login", () => {
     // Button should be enabled
     await expect(sendCodeButton).toBeEnabled();
 
-    // Click to send code - this triggers the Privy API
-    await sendCodeButton.click();
+    // Click to send code - use force:true to bypass NextJS dev overlay interception
+    await sendCodeButton.click({ force: true });
 
     // Wait for the button to show loading state or for some response
     await page.waitForTimeout(2000);

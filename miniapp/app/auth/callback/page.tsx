@@ -32,7 +32,6 @@ function AuthCallbackContent() {
       // Check if we already have a token (from a previous call or HMR)
       const existingToken = localStorage.getItem("miniapp_auth_token");
       if (existingToken) {
-        console.log("[Auth Callback] Token already exists, redirecting...");
         setStatus("success");
         setTimeout(() => {
           router.push("/chats");

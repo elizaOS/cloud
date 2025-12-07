@@ -12,7 +12,6 @@ import {
   type IDatabaseAdapter,
   type Logger,
 } from "@elizaos/core";
-// @ts-expect-error - Type definitions missing in published package
 import { createDatabaseAdapter } from "@elizaos/plugin-sql/node";
 import { agentLoader } from "./agent-loader";
 import { getElizaCloudApiUrl, getDefaultModels } from "./config";

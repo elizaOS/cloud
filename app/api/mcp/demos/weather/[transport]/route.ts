@@ -1,5 +1,6 @@
 import { createPaidMcpHandler } from "x402-mcp";
 import { z } from "zod";
+import { X402_RECIPIENT_ADDRESS, getDefaultNetwork } from "@/lib/config/x402";
 
 export const maxDuration = 30;
 
@@ -282,10 +283,6 @@ function formatLocation(
 // ============================================================================
 // x402 Paid MCP Handler
 // ============================================================================
-
-const RECIPIENT_WALLET = (process.env.X402_RECIPIENT_WALLET ||
-  process.env.CDP_WALLET_ADDRESS ||
-  "0x0000000000000000000000000000000000000000") as `0x${string}`;
 
 const handler = createPaidMcpHandler(
   (server) => {
@@ -744,14 +741,14 @@ const handler = createPaidMcpHandler(
   },
   {},
   {
-    recipient: RECIPIENT_WALLET,
-    network: "base",
+    recipient: X402_RECIPIENT_ADDRESS,
+    network: getDefaultNetwork(),
     facilitator: {
       url: "https://x402.org/facilitator",
     },
     basePath: "/api/mcp/demos/weather",
     maxDuration: 30,
-    verboseLogs: true,
+    verboseLogs: false,
   },
 );
 

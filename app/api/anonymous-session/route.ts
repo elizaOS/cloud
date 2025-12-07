@@ -5,6 +5,44 @@ import { logger } from "@/lib/utils/logger";
 import { createHash } from "node:crypto";
 
 /**
+ * Simple in-memory rate limiter for polling endpoint.
+ * Limits requests per token to prevent abuse.
+ * 
+ * Note: This is per-instance in serverless, which is acceptable
+ * for a polling endpoint - stricter limits use Redis.
+ */
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 30; // 30 requests per minute per token
+
+function checkRateLimit(token: string): { allowed: boolean; remaining: number } {
+  const now = Date.now();
+  const entry = rateLimitMap.get(token);
+
+  // Periodic cleanup - remove entries older than 5 minutes
+  if (rateLimitMap.size > 1000) {
+    const cutoff = now - 5 * RATE_LIMIT_WINDOW_MS;
+    for (const [key, value] of rateLimitMap.entries()) {
+      if (value.resetAt < cutoff) {
+        rateLimitMap.delete(key);
+      }
+    }
+  }
+
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(token, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - 1 };
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return { allowed: false, remaining: 0 };
+  }
+
+  entry.count++;
+  return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - entry.count };
+}
+
+/**
  * Hash a token for safe logging (prevents partial token exposure)
  */
 function hashTokenForLogging(token: string): string {
@@ -50,9 +88,26 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Rate limiting per token
+    const rateLimit = checkRateLimit(token);
+    if (!rateLimit.allowed) {
+      logger.warn("[Anonymous Session API] Rate limit exceeded for token");
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": "60",
+            "X-RateLimit-Remaining": "0",
+          },
+        },
+      );
+    }
+
     const tokenHash = hashTokenForLogging(token);
-    logger.info("[Anonymous Session API] GET request received:", {
+    logger.debug("[Anonymous Session API] GET request received:", {
       tokenHash,
+      remaining: rateLimit.remaining,
     });
 
     const session = await anonymousSessionsService.getByToken(token);
@@ -67,23 +122,30 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    logger.info("[Anonymous Session API] Returning session data:", {
+    logger.debug("[Anonymous Session API] Returning session data:", {
       sessionId: session.id,
       messageCount: session.message_count,
       messagesLimit: session.messages_limit,
     });
 
-    return NextResponse.json({
-      success: true,
-      session: {
-        id: session.id,
-        message_count: session.message_count,
-        messages_limit: session.messages_limit,
-        messages_remaining: session.messages_limit - session.message_count,
-        is_active: session.is_active,
-        expires_at: session.expires_at,
+    return NextResponse.json(
+      {
+        success: true,
+        session: {
+          id: session.id,
+          message_count: session.message_count,
+          messages_limit: session.messages_limit,
+          messages_remaining: session.messages_limit - session.message_count,
+          is_active: session.is_active,
+          expires_at: session.expires_at,
+        },
       },
-    });
+      {
+        headers: {
+          "X-RateLimit-Remaining": String(rateLimit.remaining),
+        },
+      },
+    );
   } catch (error) {
     logger.error("[Anonymous Session API] Error:", error);
     return NextResponse.json(

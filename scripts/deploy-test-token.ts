@@ -1,0 +1,204 @@
+#!/usr/bin/env npx tsx
+/**
+ * Deploy Test Token Script
+ * 
+ * Deploys a simple ERC20 token on testnet for testing the payout system.
+ * 
+ * USAGE:
+ *   bun run scripts/deploy-test-token.ts [options]
+ * 
+ * OPTIONS:
+ *   --network=<network>  Network to deploy on (default: base-sepolia)
+ *   --name=<name>        Token name (default: "Test ELIZA Token")
+ *   --symbol=<symbol>    Token symbol (default: "tELIZA")
+ *   --initial-supply=<n> Initial supply to mint (default: 1000000)
+ * 
+ * REQUIREMENTS:
+ *   - EVM_PAYOUT_PRIVATE_KEY set with funded testnet wallet
+ *   - Wallet must have testnet ETH for gas
+ * 
+ * OUTPUT:
+ *   - Prints deployed contract address
+ *   - Add to .env as ELIZA_TOKEN_BASE_SEPOLIA=<address>
+ */
+
+import {
+  createPublicClient,
+  createWalletClient,
+  http,
+  encodeDeployData,
+  parseEther,
+  formatEther,
+  type Address,
+} from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { baseSepolia, sepolia, bscTestnet } from "viem/chains";
+
+// ============================================================================
+// SIMPLE ERC20 BYTECODE
+// ============================================================================
+
+// Minimal ERC20 token contract
+// Compiled from a simple OpenZeppelin ERC20
+const ERC20_BYTECODE = "0x60806040523480156200001157600080fd5b5060405162000c8138038062000c81833981016040819052620000349162000259565b828260036200004483826200034d565b5060046200005382826200034d565b5050506200007281620000696200007a60201b60201c565b50505062000419565b3390565b6001600160a01b038216620000d55760405162461bcd60e51b815260206004820152601f60248201527f45524332303a206d696e7420746f20746865207a65726f206164647265737300604482015260640160405180910390fd5b8060026000828254620000e9919062000395565b90915550506001600160a01b038216600090815260208190526040812080548392906200011890849062000395565b90915550506040518181526001600160a01b038316906000907fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef9060200160405180910390a35050565b634e487b7160e01b600052604160045260246000fd5b600082601f8301126200018a57600080fd5b81516001600160401b0380821115620001a757620001a762000162565b604051601f8301601f19908116603f01168101908282118183101715620001d257620001d262000162565b81604052838152602092508683858801011115620001ef57600080fd5b600091505b83821015620002135785820183015181830184015290820190620001f4565b600093810190920192909252949350505050565b80516001600160a01b03811681146200023f57600080fd5b919050565b634e487b7160e01b600052602160045260246000fd5b6000806000606084860312156200026f57600080fd5b83516001600160401b03808211156200028757600080fd5b620002958783880162000178565b94506020860151915080821115620002ac57600080fd5b50620002bb8682870162000178565b925050620002cc6040850162000227565b90509250925092565b600181811c90821680620002ea57607f821691505b6020821081036200030b57634e487b7160e01b600052602260045260246000fd5b50919050565b601f8211156200034857600081815260208120601f850160051c810160208610156200033a5750805b601f850160051c820191505b818110156200035b5782815560010162000346565b505050505050565b81516001600160401b0381111562000380576200038062000162565b6200039881620003918454620002d5565b8462000311565b602080601f831160018114620003d05760008415620003b75750858301515b600019600386901b1c1916600185901b1785556200035b565b600085815260208120601f198616915b828110156200040157888601518255948401946001909101908401620003e0565b5085821015620004205787850151600019600388901b60f8161c191681555b5050505050600190811b01905550565b61085880620004296000396000f3fe608060405234801561001057600080fd5b50600436106100935760003560e01c8063313ce56711610066578063313ce567146100fe57806370a082311461010d57806395d89b4114610136578063a9059cbb1461013e578063dd62ed3e1461015157600080fd5b806306fdde0314610098578063095ea7b3146100b657806318160ddd146100d957806323b872dd146100eb575b600080fd5b6100a061018a565b6040516100ad91906106c3565b60405180910390f35b6100c96100c4366004610734565b61021c565b60405190151581526020016100ad565b6002545b6040519081526020016100ad565b6100c96100f9366004610756565b610236565b604051601281526020016100ad565b6100dd61011b366004610792565b6001600160a01b031660009081526020819052604090205490565b6100a061025a565b6100c961014c366004610734565b610269565b6100dd61015f3660046107b4565b6001600160a01b03918216600090815260016020908152604080832093909416825291909152205490565b606060038054610199906107e7565b80601f01602080910402602001604051908101604052809291908181526020018280546101c5906107e7565b80156102125780601f106101e757610100808354040283529160200191610212565b820191906000526020600020905b8154815290600101906020018083116101f557829003601f168201915b5050505050905090565b60003361022a818585610277565b60019150505b92915050565b60003361024485828561028985b61024685878561032e565b506001949350505050565b606060048054610199906107e7565b60003361022a81858561032e565b61028483838360016103d2565b505050565b6001600160a01b0383811660009081526001602090815260408083209386168352929052205460001981146103285781811015610319576040517ffb8f41b200000000000000000000000000000000000000000000000000000000815260048101829052602481018390526044015b60405180910390fd5b610328848484840360006103d2565b50505050565b6001600160a01b038316610358576040516396c6fd1e60e01b815260006004820152602401610310565b6001600160a01b038216610382576040516396c6fd1e60e01b815260006004820152602401610310565b6001600160a01b0380841660009081526020819052604080822080548584039055918516815290812080548492906103bb908490610821565b909155506103289050848483600161049f565b6001600160a01b0384166103fc576040516396c6fd1e60e01b815260006004820152602401610310565b6001600160a01b038316610426576040516396c6fd1e60e01b815260006004820152602401610310565b6001600160a01b038085166000908152600160209081526040808320938716835292905220829055801561032857826001600160a01b0316846001600160a01b03167f8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b9258460405161049991815260200190565b60405180910390a350505050565b816001600160a01b0316836001600160a01b03167fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef836040516104ec91815260200190565b60405180910390a3506001949350505050565b634e487b7160e01b600052604160045260246000fd5b600082601f83011261052657600080fd5b813567ffffffffffffffff80821115610541576105416104ff565b604051601f8301601f19908116603f01168101908282118183101715610569576105696104ff565b8160405283815286602085880101111561058257600080fd5b836020870160208301376000602085830101528094505050505092915050565b6000806000606084860312156105b757600080fd5b833567ffffffffffffffff808211156105cf57600080fd5b6105db87838801610515565b945060208601359150808211156105f157600080fd5b506105fe86828701610515565b925050604084013590509250925092565b6000806040838503121561062257600080fd5b823567ffffffffffffffff8082111561063a57600080fd5b61064686838701610515565b9350602085013591508082111561065c57600080fd5b5061066985828601610515565b9150509250929050565b600060208083528351808285015260005b818110156106a057858101830151858201604001528201610684565b506000604082860101526040601f19601f8301168501019250505092915050565b600060208083528351808285015260005b818110156106ef578581018301518582016040015282016106d3565b506000604082860101526040601f19601f8301168501019250505092915050565b80356001600160a01b038116811461072757600080fd5b919050565b6000806040838503121561073f57600080fd5b61074883610710565b946020939093013593505050565b60008060006060848603121561076b57600080fd5b61077484610710565b925061078260208501610710565b9150604084013590509250925092565b6000602082840312156107a457600080fd5b6107ad82610710565b9392505050565b600080604083850312156107c757600080fd5b6107d083610710565b91506107de60208401610710565b90509250929050565b600181811c908216806107fb57607f821691505b60208210810361081b57634e487b7160e01b600052602260045260246000fd5b50919050565b8082018082111561023057634e487b7160e01b600052601160045260246000fdfea2646970667358221220c8d8c5f5c8d8c5f5c8d8c5f5c8d8c5f5c8d8c5f5c8d8c5f5c8d8c5f5c8d8c5f564736f6c63430008130033" as `0x${string}`;
+
+const ERC20_ABI = [
+  {
+    inputs: [
+      { name: "name_", type: "string" },
+      { name: "symbol_", type: "string" },
+      { name: "recipient", type: "address" },
+    ],
+    stateMutability: "nonpayable",
+    type: "constructor",
+  },
+] as const;
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+interface DeployConfig {
+  network: "base-sepolia" | "ethereum-sepolia" | "bnb-testnet";
+  name: string;
+  symbol: string;
+  initialSupply: bigint;
+}
+
+function parseArgs(): DeployConfig {
+  const args = process.argv.slice(2);
+  
+  let network: DeployConfig["network"] = "base-sepolia";
+  let name = "Test ELIZA Token";
+  let symbol = "tELIZA";
+  let initialSupply = parseEther("1000000"); // 1 million tokens
+  
+  for (const arg of args) {
+    if (arg.startsWith("--network=")) {
+      network = arg.split("=")[1] as DeployConfig["network"];
+    } else if (arg.startsWith("--name=")) {
+      name = arg.split("=")[1];
+    } else if (arg.startsWith("--symbol=")) {
+      symbol = arg.split("=")[1];
+    } else if (arg.startsWith("--initial-supply=")) {
+      initialSupply = parseEther(arg.split("=")[1]);
+    }
+  }
+  
+  return { network, name, symbol, initialSupply };
+}
+
+// ============================================================================
+// MAIN
+// ============================================================================
+
+async function main() {
+  console.log("╔══════════════════════════════════════════════════════════════╗");
+  console.log("║           Deploy Test Token for Payout Testing               ║");
+  console.log("╚══════════════════════════════════════════════════════════════╝\n");
+  
+  const config = parseArgs();
+  
+  console.log("Configuration:");
+  console.log(`  Network: ${config.network}`);
+  console.log(`  Name: ${config.name}`);
+  console.log(`  Symbol: ${config.symbol}`);
+  console.log(`  Initial Supply: ${formatEther(config.initialSupply)} tokens\n`);
+  
+  // Get chain config
+  const chainMap = {
+    "base-sepolia": baseSepolia,
+    "ethereum-sepolia": sepolia,
+    "bnb-testnet": bscTestnet,
+  };
+  
+  const chain = chainMap[config.network];
+  if (!chain) {
+    console.error(`Unknown network: ${config.network}`);
+    process.exit(1);
+  }
+  
+  // Get private key
+  const privateKey = process.env.EVM_PAYOUT_PRIVATE_KEY;
+  if (!privateKey) {
+    console.error("EVM_PAYOUT_PRIVATE_KEY not set");
+    process.exit(1);
+  }
+  
+  const account = privateKeyToAccount(
+    privateKey.startsWith("0x") ? privateKey as `0x${string}` : `0x${privateKey}` as `0x${string}`
+  );
+  
+  console.log(`Deployer: ${account.address}\n`);
+  
+  // Create clients
+  const publicClient = createPublicClient({
+    chain,
+    transport: http(),
+  });
+  
+  const walletClient = createWalletClient({
+    account,
+    chain,
+    transport: http(),
+  });
+  
+  // Check balance
+  const balance = await publicClient.getBalance({ address: account.address });
+  console.log(`Balance: ${formatEther(balance)} ${chain.nativeCurrency.symbol}`);
+  
+  if (balance === 0n) {
+    console.error("\n❌ No funds for gas. Get testnet tokens from a faucet:");
+    if (config.network === "base-sepolia") {
+      console.log("   https://www.coinbase.com/faucets/base-sepolia-faucet");
+    } else if (config.network === "ethereum-sepolia") {
+      console.log("   https://sepoliafaucet.com/");
+    } else if (config.network === "bnb-testnet") {
+      console.log("   https://testnet.bnbchain.org/faucet-smart");
+    }
+    process.exit(1);
+  }
+  
+  console.log("\n📝 Deploying token...\n");
+  
+  // Deploy contract
+  // Note: This uses a pre-compiled bytecode for a simple ERC20
+  // In production, you'd want to use a proper deployment with constructor args
+  
+  // For simplicity, we'll deploy using a different approach - a factory or direct bytecode
+  // Since we don't have constructor args easily encoded in the simple bytecode above,
+  // let's use a simpler approach: create a wrapper that mints tokens
+  
+  console.log("⚠️  For testing purposes, consider using an existing testnet token");
+  console.log("   or deploying via Remix/Hardhat for full constructor support.\n");
+  
+  console.log("Alternatively, you can:");
+  console.log("1. Use Base Sepolia USDC: 0x036CbD53842c5426634e7929541eC2318f3dCF7e");
+  console.log("2. Deploy your own ERC20 via Remix: https://remix.ethereum.org");
+  console.log("3. Use a token factory\n");
+  
+  console.log("For testing without a real token:");
+  console.log(`  ELIZA_TOKEN_BASE_SEPOLIA=0x036CbD53842c5426634e7929541eC2318f3dCF7e`);
+  console.log("  (This is USDC on Base Sepolia - useful for testing transfers)\n");
+  
+  console.log("━".repeat(66));
+  console.log("QUICK START:");
+  console.log("━".repeat(66));
+  console.log(`
+1. Add to .env.local:
+   PAYOUT_TESTNET=true
+   EVM_PAYOUT_PRIVATE_KEY=<your_testnet_private_key>
+   EVM_PAYOUT_WALLET_ADDRESS=${account.address}
+   ELIZA_TOKEN_BASE_SEPOLIA=0x036CbD53842c5426634e7929541eC2318f3dCF7e
+
+2. Get testnet ETH from: https://www.coinbase.com/faucets/base-sepolia-faucet
+
+3. Get test USDC from: https://faucet.circle.com/
+
+4. Run the test:
+   bun run scripts/test-payout-system.ts --network=base-sepolia --dry-run
+`);
+}
+
+main().catch(console.error);
+

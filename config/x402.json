@@ -1,0 +1,44 @@
+{
+  "$schema": "./x402.schema.json",
+  "_comment": "x402 Payment Configuration. Secrets (wallet private keys) go in .env.local",
+  
+  "pricing": {
+    "creditsPerDollar": 100,
+    "topupPrice": "$1.00"
+  },
+  
+  "networks": {
+    "base-sepolia": {
+      "name": "Base Sepolia",
+      "chainId": 84532,
+      "rpcUrl": "https://sepolia.base.org",
+      "blockExplorer": "https://sepolia.basescan.org",
+      "isTestnet": true,
+      "usdc": "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+    },
+    "base": {
+      "name": "Base Mainnet",
+      "chainId": 8453,
+      "rpcUrl": "https://mainnet.base.org",
+      "blockExplorer": "https://basescan.org",
+      "isTestnet": false,
+      "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+    }
+  },
+
+  "elizaToken": {
+    "_comment": "elizaOS Token addresses for payouts",
+    "evm": {
+      "ethereum": "0xea17df5cf6d172224892b5477a16acb111182478",
+      "base": "0xea17df5cf6d172224892b5477a16acb111182478",
+      "bnb": "0xea17df5cf6d172224892b5477a16acb111182478"
+    },
+    "solana": "DuMbhu7mvQvqQHGcnikDgb4XegXJRyhUBfdU22uELiZA"
+  },
+
+  "defaults": {
+    "network": "base-sepolia",
+    "productionNetwork": "base"
+  }
+}
+

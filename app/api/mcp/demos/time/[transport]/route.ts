@@ -1,5 +1,6 @@
 import { createPaidMcpHandler } from "x402-mcp";
 import { z } from "zod";
+import { X402_RECIPIENT_ADDRESS, getDefaultNetwork } from "@/lib/config/x402";
 
 export const maxDuration = 30;
 
@@ -74,10 +75,6 @@ const COMMON_TIMEZONES = [
 // ============================================================================
 // x402 Paid MCP Handler
 // ============================================================================
-
-const RECIPIENT_WALLET = (process.env.X402_RECIPIENT_WALLET ||
-  process.env.CDP_WALLET_ADDRESS ||
-  "0x0000000000000000000000000000000000000000") as `0x${string}`;
 
 const handler = createPaidMcpHandler(
   (server) => {
@@ -787,17 +784,14 @@ const handler = createPaidMcpHandler(
   },
   {},
   {
-    // Redis disabled for now - mcp-handler works without Redis (no resumability)
-    // TODO: Configure Redis with proper format if needed
-    // redisUrl: process.env.KV_REST_API_URL,
-    recipient: RECIPIENT_WALLET,
-    network: "base",
+    recipient: X402_RECIPIENT_ADDRESS,
+    network: getDefaultNetwork(),
     facilitator: {
       url: "https://x402.org/facilitator",
     },
     basePath: "/api/mcp/demos/time",
     maxDuration: 30,
-    verboseLogs: true,
+    verboseLogs: false,
   },
 );
 
