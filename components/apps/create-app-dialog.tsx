@@ -25,11 +25,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Plus, X, Copy, Check } from "lucide-react";
+import { Loader2, Plus, X, Copy, Check, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
 import { MessageSquare, Image, Video, Mic, Bot, Database } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../ui/tooltip";
 
 interface CreatedAppData {
   appId: string;
@@ -326,12 +331,22 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
 
           {/* URL Whitelist */}
           <div className="space-y-2">
-            <Label>Allowed Origins (URL Whitelist)</Label>
-            <p className="text-xs text-white/60">
-              Specify which domains can make requests with your API key. Leave
-              empty to only allow the app URL.
-            </p>
-
+            <div className="flex items-center space-x-2">
+              <Label>Allowed Origins (URL Whitelist)</Label>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="w-4 h-4 text-white/60 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs">
+                      Specify which domains can make requests with your API key.
+                      Leave empty to only allow the app URL.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <div className="flex gap-2">
               <Input
                 value={newOrigin}
@@ -373,10 +388,21 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
 
           {/* Features */}
           <div className="space-y-3">
-            <Label>Enabled Features</Label>
-            <p className="text-xs text-white/60">
-              Select which Eliza Cloud features this app can access
-            </p>
+            <div className="flex items-center space-x-2">
+              <Label>Enabled Features</Label>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="w-4 h-4 text-white/60 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs">
+                      Select which Eliza Cloud features this app can access
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               {Object.entries({
