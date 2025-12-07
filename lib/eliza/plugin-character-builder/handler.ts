@@ -20,6 +20,7 @@ import {
   buildModePlanningTemplate,
 } from "./prompts/build-mode-prompts";
 import { parsePlannedItems } from "../shared/utils/parsers";
+import { runEvaluatorsWithTimeout } from "../shared/utils/helpers";
 import type { MessageReceivedHandlerParams } from "../shared/types";
 
 function parsePlanningResponse(response: string): { thought: string; actions: string } | null {
@@ -82,6 +83,15 @@ export async function handleMessage({
 
     if (!(await isResponseStillValid(runtime, message.roomId, responseId))) return;
     await clearLatestResponseId(runtime, message.roomId);
+
+    // Run evaluators asynchronously in background (e.g., room title generation)
+    await runEvaluatorsWithTimeout(
+      runtime,
+      message,
+      state,
+      actionResponse,
+      callback,
+    );
 
     await runtime.emitEvent(EventType.RUN_ENDED, {
       runtime, runId, messageId: message.id, roomId: message.roomId, entityId: message.entityId,

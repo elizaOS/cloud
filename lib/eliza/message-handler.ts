@@ -14,6 +14,7 @@ import {
   type UUID,
   type Content,
   type Media,
+  type World,
 } from "@elizaos/core";
 import { connectionCache } from "@/lib/cache/connection-cache";
 import type { UserContext } from "./user-context";
@@ -22,7 +23,6 @@ import { anonymousSessionsService } from "@/lib/services";
 import { discordService } from "@/lib/services/discord";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
-import { generateRoomTitle } from "@/lib/ai/generate-room-title";
 import type { AgentModeConfig } from "./agent-mode-types";
 import { DEFAULT_AGENT_MODE } from "./agent-mode-types";
 
@@ -100,8 +100,8 @@ export class MessageHandler {
       await this.incrementAnonymousMessageCount();
     }
 
-    // Fire-and-forget side effects
-    this.handleSideEffects(roomId, text, responseContent?.text || "", options.characterId);
+    // Fire-and-forget side effects (Discord only - room titles handled by roomTitleEvaluator)
+    this.sendToDiscordThread(roomId, text, responseContent?.text || "", options.characterId).catch(() => {});
 
     return { message: responseMemory, usage };
   }
@@ -131,7 +131,7 @@ export class MessageHandler {
     try {
       await this.runtime.ensureWorldExists({
         id: worldId, name: "ElizaCloud Web", agentId: this.runtime.agentId, serverId,
-      } as Record<string, unknown>);
+      } as World);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (!msg.toLowerCase().includes("duplicate") && !msg.toLowerCase().includes("unique constraint")) throw e;
@@ -246,11 +246,6 @@ export class MessageHandler {
     }
   }
 
-  private handleSideEffects(roomId: string, userText: string, agentResponse: string, characterId?: string): void {
-    this.sendToDiscordThread(roomId, userText, agentResponse, characterId).catch(() => {});
-    this.generateRoomTitleIfNeeded(roomId, userText).catch(() => {});
-  }
-
   private async sendToDiscordThread(roomId: string, userText: string, agentResponse: string, characterId?: string): Promise<void> {
     const roomData = await db.execute<{ metadata: { discordThreadId?: string } }>(
       sql`SELECT metadata FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`,
@@ -269,33 +264,6 @@ export class MessageHandler {
 
     await discordService.sendToThread(threadId, `**${this.userContext.name || this.userContext.email || this.userContext.entityId}:** ${userText}`);
     await discordService.sendToThread(threadId, `**🤖 ${characterName}:** ${agentResponse}`);
-  }
-
-  private async generateRoomTitleIfNeeded(roomId: string, userText: string): Promise<void> {
-    const roomCheck = await db.execute<{ name: string | null }>(
-      sql`SELECT name FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`,
-    );
-
-    if (roomCheck.rows[0]?.name) return;
-
-    const messageCount = await db.execute<{ count: string }>(
-      sql`SELECT COUNT(*)::text as count FROM memories WHERE "roomId" = ${roomId}::uuid AND type = 'messages'`,
-    );
-
-    const count = parseInt(messageCount.rows[0]?.count || "0", 10);
-    if (count < 4) return;
-
-    const recentMessages = await db.execute<{ content: string | { text?: string } }>(
-      sql`SELECT content FROM memories WHERE "roomId" = ${roomId}::uuid AND type = 'messages' ORDER BY "createdAt" ASC LIMIT 4`,
-    );
-
-    const context = recentMessages.rows
-      .map((m) => typeof m.content === "string" ? m.content : (m.content as { text?: string })?.text || "")
-      .filter(Boolean)
-      .join(" | ");
-
-    const title = await generateRoomTitle(context || userText);
-    await db.execute(sql`UPDATE rooms SET name = ${title} WHERE id = ${roomId}::uuid`);
   }
 }
 

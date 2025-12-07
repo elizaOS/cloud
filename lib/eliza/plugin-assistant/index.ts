@@ -11,6 +11,7 @@ import { generateImageAction } from "./actions/image-generation";
 import { affiliateContextProvider } from "./providers/affiliate-context";
 import { currentRunContextProvider } from "./providers/current-run-context";
 import { handleMessage } from "./handler";
+import { roomTitleEvaluator } from "../shared/evaluators";
 
 export const assistantPlugin: Plugin = {
   name: "eliza-assistant",
@@ -36,6 +37,7 @@ export const assistantPlugin: Plugin = {
     currentRunContextProvider,
   ],
   actions: [generateImageAction],
+  evaluators: [roomTitleEvaluator],
 };
 
 export default assistantPlugin;
