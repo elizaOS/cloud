@@ -1,54 +1,26 @@
 /**
- * Knowledge service helper for accessing the knowledge plugin.
+ * Knowledge service access helpers.
  */
 
 import type { AgentRuntime } from "@elizaos/core";
 import type { KnowledgeService as KnowledgeServiceType } from "@elizaos/plugin-knowledge";
 
-/**
- * Gets the knowledge service from runtime with retry logic.
- *
- * @param runtime - Agent runtime instance.
- * @returns Knowledge service or null if not available after retries.
- */
-export async function getKnowledgeService(
-  runtime: AgentRuntime,
-): Promise<KnowledgeServiceType | null> {
-  // Try to get the service immediately
-  let service = runtime.getService(
-    "knowledge",
-  ) as KnowledgeServiceType | null;
-  if (service) {
-    return service;
-  }
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 1000;
 
-  // Service not immediately available, wait a bit for it to load
-  console.log("[KnowledgeService] Waiting for service to load...");
+export async function getKnowledgeService(runtime: AgentRuntime): Promise<KnowledgeServiceType | null> {
+  let service = runtime.getService("knowledge") as KnowledgeServiceType | null;
+  if (service) return service;
 
-  // Retry a few times with delay
-  for (let i = 0; i < 3; i++) {
-    await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1 second
+  for (let i = 0; i < MAX_RETRIES; i++) {
+    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
     service = runtime.getService("knowledge") as KnowledgeServiceType | null;
-    if (service) {
-      console.log(`[KnowledgeService] Service loaded after ${i + 1} retries`);
-      return service;
-    }
+    if (service) return service;
   }
 
-  // Service not available after retries
-  console.warn("[KnowledgeService] Service not available after retries");
   return null;
 }
 
-/**
- * Checks if knowledge service is available in the runtime.
- *
- * @param runtime - Agent runtime instance.
- * @returns True if knowledge service is available.
- */
-export async function hasKnowledgeService(
-  runtime: AgentRuntime,
-): Promise<boolean> {
-  const service = await getKnowledgeService(runtime);
-  return service !== null;
+export async function hasKnowledgeService(runtime: AgentRuntime): Promise<boolean> {
+  return (await getKnowledgeService(runtime)) !== null;
 }
