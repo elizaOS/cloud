@@ -174,7 +174,7 @@ export async function requireAuthWithOrg(): Promise<
     throw new Error("Forbidden: User account is inactive");
   }
 
-  if (!user.organization_id!) {
+  if (!user.organization_id) {
     throw new Error(
       "Forbidden: This feature requires a full account. Please sign up to continue.",
     );

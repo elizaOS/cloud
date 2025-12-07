@@ -17,6 +17,7 @@ import { cache as cacheClient } from "@/lib/cache/client";
 import { CacheKeys, CacheStaleTTL } from "@/lib/cache/keys";
 import { cache } from "react";
 import type { AgentStats } from "@/lib/cache/agent-state-cache";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Display version of AgentStats for dashboard (without cache-specific fields).

@@ -31,7 +31,6 @@ export const metadata: Metadata = {
     "virtual companion",
     "AI relationship",
     "chatbot",
-    "AI chat",
   ],
   authors: [
     {
