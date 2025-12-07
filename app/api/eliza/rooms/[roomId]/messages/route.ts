@@ -20,6 +20,8 @@ import type { NextRequest } from "next/server";
 import { roomsRepository } from "@/db/repositories";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
+import type { UserWithOrganization, ApiKey } from "@/lib/types";
+import type { AnonymousSession } from "@/db/schemas/anonymous-sessions";
 
 export const maxDuration = 60;
 
@@ -30,10 +32,10 @@ export async function POST(
 ) {
   try {
     // Support both authenticated and anonymous users
-    let user: any;
-    let apiKey: any = undefined;
+    let user: UserWithOrganization;
+    let apiKey: ApiKey | undefined = undefined;
     let isAnonymous = false;
-    let anonymousSession: any = null;
+    let anonymousSession: AnonymousSession | null = null;
 
     try {
       const authResult = await requireAuthOrApiKey(request);

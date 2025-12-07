@@ -6,6 +6,7 @@
 import { db } from "@/db/client";
 import { containers } from "@/db/schemas";
 import { eq, and } from "drizzle-orm";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Result of a container health check.
@@ -52,7 +53,7 @@ export async function checkContainerHealth(
   const startTime = Date.now();
   const fullUrl = `${containerUrl}${healthCheckPath}`;
 
-  console.log("Performing health check", { url: fullUrl });
+  logger.debug("Performing health check", { url: fullUrl });
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -125,7 +126,7 @@ export async function updateContainerHealth(
         .set(baseUpdate)
         .where(eq(containers.id, containerId));
 
-      console.log(
+      logger.debug(
         "Container health check failed, but status changed (not running anymore)",
         {
           containerId,
@@ -135,7 +136,7 @@ export async function updateContainerHealth(
       return;
     }
 
-    console.log("Container health status updated to failed", {
+    logger.info("Container health status updated to failed", {
       containerId,
       healthy: false,
       previousStatus: "running",

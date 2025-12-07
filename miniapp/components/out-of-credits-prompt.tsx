@@ -20,18 +20,13 @@ export function OutOfCreditsPrompt({
 
   const content = (
     <div className={`${inline ? "" : "p-6"} space-y-4`}>
-      <div className="flex items-start gap-3">
+      <div className="flex items-center gap-3">
         <div className="p-2 rounded-xl bg-amber-500/10">
           <AlertCircle className="h-5 w-5 text-amber-500" />
         </div>
-        <div className="flex-1">
-          <h3 className="font-semibold text-white">Low on credits</h3>
-          <p className="text-sm text-white/60 mt-1">
-            {currentBalance <= 0
-              ? "You've run out of credits."
-              : `You have ${Math.round(currentBalance * 100).toLocaleString()} credits remaining.`}
-          </p>
-        </div>
+        <h3 className="font-semibold text-white">
+          {currentBalance <= 0 ? "Out of credits" : `${Math.round(currentBalance * 100).toLocaleString()} credits left`}
+        </h3>
       </div>
 
       {allClaimedToday === true ? (
@@ -55,7 +50,7 @@ export function OutOfCreditsPrompt({
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => setShareModalOpen(true)}
-              className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 text-pink-400 font-medium hover:from-pink-500/30 hover:to-purple-500/30 transition-all"
+              className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-brand/20 to-accent-brand/20 border border-brand/30 text-brand-400 font-medium hover:from-brand/30 hover:to-accent-brand/30 transition-all"
             >
               <Gift className="h-4 w-4" />
               {availableToday > 0 ? `Earn ${Math.round(availableToday).toLocaleString()} credits` : "Share & Earn"}
@@ -69,9 +64,6 @@ export function OutOfCreditsPrompt({
             </Link>
           </div>
 
-          <p className="text-xs text-white/40 text-center">
-            Share with friends to earn credits • Get 5% of their purchases forever
-          </p>
         </>
       )}
 

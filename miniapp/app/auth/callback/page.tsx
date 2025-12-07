@@ -136,8 +136,8 @@ function AuthCallbackContent() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[#050109] p-4">
         <div className="w-full max-w-md rounded-xl border border-white/10 bg-white/5 p-8 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-pink-500/20">
-            <Loader2 className="h-6 w-6 animate-spin text-pink-400" />
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand/20">
+            <Loader2 className="h-6 w-6 animate-spin text-brand-400" />
           </div>
           <h1 className="text-xl font-bold text-white">
             Completing Sign In...
@@ -185,7 +185,7 @@ function AuthCallbackContent() {
         <p className="mt-2 text-sm text-white/60">{errorMessage}</p>
         <button
           onClick={() => router.push("/")}
-          className="mt-6 rounded-lg bg-pink-500 px-6 py-2 text-sm font-medium text-white hover:bg-pink-600"
+          className="mt-6 rounded-lg bg-brand px-6 py-2 text-sm font-medium text-white hover:bg-brand-600"
         >
           Go Back Home
         </button>
@@ -200,7 +200,7 @@ export default function AuthCallbackPage() {
       fallback={
         <div className="flex min-h-screen flex-col items-center justify-center bg-[#050109] p-4">
           <div className="w-full max-w-md rounded-xl border border-white/10 bg-white/5 p-8 text-center">
-            <Loader2 className="mx-auto h-8 w-8 animate-spin text-pink-400" />
+            <Loader2 className="mx-auto h-8 w-8 animate-spin text-brand-400" />
           </div>
         </div>
       }

@@ -65,7 +65,7 @@ export default function AgentChatsPage() {
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-2">
-      <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
+      <Loader2 className="h-8 w-8 animate-spin text-brand" />
       <p className="text-sm text-white/60">Loading chat...</p>
     </div>
   );
