@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, ChevronDown, Coins, Loader2, LogIn, LogOut, Settings, User } from "lucide-react";
+import { Bot, ChevronDown, Coins, Loader2, LogIn, LogOut, Settings, User, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -132,6 +132,14 @@ export function AuthButton() {
             >
               <Bot className="h-4 w-4 text-brand-400" />
               My Characters
+            </Link>
+            <Link
+              href="/wallet"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 transition-colors hover:bg-white/5 hover:text-white"
+            >
+              <Wallet className="h-4 w-4 text-emerald-400" />
+              Wallet & Earnings
             </Link>
             <Link
               href="/settings"

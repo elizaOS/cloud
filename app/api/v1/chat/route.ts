@@ -9,6 +9,7 @@ import {
   generationsService,
   organizationsService,
   anonymousSessionsService,
+  contentModerationService,
 } from "@/lib/services";
 import {
   calculateCost,
@@ -81,6 +82,37 @@ async function handlePOST(req: NextRequest) {
         ? (lastMessage.metadata as MessageMetadata)
         : null;
     const conversationId = metadata?.conversationId;
+
+    // Check if user is blocked due to moderation violations
+    if (await contentModerationService.shouldBlockUser(user.id)) {
+      logger.warn("chat-api", "User blocked due to moderation violations", {
+        userId: user.id,
+      });
+      return NextResponse.json(
+        { error: "Your account has been suspended due to policy violations. Please contact support." },
+        { status: 403 },
+      );
+    }
+
+    // Start async content moderation (runs in background, doesn't block)
+    const lastMessageText = typeof lastMessage?.content === "string" 
+      ? lastMessage.content 
+      : (lastMessage?.content as Array<{ type: string; text?: string }>)?.find(c => c.type === "text")?.text || "";
+    
+    if (lastMessageText) {
+      contentModerationService.moderateInBackground(
+        lastMessageText,
+        user.id,
+        conversationId,
+        (result) => {
+          logger.warn("chat-api", "Async moderation detected violation", {
+            userId: user.id,
+            categories: result.flaggedCategories,
+            action: result.action,
+          });
+        }
+      );
+    }
 
     // Handle anonymous user rate limiting
     if (isAnonymous && anonymousSession) {

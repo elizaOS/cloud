@@ -9,6 +9,7 @@ import {
   type ApiEndpoint,
   type EndpointParameter,
   type EndpointResponse,
+  type JsonValue,
 } from "./endpoint-discovery";
 
 /**
@@ -18,8 +19,8 @@ export interface OpenAPISchema {
   type?: string;
   format?: string;
   enum?: string[];
-  example?: unknown;
-  default?: unknown;
+  example?: JsonValue;
+  default?: JsonValue;
   minimum?: number;
   maximum?: number;
   items?: OpenAPISchema;
@@ -60,7 +61,7 @@ interface OpenAPIResponse {
   content?: {
     "application/json": {
       schema?: OpenAPISchema;
-      example?: unknown;
+      example?: Record<string, JsonValue>;
     };
   };
 }

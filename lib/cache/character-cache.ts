@@ -56,7 +56,7 @@ export async function invalidateCharacterAndRooms(
     `[Character Cache] Invalidating character ${characterId} and ${roomIds?.length || 0} rooms`,
   );
 
-  const promises: Promise<unknown>[] = [
+  const promises: Promise<void>[] = [
     // Invalidate the character itself
     invalidateCharacterCache(characterId),
   ];

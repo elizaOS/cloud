@@ -5,11 +5,27 @@
  */
 
 import { EventEmitter } from "events";
-import { logger } from "@/lib/utils/logger";
 import { redisCreditEventEmitter } from "./credit-events-redis";
 import type { CreditUpdateEvent } from "./credit-events-redis";
 
 export type { CreditUpdateEvent };
+
+/**
+ * Stats returned by Redis credit event emitter
+ */
+interface RedisCreditStats {
+  enabled: boolean;
+  totalOrganizations: number;
+  totalConnections: number;
+  organizations: Array<{ id: string; connections: number }>;
+}
+
+/**
+ * In-memory mode warning details
+ */
+interface InMemoryWarning {
+  warning: string;
+}
 
 /**
  * Function to unsubscribe from credit updates.
@@ -138,7 +154,7 @@ class UnifiedCreditEventEmitter {
   public getStats(): {
     mode: "redis" | "in-memory";
     serverlessCompatible: boolean;
-    details: unknown;
+    details: RedisCreditStats | InMemoryWarning;
   } {
     if (this.shouldUseRedis()) {
       return {

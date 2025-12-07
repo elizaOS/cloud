@@ -84,3 +84,13 @@ export * from "./app-earnings";
 // Referrals & Rewards
 // ============================================
 export * from "./referrals";
+
+// ============================================
+// User MCPs (Monetizable MCP Servers)
+// ============================================
+export * from "./user-mcps";
+
+// ============================================
+// Token Redemptions (elizaOS payouts)
+// ============================================
+export * from "./token-redemptions";

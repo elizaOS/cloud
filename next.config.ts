@@ -75,6 +75,12 @@ const nextConfig: NextConfig = {
     "mcp-handler",
     "express",
     "worker_threads",
+    // agent0-sdk has IPFS dependencies that use electron-fetch
+    "agent0-sdk",
+    "ipfs-http-client",
+    "ipfs-utils",
+    "electron-fetch",
+    "electron",
   ],
 
   webpack: (config, { isServer }) => {

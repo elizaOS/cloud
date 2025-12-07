@@ -19,7 +19,17 @@ import type { ParsedResponse, ParsedPlan } from "./parsers";
 export const MAX_RESPONSE_RETRIES = 3;
 export const EVALUATOR_TIMEOUT_MS = 30000;
 
-const actionAttachmentCache = new Map<string, unknown[]>();
+/**
+ * Cached attachment from action results.
+ */
+export interface CachedAttachment {
+  url?: string;
+  id?: string;
+  title?: string;
+  contentType?: string;
+}
+
+const actionAttachmentCache = new Map<string, CachedAttachment[]>();
 const actionResponseSentCache = new Map<string, boolean>();
 
 export function hasActionSentResponse(roomId: string): boolean {
@@ -34,7 +44,7 @@ function isBase64DataUrl(url: string): boolean {
   return url.startsWith("data:");
 }
 
-export function getAndClearCachedAttachments(roomId: string): unknown[] {
+export function getAndClearCachedAttachments(roomId: string): CachedAttachment[] {
   const attachments = actionAttachmentCache.get(roomId) || [];
   actionAttachmentCache.delete(roomId);
   return attachments;

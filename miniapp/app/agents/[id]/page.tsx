@@ -648,11 +648,11 @@ function AgentDetailPage() {
                   </div>
                 )
             ) : (
-              photo ? (
+              photoObjectUrl ? (
                   <div className="w-full h-full max-w-44 mx-auto">
                     <div className="h-full rounded-lg border border-white/10 overflow-hidden relative">
                       <Image
-                        src={URL.createObjectURL(photo)}
+                        src={photoObjectUrl}
                         alt="Preview"
                         width={176}
                         height={176}

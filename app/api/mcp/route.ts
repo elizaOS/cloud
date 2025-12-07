@@ -27,6 +27,8 @@ import {
   memoryService,
   agentDiscoveryService,
   containersService,
+  contentModerationService,
+  agentReputationService,
 } from "@/lib/services";
 import { agentService } from "@/lib/services/agents/agents";
 import { streamText } from "ai";
@@ -310,6 +312,20 @@ const mcpHandler = createMcpHandler(
           const { user, apiKey } = getAuthContext();
           userOrganizationId = user.organization_id!;
 
+          // Check if user is blocked due to moderation violations
+          if (await contentModerationService.shouldBlockUser(user.id)) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: "Account suspended due to policy violations" }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          // Start async moderation with agent tracking (doesn't block)
+          const agentId = `org:${user.organization_id}`;
+          contentModerationService.moderateAgentInBackground(prompt, user.id, agentId, undefined, (result) => {
+            logger.warn("[MCP] generate_text moderation violation", { userId: user.id, categories: result.flaggedCategories, action: result.action });
+          });
+
           const provider = getProviderFromModel(model);
 
           const org = await organizationsService.getById(user.organization_id!);
@@ -587,6 +603,20 @@ const mcpHandler = createMcpHandler(
         try {
           const { user, apiKey } = getAuthContext();
           userOrganizationId = user.organization_id!;
+
+          // Check if user is blocked due to moderation violations
+          if (await contentModerationService.shouldBlockUser(user.id)) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: "Account suspended due to policy violations" }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          // Start async moderation for image prompt with agent tracking (doesn't block)
+          const agentId = `org:${user.organization_id}`;
+          contentModerationService.moderateAgentInBackground(prompt, user.id, agentId, undefined, (result) => {
+            logger.warn("[MCP] generate_image moderation violation", { userId: user.id, categories: result.flaggedCategories, action: result.action });
+          });
 
           const org = await organizationsService.getById(user.organization_id!);
           if (!org) {
@@ -2801,6 +2831,21 @@ const mcpHandler = createMcpHandler(
       async ({ message, roomId, entityId, streaming = false }) => {
         try {
           const { user } = getAuthContext();
+
+          // Check if user is blocked due to moderation violations
+          if (await contentModerationService.shouldBlockUser(user.id)) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: "Account suspended due to policy violations" }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          // Start async moderation with agent tracking (doesn't block)
+          const agentId = `org:${user.organization_id}`;
+          contentModerationService.moderateAgentInBackground(message, user.id, agentId, roomId, (result) => {
+            logger.warn("[MCP] chat_with_agent moderation violation", { userId: user.id, categories: result.flaggedCategories, action: result.action });
+          });
+
           const org = await organizationsService.getById(user.organization_id!);
 
           if (!org) {
@@ -3242,6 +3287,16 @@ async function handleRequest(req: NextRequest) {
       );
     }
 
+    // Track request for agent reputation (fire and forget)
+    const agentIdentifier = `org:${authResult.user.organization_id}`;
+    agentReputationService.recordRequest({
+      agentIdentifier,
+      isSuccessful: true,
+      method: "mcp",
+    }).catch(() => {
+      // Ignore errors - don't fail MCP request for reputation tracking
+    });
+
     // Run MCP handler within auth context using AsyncLocalStorage
     // NextRequest extends Request, but the mcp-handler declares a global Request augmentation
     // that adds an optional `auth` property. Direct cast is safe since NextRequest is a subtype.
@@ -3249,6 +3304,32 @@ async function handleRequest(req: NextRequest) {
       return await mcpHandler(req as Request);
     });
   } catch (error) {
+    // Return 402 with x402 payment info if enabled and configured
+    const { X402_ENABLED, X402_RECIPIENT_ADDRESS, getDefaultNetwork, USDC_ADDRESSES, TOPUP_PRICE, CREDITS_PER_DOLLAR, isX402Configured } = await import("@/lib/config/x402");
+    
+    if (isX402Configured()) {
+      return NextResponse.json(
+        {
+          error: "authentication_failed",
+          error_description: "Authentication required. Get an API key or top up credits via x402 payment.",
+          x402: {
+            topupEndpoint: "/api/v1/credits/topup",
+            network: getDefaultNetwork(),
+            asset: USDC_ADDRESSES[getDefaultNetwork()],
+            payTo: X402_RECIPIENT_ADDRESS,
+            minimumTopup: TOPUP_PRICE,
+            creditsPerDollar: CREDITS_PER_DOLLAR,
+          },
+        },
+        {
+          status: 402,
+          headers: {
+            "WWW-Authenticate": 'Bearer realm="MCP Server", error="invalid_token"',
+          },
+        },
+      );
+    }
+
     // Return auth error in MCP format
     return NextResponse.json(
       {

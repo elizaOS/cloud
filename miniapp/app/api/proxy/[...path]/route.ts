@@ -59,6 +59,9 @@ async function forwardRequest(
     "origin",
     "referer",
     "user-agent",
+    // x402 payment headers for permissionless access
+    "x-payment",
+    "x-payment-response",
   ];
 
   for (const header of headersToForward) {
@@ -191,7 +194,8 @@ export async function OPTIONS() {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
       "Access-Control-Allow-Headers":
-        "Content-Type, Authorization, X-Miniapp-Token",
+        "Content-Type, Authorization, X-Miniapp-Token, X-Payment, X-Payment-Response",
+      "Access-Control-Expose-Headers": "X-Payment-Requirement",
       "Access-Control-Max-Age": "86400",
     },
   });

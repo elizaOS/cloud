@@ -6,6 +6,19 @@
  */
 
 /**
+ * Valid parameter value types for API endpoints.
+ * Matches the type field options in EndpointParameter.
+ * Uses JsonValue for recursive JSON-compatible types.
+ */
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
+/**
  * Pricing information for an API endpoint.
  */
 export interface EndpointPricing {
@@ -25,10 +38,10 @@ export interface EndpointParameter {
   type: "string" | "number" | "boolean" | "object" | "array";
   required: boolean;
   description: string;
-  example?: unknown;
+  example?: JsonValue;
   enum?: string[];
   format?: string;
-  defaultValue?: unknown;
+  defaultValue?: JsonValue;
   min?: number;
   max?: number;
   step?: number;
@@ -40,8 +53,8 @@ export interface EndpointParameter {
 export interface EndpointResponse {
   statusCode: number;
   description: string;
-  schema?: Record<string, unknown>;
-  example?: Record<string, unknown>;
+  schema?: Record<string, JsonValue>;
+  example?: Record<string, JsonValue>;
 }
 
 /**

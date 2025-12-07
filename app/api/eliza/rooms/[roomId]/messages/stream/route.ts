@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { organizationsService, charactersService, appCreditsService } from "@/lib/services";
+import { organizationsService, charactersService, appCreditsService, contentModerationService } from "@/lib/services";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
 import { logger } from "@/lib/utils/logger";
@@ -87,6 +87,39 @@ export async function POST(
       sessionTokenPreview: `${userContext.sessionToken?.slice(0, 8)}...`,
       userId: userContext.userId,
     });
+
+    // Step 2.5: Check if user is blocked due to moderation violations
+    if (await contentModerationService.shouldBlockUser(userContext.userId)) {
+      logger.warn("[Stream] User blocked due to moderation violations", {
+        userId: userContext.userId,
+      });
+      return new Response(
+        JSON.stringify({
+          error: "Your account has been suspended due to policy violations. Please contact support.",
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    // Step 2.6: Start async content moderation (runs in background, doesn't block)
+    // This checks for sexual/minors and self-harm content using OpenAI's free moderation API
+    contentModerationService.moderateInBackground(
+      text,
+      userContext.userId,
+      roomId,
+      (result) => {
+        // Handle violations - these are logged and tracked for escalation
+        logger.warn("[Stream] Async moderation detected violation", {
+          userId: userContext.userId,
+          roomId,
+          categories: result.flaggedCategories,
+          scores: result.scores,
+          action: result.action,
+        });
+        // Note: The message has already been sent, but we track the violation
+        // for future requests. Escalation happens on subsequent attempts.
+      }
+    );
 
     // Step 3: Rate limiting for anonymous users
     if (userContext.isAnonymous && userContext.sessionToken) {

@@ -8,6 +8,7 @@ import {
   organizationsService,
   discordService,
   anonymousSessionsService,
+  contentModerationService,
 } from "@/lib/services";
 import {
   calculateCost,
@@ -91,6 +92,32 @@ export async function POST(
         { status: 400 },
       );
     }
+
+    // Check if user is blocked due to moderation violations
+    if (await contentModerationService.shouldBlockUser(user.id)) {
+      logger.warn("[Eliza Messages API] User blocked due to moderation violations", {
+        userId: user.id,
+      });
+      return NextResponse.json(
+        { error: "Your account has been suspended due to policy violations. Please contact support." },
+        { status: 403 },
+      );
+    }
+
+    // Start async content moderation (runs in background, doesn't block)
+    contentModerationService.moderateInBackground(
+      text,
+      user.id,
+      roomId,
+      (result) => {
+        logger.warn("[Eliza Messages API] Async moderation detected violation", {
+          userId: user.id,
+          roomId,
+          categories: result.flaggedCategories,
+          action: result.action,
+        });
+      }
+    );
 
     // Handle anonymous user rate limiting
     if (isAnonymous && anonymousSession) {

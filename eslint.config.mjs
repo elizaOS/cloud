@@ -1,4 +1,6 @@
 import nextConfig from "eslint-config-next";
+import reactPlugin from "eslint-plugin-react";
+import reactHooksPlugin from "eslint-plugin-react-hooks";
 
 const eslintConfig = [
   ...nextConfig,
@@ -10,10 +12,20 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      "docs/**",
     ],
   },
   // React Hooks Rules - Critical for preventing unnecessary re-renders and API spam
   {
+    plugins: {
+      "react": reactPlugin,
+      "react-hooks": reactHooksPlugin,
+    },
+    settings: {
+      react: {
+        version: "detect",
+      },
+    },
     rules: {
       // Enforce Rules of Hooks - catches common mistakes
       "react-hooks/rules-of-hooks": "error",
