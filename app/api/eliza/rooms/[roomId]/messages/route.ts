@@ -5,7 +5,6 @@ import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
 import {
   creditsService,
   usageService,
-  generationsService,
   organizationsService,
   discordService,
   anonymousSessionsService,
@@ -41,7 +40,7 @@ export async function POST(
       const authResult = await requireAuthOrApiKey(request);
       user = authResult.user;
       apiKey = authResult.apiKey;
-    } catch (error) {
+    } catch {
       // Fallback to anonymous user
       logger.info("[Messages API] Privy auth failed, trying anonymous...");
 
@@ -76,9 +75,6 @@ export async function POST(
     const { roomId } = await ctx.params;
     const body = await request.json();
     const { text, attachments } = body;
-
-    // IMPORTANT: Use authenticated user's ID as entityId (not from request body)
-    const entityId = user.id;
 
     if (!roomId) {
       logger.error("[Eliza Messages API] Missing roomId");
@@ -182,7 +178,7 @@ export async function POST(
     }
 
     // Process message via agent runtime (backward compatibility layer)
-    logger.info("[Eliza Messages API] Processing message:", { roomId, entityId });
+    logger.info("[Eliza Messages API] Processing message:", { roomId, userId: user.id });
 
     const room = await roomsRepository.findById(roomId);
     const characterId = room?.agentId || undefined;
@@ -249,23 +245,8 @@ export async function POST(
       });
     }
 
-    // Generate title if this is first message
-    const roomMessages = await db.execute<{ count: number }>(
-      sql`SELECT COUNT(*) as count FROM memories WHERE room_id = ${roomId}::uuid AND type = 'messages'`,
-    );
-    const messageCount = roomMessages.rows[0]?.count || 0;
-
-    if (messageCount <= 2 && !room?.name) {
-      logger.info(
-        "[Eliza Messages API] First message in room, generating title...",
-      );
-
-      const { generateRoomTitle } = await import("@/lib/ai/generate-room-title");
-      const title = await generateRoomTitle(text);
-
-      await roomsRepository.update(roomId, { name: title });
-      logger.info("[Eliza Messages API] Generated room title:", title);
-    }
+    // Note: Room title generation is now handled by roomTitleEvaluator
+    // It will automatically generate a title after 4+ messages
 
     // Send to Discord thread if configured
     const discordThreadId = room?.metadata?.discordThreadId as

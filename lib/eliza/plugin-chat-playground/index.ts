@@ -6,6 +6,7 @@ import {
 } from "@elizaos/core";
 import { characterProvider } from "./providers/character";
 import { handleMessage } from "./handler";
+import { roomTitleEvaluator } from "../shared/evaluators";
 
 export const chatPlaygroundPlugin: Plugin = {
   name: "eliza-chat-playground",
@@ -25,6 +26,7 @@ export const chatPlaygroundPlugin: Plugin = {
   },
   providers: [characterProvider],
   actions: [],
+  evaluators: [roomTitleEvaluator],
 };
 
 export default chatPlaygroundPlugin;

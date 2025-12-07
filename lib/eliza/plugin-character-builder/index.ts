@@ -12,6 +12,7 @@ import { proposeCharacterChangesAction } from "./actions/propose-character-chang
 import { applyCharacterChangesAction } from "./actions/apply-character-changes";
 import { buildChatAction } from "./actions/build-chat";
 import { handleMessage } from "./handler";
+import { roomTitleEvaluator } from "../shared/evaluators";
 
 export const characterBuilderPlugin: Plugin = {
   name: "eliza-character-builder",
@@ -28,9 +29,17 @@ export const characterBuilderPlugin: Plugin = {
         });
       },
     ],
+    [EventType.MESSAGE_SENT]: [
+      async (payload: MessagePayload) => {
+        logger.debug(
+          `[Builder] Message sent: ${payload.message.content.text}`,
+        );
+      },
+    ],
   },
   providers: [actionsProvider, characterGuideProvider, currentCharacterProvider],
   actions: [generateImageAction, proposeCharacterChangesAction, applyCharacterChangesAction, buildChatAction],
+  evaluators: [roomTitleEvaluator],
 };
 
 export default characterBuilderPlugin;
