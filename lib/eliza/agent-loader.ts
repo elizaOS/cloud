@@ -17,14 +17,25 @@ async function loadKnowledgePlugin() {
   return knowledgePluginCore;
 }
 
+/**
+ * Cast external plugin to local Plugin type.
+ * Required because external @elizaos plugins may be compiled against
+ * different @elizaos/core versions, causing structural type mismatches
+ * even though the Plugin interface is identical.
+ */
+function asPlugin<T extends { name: string; description: string }>(plugin: T): Plugin {
+  return plugin as Plugin;
+}
+
 const AVAILABLE_PLUGINS: Record<string, Plugin> = {
-  "@elizaos/plugin-elizacloud": elizaOSCloudPlugin as unknown as Plugin,
-  "@elizaos/plugin-elevenlabs": elevenLabsPlugin as unknown as Plugin,
-  "@elizaos/plugin-memory": memoryPlugin as unknown as Plugin,
-  "@elizaos/plugin-mcp": mcpPlugin as unknown as Plugin,
-  "@eliza-cloud/plugin-assistant": assistantPlugin as unknown as Plugin,
-  "@eliza-cloud/plugin-chat-playground": chatPlaygroundPlugin as unknown as Plugin,
-  "@eliza-cloud/plugin-character-builder": characterBuilderPlugin as unknown as Plugin,
+  "@elizaos/plugin-elizacloud": asPlugin(elizaOSCloudPlugin),
+  "@elizaos/plugin-elevenlabs": asPlugin(elevenLabsPlugin),
+  "@elizaos/plugin-memory": asPlugin(memoryPlugin),
+  "@elizaos/plugin-mcp": asPlugin(mcpPlugin),
+  // Local plugins don't need casting - they use the same @elizaos/core
+  "@eliza-cloud/plugin-assistant": assistantPlugin,
+  "@eliza-cloud/plugin-chat-playground": chatPlaygroundPlugin,
+  "@eliza-cloud/plugin-character-builder": characterBuilderPlugin,
 };
 
 /**

@@ -166,14 +166,14 @@ export async function updateContainerHealth(
         .set(baseUpdate)
         .where(eq(containers.id, containerId));
 
-      console.log("Container health check passed, status unchanged", {
+      logger.debug("Container health check passed, status unchanged", {
         containerId,
         healthy: true,
       });
       return;
     }
 
-    console.log("Container health status restored to running", {
+    logger.info("Container health status restored to running", {
       containerId,
       healthy: true,
       previousStatus: "failed",
@@ -191,7 +191,7 @@ export async function monitorAllContainers(
 ): Promise<HealthCheckResult[]> {
   const finalConfig = { ...DEFAULT_CONFIG, ...config };
 
-  console.log("Starting health check for all containers");
+  logger.info("Starting health check for all containers");
 
   // Get all running containers
   const runningContainers = await db
@@ -199,7 +199,7 @@ export async function monitorAllContainers(
     .from(containers)
     .where(eq(containers.status, "running"));
 
-  console.log(
+  logger.info(
     `Found ${runningContainers.length} running containers to check`,
   );
 
@@ -207,7 +207,7 @@ export async function monitorAllContainers(
   const results: HealthCheckResult[] = await Promise.all(
     runningContainers.map(async (container) => {
       if (!container.load_balancer_url) {
-        console.warn("Container has no URL, skipping health check", {
+        logger.warn("Container has no URL, skipping health check", {
           containerId: container.id,
         });
         return {
@@ -228,7 +228,7 @@ export async function monitorAllContainers(
       await updateContainerHealth(container.id, result);
 
       if (!result.healthy) {
-        console.warn("Container health check failed", {
+        logger.warn("Container health check failed", {
           containerId: container.id,
           url: container.load_balancer_url,
           error: result.error,
@@ -242,7 +242,7 @@ export async function monitorAllContainers(
   const healthyCount = results.filter((r) => r.healthy).length;
   const unhealthyCount = results.length - healthyCount;
 
-  console.log("Health check completed", {
+  logger.info("Health check completed", {
     total: results.length,
     healthy: healthyCount,
     unhealthy: unhealthyCount,
@@ -314,7 +314,7 @@ export function startHealthMonitoring(
     process.env.FUNCTION_NAME;
 
   if (isServerless) {
-    console.error(
+    logger.error(
       "🚨 [Health Monitor] CRITICAL: startHealthMonitoring() called in serverless environment!\n" +
         "This will NOT work correctly. Background intervals stop when serverless functions complete.\n" +
         "Use a cron endpoint instead: POST /api/v1/cron/health-check\n" +
@@ -322,7 +322,7 @@ export function startHealthMonitoring(
     );
   }
 
-  console.warn(
+  logger.warn(
     "[Health Monitor] Starting continuous health monitoring (NOT serverless-compatible)",
     { intervalMs, isServerless },
   );
@@ -342,5 +342,5 @@ export function startHealthMonitoring(
  */
 export function stopHealthMonitoring(interval: NodeJS.Timeout): void {
   clearInterval(interval);
-  console.log("Health monitoring stopped");
+  logger.info("Health monitoring stopped");
 }

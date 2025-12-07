@@ -23,7 +23,11 @@ export interface StoredMessage {
   createdAt: number;
 }
 
-export interface MessageContent {
+/**
+ * Message content structure for storage.
+ * Extends Record<string, unknown> for JSONB column compatibility.
+ */
+export interface MessageContent extends Record<string, unknown> {
   text: string;
   source?: string;
   inReplyTo?: string;
@@ -35,7 +39,6 @@ export interface MessageContent {
   }>;
   thought?: string;
   actions?: string[];
-  [key: string]: unknown;
 }
 
 export interface StoreUserMessageParams {
@@ -85,7 +88,7 @@ class MessageStorageService {
         roomId: roomId as UUID,
         entityId: entityId as UUID,
         agentId: agentId as UUID,
-        content: content as unknown as Record<string, unknown>,
+        content,
         type: "messages",
         createdAt: now,
       });
@@ -132,7 +135,7 @@ class MessageStorageService {
         roomId: roomId as UUID,
         entityId: agentId as UUID,
         agentId: agentId as UUID,
-        content: messageContent as unknown as Record<string, unknown>,
+        content: messageContent,
         type: "messages",
         createdAt: now,
       });

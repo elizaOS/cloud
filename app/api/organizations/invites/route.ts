@@ -114,26 +114,24 @@ async function handleGET() {
       user.organization_id!,
     );
 
-    // Type for invite with inviter relation
-    interface InviteWithInviter {
-      id: string;
-      invited_email: string;
-      invited_role: string;
-      status: string;
-      expires_at: Date;
-      created_at: Date;
-      accepted_at: Date | null;
+    /**
+     * Type for invite with inviter relation.
+     * The repository query uses `with: { inviter }` but Drizzle's base return type
+     * doesn't include relations. This type extends the base invite with the relation.
+     */
+    type InviteWithInviter = typeof invites[number] & {
       inviter?: {
         id: string;
         name: string | null;
         email: string | null;
       } | null;
-    }
+    };
 
     return NextResponse.json({
       success: true,
       data: invites.map((invite) => {
-        const inviteWithRelation = invite as unknown as InviteWithInviter;
+        // Safe cast: repository query includes inviter relation via `with` clause
+        const inviteWithRelation = invite as InviteWithInviter;
         return {
           id: inviteWithRelation.id,
           email: inviteWithRelation.invited_email,

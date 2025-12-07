@@ -126,29 +126,30 @@ export default function PrivyProvider({
   children: React.ReactNode;
 }) {
   // Memoize the config to prevent unnecessary re-renders (must be before early return)
+  // PrivyClientConfig accepts partial configurations at runtime, but the type is strict.
+  // We define the exact shape we're providing and cast to the expected interface.
   const privyConfig = useMemo(
-    () =>
-      ({
-        loginMethods,
-        embeddedWallets: {
-          ethereum: {
-            createOnLogin: "users-without-wallets" as const,
-          },
-          solana: {
-            createOnLogin: "users-without-wallets" as const,
-          },
+    (): PrivyClientConfig => ({
+      loginMethods,
+      embeddedWallets: {
+        ethereum: {
+          createOnLogin: "users-without-wallets",
         },
-        appearance: {
-          walletChainType: "ethereum-and-solana" as const,
-          theme: "dark" as const,
-          accentColor: "#6366F1" as `#${string}`,
+        solana: {
+          createOnLogin: "users-without-wallets",
         },
-        externalWallets: {
-          solana: {
-            connectors: toSolanaWalletConnectors(),
-          },
+      },
+      appearance: {
+        walletChainType: "ethereum-and-solana",
+        theme: "dark",
+        accentColor: "#6366F1",
+      },
+      externalWallets: {
+        solana: {
+          connectors: toSolanaWalletConnectors(),
         },
-      }) as unknown as PrivyClientConfig,
+      },
+    }),
     [],
   );
 

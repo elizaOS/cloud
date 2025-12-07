@@ -18,7 +18,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 // Helper to generate unique IDs without using Date.now() during render
 const generateId = () => {
@@ -64,24 +64,8 @@ function ChatPage() {
   const [streamingContent, setStreamingContent] = useState("");
   const [isThinking, setIsThinking] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
-  
-  // Memoize selected image object URL to avoid memory leaks
-  const selectedImageUrl = useMemo(() => {
-    if (selectedImageFile) {
-      return URL.createObjectURL(selectedImageFile);
-    }
-    return null;
-  }, [selectedImageFile]);
-
-  // Clean up object URL when image changes
-  useEffect(() => {
-    return () => {
-      if (selectedImageUrl) {
-        URL.revokeObjectURL(selectedImageUrl);
-      }
-    };
-  }, [selectedImageUrl]);
   const [imageModalUrl, setImageModalUrl] = useState<string | null>(null);
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [showLowCredits, setShowLowCredits] = useState(false);
@@ -155,10 +139,10 @@ function ChatPage() {
 
   // Send message
   const handleSend = async () => {
-    if ((!input.trim() && !selectedImageUrl) || sending) return;
+    if ((!input.trim() && !selectedImage) || sending) return;
 
     const messageText = input.trim();
-    const imageToSend = selectedImageUrl;
+    const imageToSend = selectedImage;
     
     setInput("");
     clearSelectedImage();
@@ -269,11 +253,17 @@ function ChatPage() {
       }
 
       setSelectedImageFile(file);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setSelectedImage(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
   // Clear selected image
   const clearSelectedImage = () => {
+    setSelectedImage(null);
     setSelectedImageFile(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -652,7 +642,6 @@ function ChatPage() {
             <div className="mx-auto max-w-2xl">
               <OutOfCreditsPrompt
                 currentBalance={creditBalance ?? 0}
-                onClose={() => setShowLowCredits(false)}
               />
             </div>
           </div>
@@ -662,12 +651,12 @@ function ChatPage() {
         <div className="border-t border-white/5 px-4 py-3">
           <div className="mx-auto max-w-2xl">
             {/* Selected image preview */}
-            {selectedImageUrl && (
+            {selectedImage && (
               <div className="mb-2 flex items-start gap-2">
                 <div className="relative">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={selectedImageUrl}
+                    src={selectedImage}
                     alt="Selected"
                     className="h-20 w-20 rounded-lg object-cover"
                   />
@@ -716,7 +705,7 @@ function ChatPage() {
             />
             <button
               onClick={handleSend}
-                disabled={(!input.trim() && !selectedImageUrl) || sending}
+                disabled={(!input.trim() && !selectedImage) || sending}
               className="flex items-center justify-center rounded-lg bg-brand px-4 py-2 text-white transition-colors hover:bg-brand-600 disabled:opacity-50"
             >
               {sending ? (
