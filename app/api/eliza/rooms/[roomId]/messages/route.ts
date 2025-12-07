@@ -1,335 +1,320 @@
 import { NextResponse } from "next/server";
-import { stringToUuid, type UUID, type Memory } from "@elizaos/core";
+import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
-import { organizationsService } from "@/lib/services";
-import { calculateCost, getProviderFromModel, estimateTokens } from "@/lib/pricing";
+import {
+  creditsService,
+  usageService,
+  generationsService,
+  organizationsService,
+  discordService,
+  anonymousSessionsService,
+} from "@/lib/services";
+import {
+  calculateCost,
+  getProviderFromModel,
+  estimateTokens,
+} from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
 import { roomsRepository } from "@/db/repositories";
-import type { UserWithOrganization, ApiKey } from "@/lib/types";
-import type { AnonymousSession } from "@/db/schemas";
-import { runtimeFactory } from "@/lib/eliza/runtime-factory";
-import { userContextService } from "@/lib/eliza/user-context";
-import { AgentMode } from "@/lib/eliza/agent-mode-types";
-import { sendMessageWithSideEffects } from "@/lib/eliza/send-message";
+import { db } from "@/db/client";
+import { sql } from "drizzle-orm";
 
 export const maxDuration = 60;
 
-/**
- * POST /api/eliza/rooms/[roomId]/messages
- * Sends a message to a room and processes it through the Eliza agent runtime.
- * Supports both authenticated and anonymous users with rate limiting.
- * 
- * Note: Billing is handled by the gateway (plugin-elizacloud routes through /api/v1/chat/completions)
- *
- * @param request - Request body with text and optional attachments.
- * @param ctx - Route context containing the room ID parameter.
- * @returns Created message and polling hints for response.
- */
+// POST /api/eliza/rooms/[roomId]/messages - Send a message
 export async function POST(
   request: NextRequest,
-  ctx: { params: Promise<{ roomId: string }> },
+  ctx: { params: Promise<{ roomId: string }> }
 ) {
-  // Support both authenticated and anonymous users
-  let user: UserWithOrganization;
-  let apiKey: ApiKey | undefined = undefined;
-  let isAnonymous = false;
-  let anonymousSession: AnonymousSession | null = null;
-
   try {
-    const authResult = await requireAuthOrApiKey(request);
-    user = authResult.user;
-    apiKey = authResult.apiKey;
-  } catch {
-    // Fallback to anonymous user
-    logger.info("[Messages API] Privy auth failed, trying anonymous...");
+    // Support both authenticated and anonymous users
+    let user: any;
+    let apiKey: any = undefined;
+    let isAnonymous = false;
+    let anonymousSession: any = null;
 
-    let anonData = await getAnonymousUser();
+    try {
+      const authResult = await requireAuthOrApiKey(request);
+      user = authResult.user;
+      apiKey = authResult.apiKey;
+    } catch (error) {
+      // Fallback to anonymous user
+      logger.info("[Messages API] Privy auth failed, trying anonymous...");
 
-    if (!anonData) {
-      // Create new anonymous session if none exists
-      logger.info(
-        "[Messages API] No session cookie - creating new anonymous session",
-      );
-      const { getOrCreateAnonymousUser } =
-        await import("@/lib/auth-anonymous");
-      const newAnonData = await getOrCreateAnonymousUser();
-      anonData = {
-        user: newAnonData.user,
-        session: newAnonData.session,
-      };
-      logger.info("[Messages API] Created anonymous user:", anonData.user.id);
+      let anonData = await getAnonymousUser();
+
+      if (!anonData) {
+        // Create new anonymous session if none exists
+        logger.info(
+          "[Messages API] No session cookie - creating new anonymous session"
+        );
+        const { getOrCreateAnonymousUser } =
+          await import("@/lib/auth-anonymous");
+        const newAnonData = await getOrCreateAnonymousUser();
+        anonData = {
+          user: newAnonData.user,
+          session: newAnonData.session,
+        };
+        logger.info("[Messages API] Created anonymous user:", anonData.user.id);
+      }
+
+      user = anonData.user;
+      anonymousSession = anonData.session;
+      isAnonymous = true;
+
+      logger.info("[Messages API] Anonymous user authenticated:", {
+        userId: user.id,
+        sessionId: anonymousSession?.id,
+        messageCount: anonymousSession?.message_count,
+      });
     }
 
-    user = anonData.user;
-    anonymousSession = anonData.session;
-    isAnonymous = true;
+    const { roomId } = await ctx.params;
+    const body = await request.json();
+    const { text, attachments } = body;
 
-    logger.info("[Messages API] Anonymous user authenticated:", {
-      userId: user.id,
-      sessionId: anonymousSession?.id,
-      messageCount: anonymousSession?.message_count,
-    });
-  }
+    // IMPORTANT: Use authenticated user's ID as entityId (not from request body)
+    const entityId = user.id;
 
-  const { roomId } = await ctx.params;
-  const body = await request.json();
-  const { text, attachments } = body;
-  
-  // IMPORTANT: Use authenticated user's ID as entityId (not from request body)
-  const entityId = user.id;
-
-  if (!roomId) {
-    logger.error("[Eliza Messages API] Missing roomId");
-    return NextResponse.json(
-      { error: "roomId is required" },
-      { status: 400 },
-    );
-  }
-
-  if (!text || typeof text !== "string" || text.trim().length === 0) {
-    logger.error("[Eliza Messages API] Invalid or missing text", { text });
-    return NextResponse.json(
-      { error: "text is required and must be a non-empty string" },
-      { status: 400 },
-    );
-  }
-
-  // Handle anonymous user rate limiting
-  if (isAnonymous && anonymousSession) {
-    const limitCheck = await checkAnonymousLimit(
-      anonymousSession.session_token,
-    );
-
-    if (!limitCheck.allowed) {
-      const errorMessage =
-        limitCheck.reason === "message_limit"
-          ? `You've reached your free message limit (${limitCheck.limit} messages). Sign up to continue chatting!`
-          : `You've reached the hourly rate limit. Please wait an hour or sign up for unlimited access.`;
-
-      logger.warn("eliza-messages-api", "Anonymous user limit reached", {
-        userId: user.id,
-        sessionId: anonymousSession.id,
-        reason: limitCheck.reason,
-        limit: limitCheck.limit,
-      });
-
+    if (!roomId) {
+      logger.error("[Eliza Messages API] Missing roomId");
       return NextResponse.json(
-        {
-          error: errorMessage,
-          requiresSignup: true,
+        { error: "roomId is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!text || typeof text !== "string" || text.trim().length === 0) {
+      logger.error("[Eliza Messages API] Invalid or missing text", { text });
+      return NextResponse.json(
+        { error: "text is required and must be a non-empty string" },
+        { status: 400 }
+      );
+    }
+
+    // Handle anonymous user rate limiting
+    if (isAnonymous && anonymousSession) {
+      const limitCheck = await checkAnonymousLimit(
+        anonymousSession.session_token
+      );
+
+      if (!limitCheck.allowed) {
+        const errorMessage =
+          limitCheck.reason === "message_limit"
+            ? `You've reached your free message limit (${limitCheck.limit} messages). Sign up to continue chatting!`
+            : `You've reached the hourly rate limit. Please wait an hour or sign up for unlimited access.`;
+
+        logger.warn("eliza-messages-api", "Anonymous user limit reached", {
+          userId: user.id,
+          sessionId: anonymousSession.id,
           reason: limitCheck.reason,
           limit: limitCheck.limit,
-          remaining: limitCheck.remaining,
-        },
-        { status: 429 },
-      );
-    }
+        });
 
-    logger.info("eliza-messages-api", "Anonymous user message allowed", {
-      userId: user.id,
-      remaining: limitCheck.remaining,
-      limit: limitCheck.limit,
-    });
-  }
+        return NextResponse.json(
+          {
+            error: errorMessage,
+            requiresSignup: true,
+            reason: limitCheck.reason,
+            limit: limitCheck.limit,
+            remaining: limitCheck.remaining,
+          },
+          { status: 429 }
+        );
+      }
 
-  // For authenticated users: Check credit balance BEFORE processing
-  if (!isAnonymous) {
-    const estimatedInputTokens = estimateTokens(text);
-    const estimatedOutputTokens = 100;
-    const model = "gpt-4o";
-    const provider = getProviderFromModel(model);
-
-    const { totalCost: estimatedCost } = await calculateCost(
-      model,
-      provider,
-      estimatedInputTokens,
-      estimatedOutputTokens,
-    );
-
-    if (!user.organization_id) {
-      return NextResponse.json(
-        { error: "Organization required for authenticated users" },
-        { status: 500 },
-      );
-    }
-
-    const org = await organizationsService.getById(user.organization_id);
-    if (!org) {
-      logger.error("[Eliza Messages API] Organization not found", {
-        organizationId: user.organization_id,
+      logger.info("eliza-messages-api", "Anonymous user message allowed", {
+        userId: user.id,
+        remaining: limitCheck.remaining,
+        limit: limitCheck.limit,
       });
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 },
-      );
     }
 
-    if (Number(org.credit_balance) < estimatedCost) {
-      logger.warn("[Eliza Messages API] Insufficient credits", {
-        organizationId: user.organization_id,
-        required: estimatedCost,
-        balance: org.credit_balance,
-      });
-      return NextResponse.json(
-        {
-          error: "Insufficient balance",
-          details: `Required: ${estimatedCost}, Available: ${org.credit_balance}`,
-        },
-        { status: 402 },
+    // For authenticated users: Check credit balance BEFORE processing
+    if (!isAnonymous) {
+      const estimatedInputTokens = estimateTokens(text);
+      const estimatedOutputTokens = 100;
+      const model = "gpt-4o";
+      const provider = getProviderFromModel(model);
+
+      const { totalCost: estimatedCost } = await calculateCost(
+        model,
+        provider,
+        estimatedInputTokens,
+        estimatedOutputTokens
       );
+
+      if (!user.organization_id) {
+        logger.error(
+          "[Eliza Messages API] User has no organization - cannot proceed",
+          { userId: user.id }
+        );
+        return NextResponse.json(
+          { error: "User has no organization" },
+          { status: 400 }
+        );
+      }
+
+      // Check if user has sufficient credits
+      const org = await organizationsService.getById(user.organization_id);
+      if (!org) {
+        return NextResponse.json(
+          { error: "Organization not found" },
+          { status: 404 }
+        );
+      }
+
+      const creditBalance = Number.parseFloat(String(org.credit_balance));
+      if (creditBalance < estimatedCost) {
+        return NextResponse.json(
+          {
+            error: "Insufficient credits",
+            creditBalance,
+            estimatedCost,
+          },
+          { status: 402 }
+        );
+      }
     }
-  }
 
-  // Look up character for this room from agentId (single source of truth)
-  let characterId: string | undefined;
-  const room = await roomsRepository.findById(roomId);
-  if (room) {
-    characterId = room.agentId || undefined;
-    if (characterId) {
-      logger.info(
-        "[Eliza Messages API] ✓ Using custom character:",
-        characterId,
-        "for room:",
-        roomId,
-      );
-    } else {
-      logger.info(
-        "[Eliza Messages API] ⓘ No character mapping found for room:",
-        roomId,
-        "- using default character",
-      );
-    }
-  }
-
-  // Build user context for runtime creation using centralized service
-  const userContext = await userContextService.buildContext({
-    user,
-    apiKey,
-    isAnonymous,
-    anonymousSession: anonymousSession ?? undefined,
-    agentMode: AgentMode.CHAT,
-  });
-
-  // Add character override if found
-  if (characterId) {
-    userContext.characterId = characterId;
-  }
-
-  // Create runtime and send message via plugin event handlers
-  // Note: Billing is handled by the gateway (plugin-elizacloud routes through /api/v1/chat/completions)
-  const runtime = await runtimeFactory.createRuntimeForUser(userContext);
-
-  const result = await sendMessageWithSideEffects(
-    runtime,
-    roomId as UUID,
-    stringToUuid(entityId) as UUID,
-    {
-      text,
-      attachments: attachments || [],
-      source: "client_chat",
-    },
-    userContext,
-    characterId,
-  );
-
-  const responseContent = result.result?.responseContent;
-
-  logger.debug(`[Eliza Messages API] Message sent`, {
-    roomId,
-    entityId,
-    messageId: result.messageId,
-    hasResponse: !!responseContent,
-  });
-
-  // Return the created message
-  return NextResponse.json({
-    success: true,
-    message: {
-      id: result.messageId,
-      entityId: result.userMessage.entityId || "",
-      agentId: runtime.agentId,
-      content: responseContent || { text: "", source: "agent" },
-      createdAt: result.userMessage.createdAt,
+    // Process message via agent runtime (backward compatibility layer)
+    logger.info("[Eliza Messages API] Processing message:", {
       roomId,
-    },
-    // Include polling hint for the client
-    pollForResponse: true,
-    pollDuration: 30000, // 30 seconds
-    pollInterval: 1000, // 1 second
-  });
-}
+      entityId,
+    });
 
-/**
- * GET /api/eliza/rooms/[roomId]/messages
- * Retrieves messages from a room, optionally filtered by timestamp for polling.
- *
- * @param request - Request with optional limit and afterTimestamp query parameters.
- * @param ctx - Route context containing the room ID parameter.
- * @returns Array of messages with pagination metadata.
- */
-export async function GET(
-  request: NextRequest,
-  ctx: { params: Promise<{ roomId: string }> },
-) {
-  // Authenticate user or validate API key
-  await requireAuthOrApiKey(request);
+    const room = await roomsRepository.findById(roomId);
+    const characterId = room?.agentId || undefined;
 
-  const { roomId } = await ctx.params;
-  const { searchParams } = new URL(request.url);
-  const limit = searchParams.get("limit");
-  const afterTimestamp = searchParams.get("afterTimestamp");
+    const result = await agentRuntime.handleMessage(
+      roomId,
+      { text, attachments },
+      characterId,
+      {
+        userId: user.id,
+        apiKey: apiKey?.key,
+      }
+    );
 
-  if (!roomId) {
+    // Deduct credits and track usage for authenticated users
+    if (!isAnonymous && result.usage) {
+      try {
+        const provider = getProviderFromModel(result.usage.model);
+        const { totalCost: cost } = await calculateCost(
+          result.usage.model,
+          provider,
+          result.usage.inputTokens,
+          result.usage.outputTokens
+        );
+
+        // Deduct credits
+        await creditsService.deductCredits({
+          organizationId: user.organization_id,
+          amount: cost,
+          description: `Message processing (${result.usage.model})`,
+        });
+
+        // Track usage
+        await usageService.create({
+          organization_id: user.organization_id,
+          user_id: user.id,
+          type: "eliza",
+          model: result.usage.model,
+          provider,
+          input_tokens: result.usage.inputTokens,
+          output_tokens: result.usage.outputTokens,
+        });
+
+        logger.info("[Eliza Messages API] Credits deducted:", {
+          cost,
+          model: result.usage.model,
+          tokens: {
+            input: result.usage.inputTokens,
+            output: result.usage.outputTokens,
+          },
+        });
+      } catch (error) {
+        logger.error("[Eliza Messages API] Failed to handle credits:", error);
+      }
+    }
+
+    // Track anonymous usage
+    if (isAnonymous && anonymousSession) {
+      await anonymousSessionsService.incrementMessageCount(anonymousSession.id);
+
+      logger.info("[Eliza Messages API] Anonymous message tracked:", {
+        sessionId: anonymousSession.id,
+        newCount: (anonymousSession.message_count || 0) + 1,
+      });
+    }
+
+    // Generate title if this is first message
+    const roomMessages = await db.execute<{ count: number }>(
+      sql`SELECT COUNT(*) as count FROM memories WHERE room_id = ${roomId}::uuid AND type = 'messages'`
+    );
+    const messageCount = roomMessages.rows[0]?.count || 0;
+
+    if (messageCount <= 2 && !room?.name) {
+      logger.info(
+        "[Eliza Messages API] First message in room, generating title..."
+      );
+
+      const { generateRoomTitle } =
+        await import("@/lib/ai/generate-room-title");
+      const title = await generateRoomTitle(text);
+
+      await roomsRepository.update(roomId, { name: title });
+      logger.info("[Eliza Messages API] Generated room title:", title);
+    }
+
+    // Send to Discord thread if configured
+    const discordThreadId = room?.metadata?.discordThreadId as
+      | string
+      | undefined;
+    if (discordThreadId) {
+      try {
+        const userMessage = `**${user.name || user.email || user.id}:** ${text}`;
+        await discordService.sendToThread(discordThreadId, userMessage);
+
+        const responseText =
+          typeof result.message.content === "string"
+            ? result.message.content
+            : result.message.content?.text || "";
+
+        const character =
+          characterId &&
+          (await db.execute<{ name: string }>(
+            sql`SELECT name FROM user_characters WHERE id = ${characterId}::uuid LIMIT 1`
+          ));
+
+        const agentMessage = `**${character?.rows[0]?.name || "Agent"}:** ${responseText}`;
+        await discordService.sendToThread(discordThreadId, agentMessage);
+
+        logger.info("[Eliza Messages API] Sent to Discord thread:", {
+          threadId: discordThreadId,
+        });
+      } catch (error) {
+        logger.error(
+          "[Eliza Messages API] Failed to send to Discord thread:",
+          error
+        );
+      }
+    }
+
+    return NextResponse.json({
+      message: result.message,
+      usage: result.usage,
+    });
+  } catch (error) {
+    logger.error("[Eliza Messages API] Error:", error);
     return NextResponse.json(
-      { error: "roomId is required" },
-      { status: 400 },
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to process message",
+      },
+      { status: 500 }
     );
   }
-
-  const runtime = await runtimeFactory.getSystemRuntime();
-
-  const messages = await runtime.getMemories({
-    tableName: "messages",
-    roomId: roomId as UUID,
-    count: limit ? parseInt(limit) : 100, // Higher count for polling to catch all new messages
-    unique: false,
-  });
-
-  // Filter messages by timestamp if provided (for polling)
-  const parsed = afterTimestamp ? Number(afterTimestamp) : 0;
-  const afterTimestampNum =
-    Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
-  const isValidAfter = afterTimestampNum > 0;
-  const filteredMessages = isValidAfter
-    ? messages.filter((msg: Memory) => {
-        const msgTime = msg.createdAt ?? 0;
-        return msgTime > afterTimestampNum;
-      })
-    : messages;
-
-  const simple = filteredMessages
-    .map((msg: Memory) => {
-      return {
-        id: msg.id,
-        entityId: msg.entityId,
-        agentId: msg.agentId,
-        content: msg.content,
-        createdAt: msg.createdAt ?? Date.now(),
-        isAgent: msg.entityId === msg.agentId,
-      };
-    })
-    .sort((a, b) => a.createdAt - b.createdAt);
-
-  return NextResponse.json(
-    {
-      success: true,
-      messages: simple,
-      hasMore: false,
-      lastTimestamp:
-        simple.length > 0 ? simple[simple.length - 1].createdAt : Date.now(),
-    },
-    { headers: { "Cache-Control": "no-store" } },
-  );
 }

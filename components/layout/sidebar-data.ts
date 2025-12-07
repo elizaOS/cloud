@@ -122,7 +122,6 @@ export const sidebarSections: SidebarSection[] = [
         href: "/dashboard/apps",
         icon: Grid3x3,
         freeAllowed: false, // Requires signup
-        isNew: true,
       },
       {
         id: "containers",
@@ -139,7 +138,6 @@ export const sidebarSections: SidebarSection[] = [
         icon: Puzzle,
         freeAllowed: false,
         featureFlag: "mcp",
-        isNew: true,
       },
     ],
   },

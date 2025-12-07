@@ -1,98 +1,151 @@
 /**
- * Agent Runtime - Simplified interface for MCP tool compatibility
- * Provides getRuntime() and handleMessage() for agent operations
+ * Agent Runtime Manager - Simplified facade for backward compatibility
+ * Now delegates to RuntimeFactory and MessageHandler for cleaner architecture
  */
 
-import { stringToUuid, type UUID, type Memory } from "@elizaos/core";
+import { AgentRuntime } from "@elizaos/core";
 import { runtimeFactory } from "./runtime-factory";
-import { sendMessageWithSideEffects } from "./send-message";
-import { userContextService } from "./user-context";
+import { createMessageHandler, type MessageResult } from "./message-handler";
+import { userContextService, type UserContext } from "./user-context";
 import { AgentMode } from "./agent-mode-types";
-import { participantsRepository } from "@/db/repositories";
+import { logger } from "@/lib/utils/logger";
 
-interface HandleMessageInput {
-  text: string;
-  attachments?: Array<{
-    type: "image" | "file";
-    url: string;
-    filename?: string;
-    mimeType?: string;
-  }>;
-}
+// Legacy compatibility layer
+class AgentRuntimeManager {
+  private static instance: AgentRuntimeManager;
 
-interface HandleMessageResult {
-  message: Memory;
-  usage?: {
-    inputTokens: number;
-    outputTokens: number;
-    model: string;
-  };
-}
+  // Cache for the default system runtime to avoid expensive re-initialization
+  private cachedSystemRuntime: AgentRuntime | null = null;
+  private systemRuntimePromise: Promise<AgentRuntime> | null = null;
 
-class AgentRuntime {
-  /**
-   * Get a system runtime for operations
-   */
-  async getRuntime() {
-    return await runtimeFactory.getSystemRuntime();
+  private constructor() {
+    logger.info("[AgentRuntime] Initialized simplified runtime manager");
+  }
+
+  public static getInstance(): AgentRuntimeManager {
+    if (!AgentRuntimeManager.instance) {
+      AgentRuntimeManager.instance = new AgentRuntimeManager();
+    }
+    return AgentRuntimeManager.instance;
+  }
+
+  public isReady(): boolean {
+    return true;
   }
 
   /**
-   * Handle a message in a room
-   * Used for MCP tool compatibility
+   * Get default runtime (for backward compatibility)
+   * Creates a system context runtime with CHAT mode - CACHED to avoid expensive re-initialization
    */
-  async handleMessage(
-    roomId: string,
-    input: HandleMessageInput,
-  ): Promise<HandleMessageResult> {
-    // Get entity IDs from room
-    const entityIds = await participantsRepository.getEntityIdsByRoomId(roomId);
-    const entityId = entityIds.find((id) => id !== "system") || entityIds[0];
-    
-    if (!entityId) {
-      throw new Error(`No entity found in room ${roomId}`);
+  async getRuntime(): Promise<AgentRuntime> {
+    // Return cached runtime if available
+    if (this.cachedSystemRuntime) {
+      return this.cachedSystemRuntime;
     }
 
-    // Create system context for the operation
-    const systemContext = userContextService.createSystemContext(AgentMode.CHAT);
-    
-    // Get runtime (plugins loaded based on agentMode)
-    const runtime = await runtimeFactory.createRuntimeForUser(systemContext);
+    // If already creating, wait for that promise
+    if (this.systemRuntimePromise) {
+      return this.systemRuntimePromise;
+    }
 
-    // Send message via plugin event handlers
-    const result = await sendMessageWithSideEffects(
-      runtime,
-      stringToUuid(roomId) as UUID,
-      stringToUuid(entityId) as UUID,
-      {
-        text: input.text,
-        attachments: input.attachments || [],
-        source: "mcp",
-      },
-      systemContext,
+    // Create new runtime and cache it
+    logger.info(
+      "[AgentRuntime] Creating default runtime with system context (will be cached)",
+    );
+    this.systemRuntimePromise = (async () => {
+      const systemContext = userContextService.createSystemContext(
+        AgentMode.CHAT,
+      );
+      const runtime = await runtimeFactory.createRuntimeForUser(systemContext);
+      this.cachedSystemRuntime = runtime;
+      this.systemRuntimePromise = null;
+      return runtime;
+    })();
+
+    return this.systemRuntimePromise;
+  }
+
+  /**
+   * Get runtime for a specific character (for backward compatibility)
+   * Uses CHAT mode by default
+   */
+  async getRuntimeForCharacter(characterId?: string): Promise<AgentRuntime> {
+    const systemContext = userContextService.createSystemContext(
+      AgentMode.CHAT,
     );
 
-    // Extract response message
-    const responseContent = result.result?.responseContent;
-    const agentMessage: Memory = {
-      id: result.messageId as UUID,
-      entityId: runtime.agentId,
-      roomId: stringToUuid(roomId) as UUID,
-      content: responseContent || { text: "", source: "agent" },
-      createdAt: result.userMessage.createdAt || Date.now(),
-    };
+    if (characterId) {
+      systemContext.characterId = characterId;
+    }
 
-    // Note: Usage tracking is handled by MODEL_USED events in plugin-elizacloud,
-    // which routes through the billing gateway. Usage isn't passed through the callback,
-    // so this will always be undefined. Kept for interface compatibility.
-    const usage = undefined;
+    return runtimeFactory.createRuntimeForUser(systemContext);
+  }
 
-    return {
-      message: agentMessage,
-      usage,
-    };
+  /**
+   * Handle message - Main entry point for processing messages
+   * This method maintains backward compatibility while using the new architecture
+   * Uses CHAT mode by default
+   * Note: entityId is now derived from userContext.userId inside MessageHandler
+   */
+  public async handleMessage(
+    roomId: string,
+    content: { text?: string; attachments?: unknown[] },
+    characterId?: string,
+    userSettings?: {
+      userId?: string;
+      apiKey?: string;
+      modelPreferences?: {
+        smallModel?: string;
+        largeModel?: string;
+      };
+    },
+  ): Promise<MessageResult> {
+    logger.info("[AgentRuntime] Processing message via new architecture", {
+      roomId,
+      hasUserSettings: !!userSettings,
+    });
+
+    // Build user context from settings (backward compatibility)
+    let userContext: UserContext;
+
+    if (userSettings?.userId && userSettings?.apiKey) {
+      // Use provided user settings
+      userContext = {
+        userId: userSettings.userId,
+        entityId: userSettings.userId, // entityId === userId
+        organizationId: "default", // This would need to be passed in real usage
+        agentMode: AgentMode.CHAT, // Default to CHAT mode
+        apiKey: userSettings.apiKey,
+        modelPreferences: userSettings.modelPreferences,
+        characterId,
+        isAnonymous: false,
+      };
+    } else {
+      // Create system context as fallback
+      userContext = userContextService.createSystemContext(AgentMode.CHAT);
+      if (characterId) {
+        userContext.characterId = characterId;
+      }
+    }
+
+    // Create runtime with user context
+    const runtime = await runtimeFactory.createRuntimeForUser(userContext);
+
+    // Create message handler
+    const messageHandler = createMessageHandler(runtime, userContext);
+
+    // Process message (entityId is derived from userContext.userId inside the handler)
+    const result = await messageHandler.process({
+      roomId,
+      text: content.text || "",
+      attachments: content.attachments,
+      characterId,
+      model: userSettings?.modelPreferences?.largeModel,
+    });
+
+    return result;
   }
 }
 
-export const agentRuntime = new AgentRuntime();
-
+// Export singleton instance for backward compatibility
+export const agentRuntime = AgentRuntimeManager.getInstance();
