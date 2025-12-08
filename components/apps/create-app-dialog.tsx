@@ -25,10 +25,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Plus, X, Copy, Check } from "lucide-react";
+import { Loader2, Plus, X, Copy, Check, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
+import { MessageSquare, Image, Video, Mic, Bot, Database } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../ui/tooltip";
 
 interface CreatedAppData {
   appId: string;
@@ -48,6 +54,15 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
   const [newOrigin, setNewOrigin] = useState("");
   const [createdApp, setCreatedApp] = useState<CreatedAppData | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const featureIcons = {
+    chat: MessageSquare,
+    image: Image,
+    video: Video,
+    voice: Mic,
+    agents: Bot,
+    embedding: Database,
+  };
 
   const [formData, setFormData] = useState({
     name: "",
@@ -208,7 +223,9 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
             </Button>
             <Button
               onClick={() => {
-                router.push(`/dashboard/apps/${createdApp.appId}?tab=monetization`);
+                router.push(
+                  `/dashboard/apps/${createdApp.appId}?tab=monetization`
+                );
                 onOpenChange(false);
               }}
               className="bg-gradient-to-r from-[#FF5800] to-purple-600 w-full sm:w-auto"
@@ -234,9 +251,11 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Info */}
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div>
-              <Label htmlFor="name">App Name *</Label>
+              <Label className="mb-3" htmlFor="name">
+                App Name <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="name"
                 value={formData.name}
@@ -249,7 +268,9 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
             </div>
 
             <div>
-              <Label htmlFor="description">Description</Label>
+              <Label className="mb-3" htmlFor="description">
+                Description
+              </Label>
               <Textarea
                 id="description"
                 value={formData.description}
@@ -262,7 +283,9 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
             </div>
 
             <div>
-              <Label htmlFor="app_url">App URL *</Label>
+              <Label className="mb-3" htmlFor="app_url">
+                App URL <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="app_url"
                 type="url"
@@ -276,7 +299,9 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
             </div>
 
             <div>
-              <Label htmlFor="website_url">Website URL</Label>
+              <Label className="mb-3" htmlFor="website_url">
+                Website URL
+              </Label>
               <Input
                 id="website_url"
                 type="url"
@@ -289,7 +314,9 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
             </div>
 
             <div>
-              <Label htmlFor="contact_email">Contact Email</Label>
+              <Label className="mb-3" htmlFor="contact_email">
+                Contact Email
+              </Label>
               <Input
                 id="contact_email"
                 type="email"
@@ -304,12 +331,22 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
 
           {/* URL Whitelist */}
           <div className="space-y-2">
-            <Label>Allowed Origins (URL Whitelist)</Label>
-            <p className="text-xs text-white/60">
-              Specify which domains can make requests with your API key. Leave
-              empty to only allow the app URL.
-            </p>
-
+            <div className="flex items-center space-x-2">
+              <Label>Allowed Origins (URL Whitelist)</Label>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="w-4 h-4 text-white/60 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs">
+                      Specify which domains can make requests with your API key.
+                      Leave empty to only allow the app URL.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <div className="flex gap-2">
               <Input
                 value={newOrigin}
@@ -351,10 +388,21 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
 
           {/* Features */}
           <div className="space-y-3">
-            <Label>Enabled Features</Label>
-            <p className="text-xs text-white/60">
-              Select which Eliza Cloud features this app can access
-            </p>
+            <div className="flex items-center space-x-2">
+              <Label>Enabled Features</Label>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="w-4 h-4 text-white/60 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs">
+                      Select which Eliza Cloud features this app can access
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               {Object.entries({
@@ -364,28 +412,34 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                 voice: "Voice Cloning",
                 agents: "Agent Runtime",
                 embedding: "Embeddings",
-              }).map(([key, label]) => (
-                <div key={key} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`feature-${key}`}
-                    checked={
-                      formData.features[key as keyof typeof formData.features]
-                    }
-                    onCheckedChange={(checked) =>
+              }).map(([key, label]) => {
+                const Icon = featureIcons[key as keyof typeof featureIcons];
+                const isChecked =
+                  formData.features[key as keyof typeof formData.features];
+
+                return (
+                  <div
+                    key={key}
+                    className={`flex items-center space-x-3 p-3 transition-colors cursor-pointer ${
+                      isChecked
+                        ? "bg-white/20 border border-white/30"
+                        : "bg-white/10 border border-transparent hover:bg-white/15"
+                    }`}
+                    onClick={() =>
                       setFormData({
                         ...formData,
                         features: {
                           ...formData.features,
-                          [key]: checked,
+                          [key]: !isChecked,
                         },
                       })
                     }
-                  />
-                  <Label htmlFor={`feature-${key}`} className="text-sm">
-                    {label}
-                  </Label>
-                </div>
-              ))}
+                  >
+                    <Icon className="w-4 h-5 text-white/80" />
+                    <span className="text-xs flex-1">{label}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
