@@ -164,7 +164,7 @@ export class PurchasesService {
       // This prevents race condition where client fetches balance before webhook fires
       // Webhook will still fire but will be deduplicated (already has duplicate check)
       if (paymentIntent.status === "succeeded") {
-        console.log(
+        logger.info(
           `[PurchasesService] Payment succeeded immediately, adding ${amount} credits synchronously for org ${organizationId}`,
         );
 
@@ -179,7 +179,7 @@ export class PurchasesService {
           stripePaymentIntentId: paymentIntent.id,
         });
 
-        console.log(
+        logger.info(
           `[PurchasesService] ✓ Credits added synchronously for payment ${paymentIntent.id}`,
         );
 
@@ -230,7 +230,7 @@ export class PurchasesService {
                     : undefined,
                 });
 
-                console.log(
+                logger.info(
                   `[PurchasesService] ✓ Created invoice record for payment ${paymentIntent.id}`,
                 );
               }
@@ -256,7 +256,7 @@ export class PurchasesService {
                 paid_at: new Date(),
               });
 
-              console.log(
+              logger.info(
                 `[PurchasesService] ✓ Created invoice record for direct payment ${paymentIntent.id}`,
               );
             }
@@ -413,7 +413,7 @@ export class PurchasesService {
     paymentIntentId: string,
     paymentMethodId?: string,
   ): Promise<void> {
-    console.log(
+    logger.info(
       `[PurchasesService] sendPurchaseConfirmationEmail START for org ${organizationId}`,
     );
 
@@ -424,13 +424,13 @@ export class PurchasesService {
       );
       return;
     }
-    console.log(`[PurchasesService] Organization found: ${org.name}`);
+    logger.info(`[PurchasesService] Organization found: ${org.name}`);
 
-    console.log(
+    logger.info(
       `[PurchasesService] Fetching users for org ${organizationId}`,
     );
     const users = await usersRepository.listByOrganization(organizationId);
-    console.log(`[PurchasesService] Found ${users.length} users`);
+    logger.info(`[PurchasesService] Found ${users.length} users`);
 
     if (!users || users.length === 0) {
       logger.error(
@@ -440,7 +440,7 @@ export class PurchasesService {
     }
 
     const userEmail = users[0].email;
-    console.log(`[PurchasesService] User email: ${userEmail || "NONE"}`);
+    logger.info(`[PurchasesService] User email: ${userEmail || "NONE"}`);
 
     if (!userEmail) {
       logger.error(
@@ -487,14 +487,14 @@ export class PurchasesService {
         dashboardUrl,
       };
 
-      console.log(
+      logger.info(
         `[PurchasesService] Calling emailService.sendPurchaseConfirmationEmail with:`,
       );
-      console.log(JSON.stringify(emailData, null, 2));
+      logger.info(JSON.stringify(emailData, null, 2));
 
       await emailService.sendPurchaseConfirmationEmail(emailData);
 
-      console.log(
+      logger.info(
         `[PurchasesService] ✓ Purchase confirmation email sent to ${userEmail}`,
       );
   }
