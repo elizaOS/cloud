@@ -3,54 +3,61 @@
  *
  * GET /api/v1/redemptions/balance
  *
- * Returns user's redeemable balance across all apps, broken down by:
- * - Total earned
- * - Pending (still vesting)
- * - Withdrawable (ready to redeem)
+ * Returns user's REDEEMABLE balance (earnings from miniapps, agents, MCPs).
+ * 
+ * IMPORTANT: This uses the redeemable_earnings table, NOT app_credit_balances.
+ * - app_credit_balances = purchased credits (NOT redeemable)
+ * - redeemable_earnings = earned credits (redeemable for elizaOS tokens)
+ * 
+ * Response includes:
+ * - Total earned from all sources
+ * - Available balance (ready to redeem)
+ * - Pending balance (still vesting)
  * - Already redeemed
- *
- * Also returns eligibility status for redemption.
+ * - Earnings breakdown by source (miniapp, agent, mcp)
+ * - Eligibility status for redemption
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { db } from "@/db/client";
-import { appCreditBalances } from "@/db/schemas/app-credit-balances";
-import { appEarnings } from "@/db/schemas/app-earnings";
+import { redeemableEarnings, redeemableEarningsLedger } from "@/db/schemas/redeemable-earnings";
 import { tokenRedemptions } from "@/db/schemas/token-redemptions";
-import { apps } from "@/db/schemas/apps";
-import { eq, and, sql, inArray } from "drizzle-orm";
+import { eq, and, sql, desc } from "drizzle-orm";
 import { SUPPLY_SHOCK_PROTECTION } from "@/lib/config/redemption-security";
-import { VESTING_CONFIG } from "@/lib/config/redemption-addresses";
 
-interface AppBalance {
-  appId: string;
-  appName: string;
+interface EarningsBySource {
+  source: "miniapp" | "agent" | "mcp";
   totalEarned: number;
-  pendingBalance: number;
-  withdrawableBalance: number;
-  totalRedeemed: number;
-  canRedeem: boolean;
-  vestingEndsAt?: string;
+  count: number;
+}
+
+interface RecentEarning {
+  id: string;
+  source: "miniapp" | "agent" | "mcp";
+  sourceId: string;
+  amount: number;
+  description: string;
+  createdAt: string;
 }
 
 interface BalanceResponse {
   success: boolean;
-  summary: {
+  balance: {
     totalEarned: number;
-    totalPending: number;
-    totalWithdrawable: number;
+    availableBalance: number;
+    pendingBalance: number;
     totalRedeemed: number;
-    totalAvailableToRedeem: number;
+    totalPending: number;
   };
-  apps: AppBalance[];
+  bySource: EarningsBySource[];
+  recentEarnings: RecentEarning[];
   limits: {
     minRedemptionUsd: number;
     maxSingleRedemptionUsd: number;
     userDailyLimitUsd: number;
     userHourlyLimitUsd: number;
-    vestingPeriodDays: number;
   };
   eligibility: {
     canRedeem: boolean;
@@ -62,99 +69,71 @@ interface BalanceResponse {
 
 /**
  * GET /api/v1/redemptions/balance
- * Get user's redeemable balance across all apps.
+ * Get user's redeemable earnings balance.
  */
 async function getBalanceHandler(request: NextRequest): Promise<Response> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
-  // Get all app credit balances for this user
-  const userBalances = await db
+  // Get user's redeemable earnings record
+  const earningsRecord = await db.query.redeemableEarnings.findFirst({
+    where: eq(redeemableEarnings.user_id, user.id),
+  });
+
+  // Get earnings breakdown by source
+  const earningsBySource = await db
     .select({
-      app_id: appCreditBalances.app_id,
-      credit_balance: appCreditBalances.credit_balance,
-      total_purchased: appCreditBalances.total_purchased,
-      total_spent: appCreditBalances.total_spent,
+      source: redeemableEarningsLedger.earnings_source,
+      totalEarned: sql<string>`SUM(CAST(${redeemableEarningsLedger.amount} AS DECIMAL))`,
+      count: sql<number>`COUNT(*)`,
     })
-    .from(appCreditBalances)
-    .where(eq(appCreditBalances.user_id, user.id));
+    .from(redeemableEarningsLedger)
+    .where(
+      and(
+        eq(redeemableEarningsLedger.user_id, user.id),
+        eq(redeemableEarningsLedger.entry_type, "earning")
+      )
+    )
+    .groupBy(redeemableEarningsLedger.earnings_source);
 
-  if (userBalances.length === 0) {
-    return NextResponse.json({
-      success: true,
-      summary: {
-        totalEarned: 0,
-        totalPending: 0,
-        totalWithdrawable: 0,
-        totalRedeemed: 0,
-        totalAvailableToRedeem: 0,
-      },
-      apps: [],
-      limits: {
-        minRedemptionUsd: SUPPLY_SHOCK_PROTECTION.MIN_REDEMPTION_USD,
-        maxSingleRedemptionUsd: SUPPLY_SHOCK_PROTECTION.MAX_SINGLE_REDEMPTION_USD,
-        userDailyLimitUsd: SUPPLY_SHOCK_PROTECTION.USER_DAILY_LIMIT_USD,
-        userHourlyLimitUsd: SUPPLY_SHOCK_PROTECTION.USER_HOURLY_LIMIT_USD,
-        vestingPeriodDays: VESTING_CONFIG.APP_EARNINGS_HOLD_PERIOD_MS / (24 * 60 * 60 * 1000),
-      },
-      eligibility: {
-        canRedeem: false,
-        reason: "No balance found",
-      },
-    } satisfies BalanceResponse);
-  }
-
-  const appIds = userBalances.map((b) => b.app_id);
-
-  // Get app details
-  const appDetails = await db
+  // Get recent earnings (last 10)
+  const recentEarnings = await db
     .select({
-      id: apps.id,
-      name: apps.name,
+      id: redeemableEarningsLedger.id,
+      source: redeemableEarningsLedger.earnings_source,
+      sourceId: redeemableEarningsLedger.source_id,
+      amount: redeemableEarningsLedger.amount,
+      description: redeemableEarningsLedger.description,
+      createdAt: redeemableEarningsLedger.created_at,
     })
-    .from(apps)
-    .where(inArray(apps.id, appIds));
+    .from(redeemableEarningsLedger)
+    .where(
+      and(
+        eq(redeemableEarningsLedger.user_id, user.id),
+        eq(redeemableEarningsLedger.entry_type, "earning")
+      )
+    )
+    .orderBy(desc(redeemableEarningsLedger.created_at))
+    .limit(10);
 
-  const appNameMap = new Map(appDetails.map((a) => [a.id, a.name]));
-
-  // Get earnings breakdown for each app
-  const earningsData = await db
+  // Get total redeemed
+  const redeemedResult = await db
     .select({
-      app_id: appEarnings.app_id,
-      total_lifetime_earnings: appEarnings.total_lifetime_earnings,
-      pending_balance: appEarnings.pending_balance,
-      withdrawable_balance: appEarnings.withdrawable_balance,
-      total_withdrawn: appEarnings.total_withdrawn,
-    })
-    .from(appEarnings)
-    .where(inArray(appEarnings.app_id, appIds));
-
-  const earningsMap = new Map(earningsData.map((e) => [e.app_id, e]));
-
-  // Get total redeemed per app
-  const redeemedData = await db
-    .select({
-      app_id: tokenRedemptions.app_id,
       total: sql<string>`COALESCE(SUM(CAST(${tokenRedemptions.usd_value} AS DECIMAL)), 0)`,
     })
     .from(tokenRedemptions)
     .where(
       and(
         eq(tokenRedemptions.user_id, user.id),
-        inArray(tokenRedemptions.status, ["completed", "approved", "processing"])
+        sql`${tokenRedemptions.status} IN ('completed', 'approved', 'processing')`
       )
-    )
-    .groupBy(tokenRedemptions.app_id);
+    );
 
-  const redeemedMap = new Map(
-    redeemedData
-      .filter((r) => r.app_id !== null)
-      .map((r) => [r.app_id!, Number(r.total)])
-  );
+  const totalRedeemed = Number(redeemedResult[0]?.total || 0);
 
   // Check for cooldown (last redemption time)
   const lastRedemption = await db.query.tokenRedemptions.findFirst({
     where: eq(tokenRedemptions.user_id, user.id),
-    orderBy: (r, { desc }) => [desc(r.created_at)],
+    orderBy: (r, { desc: d }) => [d(r.created_at)],
   });
 
   const cooldownMs = SUPPLY_SHOCK_PROTECTION.USER_COOLDOWN_MS;
@@ -183,54 +162,19 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
     SUPPLY_SHOCK_PROTECTION.USER_DAILY_LIMIT_USD - dailyRedeemed
   );
 
-  // Build app balances
-  const appBalances: AppBalance[] = userBalances.map((balance) => {
-    const earnings = earningsMap.get(balance.app_id);
-    const redeemed = redeemedMap.get(balance.app_id) || 0;
-    const creditBalance = Number(balance.credit_balance);
-
-    // Calculate vesting end time (7 days from last earning)
-    const vestingPeriodMs = VESTING_CONFIG.APP_EARNINGS_HOLD_PERIOD_MS;
-    const vestingEndsAt = new Date(Date.now() + vestingPeriodMs);
-
-    return {
-      appId: balance.app_id,
-      appName: appNameMap.get(balance.app_id) || "Unknown App",
-      totalEarned: earnings ? Number(earnings.total_lifetime_earnings) : 0,
-      pendingBalance: earnings ? Number(earnings.pending_balance) : 0,
-      withdrawableBalance: earnings
-        ? Number(earnings.withdrawable_balance)
-        : creditBalance,
-      totalRedeemed: redeemed,
-      canRedeem:
-        (earnings ? Number(earnings.withdrawable_balance) : creditBalance) >=
-        SUPPLY_SHOCK_PROTECTION.MIN_REDEMPTION_USD,
-      vestingEndsAt: vestingEndsAt.toISOString(),
-    };
-  });
-
-  // Calculate summary
-  const summary = {
-    totalEarned: appBalances.reduce((sum, a) => sum + a.totalEarned, 0),
-    totalPending: appBalances.reduce((sum, a) => sum + a.pendingBalance, 0),
-    totalWithdrawable: appBalances.reduce(
-      (sum, a) => sum + a.withdrawableBalance,
-      0
-    ),
-    totalRedeemed: appBalances.reduce((sum, a) => sum + a.totalRedeemed, 0),
-    totalAvailableToRedeem: appBalances.reduce(
-      (sum, a) => sum + a.withdrawableBalance,
-      0
-    ),
-  };
+  // Build balance
+  const availableBalance = earningsRecord ? Number(earningsRecord.available_balance) : 0;
+  const pendingBalance = earningsRecord ? Number(earningsRecord.total_pending) : 0;
+  const totalEarned = earningsRecord ? Number(earningsRecord.total_earned) : 0;
+  const totalPending = earningsRecord ? Number(earningsRecord.total_pending) : 0;
 
   // Determine eligibility
   let canRedeem = true;
   let reason: string | undefined;
 
-  if (summary.totalAvailableToRedeem < SUPPLY_SHOCK_PROTECTION.MIN_REDEMPTION_USD) {
+  if (availableBalance < SUPPLY_SHOCK_PROTECTION.MIN_REDEMPTION_USD) {
     canRedeem = false;
-    reason = `Minimum redemption is $${SUPPLY_SHOCK_PROTECTION.MIN_REDEMPTION_USD.toFixed(2)}. You have $${summary.totalAvailableToRedeem.toFixed(2)} available.`;
+    reason = `Minimum redemption is $${SUPPLY_SHOCK_PROTECTION.MIN_REDEMPTION_USD.toFixed(2)}. You have $${availableBalance.toFixed(2)} available.`;
   } else if (isInCooldown) {
     canRedeem = false;
     reason = `Cooldown active. You can redeem again after ${cooldownEndsAt!.toISOString()}.`;
@@ -239,17 +183,39 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
     reason = `Daily limit reached. Resets at midnight UTC.`;
   }
 
+  // Format earnings by source
+  const bySource: EarningsBySource[] = earningsBySource.map((e) => ({
+    source: (e.source || "miniapp") as "miniapp" | "agent" | "mcp",
+    totalEarned: Number(e.totalEarned || 0),
+    count: Number(e.count || 0),
+  }));
+
+  // Format recent earnings
+  const formattedRecentEarnings: RecentEarning[] = recentEarnings.map((e) => ({
+    id: e.id,
+    source: (e.source || "miniapp") as "miniapp" | "agent" | "mcp",
+    sourceId: e.sourceId || "",
+    amount: Number(e.amount),
+    description: e.description || "",
+    createdAt: e.createdAt?.toISOString() || "",
+  }));
+
   return NextResponse.json({
     success: true,
-    summary,
-    apps: appBalances,
+    balance: {
+      totalEarned,
+      availableBalance,
+      pendingBalance,
+      totalRedeemed,
+      totalPending,
+    },
+    bySource,
+    recentEarnings: formattedRecentEarnings,
     limits: {
       minRedemptionUsd: SUPPLY_SHOCK_PROTECTION.MIN_REDEMPTION_USD,
       maxSingleRedemptionUsd: SUPPLY_SHOCK_PROTECTION.MAX_SINGLE_REDEMPTION_USD,
       userDailyLimitUsd: SUPPLY_SHOCK_PROTECTION.USER_DAILY_LIMIT_USD,
       userHourlyLimitUsd: SUPPLY_SHOCK_PROTECTION.USER_HOURLY_LIMIT_USD,
-      vestingPeriodDays:
-        VESTING_CONFIG.APP_EARNINGS_HOLD_PERIOD_MS / (24 * 60 * 60 * 1000),
     },
     eligibility: {
       canRedeem,
@@ -275,4 +241,3 @@ export async function OPTIONS() {
     },
   });
 }
-

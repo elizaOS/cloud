@@ -6,7 +6,7 @@
  * Run: bun test tests/integration/payout-status.test.ts
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, mock } from "bun:test";
 
 // Mock environment variables
 const mockEnv = {
@@ -15,7 +15,7 @@ const mockEnv = {
   SOLANA_RPC_URL: "https://api.mainnet-beta.solana.com",
 };
 
-vi.mock("process", () => ({
+mock.module("process", () => ({
   env: mockEnv,
 }));
 

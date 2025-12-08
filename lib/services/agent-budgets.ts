@@ -23,9 +23,11 @@ import {
 } from "@/db/schemas/agent-budgets";
 import { userCharacters } from "@/db/schemas/user-characters";
 import { organizations } from "@/db/schemas/organizations";
+import { users } from "@/db/schemas/users";
 import { eq, and, lt, sql } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 import { creditsService } from "./credits";
+import { emailService } from "./email";
 import Decimal from "decimal.js";
 
 // ============================================================================
@@ -743,8 +745,64 @@ class AgentBudgetService {
       .set({ low_budget_alert_sent: true, updated_at: new Date() })
       .where(eq(agentBudgets.agent_id, agentId));
 
-    // TODO: Send actual email/notification
-    logger.warn("[AgentBudgets] Low budget alert", { agentId, balance });
+    // Get agent and organization info for email
+    const [agentInfo] = await db
+      .select({
+        agentName: userCharacters.name,
+        organizationId: userCharacters.organization_id,
+        ownerId: userCharacters.user_id,
+      })
+      .from(userCharacters)
+      .where(eq(userCharacters.id, agentId))
+      .limit(1);
+
+    if (!agentInfo?.organizationId) {
+      logger.warn("[AgentBudgets] Cannot send alert - no organization found", { agentId });
+      return false;
+    }
+
+    // Get billing email from organization or owner
+    const [orgInfo] = await db
+      .select({
+        billingEmail: organizations.billing_email,
+        orgName: organizations.name,
+      })
+      .from(organizations)
+      .where(eq(organizations.id, agentInfo.organizationId))
+      .limit(1);
+
+    let recipientEmail = orgInfo?.billingEmail;
+
+    // Fallback to owner's email if no billing email
+    if (!recipientEmail && agentInfo.ownerId) {
+      const [ownerInfo] = await db
+        .select({ email: users.email })
+        .from(users)
+        .where(eq(users.id, agentInfo.ownerId))
+        .limit(1);
+      recipientEmail = ownerInfo?.email;
+    }
+
+    if (!recipientEmail) {
+      logger.warn("[AgentBudgets] Cannot send alert - no email found", { agentId });
+      return false;
+    }
+
+    // Send email using low credits template (repurposed for agent budget)
+    await emailService.sendLowCreditsEmail({
+      email: recipientEmail,
+      organizationName: orgInfo?.orgName ?? "Your Organization",
+      currentBalance: balance,
+      threshold: 5.00, // Standard low budget threshold
+      topUpUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing`,
+    });
+
+    logger.info("[AgentBudgets] Low budget alert sent", { 
+      agentId, 
+      agentName: agentInfo.agentName,
+      balance,
+      email: recipientEmail 
+    });
     return true;
   }
 }

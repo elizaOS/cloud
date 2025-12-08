@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
 
+const isTauriBuild = process.env.TAURI_BUILD === "true";
+
 const nextConfig: NextConfig = {
+  // Enable static export for Tauri mobile builds
+  ...(isTauriBuild && {
+    output: "export",
+    distDir: "out",
+    images: { unoptimized: true },
+  }),
+
   images: {
     remotePatterns: [
       {
@@ -52,9 +61,9 @@ const nextConfig: NextConfig = {
   // CRITICAL: Include CloudFormation templates in the serverless function bundle
   // Without this, the template files won't be available when the function runs on Vercel
   outputFileTracingIncludes: {
-    "/api/v1/containers": ["./infrastructure/cloudformation/**/*"],
-    "/api/v1/containers/[id]": ["./infrastructure/cloudformation/**/*"],
-    "/api/v1/cron/deployment-monitor": ["./infrastructure/cloudformation/**/*"],
+    "/api/v1/containers": ["./scripts/cloudformation/**/*"],
+    "/api/v1/containers/[id]": ["./scripts/cloudformation/**/*"],
+    "/api/v1/cron/deployment-monitor": ["./scripts/cloudformation/**/*"],
   },
   outputFileTracingExcludes: {
     "*": [

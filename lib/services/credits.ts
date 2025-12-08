@@ -22,6 +22,7 @@ import {
 import { CacheInvalidation } from "@/lib/cache/invalidation";
 import { invalidateOrganizationCache } from "@/lib/cache/organizations-cache";
 import { userSessionsService } from "./user-sessions";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Parameters for adding credits to an organization.
@@ -213,7 +214,7 @@ export class CreditsService {
       .then(async (result) => {
         // Invalidate organization cache since balance changed
         invalidateOrganizationCache(organizationId).catch((error) => {
-          console.error(
+          logger.error(
             "[CreditsService] Failed to invalidate org cache:",
             error
           );
@@ -342,7 +343,7 @@ export class CreditsService {
         // Invalidate organization cache if balance changed
         if (result.success) {
           invalidateOrganizationCache(organizationId).catch((error) => {
-            console.error(
+            logger.error(
               "[CreditsService] Failed to invalidate org cache:",
               error
             );
@@ -360,7 +361,7 @@ export class CreditsService {
                 tokens_consumed: tokens_consumed || 0,
               })
               .catch((error) => {
-                console.error(
+                logger.error(
                   "[CreditsService] Failed to track session usage:",
                   error
                 );
@@ -372,7 +373,7 @@ export class CreditsService {
             organizationId,
             result.newBalance
           ).catch((error) => {
-            console.error(
+            logger.error(
               "[CreditsService] Failed to check auto top-up:",
               error
             );
@@ -381,7 +382,7 @@ export class CreditsService {
           // Queue low credits email
           this.queueLowCreditsEmail(organizationId, result.newBalance).catch(
             (error) => {
-              console.error(
+              logger.error(
                 "[CreditsService] Failed to queue low credits email:",
                 error
               );
@@ -428,13 +429,13 @@ export class CreditsService {
 
       // Execute auto top-up asynchronously (don't block the main operation)
       autoTopUpService.executeAutoTopUp(org).catch((error) => {
-        console.error(
+        logger.error(
           `[CreditsService] Auto top-up execution failed for org ${organizationId}:`,
           error
         );
       });
     } catch (error) {
-      console.error(
+      logger.error(
         `[CreditsService] Error checking auto top-up for org ${organizationId}:`,
         error
       );
@@ -486,7 +487,7 @@ export class CreditsService {
         await markLowCreditsEmailSent(organizationId);
       }
     } catch (error) {
-      console.error(
+      logger.error(
         `[CreditsService] Error queueing low credits email for org ${organizationId}:`,
         error
       );
@@ -550,7 +551,7 @@ export class CreditsService {
       .then(async (result) => {
         // Invalidate organization cache since balance changed
         invalidateOrganizationCache(organizationId).catch((error) => {
-          console.error(
+          logger.error(
             "[CreditsService] Failed to invalidate org cache:",
             error
           );

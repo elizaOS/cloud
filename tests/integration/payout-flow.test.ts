@@ -11,36 +11,36 @@
  * Run: bun test tests/integration/payout-flow.test.ts
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, mock } from "bun:test";
 import Decimal from "decimal.js";
 
 // Mock the database for integration tests
-vi.mock("@/db/client", () => ({
+mock.module("@/db/client", () => ({
   db: {
     query: {
       tokenRedemptions: {
-        findFirst: vi.fn(),
-        findMany: vi.fn(),
+        findFirst: mock(),
+        findMany: mock(),
       },
       redemptionLimits: {
-        findFirst: vi.fn(),
+        findFirst: mock(),
       },
       elizaTokenPrices: {
-        findFirst: vi.fn(),
+        findFirst: mock(),
       },
     },
-    select: vi.fn().mockReturnThis(),
-    from: vi.fn().mockReturnThis(),
-    where: vi.fn().mockReturnThis(),
-    for: vi.fn().mockReturnThis(),
-    insert: vi.fn().mockReturnThis(),
-    values: vi.fn().mockReturnThis(),
-    returning: vi.fn(),
-    update: vi.fn().mockReturnThis(),
-    set: vi.fn().mockReturnThis(),
-    onConflictDoUpdate: vi.fn().mockReturnThis(),
-    transaction: vi.fn(),
-    execute: vi.fn(),
+    select: mock(() => ({ from: mock(() => ({ where: mock(() => ({ for: mock() })) })) })),
+    from: mock(() => ({ where: mock() })),
+    where: mock(),
+    for: mock(),
+    insert: mock(() => ({ values: mock(() => ({ returning: mock(), onConflictDoUpdate: mock(() => ({ returning: mock() })) })) })),
+    values: mock(),
+    returning: mock(),
+    update: mock(() => ({ set: mock(() => ({ where: mock() })) })),
+    set: mock(),
+    onConflictDoUpdate: mock(),
+    transaction: mock(),
+    execute: mock(),
   },
 }));
 

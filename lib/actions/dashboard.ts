@@ -12,6 +12,7 @@ import {
   apiKeysService,
   agentDiscoveryService,
   roomsService,
+  usageService,
 } from "@/lib/services";
 import { cache as cacheClient } from "@/lib/cache/client";
 import { CacheKeys, CacheStaleTTL } from "@/lib/cache/keys";
@@ -99,9 +100,14 @@ async function fetchDashboardDataInternal(
   const videoGenerations =
     generationStats.byType.find((t) => t.type === "video")?.count || 0;
 
-  // Use total generations as API calls approximation
-  // TODO: Implement proper 24h API call tracking
-  const apiCalls24h = generationStats.totalGenerations;
+  // Get actual 24h API call count from usage records
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const usageStats = await usageService.getStatsByOrganization(
+    organizationId,
+    twentyFourHoursAgo,
+    new Date()
+  );
+  const apiCalls24h = usageStats.totalRequests;
 
   // Fetch agent stats in batch
   const characterIds = userCharacters.map((c) => c.id);

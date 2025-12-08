@@ -32,8 +32,8 @@ import { KnowledgeDrawer } from "./knowledge-drawer";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
 import { useModelTier } from "./hooks/use-model-tier";
-import { sendStreamingMessage } from "@/hooks/use-streaming-message";
-import type { StreamingMessage } from "@/hooks/use-streaming-message";
+import { sendStreamingMessage } from "@/lib/hooks/use-streaming-message";
+import type { StreamingMessage } from "@/lib/hooks/use-streaming-message";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -45,7 +45,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ensureAudioFormat } from "@/lib/utils/audio";
-import { useChatStore } from "@/stores/chat-store";
+import { useChatStore } from "@/lib/stores/chat-store";
 import {
   DropdownMenu,
   DropdownMenuContent,

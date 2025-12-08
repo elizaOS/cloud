@@ -448,6 +448,25 @@ async function handleToolCall(
       });
     }
 
+    // Handle cost difference (refund or charge extra)
+    const actualTotal = actualBaseCost + actualCreatorMarkup;
+    if (paymentMethod === "credits" && authResult) {
+      const diff = actualTotal - totalCost;
+      if (diff < 0) {
+        await creditsService.refundCredits({
+          organizationId: authResult.user.organization_id,
+          amount: -diff,
+          description: `Agent MCP refund: ${character.name}`,
+        });
+      } else if (diff > 0) {
+        await creditsService.deductCredits({
+          organizationId: authResult.user.organization_id,
+          amount: diff,
+          description: `Agent MCP additional: ${character.name}`,
+        });
+      }
+    }
+
     return NextResponse.json({
       jsonrpc: "2.0",
       result: {

@@ -27,17 +27,19 @@ import { creditsService } from "@/lib/services";
 import { logger } from "@/lib/utils/logger";
 
 /**
- * Payment context returned by x402 or credits auth
+ * Payment context returned by credits auth
+ * 
+ * NOTE: x402 direct payment is handled by the `withX402` wrapper from 'x402-next'.
+ * This module only deals with credit-based authentication.
+ * The "x402" payment method type is kept for compatibility but is not used here.
  */
 export interface PaymentContext {
-  /** How the request was paid for */
-  paymentMethod: "x402" | "credits";
-  /** User context if authenticated (null for x402-only) */
-  auth: AuthResult | null;
+  /** How the request was paid for (always "credits" from this module) */
+  paymentMethod: "credits";
+  /** User context (required for credit-based auth) */
+  auth: AuthResult;
   /** Amount paid (in USD) */
   amountPaid: number;
-  /** Payer address for x402 */
-  payerAddress?: string;
 }
 
 /**

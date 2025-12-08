@@ -103,7 +103,7 @@ export async function GET() {
 
     capabilities: {
       streaming: true,
-      pushNotifications: false, // TODO: Implement webhook push notifications
+      pushNotifications: false, // Planned: Webhook push notifications require endpoint verification and retry logic
       stateTransitionHistory: true,
       extensions: [
         ...(X402_ENABLED ? [{

@@ -10,36 +10,36 @@
  * Run: bun test tests/integration/agent-budgets.test.ts
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, mock } from "bun:test";
 import Decimal from "decimal.js";
 
 // Mock database
-vi.mock("@/db/client", () => ({
+mock.module("@/db/client", () => ({
   db: {
     query: {
-      userCharacters: { findFirst: vi.fn(), findMany: vi.fn() },
-      agentBudgets: { findFirst: vi.fn(), findMany: vi.fn() },
-      agentBudgetTransactions: { findMany: vi.fn() },
+      userCharacters: { findFirst: mock(), findMany: mock() },
+      agentBudgets: { findFirst: mock(), findMany: mock() },
+      agentBudgetTransactions: { findMany: mock() },
     },
-    select: vi.fn().mockReturnThis(),
-    from: vi.fn().mockReturnThis(),
-    where: vi.fn().mockReturnThis(),
-    for: vi.fn().mockReturnThis(),
-    insert: vi.fn().mockReturnThis(),
-    values: vi.fn().mockReturnThis(),
-    returning: vi.fn(),
-    update: vi.fn().mockReturnThis(),
-    set: vi.fn().mockReturnThis(),
-    transaction: vi.fn(),
+    select: mock(() => ({ from: mock(() => ({ where: mock(() => ({ for: mock() })) })) })),
+    from: mock(() => ({ where: mock() })),
+    where: mock(),
+    for: mock(),
+    insert: mock(() => ({ values: mock(() => ({ returning: mock() })) })),
+    values: mock(),
+    returning: mock(),
+    update: mock(() => ({ set: mock(() => ({ where: mock() })) })),
+    set: mock(),
+    transaction: mock(),
   },
 }));
 
 // Mock credits service
-vi.mock("@/lib/services/credits", () => ({
+mock.module("@/lib/services/credits", () => ({
   creditsService: {
-    deductCredits: vi.fn().mockResolvedValue({ success: true, newBalance: 100 }),
-    addCredits: vi.fn().mockResolvedValue({ success: true }),
-    refundCredits: vi.fn().mockResolvedValue({ success: true }),
+    deductCredits: mock(() => Promise.resolve({ success: true, newBalance: 100 })),
+    addCredits: mock(() => Promise.resolve({ success: true })),
+    refundCredits: mock(() => Promise.resolve({ success: true })),
   },
 }));
 

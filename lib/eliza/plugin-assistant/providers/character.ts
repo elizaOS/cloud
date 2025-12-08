@@ -150,7 +150,7 @@ export const characterProvider: Provider = {
     // MESSAGE EXAMPLES (Few-Shot Learning)
     // ========================================
     // Research: THE MOST EFFECTIVE technique for voice/style
-    // TODO: Implement contextual selection instead of random
+    // Contextual selection: Score examples by keyword overlap with current message
     // Current: Show 3 examples (balanced for context window)
     const messageExamplesText = (() => {
       if (
@@ -160,11 +160,36 @@ export const characterProvider: Provider = {
         return "";
       }
 
-      // For now, select 3 random examples
-      // Future: Contextual matching based on user query
-      const selectedExamples = character.messageExamples
-        .sort(() => 0.5 - Math.random())
-        .slice(0, 3);
+      // Extract keywords from the current message for contextual matching
+      const messageText = _message.content?.text?.toLowerCase() ?? "";
+      const messageWords = new Set(
+        messageText.split(/\s+/).filter((w) => w.length > 3)
+      );
+
+      // Score each example by keyword overlap
+      const scoredExamples = character.messageExamples.map((example) => {
+        const exampleText = example
+          .map((msg) => msg.content?.text ?? "")
+          .join(" ")
+          .toLowerCase();
+        const exampleWords = exampleText.split(/\s+/).filter((w) => w.length > 3);
+        
+        // Count matching keywords
+        let score = 0;
+        for (const word of exampleWords) {
+          if (messageWords.has(word)) score += 1;
+        }
+        // Add small random factor to break ties and maintain variety
+        score += Math.random() * 0.5;
+        
+        return { example, score };
+      });
+
+      // Sort by score descending and take top 3
+      const selectedExamples = scoredExamples
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3)
+        .map((s) => s.example);
 
       const formattedExamples = selectedExamples
         .map((exchange) => {

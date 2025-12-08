@@ -1,0 +1,9 @@
+Welcome to Eliza Cloud Mobile!
+
+• Build and deploy AI agents on the go
+• Chat with your agents from anywhere
+• Purchase credits directly in the app
+• Full wallet support for Web3 features
+
+This is the initial release of Eliza Cloud for mobile devices.
+

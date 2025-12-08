@@ -1,6 +1,7 @@
 import { stripe } from "@/lib/stripe";
 import { organizationsRepository, type Organization } from "@/db/repositories";
 import type Stripe from "stripe";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Service for managing Stripe payment methods
@@ -44,7 +45,7 @@ export class PaymentMethodsService {
 
       return customer.id;
     } catch (error) {
-      console.error(
+      logger.error(
         `[PaymentMethodsService] Failed to create Stripe customer for org ${org.id}:`,
         error,
       );
