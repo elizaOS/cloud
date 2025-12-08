@@ -2,12 +2,16 @@
  * User MCP Proxy Endpoint
  *
  * Proxies requests to user-created MCPs and handles monetization.
- * Supports both credit-based and x402 payments.
+ * 
+ * Payment Flow:
+ * - Credit-based: User authenticates with API key, credits are deducted
+ * - x402 is NOT supported for direct pay-per-request here
+ *   (users must top up credits via /api/v1/credits/topup first)
  *
  * Flow:
- * 1. Authenticate caller
+ * 1. Authenticate caller (API key or session)
  * 2. Look up MCP
- * 3. Check payment (credits or x402)
+ * 3. Deduct credits based on MCP pricing
  * 4. Proxy request to MCP endpoint
  * 5. Record usage and distribute revenue
  *
@@ -17,9 +21,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { userMcpsService } from "@/lib/services";
+import { userMcpsService, creditsService } from "@/lib/services";
 import { containersService } from "@/lib/services/containers";
-import { hasX402Payment } from "@/lib/auth/x402-or-credits";
+import { X402_ENABLED, isX402Configured, CREDITS_PER_DOLLAR } from "@/lib/config/x402";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -77,8 +81,32 @@ export async function POST(
   const startTime = Date.now();
   const { mcpId } = await ctx.params;
 
-  // Authenticate
-  const authResult = await requireAuthOrApiKeyWithOrg(request);
+  // Authenticate - x402 is NOT supported for direct payment here
+  // Users must top up credits first via /api/v1/credits/topup
+  const authResult = await requireAuthOrApiKeyWithOrg(request).catch(() => null);
+  
+  if (!authResult) {
+    // Return 402 with x402 topup info if enabled
+    if (X402_ENABLED && isX402Configured()) {
+      const { getDefaultNetwork, X402_RECIPIENT_ADDRESS, USDC_ADDRESSES, TOPUP_PRICE } = await import("@/lib/config/x402");
+      return NextResponse.json(
+        {
+          error: "Authentication required",
+          message: "Top up credits via x402 at /api/v1/credits/topup, then use your API key here.",
+          x402: {
+            topupEndpoint: "/api/v1/credits/topup",
+            network: getDefaultNetwork(),
+            asset: USDC_ADDRESSES[getDefaultNetwork()],
+            payTo: X402_RECIPIENT_ADDRESS,
+            minimumTopup: TOPUP_PRICE,
+            creditsPerDollar: CREDITS_PER_DOLLAR,
+          },
+        },
+        { status: 402 }
+      );
+    }
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
 
   // Look up MCP
   const mcp = await userMcpsService.getById(mcpId);
@@ -94,8 +122,55 @@ export async function POST(
     );
   }
 
-  // Determine payment type
-  const paymentType = hasX402Payment(request) ? "x402" : "credits";
+  // Payment type is always credits for this proxy endpoint
+  // x402 direct payment is only supported on the topup endpoint
+  const paymentType = "credits" as const;
+
+  // Pre-check and reserve credits before proxying
+  // This prevents the request from going through if user has insufficient credits
+  const creditsRequired = Number(mcp.credits_per_request || "1");
+  
+  const preChargeResult = await creditsService.reserveAndDeductCredits({
+    organizationId: authResult.user.organization_id,
+    amount: creditsRequired / CREDITS_PER_DOLLAR, // Convert credits to dollars
+    description: `MCP: ${mcp.name}`,
+    metadata: {
+      mcp_id: mcp.id,
+      mcp_name: mcp.name,
+      reserved: true,
+    },
+  });
+
+  if (!preChargeResult.success) {
+    // Return 402 with balance info
+    if (X402_ENABLED && isX402Configured()) {
+      const { getDefaultNetwork, X402_RECIPIENT_ADDRESS, USDC_ADDRESSES, TOPUP_PRICE } = await import("@/lib/config/x402");
+      return NextResponse.json(
+        {
+          error: "Insufficient credits",
+          message: `Required: ${creditsRequired} credits. Top up at /api/v1/credits/topup`,
+          balance: preChargeResult.newBalance,
+          x402: {
+            topupEndpoint: "/api/v1/credits/topup",
+            network: getDefaultNetwork(),
+            asset: USDC_ADDRESSES[getDefaultNetwork()],
+            payTo: X402_RECIPIENT_ADDRESS,
+            minimumTopup: TOPUP_PRICE,
+            creditsPerDollar: CREDITS_PER_DOLLAR,
+          },
+        },
+        { status: 402 }
+      );
+    }
+    return NextResponse.json(
+      { 
+        error: "Insufficient credits",
+        required: creditsRequired,
+        balance: preChargeResult.newBalance,
+      },
+      { status: 402 }
+    );
+  }
 
   // Get the actual MCP endpoint URL
   let targetUrl: string;
@@ -159,18 +234,20 @@ export async function POST(
     );
   }
 
-  // Record usage and distribute revenue (only on success)
+  // Record usage and distribute revenue
+  // Note: Credits were already deducted above, so we pass skipDeduction: true
   if (mcpResponse.ok) {
     try {
-      await userMcpsService.recordUsage({
+      await userMcpsService.recordUsageWithoutDeduction({
         mcpId: mcp.id,
         organizationId: authResult.user.organization_id,
         userId: authResult.user.id,
         toolName,
-        paymentType,
+        creditsCharged: creditsRequired,
         metadata: {
           responseTime: Date.now() - startTime,
           success: true,
+          preChargeTransactionId: preChargeResult.transaction?.id,
         },
       });
     } catch (usageError) {
@@ -178,6 +255,25 @@ export async function POST(
       logger.error("[MCP Proxy] Failed to record usage", {
         mcpId,
         error: usageError instanceof Error ? usageError.message : String(usageError),
+      });
+    }
+  } else {
+    // MCP call failed - refund the credits
+    try {
+      await creditsService.refundCredits({
+        organizationId: authResult.user.organization_id,
+        amount: creditsRequired / CREDITS_PER_DOLLAR,
+        description: `MCP refund: ${mcp.name} (failed)`,
+        metadata: {
+          mcp_id: mcp.id,
+          reason: "mcp_call_failed",
+          status: mcpResponse.status,
+        },
+      });
+    } catch (refundError) {
+      logger.error("[MCP Proxy] Failed to refund credits", {
+        mcpId,
+        error: refundError instanceof Error ? refundError.message : String(refundError),
       });
     }
   }

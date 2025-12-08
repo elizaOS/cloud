@@ -5,8 +5,8 @@ import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "sonner";
 import NextTopLoader from "nextjs-toploader";
-import PrivyProvider from "@/providers/PrivyProvider";
-import { CreditsProvider } from "@/providers/CreditsProvider";
+import PrivyProvider from "@/lib/providers/PrivyProvider";
+import { CreditsProvider } from "@/lib/providers/CreditsProvider";
 import DebugProvider from "@/components/debug/debug-provider";
 
 const robotoMono = Roboto_Mono({

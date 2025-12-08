@@ -14,6 +14,8 @@ import {
   Puzzle,
   Grid3x3,
   Shield,
+  Wallet,
+  Coins,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import type { FeatureFlag } from "@/lib/config/feature-flags";
@@ -145,6 +147,26 @@ export const sidebarSections: SidebarSection[] = [
     ],
   },
   {
+    title: "Monetization",
+    items: [
+      {
+        id: "earnings",
+        label: "Earnings",
+        href: "/dashboard/earnings",
+        icon: Coins,
+        freeAllowed: false,
+        isNew: true,
+      },
+      {
+        id: "billing",
+        label: "Billing",
+        href: "/dashboard/billing",
+        icon: Wallet,
+        freeAllowed: false,
+      },
+    ],
+  },
+  {
     title: "Admin",
     adminOnly: true, // Only visible to admin users
     items: [
@@ -153,6 +175,14 @@ export const sidebarSections: SidebarSection[] = [
         label: "Moderation",
         href: "/dashboard/admin",
         icon: Shield,
+        freeAllowed: false,
+        adminOnly: true,
+      },
+      {
+        id: "admin-redemptions",
+        label: "Redemptions",
+        href: "/dashboard/admin/redemptions",
+        icon: Coins,
         freeAllowed: false,
         adminOnly: true,
       },

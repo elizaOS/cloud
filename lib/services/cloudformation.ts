@@ -18,6 +18,7 @@ import {
   type Stack,
   type StackStatus,
 } from "@aws-sdk/client-cloudformation";
+import { logger } from "@/lib/utils/logger";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { dbPriorityManager } from "./alb-priority-manager";
@@ -91,17 +92,17 @@ export class CloudFormationService {
       // Vercel deployment (relative to project root)
       path.join(
         process.cwd(),
-        "infrastructure/cloudformation/per-user-stack.json",
+        "scripts/cloudformation/per-user-stack.json",
       ),
       // Local development (from lib/services/)
       path.join(
         __dirname,
-        "../../infrastructure/cloudformation/per-user-stack.json",
+        "../../scripts/cloudformation/per-user-stack.json",
       ),
       // Build output (from .next/server/)
       path.join(
         __dirname,
-        "../../../infrastructure/cloudformation/per-user-stack.json",
+        "../../../scripts/cloudformation/per-user-stack.json",
       ),
     ];
 
@@ -117,7 +118,7 @@ export class CloudFormationService {
     if (!fs.existsSync(this.templatePath)) {
       throw new Error(
         `CloudFormation template not found at: ${this.templatePath}. ` +
-          `Expected location: infrastructure/cloudformation/per-user-stack.json from project root. ` +
+          `Expected location: scripts/cloudformation/per-user-stack.json from project root. ` +
           `Current working directory: ${process.cwd()}`,
       );
     }
@@ -185,7 +186,7 @@ export class CloudFormationService {
       } catch (error: unknown) {
         // Don't retry validation errors
         if (error instanceof Error && error.name === "ValidationError") {
-          console.error(
+          logger.error(
             `[CloudFormation withRetry] ValidationError, not retrying:`,
             error.message,
           );
@@ -194,13 +195,13 @@ export class CloudFormationService {
 
         const errorMessage =
           error instanceof Error ? error.message : String(error);
-        console.error(
+        logger.error(
           `[CloudFormation withRetry] Attempt ${attempt}/${maxRetries} failed:`,
           errorMessage,
         );
 
         if (attempt === maxRetries) {
-          console.error(
+          logger.error(
             `[CloudFormation withRetry] All ${maxRetries} attempts failed, throwing error`,
           );
           throw error;
@@ -348,7 +349,7 @@ export class CloudFormationService {
         const response = await this.client.send(command);
         return response.StackId!;
       } catch (createError) {
-        console.error(`❌ [CloudFormation] CreateStack API call failed:`, {
+        logger.error(`❌ [CloudFormation] CreateStack API call failed:`, {
           error:
             createError instanceof Error
               ? createError.message
@@ -550,7 +551,7 @@ export class CloudFormationService {
         const failureDetails = await this.getStackFailureDetails(stackName);
         const failureReason = stack.StackStatusReason || "Unknown failure";
 
-        console.error(`❌ [CloudFormation] Stack ${stackName} failed:`, {
+        logger.error(`❌ [CloudFormation] Stack ${stackName} failed:`, {
           status,
           reason: failureReason,
           failedResources: failureDetails,
@@ -628,7 +629,7 @@ export class CloudFormationService {
           status: event.ResourceStatus || "Unknown",
         }));
     } catch (error) {
-      console.error("Failed to get stack failure details", { stackName, error });
+      logger.error("Failed to get stack failure details", { stackName, error });
       return [];
     }
   }
@@ -793,7 +794,7 @@ export class CloudFormationService {
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      console.error(
+      logger.error(
         "Failed to get shared infrastructure outputs:",
         errorMessage,
       );

@@ -5,7 +5,7 @@
  * in the SecureTokenRedemptionService.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect } from "bun:test";
 import Decimal from "decimal.js";
 
 describe("SECURITY FIXES VERIFICATION", () => {

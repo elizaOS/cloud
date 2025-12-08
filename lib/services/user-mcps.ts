@@ -91,6 +91,15 @@ export interface UseMcpParams {
   metadata?: Record<string, unknown>;
 }
 
+export interface UseMcpWithoutDeductionParams {
+  mcpId: string;
+  organizationId: string;
+  userId?: string;
+  toolName: string;
+  creditsCharged: number;
+  metadata?: Record<string, unknown>;
+}
+
 export interface UseMcpResult {
   success: boolean;
   creditsCharged: number;
@@ -431,12 +440,15 @@ class UserMcpsService {
     let creditsCharged = 0;
     let x402AmountUsd = 0;
 
+    // Import CREDITS_PER_DOLLAR for conversion
+    const { CREDITS_PER_DOLLAR } = await import("@/lib/config/x402");
+
     if (params.paymentType === "credits") {
       creditsCharged = Number(mcp.credits_per_request);
     } else {
       x402AmountUsd = Number(mcp.x402_price_usd);
-      // Convert x402 USD to credits (assuming 100 credits = $1)
-      creditsCharged = x402AmountUsd * 100;
+      // Convert x402 USD to credits using configured rate
+      creditsCharged = x402AmountUsd * CREDITS_PER_DOLLAR;
     }
 
     const creatorSharePct = Number(mcp.creator_share_percentage) / 100;
@@ -482,7 +494,7 @@ class UserMcpsService {
       if (mcp.created_by_user_id) {
         const result = await redeemableEarningsService.addEarnings({
           userId: mcp.created_by_user_id,
-          amount: creatorEarnings / 100, // Convert credits to dollars (100 credits = $1)
+          amount: creatorEarnings / CREDITS_PER_DOLLAR, // Convert credits to dollars
           source: "mcp",
           sourceId: mcp.id,
           description: `MCP earnings: ${mcp.name} - ${params.toolName}`,
@@ -539,6 +551,105 @@ class UserMcpsService {
       success: true,
       creditsCharged,
       x402AmountUsd,
+      creatorEarnings,
+      platformEarnings,
+      usageId: usage.id,
+    };
+  }
+
+  /**
+   * Record MCP usage WITHOUT deducting credits (for pre-paid requests)
+   * 
+   * Use this when credits have already been deducted by the caller.
+   * This only handles revenue distribution and usage tracking.
+   */
+  async recordUsageWithoutDeduction(params: UseMcpWithoutDeductionParams): Promise<UseMcpResult> {
+    const mcp = await userMcpsRepository.getById(params.mcpId);
+    if (!mcp) {
+      throw new Error("MCP not found");
+    }
+
+    const creditsCharged = params.creditsCharged;
+    const creatorSharePct = Number(mcp.creator_share_percentage) / 100;
+    const platformSharePct = Number(mcp.platform_share_percentage) / 100;
+
+    const creatorEarnings = creditsCharged * creatorSharePct;
+    const platformEarnings = creditsCharged * platformSharePct;
+
+    // Import CREDITS_PER_DOLLAR for conversion
+    const { CREDITS_PER_DOLLAR } = await import("@/lib/config/x402");
+
+    // Credit the creator's organization credits (for platform operations)
+    if (creatorEarnings > 0) {
+      await creditsService.addCredits({
+        organizationId: mcp.organization_id,
+        amount: creatorEarnings / CREDITS_PER_DOLLAR, // Convert to dollars
+        description: `MCP Revenue: ${mcp.name} - ${params.toolName}`,
+        metadata: {
+          mcp_id: mcp.id,
+          consumer_org_id: params.organizationId,
+          tool_name: params.toolName,
+          payment_type: "credits",
+        },
+      });
+
+      // Credit the creator's redeemable_earnings for token redemption
+      if (mcp.created_by_user_id) {
+        const result = await redeemableEarningsService.addEarnings({
+          userId: mcp.created_by_user_id,
+          amount: creatorEarnings / CREDITS_PER_DOLLAR,
+          source: "mcp",
+          sourceId: mcp.id,
+          description: `MCP earnings: ${mcp.name} - ${params.toolName}`,
+          metadata: {
+            mcpId: mcp.id,
+            mcpName: mcp.name,
+            toolName: params.toolName,
+            consumerOrgId: params.organizationId,
+            paymentType: "credits",
+            creditsEarned: creatorEarnings,
+          },
+        });
+
+        if (!result.success) {
+          logger.error("[UserMcps] Failed to credit redeemable earnings", {
+            mcpId: mcp.id,
+            creatorId: mcp.created_by_user_id,
+            error: result.error,
+          });
+        }
+      }
+    }
+
+    // Record usage
+    const usage = await mcpUsageRepository.create({
+      mcp_id: params.mcpId,
+      organization_id: params.organizationId,
+      user_id: params.userId,
+      tool_name: params.toolName,
+      request_count: 1,
+      credits_charged: creditsCharged.toString(),
+      x402_amount_usd: "0", // No x402 for pre-paid
+      payment_type: "credits",
+      creator_earnings: creatorEarnings.toString(),
+      platform_earnings: platformEarnings.toString(),
+      metadata: params.metadata ?? {},
+    });
+
+    // Update MCP stats
+    await userMcpsRepository.incrementUsage(params.mcpId, creatorEarnings, 0);
+
+    logger.info("[UserMcps] Recorded usage (pre-paid)", {
+      mcpId: params.mcpId,
+      toolName: params.toolName,
+      creditsCharged,
+      creatorEarnings,
+    });
+
+    return {
+      success: true,
+      creditsCharged,
+      x402AmountUsd: 0,
       creatorEarnings,
       platformEarnings,
       usageId: usage.id,

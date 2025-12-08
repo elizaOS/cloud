@@ -28,8 +28,8 @@ import {
   User,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCredits } from "@/providers/CreditsProvider";
-import { useChatStore } from "@/stores/chat-store";
+import { useCredits } from "@/lib/providers/CreditsProvider";
+import { useChatStore } from "@/lib/stores/chat-store";
 
 export default function UserMenu() {
   const { ready, authenticated, user } = usePrivy();

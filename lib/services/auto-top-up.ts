@@ -6,6 +6,7 @@ import { creditsService } from "./credits";
 import { organizationsRepository, usersRepository } from "@/db/repositories";
 import type { Organization } from "@/db/repositories";
 import { emailService } from "./email";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Constants for auto top-up validation
@@ -148,7 +149,7 @@ export class AutoTopUpService {
 
     // Validate organization has necessary Stripe data
     if (!org.stripe_customer_id) {
-      console.error(
+      logger.error(
         `[AutoTopUp] Org ${organizationId} missing Stripe customer`,
       );
       await this.disableAutoTopUp(organizationId, "Missing Stripe customer");
@@ -160,7 +161,7 @@ export class AutoTopUpService {
     }
 
     if (!org.stripe_default_payment_method) {
-      console.error(
+      logger.error(
         `[AutoTopUp] Org ${organizationId} missing default payment method`,
       );
       await this.disableAutoTopUp(
@@ -176,7 +177,7 @@ export class AutoTopUpService {
 
     const amount = Number(org.auto_top_up_amount || 0);
     if (amount <= 0 || amount > AUTO_TOP_UP_LIMITS.MAX_AMOUNT) {
-      console.error(
+      logger.error(
         `[AutoTopUp] Org ${organizationId} has invalid top-up amount: ${amount}`,
       );
       await this.disableAutoTopUp(organizationId, "Invalid top-up amount");
@@ -245,7 +246,7 @@ export class AutoTopUpService {
       paymentIntent.status === "requires_payment_method"
     ) {
       // Payment needs additional action or failed
-      console.error(
+      logger.error(
         `[AutoTopUp] Payment requires action for org ${organizationId}: ${paymentIntent.status}`,
       );
       await this.disableAutoTopUp(
@@ -258,7 +259,7 @@ export class AutoTopUpService {
         error: `Payment ${paymentIntent.status}`,
       };
     } else {
-      console.error(
+      logger.error(
         `[AutoTopUp] Payment in unexpected state for org ${organizationId}: ${paymentIntent.status}`,
       );
       return {
@@ -286,7 +287,7 @@ export class AutoTopUpService {
 
     const org = await organizationsRepository.findById(organizationId);
     if (!org) {
-      console.error(`[AutoTopUp] Organization ${organizationId} not found`);
+      logger.error(`[AutoTopUp] Organization ${organizationId} not found`);
       return;
     }
 
@@ -317,7 +318,7 @@ export class AutoTopUpService {
     console.log(`[AutoTopUp] User email: ${recipientEmail || "NONE"}`);
 
     if (!recipientEmail) {
-      console.error(
+      logger.error(
         `[AutoTopUp] CRITICAL: No user email for org ${org.id} - EMAIL NOT SENT`,
       );
       return;
@@ -358,7 +359,7 @@ export class AutoTopUpService {
         `[AutoTopUp] ✓ SUCCESS: Auto top-up email sent to ${recipientEmail}`,
       );
     } else {
-      console.error(
+      logger.error(
         `[AutoTopUp] ✗ FAILED: Email service returned false for ${recipientEmail}`,
       );
     }
@@ -373,7 +374,7 @@ export class AutoTopUpService {
   ): Promise<void> {
     const recipientEmail = await this.getUserEmail(org.id);
     if (!recipientEmail) {
-      console.error(`[AutoTopUp] No user email for org ${org.id}`);
+      logger.error(`[AutoTopUp] No user email for org ${org.id}`);
       return;
     }
 

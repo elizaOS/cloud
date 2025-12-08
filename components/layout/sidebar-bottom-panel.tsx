@@ -13,7 +13,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { UserPlus, LogIn, Settings, LogOut, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CornerBrackets } from "@/components/brand";
-import { useCredits } from "@/providers/CreditsProvider";
+import { useCredits } from "@/lib/providers/CreditsProvider";
 
 interface SidebarBottomPanelProps {
   className?: string;

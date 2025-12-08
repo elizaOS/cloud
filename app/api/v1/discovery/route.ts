@@ -255,7 +255,7 @@ async function fetchLocalAgents(
       x402Support: false, // Agents use credits, not direct x402. Credits can be topped up via x402.
       organizationId: char.organization_id,
       creatorId: char.user_id,
-      verified: false, // TODO: Add verification support
+      verified: false, // Verification requires ERC-8004 on-chain attestation - see docs/ERC8004_VERIFICATION.md
       slug: char.slug ?? undefined,
       pricing: char.monetization_enabled
         ? {

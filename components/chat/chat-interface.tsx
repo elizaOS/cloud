@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InfoIcon, Sparkles } from "lucide-react";
 import type { UserCharacter } from "@/db/schemas";
 import { ElizaChatInterface } from "./eliza-chat-interface";
-import { useChatStore } from "@/stores/chat-store";
+import { useChatStore } from "@/lib/stores/chat-store";
 import type { AffiliateTheme } from "@/lib/config/affiliate-themes";
 import { getThemeCSSVariables } from "@/lib/config/affiliate-themes";
 import { useRenderTracker } from "@/lib/debug/render-tracker";

@@ -18,7 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useChatStore } from "@/stores/chat-store";
+import { useChatStore } from "@/lib/stores/chat-store";
 import { ElizaAvatar } from "@/components/chat/eliza-avatar";
 
 interface ChatHeaderProps {

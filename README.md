@@ -1667,7 +1667,7 @@ DATABASE_URL=postgres://prod-url npm run db:migrate
 - Test AWS credentials: `aws sts get-caller-identity`
 - Check quota: `GET /api/v1/containers/quota`
 - View logs in AWS CloudWatch or ECS console
-- Ensure shared infrastructure is deployed: `cd infrastructure/cloudformation && ./deploy-shared.sh`
+- Ensure shared infrastructure is deployed: `cd scripts/cloudformation && ./deploy-shared.sh`
 
 See `docs/DEPLOYMENT_TROUBLESHOOTING.md` for detailed troubleshooting.
 
@@ -1767,7 +1767,7 @@ elizaos deploy
 The platform uses CloudFormation to provision per-user infrastructure. First, deploy shared resources:
 
 ```bash
-cd infrastructure/cloudformation
+cd scripts/cloudformation
 ./deploy-shared.sh
 ```
 

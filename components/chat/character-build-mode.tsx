@@ -19,7 +19,7 @@ import {
   getCharacter,
 } from "@/app/actions/characters";
 import type { ElizaCharacter } from "@/lib/types";
-import { useChatStore } from "@/stores/chat-store";
+import { useChatStore } from "@/lib/stores/chat-store";
 import {
   ResizablePanelGroup,
   ResizablePanel,

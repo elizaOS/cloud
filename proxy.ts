@@ -43,6 +43,7 @@ const publicPaths = [
   "/api/mcp/list", // Public MCP server list
   "/api/mcp", // MCP protocol endpoint (uses API key or x402 auth)
   "/api/a2a", // A2A protocol endpoint (uses API key or x402 auth)
+  "/api/agents", // Agent-specific A2A/MCP endpoints (handle their own auth)
   "/.well-known", // ERC-8004 and A2A discovery files
 ];
 
