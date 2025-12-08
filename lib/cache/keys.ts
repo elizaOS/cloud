@@ -35,6 +35,13 @@ export const CacheKeys = {
     validation: (keyHash: string) => `apikey:validation:${keyHash}:v1`,
     pattern: () => `apikey:*`,
   },
+  session: {
+    /** Cache session token validation results */
+    privy: (tokenHash: string) => `session:privy:${tokenHash}:v1`,
+    /** Cache user data by session token */
+    user: (tokenHash: string) => `session:user:${tokenHash}:v1`,
+    pattern: () => `session:*`,
+  },
   user: {
     byEmail: (email: string) => `user:email:${email}:v1`,
     pattern: () => `user:*`,
@@ -120,6 +127,10 @@ export const CacheTTL = {
   },
   apiKey: {
     validation: 600, // 10 minutes (was 300s)
+  },
+  session: {
+    privy: 300, // 5 minutes - Privy token validation
+    user: 300, // 5 minutes - User data by session
   },
   user: {
     byEmail: 600, // 10 minutes (was 300s)

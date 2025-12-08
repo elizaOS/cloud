@@ -60,6 +60,12 @@ export { agentsService, agentService } from "./agents/agents";
 export { roomsService } from "./agents/rooms";
 
 // ============================================
+// A2A Protocol Services
+// ============================================
+export { a2aTaskStoreService } from "./a2a-task-store";
+export type { TaskStoreEntry } from "./a2a-task-store";
+
+// ============================================
 // Infrastructure Services
 // ============================================
 export * from "./containers";
