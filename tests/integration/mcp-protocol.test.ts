@@ -35,11 +35,15 @@ import {
   MCP_EVENT_TYPES,
 } from "@/lib/config/mcp";
 
-// List of all registered MCP tools (37 total)
+// List of all registered MCP tools (60 total)
 const MCP_TOOLS = [
-  // Credits (2)
+  // Credits & Billing (6)
   "check_credits",
   "stream_credit_updates",
+  "get_credit_summary",
+  "list_credit_transactions",
+  "list_credit_packs",
+  "get_billing_usage",
   // Usage (1)
   "get_recent_usage",
   // Generation (5)
@@ -71,8 +75,16 @@ const MCP_TOOLS = [
   "create_agent",
   "update_agent",
   "delete_agent",
-  // Infrastructure (4)
+  // Containers (8)
   "list_containers",
+  "get_container",
+  "get_container_health",
+  "get_container_logs",
+  "create_container",
+  "delete_container",
+  "get_container_metrics",
+  "get_container_quota",
+  // Infrastructure (3)
   "list_models",
   "list_gallery",
   "get_analytics",
@@ -83,13 +95,29 @@ const MCP_TOOLS = [
   "list_api_keys",
   "create_api_key",
   "delete_api_key",
-  // Redemptions (1)
+  // Redemptions (2)
   "get_redemption_balance",
+  "get_redemption_quote",
+  // MCPs (3)
+  "list_mcps",
+  "create_mcp",
+  "delete_mcp",
+  // Rooms (2)
+  "list_rooms",
+  "create_room",
+  // User (2)
+  "get_user_profile",
+  "update_user_profile",
+  // ERC-8004 Discovery (4)
+  "discover_services",
+  "get_service_details",
+  "find_mcp_tools",
+  "find_a2a_skills",
 ] as const;
 
-// Tool categories for organization (9 categories)
+// Tool categories for organization (15 categories)
 const TOOL_CATEGORIES = {
-  credits: ["check_credits", "stream_credit_updates"],
+  credits: ["check_credits", "stream_credit_updates", "get_credit_summary", "list_credit_transactions", "list_credit_packs", "get_billing_usage"],
   generation: ["generate_text", "generate_image", "generate_video", "generate_embeddings", "generate_prompts"],
   memory: ["save_memory", "retrieve_memories", "delete_memory", "analyze_memory_patterns"],
   knowledge: ["query_knowledge", "upload_knowledge"],
@@ -103,10 +131,15 @@ const TOOL_CATEGORIES = {
     "clone_conversation",
   ],
   agents: ["chat_with_agent", "list_agents", "subscribe_agent_events", "create_agent", "update_agent", "delete_agent"],
-  infrastructure: ["get_recent_usage", "list_containers", "list_models", "list_gallery", "get_analytics"],
+  containers: ["list_containers", "get_container", "get_container_health", "get_container_logs", "create_container", "delete_container", "get_container_metrics", "get_container_quota"],
+  infrastructure: ["get_recent_usage", "list_models", "list_gallery", "get_analytics"],
   voice: ["text_to_speech", "list_voices"],
   apiKeys: ["list_api_keys", "create_api_key", "delete_api_key"],
-  redemptions: ["get_redemption_balance"],
+  redemptions: ["get_redemption_balance", "get_redemption_quote"],
+  mcps: ["list_mcps", "create_mcp", "delete_mcp"],
+  rooms: ["list_rooms", "create_room"],
+  user: ["get_user_profile", "update_user_profile"],
+  discovery: ["discover_services", "get_service_details", "find_mcp_tools", "find_a2a_skills"],
 } as const;
 
 // ============================================================================
@@ -180,14 +213,15 @@ describe("MCP Configuration", () => {
 // ============================================================================
 
 describe("MCP Tool Registry", () => {
-  test("All 37 tools are defined", () => {
-    expect(MCP_TOOLS.length).toBe(37);
-    console.log(`✅ 37 MCP tools registered`);
+  test("All 60 tools are defined", () => {
+    expect(MCP_TOOLS.length).toBe(60);
+    console.log(`✅ 60 MCP tools registered`);
   });
 
   test("Tool names follow snake_case convention", () => {
     for (const tool of MCP_TOOLS) {
-      expect(tool).toMatch(/^[a-z][a-z_]*[a-z]$/);
+      // Allow lowercase letters, numbers, and underscores (e.g., find_a2a_skills)
+      expect(tool).toMatch(/^[a-z][a-z0-9_]*[a-z0-9]$/);
     }
     console.log(`✅ All tools follow snake_case naming`);
   });
@@ -302,6 +336,59 @@ describe("MCP Tool Registry", () => {
   test("Prompt generation tool is available", () => {
     expect(TOOL_CATEGORIES.generation).toContain("generate_prompts");
     console.log(`✅ Prompt generation tool available`);
+  });
+
+  test("Container management tools are available (full CRUD)", () => {
+    expect(TOOL_CATEGORIES.containers).toContain("list_containers");
+    expect(TOOL_CATEGORIES.containers).toContain("get_container");
+    expect(TOOL_CATEGORIES.containers).toContain("get_container_health");
+    expect(TOOL_CATEGORIES.containers).toContain("get_container_logs");
+    expect(TOOL_CATEGORIES.containers).toContain("create_container");
+    expect(TOOL_CATEGORIES.containers).toContain("delete_container");
+    expect(TOOL_CATEGORIES.containers).toContain("get_container_metrics");
+    expect(TOOL_CATEGORIES.containers).toContain("get_container_quota");
+    console.log(`✅ Container management tools available (full CRUD: 8 tools)`);
+  });
+
+  test("Credit/monetization tools are comprehensive", () => {
+    expect(TOOL_CATEGORIES.credits).toContain("check_credits");
+    expect(TOOL_CATEGORIES.credits).toContain("get_credit_summary");
+    expect(TOOL_CATEGORIES.credits).toContain("list_credit_transactions");
+    expect(TOOL_CATEGORIES.credits).toContain("list_credit_packs");
+    expect(TOOL_CATEGORIES.credits).toContain("get_billing_usage");
+    console.log(`✅ Credit/monetization tools comprehensive (6 tools)`);
+  });
+
+  test("ERC-8004 discovery tools are available", () => {
+    expect(TOOL_CATEGORIES.discovery).toContain("discover_services");
+    expect(TOOL_CATEGORIES.discovery).toContain("get_service_details");
+    expect(TOOL_CATEGORIES.discovery).toContain("find_mcp_tools");
+    expect(TOOL_CATEGORIES.discovery).toContain("find_a2a_skills");
+    console.log(`✅ ERC-8004 discovery tools available (4 tools)`);
+  });
+
+  test("MCP server management tools are available", () => {
+    expect(TOOL_CATEGORIES.mcps).toContain("list_mcps");
+    expect(TOOL_CATEGORIES.mcps).toContain("create_mcp");
+    expect(TOOL_CATEGORIES.mcps).toContain("delete_mcp");
+    console.log(`✅ MCP server management tools available`);
+  });
+
+  test("Room management tools are available", () => {
+    expect(TOOL_CATEGORIES.rooms).toContain("list_rooms");
+    expect(TOOL_CATEGORIES.rooms).toContain("create_room");
+    console.log(`✅ Room management tools available`);
+  });
+
+  test("User profile tools are available", () => {
+    expect(TOOL_CATEGORIES.user).toContain("get_user_profile");
+    expect(TOOL_CATEGORIES.user).toContain("update_user_profile");
+    console.log(`✅ User profile tools available`);
+  });
+
+  test("Redemption quote tool is available", () => {
+    expect(TOOL_CATEGORIES.redemptions).toContain("get_redemption_quote");
+    console.log(`✅ Redemption quote tool available`);
   });
 });
 
@@ -440,33 +527,22 @@ describe("MCP Implementation Summary", () => {
 Endpoint: /api/mcp
 Library: mcp-handler
 
-Tools (20 total):
-├── Credits
-│   ├── check_credits          Check balance & transactions
-│   └── stream_credit_updates  SSE credit updates
-├── Generation
-│   ├── generate_text          LLM inference (GPT-4, Claude, etc.)
-│   └── generate_image         Gemini image generation
-├── Memory
-│   ├── save_memory            Save with embeddings
-│   ├── retrieve_memories      Semantic search
-│   ├── delete_memory          Remove memory
-│   └── analyze_memory_patterns Pattern analysis
-├── Conversation
-│   ├── create_conversation    Create new conversation
-│   ├── search_conversations   Search by content
-│   ├── get_conversation_context Get context
-│   ├── summarize_conversation AI summarization
-│   ├── optimize_context_window Context optimization
-│   ├── export_conversation    Export to JSON
-│   └── clone_conversation     Clone conversation
-├── Agents
-│   ├── chat_with_agent        Chat with ElizaOS agent
-│   ├── list_agents            List available agents
-│   └── subscribe_agent_events SSE agent events
-└── Infrastructure
-    ├── get_recent_usage       Usage statistics
-    └── list_containers        Container status
+Tools (60 total):
+├── Credits & Billing (6).... check, stream, summary, transactions, packs, usage
+├── Generation (5)........... text, image, video, embeddings, prompts
+├── Memory (4)............... save, retrieve, delete, analyze_patterns
+├── Knowledge (2)............ query, upload
+├── Conversation (7)......... create, search, context, summarize, optimize, export, clone
+├── Agents (6)............... chat, list, subscribe, create, update, delete
+├── Containers (8)........... list, get, health, logs, create, delete, metrics, quota
+├── Infrastructure (3)....... usage, models, gallery, analytics
+├── Voice (2)................ text_to_speech, list_voices
+├── API Keys (3)............. list, create, delete
+├── Redemptions (2).......... balance, quote
+├── MCPs (3)................. list, create, delete
+├── Rooms (2)................ list, create
+├── User (2)................. get_profile, update_profile
+└── Discovery (4)............ discover_services, get_service_details, find_mcp_tools, find_a2a_skills
 
 Authentication:
 ├── API Key: Authorization: Bearer {key}   ✅
@@ -479,11 +555,13 @@ Rate Limiting:
 NOT LARP - This is a REAL implementation:
 ├── Real LLM inference via AI SDK Gateway ✅
 ├── Real credit deduction & billing       ✅
+├── Real container deployment to AWS ECS  ✅
 ├── Real usage tracking in database       ✅
 ├── Real memory with vector embeddings    ✅
 ├── Real conversation management          ✅
 ├── Real agent reputation tracking        ✅
-└── Real content moderation               ✅
+├── Real content moderation               ✅
+└── Real ERC-8004 decentralized discovery ✅
 
 ════════════════════════════════════════════════════════════════════
 `);
