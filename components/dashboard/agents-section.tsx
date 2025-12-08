@@ -39,6 +39,7 @@ import { formatDistanceToNow } from "date-fns";
 import { isBuiltInAvatar, ensureAvatarUrl } from "@/lib/utils/default-avatar";
 
 import type { DashboardAgentStats as AgentStats } from "@/lib/actions/dashboard";
+import { Skeleton } from "../ui/skeleton";
 
 interface Agent {
   id: string;
@@ -275,6 +276,8 @@ function AgentCard({ agent }: { agent: Agent }) {
         </div>
         {/* Avatar Section - Large prominent image */}
         <div className={cn("relative h-36 w-full overflow-hidden")}>
+          <Skeleton className="absolute inset-0 w-full h-full" />
+
           <Image
             src={ensureAvatarUrl(agent.avatarUrl)}
             alt={agent.name}
