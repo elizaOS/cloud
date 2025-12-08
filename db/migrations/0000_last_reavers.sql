@@ -1,3 +1,18 @@
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TYPE "public"."share_type" AS ENUM('app_share', 'character_share', 'invite_share');--> statement-breakpoint
+CREATE TYPE "public"."social_platform" AS ENUM('x', 'farcaster', 'telegram', 'discord');--> statement-breakpoint
+CREATE TYPE "public"."mcp_pricing_type" AS ENUM('free', 'credits', 'x402');--> statement-breakpoint
+CREATE TYPE "public"."mcp_status" AS ENUM('draft', 'pending_review', 'live', 'suspended', 'deprecated');--> statement-breakpoint
+CREATE TYPE "public"."redemption_network" AS ENUM('ethereum', 'base', 'bnb', 'solana');--> statement-breakpoint
+CREATE TYPE "public"."redemption_status" AS ENUM('pending', 'approved', 'processing', 'completed', 'failed', 'rejected', 'expired');--> statement-breakpoint
+CREATE TYPE "public"."earnings_source" AS ENUM('miniapp', 'agent', 'mcp');--> statement-breakpoint
+CREATE TYPE "public"."ledger_entry_type" AS ENUM('earning', 'redemption', 'adjustment', 'refund');--> statement-breakpoint
+CREATE TYPE "public"."admin_role" AS ENUM('super_admin', 'moderator', 'viewer');--> statement-breakpoint
+CREATE TYPE "public"."moderation_action" AS ENUM('refused', 'warned', 'flagged_for_ban', 'banned');--> statement-breakpoint
+CREATE TYPE "public"."user_mod_status" AS ENUM('clean', 'warned', 'spammer', 'scammer', 'banned');--> statement-breakpoint
+CREATE TYPE "public"."agent_flag_type" AS ENUM('csam', 'self_harm', 'spam', 'scam', 'harassment', 'copyright', 'malware', 'other');--> statement-breakpoint
+CREATE TYPE "public"."agent_reputation_status" AS ENUM('new', 'trusted', 'warned', 'restricted', 'banned');--> statement-breakpoint
 CREATE TABLE "organizations" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
@@ -24,7 +39,8 @@ CREATE TABLE "organizations" (
 	"settings" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "organizations_slug_unique" UNIQUE("slug")
+	CONSTRAINT "organizations_slug_unique" UNIQUE("slug"),
+	CONSTRAINT "credit_balance_non_negative" CHECK ("organizations"."credit_balance" >= 0)
 );
 --> statement-breakpoint
 CREATE TABLE "organization_invites" (
@@ -146,6 +162,23 @@ CREATE TABLE "cli_auth_sessions" (
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "cli_auth_sessions_session_id_unique" UNIQUE("session_id")
+);
+--> statement-breakpoint
+CREATE TABLE "miniapp_auth_sessions" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"session_id" text NOT NULL,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"callback_url" text NOT NULL,
+	"app_id" text,
+	"user_id" uuid,
+	"organization_id" uuid,
+	"auth_token" text,
+	"auth_token_hash" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"authenticated_at" timestamp,
+	"expires_at" timestamp NOT NULL,
+	"used_at" timestamp,
+	CONSTRAINT "miniapp_auth_sessions_session_id_unique" UNIQUE("session_id")
 );
 --> statement-breakpoint
 CREATE TABLE "usage_records" (
@@ -378,6 +411,21 @@ CREATE TABLE "user_characters" (
 	"view_count" integer DEFAULT 0 NOT NULL,
 	"interaction_count" integer DEFAULT 0 NOT NULL,
 	"popularity_score" integer DEFAULT 0 NOT NULL,
+	"source" text DEFAULT 'cloud' NOT NULL,
+	"erc8004_registered" boolean DEFAULT false NOT NULL,
+	"erc8004_network" text,
+	"erc8004_agent_id" integer,
+	"erc8004_agent_uri" text,
+	"erc8004_tx_hash" text,
+	"erc8004_registered_at" timestamp,
+	"monetization_enabled" boolean DEFAULT false NOT NULL,
+	"inference_markup_percentage" numeric(7, 2) DEFAULT '0.00' NOT NULL,
+	"payout_wallet_address" text,
+	"total_inference_requests" integer DEFAULT 0 NOT NULL,
+	"total_creator_earnings" numeric(12, 4) DEFAULT '0.0000' NOT NULL,
+	"total_platform_revenue" numeric(12, 4) DEFAULT '0.0000' NOT NULL,
+	"a2a_enabled" boolean DEFAULT true NOT NULL,
+	"mcp_enabled" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
@@ -490,10 +538,165 @@ CREATE TABLE "alb_priorities" (
 	CONSTRAINT "alb_priorities_priority_unique" UNIQUE("priority")
 );
 --> statement-breakpoint
+CREATE TABLE "app_analytics" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"app_id" uuid NOT NULL,
+	"period_start" timestamp NOT NULL,
+	"period_end" timestamp NOT NULL,
+	"period_type" text NOT NULL,
+	"total_requests" integer DEFAULT 0 NOT NULL,
+	"successful_requests" integer DEFAULT 0 NOT NULL,
+	"failed_requests" integer DEFAULT 0 NOT NULL,
+	"unique_users" integer DEFAULT 0 NOT NULL,
+	"new_users" integer DEFAULT 0 NOT NULL,
+	"total_input_tokens" integer DEFAULT 0 NOT NULL,
+	"total_output_tokens" integer DEFAULT 0 NOT NULL,
+	"total_cost" numeric(10, 2) DEFAULT '0.00',
+	"total_credits_used" numeric(10, 2) DEFAULT '0.00',
+	"chat_requests" integer DEFAULT 0 NOT NULL,
+	"image_requests" integer DEFAULT 0 NOT NULL,
+	"video_requests" integer DEFAULT 0 NOT NULL,
+	"voice_requests" integer DEFAULT 0 NOT NULL,
+	"agent_requests" integer DEFAULT 0 NOT NULL,
+	"avg_response_time_ms" integer,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "app_users" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"app_id" uuid NOT NULL,
+	"user_id" uuid NOT NULL,
+	"signup_source" text,
+	"referral_code_used" text,
+	"ip_address" text,
+	"user_agent" text,
+	"total_requests" integer DEFAULT 0 NOT NULL,
+	"total_credits_used" numeric(10, 2) DEFAULT '0.00',
+	"first_seen_at" timestamp DEFAULT now() NOT NULL,
+	"last_seen_at" timestamp DEFAULT now() NOT NULL,
+	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "apps" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" text NOT NULL,
+	"description" text,
+	"slug" text NOT NULL,
+	"organization_id" uuid NOT NULL,
+	"created_by_user_id" uuid NOT NULL,
+	"app_url" text NOT NULL,
+	"allowed_origins" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"api_key_id" uuid,
+	"affiliate_code" text,
+	"referral_bonus_credits" numeric(10, 2) DEFAULT '0.00',
+	"total_requests" integer DEFAULT 0 NOT NULL,
+	"total_users" integer DEFAULT 0 NOT NULL,
+	"total_credits_used" numeric(10, 2) DEFAULT '0.00',
+	"custom_pricing_enabled" boolean DEFAULT false NOT NULL,
+	"monetization_enabled" boolean DEFAULT false NOT NULL,
+	"inference_markup_percentage" numeric(7, 2) DEFAULT '0.00' NOT NULL,
+	"purchase_share_percentage" numeric(5, 2) DEFAULT '10.00' NOT NULL,
+	"platform_offset_amount" numeric(10, 2) DEFAULT '1.00' NOT NULL,
+	"total_creator_earnings" numeric(12, 2) DEFAULT '0.00' NOT NULL,
+	"total_platform_revenue" numeric(12, 2) DEFAULT '0.00' NOT NULL,
+	"features_enabled" jsonb DEFAULT '{"chat":true,"image":false,"video":false,"voice":false,"agents":false,"embedding":false}'::jsonb NOT NULL,
+	"rate_limit_per_minute" integer DEFAULT 60,
+	"rate_limit_per_hour" integer DEFAULT 1000,
+	"logo_url" text,
+	"website_url" text,
+	"contact_email" text,
+	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"is_active" boolean DEFAULT true NOT NULL,
+	"is_approved" boolean DEFAULT true NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"last_used_at" timestamp,
+	CONSTRAINT "apps_slug_unique" UNIQUE("slug"),
+	CONSTRAINT "apps_api_key_id_unique" UNIQUE("api_key_id"),
+	CONSTRAINT "apps_affiliate_code_unique" UNIQUE("affiliate_code")
+);
+--> statement-breakpoint
+CREATE TABLE "app_credit_balances" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"app_id" uuid NOT NULL,
+	"user_id" uuid NOT NULL,
+	"organization_id" uuid NOT NULL,
+	"credit_balance" numeric(10, 2) DEFAULT '0.00' NOT NULL,
+	"total_purchased" numeric(10, 2) DEFAULT '0.00' NOT NULL,
+	"total_spent" numeric(10, 2) DEFAULT '0.00' NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "app_earnings" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"app_id" uuid NOT NULL,
+	"total_lifetime_earnings" numeric(12, 2) DEFAULT '0.00' NOT NULL,
+	"total_inference_earnings" numeric(12, 2) DEFAULT '0.00' NOT NULL,
+	"total_purchase_earnings" numeric(12, 2) DEFAULT '0.00' NOT NULL,
+	"pending_balance" numeric(12, 2) DEFAULT '0.00' NOT NULL,
+	"withdrawable_balance" numeric(12, 2) DEFAULT '0.00' NOT NULL,
+	"total_withdrawn" numeric(12, 2) DEFAULT '0.00' NOT NULL,
+	"last_withdrawal_at" timestamp,
+	"payout_threshold" numeric(10, 2) DEFAULT '10.00' NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "app_earnings_transactions" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"app_id" uuid NOT NULL,
+	"user_id" uuid,
+	"type" text NOT NULL,
+	"amount" numeric(10, 2) NOT NULL,
+	"description" text,
+	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "referral_codes" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" uuid NOT NULL,
+	"code" text NOT NULL,
+	"total_referrals" integer DEFAULT 0 NOT NULL,
+	"total_signup_earnings" numeric(10, 2) DEFAULT '0.00' NOT NULL,
+	"total_qualified_earnings" numeric(10, 2) DEFAULT '0.00' NOT NULL,
+	"total_commission_earnings" numeric(10, 2) DEFAULT '0.00' NOT NULL,
+	"is_active" boolean DEFAULT true NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "referral_codes_code_unique" UNIQUE("code")
+);
+--> statement-breakpoint
+CREATE TABLE "referral_signups" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"referral_code_id" uuid NOT NULL,
+	"referrer_user_id" uuid NOT NULL,
+	"referred_user_id" uuid NOT NULL,
+	"signup_bonus_credited" boolean DEFAULT false NOT NULL,
+	"signup_bonus_amount" numeric(10, 2) DEFAULT '0.00',
+	"qualified_at" timestamp,
+	"qualified_bonus_credited" boolean DEFAULT false NOT NULL,
+	"qualified_bonus_amount" numeric(10, 2) DEFAULT '0.00',
+	"total_commission_earned" numeric(10, 2) DEFAULT '0.00' NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "social_share_rewards" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" uuid NOT NULL,
+	"platform" "social_platform" NOT NULL,
+	"share_type" "share_type" NOT NULL,
+	"share_url" text,
+	"share_intent_at" timestamp,
+	"verified" boolean DEFAULT false NOT NULL,
+	"credits_awarded" numeric(10, 2) DEFAULT '0.00' NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "agents" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"enabled" boolean DEFAULT true NOT NULL,
-	"owner_id" uuid,
+	"server_id" uuid,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"name" text NOT NULL,
@@ -521,13 +724,13 @@ CREATE TABLE "cache" (
 --> statement-breakpoint
 CREATE TABLE "channel_participants" (
 	"channel_id" text NOT NULL,
-	"user_id" text NOT NULL,
-	CONSTRAINT "channel_participants_channel_id_user_id_pk" PRIMARY KEY("channel_id","user_id")
+	"entity_id" text NOT NULL,
+	CONSTRAINT "channel_participants_channel_id_entity_id_pk" PRIMARY KEY("channel_id","entity_id")
 );
 --> statement-breakpoint
 CREATE TABLE "channels" (
 	"id" text PRIMARY KEY NOT NULL,
-	"server_id" uuid NOT NULL,
+	"message_server_id" uuid NOT NULL,
 	"name" text NOT NULL,
 	"type" text NOT NULL,
 	"source_type" text,
@@ -685,18 +888,12 @@ CREATE TABLE "rooms" (
 	"agentId" uuid,
 	"source" text NOT NULL,
 	"type" text NOT NULL,
-	"serverId" text,
+	"message_server_id" uuid,
 	"worldId" uuid,
 	"name" text,
 	"metadata" jsonb,
-	"channelId" text,
-	"createdAt" timestamp DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "server_agents" (
-	"server_id" uuid NOT NULL,
-	"agent_id" uuid NOT NULL,
-	CONSTRAINT "server_agents_server_id_agent_id_pk" PRIMARY KEY("server_id","agent_id")
+	"channel_id" text,
+	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "session_summaries" (
@@ -723,7 +920,7 @@ CREATE TABLE "tasks" (
 	"roomId" uuid,
 	"worldId" uuid,
 	"entityId" uuid,
-	"agent_id" uuid NOT NULL,
+	"agentId" uuid NOT NULL,
 	"tags" text[] DEFAULT '{}'::text[],
 	"metadata" jsonb DEFAULT '{}'::jsonb,
 	"created_at" timestamp with time zone DEFAULT now(),
@@ -735,8 +932,8 @@ CREATE TABLE "worlds" (
 	"agentId" uuid NOT NULL,
 	"name" text NOT NULL,
 	"metadata" jsonb,
-	"serverId" text DEFAULT 'local' NOT NULL,
-	"createdAt" timestamp DEFAULT now() NOT NULL
+	"message_server_id" uuid,
+	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "eliza_room_characters" (
@@ -745,6 +942,337 @@ CREATE TABLE "eliza_room_characters" (
 	"user_id" uuid NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "agent_events" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"agent_id" uuid NOT NULL,
+	"organization_id" uuid NOT NULL,
+	"event_type" text NOT NULL,
+	"level" text DEFAULT 'info' NOT NULL,
+	"message" text NOT NULL,
+	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"duration_ms" text,
+	"container_id" uuid,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "mcp_usage" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"mcp_id" uuid NOT NULL,
+	"organization_id" uuid NOT NULL,
+	"user_id" uuid,
+	"tool_name" text NOT NULL,
+	"request_count" integer DEFAULT 1 NOT NULL,
+	"credits_charged" numeric(10, 4) DEFAULT '0.0000',
+	"x402_amount_usd" numeric(10, 6) DEFAULT '0.000000',
+	"payment_type" text DEFAULT 'credits' NOT NULL,
+	"creator_earnings" numeric(10, 4) DEFAULT '0.0000',
+	"platform_earnings" numeric(10, 4) DEFAULT '0.0000',
+	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "user_mcps" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" text NOT NULL,
+	"slug" text NOT NULL,
+	"description" text NOT NULL,
+	"version" text DEFAULT '1.0.0' NOT NULL,
+	"organization_id" uuid NOT NULL,
+	"created_by_user_id" uuid NOT NULL,
+	"endpoint_type" text DEFAULT 'container' NOT NULL,
+	"container_id" uuid,
+	"external_endpoint" text,
+	"endpoint_path" text DEFAULT '/mcp',
+	"transport_type" text DEFAULT 'streamable-http' NOT NULL,
+	"mcp_version" text DEFAULT '2025-06-18',
+	"tools" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"category" text DEFAULT 'utilities' NOT NULL,
+	"tags" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"icon" text DEFAULT 'puzzle',
+	"color" text DEFAULT '#6366F1',
+	"pricing_type" "mcp_pricing_type" DEFAULT 'credits' NOT NULL,
+	"credits_per_request" numeric(10, 4) DEFAULT '1.0000',
+	"x402_price_usd" numeric(10, 6) DEFAULT '0.000100',
+	"x402_enabled" boolean DEFAULT false NOT NULL,
+	"creator_share_percentage" numeric(5, 2) DEFAULT '80.00' NOT NULL,
+	"platform_share_percentage" numeric(5, 2) DEFAULT '20.00' NOT NULL,
+	"total_requests" integer DEFAULT 0 NOT NULL,
+	"total_credits_earned" numeric(12, 4) DEFAULT '0.0000',
+	"total_x402_earned_usd" numeric(12, 6) DEFAULT '0.000000',
+	"unique_users" integer DEFAULT 0 NOT NULL,
+	"status" "mcp_status" DEFAULT 'draft' NOT NULL,
+	"is_public" boolean DEFAULT true NOT NULL,
+	"is_featured" boolean DEFAULT false NOT NULL,
+	"is_verified" boolean DEFAULT false NOT NULL,
+	"verified_at" timestamp,
+	"verified_by" uuid,
+	"documentation_url" text,
+	"source_code_url" text,
+	"support_email" text,
+	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"erc8004_registered" boolean DEFAULT false NOT NULL,
+	"erc8004_network" text,
+	"erc8004_agent_id" integer,
+	"erc8004_agent_uri" text,
+	"erc8004_tx_hash" text,
+	"erc8004_registered_at" timestamp,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"last_used_at" timestamp,
+	"published_at" timestamp
+);
+--> statement-breakpoint
+CREATE TABLE "eliza_token_prices" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"network" text NOT NULL,
+	"price_usd" numeric(18, 8) NOT NULL,
+	"source" text NOT NULL,
+	"fetched_at" timestamp DEFAULT now() NOT NULL,
+	"expires_at" timestamp NOT NULL,
+	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "redemption_limits" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" uuid NOT NULL,
+	"date" timestamp NOT NULL,
+	"daily_usd_total" numeric(12, 2) DEFAULT '0.00' NOT NULL,
+	"redemption_count" numeric(5, 0) DEFAULT '0' NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "token_redemptions" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" uuid NOT NULL,
+	"app_id" uuid,
+	"points_amount" numeric(12, 2) NOT NULL,
+	"usd_value" numeric(12, 4) NOT NULL,
+	"eliza_price_usd" numeric(18, 8) NOT NULL,
+	"eliza_amount" numeric(24, 8) NOT NULL,
+	"price_quote_expires_at" timestamp NOT NULL,
+	"network" "redemption_network" NOT NULL,
+	"payout_address" text NOT NULL,
+	"address_signature" text,
+	"status" "redemption_status" DEFAULT 'pending' NOT NULL,
+	"processing_started_at" timestamp,
+	"processing_worker_id" text,
+	"tx_hash" text,
+	"completed_at" timestamp,
+	"failure_reason" text,
+	"retry_count" numeric(3, 0) DEFAULT '0' NOT NULL,
+	"requires_review" boolean DEFAULT false NOT NULL,
+	"reviewed_by" uuid,
+	"reviewed_at" timestamp,
+	"review_notes" text,
+	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "redeemable_earnings" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" uuid NOT NULL,
+	"total_earned" numeric(18, 4) DEFAULT '0.0000' NOT NULL,
+	"total_redeemed" numeric(18, 4) DEFAULT '0.0000' NOT NULL,
+	"total_pending" numeric(18, 4) DEFAULT '0.0000' NOT NULL,
+	"available_balance" numeric(18, 4) DEFAULT '0.0000' NOT NULL,
+	"earned_from_miniapps" numeric(18, 4) DEFAULT '0.0000' NOT NULL,
+	"earned_from_agents" numeric(18, 4) DEFAULT '0.0000' NOT NULL,
+	"earned_from_mcps" numeric(18, 4) DEFAULT '0.0000' NOT NULL,
+	"last_earning_at" timestamp,
+	"last_redemption_at" timestamp,
+	"version" numeric(10, 0) DEFAULT '0' NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "redeemable_earnings_user_id_unique" UNIQUE("user_id"),
+	CONSTRAINT "available_balance_non_negative" CHECK ("redeemable_earnings"."available_balance" >= 0),
+	CONSTRAINT "totals_consistent" CHECK ("redeemable_earnings"."total_earned" >= "redeemable_earnings"."total_redeemed" + "redeemable_earnings"."total_pending")
+);
+--> statement-breakpoint
+CREATE TABLE "redeemable_earnings_ledger" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" uuid NOT NULL,
+	"entry_type" "ledger_entry_type" NOT NULL,
+	"amount" numeric(18, 4) NOT NULL,
+	"balance_after" numeric(18, 4) NOT NULL,
+	"earnings_source" "earnings_source",
+	"source_id" uuid,
+	"redemption_id" uuid,
+	"description" text NOT NULL,
+	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "redeemed_earnings_tracking" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"ledger_entry_id" uuid NOT NULL,
+	"redemption_id" uuid NOT NULL,
+	"amount_redeemed" numeric(18, 4) NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "redeemed_earnings_tracking_ledger_entry_id_unique" UNIQUE("ledger_entry_id")
+);
+--> statement-breakpoint
+CREATE TABLE "admin_users" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" uuid,
+	"wallet_address" text NOT NULL,
+	"role" "admin_role" DEFAULT 'moderator' NOT NULL,
+	"granted_by" uuid,
+	"granted_by_wallet" text,
+	"is_active" boolean DEFAULT true NOT NULL,
+	"notes" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"revoked_at" timestamp,
+	CONSTRAINT "admin_users_wallet_address_unique" UNIQUE("wallet_address")
+);
+--> statement-breakpoint
+CREATE TABLE "moderation_violations" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" uuid NOT NULL,
+	"room_id" text,
+	"message_text" text NOT NULL,
+	"categories" jsonb NOT NULL,
+	"scores" jsonb NOT NULL,
+	"action" "moderation_action" NOT NULL,
+	"reviewed_by" uuid,
+	"reviewed_at" timestamp,
+	"review_notes" text,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "user_moderation_status" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" uuid NOT NULL,
+	"status" "user_mod_status" DEFAULT 'clean' NOT NULL,
+	"total_violations" integer DEFAULT 0 NOT NULL,
+	"warning_count" integer DEFAULT 0 NOT NULL,
+	"risk_score" real DEFAULT 0 NOT NULL,
+	"banned_by" uuid,
+	"banned_at" timestamp,
+	"ban_reason" text,
+	"last_violation_at" timestamp,
+	"last_warning_at" timestamp,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "user_moderation_status_user_id_unique" UNIQUE("user_id")
+);
+--> statement-breakpoint
+CREATE TABLE "agent_activity_log" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"agent_reputation_id" uuid NOT NULL,
+	"activity_type" text NOT NULL,
+	"amount_usd" real,
+	"details" jsonb,
+	"is_successful" boolean DEFAULT true NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "agent_moderation_events" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"agent_reputation_id" uuid NOT NULL,
+	"event_type" text NOT NULL,
+	"flag_type" "agent_flag_type",
+	"severity" text DEFAULT 'medium' NOT NULL,
+	"description" text,
+	"evidence" text,
+	"detected_by" text DEFAULT 'auto' NOT NULL,
+	"moderation_scores" jsonb,
+	"admin_user_id" uuid,
+	"admin_notes" text,
+	"action_taken" text,
+	"reputation_change" real DEFAULT 0 NOT NULL,
+	"previous_score" real,
+	"new_score" real,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"resolved_at" timestamp,
+	"resolved_by" uuid,
+	"resolution_notes" text
+);
+--> statement-breakpoint
+CREATE TABLE "agent_reputation" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"agent_identifier" text NOT NULL,
+	"chain_id" integer,
+	"token_id" integer,
+	"wallet_address" text,
+	"organization_id" uuid,
+	"status" "agent_reputation_status" DEFAULT 'new' NOT NULL,
+	"total_deposited" real DEFAULT 0 NOT NULL,
+	"total_spent" real DEFAULT 0 NOT NULL,
+	"payment_count" integer DEFAULT 0 NOT NULL,
+	"last_payment_at" timestamp,
+	"total_requests" integer DEFAULT 0 NOT NULL,
+	"successful_requests" integer DEFAULT 0 NOT NULL,
+	"failed_requests" integer DEFAULT 0 NOT NULL,
+	"last_request_at" timestamp,
+	"total_violations" integer DEFAULT 0 NOT NULL,
+	"csam_violations" integer DEFAULT 0 NOT NULL,
+	"self_harm_violations" integer DEFAULT 0 NOT NULL,
+	"other_violations" integer DEFAULT 0 NOT NULL,
+	"last_violation_at" timestamp,
+	"flag_count" integer DEFAULT 0 NOT NULL,
+	"is_flagged_by_admin" boolean DEFAULT false NOT NULL,
+	"flag_reason" text,
+	"flagged_at" timestamp,
+	"flagged_by" uuid,
+	"reputation_score" real DEFAULT 50 NOT NULL,
+	"trust_level" text DEFAULT 'neutral' NOT NULL,
+	"confidence_score" real DEFAULT 0 NOT NULL,
+	"banned_at" timestamp,
+	"banned_by" uuid,
+	"ban_reason" text,
+	"ban_expires_at" timestamp,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"first_seen_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "agent_reputation_agent_identifier_unique" UNIQUE("agent_identifier")
+);
+--> statement-breakpoint
+CREATE TABLE "agent_budget_transactions" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"budget_id" uuid NOT NULL,
+	"agent_id" uuid NOT NULL,
+	"type" text NOT NULL,
+	"amount" numeric(12, 4) NOT NULL,
+	"balance_after" numeric(12, 4) NOT NULL,
+	"daily_spent_after" numeric(10, 4),
+	"description" text NOT NULL,
+	"operation_type" text,
+	"model" text,
+	"tokens_used" numeric(12, 0),
+	"source_type" text,
+	"source_id" text,
+	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "agent_budgets" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"agent_id" uuid NOT NULL,
+	"owner_org_id" uuid NOT NULL,
+	"allocated_budget" numeric(12, 4) DEFAULT '0.0000' NOT NULL,
+	"spent_budget" numeric(12, 4) DEFAULT '0.0000' NOT NULL,
+	"daily_limit" numeric(10, 4),
+	"daily_spent" numeric(10, 4) DEFAULT '0.0000' NOT NULL,
+	"daily_reset_at" timestamp,
+	"auto_refill_enabled" boolean DEFAULT false NOT NULL,
+	"auto_refill_amount" numeric(10, 4),
+	"auto_refill_threshold" numeric(10, 4),
+	"last_refill_at" timestamp,
+	"is_paused" boolean DEFAULT false NOT NULL,
+	"pause_on_depleted" boolean DEFAULT true NOT NULL,
+	"pause_reason" text,
+	"paused_at" timestamp,
+	"low_budget_threshold" numeric(10, 4) DEFAULT '5.0000',
+	"low_budget_alert_sent" boolean DEFAULT false NOT NULL,
+	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "agent_budgets_agent_id_unique" UNIQUE("agent_id")
 );
 --> statement-breakpoint
 ALTER TABLE "organization_invites" ADD CONSTRAINT "organization_invites_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -757,6 +1285,8 @@ ALTER TABLE "anonymous_sessions" ADD CONSTRAINT "anonymous_sessions_user_id_user
 ALTER TABLE "api_keys" ADD CONSTRAINT "api_keys_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "api_keys" ADD CONSTRAINT "api_keys_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "cli_auth_sessions" ADD CONSTRAINT "cli_auth_sessions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "miniapp_auth_sessions" ADD CONSTRAINT "miniapp_auth_sessions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "miniapp_auth_sessions" ADD CONSTRAINT "miniapp_auth_sessions_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "usage_records" ADD CONSTRAINT "usage_records_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "usage_records" ADD CONSTRAINT "usage_records_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "usage_records" ADD CONSTRAINT "usage_records_api_key_id_api_keys_id_fk" FOREIGN KEY ("api_key_id") REFERENCES "public"."api_keys"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -790,9 +1320,25 @@ ALTER TABLE "containers" ADD CONSTRAINT "containers_organization_id_organization
 ALTER TABLE "containers" ADD CONSTRAINT "containers_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "containers" ADD CONSTRAINT "containers_api_key_id_api_keys_id_fk" FOREIGN KEY ("api_key_id") REFERENCES "public"."api_keys"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "containers" ADD CONSTRAINT "containers_character_id_user_characters_id_fk" FOREIGN KEY ("character_id") REFERENCES "public"."user_characters"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "app_analytics" ADD CONSTRAINT "app_analytics_app_id_apps_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."apps"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "app_users" ADD CONSTRAINT "app_users_app_id_apps_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."apps"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "app_users" ADD CONSTRAINT "app_users_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "apps" ADD CONSTRAINT "apps_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "apps" ADD CONSTRAINT "apps_created_by_user_id_users_id_fk" FOREIGN KEY ("created_by_user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "app_credit_balances" ADD CONSTRAINT "app_credit_balances_app_id_apps_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."apps"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "app_credit_balances" ADD CONSTRAINT "app_credit_balances_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "app_credit_balances" ADD CONSTRAINT "app_credit_balances_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "app_earnings" ADD CONSTRAINT "app_earnings_app_id_apps_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."apps"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "app_earnings_transactions" ADD CONSTRAINT "app_earnings_transactions_app_id_apps_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."apps"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "app_earnings_transactions" ADD CONSTRAINT "app_earnings_transactions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "referral_codes" ADD CONSTRAINT "referral_codes_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "referral_signups" ADD CONSTRAINT "referral_signups_referral_code_id_referral_codes_id_fk" FOREIGN KEY ("referral_code_id") REFERENCES "public"."referral_codes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "referral_signups" ADD CONSTRAINT "referral_signups_referrer_user_id_users_id_fk" FOREIGN KEY ("referrer_user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "referral_signups" ADD CONSTRAINT "referral_signups_referred_user_id_users_id_fk" FOREIGN KEY ("referred_user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "social_share_rewards" ADD CONSTRAINT "social_share_rewards_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "cache" ADD CONSTRAINT "cache_agent_id_agents_id_fk" FOREIGN KEY ("agent_id") REFERENCES "public"."agents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "channel_participants" ADD CONSTRAINT "channel_participants_channel_id_channels_id_fk" FOREIGN KEY ("channel_id") REFERENCES "public"."channels"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "channels" ADD CONSTRAINT "channels_server_id_message_servers_id_fk" FOREIGN KEY ("server_id") REFERENCES "public"."message_servers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "channels" ADD CONSTRAINT "channels_message_server_id_message_servers_id_fk" FOREIGN KEY ("message_server_id") REFERENCES "public"."message_servers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "components" ADD CONSTRAINT "components_entityId_entities_id_fk" FOREIGN KEY ("entityId") REFERENCES "public"."entities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "components" ADD CONSTRAINT "components_agentId_agents_id_fk" FOREIGN KEY ("agentId") REFERENCES "public"."agents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "components" ADD CONSTRAINT "components_roomId_rooms_id_fk" FOREIGN KEY ("roomId") REFERENCES "public"."rooms"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -824,11 +1370,36 @@ ALTER TABLE "relationships" ADD CONSTRAINT "relationships_agentId_agents_id_fk" 
 ALTER TABLE "relationships" ADD CONSTRAINT "fk_user_a" FOREIGN KEY ("sourceEntityId") REFERENCES "public"."entities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "relationships" ADD CONSTRAINT "fk_user_b" FOREIGN KEY ("targetEntityId") REFERENCES "public"."entities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "rooms" ADD CONSTRAINT "rooms_agentId_agents_id_fk" FOREIGN KEY ("agentId") REFERENCES "public"."agents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "server_agents" ADD CONSTRAINT "server_agents_server_id_message_servers_id_fk" FOREIGN KEY ("server_id") REFERENCES "public"."message_servers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "server_agents" ADD CONSTRAINT "server_agents_agent_id_agents_id_fk" FOREIGN KEY ("agent_id") REFERENCES "public"."agents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "tasks" ADD CONSTRAINT "tasks_agent_id_agents_id_fk" FOREIGN KEY ("agent_id") REFERENCES "public"."agents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "tasks" ADD CONSTRAINT "tasks_agentId_agents_id_fk" FOREIGN KEY ("agentId") REFERENCES "public"."agents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "worlds" ADD CONSTRAINT "worlds_agentId_agents_id_fk" FOREIGN KEY ("agentId") REFERENCES "public"."agents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "eliza_room_characters" ADD CONSTRAINT "eliza_room_characters_character_id_user_characters_id_fk" FOREIGN KEY ("character_id") REFERENCES "public"."user_characters"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_events" ADD CONSTRAINT "agent_events_agent_id_user_characters_id_fk" FOREIGN KEY ("agent_id") REFERENCES "public"."user_characters"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_events" ADD CONSTRAINT "agent_events_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "mcp_usage" ADD CONSTRAINT "mcp_usage_mcp_id_user_mcps_id_fk" FOREIGN KEY ("mcp_id") REFERENCES "public"."user_mcps"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "mcp_usage" ADD CONSTRAINT "mcp_usage_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "mcp_usage" ADD CONSTRAINT "mcp_usage_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_mcps" ADD CONSTRAINT "user_mcps_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_mcps" ADD CONSTRAINT "user_mcps_created_by_user_id_users_id_fk" FOREIGN KEY ("created_by_user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_mcps" ADD CONSTRAINT "user_mcps_container_id_containers_id_fk" FOREIGN KEY ("container_id") REFERENCES "public"."containers"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_mcps" ADD CONSTRAINT "user_mcps_verified_by_users_id_fk" FOREIGN KEY ("verified_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "redemption_limits" ADD CONSTRAINT "redemption_limits_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "token_redemptions" ADD CONSTRAINT "token_redemptions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "token_redemptions" ADD CONSTRAINT "token_redemptions_app_id_apps_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."apps"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "token_redemptions" ADD CONSTRAINT "token_redemptions_reviewed_by_users_id_fk" FOREIGN KEY ("reviewed_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "redeemable_earnings" ADD CONSTRAINT "redeemable_earnings_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "redeemable_earnings_ledger" ADD CONSTRAINT "redeemable_earnings_ledger_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "admin_users" ADD CONSTRAINT "admin_users_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "admin_users" ADD CONSTRAINT "admin_users_granted_by_users_id_fk" FOREIGN KEY ("granted_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "moderation_violations" ADD CONSTRAINT "moderation_violations_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "moderation_violations" ADD CONSTRAINT "moderation_violations_reviewed_by_users_id_fk" FOREIGN KEY ("reviewed_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_moderation_status" ADD CONSTRAINT "user_moderation_status_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_moderation_status" ADD CONSTRAINT "user_moderation_status_banned_by_users_id_fk" FOREIGN KEY ("banned_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_activity_log" ADD CONSTRAINT "agent_activity_log_agent_reputation_id_agent_reputation_id_fk" FOREIGN KEY ("agent_reputation_id") REFERENCES "public"."agent_reputation"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_moderation_events" ADD CONSTRAINT "agent_moderation_events_agent_reputation_id_agent_reputation_id_fk" FOREIGN KEY ("agent_reputation_id") REFERENCES "public"."agent_reputation"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_budget_transactions" ADD CONSTRAINT "agent_budget_transactions_budget_id_agent_budgets_id_fk" FOREIGN KEY ("budget_id") REFERENCES "public"."agent_budgets"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_budget_transactions" ADD CONSTRAINT "agent_budget_transactions_agent_id_user_characters_id_fk" FOREIGN KEY ("agent_id") REFERENCES "public"."user_characters"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_budgets" ADD CONSTRAINT "agent_budgets_agent_id_user_characters_id_fk" FOREIGN KEY ("agent_id") REFERENCES "public"."user_characters"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_budgets" ADD CONSTRAINT "agent_budgets_owner_org_id_organizations_id_fk" FOREIGN KEY ("owner_org_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "organizations_slug_idx" ON "organizations" USING btree ("slug");--> statement-breakpoint
 CREATE INDEX "organizations_stripe_customer_idx" ON "organizations" USING btree ("stripe_customer_id");--> statement-breakpoint
 CREATE INDEX "organizations_auto_top_up_enabled_idx" ON "organizations" USING btree ("auto_top_up_enabled");--> statement-breakpoint
@@ -918,6 +1489,10 @@ CREATE INDEX "user_characters_featured_idx" ON "user_characters" USING btree ("f
 CREATE INDEX "user_characters_is_template_idx" ON "user_characters" USING btree ("is_template");--> statement-breakpoint
 CREATE INDEX "user_characters_is_public_idx" ON "user_characters" USING btree ("is_public");--> statement-breakpoint
 CREATE INDEX "user_characters_popularity_idx" ON "user_characters" USING btree ("popularity_score");--> statement-breakpoint
+CREATE INDEX "user_characters_source_idx" ON "user_characters" USING btree ("source");--> statement-breakpoint
+CREATE INDEX "user_characters_erc8004_idx" ON "user_characters" USING btree ("erc8004_registered");--> statement-breakpoint
+CREATE INDEX "user_characters_erc8004_agent_idx" ON "user_characters" USING btree ("erc8004_network","erc8004_agent_id");--> statement-breakpoint
+CREATE INDEX "user_characters_monetization_idx" ON "user_characters" USING btree ("monetization_enabled");--> statement-breakpoint
 CREATE INDEX "user_voices_organization_idx" ON "user_voices" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "user_voices_user_idx" ON "user_voices" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "user_voices_org_type_idx" ON "user_voices" USING btree ("organization_id","clone_type");--> statement-breakpoint
@@ -930,6 +1505,37 @@ CREATE INDEX "containers_ecs_service_idx" ON "containers" USING btree ("ecs_serv
 CREATE INDEX "containers_ecr_repository_idx" ON "containers" USING btree ("ecr_repository_uri");--> statement-breakpoint
 CREATE INDEX "containers_project_name_idx" ON "containers" USING btree ("project_name");--> statement-breakpoint
 CREATE INDEX "containers_user_project_idx" ON "containers" USING btree ("user_id","project_name");--> statement-breakpoint
+CREATE INDEX "app_analytics_app_id_idx" ON "app_analytics" USING btree ("app_id");--> statement-breakpoint
+CREATE INDEX "app_analytics_period_idx" ON "app_analytics" USING btree ("period_start","period_end");--> statement-breakpoint
+CREATE INDEX "app_analytics_period_type_idx" ON "app_analytics" USING btree ("period_type");--> statement-breakpoint
+CREATE INDEX "app_analytics_app_period_idx" ON "app_analytics" USING btree ("app_id","period_start");--> statement-breakpoint
+CREATE UNIQUE INDEX "app_users_app_user_idx" ON "app_users" USING btree ("app_id","user_id");--> statement-breakpoint
+CREATE INDEX "app_users_app_id_idx" ON "app_users" USING btree ("app_id");--> statement-breakpoint
+CREATE INDEX "app_users_user_id_idx" ON "app_users" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "app_users_first_seen_idx" ON "app_users" USING btree ("first_seen_at");--> statement-breakpoint
+CREATE INDEX "apps_slug_idx" ON "apps" USING btree ("slug");--> statement-breakpoint
+CREATE INDEX "apps_organization_idx" ON "apps" USING btree ("organization_id");--> statement-breakpoint
+CREATE INDEX "apps_created_by_idx" ON "apps" USING btree ("created_by_user_id");--> statement-breakpoint
+CREATE INDEX "apps_affiliate_code_idx" ON "apps" USING btree ("affiliate_code");--> statement-breakpoint
+CREATE INDEX "apps_is_active_idx" ON "apps" USING btree ("is_active");--> statement-breakpoint
+CREATE INDEX "apps_created_at_idx" ON "apps" USING btree ("created_at");--> statement-breakpoint
+CREATE UNIQUE INDEX "app_credit_balances_app_user_idx" ON "app_credit_balances" USING btree ("app_id","user_id");--> statement-breakpoint
+CREATE INDEX "app_credit_balances_app_idx" ON "app_credit_balances" USING btree ("app_id");--> statement-breakpoint
+CREATE INDEX "app_credit_balances_user_idx" ON "app_credit_balances" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "app_credit_balances_org_idx" ON "app_credit_balances" USING btree ("organization_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "app_earnings_app_idx" ON "app_earnings" USING btree ("app_id");--> statement-breakpoint
+CREATE INDEX "app_earnings_transactions_app_idx" ON "app_earnings_transactions" USING btree ("app_id");--> statement-breakpoint
+CREATE INDEX "app_earnings_transactions_app_created_idx" ON "app_earnings_transactions" USING btree ("app_id","created_at");--> statement-breakpoint
+CREATE INDEX "app_earnings_transactions_user_idx" ON "app_earnings_transactions" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "app_earnings_transactions_type_idx" ON "app_earnings_transactions" USING btree ("type");--> statement-breakpoint
+CREATE UNIQUE INDEX "referral_codes_user_idx" ON "referral_codes" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "referral_codes_code_idx" ON "referral_codes" USING btree ("code");--> statement-breakpoint
+CREATE UNIQUE INDEX "referral_signups_referred_user_idx" ON "referral_signups" USING btree ("referred_user_id");--> statement-breakpoint
+CREATE INDEX "referral_signups_referrer_idx" ON "referral_signups" USING btree ("referrer_user_id");--> statement-breakpoint
+CREATE INDEX "referral_signups_code_idx" ON "referral_signups" USING btree ("referral_code_id");--> statement-breakpoint
+CREATE INDEX "social_share_rewards_user_idx" ON "social_share_rewards" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "social_share_rewards_platform_idx" ON "social_share_rewards" USING btree ("platform");--> statement-breakpoint
+CREATE INDEX "social_share_rewards_user_platform_date_idx" ON "social_share_rewards" USING btree ("user_id","platform","created_at");--> statement-breakpoint
 CREATE INDEX "idx_embedding_memory" ON "embeddings" USING btree ("memory_id");--> statement-breakpoint
 CREATE INDEX "long_term_memories_agent_entity_idx" ON "long_term_memories" USING btree ("agent_id","entity_id");--> statement-breakpoint
 CREATE INDEX "long_term_memories_category_idx" ON "long_term_memories" USING btree ("category");--> statement-breakpoint
@@ -948,4 +1554,76 @@ CREATE INDEX "idx_participants_room" ON "participants" USING btree ("roomId");--
 CREATE INDEX "idx_relationships_users" ON "relationships" USING btree ("sourceEntityId","targetEntityId");--> statement-breakpoint
 CREATE INDEX "session_summaries_agent_room_idx" ON "session_summaries" USING btree ("agent_id","room_id");--> statement-breakpoint
 CREATE INDEX "session_summaries_entity_idx" ON "session_summaries" USING btree ("entity_id");--> statement-breakpoint
-CREATE INDEX "session_summaries_start_time_idx" ON "session_summaries" USING btree ("start_time");
+CREATE INDEX "session_summaries_start_time_idx" ON "session_summaries" USING btree ("start_time");--> statement-breakpoint
+CREATE INDEX "agent_events_agent_idx" ON "agent_events" USING btree ("agent_id");--> statement-breakpoint
+CREATE INDEX "agent_events_organization_idx" ON "agent_events" USING btree ("organization_id");--> statement-breakpoint
+CREATE INDEX "agent_events_event_type_idx" ON "agent_events" USING btree ("event_type");--> statement-breakpoint
+CREATE INDEX "agent_events_level_idx" ON "agent_events" USING btree ("level");--> statement-breakpoint
+CREATE INDEX "agent_events_created_at_idx" ON "agent_events" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX "agent_events_agent_created_idx" ON "agent_events" USING btree ("agent_id","created_at");--> statement-breakpoint
+CREATE INDEX "mcp_usage_mcp_id_idx" ON "mcp_usage" USING btree ("mcp_id");--> statement-breakpoint
+CREATE INDEX "mcp_usage_organization_idx" ON "mcp_usage" USING btree ("organization_id");--> statement-breakpoint
+CREATE INDEX "mcp_usage_user_idx" ON "mcp_usage" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "mcp_usage_created_at_idx" ON "mcp_usage" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX "mcp_usage_mcp_org_idx" ON "mcp_usage" USING btree ("mcp_id","organization_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "user_mcps_slug_org_idx" ON "user_mcps" USING btree ("slug","organization_id");--> statement-breakpoint
+CREATE INDEX "user_mcps_organization_idx" ON "user_mcps" USING btree ("organization_id");--> statement-breakpoint
+CREATE INDEX "user_mcps_created_by_idx" ON "user_mcps" USING btree ("created_by_user_id");--> statement-breakpoint
+CREATE INDEX "user_mcps_container_idx" ON "user_mcps" USING btree ("container_id");--> statement-breakpoint
+CREATE INDEX "user_mcps_category_idx" ON "user_mcps" USING btree ("category");--> statement-breakpoint
+CREATE INDEX "user_mcps_status_idx" ON "user_mcps" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "user_mcps_is_public_idx" ON "user_mcps" USING btree ("is_public");--> statement-breakpoint
+CREATE INDEX "user_mcps_created_at_idx" ON "user_mcps" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX "user_mcps_erc8004_registered_idx" ON "user_mcps" USING btree ("erc8004_registered");--> statement-breakpoint
+CREATE INDEX "eliza_token_prices_network_source_idx" ON "eliza_token_prices" USING btree ("network","source");--> statement-breakpoint
+CREATE INDEX "eliza_token_prices_expires_idx" ON "eliza_token_prices" USING btree ("expires_at");--> statement-breakpoint
+CREATE UNIQUE INDEX "redemption_limits_user_date_idx" ON "redemption_limits" USING btree ("user_id","date");--> statement-breakpoint
+CREATE INDEX "token_redemptions_user_idx" ON "token_redemptions" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "token_redemptions_app_idx" ON "token_redemptions" USING btree ("app_id");--> statement-breakpoint
+CREATE INDEX "token_redemptions_status_idx" ON "token_redemptions" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "token_redemptions_status_created_idx" ON "token_redemptions" USING btree ("status","created_at");--> statement-breakpoint
+CREATE INDEX "token_redemptions_network_idx" ON "token_redemptions" USING btree ("network");--> statement-breakpoint
+CREATE INDEX "token_redemptions_payout_idx" ON "token_redemptions" USING btree ("payout_address");--> statement-breakpoint
+CREATE UNIQUE INDEX "token_redemptions_pending_user_idx" ON "token_redemptions" USING btree ("user_id","status") WHERE status = 'pending';--> statement-breakpoint
+CREATE UNIQUE INDEX "redeemable_earnings_user_idx" ON "redeemable_earnings" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "redeemable_earnings_ledger_user_idx" ON "redeemable_earnings_ledger" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "redeemable_earnings_ledger_user_created_idx" ON "redeemable_earnings_ledger" USING btree ("user_id","created_at");--> statement-breakpoint
+CREATE INDEX "redeemable_earnings_ledger_type_idx" ON "redeemable_earnings_ledger" USING btree ("entry_type");--> statement-breakpoint
+CREATE INDEX "redeemable_earnings_ledger_redemption_idx" ON "redeemable_earnings_ledger" USING btree ("redemption_id");--> statement-breakpoint
+CREATE INDEX "redeemable_earnings_ledger_source_idx" ON "redeemable_earnings_ledger" USING btree ("earnings_source","source_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "redeemed_tracking_ledger_idx" ON "redeemed_earnings_tracking" USING btree ("ledger_entry_id");--> statement-breakpoint
+CREATE INDEX "redeemed_tracking_redemption_idx" ON "redeemed_earnings_tracking" USING btree ("redemption_id");--> statement-breakpoint
+CREATE INDEX "admin_users_wallet_address_idx" ON "admin_users" USING btree ("wallet_address");--> statement-breakpoint
+CREATE INDEX "admin_users_user_id_idx" ON "admin_users" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "admin_users_role_idx" ON "admin_users" USING btree ("role");--> statement-breakpoint
+CREATE INDEX "admin_users_is_active_idx" ON "admin_users" USING btree ("is_active");--> statement-breakpoint
+CREATE INDEX "moderation_violations_user_id_idx" ON "moderation_violations" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "moderation_violations_action_idx" ON "moderation_violations" USING btree ("action");--> statement-breakpoint
+CREATE INDEX "moderation_violations_created_at_idx" ON "moderation_violations" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX "moderation_violations_room_id_idx" ON "moderation_violations" USING btree ("room_id");--> statement-breakpoint
+CREATE INDEX "user_moderation_status_user_id_idx" ON "user_moderation_status" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "user_moderation_status_status_idx" ON "user_moderation_status" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "user_moderation_status_risk_score_idx" ON "user_moderation_status" USING btree ("risk_score");--> statement-breakpoint
+CREATE INDEX "user_moderation_status_total_violations_idx" ON "user_moderation_status" USING btree ("total_violations");--> statement-breakpoint
+CREATE INDEX "agent_activity_reputation_id_idx" ON "agent_activity_log" USING btree ("agent_reputation_id");--> statement-breakpoint
+CREATE INDEX "agent_activity_type_idx" ON "agent_activity_log" USING btree ("activity_type");--> statement-breakpoint
+CREATE INDEX "agent_activity_created_at_idx" ON "agent_activity_log" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX "agent_mod_events_reputation_id_idx" ON "agent_moderation_events" USING btree ("agent_reputation_id");--> statement-breakpoint
+CREATE INDEX "agent_mod_events_event_type_idx" ON "agent_moderation_events" USING btree ("event_type");--> statement-breakpoint
+CREATE INDEX "agent_mod_events_flag_type_idx" ON "agent_moderation_events" USING btree ("flag_type");--> statement-breakpoint
+CREATE INDEX "agent_mod_events_severity_idx" ON "agent_moderation_events" USING btree ("severity");--> statement-breakpoint
+CREATE INDEX "agent_mod_events_created_at_idx" ON "agent_moderation_events" USING btree ("created_at");--> statement-breakpoint
+CREATE UNIQUE INDEX "agent_reputation_identifier_idx" ON "agent_reputation" USING btree ("agent_identifier");--> statement-breakpoint
+CREATE INDEX "agent_reputation_chain_token_idx" ON "agent_reputation" USING btree ("chain_id","token_id");--> statement-breakpoint
+CREATE INDEX "agent_reputation_wallet_address_idx" ON "agent_reputation" USING btree ("wallet_address");--> statement-breakpoint
+CREATE INDEX "agent_reputation_organization_id_idx" ON "agent_reputation" USING btree ("organization_id");--> statement-breakpoint
+CREATE INDEX "agent_reputation_status_idx" ON "agent_reputation" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "agent_reputation_score_idx" ON "agent_reputation" USING btree ("reputation_score");--> statement-breakpoint
+CREATE INDEX "agent_reputation_banned_at_idx" ON "agent_reputation" USING btree ("banned_at");--> statement-breakpoint
+CREATE INDEX "agent_budget_txns_budget_idx" ON "agent_budget_transactions" USING btree ("budget_id");--> statement-breakpoint
+CREATE INDEX "agent_budget_txns_agent_idx" ON "agent_budget_transactions" USING btree ("agent_id");--> statement-breakpoint
+CREATE INDEX "agent_budget_txns_type_idx" ON "agent_budget_transactions" USING btree ("type");--> statement-breakpoint
+CREATE INDEX "agent_budget_txns_created_at_idx" ON "agent_budget_transactions" USING btree ("created_at");--> statement-breakpoint
+CREATE UNIQUE INDEX "agent_budgets_agent_idx" ON "agent_budgets" USING btree ("agent_id");--> statement-breakpoint
+CREATE INDEX "agent_budgets_owner_org_idx" ON "agent_budgets" USING btree ("owner_org_id");--> statement-breakpoint
+CREATE INDEX "agent_budgets_paused_idx" ON "agent_budgets" USING btree ("is_paused");

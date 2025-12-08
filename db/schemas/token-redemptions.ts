@@ -10,6 +10,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { users } from "./users";
 import { apps } from "./apps";
@@ -148,7 +149,7 @@ export const tokenRedemptions = pgTable(
     // Unique constraint to prevent duplicate pending requests
     pending_user_unique: uniqueIndex("token_redemptions_pending_user_idx")
       .on(table.user_id, table.status)
-      .where({ status: "pending" } as never), // Only one pending per user
+      .where(sql`status = 'pending'`), // Only one pending per user
   })
 );
 
