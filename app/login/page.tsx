@@ -70,7 +70,7 @@ function LoginPageContent() {
         loginInProgressRef.current = false;
       }
     }
-  }, [ready, authenticated, router, loadingButton]);
+  }, [ready, authenticated, router, loadingButton, user]);
 
   // Monitor email state to show code input
   useEffect(() => {
