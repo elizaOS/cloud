@@ -28,16 +28,17 @@ VALUES (
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
--- 3. Create API key
+-- 3. Create API key for testing
+-- TEST_API_KEY=eliza_test_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 INSERT INTO api_keys (id, organization_id, user_id, name, key, key_hash, key_prefix, is_active, created_at, updated_at)
 VALUES (
   '926a821a-bb75-4eb8-b43f-05ed8ae9020c',
   'ec42ddc9-c6bc-4306-815b-438ba59bf876',
   '318fafde-d785-4990-9bda-a4a2eed8db62',
   'Test API Key',
-  'sk_test_' || encode(gen_random_bytes(32), 'hex'),
-  'f9d21483564a82672cf63c56aa60f235b63bc663eb03102e76bf3cf9734bd4b0',
-  'sk_test_',
+  'eliza_test_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+  '95ce372dc3b11d617cffe814801f3999c543eca1efed33a10079b88495fea19d',
+  'eliza_test_',
   true,
   NOW(),
   NOW()
