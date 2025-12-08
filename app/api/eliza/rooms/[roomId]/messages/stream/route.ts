@@ -1,17 +1,14 @@
-import type { NextRequest } from "next/server";
-import { organizationsService, charactersService, appCreditsService, contentModerationService } from "@/lib/services";
-import { requireAuthOrApiKey } from "@/lib/auth";
-import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
-import { logger } from "@/lib/utils/logger";
 import { roomsRepository } from "@/db/repositories";
-import { userContextService } from "@/lib/eliza/user-context";
-import { runtimeFactory } from "@/lib/eliza/runtime-factory";
-import { createMessageHandler } from "@/lib/eliza/message-handler";
+import { requireAuthOrApiKey } from "@/lib/auth";
+import { checkAnonymousLimit, getAnonymousUser } from "@/lib/auth-anonymous";
 import type { AgentModeConfig } from "@/lib/eliza/agent-mode-types";
-import {
-  AgentMode,
-  isValidAgentModeConfig,
-} from "@/lib/eliza/agent-mode-types";
+import { AgentMode, isValidAgentModeConfig } from "@/lib/eliza/agent-mode-types";
+import { createMessageHandler } from "@/lib/eliza/message-handler";
+import { runtimeFactory } from "@/lib/eliza/runtime-factory";
+import { userContextService } from "@/lib/eliza/user-context";
+import { appCreditsService, charactersService, contentModerationService, organizationsService } from "@/lib/services";
+import { logger } from "@/lib/utils/logger";
+import type { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -30,7 +27,7 @@ export const maxDuration = 60;
  */
 export async function POST(
   request: NextRequest,
-  ctx: { params: Promise<{ roomId: string }> },
+  ctx: { params: Promise<{ roomId: string }> }
 ) {
   const encoder = new TextEncoder();
 
@@ -38,15 +35,22 @@ export async function POST(
     // Step 1: Parse request body FIRST (needed for session token check and agent mode)
     const { roomId } = await ctx.params;
     const body = await request.json();
-    const { text, model, agentMode, sessionToken, attachments, appId: bodyAppId } = body;
-    
+    const {
+      text,
+      model,
+      agentMode,
+      sessionToken,
+      attachments,
+      appId: bodyAppId,
+    } = body;
+
     // App ID can come from body OR X-App-Id header (miniapp proxy uses header)
     const appId = bodyAppId || request.headers.get("X-App-Id");
 
     if (!roomId || !text?.trim()) {
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -56,7 +60,7 @@ export async function POST(
       if (!isValidAgentModeConfig(agentMode)) {
         return new Response(
           JSON.stringify({ error: "Invalid agent mode configuration" }),
-          { status: 400, headers: { "Content-Type": "application/json" } },
+          { status: 400, headers: { "Content-Type": "application/json" } }
         );
       }
       agentModeConfig = agentMode;
@@ -73,12 +77,12 @@ export async function POST(
 
     // Step 2: Authentication & Context Building
     logger.info(
-      `[Stream] 📊 Session token from body: ${sessionToken ? `${sessionToken.slice(0, 8)}...` : "N/A"}`,
+      `[Stream] 📊 Session token from body: ${sessionToken ? `${sessionToken.slice(0, 8)}...` : "N/A"}`
     );
     const userContext = await authenticateAndBuildContext(
       request,
       agentModeConfig.mode,
-      { sessionToken, appId },
+      { sessionToken, appId }
     );
 
     logger.info("[Stream] 📊 UserContext after auth:", {
@@ -147,7 +151,7 @@ export async function POST(
             requiresSignup: true,
             reason: limitCheck.reason,
           }),
-          { status: 429, headers: { "Content-Type": "application/json" } },
+          { status: 429, headers: { "Content-Type": "application/json" } }
         );
       }
     }
@@ -155,17 +159,18 @@ export async function POST(
     // Step 3.5: App credit balance check (miniapp billing)
     // Only check if app has monetization enabled - otherwise user uses org credits
     if (userContext.appId) {
-      const monetizationSettings = await appCreditsService.getMonetizationSettings(userContext.appId);
-      
+      const monetizationSettings =
+        await appCreditsService.getMonetizationSettings(userContext.appId);
+
       // Only enforce app-specific credit check if monetization is enabled
       if (monetizationSettings?.monetizationEnabled) {
         // Estimate minimum cost (actual cost calculated after processing)
         const MINIMUM_MESSAGE_COST = 0.001; // $0.001 minimum to ensure some balance exists
-        
+
         const balanceCheck = await appCreditsService.checkBalance(
           userContext.appId,
           userContext.userId,
-          MINIMUM_MESSAGE_COST,
+          MINIMUM_MESSAGE_COST
         );
 
         if (!balanceCheck.sufficient) {
@@ -182,7 +187,7 @@ export async function POST(
               details: `Your balance ($${balanceCheck.balance.toFixed(2)}) is too low. Please purchase more credits to continue.`,
               requiresPurchase: true,
             }),
-            { status: 402, headers: { "Content-Type": "application/json" } },
+            { status: 402, headers: { "Content-Type": "application/json" } }
           );
         }
       }
@@ -209,7 +214,7 @@ export async function POST(
 
           if (affiliateData && Object.keys(affiliateData).length > 0) {
             logger.info(
-              `[Stream] 🎭 Detected affiliate character - switching to ASSISTANT mode for image generation`,
+              "[Stream] 🎭 Detected affiliate character - switching to ASSISTANT mode for image generation"
             );
             agentModeConfig = { mode: AgentMode.ASSISTANT };
             // CRITICAL: Also update userContext so runtime loads correct plugins
@@ -229,7 +234,7 @@ export async function POST(
     ) {
       characterId = String(agentModeConfig.metadata.targetCharacterId);
       logger.info(
-        `[Stream] BUILD mode - Using character from metadata: ${characterId}`,
+        `[Stream] BUILD mode - Using character from metadata: ${characterId}`
       );
 
       // Update room agentId for build mode (proper column, not metadata)
@@ -237,12 +242,12 @@ export async function POST(
         try {
           await roomsRepository.update(roomId, { agentId: characterId });
           logger.info(
-            `[Stream] BUILD mode - Updated room agentId: room ${roomId} → agent ${characterId}`,
+            `[Stream] BUILD mode - Updated room agentId: room ${roomId} → agent ${characterId}`
           );
         } catch (error) {
           logger.error(
-            `[Stream] BUILD mode - Failed to update room agentId:`,
-            error,
+            "[Stream] BUILD mode - Failed to update room agentId:",
+            error
           );
         }
       }
@@ -250,9 +255,7 @@ export async function POST(
 
     logger.info(
       `[Stream] Room ${roomId} - Character lookup:`,
-      characterId
-        ? `Using character ${characterId}`
-        : "Using default character",
+      characterId ? `Using character ${characterId}` : "Using default character"
     );
 
     // Step 5: Apply model preferences if provided
@@ -264,7 +267,7 @@ export async function POST(
       logger.info(`[Stream] User selected model: ${model}`);
     } else if (userContext.modelPreferences) {
       logger.info(
-        `[Stream] Using stored model preferences: ${userContext.modelPreferences.smallModel} / ${userContext.modelPreferences.largeModel}`,
+        `[Stream] Using stored model preferences: ${userContext.modelPreferences.smallModel} / ${userContext.modelPreferences.largeModel}`
       );
     } else {
       logger.info("[Stream] No model preference set, using defaults");
@@ -397,7 +400,7 @@ export async function POST(
           if (result.usage && !userContext.isAnonymous) {
             // This is just for the warning event, actual credit deduction happened in MessageHandler
             const remainingCredits = await checkUserCredits(
-              userContext.organizationId,
+              userContext.organizationId
             );
             if (remainingCredits < 1.0) {
               sendEvent("warning", {
@@ -435,7 +438,7 @@ export async function POST(
       JSON.stringify({
         error: error instanceof Error ? error.message : "Request failed",
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }
@@ -455,7 +458,7 @@ export async function POST(
 async function authenticateAndBuildContext(
   request: NextRequest,
   agentMode: AgentMode,
-  body?: { sessionToken?: string; appId?: string },
+  body?: { sessionToken?: string; appId?: string }
 ) {
   const headerToken = request.headers.get("X-Anonymous-Session");
   const bodyToken = body?.sessionToken;
@@ -479,13 +482,13 @@ async function authenticateAndBuildContext(
         userId: authResult.user.id,
         authMethod: authResult.authMethod,
         isAnonymous: authResult.user.is_anonymous,
-      },
+      }
     );
 
     // Double-check the user is not anonymous (migration should have set this to false)
     if (authResult.user.is_anonymous) {
       logger.warn(
-        "[Stream Auth] ⚠️ User is authenticated but still marked as anonymous - this may indicate incomplete migration",
+        "[Stream Auth] ⚠️ User is authenticated but still marked as anonymous - this may indicate incomplete migration"
       );
     }
 
@@ -498,7 +501,7 @@ async function authenticateAndBuildContext(
   } catch (error) {
     logger.info(
       "[Stream Auth] ❌ Privy auth failed, falling back to anonymous:",
-      error instanceof Error ? error.message : String(error),
+      error instanceof Error ? error.message : String(error)
     );
   }
 
@@ -514,7 +517,7 @@ async function authenticateAndBuildContext(
   // Try provided session token first
   if (providedToken) {
     logger.info(
-      `[Stream] 🔑 Session token provided in request: ${providedToken.slice(0, 8)}...`,
+      `[Stream] 🔑 Session token provided in request: ${providedToken.slice(0, 8)}...`
     );
 
     const session = await anonymousSessionsService.getByToken(providedToken);
@@ -537,7 +540,7 @@ async function authenticateAndBuildContext(
             sessionId: session.id,
             convertedAt: session.converted_at,
             isActive: session.is_active,
-          },
+          }
         );
         // This session was migrated - the user should authenticate via Privy
         // Don't use this session, fall through to create new anonymous or fail
@@ -549,7 +552,7 @@ async function authenticateAndBuildContext(
           isAnonymous: user?.is_anonymous,
         });
 
-        if (user && user.is_anonymous) {
+        if (user?.is_anonymous) {
           logger.info("[Stream] ✅ Using session from provided token:", {
             sessionId: session.id,
             userId: user.id,
@@ -563,21 +566,21 @@ async function authenticateAndBuildContext(
             agentMode,
             appId: body?.appId,
           });
-        } else {
-          logger.warn(
-            "[Stream] ⚠️ User not found or not anonymous for session:",
-            session.id,
-          );
         }
+
+        logger.warn(
+          "[Stream] ⚠️ User not found or not anonymous for session:",
+          session.id
+        );
       }
     } else {
       logger.warn(
-        `[Stream] ⚠️ Session not found for provided token: ${providedToken.slice(0, 8)}...`,
+        `[Stream] ⚠️ Session not found for provided token: ${providedToken.slice(0, 8)}...`
       );
     }
 
     logger.warn(
-      "[Stream] ⚠️ Provided session token invalid or converted, falling back to cookie",
+      "[Stream] ⚠️ Provided session token invalid or converted, falling back to cookie"
     );
   }
 
@@ -604,9 +607,13 @@ async function authenticateAndBuildContext(
     });
   }
 
+  if (!anonData.session) {
+    throw new Error("Failed to create or retrieve anonymous session");
+  }
+
   return await userContextService.buildContext({
     user: anonData.user,
-    anonymousSession: anonData.session!,
+    anonymousSession: anonData.session,
     isAnonymous: true,
     agentMode,
     appId: body?.appId,

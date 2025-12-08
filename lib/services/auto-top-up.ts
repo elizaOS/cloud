@@ -89,7 +89,7 @@ export class AutoTopUpService {
     const startTime = new Date();
     const results: AutoTopUpResult[] = [];
 
-    console.log(
+    logger.info(
       `[AutoTopUp] Starting auto top-up check at ${startTime.toISOString()}`,
     );
 
@@ -105,7 +105,7 @@ export class AutoTopUpService {
         ),
       );
 
-    console.log(
+    logger.info(
       `[AutoTopUp] Found ${orgsNeedingTopUp.length} organizations needing auto top-up`,
     );
 
@@ -118,7 +118,7 @@ export class AutoTopUpService {
     const successful = results.filter((r) => r.success).length;
     const failed = results.filter((r) => !r.success).length;
 
-    console.log(
+    logger.info(
       `[AutoTopUp] Completed check. Processed: ${results.length}, Successful: ${successful}, Failed: ${failed}`,
     );
 
@@ -142,8 +142,8 @@ export class AutoTopUpService {
   async executeAutoTopUp(org: Organization): Promise<AutoTopUpResult> {
     const organizationId = org.id;
 
-    console.log(`[AutoTopUp] Processing org ${organizationId} (${org.name})`);
-    console.log(
+    logger.info(`[AutoTopUp] Processing org ${organizationId} (${org.name})`);
+    logger.info(
       `[AutoTopUp] Current balance: $${org.credit_balance}, Threshold: $${org.auto_top_up_threshold}`,
     );
 
@@ -189,7 +189,7 @@ export class AutoTopUpService {
     }
 
     // Create and confirm PaymentIntent with saved payment method
-    console.log(
+    logger.info(
       `[AutoTopUp] Creating PaymentIntent for $${amount.toFixed(2)}`,
     );
 
@@ -208,7 +208,7 @@ export class AutoTopUpService {
       description: `Auto top-up - $${amount.toFixed(2)}`,
     });
 
-    console.log(
+    logger.info(
       `[AutoTopUp] PaymentIntent ${paymentIntent.id} status: ${paymentIntent.status}`,
     );
 
@@ -217,12 +217,12 @@ export class AutoTopUpService {
       const currentBalance = Number(org.credit_balance);
       const newBalance = currentBalance + amount;
 
-      console.log(
+      logger.info(
         `[AutoTopUp] ✓ Auto top-up succeeded for org ${organizationId}. Payment: ${paymentIntent.id}`,
       );
 
       // Send success email notification
-      console.log(
+      logger.info(
         `[AutoTopUp] About to call queueAutoTopUpSuccessEmail for org ${organizationId}`,
       );
       this.queueAutoTopUpSuccessEmail(
@@ -281,7 +281,7 @@ export class AutoTopUpService {
     organizationId: string,
     reason: string,
   ): Promise<void> {
-    console.log(
+    logger.info(
       `[AutoTopUp] Disabling auto top-up for org ${organizationId}: ${reason}`,
     );
 
@@ -310,12 +310,12 @@ export class AutoTopUpService {
     newBalance: number,
     paymentIntentId: string,
   ): Promise<void> {
-    console.log(
+    logger.info(
       `[AutoTopUp] queueAutoTopUpSuccessEmail START for org ${org.id}`,
     );
 
     const recipientEmail = await this.getUserEmail(org.id);
-    console.log(`[AutoTopUp] User email: ${recipientEmail || "NONE"}`);
+    logger.info(`[AutoTopUp] User email: ${recipientEmail || "NONE"}`);
 
     if (!recipientEmail) {
       logger.error(
@@ -346,16 +346,16 @@ export class AutoTopUpService {
       billingUrl: `${appUrl}/dashboard/settings`,
     };
 
-    console.log(
+    logger.info(
       `[AutoTopUp] Calling emailService.sendAutoTopUpSuccessEmail with:`,
     );
-    console.log(JSON.stringify(emailData, null, 2));
+    logger.info(JSON.stringify(emailData, null, 2));
 
     const result = await emailService.sendAutoTopUpSuccessEmail(emailData);
 
-    console.log(`[AutoTopUp] Email service returned: ${result}`);
+    logger.info(`[AutoTopUp] Email service returned: ${result}`);
     if (result) {
-      console.log(
+      logger.info(
         `[AutoTopUp] ✓ SUCCESS: Auto top-up email sent to ${recipientEmail}`,
       );
     } else {
@@ -392,11 +392,11 @@ export class AutoTopUpService {
    * Get user email for organization
    */
   private async getUserEmail(orgId: string): Promise<string | null> {
-    console.log(`[AutoTopUp] getUserEmail: Fetching users for org ${orgId}`);
+    logger.info(`[AutoTopUp] getUserEmail: Fetching users for org ${orgId}`);
     const users = await usersRepository.listByOrganization(orgId);
-    console.log(`[AutoTopUp] getUserEmail: Found ${users.length} users`);
+    logger.info(`[AutoTopUp] getUserEmail: Found ${users.length} users`);
     const email = users.length > 0 && users[0].email ? users[0].email : null;
-    console.log(`[AutoTopUp] getUserEmail: Returning ${email || "NULL"}`);
+    logger.info(`[AutoTopUp] getUserEmail: Returning ${email || "NULL"}`);
     return email;
   }
 
@@ -489,7 +489,7 @@ export class AutoTopUpService {
 
     await organizationsRepository.update(organizationId, updates);
 
-    console.log(
+    logger.info(
       `[AutoTopUp] Updated settings for org ${organizationId}:`,
       updates,
     );

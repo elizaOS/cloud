@@ -11,6 +11,8 @@
  * - No complex hashing or collision handling needed
  */
 
+import { logger } from "@/lib/utils/logger";
+
 /**
  * Database-backed priority manager (PRODUCTION)
  *
@@ -22,7 +24,7 @@ export class DatabasePriorityManager {
    * Uses simple sequential allocation with database transaction
    */
   async allocatePriority(userId: string): Promise<number> {
-    console.log(
+    logger.info(
       `[ALB allocatePriority] Starting allocation for user ${userId}`,
     );
     const { db } = await import("@/db/client");
@@ -30,7 +32,7 @@ export class DatabasePriorityManager {
     const { eq, sql } = await import("drizzle-orm");
 
     return await db.transaction(async (tx) => {
-      console.log(
+      logger.info(
         `[ALB allocatePriority] Inside transaction for user ${userId}`,
       );
 
@@ -40,7 +42,7 @@ export class DatabasePriorityManager {
       });
 
       if (existing && !existing.expiresAt) {
-        console.log(
+        logger.info(
           `[ALB allocatePriority] User ${userId} already has priority ${existing.priority}`,
         );
         return existing.priority;
@@ -62,7 +64,7 @@ export class DatabasePriorityManager {
         );
       }
 
-      console.log(
+      logger.info(
         `[ALB] Attempting to allocate priority ${nextPriority} for user ${userId}`,
       );
 
@@ -78,7 +80,7 @@ export class DatabasePriorityManager {
         })
         .returning();
 
-      console.log(
+      logger.info(
         `✅ Allocated ALB priority ${nextPriority} for user ${userId}`,
       );
       return inserted.priority;
@@ -104,7 +106,7 @@ export class DatabasePriorityManager {
       .returning();
 
     if (result.length > 0) {
-      console.log(
+      logger.info(
         `✅ Released ALB priority ${result[0].priority} for user ${userId} (expires: ${expiryDate.toISOString()})`,
       );
     } else {
@@ -153,7 +155,7 @@ export class DatabasePriorityManager {
       .returning();
 
     if (deleted.length > 0) {
-      console.log(
+      logger.info(
         `🧹 Cleaned up ${deleted.length} expired ALB priorities (freed ${deleted.map((p) => p.priority).join(", ")})`,
       );
     }
