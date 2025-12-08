@@ -214,6 +214,32 @@ export interface DiscoveryResponse {
 // ============================================================================
 
 /**
+ * Parse an ERC-8004 agentId string (format: "chainId:tokenId")
+ * Returns null if parsing fails
+ */
+export function parseAgentId(agentId: string): { chainId: number; tokenId: number } | null {
+  if (!agentId || typeof agentId !== "string") return null;
+  
+  const parts = agentId.split(":");
+  if (parts.length !== 2) return null;
+  
+  const chainId = parseInt(parts[0], 10);
+  const tokenId = parseInt(parts[1], 10);
+  
+  if (isNaN(chainId) || isNaN(tokenId)) return null;
+  if (chainId <= 0 || tokenId < 0) return null;
+  
+  return { chainId, tokenId };
+}
+
+/**
+ * Validate an ERC-8004 agentId format
+ */
+export function isValidAgentId(agentId: string): boolean {
+  return parseAgentId(agentId) !== null;
+}
+
+/**
  * Convert an Agent0 agent to a DiscoveredService
  */
 export function agent0ToDiscoveredService(
@@ -229,13 +255,18 @@ export function agent0ToDiscoveredService(
     a2aSkills?: string[];
     active: boolean;
     x402Support: boolean;
+    // Extended metadata that may contain pricing info
+    metadata?: {
+      pricingType?: "free" | "credits" | "x402";
+      creditsPerRequest?: number;
+    };
   },
   network: ERC8004Network,
   chainId: number
 ): DiscoveredService {
-  // Parse agentId to get tokenId
-  const [, tokenIdStr] = agent.agentId.split(":");
-  const tokenId = parseInt(tokenIdStr, 10);
+  // Parse agentId with validation
+  const parsed = parseAgentId(agent.agentId);
+  const tokenId = parsed?.tokenId;
 
   // Determine service type based on endpoints
   let type: ServiceType = "agent";
@@ -243,6 +274,23 @@ export function agent0ToDiscoveredService(
     type = "mcp";
   } else if (agent.a2aEndpoint && !agent.mcpEndpoint) {
     type = "a2a";
+  }
+
+  // Determine pricing based on metadata and x402Support
+  let pricing: ServicePricing;
+  if (agent.x402Support) {
+    pricing = { type: "x402", description: "Pay-per-request via x402" };
+  } else if (agent.metadata?.pricingType === "credits" && agent.metadata?.creditsPerRequest) {
+    pricing = { 
+      type: "credits", 
+      amount: agent.metadata.creditsPerRequest,
+      description: `${agent.metadata.creditsPerRequest} credits per request` 
+    };
+  } else if (agent.metadata?.pricingType === "free" || !agent.metadata?.pricingType) {
+    pricing = { type: "free", description: "Free to use" };
+  } else {
+    // Default: if we can't determine, assume free
+    pricing = { type: "free", description: "Pricing not specified" };
   }
 
   return {
@@ -261,12 +309,10 @@ export function agent0ToDiscoveredService(
     x402Support: agent.x402Support,
     network,
     chainId,
-    tokenId: isNaN(tokenId) ? undefined : tokenId,
+    tokenId,
     walletAddress: agent.walletAddress,
     agentId: agent.agentId,
-    pricing: agent.x402Support
-      ? { type: "x402", description: "Pay-per-request via x402" }
-      : { type: "free", description: "Free to use" },
+    pricing,
   };
 }
 

@@ -136,10 +136,16 @@ export async function GET(request: NextRequest) {
       }
 
       // ========================================================================
+      // Deduplicate services (prefer local over ERC-8004 for same service)
+      // ========================================================================
+      
+      const deduped = deduplicateServices(services);
+
+      // ========================================================================
       // Apply filtering and pagination
       // ========================================================================
 
-      let filtered = services;
+      let filtered = deduped;
 
       // Text search
       if (params.query) {
@@ -332,6 +338,67 @@ async function fetchERC8004Services(
   return agents.map((agent) =>
     agent0ToDiscoveredService(agent, network, chainId)
   );
+}
+
+/**
+ * Deduplicate services by preferring local over ERC-8004
+ * 
+ * When a service exists in both local marketplace and ERC-8004 registry,
+ * we prefer the local version since it has richer metadata.
+ * 
+ * Deduplication is based on:
+ * 1. Same name (case-insensitive)
+ * 2. Same endpoints (A2A or MCP)
+ */
+function deduplicateServices(services: DiscoveredService[]): DiscoveredService[] {
+  const seen = new Map<string, DiscoveredService>();
+  
+  // Process local services first (they have priority)
+  const localServices = services.filter((s) => s.source === "local");
+  const erc8004Services = services.filter((s) => s.source === "erc8004");
+  
+  // Add all local services
+  for (const service of localServices) {
+    const key = getServiceDedupeKey(service);
+    seen.set(key, service);
+  }
+  
+  // Add ERC-8004 services only if not already present
+  for (const service of erc8004Services) {
+    const key = getServiceDedupeKey(service);
+    if (!seen.has(key)) {
+      seen.set(key, service);
+    }
+  }
+  
+  return Array.from(seen.values());
+}
+
+/**
+ * Generate a deduplication key for a service
+ */
+function getServiceDedupeKey(service: DiscoveredService): string {
+  // Primary key: normalized name + type
+  const normalizedName = service.name.toLowerCase().trim();
+  
+  // Secondary: endpoint matching
+  const endpointKey = service.a2aEndpoint || service.mcpEndpoint || "";
+  
+  // Combine for unique key
+  return `${normalizedName}:${service.type}:${normalizeEndpoint(endpointKey)}`;
+}
+
+/**
+ * Normalize endpoint URL for comparison
+ */
+function normalizeEndpoint(url: string): string {
+  if (!url) return "";
+  
+  // Remove protocol and trailing slashes for comparison
+  return url
+    .replace(/^https?:\/\//, "")
+    .replace(/\/$/, "")
+    .toLowerCase();
 }
 
 

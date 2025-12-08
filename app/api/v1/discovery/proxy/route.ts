@@ -37,6 +37,54 @@ const requestSchema = z.object({
   headers: z.record(z.string()).optional(),
 });
 
+// Blocked URL patterns for security
+const BLOCKED_URL_PATTERNS = [
+  /^https?:\/\/localhost/i,
+  /^https?:\/\/127\./,
+  /^https?:\/\/0\./,
+  /^https?:\/\/10\./,
+  /^https?:\/\/192\.168\./,
+  /^https?:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\./,
+  /^https?:\/\/\[::1\]/,
+  /^https?:\/\/\[fe80:/i,
+  /^file:/i,
+  /^ftp:/i,
+];
+
+/**
+ * Validate external endpoint URL for security
+ */
+function isValidExternalEndpoint(url: string): { valid: boolean; reason?: string } {
+  // Must be HTTPS in production
+  if (process.env.NODE_ENV === "production" && !url.startsWith("https://")) {
+    return { valid: false, reason: "HTTPS required for external endpoints in production" };
+  }
+  
+  // Must be HTTP or HTTPS
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    return { valid: false, reason: "Only HTTP/HTTPS protocols allowed" };
+  }
+  
+  // Check against blocked patterns (internal IPs, localhost, etc.)
+  for (const pattern of BLOCKED_URL_PATTERNS) {
+    if (pattern.test(url)) {
+      return { valid: false, reason: "Internal/private URLs are blocked" };
+    }
+  }
+  
+  // Validate URL can be parsed
+  try {
+    const parsed = new URL(url);
+    if (!parsed.hostname) {
+      return { valid: false, reason: "Invalid hostname" };
+    }
+  } catch {
+    return { valid: false, reason: "Malformed URL" };
+  }
+  
+  return { valid: true };
+}
+
 // Cost for proxying external requests (covers overhead)
 const PROXY_COST_CREDITS = 0.1;
 
@@ -111,6 +159,24 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Validate the external endpoint URL for security
+  const endpointValidation = isValidExternalEndpoint(endpoint);
+  if (!endpointValidation.valid) {
+    logger.warn("[DiscoveryProxy] Blocked invalid endpoint", {
+      agentId,
+      endpoint,
+      reason: endpointValidation.reason,
+    });
+    return NextResponse.json(
+      {
+        error: "invalid_endpoint",
+        message: `External endpoint validation failed: ${endpointValidation.reason}`,
+        agentId,
+      },
+      { status: 400 }
+    );
+  }
+
   // Deduct credits for the proxy call
   const deductResult = await creditsService.deductCredits({
     organizationId: orgId,
@@ -154,9 +220,31 @@ export async function POST(request: NextRequest) {
 
   // Handle x402 payment if the external service requires it
   if (agent.x402Support) {
-    // For now, we just note that x402 is required
-    // Full x402 integration would add payment headers here
-    proxyHeaders["X-402-Aware"] = "true";
+    // IMPORTANT: External services requiring x402 need direct payment from caller.
+    // We cannot proxy x402 payments as they require cryptographic signatures.
+    // Callers must:
+    // 1. Get the external endpoint from our discovery API
+    // 2. Call the external service directly with x402 payment headers
+    //
+    // For now, we reject proxy requests to x402-only services and provide guidance.
+    return NextResponse.json(
+      {
+        error: "x402_payment_required",
+        message: `Agent ${agentId} requires x402 payment. Call the external endpoint directly with x402 headers.`,
+        externalEndpoint: endpoint,
+        agent: {
+          id: agentId,
+          name: agent.name,
+          x402Support: true,
+        },
+        guidance: {
+          step1: "Use the externalEndpoint URL directly",
+          step2: "Add x402 payment headers per https://github.com/coinbase/x402",
+          step3: "Include your payment proof in the X-PAYMENT header",
+        },
+      },
+      { status: 402 }
+    );
   }
 
   const startTime = Date.now();
