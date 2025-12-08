@@ -8,6 +8,7 @@ import {
   ChannelType,
   EventType,
   Memory,
+  MemoryType,
   stringToUuid,
   elizaLogger,
   createUniqueUuid,
@@ -18,13 +19,13 @@ import {
 } from "@elizaos/core";
 import { connectionCache } from "@/lib/cache/connection-cache";
 import type { UserContext } from "./user-context";
-import { logger } from "@/lib/utils/logger";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { discordService } from "@/lib/services/discord";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
 import type { AgentModeConfig } from "./agent-mode-types";
 import { DEFAULT_AGENT_MODE } from "./agent-mode-types";
+import type { DialogueMetadata } from "@/lib/types/message-content";
 
 export interface UsageInfo {
   inputTokens: number;
@@ -79,7 +80,13 @@ export class MessageHandler {
             agentId: this.runtime.agentId,
             roomId: roomId as UUID,
             content: { ...content, source: content.source || "agent", inReplyTo: userMessage.id },
-            metadata: { type: "agent_response_message" },
+            metadata: {
+              type: MemoryType.MESSAGE,
+              role: 'agent',
+              dialogueType: 'message',
+              visibility: 'visible',
+              agentMode: modeConfig.mode,
+            } as DialogueMetadata,
           };
           await this.runtime.createMemory(responseMemory, "messages");
         }
@@ -219,7 +226,12 @@ export class MessageHandler {
           ? { attachments: content.attachments.filter((att): att is Media => typeof att === "object" && att !== null && ("url" in att || "mimeType" in att || "data" in att)) }
           : {}),
       },
-      metadata: { type: "user_message" },
+      metadata: {
+        type: MemoryType.MESSAGE,
+        role: 'user',
+        dialogueType: 'message',
+        visibility: 'visible',
+      } as DialogueMetadata,
     };
   }
 

@@ -20,7 +20,7 @@ import {
   buildModePlanningTemplate,
 } from "./prompts/build-mode-prompts";
 import { parsePlannedItems } from "../shared/utils/parsers";
-import { runEvaluatorsWithTimeout } from "../shared/utils/helpers";
+import { cleanPrompt, runEvaluatorsWithTimeout } from "../shared/utils/helpers";
 import type { MessageReceivedHandlerParams } from "../shared/types";
 
 function parsePlanningResponse(response: string): { thought: string; actions: string } | null {
@@ -59,9 +59,9 @@ export async function handleMessage({
       "SUMMARIZED_CONTEXT", "RECENT_MESSAGES", "LONG_TERM_MEMORY", "ACTIONS",
     ]);
 
-    runtime.character.system = composePromptFromState({ state, template: buildModeSystemPrompt });
+    runtime.character.system = cleanPrompt(composePromptFromState({ state, template: buildModeSystemPrompt }));
     const planningResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
-      prompt: composePromptFromState({ state, template: buildModePlanningTemplate }),
+      prompt: cleanPrompt(composePromptFromState({ state, template: buildModePlanningTemplate })),
     });
     runtime.character.system = originalSystemPrompt;
 

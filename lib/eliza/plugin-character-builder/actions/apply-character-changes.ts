@@ -11,6 +11,7 @@ import {
   ModelType,
 } from "@elizaos/core";
 import { charactersService } from "@/lib/services/characters";
+import { cleanPrompt } from "../../shared/utils/helpers";
 
 /**
  * APPLY_CHARACTER_CHANGES Action
@@ -376,10 +377,10 @@ export const applyCharacterChangesAction = {
       ]);
 
       // Compose system prompt, then append messageExamples format (preserves placeholders)
-      const composedSystemPrompt = composePromptFromState({
+      const composedSystemPrompt = cleanPrompt(composePromptFromState({
         state,
         template: applySystemPromptBase,
-      });
+      }));
       const systemPrompt =
         composedSystemPrompt + messageExamplesFormatInstructions;
 
