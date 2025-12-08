@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { z } from "zod";
 import { userMcpsService } from "@/lib/services";
+import { agent0Service } from "@/lib/services/agent0";
+import { getDefaultNetwork, CHAIN_IDS } from "@/lib/config/erc8004";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +43,11 @@ const queryParamsSchema = z.object({
     .max(100)
     .optional()
     .describe("Search term for filtering by name or description"),
+  includeExternal: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe("Include external ERC-8004 registered MCPs"),
 });
 
 /**
@@ -280,6 +287,8 @@ export async function GET(request: NextRequest) {
         ? parseInt(request.nextUrl.searchParams.get("limit")!, 10)
         : 100,
       search: request.nextUrl.searchParams.get("search") || undefined,
+      includeExternal:
+        request.nextUrl.searchParams.get("includeExternal") === "true",
     };
 
     // Validate query parameters with Zod schema
@@ -299,7 +308,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { category, status, limit, search } = validationResult.data;
+    const { category, status, limit, search, includeExternal } =
+      validationResult.data;
 
     // Process built-in registry entries
     const builtInRegistry = MCP_REGISTRY.map((entry) => ({
@@ -343,8 +353,71 @@ export async function GET(request: NextRequest) {
       console.warn("[MCP Registry] Failed to load user MCPs:", error);
     }
 
+    // Fetch external ERC-8004 registered MCPs if requested
+    let externalMcpRegistry: typeof builtInRegistry = [];
+    if (includeExternal) {
+      try {
+        const network = getDefaultNetwork();
+        const chainId = CHAIN_IDS[network];
+
+        // Search for services with MCP endpoints
+        const externalAgents = await agent0Service.searchAgentsCached({
+          name: search,
+          active: true,
+        });
+
+        // Filter to only include agents with MCP endpoints
+        const mcpAgents = externalAgents.filter((agent) => agent.mcpEndpoint);
+
+        externalMcpRegistry = mcpAgents.map((agent) => ({
+          id: `erc8004-${agent.agentId}`,
+          name: agent.name,
+          description: agent.description || "External MCP service",
+          category: "external",
+          endpoint: agent.mcpEndpoint!,
+          type: "streamable-http" as const,
+          version: "1.0.0",
+          status: "live" as const,
+          icon: "globe",
+          color: "#8B5CF6",
+          toolCount: agent.mcpTools?.length || 0,
+          features: agent.mcpTools || [],
+          pricing: {
+            type: agent.x402Support ? ("x402" as const) : ("free" as const),
+            description: agent.x402Support
+              ? "Pay-per-request via x402"
+              : "Free to use",
+          },
+          x402Enabled: agent.x402Support,
+          source: "erc8004" as const,
+          fullEndpoint: agent.mcpEndpoint!,
+          configTemplate: {
+            servers: {
+              [agent.agentId.replace(":", "-")]: {
+                type: "streamable-http" as const,
+                url: agent.mcpEndpoint!,
+              },
+            },
+          },
+          // ERC-8004 specific metadata
+          erc8004: {
+            agentId: agent.agentId,
+            network,
+            chainId,
+            walletAddress: agent.walletAddress,
+          },
+        }));
+      } catch (error) {
+        console.warn("[MCP Registry] Failed to load ERC-8004 MCPs:", error);
+      }
+    }
+
     // Combine registries
-    const registry = [...builtInRegistry, ...userMcpRegistry];
+    const registry = [
+      ...builtInRegistry,
+      ...userMcpRegistry,
+      ...externalMcpRegistry,
+    ];
 
     let filteredRegistry = registry;
 
@@ -386,11 +459,13 @@ export async function GET(request: NextRequest) {
       totalInRegistry: registry.length,
       platformMcps: builtInRegistry.length,
       communityMcps: userMcpRegistry.length,
+      externalMcps: externalMcpRegistry.length,
       appliedFilters: {
         category: category !== "all" ? category : null,
         status: status !== "all" ? status : null,
         search: search || null,
         limit,
+        includeExternal,
       },
       isAuthenticated,
     });

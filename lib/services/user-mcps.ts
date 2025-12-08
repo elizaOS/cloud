@@ -2,7 +2,7 @@
  * User MCPs Service
  *
  * Manages user-created MCP servers with monetization support.
- * Handles CRUD, revenue distribution, and discovery.
+ * Handles CRUD, revenue distribution, discovery, and ERC-8004 registration.
  */
 
 import {
@@ -15,7 +15,10 @@ import {
 import { creditsService } from "./credits";
 import { containersService } from "./containers";
 import { redeemableEarningsService } from "./redeemable-earnings";
+import { agentRegistryService } from "./agent-registry";
+import { agent0Service } from "./agent0";
 import { logger } from "@/lib/utils/logger";
+import { getDefaultNetwork, type ERC8004Network } from "@/lib/config/erc8004";
 
 // ============================================================================
 // Types
@@ -276,8 +279,19 @@ class UserMcpsService {
 
   /**
    * Publish an MCP (make it live)
+   *
+   * If registerOnChain is true, the MCP will also be registered on
+   * the ERC-8004 Identity Registry, making it discoverable by other
+   * AI agents across the ecosystem.
    */
-  async publish(id: string, organizationId: string): Promise<UserMcp> {
+  async publish(
+    id: string,
+    organizationId: string,
+    options?: {
+      registerOnChain?: boolean;
+      network?: ERC8004Network;
+    }
+  ): Promise<UserMcp> {
     const mcp = await userMcpsRepository.getById(id);
     if (!mcp) {
       throw new Error("MCP not found");
@@ -306,14 +320,63 @@ class UserMcpsService {
       throw new Error("External MCP must have an endpoint URL");
     }
 
-    const updated = await userMcpsRepository.updateStatus(id, "live");
+    let updated = await userMcpsRepository.updateStatus(id, "live");
     if (!updated) {
       throw new Error("Failed to publish MCP");
     }
 
-    logger.info("[UserMcps] Published MCP", { id, name: mcp.name });
+    // Register on ERC-8004 if requested and not already registered
+    const shouldRegister = options?.registerOnChain ?? false;
+    if (shouldRegister && !mcp.erc8004_registered) {
+      const network = options?.network ?? getDefaultNetwork();
 
-    return updated;
+      logger.info("[UserMcps] Registering MCP on ERC-8004", {
+        id,
+        name: mcp.name,
+        network,
+      });
+
+      const registrationResult = await agentRegistryService.registerMCP({
+        mcp: updated,
+        network,
+      });
+
+      if (registrationResult.success) {
+        // Parse the token ID from agentId (format: "chainId:tokenId")
+        const tokenId = parseInt(registrationResult.agentId.split(":")[1], 10);
+
+        // Update MCP with ERC-8004 registration data
+        updated = await userMcpsRepository.update(id, {
+          erc8004_registered: true,
+          erc8004_network: network,
+          erc8004_agent_id: isNaN(tokenId) ? null : tokenId,
+          erc8004_agent_uri: registrationResult.agentUri,
+          erc8004_registered_at: new Date(),
+        });
+
+        // Invalidate ERC-8004 cache since we added a new entry
+        await agent0Service.invalidateCache();
+
+        logger.info("[UserMcps] MCP registered on ERC-8004", {
+          id,
+          agentId: registrationResult.agentId,
+          agentUri: registrationResult.agentUri,
+        });
+      } else {
+        logger.warn("[UserMcps] ERC-8004 registration failed, MCP still published", {
+          id,
+          name: mcp.name,
+        });
+      }
+    }
+
+    logger.info("[UserMcps] Published MCP", {
+      id,
+      name: mcp.name,
+      erc8004Registered: updated?.erc8004_registered ?? false,
+    });
+
+    return updated!;
   }
 
   /**
