@@ -188,7 +188,7 @@ export function useRenderProfiling(
   };
 }
 
-// Legacy alias for backwards compatibility
+// Alias for compatibility
 export const useRenderTime = useRenderProfiling;
 
 /**

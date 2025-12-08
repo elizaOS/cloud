@@ -11,6 +11,9 @@
  * - No complex hashing or collision handling needed
  */
 
+import { db } from "@/db/client";
+import { albPriorities } from "@/db/schemas/alb-priorities";
+import { eq, sql, lt, and, isNotNull, isNull } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -27,9 +30,6 @@ export class DatabasePriorityManager {
     logger.info(
       `[ALB allocatePriority] Starting allocation for user ${userId}`,
     );
-    const { db } = await import("@/db/client");
-    const { albPriorities } = await import("@/db/schemas/alb-priorities");
-    const { eq, sql } = await import("drizzle-orm");
 
     return await db.transaction(async (tx) => {
       logger.info(
@@ -92,9 +92,6 @@ export class DatabasePriorityManager {
    * Sets expiry timestamp for cleanup (1 hour grace period for audit)
    */
   async releasePriority(userId: string): Promise<void> {
-    const { db } = await import("@/db/client");
-    const { albPriorities } = await import("@/db/schemas/alb-priorities");
-    const { eq } = await import("drizzle-orm");
 
     // Set expiry date (1 hour from now for audit trail)
     const expiryDate = new Date(Date.now() + 60 * 60 * 1000);
@@ -118,9 +115,6 @@ export class DatabasePriorityManager {
    * Get priority for a user (without allocating if doesn't exist)
    */
   async getPriority(userId: string): Promise<number | undefined> {
-    const { db } = await import("@/db/client");
-    const { albPriorities } = await import("@/db/schemas/alb-priorities");
-    const { eq } = await import("drizzle-orm");
 
     const result = await db.query.albPriorities.findFirst({
       where: eq(albPriorities.userId, userId),
@@ -139,9 +133,6 @@ export class DatabasePriorityManager {
    * Permanently deletes priorities that have expired
    */
   async cleanupExpiredPriorities(): Promise<number> {
-    const { db } = await import("@/db/client");
-    const { albPriorities } = await import("@/db/schemas/alb-priorities");
-    const { lt, and, isNotNull } = await import("drizzle-orm");
 
     const now = new Date();
     const deleted = await db
@@ -169,9 +160,6 @@ export class DatabasePriorityManager {
   async getAllActivePriorities(): Promise<
     Array<{ userId: string; priority: number; createdAt: Date }>
   > {
-    const { db } = await import("@/db/client");
-    const { albPriorities } = await import("@/db/schemas/alb-priorities");
-    const { isNull } = await import("drizzle-orm");
 
     const results = await db.query.albPriorities.findMany({
       where: isNull(albPriorities.expiresAt),
@@ -199,9 +187,6 @@ export class DatabasePriorityManager {
     highestPriority: number;
     availableSlots: number;
   }> {
-    const { db } = await import("@/db/client");
-    const { albPriorities } = await import("@/db/schemas/alb-priorities");
-    const { isNull, isNotNull, sql } = await import("drizzle-orm");
 
     const [activeCount] = await db
       .select({ count: sql<number>`count(*)::int` })

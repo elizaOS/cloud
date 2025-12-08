@@ -1,45 +1,48 @@
 /**
- * In-memory credit event emitter with stale listener cleanup.
+ * Credit event emitter that switches between Redis and in-memory based on environment.
  *
- * Note: For serverless environments, use credit-events-unified.ts which
- * automatically switches to Redis-backed events in production.
+ * Automatically uses Redis in serverless/production environments for multi-instance compatibility.
  */
 
 import { EventEmitter } from "events";
+import { redisCreditEventEmitter } from "./credit-events-redis";
 import type { CreditUpdateEvent } from "./credit-events-redis";
 
+export type { CreditUpdateEvent };
+
 /**
- * Metadata for tracking listener activity.
+ * Stats returned by Redis credit event emitter
  */
-interface ListenerMetadata {
-  lastActivity: number;
-  createdAt: number;
+interface RedisCreditStats {
+  enabled: boolean;
+  totalOrganizations: number;
+  totalConnections: number;
+  organizations: Array<{ id: string; connections: number }>;
 }
 
 /**
- * Credit Event Emitter with auto-cleanup for stale listeners
- *
- * Memory Leak Protection: Automatically removes inactive listeners
- * See ANALYTICS_PR_REVIEW_ANALYSIS.md - Issue #5 (Fixed)
+ * In-memory mode warning details
  */
-class CreditEventEmitter extends EventEmitter {
-  private static instance: CreditEventEmitter;
-  private activeConnections = new Map<string, number>();
-  private listenerMetadata = new Map<string, ListenerMetadata>();
-  private cleanupInterval: NodeJS.Timeout;
+interface InMemoryWarning {
+  warning: string;
+}
 
-  // Configuration
-  private readonly STALE_THRESHOLD = 600000; // 10 minutes
-  private readonly CLEANUP_INTERVAL = 300000; // 5 minutes
+/**
+ * Function to unsubscribe from credit updates.
+ */
+export type UnsubscribeFunction = () => void;
+
+/**
+ * Credit event emitter that adapts to environment.
+ */
+class CreditEventEmitter {
+  private static instance: CreditEventEmitter;
+  private inMemoryEmitter: EventEmitter | null = null;
+  private lastEnvCheck: { useRedis: boolean; timestamp: number } | null = null;
+  private initLogged: boolean = false;
 
   private constructor() {
-    super();
-    this.setMaxListeners(1000);
-
-    // Start periodic cleanup
-    this.cleanupInterval = setInterval(() => {
-      this.cleanupStaleListeners();
-    }, this.CLEANUP_INTERVAL);
+    // Defer initialization until first use
   }
 
   public static getInstance(): CreditEventEmitter {
@@ -49,153 +52,125 @@ class CreditEventEmitter extends EventEmitter {
     return CreditEventEmitter.instance;
   }
 
-  public emitCreditUpdate(event: CreditUpdateEvent): void {
-    const channel = `credits:${event.organizationId}`;
+  /**
+   * Check if we should use Redis at runtime
+   * This checks environment variables on every call to handle
+   * hot reloading and module caching issues in development
+   */
+  private shouldUseRedis(): boolean {
+    // Check environment variables at runtime
+    const isServerless =
+      process.env.VERCEL === "1" ||
+      process.env.NODE_ENV === "production" ||
+      process.env.FORCE_REDIS_EVENTS === "true";
 
-    // Update last activity for all listeners on this channel
-    const listeners = this.listeners(channel) as Array<
-      (event: CreditUpdateEvent) => void
-    >;
-    listeners.forEach((listener) => {
-      const listenerId = this.getListenerId(channel, listener);
-      const metadata = this.listenerMetadata.get(listenerId);
-      if (metadata) {
-        metadata.lastActivity = Date.now();
-      }
-    });
+    const redisConfigured = !!(
+      process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN
+    );
 
-    this.emit(channel, event);
+    const useRedis = isServerless && redisConfigured;
+
+    // Initialize emitter if needed
+    if (!useRedis && !this.inMemoryEmitter) {
+      this.inMemoryEmitter = new EventEmitter();
+    }
+    this.initLogged = true;
+
+    // Cache the decision for this run
+    this.lastEnvCheck = { useRedis, timestamp: Date.now() };
+
+    // Ensure in-memory emitter exists if we need it
+    if (!useRedis && !this.inMemoryEmitter) {
+      this.inMemoryEmitter = new EventEmitter();
+    }
+
+    return useRedis;
+  }
+
+  public async emitCreditUpdate(event: CreditUpdateEvent): Promise<void> {
+    const useRedis = this.shouldUseRedis();
+
+    if (useRedis) {
+      await redisCreditEventEmitter.emitCreditUpdate(event);
+    } else if (this.inMemoryEmitter) {
+      this.inMemoryEmitter.emit("credit-update", event);
+    }
   }
 
   public subscribeToCreditUpdates(
     organizationId: string,
-    handler: (event: CreditUpdateEvent) => void,
-  ): () => void {
-    const channel = `credits:${organizationId}`;
-    const listenerId = this.getListenerId(channel, handler);
+    handler: (event: CreditUpdateEvent) => void | Promise<void>,
+  ): UnsubscribeFunction {
+    const useRedis = this.shouldUseRedis();
 
-    // Track this listener
-    this.listenerMetadata.set(listenerId, {
-      lastActivity: Date.now(),
-      createdAt: Date.now(),
-    });
+    if (useRedis) {
+      redisCreditEventEmitter
+        .subscribeToCreditUpdates(organizationId, handler)
 
-    this.on(channel, handler);
+      // Return sync unsubscribe function
+      return () => {
+        // Unsubscribe is handled by Redis cleanup
+      };
+    } else if (this.inMemoryEmitter) {
+      const listener = (event: CreditUpdateEvent) => {
+        if (event.organizationId === organizationId) {
+          handler(event);
+        }
+      };
 
-    return () => {
-      this.off(channel, handler);
-      this.listenerMetadata.delete(listenerId);
-    };
-  }
+      this.inMemoryEmitter.on("credit-update", listener);
 
-  /**
-   * Clean up stale listeners that haven't been active
-   */
-  private cleanupStaleListeners(): void {
-    const now = Date.now();
-
-    // Collect stale listener IDs
-    const staleListenerIds: string[] = [];
-
-    for (const [listenerId, metadata] of this.listenerMetadata.entries()) {
-      const inactiveDuration = now - metadata.lastActivity;
-
-      if (inactiveDuration > this.STALE_THRESHOLD) {
-        staleListenerIds.push(listenerId);
-      }
+      return () => {
+        this.inMemoryEmitter?.off("credit-update", listener);
+      };
+    } else {
+      return () => {};
     }
-
-    // Clean up stale listeners
-    for (const listenerId of staleListenerIds) {
-      const channel = this.getChannelFromListenerId(listenerId);
-      if (channel) {
-        // Remove all listeners for this channel if any are stale
-        // This is a conservative approach to prevent memory leaks
-        this.removeAllListeners(channel);
-        this.listenerMetadata.delete(listenerId);
-      }
-    }
-  }
-
-  /**
-   * Generate unique ID for a listener
-   */
-  private getListenerId(
-    channel: string,
-    listener: (event: CreditUpdateEvent) => void,
-  ): string {
-    return `${channel}:${listener.toString().substring(0, 50)}:${Date.now()}`;
-  }
-
-  /**
-   * Extract channel from listener ID
-   */
-  private getChannelFromListenerId(listenerId: string): string | null {
-    const parts = listenerId.split(":");
-    return parts.length > 0 ? parts[0] : null;
   }
 
   public incrementConnections(organizationId: string): void {
-    const count = this.activeConnections.get(organizationId) || 0;
-    this.activeConnections.set(organizationId, count + 1);
+    if (this.shouldUseRedis()) {
+      redisCreditEventEmitter.incrementConnections(organizationId);
+    }
   }
 
   public decrementConnections(organizationId: string): void {
-    const count = this.activeConnections.get(organizationId) || 0;
-    this.activeConnections.set(organizationId, Math.max(0, count - 1));
+    if (this.shouldUseRedis()) {
+      redisCreditEventEmitter.decrementConnections(organizationId);
+    }
   }
 
   public getActiveConnections(organizationId: string): number {
-    return this.activeConnections.get(organizationId) || 0;
+    if (this.shouldUseRedis()) {
+      return redisCreditEventEmitter.getActiveConnections(organizationId);
+    }
+    return 0;
   }
 
-  /**
-   * Get listener statistics for monitoring
-   */
-  public getListenerStats(): {
-    totalListeners: number;
-    staleListeners: number;
-    activeChannels: string[];
-    oldestListener: number | null;
+  public isServerlessCompatible(): boolean {
+    return this.shouldUseRedis();
+  }
+
+  public getStats(): {
+    mode: "redis" | "in-memory";
+    serverlessCompatible: boolean;
+    details: RedisCreditStats | InMemoryWarning;
   } {
-    const now = Date.now();
-    let staleCount = 0;
-    let oldestTimestamp: number | null = null;
-
-    for (const metadata of this.listenerMetadata.values()) {
-      const inactiveDuration = now - metadata.lastActivity;
-
-      if (inactiveDuration > this.STALE_THRESHOLD) {
-        staleCount++;
-      }
-
-      if (!oldestTimestamp || metadata.createdAt < oldestTimestamp) {
-        oldestTimestamp = metadata.createdAt;
-      }
+    if (this.shouldUseRedis()) {
+      return {
+        mode: "redis",
+        serverlessCompatible: true,
+        details: redisCreditEventEmitter.getStats(),
+      };
     }
 
     return {
-      totalListeners: this.listenerMetadata.size,
-      staleListeners: staleCount,
-      activeChannels: this.eventNames() as string[],
-      oldestListener: oldestTimestamp,
+      mode: "in-memory",
+      serverlessCompatible: false,
+      details: {
+        warning: "In-memory mode - not suitable for multi-instance serverless",
+      },
     };
-  }
-
-  /**
-   * Force cleanup of all stale listeners (for testing/debugging)
-   */
-  public forceCleanup(): void {
-    this.cleanupStaleListeners();
-  }
-
-  /**
-   * Cleanup on shutdown
-   */
-  public shutdown(): void {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-    }
   }
 }
 

@@ -1,5 +1,5 @@
 /**
- * Unified Discovery API
+ * Discovery API
  *
  * Provides a single endpoint to discover services from both:
  * - Local Eliza Cloud marketplace (agents, MCPs, apps)

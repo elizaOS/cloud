@@ -5,8 +5,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { appsService } from "@/lib/services";
-import { apiKeysService } from "@/lib/services";
+import { appsService } from "@/lib/services/apps";
+import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
 
 // Default allowed origins for development

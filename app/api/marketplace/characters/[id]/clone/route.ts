@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { marketplaceService } from "@/lib/services";
+import { characterMarketplaceService } from "@/lib/services/characters/marketplace";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +34,7 @@ export async function POST(
       name: body.name,
     });
 
-    const clonedCharacter = await marketplaceService.cloneCharacter(
+    const clonedCharacter = await characterMarketplaceService.cloneCharacter(
       id,
       user.id,
       user.organization_id!,

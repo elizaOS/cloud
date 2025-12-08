@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { appsService } from "@/lib/services";
+import { appsService } from "@/lib/services/apps";
 import { AppsTable } from "@/components/apps/apps-table";
 import { AppsSkeleton } from "@/components/apps/apps-skeleton";
 import { Grid3x3, Users, TrendingUp, Activity } from "lucide-react";

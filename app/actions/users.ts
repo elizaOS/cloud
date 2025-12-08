@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { logger } from "@/lib/utils/logger";
 import { requireAuth } from "@/lib/auth";
-import { usersService } from "@/lib/services";
+import { usersService } from "@/lib/services/users";
 import { uploadToBlob } from "@/lib/blob";
 import { z } from "zod";
 
@@ -47,7 +48,7 @@ export async function updateProfile(formData: FormData) {
       message: "Profile updated successfully",
     };
   } catch (error) {
-    console.error("Error updating profile:", error);
+    logger.error("Error updating profile:", error);
 
     if (error instanceof z.ZodError) {
       return {
@@ -116,7 +117,7 @@ export async function updateEmail(formData: FormData) {
       message: "Email added successfully! Please check your inbox to verify.",
     };
   } catch (error) {
-    console.error("Error updating email:", error);
+    logger.error("Error updating email:", error);
 
     if (error instanceof z.ZodError) {
       return {
@@ -201,7 +202,7 @@ export async function uploadAvatar(formData: FormData) {
       message: "Avatar uploaded successfully",
     };
   } catch (error) {
-    console.error("Error uploading avatar:", error);
+    logger.error("Error uploading avatar:", error);
 
     return {
       success: false,

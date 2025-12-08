@@ -11,11 +11,13 @@ A comprehensive AI agent development platform built with Next.js 15, featuring m
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
 - [Development](#development)
-- [Production Security](#production-security) ⚠️ **Important for Production**
+- [Production Security](#production-security)
 - [Platform Features](#platform-features)
 - [Database Architecture](#database-architecture)
 - [API Reference](#api-reference)
 - [Deployment](#deployment)
+- [Mobile App (iOS & Android)](#-mobile-app-ios--android)
+- [AWS ECS Container Deployment](#-aws-ecs-container-deployment)
 - [Troubleshooting](#troubleshooting)
 - [Additional Resources](#additional-resources)
 
@@ -265,7 +267,7 @@ graph TD
     N --> M
 ```
 
-### Unified Database Architecture
+### Database Architecture
 
 The platform uses a single database with integrated schemas:
 
@@ -294,7 +296,7 @@ The platform uses a single database with integrated schemas:
 
 ### Database & ORM
 
-- **PostgreSQL**: Single unified database with all tables
+- **PostgreSQL**: Single database with all tables
   - Platform tables: SaaS tables (users, credits, containers, etc.)
   - ElizaOS tables: Agent runtime tables (agents, memories, rooms, etc.)
 - **Drizzle ORM 0.44.6**: Type-safe SQL ORM
@@ -1571,7 +1573,7 @@ git push origin main
 
 Add all variables from `.env.local` in Vercel dashboard:
 
-- `DATABASE_URL` - Single unified database for platform and ElizaOS tables
+- `DATABASE_URL` - Single database for platform and ElizaOS tables
 - `NEXT_PUBLIC_PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `PRIVY_WEBHOOK_SECRET`
 - `OPENAI_API_KEY` or `AI_GATEWAY_API_KEY`
 - `BLOB_READ_WRITE_TOKEN` (optional, for media gallery)
@@ -1729,6 +1731,194 @@ See `docs/DEPLOYMENT_TROUBLESHOOTING.md` for detailed troubleshooting.
 - [Vercel AI SDK Docs](https://sdk.vercel.ai/docs)
 - [ElizaOS Documentation](https://github.com/elizaos/eliza)
 
+## 📱 Mobile App (iOS & Android)
+
+Native iOS and Android app using Tauri v2 with a hybrid webview architecture.
+
+### Architecture
+
+The mobile app uses a **webview approach**:
+
+- **Development**: Loads `http://localhost:3000` (Next.js dev server with hot reload)
+- **Production**: Shows a splash screen, then loads `https://elizacloud.ai`
+- **Native features**: IAP, deep links, and platform detection handled by Rust
+
+```
+┌─────────────────────────────────────┐
+│           Tauri App                 │
+├─────────────────────────────────────┤
+│  WebView                            │
+│  ├── Dev: localhost:3000            │
+│  └── Prod: elizacloud.ai            │
+├─────────────────────────────────────┤
+│  Rust Native Layer                  │
+│  ├── IAP (StoreKit 2 / Play)        │
+│  ├── Deep Links (elizacloud://)     │
+│  └── Platform Detection             │
+└─────────────────────────────────────┘
+```
+
+### Mobile Prerequisites
+
+**macOS (for iOS development)**:
+```bash
+# Install Xcode CLI tools
+xcode-select --install
+
+# Install Rust iOS targets
+rustup target add aarch64-apple-ios aarch64-apple-ios-sim
+
+# Install Tauri CLI
+cargo install tauri-cli --version "^2.0" --locked
+```
+
+**Android development**:
+1. Install [Android Studio](https://developer.android.com/studio)
+2. Install SDK via SDK Manager (API 24+)
+3. Set environment:
+```bash
+export ANDROID_HOME=~/Library/Android/sdk
+export PATH=$PATH:$ANDROID_HOME/platform-tools
+```
+
+### Mobile Development Commands
+
+| Command | Description |
+|---------|-------------|
+| `bun run tauri:ios` | iOS simulator dev with hot reload |
+| `bun run tauri:ios:build` | iOS release build |
+| `bun run tauri:ios:init` | Initialize iOS project |
+| `bun run tauri:android` | Android emulator dev |
+| `bun run tauri:android:build` | Android release build |
+| `bun run tauri:android:init` | Initialize Android project |
+| `bun run tauri:dev` | Desktop dev (for testing) |
+| `bun run tauri:build` | Desktop release build |
+
+### Quick Start (iOS Simulator)
+
+```bash
+# Start iOS simulator with hot reload
+bun run tauri:ios
+
+# Or specify a simulator
+cargo tauri ios dev "iPhone 16 Pro"
+```
+
+### Native Features
+
+**Platform Detection**:
+```typescript
+import { invoke } from "@tauri-apps/api/core";
+
+const info = await invoke("get_platform_info");
+// { os: "ios", arch: "aarch64", is_mobile: true, is_ios: true, is_android: false }
+
+const isMobile = await invoke("is_mobile_app");
+// true
+```
+
+**In-App Purchases**:
+```typescript
+import { invoke } from "@tauri-apps/api/core";
+
+// Get products
+const products = await invoke("get_products", {
+  productIds: ["credits_100", "credits_500", "credits_1000"]
+});
+
+// Purchase
+const result = await invoke("purchase_product", { productId: "credits_100" });
+
+// Restore purchases
+const restored = await invoke("restore_purchases");
+```
+
+**Deep Links**:
+```typescript
+import { listen } from "@tauri-apps/api/event";
+
+// Listen for auth callbacks (elizacloud:// URLs)
+await listen("auth-callback", (event) => {
+  console.log("Auth callback:", event.payload);
+});
+
+await listen("deep-link", (event) => {
+  console.log("Deep link:", event.payload);
+});
+```
+
+### Mobile Project Structure
+
+```
+src-tauri/
+├── src/
+│   ├── lib.rs          # Main Tauri app logic
+│   ├── iap.rs          # In-App Purchase commands
+│   └── main.rs         # Entry point
+├── dist/
+│   └── index.html      # Splash screen (production)
+├── icons/              # App icons (all platforms)
+├── tauri.conf.json     # Tauri configuration
+└── Cargo.toml          # Rust dependencies
+```
+
+### Mobile CI/CD
+
+GitHub Actions workflow: `.github/workflows/tauri-mobile.yml`
+
+**Required Secrets for iOS (App Store)**:
+| Secret | Description |
+|--------|-------------|
+| `IOS_DEVELOPMENT_TEAM` | Apple Developer Team ID |
+| `IOS_CERTIFICATES_P12` | Base64 encoded .p12 |
+| `IOS_CERTIFICATES_PASSWORD` | Certificate password |
+| `IOS_PROVISIONING_PROFILE` | Base64 encoded .mobileprovision |
+| `APPLE_SIGNING_IDENTITY` | e.g., `Apple Distribution: Company (TEAMID)` |
+| `APP_STORE_CONNECT_API_KEY_ID` | API key ID |
+| `APP_STORE_CONNECT_API_ISSUER` | API issuer ID |
+| `APP_STORE_CONNECT_API_KEY` | Base64 encoded .p8 key |
+
+**Required Secrets for Android (Play Store)**:
+| Secret | Description |
+|--------|-------------|
+| `ANDROID_KEYSTORE` | Base64 encoded keystore |
+| `ANDROID_STORE_PASSWORD` | Keystore password |
+| `ANDROID_KEY_ALIAS` | Key alias |
+| `ANDROID_KEY_PASSWORD` | Key password |
+| `PLAY_STORE_SERVICE_ACCOUNT` | Service account JSON |
+
+### iOS Device Builds
+
+For physical device or App Store builds:
+
+```bash
+# Set your Apple Developer Team ID
+export IOS_DEVELOPMENT_TEAM="XXXXXXXXXX"
+
+# Build for device
+bun run tauri:ios:build
+```
+
+### Mobile Troubleshooting
+
+**"Device is busy"**: Use simulator instead:
+```bash
+cargo tauri ios dev "iPhone 16 Pro"
+```
+
+**Clean rebuild**:
+```bash
+rm -rf src-tauri/target src-tauri/gen/apple/build .next
+bun run tauri:ios
+```
+
+**Tauri not found**:
+```bash
+cargo install tauri-cli --version "^2.0" --locked
+```
+
+---
+
 ## 🚀 AWS ECS Container Deployment
 
 Deploy ElizaOS agents to AWS ECS (Elastic Container Service) using Docker containers. Each user gets a dedicated EC2 instance (t4g.small ARM, Graviton2) managed via CloudFormation.
@@ -1868,7 +2058,7 @@ Container deployments are billed based on:
 - **Application Load Balancer**: ~$16/month (shared across all users)
 
 **Total**: $15.76-18.68/month per active container (varies by architecture)
-**💰 Tip**: ARM64 saves $2.92/month (15.6%) per container on compute costs
+ARM64 saves $2.92/month (15.6%) per container on compute costs.
 
 ---
 

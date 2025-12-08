@@ -20,6 +20,8 @@
  */
 
 import { agentsRepository, type AgentInfo } from "@/db/repositories/agents";
+import { participantsRepository, memoriesRepository } from "@/db/repositories";
+import { charactersService } from "@/lib/services/characters/characters";
 import { logger } from "@/lib/utils/logger";
 import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import {
@@ -181,7 +183,6 @@ class AgentsService {
     }
 
     // Load character data to create agent
-    const { charactersService } = await import("@/lib/services/characters");
     const character = await charactersService.getById(characterId);
     
     if (!character) {
@@ -252,7 +253,6 @@ class AgentsService {
    */
   async getOrCreateRoom(entityId: string, agentId: string): Promise<string> {
     // Use repository to check for existing rooms
-    const { participantsRepository } = await import("@/db/repositories");
     const existingRoomIds =
       await participantsRepository.findRoomsByEntityId(entityId);
 
@@ -362,9 +362,6 @@ class AgentsService {
     logger.debug(
       `[Agents Service] Cache miss for room ${roomId}, fetching from DB`,
     );
-
-    const { memoriesRepository, participantsRepository } =
-      await import("@/db/repositories");
 
     const messages = await memoriesRepository.findMessages(roomId, {
       limit: 20,

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { z } from "zod";
-import { userMcpsService } from "@/lib/services";
+import { userMcpsService } from "@/lib/services/user-mcps";
 import { agent0Service } from "@/lib/services/agent0";
 import { getDefaultNetwork, CHAIN_IDS } from "@/lib/config/erc8004";
 
@@ -470,7 +471,7 @@ export async function GET(request: NextRequest) {
       isAuthenticated,
     });
   } catch (error) {
-    console.error("[MCP Registry] Error:", error);
+    logger.error("[MCP Registry] Error:", error);
     return NextResponse.json(
       {
         error:

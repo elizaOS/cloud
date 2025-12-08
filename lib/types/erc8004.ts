@@ -1,7 +1,7 @@
 /**
  * ERC-8004 Discovery Types
  *
- * Types for the unified discovery API that combines local marketplace
+ * Types for the discovery API that combines local marketplace
  * services with ERC-8004 registered external services.
  */
 
@@ -32,7 +32,7 @@ export interface ServicePricing {
 }
 
 /**
- * Unified representation of a discovered service
+ * Representation of a discovered service
  *
  * This normalizes services from both local (Eliza Cloud) and
  * external (ERC-8004 registry) sources into a consistent format.

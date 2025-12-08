@@ -15,6 +15,7 @@ import { organizations } from "@/db/schemas/organizations";
 import { creditTransactions } from "@/db/schemas/credit-transactions";
 import { eq } from "drizzle-orm";
 import { emailService } from "./email";
+import { organizationsService } from "./organizations";
 import {
   canSendLowCreditsEmail,
   markLowCreditsEmailSent,
@@ -120,7 +121,7 @@ export class CreditsService {
         await this.getTransactionByStripePaymentIntent(stripePaymentIntentId);
 
       if (existingTransaction) {
-        console.log(
+        logger.info(
           `[CreditsService] Idempotency: Payment intent ${stripePaymentIntentId} already processed (transaction ${existingTransaction.id})`
         );
 
@@ -152,7 +153,7 @@ export class CreditsService {
           });
 
           if (existingInTx) {
-            console.log(
+            logger.info(
               `[CreditsService] Race condition detected: Payment intent ${stripePaymentIntentId} was inserted by another thread`
             );
 
@@ -420,7 +421,7 @@ export class CreditsService {
         return;
       }
 
-      console.log(
+      logger.info(
         `[CreditsService] Auto top-up triggered: balance $${newBalance.toFixed(2)} < threshold $${threshold.toFixed(2)}`
       );
 
@@ -461,7 +462,6 @@ export class CreditsService {
         return;
       }
 
-      const { organizationsService } = await import("./organizations");
       const org = await organizationsService.getById(organizationId);
       if (!org) {
         return;

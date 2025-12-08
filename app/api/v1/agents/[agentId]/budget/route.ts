@@ -13,7 +13,7 @@ import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { agentBudgetService } from "@/lib/services/agent-budgets";
 import { charactersService } from "@/lib/services/characters/characters";
-import { organizationsService } from "@/lib/services";
+import { organizationsService } from "@/lib/services/organizations";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { logger } from "@/lib/utils/logger";
 

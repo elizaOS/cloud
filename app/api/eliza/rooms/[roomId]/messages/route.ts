@@ -2,14 +2,12 @@ import { NextResponse } from "next/server";
 import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
-import {
-  creditsService,
-  usageService,
-  organizationsService,
-  discordService,
-  anonymousSessionsService,
-  contentModerationService,
-} from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
+import { usageService } from "@/lib/services/usage";
+import { organizationsService } from "@/lib/services/organizations";
+import { discordService } from "@/lib/services/discord";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
+import { contentModerationService } from "@/lib/services/content-moderation";
 import {
   calculateCost,
   getProviderFromModel,

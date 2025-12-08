@@ -3,7 +3,7 @@
  * Handles authentication context, API keys, and user preferences
  */
 
-import { apiKeysService } from "@/lib/services";
+import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
 import type { AgentMode } from "./agent-mode-types";
 import type { UserWithOrganization, ApiKey } from "@/lib/types";

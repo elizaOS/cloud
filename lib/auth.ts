@@ -1,9 +1,8 @@
 import { PrivyClient } from "@privy-io/server-auth";
-import {
-  usersService,
-  apiKeysService,
-  userSessionsService,
-} from "@/lib/services";
+import { usersService } from "@/lib/services/users";
+import { apiKeysService } from "@/lib/services/api-keys";
+import { userSessionsService } from "@/lib/services/user-sessions";
+import { syncUserFromPrivy } from "./privy-sync";
 import type { UserWithOrganization, ApiKey } from "@/lib/types";
 import type { Organization } from "@/db/schemas/organizations";
 import { cache } from "react";
@@ -105,8 +104,6 @@ export const getCurrentUser = cache(
         const privyUser = await privyClient.getUser(verifiedClaims.userId);
 
         if (privyUser) {
-          // Import the sync logic from webhook
-          const { syncUserFromPrivy } = await import("./privy-sync");
           // Type cast needed because Privy SDK types don't match our simplified interface
           interface PrivyUserShape {
             id: string;
@@ -282,7 +279,7 @@ export async function requireAuthOrApiKey(
     };
   }
 
-  // Check for API key in X-API-Key header (legacy)
+  // Check for API key in X-API-Key header
   const apiKeyHeader = request.headers.get("X-API-Key");
 
   // Check for API key in Authorization header (standard)
@@ -417,7 +414,6 @@ export async function getUserFromRequest(
 // Re-export x402 utilities for permissionless access
 export {
   requireCreditsWithX402Fallback,
-  requireX402OrCredits, // @deprecated - use requireCreditsWithX402Fallback
   hasX402Payment,
   getX402Price,
   generate402Response,

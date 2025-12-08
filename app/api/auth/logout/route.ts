@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { getCurrentUser } from "@/lib/auth";
-import { userSessionsService } from "@/lib/services";
+import { userSessionsService } from "@/lib/services/user-sessions";
 
 /**
  * POST /api/auth/logout

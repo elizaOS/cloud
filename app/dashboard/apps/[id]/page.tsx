@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { appsService } from "@/lib/services";
+import { appsService } from "@/lib/services/apps";
 import { redirect } from "next/navigation";
 import { AppOverview } from "@/components/apps/app-overview";
 import { AppSettings } from "@/components/apps/app-settings";

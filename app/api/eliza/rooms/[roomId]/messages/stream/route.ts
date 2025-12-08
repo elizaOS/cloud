@@ -1,12 +1,17 @@
 import { roomsRepository } from "@/db/repositories";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { checkAnonymousLimit, getAnonymousUser } from "@/lib/auth-anonymous";
+import { checkAnonymousLimit, getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
+import { usersService } from "@/lib/services/users";
 import type { AgentModeConfig } from "@/lib/eliza/agent-mode-types";
 import { AgentMode, isValidAgentModeConfig } from "@/lib/eliza/agent-mode-types";
 import { createMessageHandler } from "@/lib/eliza/message-handler";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { userContextService } from "@/lib/eliza/user-context";
-import { appCreditsService, charactersService, contentModerationService, organizationsService } from "@/lib/services";
+import { appCreditsService } from "@/lib/services/app-credits";
+import { charactersService } from "@/lib/services/characters/characters";
+import { contentModerationService } from "@/lib/services/content-moderation";
+import { organizationsService } from "@/lib/services/organizations";
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
 
@@ -511,9 +516,6 @@ async function authenticateAndBuildContext(
   // Use provided token for session lookup
   const providedToken = anonymousSessionToken;
 
-  const { anonymousSessionsService, usersService } =
-    await import("@/lib/services");
-
   // Try provided session token first
   if (providedToken) {
     logger.info(
@@ -589,7 +591,6 @@ async function authenticateAndBuildContext(
 
   if (!anonData) {
     logger.info("[Stream] No session cookie - creating new anonymous session");
-    const { getOrCreateAnonymousUser } = await import("@/lib/auth-anonymous");
     const newAnonData = await getOrCreateAnonymousUser();
     anonData = {
       user: newAnonData.user,

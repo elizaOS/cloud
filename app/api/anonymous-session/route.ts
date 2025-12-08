@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { anonymousSessionsService } from "@/lib/services";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { logger } from "@/lib/utils/logger";
 import { createHash } from "node:crypto";
 

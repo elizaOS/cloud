@@ -5,15 +5,13 @@
 "use server";
 
 import { requireAuthWithOrg } from "@/lib/auth";
-import {
-  generationsService,
-  charactersService,
-  listContainers,
-  apiKeysService,
-  agentDiscoveryService,
-  roomsService,
-  usageService,
-} from "@/lib/services";
+import { generationsService } from "@/lib/services/generations";
+import { charactersService } from "@/lib/services/characters/characters";
+import { listContainers } from "@/lib/services/containers";
+import { apiKeysService } from "@/lib/services/api-keys";
+import { characterDeploymentDiscoveryService } from "@/lib/services/deployments";
+import { roomsService } from "@/lib/services/agents/rooms";
+import { usageService } from "@/lib/services/usage";
 import { cache as cacheClient } from "@/lib/cache/client";
 import { CacheKeys, CacheStaleTTL } from "@/lib/cache/keys";
 import { cache } from "react";
@@ -116,7 +114,7 @@ async function fetchDashboardDataInternal(
   if (characterIds.length > 0) {
     try {
       const statsMap =
-        await agentDiscoveryService.getCharacterStatisticsBatch(characterIds);
+        await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(characterIds);
       statsMap.forEach((stats, id) => {
         agentStatsMap.set(id, {
           roomCount: stats.roomCount,

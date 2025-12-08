@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg, requireRole } from "@/lib/auth";
-import { organizationsService } from "@/lib/services";
+import { organizationsService } from "@/lib/services/organizations";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 

@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { invitesService } from "@/lib/services";
+import { invitesService } from "@/lib/services/invites";
 import { z } from "zod";
 import { revalidateTag } from "next/cache";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";

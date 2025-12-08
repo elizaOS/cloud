@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { marketplaceService } from "@/lib/services";
+import { characterMarketplaceService } from "@/lib/services/characters/marketplace";
 import { logger } from "@/lib/utils/logger";
 import type { CategoryId, SortBy, SortOrder } from "@/lib/types/marketplace";
 
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
       limit,
     });
 
-    const result = await marketplaceService.searchCharacters({
+    const result = await characterMarketplaceService.searchCharacters({
       userId: user.id,
       organizationId: user.organization_id!!,
       filters: {

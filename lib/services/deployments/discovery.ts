@@ -13,8 +13,10 @@
  * It answers questions like "which characters are deployed?" not "which agents exist?"
  */
 
-import { charactersService } from "../characters";
+import { charactersService } from "../characters/characters";
 import { containersService } from "../containers";
+import { memoriesRepository } from "@/db/repositories";
+import { roomsRepository } from "@/db/repositories/agents";
 import {
   agentStateCache,
   type AgentStats,
@@ -263,8 +265,6 @@ export class CharacterDeploymentDiscoveryService {
       container.status === "running" ? "deployed" : "stopped";
 
     // Character is deployed - fetch statistics from database directly
-    const { memoriesRepository } = await import("@/db/repositories");
-    const { roomsRepository } = await import("@/db/repositories/agents");
 
     // Get message count for this character's agent across all rooms
     const messageCount = await memoriesRepository.countMessagesByAgent(characterId);
@@ -386,16 +386,3 @@ export class CharacterDeploymentDiscoveryService {
 // Export singleton instance
 export const characterDeploymentDiscoveryService =
   new CharacterDeploymentDiscoveryService();
-
-// Backward compatibility - keep old name with deprecation notice
-/**
- * @deprecated Use characterDeploymentDiscoveryService instead
- * This service discovers CHARACTERS with deployment status, not agents.
- */
-export const agentDiscoveryService = characterDeploymentDiscoveryService;
-
-// Additional backward compatibility alias
-/**
- * @deprecated Use characterDeploymentDiscoveryService instead
- */
-export const deploymentDiscoveryService = characterDeploymentDiscoveryService;

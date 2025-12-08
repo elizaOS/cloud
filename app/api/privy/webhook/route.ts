@@ -3,7 +3,7 @@ import { headers, cookies } from "next/headers";
 import crypto from "crypto";
 import { syncUserFromPrivy, type SyncOptions } from "@/lib/privy-sync";
 import { migrateAnonymousSession } from "@/lib/session";
-import { anonymousSessionsService } from "@/lib/services";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { logger } from "@/lib/utils/logger";
 
 // Verify webhook signature from Privy using their recommended method

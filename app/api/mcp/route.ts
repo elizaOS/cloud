@@ -1,4 +1,5 @@
 import { createMcpHandler } from "mcp-handler";
+import { logger } from "@/lib/utils/logger";
 // IMPORTANT: Must use zod v3.x (aliased as zod3) for MCP SDK compatibility
 // The MCP SDK internally uses zod v3.x, and zod v4.x has breaking internal API changes
 import { z } from "zod3";
@@ -18,19 +19,29 @@ type AuthResultWithOrg = AuthResult & {
   };
 };
 import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
-import {
-  creditsService,
-  usageService,
-  organizationsService,
-  generationsService,
-  conversationsService,
-  memoryService,
-  agentDiscoveryService,
-  containersService,
-  contentModerationService,
-  agentReputationService,
-} from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
+import { usageService } from "@/lib/services/usage";
+import { organizationsService } from "@/lib/services/organizations";
+import { generationsService } from "@/lib/services/generations";
+import { conversationsService } from "@/lib/services/conversations";
+import { memoryService } from "@/lib/services/memory";
+import { containersService } from "@/lib/services/containers";
+import { contentModerationService } from "@/lib/services/content-moderation";
+import { agentReputationService } from "@/lib/services/agent-reputation";
+import { characterDeploymentDiscoveryService as agentDiscoveryService } from "@/lib/services/deployments/discovery";
 import { agentService } from "@/lib/services/agents/agents";
+import { charactersService } from "@/lib/services/characters/characters";
+import { apiKeysService } from "@/lib/services/api-keys";
+import { secureTokenRedemptionService } from "@/lib/services/token-redemption-secure";
+import { getContainer, deleteContainer } from "@/lib/services/containers";
+import { userMcpsService } from "@/lib/services/user-mcps";
+import { roomsService } from "@/lib/services/agents/rooms";
+import { usersService } from "@/lib/services/users";
+import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
+import { agentBudgetService } from "@/lib/services/agent-budgets";
+import { analyticsService } from "@/lib/services/analytics";
+import { getElevenLabsService } from "@/lib/services/elevenlabs";
+import { characterMarketplaceService } from "@/lib/services/characters/marketplace";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import {
@@ -534,7 +545,7 @@ const mcpHandler = createMcpHandler(
                 },
               });
             } catch (refundError) {
-              console.error("Failed to refund credits:", refundError);
+              logger.error("Failed to refund credits:", refundError);
             }
           }
 
@@ -548,7 +559,7 @@ const mcpHandler = createMcpHandler(
                 completed_at: new Date(),
               });
             } catch (updateError) {
-              console.error("Failed to update generation record:", updateError);
+              logger.error("Failed to update generation record:", updateError);
             }
           }
 
@@ -740,7 +751,7 @@ const mcpHandler = createMcpHandler(
                   metadata: { generation_id: generationId },
                 });
               } catch (refundError) {
-                console.error("Failed to refund credits:", refundError);
+                logger.error("Failed to refund credits:", refundError);
               }
             }
 
@@ -814,7 +825,7 @@ const mcpHandler = createMcpHandler(
             blobUrl = blobResult.url;
             fileSize = blobResult.size ? BigInt(blobResult.size) : null;
           } catch (blobError) {
-            console.error("Failed to upload to Vercel Blob:", blobError);
+            logger.error("Failed to upload to Vercel Blob:", blobError);
           }
 
           // Update generation record
@@ -867,7 +878,7 @@ const mcpHandler = createMcpHandler(
                 },
               });
             } catch (refundError) {
-              console.error("Failed to refund credits:", refundError);
+              logger.error("Failed to refund credits:", refundError);
             }
           }
 
@@ -880,7 +891,7 @@ const mcpHandler = createMcpHandler(
                 completed_at: new Date(),
               });
             } catch (updateError) {
-              console.error("Failed to update generation record:", updateError);
+              logger.error("Failed to update generation record:", updateError);
             }
           }
 
@@ -3262,7 +3273,6 @@ const mcpHandler = createMcpHandler(
       async ({ name, bio, system, category, tags }) => {
         try {
           const { user } = getAuthContext();
-          const { charactersService } = await import("@/lib/services/characters/characters");
 
           const character = await charactersService.create({
             organization_id: user.organization_id!,
@@ -3309,7 +3319,6 @@ const mcpHandler = createMcpHandler(
       async ({ agentId, name, bio, system, category, tags }) => {
         try {
           const { user } = getAuthContext();
-          const { charactersService } = await import("@/lib/services/characters/characters");
 
           const updates: Record<string, unknown> = {};
           if (name) updates.name = name;
@@ -3345,7 +3354,6 @@ const mcpHandler = createMcpHandler(
       async ({ agentId }) => {
         try {
           const { user } = getAuthContext();
-          const { charactersService } = await import("@/lib/services/characters/characters");
 
           const deleted = await charactersService.deleteForUser(agentId, user.id);
           if (!deleted) throw new Error("Agent not found or not owned by user");
@@ -3438,9 +3446,6 @@ const mcpHandler = createMcpHandler(
       async ({ input, model }) => {
         try {
           const { user } = getAuthContext();
-          const { getProvider } = await import("@/lib/providers");
-          const { estimateTokens } = await import("@/lib/pricing");
-
           const inputs = Array.isArray(input) ? input : [input];
           const totalTokens = inputs.reduce((sum, text) => sum + estimateTokens(text), 0);
           const COST_PER_TOKEN = 0.00002 / 1000;
@@ -3489,7 +3494,6 @@ const mcpHandler = createMcpHandler(
       },
       async () => {
         try {
-          const { getProvider } = await import("@/lib/providers");
           const provider = getProvider();
           const response = await provider.listModels();
           const data = await response.json();
@@ -3621,7 +3625,6 @@ const mcpHandler = createMcpHandler(
           });
           if (!deduction.success) throw new Error("Insufficient credits");
 
-          const { getElevenLabsService } = await import("@/lib/services/elevenlabs");
           const elevenLabs = await getElevenLabsService();
           const audioBuffer = await elevenLabs.textToSpeech(text, voiceId || "21m00Tcm4TlvDq8ikWAM");
           const { uploadFromBuffer } = await import("@/lib/blob");
@@ -3648,7 +3651,6 @@ const mcpHandler = createMcpHandler(
       },
       async () => {
         try {
-          const { getElevenLabsService } = await import("@/lib/services/elevenlabs");
           const elevenLabs = await getElevenLabsService();
           const voices = await elevenLabs.listVoices();
 
@@ -3683,7 +3685,6 @@ const mcpHandler = createMcpHandler(
       async ({ timeRange }) => {
         try {
           const { user } = getAuthContext();
-          const { analyticsService } = await import("@/lib/services/analytics");
           const overview = await analyticsService.getOverview(user.organization_id!, timeRange);
 
           return {
@@ -3717,7 +3718,6 @@ const mcpHandler = createMcpHandler(
       async () => {
         try {
           const { user } = getAuthContext();
-          const { apiKeysService } = await import("@/lib/services");
           const keys = await apiKeysService.listByOrganization(user.organization_id!);
 
           return {
@@ -3755,7 +3755,6 @@ const mcpHandler = createMcpHandler(
       async ({ name, description, rateLimit }) => {
         try {
           const { user } = getAuthContext();
-          const { apiKeysService } = await import("@/lib/services");
 
           const { apiKey, plainKey } = await apiKeysService.create({
             name,
@@ -3797,7 +3796,6 @@ const mcpHandler = createMcpHandler(
       async ({ apiKeyId }) => {
         try {
           const { user } = getAuthContext();
-          const { apiKeysService } = await import("@/lib/services");
           await apiKeysService.delete(apiKeyId, user.organization_id!);
 
           return {
@@ -3822,7 +3820,6 @@ const mcpHandler = createMcpHandler(
       async () => {
         try {
           const { user } = getAuthContext();
-          const { secureTokenRedemptionService } = await import("@/lib/services/token-redemption-secure");
           const balance = await secureTokenRedemptionService.getEarnedBalance(user.organization_id!);
           const pending = await secureTokenRedemptionService.getPendingRedemptions(user.organization_id!);
 
@@ -3944,7 +3941,6 @@ const mcpHandler = createMcpHandler(
       async ({ containerId }) => {
         try {
           const { user } = getAuthContext();
-          const { getContainer } = await import("@/lib/services");
           const container = await getContainer(containerId, user.organization_id!);
           if (!container) throw new Error("Container not found");
 
@@ -3975,7 +3971,6 @@ const mcpHandler = createMcpHandler(
       async ({ containerId }) => {
         try {
           const { user } = getAuthContext();
-          const { getContainer } = await import("@/lib/services");
           const container = await getContainer(containerId, user.organization_id!);
           if (!container) throw new Error("Container not found");
 
@@ -4008,7 +4003,6 @@ const mcpHandler = createMcpHandler(
       async ({ containerId, limit }) => {
         try {
           const { user } = getAuthContext();
-          const { getContainer } = await import("@/lib/services");
           const container = await getContainer(containerId, user.organization_id!);
           if (!container) throw new Error("Container not found");
 
@@ -4041,7 +4035,6 @@ const mcpHandler = createMcpHandler(
       async ({ scope, limit }) => {
         try {
           const { user } = getAuthContext();
-          const { userMcpsService } = await import("@/lib/services");
           const mcps = await userMcpsService.list({ organizationId: user.organization_id!, scope, limit, offset: 0 });
 
           return {
@@ -4074,7 +4067,6 @@ const mcpHandler = createMcpHandler(
       async ({ name, slug, description }) => {
         try {
           const { user } = getAuthContext();
-          const { userMcpsService } = await import("@/lib/services");
           const mcp = await userMcpsService.create({
             organization_id: user.organization_id!,
             user_id: user.id,
@@ -4106,7 +4098,6 @@ const mcpHandler = createMcpHandler(
       async ({ mcpId }) => {
         try {
           const { user } = getAuthContext();
-          const { userMcpsService } = await import("@/lib/services");
           await userMcpsService.delete(mcpId, user.organization_id!);
 
           return {
@@ -4131,7 +4122,6 @@ const mcpHandler = createMcpHandler(
       async () => {
         try {
           const { user } = getAuthContext();
-          const { roomsService } = await import("@/lib/services/agents/rooms");
           const rooms = await roomsService.getRoomsForEntity(user.id);
 
           return {
@@ -4162,7 +4152,6 @@ const mcpHandler = createMcpHandler(
       async ({ characterId }) => {
         try {
           const { user } = getAuthContext();
-          const { roomsService } = await import("@/lib/services/agents/rooms");
           const room = await roomsService.createRoom({
             userId: user.id,
             characterId: characterId || "b850bc30-45f8-0041-a00a-83df46d8555d",
@@ -4225,7 +4214,6 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
           if (name) {
-            const { usersService } = await import("@/lib/services");
             await usersService.update(user.id, { name });
           }
 
@@ -4253,7 +4241,6 @@ const mcpHandler = createMcpHandler(
       },
       async ({ pointsAmount, network }) => {
         try {
-          const { secureTokenRedemptionService } = await import("@/lib/services/token-redemption-secure");
           const quote = await secureTokenRedemptionService.getRedemptionQuote(pointsAmount, network);
 
           return {
@@ -4300,7 +4287,6 @@ const mcpHandler = createMcpHandler(
           });
           if (!deduction.success) throw new Error("Credit deduction failed");
 
-          const { containersService } = await import("@/lib/services");
           const container = await containersService.create({
             organization_id: user.organization_id!,
             name,
@@ -4343,7 +4329,6 @@ const mcpHandler = createMcpHandler(
       async ({ containerId }) => {
         try {
           const { user } = getAuthContext();
-          const { getContainer, deleteContainer } = await import("@/lib/services");
           const container = await getContainer(containerId, user.organization_id!);
           if (!container) throw new Error("Container not found");
 
@@ -4372,7 +4357,6 @@ const mcpHandler = createMcpHandler(
       async ({ containerId }) => {
         try {
           const { user } = getAuthContext();
-          const { getContainer } = await import("@/lib/services");
           const container = await getContainer(containerId, user.organization_id!);
           if (!container) throw new Error("Container not found");
 
@@ -4407,7 +4391,6 @@ const mcpHandler = createMcpHandler(
       async () => {
         try {
           const { user } = getAuthContext();
-          const { containersService } = await import("@/lib/services");
           const containers = await containersService.listByOrganization(user.organization_id!);
 
           return {
@@ -4439,8 +4422,6 @@ const mcpHandler = createMcpHandler(
       async () => {
         try {
           const { user } = getAuthContext();
-          const { organizationsService, redeemableEarningsService, agentBudgetService } = await import("@/lib/services");
-
           const org = await organizationsService.getById(user.organization_id!);
           if (!org) throw new Error("Organization not found");
 
@@ -4555,7 +4536,6 @@ const mcpHandler = createMcpHandler(
       async ({ days }) => {
         try {
           const { user } = getAuthContext();
-          const { usageService } = await import("@/lib/services");
           const usage = await usageService.listByOrganization(user.organization_id!, 1000);
 
           const cutoffTime = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -4595,7 +4575,7 @@ const mcpHandler = createMcpHandler(
     // Tools for discovering and searching services on the decentralized registry
     // =========================================================================
 
-    // Tool: Discover Services - Search the unified discovery API
+    // Tool: Discover Services - Search the discovery API
     server.registerTool(
       "discover_services",
       {
@@ -4622,12 +4602,6 @@ const mcpHandler = createMcpHandler(
       },
       async ({ query, types, sources, categories, tags, mcpTools, a2aSkills, x402Only, limit }) => {
         try {
-          const { agent0Service } = await import("@/lib/services/agent0");
-          const { userMcpsService } = await import("@/lib/services/user-mcps");
-          const { characterMarketplaceService } = await import("@/lib/services/characters/marketplace");
-          const { getDefaultNetwork, CHAIN_IDS } = await import("@/lib/config/erc8004");
-          const { agent0ToDiscoveredService } = await import("@/lib/types/erc8004");
-
           const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
           const services: Array<{
             id: string;
@@ -4748,10 +4722,6 @@ const mcpHandler = createMcpHandler(
       },
       async ({ agentId }) => {
         try {
-          const { agent0Service } = await import("@/lib/services/agent0");
-          const { getDefaultNetwork, CHAIN_IDS } = await import("@/lib/config/erc8004");
-          const { agent0ToDiscoveredService } = await import("@/lib/types/erc8004");
-
           const agent = await agent0Service.getAgentCached(agentId);
           if (!agent) {
             return {
@@ -4796,9 +4766,6 @@ const mcpHandler = createMcpHandler(
       },
       async ({ tools, x402Only }) => {
         try {
-          const { agent0Service } = await import("@/lib/services/agent0");
-          const { getDefaultNetwork, CHAIN_IDS } = await import("@/lib/config/erc8004");
-
           const network = getDefaultNetwork();
           const chainId = CHAIN_IDS[network];
 
@@ -4850,9 +4817,6 @@ const mcpHandler = createMcpHandler(
       },
       async ({ skills, x402Only }) => {
         try {
-          const { agent0Service } = await import("@/lib/services/agent0");
-          const { getDefaultNetwork, CHAIN_IDS } = await import("@/lib/config/erc8004");
-
           const network = getDefaultNetwork();
           const chainId = CHAIN_IDS[network];
 

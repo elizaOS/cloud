@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
-import { creditsService, organizationsService } from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
+import { organizationsService } from "@/lib/services/organizations";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
 import type Stripe from "stripe";

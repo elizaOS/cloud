@@ -7,7 +7,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { adminService, agentReputationService } from "@/lib/services";
+import { adminService } from "@/lib/services/admin";
+import { agentReputationService } from "@/lib/services/agent-reputation";
 import { logger } from "@/lib/utils/logger";
 
 interface RouteContext {

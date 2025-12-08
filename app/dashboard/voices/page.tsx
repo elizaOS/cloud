@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { requireAuthWithOrg } from "@/lib/auth";
+import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { VoicePageClient } from "@/components/voices/voice-page-client";
-import { organizationsService } from "@/lib/services";
+import { organizationsService } from "@/lib/services/organizations";
 import type { Voice } from "@/components/voices/types";
 
 export const dynamic = "force-dynamic";
@@ -22,8 +23,6 @@ export default async function VoicesPage() {
   const user = await requireAuthWithOrg();
 
   // Fetch user's voices directly from service (server-side)
-  const { voiceCloningService } = await import("@/lib/services/voice-cloning");
-
   const userVoices = await voiceCloningService.getUserVoices({
     organizationId: user.organization_id,
     includeInactive: false,

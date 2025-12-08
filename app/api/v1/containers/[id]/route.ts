@@ -11,10 +11,10 @@ import {
   deleteContainer,
   updateContainerStatus,
   containersService,
-} from "@/lib/services";
+} from "@/lib/services/containers";
 import { cloudFormationService } from "@/lib/services/cloudformation";
 import { dbPriorityManager } from "@/lib/services/alb-priority-manager";
-import { creditsService } from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
 import { calculateDeploymentCost } from "@/lib/constants/pricing";
 
 export const dynamic = "force-dynamic";

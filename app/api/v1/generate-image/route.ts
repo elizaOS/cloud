@@ -4,12 +4,10 @@ import {
   getAnonymousUser,
   getOrCreateAnonymousUser,
 } from "@/lib/auth-anonymous";
-import {
-  usageService,
-  creditsService,
-  generationsService,
-  discordService,
-} from "@/lib/services";
+import { usageService } from "@/lib/services/usage";
+import { creditsService } from "@/lib/services/credits";
+import { generationsService } from "@/lib/services/generations";
+import { discordService } from "@/lib/services/discord";
 import { IMAGE_GENERATION_COST } from "@/lib/pricing";
 import { uploadBase64Image } from "@/lib/blob";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";

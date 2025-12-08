@@ -17,7 +17,7 @@ import { getThemeCSSVariables } from "@/lib/config/affiliate-themes";
 import { useRenderTracker } from "@/lib/debug/render-tracker";
 
 /**
- * Unified chat interface component with dynamic theming and message limit enforcement.
+ * Chat interface component with dynamic theming and message limit enforcement.
  * Wraps ElizaChatInterface with session management, signup prompts, and affiliate theming.
  *
  * @param props - Chat interface configuration

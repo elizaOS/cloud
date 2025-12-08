@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
-import { voiceCloningService, usageService } from "@/lib/services";
+import { voiceCloningService } from "@/lib/services/voice-cloning";
+import { usageService } from "@/lib/services/usage";
 import { db } from "@/db/client";
 import { userVoices } from "@/db/schemas/user-voices";
 import { eq } from "drizzle-orm";

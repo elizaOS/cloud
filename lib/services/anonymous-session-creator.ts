@@ -7,7 +7,7 @@
 
 import { db } from "@/db/client";
 import { users } from "@/db/schemas";
-import { anonymousSessionsService } from "@/lib/services";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { logger } from "@/lib/utils/logger";
 
 export interface CreateAnonymousUserAndSessionParams {

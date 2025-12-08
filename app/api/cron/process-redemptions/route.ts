@@ -17,7 +17,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
-import { payoutProcessorService } from "@/lib/services";
+import { payoutProcessorService } from "@/lib/services/payout-processor";
 import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 120; // 2 minutes max for processing

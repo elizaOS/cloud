@@ -1,5 +1,5 @@
 /**
- * Agent Runtime Manager - Simplified facade for backward compatibility
+ * Agent Runtime Manager - Simplified facade
  * Now delegates to RuntimeFactory and MessageHandler for cleaner architecture
  */
 
@@ -9,8 +9,6 @@ import { createMessageHandler, type MessageResult } from "./message-handler";
 import { userContextService, type UserContext } from "./user-context";
 import { AgentMode } from "./agent-mode-types";
 import { logger } from "@/lib/utils/logger";
-
-// Legacy compatibility layer
 class AgentRuntimeManager {
   private static instance: AgentRuntimeManager;
 
@@ -34,7 +32,7 @@ class AgentRuntimeManager {
   }
 
   /**
-   * Get default runtime (for backward compatibility)
+   * Get default runtime
    * Creates a system context runtime with CHAT mode - CACHED to avoid expensive re-initialization
    */
   async getRuntime(): Promise<AgentRuntime> {
@@ -66,7 +64,7 @@ class AgentRuntimeManager {
   }
 
   /**
-   * Get runtime for a specific character (for backward compatibility)
+   * Get runtime for a specific character
    * Uses CHAT mode by default
    */
   async getRuntimeForCharacter(characterId?: string): Promise<AgentRuntime> {
@@ -83,7 +81,6 @@ class AgentRuntimeManager {
 
   /**
    * Handle message - Main entry point for processing messages
-   * This method maintains backward compatibility while using the new architecture
    * Uses CHAT mode by default
    * Note: entityId is now derived from userContext.userId inside MessageHandler
    */
@@ -105,7 +102,7 @@ class AgentRuntimeManager {
       hasUserSettings: !!userSettings,
     });
 
-    // Build user context from settings (backward compatibility)
+    // Build user context from settings
     let userContext: UserContext;
 
     if (userSettings?.userId && userSettings?.apiKey) {
@@ -147,5 +144,5 @@ class AgentRuntimeManager {
   }
 }
 
-// Export singleton instance for backward compatibility
+// Export singleton instance
 export const agentRuntime = AgentRuntimeManager.getInstance();

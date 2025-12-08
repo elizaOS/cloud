@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { apiKeysService } from "@/lib/services";
+import { apiKeysService } from "@/lib/services/api-keys";
 import { ApiKeysPage as ApiKeysPageView } from "@/components/api-keys/api-keys-page";
 import type {
   ApiKeyDisplay,

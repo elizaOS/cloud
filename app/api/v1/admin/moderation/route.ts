@@ -14,7 +14,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { adminService } from "@/lib/services";
+import { adminService } from "@/lib/services/admin";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 

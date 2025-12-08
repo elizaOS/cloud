@@ -1,7 +1,7 @@
 /**
  * Mobile API Client
  * 
- * Provides a unified API client that works in both web and mobile (Tauri) contexts.
+ * Provides an API client that works in both web and mobile (Tauri) contexts.
  * In mobile builds, all API calls are routed to elizacloud.ai.
  * In web builds, calls go to the current origin.
  */

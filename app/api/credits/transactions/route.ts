@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { creditsService } from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 /**

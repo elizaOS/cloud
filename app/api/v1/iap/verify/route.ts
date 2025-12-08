@@ -15,7 +15,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { creditsService } from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
 import { getProductById, getNetRevenue } from "@/lib/config/iap-products";
 import { logger } from "@/lib/utils/logger";
 

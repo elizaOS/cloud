@@ -17,12 +17,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { creditsService } from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
 import { charactersService } from "@/lib/services/characters/characters";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import { calculateCost, getProviderFromModel, estimateRequestCost } from "@/lib/pricing";
 import { X402_ENABLED, isX402Configured } from "@/lib/config/x402";
+import { agentMonetizationService } from "@/lib/services/agent-monetization";
 import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 60;
@@ -427,8 +428,6 @@ async function handleToolCall(
     // Credit the creator
     // IMPORTANT: This goes to REDEEMABLE EARNINGS (for elizaOS token redemption)
     if (character.monetization_enabled && actualCreatorMarkup > 0) {
-      const { agentMonetizationService } = await import("@/lib/services/agent-monetization");
-      
       await agentMonetizationService.recordCreatorEarnings({
         agentId: character.id,
         agentName: character.name,

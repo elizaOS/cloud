@@ -8,9 +8,13 @@ import {
   type NewUserCharacter,
 } from "@/db/repositories";
 import { agentsRepository } from "@/db/repositories/agents/agents";
+import { usersService } from "../users";
+import { logger } from "@/lib/utils/logger";
+import { db } from "@/db/client";
+import { elizaRoomCharactersTable } from "@/db/schemas";
+import { eq, and } from "drizzle-orm";
 import type { ElizaCharacter } from "@/lib/types";
 import type { Agent } from "@elizaos/core";
-import type { ElizaCharacter } from "@/lib/types";
 
 /**
  * Service for character CRUD operations.
@@ -233,7 +237,6 @@ export class CharactersService {
     }
 
     // Get the owner user
-    const { usersService } = await import("../users");
     const owner = await usersService.getById(character.user_id);
 
     if (!owner) {
@@ -270,10 +273,6 @@ export class CharactersService {
     userId: string,
     organizationId: string,
   ): Promise<{ success: boolean; message: string }> {
-    const { logger } = await import("@/lib/utils/logger");
-    const { db } = await import("@/db/client");
-    const { elizaRoomCharactersTable } = await import("@/db/schemas");
-    const { eq, and } = await import("drizzle-orm");
 
     // Verify character is claimable
     const claimCheck = await this.isClaimableAffiliateCharacter(characterId);

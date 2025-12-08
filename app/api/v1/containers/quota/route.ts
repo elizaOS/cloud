@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { listContainers } from "@/lib/services";
+import { listContainers } from "@/lib/services/containers";
 import {
   CONTAINER_PRICING,
   CONTAINER_LIMITS,

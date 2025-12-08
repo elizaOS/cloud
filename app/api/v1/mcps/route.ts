@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { userMcpsService } from "@/lib/services";
+import { userMcpsService } from "@/lib/services/user-mcps";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";

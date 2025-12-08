@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { generationsService } from "@/lib/services";
+import { generationsService } from "@/lib/services/generations";
 
 export const dynamic = "force-dynamic";
 
