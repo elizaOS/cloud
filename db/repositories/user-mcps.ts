@@ -215,6 +215,50 @@ export const userMcpsRepository = {
       .where(eq(userMcps.organization_id, organizationId));
     return Number(result?.count ?? 0);
   },
+
+  /**
+   * List MCPs registered on ERC-8004
+   */
+  async listERC8004Registered(options: {
+    network?: string;
+    limit?: number;
+    offset?: number;
+  } = {}): Promise<UserMcp[]> {
+    const { network, limit = 100, offset = 0 } = options;
+
+    const conditions = [eq(userMcps.erc8004_registered, true)];
+
+    if (network) {
+      conditions.push(eq(userMcps.erc8004_network, network));
+    }
+
+    return db
+      .select()
+      .from(userMcps)
+      .where(and(...conditions))
+      .orderBy(desc(userMcps.erc8004_registered_at))
+      .limit(limit)
+      .offset(offset);
+  },
+
+  /**
+   * Get MCP by ERC-8004 agent ID
+   */
+  async getByERC8004AgentId(
+    network: string,
+    agentId: number
+  ): Promise<UserMcp | null> {
+    const [mcp] = await db
+      .select()
+      .from(userMcps)
+      .where(
+        and(
+          eq(userMcps.erc8004_network, network),
+          eq(userMcps.erc8004_agent_id, agentId)
+        )
+      );
+    return mcp ?? null;
+  },
 };
 
 /**

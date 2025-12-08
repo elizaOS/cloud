@@ -24,6 +24,7 @@ import {
 import { X402_ENABLED } from "@/lib/config/x402";
 import { logger } from "@/lib/utils/logger";
 import type { UserCharacter } from "@/db/schemas/user-characters";
+import type { UserMcp } from "@/db/schemas/user-mcps";
 
 // Lazy import agent0-sdk to avoid JSON import issues during initial load
 let SDK: typeof import("agent0-sdk").SDK | null = null;
@@ -54,6 +55,20 @@ export interface AgentRegistrationResult {
   network: ERC8004Network;
   a2aEndpoint: string;
   mcpEndpoint: string;
+}
+
+export interface MCPRegistrationParams {
+  mcp: UserMcp;
+  network?: ERC8004Network;
+}
+
+export interface MCPRegistrationResult {
+  success: boolean;
+  agentId: string; // Format: "chainId:tokenId"
+  agentUri: string; // IPFS or HTTP URI
+  network: ERC8004Network;
+  mcpEndpoint: string;
+  txHash?: string;
 }
 
 export interface AgentCardData {
@@ -278,6 +293,123 @@ class AgentRegistryService {
   }
 
   /**
+   * Register an MCP server on ERC-8004
+   *
+   * This mints an NFT on the Identity Registry for the MCP server,
+   * making it discoverable by other AI agents across the ecosystem.
+   *
+   * Eliza Cloud pays the gas fees for registration.
+   */
+  async registerMCP(
+    params: MCPRegistrationParams
+  ): Promise<MCPRegistrationResult> {
+    const { mcp } = params;
+    const network = params.network || getDefaultNetwork();
+
+    logger.info("[AgentRegistry] Registering MCP on ERC-8004", {
+      mcpId: mcp.id,
+      name: mcp.name,
+      network,
+    });
+
+    const sdk = await this.ensureSDK(network);
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+
+    // Construct MCP endpoint
+    const mcpEndpoint =
+      mcp.endpoint_type === "external" && mcp.external_endpoint
+        ? mcp.external_endpoint
+        : `${baseUrl}/api/mcp/${mcp.slug}`;
+
+    // Create agent in SDK (MCPs are registered as "agents" with MCP capabilities)
+    const agent = sdk.createAgent(
+      mcp.name,
+      mcp.description,
+      `${baseUrl}/api/mcp/${mcp.slug}/icon` // Default icon endpoint
+    );
+
+    // Set MCP endpoint (no A2A for pure MCP servers)
+    await agent.setMCP(mcpEndpoint);
+
+    // Configure trust and metadata based on MCP pricing
+    const supportsX402 = mcp.x402_enabled;
+    agent.setTrust(true, supportsX402, false);
+
+    // Extract tool names for the registry
+    const toolNames = (mcp.tools || []).map((tool) => tool.name);
+
+    agent.setMetadata({
+      version: mcp.version,
+      category: mcp.category,
+      tags: mcp.tags || [],
+      platform: "eliza-cloud",
+      serviceType: "mcp",
+      mcpId: mcp.id,
+      creatorOrganizationId: mcp.organization_id,
+      pricingType: mcp.pricing_type,
+      creditsPerRequest: mcp.credits_per_request,
+      toolCount: toolNames.length,
+      tools: toolNames,
+    });
+    agent.setActive(true);
+
+    // Add tools as MCP capabilities
+    for (const tool of mcp.tools || []) {
+      agent.addMCPTool(tool.name, false);
+    }
+
+    // Add domain based on category
+    const categoryToDomain: Record<string, string> = {
+      utilities: "technology/software_development",
+      ai: "technology/artificial_intelligence",
+      productivity: "technology/software_development",
+      finance: "finance_and_business/financial_services",
+      social: "technology/social_media",
+      gaming: "arts_entertainment/gaming",
+      creative: "arts_entertainment/creative_industries",
+    };
+    const domain = categoryToDomain[mcp.category];
+    if (domain) {
+      agent.addDomain(domain, false);
+    }
+
+    // Register on-chain
+    let agentId: string;
+    let agentUri: string;
+
+    if (process.env.PINATA_JWT) {
+      const result = await agent.registerIPFS();
+      agentId = result.agentId;
+      agentUri = result.agentURI;
+    } else {
+      // Use HTTP registration
+      const registrationUrl = `${baseUrl}/api/mcp/${mcp.slug}/registration.json`;
+      await agent.registerHTTP(registrationUrl);
+      agentId = `${CHAIN_IDS[network]}:?`;
+      agentUri = registrationUrl;
+    }
+
+    const tokenId = agentId.split(":")[1];
+
+    logger.info("[AgentRegistry] MCP registered successfully", {
+      mcpId: mcp.id,
+      agentId,
+      agentUri,
+      network,
+      tokenId,
+    });
+
+    return {
+      success: true,
+      agentId,
+      agentUri,
+      network,
+      mcpEndpoint,
+    };
+  }
+
+  /**
    * Generate A2A Agent Card for a character
    */
   generateAgentCard(
@@ -392,6 +524,27 @@ class AgentRegistryService {
    */
   getMCPEndpoint(characterId: string, baseUrl: string): string {
     return `${baseUrl}/api/agents/${characterId}/mcp`;
+  }
+
+  /**
+   * Check if MCP is registered on ERC-8004
+   */
+  isMCPRegistered(mcp: UserMcp): boolean {
+    return (
+      mcp.erc8004_registered &&
+      mcp.erc8004_agent_id !== null &&
+      mcp.erc8004_network !== null
+    );
+  }
+
+  /**
+   * Get the full agent ID (chainId:tokenId) for an MCP
+   */
+  getMCPAgentId(mcp: UserMcp): string | null {
+    if (!this.isMCPRegistered(mcp)) return null;
+
+    const network = mcp.erc8004_network as ERC8004Network;
+    return `${CHAIN_IDS[network]}:${mcp.erc8004_agent_id}`;
   }
 }
 
