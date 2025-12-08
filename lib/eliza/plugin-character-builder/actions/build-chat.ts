@@ -10,6 +10,7 @@ import {
   parseKeyValueXml,
   ModelType,
 } from "@elizaos/core";
+import { cleanPrompt } from "../../shared/utils/helpers";
 
 /**
  * CHAT ACTION - Natural conversation in build mode context
@@ -68,10 +69,9 @@ You are in BUILD MODE. The user is chatting without requesting any character upd
 ## Current Character:
 {{agentName}}
 
-# Conversation Context:
 {{messageExamples}}
 {{sessionSummaries}}
-{{recentMessages}}
+{{conversationLog}}
 {{longTermMemories}}
 {{receivedMessageHeader}}`;
 
@@ -119,18 +119,18 @@ export const buildChatAction = {
       const originalSystemPrompt = runtime.character.system;
 
       // First system prompt
-      const systemPrompt = composePromptFromState({
+      const systemPrompt = cleanPrompt(composePromptFromState({
         state,
         template: buildModeChatPrompt,
-      });
+      }));
 
       runtime.character.system = systemPrompt;
 
       // Compose chat prompt with character identity and build context
-      const prompt = composePromptFromState({
+      const prompt = cleanPrompt(composePromptFromState({
         state,
         template: chatPromptTemplate,
-      });
+      }));
 
       const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
 
@@ -150,7 +150,7 @@ export const buildChatAction = {
         return;
       }
 
-      logger.info("[BUILD_CHAT] ✅ Response generated successfully");
+      logger.debug("[BUILD_CHAT] Response generated successfully");
 
       // Callback to frontend with conversational response
       await callback({
