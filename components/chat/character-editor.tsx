@@ -54,7 +54,7 @@ export function CharacterEditor({
   const tabs: TabItem[] = [
     {
       value: "character",
-      label: "Character",
+      label: "Agent",
       icon: <Sparkles className="h-4 w-4" />,
     },
     {
@@ -101,7 +101,7 @@ export function CharacterEditor({
       <div className="flex-shrink-0 border-b border-white/10 px-6 py-4">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-white">Character Builder</h2>
+            <h2 className="text-xl font-bold text-white">Agent Builder</h2>
             <Zap
               className={cn([
                 mode === "chat" ? "text-[#FF5800]" : "text-[#E500FF]",

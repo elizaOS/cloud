@@ -101,7 +101,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
       <CornerBrackets size="sm" className="opacity-50" />
 
       <div className="relative z-10 space-y-6">
-        <h3 className="text-lg font-bold text-white">Character Details</h3>
+        <h3 className="text-lg font-bold text-white">Agent Details</h3>
 
         <BrandTabs
           id="character-form-tabs"
