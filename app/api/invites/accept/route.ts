@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuth } from "@/lib/auth";
 import { invitesService } from "@/lib/services/invites";
 import { z } from "zod";
@@ -40,7 +41,7 @@ async function handlePOST(request: NextRequest) {
       message: "Invitation accepted successfully",
     });
   } catch (error) {
-    console.error("Error accepting invite:", error);
+    logger.error("Error accepting invite:", error);
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(

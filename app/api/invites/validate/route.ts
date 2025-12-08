@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { invitesService } from "@/lib/services/invites";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
@@ -48,7 +49,7 @@ async function handleGET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Error validating invite token:", error);
+    logger.error("Error validating invite token:", error);
 
     return NextResponse.json(
       {

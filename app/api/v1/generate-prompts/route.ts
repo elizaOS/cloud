@@ -1,4 +1,5 @@
 import { openai } from "@ai-sdk/openai";
+import { logger } from "@/lib/utils/logger";
 import { streamText } from "ai";
 import { requireAuth } from "@/lib/auth";
 
@@ -74,7 +75,7 @@ Random seed: ${randomSeed}`,
 
     return result.toTextStreamResponse();
   } catch (error) {
-    console.error("[Generate Prompts] Error:", error);
+    logger.error("[Generate Prompts] Error:", error);
     return new Response(
       JSON.stringify({
         error: "Failed to generate prompts",

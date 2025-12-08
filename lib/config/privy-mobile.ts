@@ -6,6 +6,7 @@
  */
 
 import { isMobileApp, isIOS, isAndroid } from "@/lib/api/mobile-client";
+import { logger } from "@/lib/utils/logger";
 import type { PrivyClientConfig } from "@privy-io/react-auth";
 
 /**
@@ -135,7 +136,7 @@ export function isWebView(): boolean {
 export function handleMobileOAuthCallback(url: string): void {
   if (!isMobileApp()) return;
   
-  console.log("[Privy Mobile] OAuth callback:", url);
+  logger.info("[Privy Mobile] OAuth callback:", url);
   
   // The Tauri app should have handled this via deep links
   // This function can be used for additional processing if needed

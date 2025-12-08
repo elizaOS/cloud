@@ -144,7 +144,7 @@ export class CharactersService {
       | Record<string, unknown>
       | undefined;
     const affiliateData = characterData?.affiliate as
-      | Record<string, unknown>
+      | { vibe?: string; affiliateId?: string; [key: string]: unknown }
       | undefined;
 
     // Also extract lore data which contains full social media posts

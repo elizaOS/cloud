@@ -14,6 +14,7 @@ import { invitesService } from "@/lib/services/invites";
 import { discordService } from "@/lib/services/discord";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { creditsService } from "@/lib/services/credits";
+import { organizationInvitesRepository } from "@/db/repositories";
 import { abuseDetectionService, type SignupContext } from "@/lib/services/abuse-detection";
 import type { UserWithOrganization } from "@/lib/types";
 
@@ -122,22 +123,18 @@ export async function syncUserFromPrivy(
 
   if (privyUser.linkedAccounts) {
     for (const account of privyUser.linkedAccounts) {
-      // Check for wallet account types
+      // Check for wallet account types (Privy uses "wallet" type with chainType field)
       if (
-        (account.type === "wallet" ||
-          account.type === "ethereum_wallet" ||
-          account.type === "solana_wallet") &&
+        account.type === "wallet" &&
         "address" in account &&
         typeof account.address === "string"
       ) {
         walletAddress = account.address.toLowerCase();
-        // Determine chain type from account type or chainType field
+        // Determine chain type from chainType field
         if ("chainType" in account && typeof account.chainType === "string") {
           walletChainType = account.chainType.includes("solana")
             ? "solana"
             : "ethereum";
-        } else if (account.type === "solana_wallet") {
-          walletChainType = "solana";
         } else {
           walletChainType = "ethereum";
         }
@@ -159,9 +156,9 @@ export async function syncUserFromPrivy(
     );
   }
 
-  // Extract name from various sources
-  let name = privyUser.name;
-  if (!name && privyUser.linkedAccounts) {
+  // Extract name from linked accounts (Privy User doesn't have top-level name)
+  let name: string | null | undefined;
+  if (privyUser.linkedAccounts) {
     for (const account of privyUser.linkedAccounts) {
       // Prioritize OAuth provider names
       if (
@@ -237,8 +234,6 @@ export async function syncUserFromPrivy(
         is_active: true,
       });
 
-      const { organizationInvitesRepository } =
-        await import("@/db/repositories");
       await organizationInvitesRepository.markAsAccepted(
         pendingInvite.id,
         newUser.id,

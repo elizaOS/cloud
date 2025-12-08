@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { creditsService } from "@/lib/services/credits";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -69,7 +70,7 @@ async function handleGET(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Error fetching transactions:", error);
+    logger.error("Error fetching transactions:", error);
 
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

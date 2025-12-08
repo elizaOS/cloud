@@ -201,12 +201,12 @@ export class RuntimeFactory {
   private ensureRuntimeLogger(runtime: AgentRuntime): void {
     if (!runtime.logger?.log) {
       runtime.logger = {
-        log: console.log.bind(console),
+        log: logger.info.bind(console),
         info: console.info.bind(console),
         warn: console.warn.bind(console),
         error: console.error.bind(console),
         debug: console.debug.bind(console),
-        success: (message: string) => console.log(`✓ ${message}`),
+        success: (message: string) => logger.info(`✓ ${message}`),
         notice: console.info.bind(console),
       } as Logger & { notice: typeof console.info };
     }
@@ -214,20 +214,20 @@ export class RuntimeFactory {
 
   private initializeLoggers(): void {
     if (elizaLogger) {
-      elizaLogger.log = console.log.bind(console);
+      elizaLogger.log = logger.info.bind(console);
       elizaLogger.info = console.info.bind(console);
       elizaLogger.warn = console.warn.bind(console);
       elizaLogger.error = console.error.bind(console);
       elizaLogger.debug = console.debug.bind(console);
       elizaLogger.success = (obj: string | Error | Record<string, unknown>, msg?: string) => {
-        console.log(typeof obj === "string" ? `✓ ${obj}` : ["✓", obj, msg]);
+        logger.info(typeof obj === "string" ? `✓ ${obj}` : ["✓", obj, msg]);
       };
     }
 
     if (typeof globalThis !== "undefined" && !globalAny.logger) {
       globalAny.logger = {
         level: "info",
-        log: console.log.bind(console),
+        log: logger.info.bind(console),
         trace: console.trace.bind(console),
         debug: console.debug.bind(console),
         info: console.info.bind(console),
@@ -235,9 +235,9 @@ export class RuntimeFactory {
         error: console.error.bind(console),
         fatal: console.error.bind(console),
         success: (obj: string | Error | Record<string, unknown>, msg?: string) => {
-          console.log(typeof obj === "string" ? `✓ ${obj}` : ["✓", obj, msg]);
+          logger.info(typeof obj === "string" ? `✓ ${obj}` : ["✓", obj, msg]);
         },
-        progress: console.log.bind(console),
+        progress: logger.info.bind(console),
         clear: () => console.clear(),
         child: () => globalAny.logger!,
       };

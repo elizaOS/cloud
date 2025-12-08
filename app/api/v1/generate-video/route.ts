@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { fal } from "@fal-ai/client";
 import type { QueueStatus } from "@fal-ai/client";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
@@ -50,7 +51,7 @@ async function handlePOST(request: NextRequest) {
       await requireAuthOrApiKeyWithOrg(request);
 
     if (!process.env.FAL_KEY) {
-      console.error("[VIDEO GENERATION] FAL_KEY is not configured");
+      logger.error("[VIDEO GENERATION] FAL_KEY is not configured");
       return NextResponse.json(
         { error: "Video generation service is not configured" },
         { status: 503 },
@@ -116,7 +117,7 @@ async function handlePOST(request: NextRequest) {
     const data = result.data as FalVideoData;
 
     if (!data?.video?.url) {
-      console.error("[VIDEO GENERATION] No video URL in response:", data);
+      logger.error("[VIDEO GENERATION] No video URL in response:", data);
       return NextResponse.json(
         { error: "No video URL was returned from the generation service" },
         { status: 500 },
@@ -159,7 +160,7 @@ async function handlePOST(request: NextRequest) {
         `[VIDEO GENERATION] Uploaded to Vercel Blob: ${blobUrl} (${blobFileSize.toString()} bytes)`,
       );
     } catch (blobError) {
-      console.error(
+      logger.error(
         "[VIDEO GENERATION] Failed to upload to Vercel Blob:",
         blobError,
       );
@@ -180,7 +181,7 @@ async function handlePOST(request: NextRequest) {
 
     // FIXED: Fail the request if credit deduction fails to prevent revenue leak
     if (!deductionResult.success) {
-      console.error(
+      logger.error(
         "[VIDEO GENERATION] Failed to deduct credits - insufficient balance",
         {
           organizationId: user.organization_id!!,
@@ -265,7 +266,7 @@ async function handlePOST(request: NextRequest) {
       { status: 200 },
     );
   } catch (error) {
-    console.error("[VIDEO GENERATION] Error:", error);
+    logger.error("[VIDEO GENERATION] Error:", error);
 
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
@@ -288,7 +289,7 @@ async function handlePOST(request: NextRequest) {
       });
 
       if (!fallbackDeduction.success) {
-        console.error(
+        logger.error(
           "[VIDEO GENERATION] Failed to deduct fallback credits - insufficient balance",
         );
       }
@@ -334,7 +335,7 @@ async function handlePOST(request: NextRequest) {
         `[VIDEO GENERATION] Fallback cost: $${VIDEO_GENERATION_FALLBACK_COST.toFixed(2)}, New balance: $${fallbackDeduction.newBalance.toFixed(2)}`,
       );
     } catch (authError) {
-      console.error(
+      logger.error(
         "[VIDEO GENERATION] Auth error during fallback logging:",
         authError,
       );

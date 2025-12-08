@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     // Verify webhook signature
     const webhookSecret = process.env.PRIVY_WEBHOOK_SECRET;
     if (!webhookSecret) {
-      console.error("PRIVY_WEBHOOK_SECRET not configured");
+      logger.error("PRIVY_WEBHOOK_SECRET not configured");
       return NextResponse.json(
         { error: "Webhook not configured" },
         { status: 500 },
@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
       { status: 200 },
     );
   } catch (error) {
-    console.error("Webhook processing error:", error);
+    logger.error("Webhook processing error:", error);
 
     // Return 200 to prevent retries for processing errors
     // But log the error for debugging

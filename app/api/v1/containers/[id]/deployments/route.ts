@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { containersService } from "@/lib/services/containers";
 import { usageRecordsRepository } from "@/db/repositories/usage-records";
@@ -104,7 +105,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Error fetching deployment history:", error);
+    logger.error("Error fetching deployment history:", error);
     return NextResponse.json(
       {
         success: false,

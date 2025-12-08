@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { invoicesService } from "@/lib/services/invoices";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -74,7 +75,7 @@ async function handleGetInvoice(
 
     return NextResponse.json({ invoice: formattedInvoice });
   } catch (error) {
-    console.error("Error fetching invoice:", error);
+    logger.error("Error fetching invoice:", error);
 
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

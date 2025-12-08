@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { cookies } from "next/headers";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { getCurrentUser } from "@/lib/auth";
@@ -34,7 +35,7 @@ async function handlePOST(req: NextRequest) {
       { status: 200 },
     );
   } catch (error) {
-    console.error("Error during logout:", error);
+    logger.error("Error during logout:", error);
 
     return NextResponse.json(
       {

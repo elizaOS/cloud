@@ -76,7 +76,7 @@ export async function POST(
       expiresAt: result.expiresAt,
     });
   } catch (error) {
-    console.error("Error completing miniapp authentication:", error);
+    logger.error("Error completing miniapp authentication:", error);
 
     if (error instanceof Error) {
       if (

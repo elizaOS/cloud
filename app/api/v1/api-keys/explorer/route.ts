@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { apiKeysService } from "@/lib/services/api-keys";
 
@@ -77,7 +78,7 @@ export async function GET() {
       { status: 201 },
     );
   } catch (error) {
-    console.error("Error getting/creating explorer API key:", error);
+    logger.error("Error getting/creating explorer API key:", error);
 
     if (error instanceof Error && error.message.includes("Unauthorized")) {
       return NextResponse.json(

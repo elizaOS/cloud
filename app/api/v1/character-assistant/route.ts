@@ -1,4 +1,5 @@
 import { streamText, type UIMessage, convertToModelMessages } from "ai";
+import { logger } from "@/lib/utils/logger";
 import { requireAuth } from "@/lib/auth";
 import type { ElizaCharacter } from "@/lib/types";
 
@@ -128,7 +129,7 @@ export async function POST(request: Request) {
 
     return result.toUIMessageStreamResponse();
   } catch (error) {
-    console.error("Character assistant error:", error);
+    logger.error("Character assistant error:", error);
     return new Response(
       JSON.stringify({
         error: "Failed to process character assistant request",

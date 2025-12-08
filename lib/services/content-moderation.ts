@@ -477,7 +477,6 @@ class ContentModerationService {
    * Check if user should be blocked based on violation history (from DB)
    */
   async shouldBlockUser(userId: string): Promise<boolean> {
-    const { adminService } = await import("./admin");
     return adminService.shouldBlockUser(userId);
   }
 
@@ -485,7 +484,6 @@ class ContentModerationService {
    * Get violation count for a user (from DB)
    */
   async getViolationCount(userId: string): Promise<number> {
-    const { adminService } = await import("./admin");
     const status = await adminService.getUserModerationStatus(userId);
     return status?.totalViolations ?? 0;
   }
@@ -494,7 +492,6 @@ class ContentModerationService {
    * Get recent violations for admin view (from DB)
    */
   async getRecentViolations(limit = 100): Promise<ModerationViolation[]> {
-    const { adminService } = await import("./admin");
     const violations = await adminService.getRecentViolations(limit);
     return violations.map((v) => ({
       userId: v.userId,
@@ -511,7 +508,6 @@ class ContentModerationService {
    * Get violations for a specific user (from DB)
    */
   async getUserViolations(userId: string): Promise<ModerationViolation[]> {
-    const { adminService } = await import("./admin");
     const violations = await adminService.getUserViolations(userId);
     return violations.map((v) => ({
       userId: v.userId,
@@ -528,7 +524,6 @@ class ContentModerationService {
    * Reset violation count for a user (admin action)
    */
   async resetViolations(userId: string): Promise<void> {
-    const { adminService } = await import("./admin");
     await adminService.unbanUser(userId, "system");
   }
 
@@ -536,7 +531,6 @@ class ContentModerationService {
    * Get all users flagged for ban (from DB)
    */
   async getUsersFlaggedForBan(): Promise<string[]> {
-    const { adminService } = await import("./admin");
     const flagged = await adminService.getUsersFlaggedForReview();
     return flagged
       .filter((u) => u.totalViolations >= THRESHOLDS.FLAG_FOR_BAN_AFTER_VIOLATIONS)

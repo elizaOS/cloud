@@ -2,7 +2,6 @@ import { db } from "@/db/client";
 import { organizations } from "@/db/schemas/organizations";
 import { eq, and, lt, sql } from "drizzle-orm";
 import { stripe } from "@/lib/stripe";
-import { creditsService } from "./credits";
 import { organizationsRepository, usersRepository } from "@/db/repositories";
 import type { Organization } from "@/db/repositories";
 import { emailService } from "./email";

@@ -124,7 +124,7 @@ export const DEFAULT_MODEL_TIER: ModelTier = "pro";
  * @example
  * // Using tier name
  * const config = resolveModel("fast");
- * console.log(config.modelId); // "google/gemini-2.5-flash-lite"
+ * logger.info(config.modelId); // "google/gemini-2.5-flash-lite"
  *
  * // Using raw model ID (returns matching tier or creates custom config)
  * const config = resolveModel("anthropic/claude-sonnet-4.5");

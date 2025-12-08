@@ -1,6 +1,7 @@
 "use server";
 
 import { requireAuthWithOrg } from "@/lib/auth";
+import { logger } from "@/lib/utils/logger";
 import { generationsService } from "@/lib/services/generations";
 import { deleteBlob } from "@/lib/blob";
 import { revalidatePath } from "next/cache";
@@ -93,7 +94,7 @@ export async function deleteMedia(generationId: string): Promise<boolean> {
     try {
       await deleteBlob(generation.storage_url);
     } catch (error) {
-      console.error("Failed to delete from Vercel Blob:", error);
+      logger.error("Failed to delete from Vercel Blob:", error);
       // Continue anyway to mark as deleted in DB
     }
   }

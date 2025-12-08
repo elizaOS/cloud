@@ -189,7 +189,7 @@ export interface JSONRPCRequest<T = Record<string, unknown>> {
 export interface JSONRPCError {
   code: number;
   message: string;
-  data?: unknown;
+  data?: Record<string, unknown>;
 }
 
 export interface JSONRPCSuccessResponse<T = unknown> {
@@ -294,7 +294,7 @@ export function jsonRpcError(
   code: number,
   message: string,
   id: string | number | null,
-  data?: unknown
+  data?: Record<string, unknown>
 ): JSONRPCErrorResponse {
   return { jsonrpc: "2.0", error: { code, message, data }, id };
 }

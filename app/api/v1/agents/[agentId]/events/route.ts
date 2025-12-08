@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import {
   agentMonitoringService,
@@ -92,7 +93,7 @@ export async function GET(
       }
     );
   } catch (error) {
-    console.error("[Agent Events API] Error:", error);
+    logger.error("[Agent Events API] Error:", error);
 
     const message =
       error instanceof Error ? error.message : "Failed to fetch agent events";

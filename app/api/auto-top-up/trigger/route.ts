@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { autoTopUpService } from "@/lib/services/auto-top-up";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -76,7 +77,7 @@ async function handleTriggerAutoTopUp(req: NextRequest) {
       );
     }
   } catch (error) {
-    console.error("Error triggering auto top-up:", error);
+    logger.error("Error triggering auto top-up:", error);
 
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

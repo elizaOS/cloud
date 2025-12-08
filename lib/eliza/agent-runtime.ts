@@ -3,7 +3,7 @@
  * Now delegates to RuntimeFactory and MessageHandler for cleaner architecture
  */
 
-import { AgentRuntime } from "@elizaos/core";
+import { AgentRuntime, type Media } from "@elizaos/core";
 import { runtimeFactory } from "./runtime-factory";
 import { createMessageHandler, type MessageResult } from "./message-handler";
 import { userContextService, type UserContext } from "./user-context";
@@ -86,7 +86,7 @@ class AgentRuntimeManager {
    */
   public async handleMessage(
     roomId: string,
-    content: { text?: string; attachments?: unknown[] },
+    content: { text?: string; attachments?: Media[] },
     characterId?: string,
     userSettings?: {
       userId?: string;

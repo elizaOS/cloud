@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { logger } from "@/lib/utils/logger";
 import { NextRequest } from "next/server";
 
 export const runtime = "edge";
@@ -939,7 +940,7 @@ export async function GET(request: NextRequest) {
         );
     }
   } catch (error) {
-    console.error("Error generating OG image:", error);
+    logger.error("Error generating OG image:", error);
 
     return new ImageResponse(
       <div

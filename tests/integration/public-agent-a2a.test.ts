@@ -218,7 +218,7 @@ describe("Public Agent A2A Protocol", () => {
 
   describe("2. Authentication", () => {
     test("platform A2A without auth returns 401 or 402", async () => {
-      // Test platform A2A endpoint (doesn't require TEST_PUBLIC_AGENT_ID)
+      // Test platform A2A endpoint using message/send with skill
       const response = await fetchWithTimeout(
         `${config.apiUrl}/api/a2a`,
         {
@@ -226,8 +226,13 @@ describe("Public Agent A2A Protocol", () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             jsonrpc: "2.0",
-            method: "a2a.getBalance",
-            params: {},
+            method: "message/send",
+            params: {
+              message: {
+                role: "user",
+                parts: [{ type: "data", data: { skill: "check_balance" } }],
+              },
+            },
             id: 1,
           }),
         }
@@ -271,8 +276,13 @@ describe("Public Agent A2A Protocol", () => {
           },
           body: JSON.stringify({
             jsonrpc: "2.0",
-            method: "a2a.getBalance",
-            params: {},
+            method: "message/send",
+            params: {
+              message: {
+                role: "user",
+                parts: [{ type: "data", data: { skill: "check_balance" } }],
+              },
+            },
             id: 1,
           }),
         }
@@ -286,16 +296,17 @@ describe("Public Agent A2A Protocol", () => {
 
       expect(response.status).toBe(200);
       const data = (await response.json()) as JsonRpcResponse<{
-        balance: number;
+        status: { state: string };
       }>;
 
       expect(data.result).toBeDefined();
+      expect(data.result?.status.state).toBe("completed");
       console.log("✅ API key authentication works");
     });
   });
 
   describe("3. Chat Interaction", () => {
-    test("a2a.chatCompletion method structure is correct", async () => {
+    test("chat_completion skill requires authentication", async () => {
       // Test that unauthenticated chat returns proper auth error
       const response = await fetchWithTimeout(
         `${config.apiUrl}/api/a2a`,
@@ -304,10 +315,15 @@ describe("Public Agent A2A Protocol", () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             jsonrpc: "2.0",
-            method: "a2a.chatCompletion",
+            method: "message/send",
             params: {
-              model: "gpt-4o-mini",
-              messages: [{ role: "user", content: "Hello" }],
+              message: {
+                role: "user",
+                parts: [
+                  { type: "text", text: "Hello" },
+                  { type: "data", data: { skill: "chat_completion", model: "gpt-4o-mini" } },
+                ],
+              },
             },
             id: "test-chat-1",
           }),
@@ -322,7 +338,7 @@ describe("Public Agent A2A Protocol", () => {
 
       // Without auth, should return 401 or 402
       expect([401, 402]).toContain(response.status);
-      console.log("✅ Chat endpoint requires authentication");
+      console.log("✅ Chat skill requires authentication");
 
       // If we have API key, test actual chat
       if (config.apiKey) {
@@ -336,10 +352,15 @@ describe("Public Agent A2A Protocol", () => {
             },
             body: JSON.stringify({
               jsonrpc: "2.0",
-              method: "a2a.chatCompletion",
+              method: "message/send",
               params: {
-                model: "gpt-4o-mini",
-                messages: [{ role: "user", content: "Say hello in one word." }],
+                message: {
+                  role: "user",
+                  parts: [
+                    { type: "text", text: "Say hello in one word." },
+                    { type: "data", data: { skill: "chat_completion", model: "gpt-4o-mini" } },
+                  ],
+                },
               },
               id: "test-chat-2",
             }),
@@ -356,7 +377,7 @@ describe("Public Agent A2A Protocol", () => {
       }
     });
 
-    test("getAgentInfo method structure is correct", async () => {
+    test("list_agents skill requires authentication", async () => {
       // Test without API key - verify endpoint structure
       const response = await fetchWithTimeout(
         `${config.apiUrl}/api/a2a`,
@@ -365,8 +386,13 @@ describe("Public Agent A2A Protocol", () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             jsonrpc: "2.0",
-            method: "a2a.listAgents",
-            params: {},
+            method: "message/send",
+            params: {
+              message: {
+                role: "user",
+                parts: [{ type: "data", data: { skill: "list_agents" } }],
+              },
+            },
             id: "test-list-1",
           }),
         }
@@ -380,7 +406,7 @@ describe("Public Agent A2A Protocol", () => {
 
       // Without auth, should return 401 or 402
       expect([401, 402]).toContain(response.status);
-      console.log("✅ Agent methods require authentication");
+      console.log("✅ Agent skills require authentication");
 
       // If we have API key and agent ID, test specific agent
       if (config.apiKey && config.testAgentId) {

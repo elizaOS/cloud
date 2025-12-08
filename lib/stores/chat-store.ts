@@ -7,6 +7,7 @@
  */
 
 import { create } from "zustand";
+import type { RoomPreview } from "@/lib/services/agents/rooms";
 
 export interface RoomItem {
   id: string;
@@ -106,13 +107,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
         if (Array.isArray(data.rooms)) {
           const roomItems: RoomItem[] = data.rooms
             .slice(0, 20)
-            .map((r: Record<string, unknown>) => ({
-              id: r.id as string,
-              characterId: r.characterId as string | undefined,
-              characterName: r.characterName as string | undefined,
-              lastText: r.lastText as string | undefined,
-              lastTime: r.lastTime as number | undefined,
-              title: r.title as string | undefined,
+            .map((r: RoomPreview & { characterName?: string }) => ({
+              id: r.id,
+              characterId: r.characterId,
+              characterName: r.characterName,
+              lastText: r.lastText,
+              lastTime: r.lastTime,
+              title: r.title,
             }));
 
           const currentState = get();

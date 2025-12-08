@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { invoicesService } from "@/lib/services/invoices";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -51,7 +52,7 @@ async function handleListInvoices(req: NextRequest) {
       count: formattedInvoices.length,
     });
   } catch (error) {
-    console.error("Error listing invoices:", error);
+    logger.error("Error listing invoices:", error);
 
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

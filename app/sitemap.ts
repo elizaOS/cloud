@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { logger } from "@/lib/utils/logger";
 import { db } from "@/db/client";
 import { userCharacters } from "@/db/schemas/user-characters";
 import { eq } from "drizzle-orm";
@@ -125,7 +126,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     return [...staticPages, ...characterPages];
   } catch (error) {
-    console.error("Error generating sitemap:", error);
+    logger.error("Error generating sitemap:", error);
     return staticPages;
   }
 }

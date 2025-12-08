@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuth } from "@/lib/auth";
 import { apiKeysService } from "@/lib/services/api-keys";
 
@@ -66,7 +67,7 @@ export async function POST(
       { status: 200 },
     );
   } catch (error) {
-    console.error("Error regenerating API key:", error);
+    logger.error("Error regenerating API key:", error);
     return NextResponse.json(
       { error: "Failed to regenerate API key" },
       { status: 500 },

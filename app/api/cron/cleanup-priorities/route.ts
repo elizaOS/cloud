@@ -12,6 +12,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { dbPriorityManager } from "@/lib/services/alb-priority-manager";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
     const cronSecret = process.env.CRON_SECRET;
 
     if (!cronSecret) {
-      console.error("CRON_SECRET not configured");
+      logger.error("CRON_SECRET not configured");
       return NextResponse.json(
         {
           success: false,
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (authHeader !== `Bearer ${cronSecret}`) {
-      console.error("Invalid cron secret");
+      logger.error("Invalid cron secret");
       return NextResponse.json(
         {
           success: false,
@@ -76,7 +77,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Cron job error:", error);
+    logger.error("Cron job error:", error);
     return NextResponse.json(
       {
         success: false,
