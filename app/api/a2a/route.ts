@@ -68,68 +68,39 @@ import {
 
 export const maxDuration = 60;
 
-// ===== In-memory task store (replace with persistent storage for production) =====
+// ===== Redis-backed Task Store =====
+// Uses Redis for persistence across serverless instances
+// Falls back to in-memory when Redis is unavailable
 
-interface TaskStore {
-  task: Task;
-  userId: string;
-  organizationId: string;
-  createdAt: Date;
-  updatedAt: Date;
+import { a2aTaskStoreService, type TaskStoreEntry } from "@/lib/services/a2a-task-store";
+
+// Helper functions that delegate to the service
+// These are async wrappers for compatibility with existing code
+
+async function getTaskStore(taskId: string, organizationId: string): Promise<TaskStoreEntry | null> {
+  return a2aTaskStoreService.get(taskId, organizationId);
 }
 
-const taskStore = new Map<string, TaskStore>();
-
-// Clean up old tasks (older than 1 hour)
-setInterval(() => {
-  const oneHourAgo = new Date(Date.now() - 3600000);
-  for (const [id, store] of taskStore.entries()) {
-    if (store.updatedAt < oneHourAgo) {
-      taskStore.delete(id);
-    }
-  }
-}, 300000); // Run every 5 minutes
-
-// ===== Helper Functions =====
-
-function getTaskStore(taskId: string, organizationId: string): TaskStore | null {
-  const store = taskStore.get(taskId);
-  if (!store || store.organizationId !== organizationId) {
-    return null;
-  }
-  return store;
+async function updateTaskState(taskId: string, organizationId: string, state: TaskState, message?: Message): Promise<Task | null> {
+  return a2aTaskStoreService.updateTaskState(taskId, organizationId, state, message);
 }
 
-function updateTaskState(taskId: string, state: TaskState, message?: Message): Task | null {
-  const store = taskStore.get(taskId);
-  if (!store) return null;
-
-  store.task.status = createTaskStatus(state, message);
-  store.updatedAt = new Date();
-  return store.task;
+async function addArtifactToTask(taskId: string, organizationId: string, artifact: Artifact): Promise<Task | null> {
+  return a2aTaskStoreService.addArtifact(taskId, organizationId, artifact);
 }
 
-function addArtifactToTask(taskId: string, artifact: Artifact): Task | null {
-  const store = taskStore.get(taskId);
-  if (!store) return null;
-
-  if (!store.task.artifacts) {
-    store.task.artifacts = [];
-  }
-  store.task.artifacts.push(artifact);
-  store.updatedAt = new Date();
-  return store.task;
+async function addMessageToHistory(taskId: string, organizationId: string, message: Message): Promise<void> {
+  await a2aTaskStoreService.addMessageToHistory(taskId, organizationId, message);
 }
 
-function addMessageToHistory(taskId: string, message: Message): void {
-  const store = taskStore.get(taskId);
-  if (!store) return;
-
-  if (!store.task.history) {
-    store.task.history = [];
-  }
-  store.task.history.push(message);
-  store.updatedAt = new Date();
+async function storeTask(taskId: string, task: Task, userId: string, organizationId: string): Promise<void> {
+  await a2aTaskStoreService.set(taskId, {
+    task,
+    userId,
+    organizationId,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
 }
 
 // ===== Context Types =====
@@ -196,17 +167,11 @@ async function handleMessageSend(params: MessageSendParams, ctx: A2AContext): Pr
 
   const task = createTask(taskId, "working", undefined, contextId, metadata);
 
-  // Store the task
-  taskStore.set(taskId, {
-    task,
-    userId: ctx.user.id,
-    organizationId: ctx.user.organization_id,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
+  // Store the task in Redis-backed store
+  await storeTask(taskId, task, ctx.user.id, ctx.user.organization_id);
 
   // Add user message to history
-  addMessageToHistory(taskId, message);
+  await addMessageToHistory(taskId, ctx.user.organization_id, message);
 
   // Process the message based on content
   const result = await processA2AMessage(task, message, ctx, configuration);
@@ -422,19 +387,15 @@ async function processA2AMessage(
     responseMessage = createMessage("agent", [createTextPart(result.content)]);
   }
 
-  // Update task with response
+  // Update task with response in Redis-backed store
   task.status = createTaskStatus("completed", responseMessage);
-  addMessageToHistory(task.id, responseMessage);
+  await addMessageToHistory(task.id, ctx.user.organization_id, responseMessage);
   for (const artifact of artifacts) {
-    addArtifactToTask(task.id, artifact);
+    await addArtifactToTask(task.id, ctx.user.organization_id, artifact);
   }
 
-  // Update stored task
-  const store = taskStore.get(task.id);
-  if (store) {
-    store.task = task;
-    store.updatedAt = new Date();
-  }
+  // Update stored task state
+  await updateTaskState(task.id, ctx.user.organization_id, "completed", responseMessage);
 
   return task;
 }
@@ -1760,7 +1721,7 @@ async function executeSkillGetEcrCredentials(
 async function handleTasksGet(params: TaskGetParams, ctx: A2AContext): Promise<Task> {
   const { id, historyLength } = params;
 
-  const store = getTaskStore(id, ctx.user.organization_id);
+  const store = await getTaskStore(id, ctx.user.organization_id);
   if (!store) {
     throw new Error(`Task not found: ${id}`);
   }
@@ -1780,7 +1741,7 @@ async function handleTasksGet(params: TaskGetParams, ctx: A2AContext): Promise<T
 async function handleTasksCancel(params: TaskCancelParams, ctx: A2AContext): Promise<Task> {
   const { id } = params;
 
-  const store = getTaskStore(id, ctx.user.organization_id);
+  const store = await getTaskStore(id, ctx.user.organization_id);
   if (!store) {
     throw new Error(`Task not found: ${id}`);
   }
@@ -1791,8 +1752,8 @@ async function handleTasksCancel(params: TaskCancelParams, ctx: A2AContext): Pro
     throw new Error(`Task ${id} is already in terminal state: ${store.task.status.state}`);
   }
 
-  // Update task state
-  const task = updateTaskState(id, "canceled");
+  // Update task state in Redis-backed store
+  const task = await updateTaskState(id, ctx.user.organization_id, "canceled");
   if (!task) {
     throw new Error(`Failed to update task: ${id}`);
   }
