@@ -1,7 +1,9 @@
 /**
  * Character creator client component for creating and editing characters.
- * Provides form-based and JSON editor modes with build mode assistant integration.
- * Supports character creation, updates, and testing.
+ * 
+ * Two modes:
+ * - Blank state: Chat with Eliza to create a new character
+ * - Edit mode: Edit an existing character with form/JSON editor
  *
  * @param props - Character creator configuration
  * @param props.initialCharacters - Initial list of characters
@@ -11,7 +13,7 @@
 
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { JsonEditor } from "./json-editor";
 import { CharacterForm } from "@/components/character-builder";
@@ -52,13 +54,14 @@ export function CharacterCreatorClient({
 }: CharacterCreatorClientProps) {
   const router = useRouter();
 
+  // Determine if we're in creator mode (blank state) or edit mode
+  const isCreatorMode = !initialCharacterId;
+
   // Initialize character from URL parameter if provided
   const [character, setCharacter] = useState<ElizaCharacter>(() => {
     if (initialCharacterId) {
       const char = initialCharacters.find((c) => c.id === initialCharacterId);
-      if (char) {
-        return char;
-      }
+      if (char) return char;
     }
     return createDefaultCharacter();
   });
@@ -67,14 +70,20 @@ export function CharacterCreatorClient({
     initialCharacterId || null,
   );
   const [showAssistant, setShowAssistant] = useState(true);
-  const [hasAutoInitialized, setHasAutoInitialized] = useState(false);
-  const [isInitializingCharacter, setIsInitializingCharacter] = useState(false);
 
   const handleCharacterUpdate = useCallback(
     (updates: Partial<ElizaCharacter>) => {
       setCharacter((prev) => ({ ...prev, ...updates }));
     },
     [],
+  );
+
+  // Redirect to build mode after character creation
+  const handleCharacterCreated = useCallback(
+    (characterId: string) => {
+      router.push(`/dashboard/build?characterId=${characterId}`);
+    },
+    [router],
   );
 
   const handleSave = useCallback(async () => {
@@ -88,71 +97,37 @@ export function CharacterCreatorClient({
       return;
     }
 
-    let savedCharacterId: string | null = selectedId;
-
     if (selectedId) {
       await updateCharacter(selectedId, character);
       toast.success("Character updated successfully!");
     } else {
       const saved = await createCharacter(character);
-      savedCharacterId = saved.id || null;
-      setSelectedId(savedCharacterId);
-
-      // Show simple success toast
-      toast.success("Character created successfully!", {
-        description:
-          "You can now test your character in chat or continue editing.",
-        duration: 4000,
-      });
+      if (saved.id) {
+        toast.success("Character created! Redirecting to build mode...", {
+          duration: 2000,
+        });
+        router.push(`/dashboard/build?characterId=${saved.id}`);
+      }
     }
-  }, [character, selectedId]);
+  }, [character, selectedId, router]);
 
   const handleLoadCharacter = useCallback(
     (characterId: string) => {
-      const char = initialCharacters.find((c) => c.id === characterId);
-      if (char) {
-        setCharacter(char);
-        setSelectedId(characterId);
-        toast.success("Character loaded");
-      }
+      // Redirect to build page with character ID
+      router.push(`/dashboard/build?characterId=${characterId}`);
     },
-    [initialCharacters],
+    [router],
   );
 
   const handleNewCharacter = useCallback(() => {
     setCharacter(createDefaultCharacter());
     setSelectedId(null);
-    // Reset hasAutoInitialized so the useEffect can trigger a new auto-initialization
-    setHasAutoInitialized(false);
   }, []);
-
-  // Initialize a blank character in database for BUILD mode
-  const initializeBlankCharacter = useCallback(async () => {
-    if (isInitializingCharacter) return;
-
-    setIsInitializingCharacter(true);
-    // Create a character with a random friendly name and auto-generated avatar
-    const newCharacter = createDefaultCharacter();
-    // Add a default bio for build mode
-    newCharacter.bio = "Character being created with AI assistance";
-
-    const saved = await createCharacter(newCharacter);
-
-    if (saved.id) {
-      setCharacter(saved);
-      setSelectedId(saved.id);
-    } else {
-      setIsInitializingCharacter(false);
-      throw new Error("Character created but no ID returned");
-    }
-    setIsInitializingCharacter(false);
-  }, [isInitializingCharacter]);
 
   // Refresh character data from database
   const handleCharacterRefresh = useCallback(async () => {
     if (!selectedId) return;
 
-    // Fetch updated character from server
     const response = await fetch(`/api/my-agents/${selectedId}`);
     if (response.ok) {
       const updatedChar = await response.json();
@@ -160,31 +135,12 @@ export function CharacterCreatorClient({
     }
   }, [selectedId]);
 
-  // Auto-initialize a blank character when entering the creator for the first time
-  useEffect(() => {
-    if (
-      !selectedId &&
-      !hasAutoInitialized &&
-      !isInitializingCharacter &&
-      showAssistant
-    ) {
-      // Use setTimeout to avoid synchronous setState in effect
-      setTimeout(() => {
-        setHasAutoInitialized(true);
-        initializeBlankCharacter();
-      }, 0);
-    }
-  }, [
-    selectedId,
-    hasAutoInitialized,
-    isInitializingCharacter,
-    showAssistant,
-    initializeBlankCharacter,
-  ]);
-
   useSetPageHeader(
     {
-      title: "Character Creator",
+      title: isCreatorMode ? "Create Character" : "Edit Character",
+      description: isCreatorMode
+        ? "Chat with Eliza to create your new AI character"
+        : undefined,
       actions: (
         <div className="flex items-center gap-3">
           <Select
@@ -192,6 +148,7 @@ export function CharacterCreatorClient({
             onValueChange={(value) => {
               if (value === "new") {
                 handleNewCharacter();
+                router.push("/dashboard/character-creator");
               } else {
                 handleLoadCharacter(value);
               }
@@ -242,6 +199,7 @@ export function CharacterCreatorClient({
       ),
     },
     [
+      isCreatorMode,
       selectedId,
       showAssistant,
       initialCharacters,
@@ -253,33 +211,18 @@ export function CharacterCreatorClient({
 
   return (
     <div className="flex h-full flex-col gap-4">
-      {/* Main Content */}
       <div className="grid flex-1 gap-4 overflow-hidden lg:grid-cols-2">
-        {/* Left Column - AI Assistant, Build Mode Assistant, or Form */}
+        {/* Left Column - AI Assistant (Eliza for creator, Character for edit) or Form */}
         <div className="flex h-full flex-col overflow-hidden">
           {showAssistant ? (
-            selectedId ? (
-              <BuildModeAssistant
-                character={character}
-                onCharacterUpdate={handleCharacterUpdate}
-                onCharacterRefresh={handleCharacterRefresh}
-                userId={userId}
-              />
-            ) : (
-              <BrandCard className="relative flex h-full flex-col">
-                <CornerBrackets size="sm" className="opacity-50" />
-                <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-8 text-center">
-                  <div className="animate-pulse">
-                    <div className="w-12 h-12 rounded-full bg-white/10 mx-auto mb-4" />
-                    <div className="h-4 w-32 bg-white/10 rounded mx-auto mb-2" />
-                    <div className="h-3 w-48 bg-white/10 rounded mx-auto" />
-                  </div>
-                  <p className="text-white/60 mt-4">
-                    Initializing character...
-                  </p>
-                </div>
-              </BrandCard>
-            )
+            <BuildModeAssistant
+              character={isCreatorMode ? undefined : character}
+              onCharacterUpdate={handleCharacterUpdate}
+              onCharacterRefresh={isCreatorMode ? undefined : handleCharacterRefresh}
+              onCharacterCreated={isCreatorMode ? handleCharacterCreated : undefined}
+              userId={userId}
+              isCreatorMode={isCreatorMode}
+            />
           ) : (
             <CharacterForm character={character} onChange={setCharacter} />
           )}
@@ -296,7 +239,7 @@ export function CharacterCreatorClient({
               className="flex h-full flex-col relative z-10"
             >
               <BrandTabsList className="mx-4 mb-2 mt-4 w-[calc(100%-2rem)]">
-              <BrandTabsTrigger value="form" className="flex-1">
+                <BrandTabsTrigger value="form" className="flex-1">
                   Form
                 </BrandTabsTrigger>
                 <BrandTabsTrigger value="json" className="flex-1">

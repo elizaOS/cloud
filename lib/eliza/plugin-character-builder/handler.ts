@@ -20,7 +20,12 @@ import {
   buildModePlanningTemplate,
 } from "./prompts/build-mode-prompts";
 import { parsePlannedItems } from "../shared/utils/parsers";
-import { cleanPrompt, runEvaluatorsWithTimeout } from "../shared/utils/helpers";
+import {
+  cleanPrompt,
+  runEvaluatorsWithTimeout,
+  isCreatorMode,
+  DEFAULT_ELIZA_ID,
+} from "../shared/utils/helpers";
 import type { MessageReceivedHandlerParams } from "../shared/types";
 
 function parsePlanningResponse(response: string): { thought: string; actions: string } | null {
@@ -31,6 +36,10 @@ function parsePlanningResponse(response: string): { thought: string; actions: st
 
 /**
  * Build mode handler for character creation/editing.
+ *
+ * Two distinct flows:
+ * - Creator Mode: runtime.character.id === DEFAULT_ELIZA_ID (building new character)
+ * - Build Mode: runtime.character.id !== DEFAULT_ELIZA_ID (editing existing character)
  */
 export async function handleMessage({
   runtime,
@@ -46,37 +55,82 @@ export async function handleMessage({
     throw new Error("Message is from the agent itself");
   }
 
+  const creatorMode = isCreatorMode(runtime);
+  const modeLabel = creatorMode ? "Creator" : "Build";
+
+  logger.info(`[${modeLabel}] Processing message in room ${message.roomId}`);
+
   await setLatestResponseId(runtime, message.roomId, responseId);
   await runtime.emitEvent(EventType.RUN_STARTED, {
-    runtime, runId, messageId: message.id, roomId: message.roomId, entityId: message.entityId,
-    startTime, status: "started", source: "buildModeWorkflow",
+    runtime,
+    runId,
+    messageId: message.id,
+    roomId: message.roomId,
+    entityId: message.entityId,
+    startTime,
+    status: "started",
+    source: "buildModeWorkflow",
+    mode: modeLabel,
   });
 
   try {
     await runtime.createMemory(message, "messages");
 
+    // Compose state
     const state = await runtime.composeState(message, [
-      "SUMMARIZED_CONTEXT", "RECENT_MESSAGES", "LONG_TERM_MEMORY", "ACTIONS",
+      "SUMMARIZED_CONTEXT",
+      "RECENT_MESSAGES",
+      "LONG_TERM_MEMORY",
+      "ACTIONS",
     ]);
 
-    runtime.character.system = cleanPrompt(composePromptFromState({ state, template: buildModeSystemPrompt }));
+    // Inject mode information into state values for template access
+    state.values = {
+      ...state.values,
+      isCreatorMode: creatorMode,
+      modeLabel,
+      characterId: runtime.character.id || DEFAULT_ELIZA_ID,
+      characterName: runtime.character.name,
+    };
+
+    runtime.character.system = cleanPrompt(
+      composePromptFromState({ state, template: buildModeSystemPrompt }),
+    );
+
     const planningResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
       prompt: cleanPrompt(composePromptFromState({ state, template: buildModePlanningTemplate })),
     });
+
     runtime.character.system = originalSystemPrompt;
 
     const plan = parsePlanningResponse(planningResponse);
-    const selectedAction = parsePlannedItems(plan?.actions)[0] || "BUILD_CHAT";
+    const selectedAction = parsePlannedItems(plan?.actions)[0] || "BUILDER_CHAT";
 
-    logger.info(`[Builder] Executing action: ${selectedAction}`);
+    logger.info(`[${modeLabel}] Planning thought: ${plan?.thought?.substring(0, 100)}...`);
+    logger.info(`[${modeLabel}] Executing action: ${selectedAction}`);
 
+    // Create action response with thought and mode context
     const actionResponse: Memory = {
       id: createUniqueUuid(runtime, v4() as UUID),
       entityId: runtime.agentId,
       agentId: runtime.agentId,
       roomId: message.roomId,
       worldId: message.worldId,
-      content: { thought: plan?.thought, actions: [selectedAction], source: "agent" },
+      content: {
+        thought: plan?.thought,
+        actions: [selectedAction],
+        source: "agent",
+        metadata: {
+          isCreatorMode: creatorMode,
+          modeLabel,
+        },
+      },
+    };
+
+    // Add planning thought to state for action access
+    state.values = {
+      ...state.values,
+      planningThought: plan?.thought || "",
     };
 
     await runtime.processActions(message, [actionResponse], state, callback);
@@ -84,25 +138,35 @@ export async function handleMessage({
     if (!(await isResponseStillValid(runtime, message.roomId, responseId))) return;
     await clearLatestResponseId(runtime, message.roomId);
 
-    // Run evaluators asynchronously in background (e.g., room title generation)
-    await runEvaluatorsWithTimeout(
-      runtime,
-      message,
-      state,
-      actionResponse,
-      callback,
-    );
+    // Run evaluators asynchronously in background
+    await runEvaluatorsWithTimeout(runtime, message, state, actionResponse, callback);
 
     await runtime.emitEvent(EventType.RUN_ENDED, {
-      runtime, runId, messageId: message.id, roomId: message.roomId, entityId: message.entityId,
-      startTime, status: "completed", endTime: Date.now(), duration: Date.now() - startTime,
-      source: "buildModeWorkflow", selectedAction,
+      runtime,
+      runId,
+      messageId: message.id,
+      roomId: message.roomId,
+      entityId: message.entityId,
+      startTime,
+      status: "completed",
+      endTime: Date.now(),
+      duration: Date.now() - startTime,
+      source: "buildModeWorkflow",
+      selectedAction,
+      mode: modeLabel,
     });
   } catch (error) {
     runtime.character.system = originalSystemPrompt;
     await runtime.emitEvent(EventType.RUN_ENDED, {
-      runtime, runId, messageId: message.id, roomId: message.roomId, entityId: message.entityId,
-      startTime, status: "error", endTime: Date.now(), duration: Date.now() - startTime,
+      runtime,
+      runId,
+      messageId: message.id,
+      roomId: message.roomId,
+      entityId: message.entityId,
+      startTime,
+      status: "error",
+      endTime: Date.now(),
+      duration: Date.now() - startTime,
       error: error instanceof Error ? error.message : String(error),
       source: "buildModeWorkflow",
     });
