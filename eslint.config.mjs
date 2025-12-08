@@ -13,6 +13,7 @@ const eslintConfig = [
       "build/**",
       "next-env.d.ts",
       "docs/**",
+      "ignore/**",
     ],
   },
   // React Hooks Rules - Critical for preventing unnecessary re-renders and API spam

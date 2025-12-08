@@ -10,6 +10,8 @@
  * - MODEL_TIER_ULTRA_ID
  */
 
+import { logger } from "@/lib/utils/logger";
+
 export type ModelTier = "fast" | "pro" | "ultra";
 
 export type ModelCapability =

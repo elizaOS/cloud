@@ -4,6 +4,8 @@
  * Validates required environment variables on application startup.
  */
 
+import { logger } from "@/lib/utils/logger";
+
 /**
  * Error information for a validation failure.
  */
