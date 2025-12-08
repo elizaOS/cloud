@@ -84,7 +84,7 @@ export function AvatarGenerator({
         const newAvatarUrl = data.images[0].url || data.images[0].image;
         if (!newAvatarUrl) throw new Error("No valid image URL in response");
         onAvatarChange(newAvatarUrl);
-        toast.success("AI avatar generated! ($0.01)");
+        toast.success("AI avatar generated!");
       } else {
         throw new Error("No image returned");
       }
@@ -141,7 +141,7 @@ export function AvatarGenerator({
               ) : (
                 <Sparkles className="h-4 w-4 mr-2" />
               )}
-              {isGeneratingAI ? "Generating..." : "AI Avatar ($0.01)"}
+              {isGeneratingAI ? "Generating..." : "AI Avatar"}
             </Button>
           </div>
         </div>
