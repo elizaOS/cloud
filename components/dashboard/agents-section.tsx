@@ -95,7 +95,7 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
           onClick={() => (window.location.href = "/dashboard/my-agents")}
           icon={<Plus className="h-4 w-4" />}
         >
-          New
+          New Agent
         </LockOnButton>
       </div>
 
