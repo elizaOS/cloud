@@ -51,17 +51,76 @@ export const A2A_STANDARD_METHODS = [
   "agent/getAuthenticatedExtendedCard",
 ] as const;
 
-// Extension methods (Eliza Cloud specific)
+// Extension methods (Eliza Cloud specific) - 60 total
 export const A2A_EXTENSION_METHODS = [
+  // Generation (5)
   "a2a.chatCompletion",
   "a2a.generateImage",
+  "a2a.generateVideo",
+  "a2a.generateEmbeddings",
+  "a2a.generatePrompts",
+  // Credits & Billing (6)
   "a2a.getBalance",
   "a2a.getUsage",
-  "a2a.listAgents",
-  "a2a.chatWithAgent",
+  "a2a.getCreditSummary",
+  "a2a.listCreditTransactions",
+  "a2a.listCreditPacks",
+  "a2a.getBillingUsage",
+  // Memory (3)
   "a2a.saveMemory",
   "a2a.retrieveMemories",
+  "a2a.deleteMemory",
+  // Knowledge (2)
+  "a2a.queryKnowledge",
+  "a2a.uploadKnowledge",
+  // Conversation (2)
   "a2a.createConversation",
+  "a2a.getConversationContext",
+  // Agents (5)
+  "a2a.listAgents",
+  "a2a.chatWithAgent",
+  "a2a.createAgent",
+  "a2a.updateAgent",
+  "a2a.deleteAgent",
+  // Containers (10)
   "a2a.listContainers",
+  "a2a.getContainer",
+  "a2a.getContainerHealth",
+  "a2a.getContainerLogs",
+  "a2a.createContainer",
+  "a2a.deleteContainer",
+  "a2a.getContainerMetrics",
+  "a2a.getContainerQuota",
+  "a2a.createCheckoutSession",
+  "a2a.getEcrCredentials",
+  // Infrastructure (3)
+  "a2a.listModels",
+  "a2a.listGallery",
+  "a2a.getAnalytics",
+  // Voice (2)
+  "a2a.textToSpeech",
+  "a2a.listVoices",
+  // API Keys (3)
+  "a2a.listApiKeys",
+  "a2a.createApiKey",
+  "a2a.deleteApiKey",
+  // Redemptions (2)
+  "a2a.getRedemptionBalance",
+  "a2a.getRedemptionQuote",
+  // MCPs (3)
+  "a2a.listMcps",
+  "a2a.createMcp",
+  "a2a.deleteMcp",
+  // Rooms (2)
+  "a2a.listRooms",
+  "a2a.createRoom",
+  // User (2)
+  "a2a.getUserProfile",
+  "a2a.updateUserProfile",
+  // ERC-8004 Discovery (4)
+  "a2a.discoverServices",
+  "a2a.getServiceDetails",
+  "a2a.findMcpTools",
+  "a2a.findA2aSkills",
 ] as const;
 
