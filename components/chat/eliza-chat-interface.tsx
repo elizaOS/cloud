@@ -801,7 +801,7 @@ export function ElizaChatInterface({
   return (
     <div className="flex h-full w-full min-h-0 justify-center">
       {/* Main Chat Area - Centered with max width for readability */}
-      <div className="flex flex-col flex-1 min-h-0 max-w-3xl w-full px-4 sm:px-6 lg:px-8">
+      <div className="flex flex-col flex-1 min-h-0 max-w-7xl w-full px-4 sm:px-6 lg:px-8">
         {/* Messages Area - No Header */}
         <div className="flex-1 min-h-0 overflow-hidden">
           <ScrollArea className="h-full py-6 px-2" ref={scrollAreaRef}>
