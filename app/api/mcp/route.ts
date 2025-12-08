@@ -4624,7 +4624,7 @@ const mcpHandler = createMcpHandler(
         try {
           const { agent0Service } = await import("@/lib/services/agent0");
           const { userMcpsService } = await import("@/lib/services/user-mcps");
-          const { charactersMarketplaceService } = await import("@/lib/services/characters/marketplace");
+          const { characterMarketplaceService } = await import("@/lib/services/characters/marketplace");
           const { getDefaultNetwork, CHAIN_IDS } = await import("@/lib/config/erc8004");
           const { agent0ToDiscoveredService } = await import("@/lib/types/erc8004");
 
@@ -4647,7 +4647,7 @@ const mcpHandler = createMcpHandler(
           // Search local services
           if (searchSources.includes("local")) {
             if (searchTypes.includes("agent")) {
-              const chars = await charactersMarketplaceService.searchPublic({
+              const chars = await characterMarketplaceService.searchPublic({
                 search: query,
                 category: categories?.[0],
                 limit: limit,
