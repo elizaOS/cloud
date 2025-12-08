@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { creditsService } from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
 
 /**
  * GET /api/stripe/credit-packs

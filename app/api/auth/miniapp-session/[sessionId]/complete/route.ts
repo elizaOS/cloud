@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { miniappAuthSessionsService } from "@/lib/services/miniapp-auth-sessions";
-import { organizationsService } from "@/lib/services";
+import { organizationsService } from "@/lib/services/organizations";
 import { logger } from "@/lib/utils/logger";
 
 // Initial credits for app users (100 credits = $1.00)

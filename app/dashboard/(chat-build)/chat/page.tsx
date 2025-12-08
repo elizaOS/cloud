@@ -11,6 +11,8 @@ import {
 import { db } from "@/db/client";
 import { userCharacters } from "@/db/schemas/user-characters";
 import { eq } from "drizzle-orm";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
+import { migrateAnonymousSession } from "@/lib/session";
 import { logger } from "@/lib/utils/logger";
 
 interface PageProps {
@@ -108,7 +110,6 @@ export default async function ElizaPage({ searchParams }: PageProps) {
         },
       );
 
-      const { anonymousSessionsService } = await import("@/lib/services");
       const anonSession = await anonymousSessionsService.getByToken(
         anonSessionCookie.value,
       );
@@ -122,8 +123,7 @@ export default async function ElizaPage({ searchParams }: PageProps) {
           },
         );
 
-        const { convertAnonymousToReal } = await import("@/lib/auth-anonymous");
-        await convertAnonymousToReal(anonSession.user_id, user.privy_user_id);
+        await migrateAnonymousSession(anonSession.user_id, user.privy_user_id);
 
         logger.info("[Dashboard Chat] Migration completed successfully");
       }

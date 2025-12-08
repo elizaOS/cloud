@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { charactersService } from "@/lib/services/characters/characters";
-import { userMcpsService } from "@/lib/services";
+import { userMcpsService } from "@/lib/services/user-mcps";
 import { agent0Service } from "@/lib/services/agent0";
 import {
   getDefaultNetwork,

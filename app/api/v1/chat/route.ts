@@ -2,15 +2,13 @@ import { streamText, type UIMessage, convertToModelMessages } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
-import {
-  conversationsService,
-  creditsService,
-  usageService,
-  generationsService,
-  organizationsService,
-  anonymousSessionsService,
-  contentModerationService,
-} from "@/lib/services";
+import { conversationsService } from "@/lib/services/conversations";
+import { creditsService } from "@/lib/services/credits";
+import { usageService } from "@/lib/services/usage";
+import { generationsService } from "@/lib/services/generations";
+import { organizationsService } from "@/lib/services/organizations";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
+import { contentModerationService } from "@/lib/services/content-moderation";
 import {
   calculateCost,
   getProviderFromModel,

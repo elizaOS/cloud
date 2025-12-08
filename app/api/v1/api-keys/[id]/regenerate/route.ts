@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { apiKeysService } from "@/lib/services";
+import { apiKeysService } from "@/lib/services/api-keys";
 
 /**
  * POST /api/v1/api-keys/[id]/regenerate

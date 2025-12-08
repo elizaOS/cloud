@@ -7,17 +7,14 @@
  * 2. Just-in-time sync (fallback for race conditions)
  */
 
-import {
-  usersService,
-  organizationsService,
-  emailService,
-  invitesService,
-  discordService,
-  apiKeysService,
-  creditsService,
-  abuseDetectionService,
-  type SignupContext,
-} from "@/lib/services";
+import { usersService } from "@/lib/services/users";
+import { organizationsService } from "@/lib/services/organizations";
+import { emailService } from "@/lib/services/email";
+import { invitesService } from "@/lib/services/invites";
+import { discordService } from "@/lib/services/discord";
+import { apiKeysService } from "@/lib/services/api-keys";
+import { creditsService } from "@/lib/services/credits";
+import { abuseDetectionService, type SignupContext } from "@/lib/services/abuse-detection";
 import type { UserWithOrganization } from "@/lib/types";
 
 const DEFAULT_INITIAL_CREDITS = 5.0;
@@ -65,21 +62,13 @@ function generateSlugFromWallet(walletAddress: string): string {
   return `wallet-${sanitized}-${timestamp}${random}`;
 }
 
+import type { User as PrivyUser } from "@privy-io/server-auth";
+
 /**
- * Flexible interface for Privy user data.
- * Handles both webhook payload and SDK User type.
+ * Type for Privy user data that handles both SDK User and webhook payloads.
+ * Uses the SDK User type as the base since it's more complete.
  */
-interface PrivyUserData {
-  id: string;
-  email?: { address: string };
-  name?: string | null;
-  linkedAccounts?: Array<Record<string, unknown>>;
-  wallet?: {
-    address: string;
-    chainType: "ethereum" | "solana";
-    verified?: boolean;
-  };
-}
+type PrivyUserData = PrivyUser;
 
 /**
  * Sync a Privy user to the local database

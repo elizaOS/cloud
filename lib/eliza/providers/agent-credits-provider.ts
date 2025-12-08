@@ -13,7 +13,7 @@
 
 import type { IAgentRuntime, Provider, State } from "@elizaos/core";
 import { agentBudgetService } from "@/lib/services/agent-budgets";
-import { organizationsService } from "@/lib/services";
+import { organizationsService } from "@/lib/services/organizations";
 import { logger } from "@/lib/utils/logger";
 
 // ============================================================================

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Unified Setup Script for Eliza Cloud
+ * Setup Script for Eliza Cloud
  * 
  * Handles complete development environment setup with minimal configuration:
  * 1. Checks and creates .env.local with defaults

@@ -24,19 +24,17 @@ import { z } from "zod3";
 import { v4 as uuidv4 } from "uuid";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
-import {
-  creditsService,
-  usageService,
-  organizationsService,
-  generationsService,
-  conversationsService,
-  memoryService,
-  charactersService,
-  containersService,
-  contentModerationService,
-  agentReputationService,
-  apiKeysService,
-} from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
+import { usageService } from "@/lib/services/usage";
+import { organizationsService } from "@/lib/services/organizations";
+import { generationsService } from "@/lib/services/generations";
+import { conversationsService } from "@/lib/services/conversations";
+import { memoryService } from "@/lib/services/memory";
+import { charactersService } from "@/lib/services/characters/characters";
+import { containersService } from "@/lib/services/containers";
+import { contentModerationService } from "@/lib/services/content-moderation";
+import { agentReputationService } from "@/lib/services/agent-reputation";
+import { apiKeysService } from "@/lib/services/api-keys";
 import { agentService } from "@/lib/services/agents/agents";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
@@ -44,6 +42,25 @@ import { calculateCost, getProviderFromModel, estimateRequestCost, IMAGE_GENERAT
 import { logger } from "@/lib/utils/logger";
 import type { UserWithOrganization } from "@/lib/types";
 import type { Organization } from "@/db/schemas/organizations";
+import { getContainer, deleteContainer } from "@/lib/services/containers";
+import { userMcpsService } from "@/lib/services/user-mcps";
+import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
+import { agentBudgetService } from "@/lib/services/agent-budgets";
+import { getProvider } from "@/lib/providers";
+import { estimateTokens } from "@/lib/pricing";
+import { getElevenLabsService } from "@/lib/services/elevenlabs";
+import { uploadFromBuffer } from "@/lib/blob";
+import { analyticsService } from "@/lib/services/analytics";
+import { secureTokenRedemptionService } from "@/lib/services/token-redemption-secure";
+import { roomsService } from "@/lib/services/agents/rooms";
+import { usersService } from "@/lib/services/users";
+import { agent0Service } from "@/lib/services/agent0";
+import { characterMarketplaceService } from "@/lib/services/characters/marketplace";
+import { getDefaultNetwork, CHAIN_IDS } from "@/lib/config/erc8004";
+import { agent0ToDiscoveredService } from "@/lib/types/erc8004";
+import { stripe } from "@/lib/stripe";
+import { usageRecordsRepository } from "@/db/repositories/usage-records";
+import { getECRManager } from "@/lib/services/ecr";
 import {
   Task,
   TaskState,
@@ -829,8 +846,6 @@ async function executeSkillGenerateEmbeddings(
   if (!input) throw new Error("input required");
 
   const inputs = Array.isArray(input) ? input : [input];
-  const { getProvider } = await import("@/lib/providers");
-  const { estimateTokens } = await import("@/lib/pricing");
 
   // Estimate cost
   const totalTokens = inputs.reduce((sum, text) => sum + estimateTokens(text), 0);
@@ -864,7 +879,6 @@ async function executeSkillGenerateEmbeddings(
 async function executeSkillListModels(
   ctx: A2AContext
 ): Promise<{ models: Array<{ id: string; owned_by: string; created: number }> }> {
-  const { getProvider } = await import("@/lib/providers");
   const provider = getProvider();
   const response = await provider.listModels();
   const data = await response.json();
@@ -954,12 +968,10 @@ async function executeSkillTextToSpeech(
   });
   if (!deduction.success) throw new Error("Insufficient credits");
 
-  const { getElevenLabsService } = await import("@/lib/services/elevenlabs");
   const elevenLabs = await getElevenLabsService();
   const audioBuffer = await elevenLabs.textToSpeech(text, voiceId);
 
   // Upload to blob storage
-  const { uploadFromBuffer } = await import("@/lib/blob");
   const audioUrl = await uploadFromBuffer(audioBuffer, `tts-${Date.now()}.mp3`, "audio/mpeg");
 
   return { audioUrl, format: "mp3", cost: TTS_COST };
@@ -968,7 +980,6 @@ async function executeSkillTextToSpeech(
 async function executeSkillListVoices(
   ctx: A2AContext
 ): Promise<{ voices: Array<{ id: string; name: string; category: string }> }> {
-  const { getElevenLabsService } = await import("@/lib/services/elevenlabs");
   const elevenLabs = await getElevenLabsService();
   const voices = await elevenLabs.listVoices();
 
@@ -986,8 +997,6 @@ async function executeSkillGetAnalytics(
   ctx: A2AContext
 ): Promise<{ overview: Record<string, unknown> }> {
   const timeRange = (dataContent.timeRange as "daily" | "weekly" | "monthly") || "daily";
-
-  const { analyticsService } = await import("@/lib/services/analytics");
   const overview = await analyticsService.getOverview(ctx.user.organization_id, timeRange);
 
   return {
@@ -1061,7 +1070,6 @@ async function executeSkillDeleteApiKey(
 async function executeSkillGetRedemptionBalance(
   ctx: A2AContext
 ): Promise<{ redeemableBalance: number; pendingRedemptions: number }> {
-  const { secureTokenRedemptionService } = await import("@/lib/services/token-redemption-secure");
   const balance = await secureTokenRedemptionService.getEarnedBalance(ctx.user.organization_id);
   const pending = await secureTokenRedemptionService.getPendingRedemptions(ctx.user.organization_id);
 
@@ -1124,7 +1132,6 @@ async function executeSkillGetContainer(
   const containerId = dataContent.containerId as string;
   if (!containerId) throw new Error("containerId required");
 
-  const { getContainer } = await import("@/lib/services");
   const container = await getContainer(containerId, ctx.user.organization_id);
   if (!container) throw new Error("Container not found");
 
@@ -1146,7 +1153,6 @@ async function executeSkillGetContainerHealth(
   const containerId = dataContent.containerId as string;
   if (!containerId) throw new Error("containerId required");
 
-  const { getContainer } = await import("@/lib/services");
   const container = await getContainer(containerId, ctx.user.organization_id);
   if (!container) throw new Error("Container not found");
 
@@ -1164,7 +1170,6 @@ async function executeSkillGetContainerLogs(
   const limit = Math.min(100, (dataContent.limit as number) || 50);
   if (!containerId) throw new Error("containerId required");
 
-  const { getContainer } = await import("@/lib/services");
   const container = await getContainer(containerId, ctx.user.organization_id);
   if (!container) throw new Error("Container not found");
 
@@ -1184,7 +1189,6 @@ async function executeSkillListMcps(
   const scope = (dataContent.scope as "own" | "public") || "own";
   const limit = Math.min(50, (dataContent.limit as number) || 20);
 
-  const { userMcpsService } = await import("@/lib/services");
   const mcps = await userMcpsService.list({
     organizationId: ctx.user.organization_id,
     scope,
@@ -1217,7 +1221,6 @@ async function executeSkillCreateMcp(
     throw new Error("name, slug, and description required");
   }
 
-  const { userMcpsService } = await import("@/lib/services");
   const mcp = await userMcpsService.create({
     organization_id: ctx.user.organization_id,
     user_id: ctx.user.id,
@@ -1237,7 +1240,6 @@ async function executeSkillDeleteMcp(
   const mcpId = dataContent.mcpId as string;
   if (!mcpId) throw new Error("mcpId required");
 
-  const { userMcpsService } = await import("@/lib/services");
   await userMcpsService.delete(mcpId, ctx.user.organization_id);
 
   return { success: true, mcpId };
@@ -1248,7 +1250,6 @@ async function executeSkillDeleteMcp(
 async function executeSkillListRooms(
   ctx: A2AContext
 ): Promise<{ rooms: Array<Record<string, unknown>>; total: number }> {
-  const { roomsService } = await import("@/lib/services/agents/rooms");
   const rooms = await roomsService.getRoomsForEntity(ctx.user.id);
 
   return {
@@ -1268,7 +1269,6 @@ async function executeSkillCreateRoom(
 ): Promise<{ roomId: string; characterId: string }> {
   const characterId = dataContent.characterId as string;
 
-  const { roomsService } = await import("@/lib/services/agents/rooms");
   const room = await roomsService.createRoom({
     userId: ctx.user.id,
     characterId: characterId || "b850bc30-45f8-0041-a00a-83df46d8555d", // Default Eliza
@@ -1300,7 +1300,6 @@ async function executeSkillUpdateUserProfile(
   const name = dataContent.name as string | undefined;
 
   if (name) {
-    const { usersService } = await import("@/lib/services");
     await usersService.update(ctx.user.id, { name });
   }
 
@@ -1318,7 +1317,6 @@ async function executeSkillGetRedemptionQuote(
 
   if (!pointsAmount || !network) throw new Error("pointsAmount and network required");
 
-  const { secureTokenRedemptionService } = await import("@/lib/services/token-redemption-secure");
   const quote = await secureTokenRedemptionService.getRedemptionQuote(pointsAmount, network);
 
   return { quote };
@@ -1378,7 +1376,6 @@ async function executeSkillDeleteContainer(
   const containerId = dataContent.containerId as string;
   if (!containerId) throw new Error("containerId required");
 
-  const { getContainer, deleteContainer } = await import("@/lib/services");
   const container = await getContainer(containerId, ctx.user.organization_id);
   if (!container) throw new Error("Container not found");
 
@@ -1393,7 +1390,6 @@ async function executeSkillGetContainerMetrics(
   const containerId = dataContent.containerId as string;
   if (!containerId) throw new Error("containerId required");
 
-  const { getContainer } = await import("@/lib/services");
   const container = await getContainer(containerId, ctx.user.organization_id);
   if (!container) throw new Error("Container not found");
 
@@ -1412,7 +1408,6 @@ async function executeSkillGetContainerMetrics(
 async function executeSkillGetContainerQuota(
   ctx: A2AContext
 ): Promise<{ quota: Record<string, unknown> }> {
-  const { containersService } = await import("@/lib/services");
   const containers = await containersService.listByOrganization(ctx.user.organization_id);
   
   return {
@@ -1429,8 +1424,6 @@ async function executeSkillGetContainerQuota(
 async function executeSkillGetCreditSummary(
   ctx: A2AContext
 ): Promise<{ summary: Record<string, unknown> }> {
-  const { organizationsService, redeemableEarningsService, agentBudgetService } = await import("@/lib/services");
-  
   const org = await organizationsService.getById(ctx.user.organization_id);
   if (!org) throw new Error("Organization not found");
 
@@ -1498,7 +1491,6 @@ async function executeSkillGetBillingUsage(
 ): Promise<{ usage: Record<string, unknown> }> {
   const days = (dataContent.days as number) || 30;
 
-  const { usageService } = await import("@/lib/services");
   const usage = await usageService.listByOrganization(ctx.user.organization_id, 1000);
 
   const cutoffTime = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -1535,9 +1527,6 @@ async function executeSkillCreateCheckoutSession(
   if (!creditPackId && !amount) {
     throw new Error("Either creditPackId or amount required");
   }
-
-  const { stripe } = await import("@/lib/stripe");
-  const { organizationsService } = await import("@/lib/services");
 
   const org = await organizationsService.getById(ctx.user.organization_id);
   if (!org) throw new Error("Organization not found");
@@ -1590,9 +1579,6 @@ async function executeSkillGetAgentBudget(
   const agentId = dataContent.agentId as string;
   if (!agentId) throw new Error("agentId required");
 
-  const { agentBudgetService } = await import("@/lib/services/agent-budgets");
-  const { charactersService } = await import("@/lib/services/characters/characters");
-
   const agent = await charactersService.getById(agentId);
   if (!agent) throw new Error("Agent not found");
   if (agent.organization_id !== ctx.user.organization_id) throw new Error("Not authorized");
@@ -1623,10 +1609,6 @@ async function executeSkillAllocateAgentBudget(
 
   if (!agentId || !amount) throw new Error("agentId and amount required");
   if (amount <= 0 || amount > 10000) throw new Error("Amount must be between 0 and 10000");
-
-  const { agentBudgetService } = await import("@/lib/services/agent-budgets");
-  const { charactersService } = await import("@/lib/services/characters/characters");
-  const { organizationsService } = await import("@/lib/services");
 
   const agent = await charactersService.getById(agentId);
   if (!agent) throw new Error("Agent not found");
@@ -1664,7 +1646,6 @@ async function executeSkillGetContainerDeployments(
   const container = await containersService.getById(containerId, ctx.user.organization_id);
   if (!container) throw new Error("Container not found");
 
-  const { usageRecordsRepository } = await import("@/db/repositories/usage-records");
   const records = await usageRecordsRepository.listByOrganization(ctx.user.organization_id, 50);
 
   interface DeploymentMetadata { container_id?: string; container_name?: string; }
@@ -1694,7 +1675,6 @@ async function executeSkillGetEcrCredentials(
 
   if (!projectId || !version) throw new Error("projectId and version required");
 
-  const { getECRManager } = await import("@/lib/services/ecr");
   const ecrManager = getECRManager();
 
   const repositoryName = `elizaos/${ctx.user.organization_id}/${projectId}`.toLowerCase();
@@ -1996,11 +1976,6 @@ async function executeSkillDiscoverServices(
   dataContent: Record<string, unknown>,
   ctx: A2AContext
 ): Promise<{ services: Array<Record<string, unknown>>; count: number }> {
-  const { agent0Service } = await import("@/lib/services/agent0");
-  const { userMcpsService } = await import("@/lib/services/user-mcps");
-  const { characterMarketplaceService } = await import("@/lib/services/characters/marketplace");
-  const { getDefaultNetwork, CHAIN_IDS } = await import("@/lib/config/erc8004");
-  const { agent0ToDiscoveredService } = await import("@/lib/types/erc8004");
 
   const query = dataContent.query as string | undefined;
   const types = dataContent.types as string[] | undefined;
@@ -2099,9 +2074,6 @@ async function executeSkillGetServiceDetails(
   const agentId = dataContent.agentId as string;
   if (!agentId) throw new Error("agentId required (format: chainId:tokenId)");
 
-  const { agent0Service } = await import("@/lib/services/agent0");
-  const { getDefaultNetwork, CHAIN_IDS } = await import("@/lib/config/erc8004");
-  const { agent0ToDiscoveredService } = await import("@/lib/types/erc8004");
 
   const agent = await agent0Service.getAgentCached(agentId);
   if (!agent) throw new Error(`Agent not found: ${agentId}`);
@@ -2121,9 +2093,6 @@ async function executeSkillFindMcpTools(
   const x402Only = dataContent.x402Only as boolean | undefined;
 
   if (!tools?.length) throw new Error("tools array required");
-
-  const { agent0Service } = await import("@/lib/services/agent0");
-  const { getDefaultNetwork, CHAIN_IDS } = await import("@/lib/config/erc8004");
 
   const network = getDefaultNetwork();
   const chainId = CHAIN_IDS[network];
@@ -2153,9 +2122,6 @@ async function executeSkillFindA2aSkills(
   const x402Only = dataContent.x402Only as boolean | undefined;
 
   if (!skills?.length) throw new Error("skills array required");
-
-  const { agent0Service } = await import("@/lib/services/agent0");
-  const { getDefaultNetwork, CHAIN_IDS } = await import("@/lib/config/erc8004");
 
   const network = getDefaultNetwork();
   const chainId = CHAIN_IDS[network];

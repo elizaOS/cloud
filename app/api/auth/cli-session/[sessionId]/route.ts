@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cliAuthSessionsService } from "@/lib/services";
+import { cliAuthSessionsService } from "@/lib/services/cli-auth-sessions";
 import { logger } from "@/lib/utils/logger";
 
 /**

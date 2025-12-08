@@ -2,11 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { fal } from "@fal-ai/client";
 import type { QueueStatus } from "@fal-ai/client";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import {
-  usageService,
-  creditsService,
-  generationsService,
-} from "@/lib/services";
+import { usageService } from "@/lib/services/usage";
+import { creditsService } from "@/lib/services/credits";
+import { generationsService } from "@/lib/services/generations";
 import {
   VIDEO_GENERATION_COST,
   VIDEO_GENERATION_FALLBACK_COST,

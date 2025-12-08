@@ -21,7 +21,7 @@ export class PaymentMethodsService {
       return org.stripe_customer_id;
     }
 
-    console.log(
+    logger.info(
       `[PaymentMethodsService] Creating Stripe customer for org ${org.id} (${org.name})`,
     );
 
@@ -39,7 +39,7 @@ export class PaymentMethodsService {
         updated_at: new Date(),
       });
 
-      console.log(
+      logger.info(
         `[PaymentMethodsService] ✓ Created Stripe customer ${customer.id} for org ${org.id}`,
       );
 

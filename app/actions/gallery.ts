@@ -1,7 +1,7 @@
 "use server";
 
 import { requireAuthWithOrg } from "@/lib/auth";
-import { generationsService } from "@/lib/services";
+import { generationsService } from "@/lib/services/generations";
 import { deleteBlob } from "@/lib/blob";
 import { revalidatePath } from "next/cache";
 

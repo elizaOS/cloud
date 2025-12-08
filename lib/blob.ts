@@ -100,6 +100,26 @@ export async function uploadBase64Image(
 }
 
 /**
+ * Uploads a buffer directly to Vercel Blob storage.
+ *
+ * @param buffer - Buffer to upload.
+ * @param filename - Filename for the blob.
+ * @param contentType - MIME type of the content.
+ * @returns Upload result with URL and metadata.
+ */
+export async function uploadFromBuffer(
+  buffer: Buffer,
+  filename: string,
+  contentType: string,
+): Promise<string> {
+  const result = await uploadToBlob(buffer, {
+    filename,
+    contentType,
+  });
+  return result.url;
+}
+
+/**
  * Checks if a URL is from Fal.ai CDN.
  *
  * @param url - URL to check.

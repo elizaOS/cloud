@@ -1,7 +1,7 @@
 /**
  * Character Marketplace Service
  *
- * Unified service for character marketplace operations.
+ * Service for character marketplace operations.
  * This service handles BOTH public marketplace AND user's personal character library.
  *
  * Domain: Characters (user_characters table)
@@ -721,9 +721,3 @@ export class CharacterMarketplaceService {
 
 // Export singleton instance
 export const characterMarketplaceService = new CharacterMarketplaceService();
-
-// Backward compatibility exports
-/** @deprecated Use characterMarketplaceService instead */
-export const marketplaceService = characterMarketplaceService;
-/** @deprecated Use characterMarketplaceService instead */
-export const myAgentsService = characterMarketplaceService;

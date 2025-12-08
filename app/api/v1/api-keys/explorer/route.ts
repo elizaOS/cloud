@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { apiKeysService } from "@/lib/services";
+import { apiKeysService } from "@/lib/services/api-keys";
 
 const EXPLORER_KEY_NAME = "API Explorer Key";
 

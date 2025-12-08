@@ -9,7 +9,7 @@ import {
   getModelBreakdown,
   validateGranularity,
   type TimeGranularity,
-} from "@/lib/services";
+} from "@/lib/services/analytics";
 import {
   generateCSV,
   generateJSON,

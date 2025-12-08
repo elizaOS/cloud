@@ -4,7 +4,7 @@ import { nanoid } from "nanoid";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { createAnonymousUserAndSession } from "@/lib/services/anonymous-session-creator";
-import { anonymousSessionsService } from "@/lib/services";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { cookies } from "next/headers";
 
 // Cookie name - must match auth-anonymous.ts

@@ -20,13 +20,11 @@ import {
   getOrCreateAnonymousUser,
 } from "@/lib/auth-anonymous";
 import { getProvider } from "@/lib/providers";
-import {
-  creditsService,
-  usageService,
-  generationsService,
-  organizationsService,
-  contentModerationService,
-} from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
+import { usageService } from "@/lib/services/usage";
+import { generationsService } from "@/lib/services/generations";
+import { organizationsService } from "@/lib/services/organizations";
+import { contentModerationService } from "@/lib/services/content-moderation";
 import {
   calculateCost,
   getProviderFromModel,
@@ -234,7 +232,7 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
         finish_reason: choice.finish_reason,
         // Include tool calls if present
         ...(message.tool_calls ? { tool_calls: message.tool_calls } : {}),
-        // Include function call if present (legacy)
+        // Include function call if present
         ...("function_call" in message && message.function_call
           ? { function_call: message.function_call }
           : {}),

@@ -12,7 +12,8 @@ import {
 import { CheckCircle, XCircle, ArrowRight } from "lucide-react";
 import { CreditBalanceDisplay } from "@/components/billing/success-client";
 import { stripe } from "@/lib/stripe";
-import { creditsService, invoicesService } from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
+import { invoicesService } from "@/lib/services/invoices";
 
 export const metadata: Metadata = {
   title: "Purchase Successful",

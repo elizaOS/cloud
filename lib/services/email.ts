@@ -39,7 +39,7 @@ class EmailService {
       process.env.SMTP_PORT &&
       process.env.SMTP_PASSWORD
     ) {
-      console.log("[EmailService] Using SMTP configuration");
+      logger.info("[EmailService] Using SMTP configuration");
       this.smtpTransporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
         port: parseInt(process.env.SMTP_PORT),
@@ -62,7 +62,7 @@ class EmailService {
       return;
     }
 
-    console.log("[EmailService] Using SendGrid API configuration");
+    logger.info("[EmailService] Using SendGrid API configuration");
     sgMail.setApiKey(apiKey);
     this.initialized = true;
     logger.info("[EmailService] Initialized with SendGrid API");

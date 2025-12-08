@@ -1,7 +1,8 @@
 "use server";
 
 import { requireAuthWithOrg } from "@/lib/auth";
-import { charactersService, discordService } from "@/lib/services";
+import { charactersService } from "@/lib/services/characters/characters";
+import { discordService } from "@/lib/services/discord";
 import { uploadToBlob } from "@/lib/blob";
 import type { ElizaCharacter, NewUserCharacter } from "@/lib/types";
 import { revalidatePath } from "next/cache";

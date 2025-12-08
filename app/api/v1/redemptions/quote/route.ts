@@ -16,7 +16,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { ELIZA_TOKEN_ADDRESSES, payoutStatusService } from "@/lib/services";
+import { ELIZA_TOKEN_ADDRESSES } from "@/lib/services/eliza-token-price";
+import { payoutStatusService } from "@/lib/services/payout-status";
 import { secureTokenRedemptionService } from "@/lib/services/token-redemption-secure";
 import { twapPriceOracle } from "@/lib/services/twap-price-oracle";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies, headers } from "next/headers";
 import { nanoid } from "nanoid";
-import { anonymousSessionsService } from "@/lib/services";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { createAnonymousUserAndSession } from "@/lib/services/anonymous-session-creator";
 import { logger } from "@/lib/utils/logger";
 

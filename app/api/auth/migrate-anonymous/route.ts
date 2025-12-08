@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { createHash } from "node:crypto";
 import { requireAuth } from "@/lib/auth";
 import { migrateAnonymousSession } from "@/lib/session";
-import { anonymousSessionsService } from "@/lib/services";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { logger } from "@/lib/utils/logger";
 
 const ANON_SESSION_COOKIE = "eliza-anon-session";

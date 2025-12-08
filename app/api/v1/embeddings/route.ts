@@ -1,10 +1,8 @@
 // app/api/v1/embeddings/route.ts
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import {
-  creditsService,
-  usageService,
-  organizationsService,
-} from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
+import { usageService } from "@/lib/services/usage";
+import { organizationsService } from "@/lib/services/organizations";
 import {
   calculateCost,
   getProviderFromModel,

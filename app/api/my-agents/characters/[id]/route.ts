@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { myAgentsService } from "@/lib/services";
+import { characterMarketplaceService as myAgentsService } from "@/lib/services/characters/marketplace";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";

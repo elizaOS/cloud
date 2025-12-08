@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { cliAuthSessionsService } from "@/lib/services";
+import { cliAuthSessionsService } from "@/lib/services/cli-auth-sessions";
 
 /**
  * POST /api/auth/cli-session/[sessionId]/complete

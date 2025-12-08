@@ -12,6 +12,7 @@ import { apps } from "@/db/schemas/apps";
 import { db } from "@/db/client";
 import { eq, sql } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
+import { usersRepository } from "@/db/repositories/users";
 import { redeemableEarningsService } from "./redeemable-earnings";
 
 /**
@@ -112,7 +113,6 @@ export class AppCreditsService {
     description: string
   ): Promise<{ newBalance: number }> {
     // Get user's organization ID to ensure balance exists
-    const { usersRepository } = await import("@/db/repositories/users");
     const user = await usersRepository.findById(userId);
     
     if (!user?.organization_id) {

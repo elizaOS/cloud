@@ -1,5 +1,5 @@
 /**
- * Unified Credit Summary API
+ * Credit Summary API
  *
  * GET /api/v1/credits/summary
  *
@@ -14,12 +14,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import {
-  organizationsService,
-  creditsService,
-  redeemableEarningsService,
-  agentBudgetService,
-} from "@/lib/services";
+import { organizationsService } from "@/lib/services/organizations";
+import { creditsService } from "@/lib/services/credits";
+import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
+import { agentBudgetService } from "@/lib/services/agent-budgets";
 import { appCreditsService } from "@/lib/services/app-credits";
 import { db } from "@/db/client";
 import { apps } from "@/db/schemas/apps";

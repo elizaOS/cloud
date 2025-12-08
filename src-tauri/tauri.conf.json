@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "ai.elizacloud.mobile",
   "build": {
-    "beforeDevCommand": "bun run dev",
+    "beforeDevCommand": "bun run dev:quick",
     "devUrl": "http://localhost:3000",
-    "frontendDist": "../out"
+    "frontendDist": "./dist"
   },
   "bundle": {
     "active": true,

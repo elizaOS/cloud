@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { socialRewardsService, referralsService, REWARDS } from "@/lib/services";
+import { socialRewardsService, referralsService, REWARDS } from "@/lib/services/referrals";
 import { addCorsHeaders, validateOrigin, createPreflightResponse } from "@/lib/middleware/cors-apps";
 import { logger } from "@/lib/utils/logger";
 

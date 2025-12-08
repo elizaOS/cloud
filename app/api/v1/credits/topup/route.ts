@@ -19,7 +19,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withX402 } from "x402-next";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { creditsService, organizationsService, agentReputationService } from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
+import { organizationsService } from "@/lib/services/organizations";
+import { agentReputationService } from "@/lib/services/agent-reputation";
 import { getFacilitator } from "@/lib/middleware/x402-payment";
 import {
   X402_ENABLED,

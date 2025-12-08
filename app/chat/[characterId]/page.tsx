@@ -1,7 +1,9 @@
 import { notFound, redirect } from "next/navigation";
-import { charactersService, anonymousSessionsService } from "@/lib/services";
+import { charactersService } from "@/lib/services/characters";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { getCurrentUser } from "@/lib/auth";
 import { getAnonymousUser } from "@/lib/auth-anonymous";
+import { migrateAnonymousSession } from "@/lib/session";
 import { ChatInterface } from "@/components/chat/chat-interface";
 import { logger } from "@/lib/utils/logger";
 import { resolveCharacterTheme } from "@/lib/config/affiliate-themes";
@@ -176,8 +178,7 @@ export default async function ChatPage({
         },
       );
 
-      const { convertAnonymousToReal } = await import("@/lib/auth-anonymous");
-      await convertAnonymousToReal(anonSession.user_id, user.privy_user_id);
+      await migrateAnonymousSession(anonSession.user_id, user.privy_user_id);
 
       logger.info(`[Chat Page] Migration completed successfully`);
     } else if (anonSession?.converted_at) {

@@ -23,7 +23,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg, type AuthResult } from "@/lib/auth";
 import { X402_ENABLED, isX402Configured, getDefaultNetwork, X402_RECIPIENT_ADDRESS } from "@/lib/config/x402";
-import { creditsService } from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -168,12 +168,6 @@ export async function requireCreditsWithX402Fallback(
     amountPaid: estimatedCost,
   };
 }
-
-/**
- * @deprecated Use requireCreditsWithX402Fallback instead.
- * This function name was misleading - it doesn't actually verify x402 payments.
- */
-export const requireX402OrCredits = requireCreditsWithX402Fallback;
 
 /**
  * Refund credits if using credit payment method

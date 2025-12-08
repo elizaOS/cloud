@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { listContainers } from "@/lib/services";
+import { listContainers } from "@/lib/services/containers";
 import { ContainersTable } from "@/components/containers/containers-table";
 import { ContainersSkeleton } from "@/components/containers/containers-skeleton";
 import { Terminal, Server, TrendingUp, Activity } from "lucide-react";

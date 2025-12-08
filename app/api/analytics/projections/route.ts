@@ -1,12 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
-import { getUsageTimeSeries, type TimeGranularity } from "@/lib/services";
+import { getUsageTimeSeries, type TimeGranularity } from "@/lib/services/analytics";
 import {
   generateProjections,
   generateProjectionAlerts,
 } from "@/lib/analytics/projections";
-import { organizationsService } from "@/lib/services";
+import { organizationsService } from "@/lib/services/organizations";
 
 export const maxDuration = 60;
 

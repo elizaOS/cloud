@@ -5,6 +5,7 @@ import {
   type Organization,
   type NewOrganization,
 } from "../schemas/organizations";
+import { creditTransactions } from "../schemas/credit-transactions";
 import type { CreditTransaction } from "../schemas/credit-transactions";
 
 export type { Organization, NewOrganization };
@@ -172,9 +173,6 @@ export class OrganizationsRepository {
           updated_at: new Date(),
         })
         .where(eq(organizations.id, organizationId));
-
-      const { creditTransactions } =
-        await import("../schemas/credit-transactions");
 
       const [creditTx] = await tx
         .insert(creditTransactions)

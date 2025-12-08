@@ -19,7 +19,7 @@ import {
 import { connectionCache } from "@/lib/cache/connection-cache";
 import type { UserContext } from "./user-context";
 import { logger } from "@/lib/utils/logger";
-import { anonymousSessionsService } from "@/lib/services";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { discordService } from "@/lib/services/discord";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";

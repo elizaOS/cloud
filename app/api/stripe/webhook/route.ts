@@ -1,6 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
-import { creditsService, invoicesService, appCreditsService, referralsService, agentReputationService } from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
+import { invoicesService } from "@/lib/services/invoices";
+import { appCreditsService } from "@/lib/services/app-credits";
+import { referralsService } from "@/lib/services/referrals";
+import { agentReputationService } from "@/lib/services/agent-reputation";
 import { referralSignupsRepository } from "@/db/repositories/referrals";
 import { usersRepository } from "@/db/repositories/users";
 import { headers } from "next/headers";

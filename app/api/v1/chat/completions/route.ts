@@ -1,13 +1,11 @@
 // app/api/v1/chat/completions/route.ts
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { getProvider } from "@/lib/providers";
-import {
-  creditsService,
-  usageService,
-  generationsService,
-  organizationsService,
-  contentModerationService,
-} from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
+import { usageService } from "@/lib/services/usage";
+import { generationsService } from "@/lib/services/generations";
+import { organizationsService } from "@/lib/services/organizations";
+import { contentModerationService } from "@/lib/services/content-moderation";
 import {
   calculateCost,
   getProviderFromModel,

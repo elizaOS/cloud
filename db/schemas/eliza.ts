@@ -2,7 +2,7 @@
  * ElizaOS schema exports.
  * 
  * Re-exports ElizaOS plugin-sql schema tables for integration with Drizzle migrations.
- * Provides unified database access to ElizaOS tables.
+ * Provides database access to ElizaOS tables.
  */
 import plugin from "@elizaos/plugin-sql/node";
 import {

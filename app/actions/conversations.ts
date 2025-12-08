@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth";
-import { conversationsService } from "@/lib/services";
+import { conversationsService } from "@/lib/services/conversations";
 
 /**
  * Creates a new conversation for the authenticated user.

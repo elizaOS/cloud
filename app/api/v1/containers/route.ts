@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { creditsService } from "@/lib/services/credits";
+import { usageService } from "@/lib/services/usage";
 import {
-  creditsService,
-  usageService,
   containersService,
   listContainers,
   getContainer,
   updateContainerStatus,
-  QuotaExceededError,
   type NewContainer,
-} from "@/lib/services";
+} from "@/lib/services/containers";
+import { QuotaExceededError } from "@/lib/services/container-quota";
 import { creditEventEmitter } from "@/lib/events/credit-events";
 import {
   calculateDeploymentCost,

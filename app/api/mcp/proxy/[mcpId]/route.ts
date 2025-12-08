@@ -21,7 +21,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { userMcpsService, creditsService } from "@/lib/services";
+import { userMcpsService } from "@/lib/services/user-mcps";
+import { creditsService } from "@/lib/services/credits";
 import { containersService } from "@/lib/services/containers";
 import { X402_ENABLED, isX402Configured, CREDITS_PER_DOLLAR } from "@/lib/config/x402";
 import { logger } from "@/lib/utils/logger";

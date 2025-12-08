@@ -5,11 +5,9 @@ import {
   participantsRepository,
   roomsRepository,
 } from "@/db/repositories";
-import {
-  charactersService,
-  anonymousSessionsService,
-  usersService,
-} from "@/lib/services";
+import { charactersService } from "@/lib/services/characters/characters";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
+import { usersService } from "@/lib/services/users";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";

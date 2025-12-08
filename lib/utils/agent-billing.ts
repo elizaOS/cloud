@@ -8,7 +8,7 @@
 
 import { agentBudgetService } from "@/lib/services/agent-budgets";
 import { creditsService } from "@/lib/services/credits";
-import { organizationsService } from "@/lib/services";
+import { organizationsService } from "@/lib/services/organizations";
 import { logger } from "@/lib/utils/logger";
 import { calculateCost, getProviderFromModel } from "@/lib/pricing";
 

@@ -6,4 +6,4 @@ export {
   getSessionDebugInfo,
   type SessionUser,
   type SessionTokenSources,
-} from "./unified-session";
+} from "./session";

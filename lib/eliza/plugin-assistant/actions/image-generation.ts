@@ -13,7 +13,7 @@ import {
   logger,
 } from "@elizaos/core";
 import { v4 } from "uuid";
-import { uploadBase64Image } from "@/lib/blob";
+import { uploadBase64Image, isFalAiUrl, ensureElizaCloudUrl } from "@/lib/blob";
 import type { AffiliateData } from "@/lib/types/affiliate";
 
 interface AffiliateImageConfig {
@@ -421,8 +421,6 @@ async function ensureBlobUrl(
 ): Promise<string | null> {
   if (!isBase64DataUrl(imageUrl)) {
     // Check if it's a Fal.ai URL - if so, upload to our storage
-    const { isFalAiUrl, ensureElizaCloudUrl } = await import("@/lib/blob");
-
     if (isFalAiUrl(imageUrl)) {
       logger.info(
         "[GENERATE_IMAGE] Fal.ai URL detected, uploading to our storage...",

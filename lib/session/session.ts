@@ -1,8 +1,8 @@
 /**
- * Unified Session Management
+ * Session Management
  *
  * Single source of truth for all session operations.
- * Handles both authenticated (Privy) and anonymous sessions uniformly.
+ * Handles both authenticated (Privy) and anonymous sessions.
  */
 
 import { nanoid } from "nanoid";
@@ -21,11 +21,10 @@ import { participantTable } from "@/db/schemas/eliza";
 import type { AnonymousSession } from "@/db/schemas";
 import { eq, and, sql } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
-import {
-  usersService,
-  anonymousSessionsService,
-  userSessionsService,
-} from "@/lib/services";
+import { usersService } from "@/lib/services/users";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
+import { userSessionsService } from "@/lib/services/user-sessions";
+import { syncUserFromPrivy } from "../privy-sync";
 import type { UserWithOrganization } from "@/lib/types";
 import { PrivyClient } from "@privy-io/server-auth";
 
@@ -103,7 +102,7 @@ async function setSessionCookie(token: string, expiresAt: Date): Promise<void> {
       expires: expiresAt,
     });
   } catch (error) {
-    logger.warn("[UnifiedSession] Could not set session cookie:", error);
+    logger.warn("[Session] Could not set session cookie:", error);
   }
 }
 
@@ -112,7 +111,7 @@ async function clearSessionCookie(): Promise<void> {
     const cookieStore = await cookies();
     cookieStore.delete(ANON_SESSION_COOKIE);
   } catch {
-    logger.debug("[UnifiedSession] Could not clear session cookie");
+    logger.debug("[Session] Could not clear session cookie");
   }
 }
 
@@ -133,7 +132,7 @@ export async function getOrCreateSessionUser(
   }
 ): Promise<SessionUser> {
   const { tokenSources, createIfMissing = true } = options || {};
-  const logPrefix = "[UnifiedSession]";
+  const logPrefix = "[Session]";
 
   logger.debug(`${logPrefix} Starting session resolution`, {
     hasRequest: !!request,
@@ -145,6 +144,7 @@ export async function getOrCreateSessionUser(
   try {
     const cookieStore = await cookies();
     const privyToken = cookieStore.get("privy-token")?.value;
+    const privyIdToken = cookieStore.get("privy-id-token")?.value;
 
     if (privyToken) {
       logger.debug(`${logPrefix} Found Privy token, verifying...`);
@@ -153,20 +153,14 @@ export async function getOrCreateSessionUser(
       if (verifiedClaims) {
         let user = await usersService.getByPrivyId(verifiedClaims.userId);
 
-        if (!user) {
+        if (!user && privyIdToken) {
           logger.debug(
             `${logPrefix} Privy user not in DB, triggering JIT sync...`
           );
-          const privyUser = await privyClient.getUser(verifiedClaims.userId);
+          // Use getUser({idToken}) to avoid rate limits (vs deprecated getUser(userId))
+          const privyUser = await privyClient.getUser({ idToken: privyIdToken });
           if (privyUser) {
-            const { syncUserFromPrivy } = await import("../privy-sync");
-            interface PrivyUserShape {
-              id: string;
-              email?: { address: string };
-              name?: string | null;
-              linkedAccounts?: Array<Record<string, unknown>>;
-            }
-            user = await syncUserFromPrivy(privyUser as PrivyUserShape);
+            user = await syncUserFromPrivy(privyUser);
           }
         }
 
@@ -218,7 +212,7 @@ export async function getOrCreateSessionUser(
 
     const session = await anonymousSessionsService.getByToken(providedToken);
     if (session) {
-      const sessionUser = await usersService.getById(session.user_id);
+      const sessionUser = await usersService.getWithOrganization(session.user_id);
       if (sessionUser && sessionUser.is_anonymous) {
         logger.info(
           `${logPrefix} Valid anonymous session from provided token`,
@@ -245,7 +239,7 @@ export async function getOrCreateSessionUser(
 
     const session = await anonymousSessionsService.getByToken(cookieToken);
     if (session) {
-      const sessionUser = await usersService.getById(session.user_id);
+      const sessionUser = await usersService.getWithOrganization(session.user_id);
       if (sessionUser && sessionUser.is_anonymous) {
         logger.info(`${logPrefix} Valid anonymous session from cookie`, {
           userId: sessionUser.id,
@@ -272,10 +266,17 @@ async function buildAnonymousSessionUser(
   session: AnonymousSession,
   token: string
 ): Promise<SessionUser> {
+  // Anonymous users have no organization - construct proper UserWithOrganization
+  const anonymousUser: UserWithOrganization = {
+    ...user,
+    organization_id: null,
+    organization: null,
+  };
+
   return {
     userId: user.id,
     isAnonymous: true,
-    organizationId: user.organization_id,
+    organizationId: null,
     sessionToken: token,
     messageCount: session.message_count,
     messagesLimit: session.messages_limit,
@@ -290,11 +291,7 @@ async function buildAnonymousSessionUser(
       createdAt: session.created_at,
       expiresAt: session.expires_at,
     },
-    user: {
-      ...user,
-      organization_id: null,
-      organization: null,
-    } as SessionUser["user"],
+    user: anonymousUser,
     anonymousSession: session,
   };
 }
@@ -340,11 +337,18 @@ async function createNewAnonymousSession(): Promise<SessionUser> {
 
   await setSessionCookie(sessionToken, expiresAt);
 
-  logger.info("[UnifiedSession] Created new anonymous session", {
+  logger.info("[Session] Created new anonymous session", {
     userId: newUser.id,
     sessionId: newSession.id,
     expiresAt,
   });
+
+  // Construct UserWithOrganization from the newly created User
+  const anonymousUser: UserWithOrganization = {
+    ...newUser,
+    organization_id: null,
+    organization: null,
+  };
 
   return {
     userId: newUser.id,
@@ -360,11 +364,7 @@ async function createNewAnonymousSession(): Promise<SessionUser> {
       createdAt: new Date(),
       expiresAt,
     },
-    user: {
-      ...newUser,
-      organization_id: null,
-      organization: null,
-    } as SessionUser["user"],
+    user: anonymousUser,
     anonymousSession: newSession,
   };
 }
@@ -415,7 +415,7 @@ export async function incrementSessionMessageCount(
     session.id
   );
 
-  logger.debug("[UnifiedSession] Incremented message count", {
+  logger.debug("[Session] Incremented message count", {
     sessionId: session.id,
     newCount: updatedSession.message_count,
     remaining: session.messages_limit - updatedSession.message_count,
@@ -452,7 +452,7 @@ export async function migrateAnonymousSession(
     roomMappingsTransferred: number;
   };
 }> {
-  const logPrefix = "[UnifiedSession:Migration]";
+  const logPrefix = "[Session:Migration]";
 
   logger.info(`${logPrefix} Starting migration`, {
     anonymousUserId,
@@ -568,6 +568,10 @@ export async function migrateAnonymousSession(
 
       mergedData.charactersTransferred = charResult.length;
     } else {
+      if (!realUser.organization_id) {
+        throw new Error(`Cannot migrate to user ${realUser.id} without organization`);
+      }
+
       targetUserId = realUser.id;
       targetOrgId = realUser.organization_id;
 
@@ -575,7 +579,7 @@ export async function migrateAnonymousSession(
         .update(conversations)
         .set({
           user_id: realUser.id,
-          organization_id: realUser.organization_id,
+          organization_id: targetOrgId,
           updated_at: new Date(),
         })
         .where(eq(conversations.user_id, anonymousUserId))
@@ -587,7 +591,7 @@ export async function migrateAnonymousSession(
         .update(userCharacters)
         .set({
           user_id: realUser.id,
-          organization_id: realUser.organization_id,
+          organization_id: targetOrgId,
           updated_at: new Date(),
         })
         .where(eq(userCharacters.user_id, anonymousUserId))

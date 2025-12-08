@@ -99,18 +99,6 @@ export function isBuiltInAvatar(url: string | null | undefined): boolean {
 }
 
 /**
- * @deprecated Use isBuiltInAvatar instead
- * Kept for backward compatibility
- */
-export function isDiceBearAvatar(url: string | null | undefined): boolean {
-  if (!url) return false;
-  // Check for old DiceBear URLs (for migration purposes)
-  if (url.includes("api.dicebear.com")) return true;
-  // Also check for built-in avatars
-  return isBuiltInAvatar(url);
-}
-
-/**
  * Get available avatar options for UI selection
  */
 export function getAvailableAvatarStyles(): Array<{

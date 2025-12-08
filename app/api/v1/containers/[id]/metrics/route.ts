@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { getContainer } from "@/lib/services";
+import { getContainer } from "@/lib/services/containers";
 import {
   CloudWatchClient,
   GetMetricStatisticsCommand,

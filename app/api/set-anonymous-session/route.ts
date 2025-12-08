@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { anonymousSessionsService, usersService } from "@/lib/services";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
+import { usersService } from "@/lib/services/users";
 import { logger } from "@/lib/utils/logger";
 import { db } from "@/db/client";
 import { users, anonymousSessions } from "@/db/schemas";

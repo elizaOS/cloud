@@ -235,7 +235,7 @@ afterAll(async () => {
 
 describe("Content Moderation Service", () => {
   test("imports correctly", async () => {
-    const { contentModerationService } = await import("@/lib/services");
+    const { contentModerationService } = await import("@/lib/services/content-moderation");
     expect(contentModerationService).toBeDefined();
     expect(typeof contentModerationService.needsAsyncModeration).toBe("function");
     expect(typeof contentModerationService.moderateAsync).toBe("function");
@@ -244,7 +244,7 @@ describe("Content Moderation Service", () => {
 
   describe("needsAsyncModeration", () => {
     test("returns boolean for any content", async () => {
-      const { contentModerationService } = await import("@/lib/services");
+      const { contentModerationService } = await import("@/lib/services/content-moderation");
       // The keyword detection is liberal - we just verify it returns a boolean
       const result1 = contentModerationService.needsAsyncModeration(SAFE_CONTENT);
       const result2 = contentModerationService.needsAsyncModeration(MILDLY_OFFENSIVE_CONTENT);
@@ -254,7 +254,7 @@ describe("Content Moderation Service", () => {
     });
 
     test("definitely triggers for content with explicit bad words", async () => {
-      const { contentModerationService } = await import("@/lib/services");
+      const { contentModerationService } = await import("@/lib/services/content-moderation");
       // Use explicit profanity that's definitely in the list
       const explicitContent = "This is fucking bullshit";
       expect(contentModerationService.needsAsyncModeration(explicitContent)).toBe(true);
@@ -264,7 +264,7 @@ describe("Content Moderation Service", () => {
   describe("moderateAsync", () => {
     test("returns not flagged for safe content", async () => {
       if (!(await requireModerationTables())) return;
-      const { contentModerationService } = await import("@/lib/services");
+      const { contentModerationService } = await import("@/lib/services/content-moderation");
       const result = await contentModerationService.moderateAsync(
         SAFE_CONTENT,
         testRegularUserId
@@ -275,7 +275,7 @@ describe("Content Moderation Service", () => {
 
     test("returns not flagged for borderline content", async () => {
       if (!(await requireModerationTables())) return;
-      const { contentModerationService } = await import("@/lib/services");
+      const { contentModerationService } = await import("@/lib/services/content-moderation");
       const result = await contentModerationService.moderateAsync(
         BORDERLINE_CONTENT,
         testRegularUserId
@@ -286,7 +286,7 @@ describe("Content Moderation Service", () => {
 
     test("flags self-harm content", async () => {
       if (!(await requireModerationTables())) return;
-      const { contentModerationService } = await import("@/lib/services");
+      const { contentModerationService } = await import("@/lib/services/content-moderation");
       const result = await contentModerationService.moderateAsync(
         SEVERELY_OFFENSIVE_SELF_HARM,
         testRegularUserId
@@ -300,7 +300,7 @@ describe("Content Moderation Service", () => {
 
     test("flags CSAM-related content", async () => {
       if (!(await requireModerationTables())) return;
-      const { contentModerationService } = await import("@/lib/services");
+      const { contentModerationService } = await import("@/lib/services/content-moderation");
       const result = await contentModerationService.moderateAsync(
         SEVERELY_OFFENSIVE_CSAM,
         testRegularUserId
@@ -316,7 +316,7 @@ describe("Content Moderation Service", () => {
   describe("escalation logic", () => {
     test("first violation returns refused action", async () => {
       if (!(await requireModerationTables())) return;
-      const { contentModerationService } = await import("@/lib/services");
+      const { contentModerationService } = await import("@/lib/services/content-moderation");
       
       // Reset violations first
       await db.delete(moderationViolations).where(eq(moderationViolations.userId, testRegularUserId));
@@ -334,7 +334,7 @@ describe("Content Moderation Service", () => {
 
     test("repeated violations escalate to warned", async () => {
       if (!(await requireModerationTables())) return;
-      const { contentModerationService } = await import("@/lib/services");
+      const { contentModerationService } = await import("@/lib/services/content-moderation");
       
       // Simulate 2 previous violations
       for (let i = 0; i < 2; i++) {
@@ -356,7 +356,7 @@ describe("Content Moderation Service", () => {
 
     test("many violations escalate to flagged_for_ban", async () => {
       if (!(await requireModerationTables())) return;
-      const { contentModerationService } = await import("@/lib/services");
+      const { contentModerationService } = await import("@/lib/services/content-moderation");
       
       // Simulate 5 previous violations (total should be > 5)
       for (let i = 0; i < 3; i++) {
@@ -378,7 +378,7 @@ describe("Content Moderation Service", () => {
 
     test("shouldBlockUser returns true for users with many violations", async () => {
       if (!(await requireModerationTables())) return;
-      const { contentModerationService } = await import("@/lib/services");
+      const { contentModerationService } = await import("@/lib/services/content-moderation");
       const shouldBlock = await contentModerationService.shouldBlockUser(testRegularUserId);
       expect(shouldBlock).toBe(true);
     });
@@ -389,7 +389,7 @@ describe("Content Moderation Service", () => {
 
 describe("Admin Service", () => {
   test("imports correctly", async () => {
-    const { adminService } = await import("@/lib/services");
+    const { adminService } = await import("@/lib/services/admin");
     expect(adminService).toBeDefined();
     expect(typeof adminService.isAdmin).toBe("function");
     expect(typeof adminService.banUser).toBe("function");
@@ -401,7 +401,7 @@ describe("Admin Service", () => {
     
     test("returns correct value for anvil wallet based on environment", async () => {
       if (!(await requireModerationTables())) return;
-      const { adminService } = await import("@/lib/services");
+      const { adminService } = await import("@/lib/services/admin");
       const isAdmin = await adminService.isAdmin(ANVIL_WALLET);
       
       if (isDevnet) {
@@ -414,7 +414,7 @@ describe("Admin Service", () => {
 
     test("returns correct role for anvil wallet based on environment", async () => {
       if (!(await requireModerationTables())) return;
-      const { adminService } = await import("@/lib/services");
+      const { adminService } = await import("@/lib/services/admin");
       const role = await adminService.getAdminRole(ANVIL_WALLET);
       
       if (isDevnet) {
@@ -427,7 +427,7 @@ describe("Admin Service", () => {
 
     test("returns false for non-admin wallet", async () => {
       if (!(await requireModerationTables())) return;
-      const { adminService } = await import("@/lib/services");
+      const { adminService } = await import("@/lib/services/admin");
       const isAdmin = await adminService.isAdmin("0x1234567890123456789012345678901234567890");
       expect(isAdmin).toBe(false);
     });
@@ -436,7 +436,7 @@ describe("Admin Service", () => {
   describe("user moderation", () => {
     test("can get user moderation status", async () => {
       if (!(await requireModerationTables())) return;
-      const { adminService } = await import("@/lib/services");
+      const { adminService } = await import("@/lib/services/admin");
       const status = await adminService.getUserModerationStatus(testRegularUserId);
       expect(status).toBeDefined();
       expect(status?.totalViolations).toBeGreaterThan(0);
@@ -444,14 +444,14 @@ describe("Admin Service", () => {
 
     test("can get recent violations", async () => {
       if (!(await requireModerationTables())) return;
-      const { adminService } = await import("@/lib/services");
+      const { adminService } = await import("@/lib/services/admin");
       const violations = await adminService.getRecentViolations(10);
       expect(Array.isArray(violations)).toBe(true);
     });
 
     test("can get user violations", async () => {
       if (!(await requireModerationTables())) return;
-      const { adminService } = await import("@/lib/services");
+      const { adminService } = await import("@/lib/services/admin");
       const violations = await adminService.getUserViolations(testRegularUserId);
       expect(Array.isArray(violations)).toBe(true);
       expect(violations.length).toBeGreaterThan(0);
@@ -459,7 +459,7 @@ describe("Admin Service", () => {
 
     test("can ban user", async () => {
       if (!(await requireModerationTables())) return;
-      const { adminService } = await import("@/lib/services");
+      const { adminService } = await import("@/lib/services/admin");
       await adminService.banUser({
         userId: testRegularUserId,
         adminUserId: testAdminUserId,
@@ -472,7 +472,7 @@ describe("Admin Service", () => {
 
     test("can unban user", async () => {
       if (!(await requireModerationTables())) return;
-      const { adminService } = await import("@/lib/services");
+      const { adminService } = await import("@/lib/services/admin");
       await adminService.unbanUser(testRegularUserId, testAdminUserId);
 
       const isBanned = await adminService.isUserBanned(testRegularUserId);
@@ -481,7 +481,7 @@ describe("Admin Service", () => {
 
     test("can mark user as spammer", async () => {
       if (!(await requireModerationTables())) return;
-      const { adminService } = await import("@/lib/services");
+      const { adminService } = await import("@/lib/services/admin");
       await adminService.markUserAs({
         userId: testRegularUserId,
         status: "spammer",
@@ -495,7 +495,7 @@ describe("Admin Service", () => {
 
     test("can mark user as scammer", async () => {
       if (!(await requireModerationTables())) return;
-      const { adminService } = await import("@/lib/services");
+      const { adminService } = await import("@/lib/services/admin");
       await adminService.markUserAs({
         userId: testRegularUserId,
         status: "scammer",
@@ -513,7 +513,7 @@ describe("Admin Service", () => {
 
     test("can promote wallet to admin", async () => {
       if (!(await requireModerationTables())) return;
-      const { adminService } = await import("@/lib/services");
+      const { adminService } = await import("@/lib/services/admin");
       const admin = await adminService.promoteToAdmin({
         walletAddress: testWallet,
         role: "moderator",
@@ -528,7 +528,7 @@ describe("Admin Service", () => {
 
     test("can list admins", async () => {
       if (!(await requireModerationTables())) return;
-      const { adminService } = await import("@/lib/services");
+      const { adminService } = await import("@/lib/services/admin");
       const admins = await adminService.listAdmins();
       expect(Array.isArray(admins)).toBe(true);
       
@@ -542,7 +542,7 @@ describe("Admin Service", () => {
 
     test("can revoke admin", async () => {
       if (!(await requireModerationTables())) return;
-      const { adminService } = await import("@/lib/services");
+      const { adminService } = await import("@/lib/services/admin");
       await adminService.revokeAdmin(testWallet, ANVIL_WALLET);
 
       const isAdmin = await adminService.isAdmin(testWallet);
@@ -643,7 +643,8 @@ describe("Database Schemas", () => {
 describe("Integration", () => {
   test("content moderation and admin service work together", async () => {
     if (!(await requireModerationTables())) return;
-    const { contentModerationService, adminService } = await import("@/lib/services");
+    const { contentModerationService } = await import("@/lib/services/content-moderation");
+    const { adminService } = await import("@/lib/services/admin");
     
     // Create a fresh test user for this test
     const freshUserId = uuidv4();
@@ -686,7 +687,7 @@ describe("Integration", () => {
 
   test("admin list structure is correct", async () => {
     if (!(await requireModerationTables())) return;
-    const { adminService } = await import("@/lib/services");
+    const { adminService } = await import("@/lib/services/admin");
     const admins = await adminService.listAdmins();
     
     // Verify structure

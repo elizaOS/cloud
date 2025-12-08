@@ -12,6 +12,8 @@
  */
 
 import { hasBadWords, minimalBadWordsArray } from "expletives";
+import { adminService } from "./admin";
+import { agentReputationService } from "./agent-reputation";
 import { logger } from "@/lib/utils/logger";
 
 // OpenAI Moderation API types
@@ -235,8 +237,6 @@ class ContentModerationService {
       return result;
     }
 
-    // Lazy import to avoid circular dependency
-    const { adminService } = await import("./admin");
 
     // Get current violation count from DB
     const status = await adminService.getUserModerationStatus(userId);
@@ -570,7 +570,6 @@ class ContentModerationService {
       .then(async (result) => {
         if (result.flagged && result.action) {
           // Also record to agent reputation system
-          const { agentReputationService } = await import("./agent-reputation");
           
           // Map moderation categories to flag types
           let flagType: "csam" | "self_harm" | "harassment" | "spam" | "other" = "other";
@@ -608,18 +607,6 @@ class ContentModerationService {
       });
   }
 
-  /**
-   * Legacy sync moderate function - now just does keyword check
-   * For blocking behavior, use moderateAsync instead
-   * @deprecated Use moderateInBackground for async moderation
-   */
-  async moderate(text: string): Promise<{ allowed: boolean; keywordTriggered: boolean }> {
-    const keywordTriggered = this.needsAsyncModeration(text);
-    return {
-      allowed: true, // Never block sync - let async handle it
-      keywordTriggered,
-    };
-  }
 }
 
 export const contentModerationService = new ContentModerationService();
