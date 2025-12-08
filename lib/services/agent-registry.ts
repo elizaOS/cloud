@@ -55,6 +55,7 @@ export interface AgentRegistrationResult {
   network: ERC8004Network;
   a2aEndpoint: string;
   mcpEndpoint: string;
+  txHash?: string; // Not always available from agent0-sdk
 }
 
 export interface MCPRegistrationParams {

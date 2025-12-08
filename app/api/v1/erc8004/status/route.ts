@@ -23,7 +23,6 @@ import {
   SERVICE_INFO,
   BLOCK_EXPLORERS,
 } from "@/lib/config/erc8004";
-import { parseAgentId } from "@/lib/types/erc8004";
 
 export const dynamic = "force-dynamic";
 

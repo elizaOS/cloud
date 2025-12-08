@@ -249,11 +249,37 @@ export async function POST(request: NextRequest) {
 
   const startTime = Date.now();
 
-  const externalResponse = await fetch(endpoint, {
-    method: "POST",
-    headers: proxyHeaders,
-    body: JSON.stringify(body),
-  });
+  let externalResponse: Response;
+  try {
+    externalResponse = await fetch(endpoint, {
+      method: "POST",
+      headers: proxyHeaders,
+      body: JSON.stringify(body),
+    });
+  } catch (fetchError) {
+    // Refund credits on network failure
+    await creditsService.refundCredits({
+      organizationId: orgId,
+      amount: PROXY_COST_CREDITS,
+      description: `Proxy refund (network error): ${agent.name}`,
+    });
+
+    logger.error("[DiscoveryProxy] Fetch failed", {
+      agentId,
+      endpoint,
+      error: fetchError instanceof Error ? fetchError.message : "Unknown error",
+    });
+
+    return NextResponse.json(
+      {
+        error: "external_service_unavailable",
+        message: `Failed to reach external service: ${fetchError instanceof Error ? fetchError.message : "Network error"}`,
+        agentId,
+        creditsRefunded: PROXY_COST_CREDITS,
+      },
+      { status: 503 }
+    );
+  }
 
   const duration = Date.now() - startTime;
 
