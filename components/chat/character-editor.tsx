@@ -10,10 +10,11 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CharacterForm } from "@/components/character-builder";
 import { JsonEditor } from "@/components/character-creator/json-editor";
 import { PluginsTab } from "@/components/chat/plugins-tab";
+import { UploadsTab } from "@/components/chat/uploads-tab";
 import type { ElizaCharacter } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +22,6 @@ import {
   Save,
   Zap,
   BookOpen,
-  Upload,
   Sparkles,
   Puzzle,
   BarChart3,
@@ -31,7 +31,7 @@ import {
   BrandTabsResponsive,
   type TabItem,
 } from "@/components/brand/brand-tabs-responsive";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 interface CharacterEditorProps {
@@ -40,16 +40,30 @@ interface CharacterEditorProps {
   onSave: () => Promise<void>;
 }
 
-type MainTab = "character" | "plugins" | "stats" | "uploads";
+type MainTab = "character" | "plugins" | "stats" | "knowledge";
 
 export function CharacterEditor({
   character,
   onChange,
   onSave,
 }: CharacterEditorProps) {
-  const [activeTab, setActiveTab] = useState<MainTab>("character");
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get("tab") as MainTab | null;
+  const [activeTab, setActiveTab] = useState<MainTab>(
+    initialTab && ["character", "plugins", "stats", "knowledge"].includes(initialTab)
+      ? initialTab
+      : "character"
+  );
   const [showJson, setShowJson] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Update tab when URL changes
+  useEffect(() => {
+    const tab = searchParams.get("tab") as MainTab | null;
+    if (tab && ["character", "plugins", "stats", "knowledge"].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   const tabs: TabItem[] = [
     {
@@ -68,9 +82,9 @@ export function CharacterEditor({
       icon: <BarChart3 className="h-4 w-4" />,
     },
     {
-      value: "uploads",
-      label: "Uploads",
-      icon: <Upload className="h-4 w-4" />,
+      value: "knowledge",
+      label: "Knowledge",
+      icon: <BookOpen className="h-4 w-4" />,
     },
   ];
 
@@ -257,18 +271,8 @@ export function CharacterEditor({
                 </Tabs>
               </div>
             )}
-            {activeTab === "uploads" && (
-              <div className="flex h-full items-center justify-center p-6">
-                <div className="text-center">
-                  <Upload className="h-12 w-12 text-white/40 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-white mb-2">
-                    Uploads
-                  </h3>
-                  <p className="text-sm text-white/60">
-                    Upload files and documents
-                  </p>
-                </div>
-              </div>
+            {activeTab === "knowledge" && (
+              <UploadsTab characterId={character.id || null} />
             )}
           </>
         )}

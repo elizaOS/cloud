@@ -49,9 +49,14 @@ export class RuntimeFactory {
     elizaLogger.info(`[RuntimeFactory] Creating runtime: user=${context.userId}, mode=${context.agentMode}, char=${context.characterId || "default"}`);
 
     const isDefaultCharacter = !context.characterId || context.characterId === this.DEFAULT_AGENT_ID_STRING;
-    const { character, plugins } = isDefaultCharacter
+    const { character, plugins, modeResolution } = isDefaultCharacter
       ? await agentLoader.getDefaultCharacter(context.agentMode)
       : await agentLoader.loadCharacter(context.characterId!, context.agentMode);
+
+    // Log mode upgrade if it occurred
+    if (modeResolution.upgradeReason !== "none") {
+      elizaLogger.info(`[RuntimeFactory] Mode upgraded: ${context.agentMode} → ${modeResolution.mode} (reason: ${modeResolution.upgradeReason})`);
+    }
 
     const agentId = (character.id ? stringToUuid(character.id) : this.DEFAULT_AGENT_ID) as UUID;
     elizaLogger.info(`[RuntimeFactory] Character: ${character.name} (${agentId})`);
@@ -72,7 +77,7 @@ export class RuntimeFactory {
     await this.initializeRuntime(runtime, character, agentId);
     await this.waitForMcpServiceIfNeeded(runtime, filteredPlugins);
 
-    elizaLogger.success(`[RuntimeFactory] Runtime ready: ${character.name} (${context.agentMode})`);
+    elizaLogger.success(`[RuntimeFactory] Runtime ready: ${character.name} (${modeResolution.mode})`);
     return runtime;
   }
 
