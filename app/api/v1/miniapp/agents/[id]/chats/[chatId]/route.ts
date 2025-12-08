@@ -25,10 +25,11 @@ import { extractMessageText } from "@/lib/utils/message-text";
 import { db } from "@/db/client";
 import { roomTable, memoryTable, participantTable } from "@/db/schemas/eliza";
 import { eq, and, asc } from "drizzle-orm";
-import type { UUID } from "@elizaos/core";
+import type { Media, UUID } from "@elizaos/core";
 import type { RoomMetadata } from "@/lib/types/message-content";
 import {
   parseMessageContent,
+  isVisibleDialogueMessage,
   type MessageAttachment,
 } from "@/lib/types/message-content";
 
@@ -191,10 +192,18 @@ export async function GET(
       }),
     });
 
-    // Deduplicate messages by content hash (same text + same entityId within 5 seconds = duplicate)
+    // Filter out action results and deduplicate messages
     const seenMessages = new Map<string, typeof messages[0]>();
     const deduplicatedMessages = messages.filter((msg) => {
       const content = msg.content as Record<string, unknown>;
+      const metadata = msg.metadata as Record<string, unknown> | undefined;
+      
+      // Use centralized visibility check (filters hidden and action_result messages)
+      if (!isVisibleDialogueMessage(metadata, content)) {
+        return false;
+      }
+      
+      // Deduplicate by content hash (same text + same entityId within 5 seconds = duplicate)
       const text = (content?.text as string) || "";
       const createdAt = msg.createdAt ? new Date(msg.createdAt as string | number | Date).getTime() : 0;
       const key = `${msg.entityId}-${text}-${Math.floor(createdAt / 5000)}`; // 5 second window
@@ -242,13 +251,13 @@ export async function GET(
       const attachments: MessageAttachment[] | undefined =
         Array.isArray(content.attachments) && content.attachments.length > 0
           ? content.attachments
-              .filter((att): att is MessageAttachment => {
+              .filter((att): att is Media => {
                 return (
                   typeof att === "object" &&
                   att !== null &&
                   "id" in att &&
                   "url" in att &&
-                  typeof (att as MessageAttachment).url === "string"
+                  typeof (att as Media).url === "string"
                 );
               })
               .map((att) => ({
