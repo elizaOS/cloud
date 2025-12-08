@@ -65,7 +65,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
       : [];
     updateField(
       type,
-      currentArray.filter((_, i) => i !== index),
+      currentArray.filter((_, i) => i !== index)
     );
   };
 
@@ -74,7 +74,10 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
 
     const conversation: MessageExample[] = [
       { name: "user", content: { text: newUserMessage.trim() } },
-      { name: character.name || "agent", content: { text: newAgentMessage.trim() } },
+      {
+        name: character.name || "agent",
+        content: { text: newAgentMessage.trim() },
+      },
     ];
 
     const currentExamples = character.messageExamples || [];
@@ -87,7 +90,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
     const currentExamples = character.messageExamples || [];
     updateField(
       "messageExamples",
-      currentExamples.filter((_, i) => i !== index),
+      currentExamples.filter((_, i) => i !== index)
     );
   };
 
@@ -251,7 +254,9 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs text-white/50">Agent responds:</label>
+                  <label className="text-xs text-white/50">
+                    Agent responds:
+                  </label>
                   <Textarea
                     value={newAgentMessage}
                     onChange={(e) => setNewAgentMessage(e.target.value)}
@@ -280,7 +285,9 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     className="rounded-none bg-black/40 border border-white/10 p-3 space-y-2"
                   >
                     <div className="flex items-start justify-between">
-                      <span className="text-xs text-white/50">Example {index + 1}</span>
+                      <span className="text-xs text-white/50">
+                        Example {index + 1}
+                      </span>
                       <button
                         onClick={() => removeMessageExample(index)}
                         className="hover:text-rose-400 transition-colors"
@@ -291,7 +298,10 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     {conversation.map((message, msgIndex) => (
                       <div key={msgIndex} className="space-y-1">
                         <span className="text-xs font-medium text-[#FF5800]">
-                          {message.name === "user" ? "User" : character.name || "Agent"}:
+                          {message.name === "user"
+                            ? "User"
+                            : character.name || "Agent"}
+                          :
                         </span>
                         <p className="text-sm text-white pl-2 border-l border-white/10">
                           {message.content.text}
@@ -432,7 +442,6 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
               />
             </div>
           </BrandTabsContent>
-
         </BrandTabs>
       </div>
     </BrandCard>
