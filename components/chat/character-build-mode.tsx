@@ -183,6 +183,7 @@ export function CharacterBuildMode({
               onCharacterUpdate={handleCharacterUpdate}
               onCharacterRefresh={handleCharacterRefresh}
               userId={userId}
+              isCreatorMode={false}
             />
           </div>
         ) : (
@@ -207,6 +208,7 @@ export function CharacterBuildMode({
                 onCharacterUpdate={handleCharacterUpdate}
                 onCharacterRefresh={handleCharacterRefresh}
                 userId={userId}
+                isCreatorMode={false}
               />
             </div>
           </ResizablePanel>

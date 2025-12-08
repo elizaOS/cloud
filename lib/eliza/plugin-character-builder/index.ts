@@ -8,13 +8,34 @@ import { actionsProvider } from "./providers/actions";
 import { characterGuideProvider } from "./providers/character-guide";
 import { currentCharacterProvider } from "./providers/current-character";
 import { generateImageAction } from "./actions/image-generation";
-import { proposeCharacterChangesAction } from "./actions/propose-character-changes";
-import { applyCharacterChangesAction } from "./actions/apply-character-changes";
-import { buildChatAction } from "./actions/build-chat";
+import { suggestChangesAction } from "./actions/suggest-changes";
+import { createCharacterAction } from "./actions/create-character";
+import { saveChangesAction } from "./actions/save-changes";
+import { testResponseAction } from "./actions/test-response";
+import { builderChatAction } from "./actions/builder-chat";
+import { guideOnboardingAction } from "./actions/guide-onboarding";
 import { handleMessage } from "./handler";
 import { roomTitleEvaluator } from "../shared/evaluators";
-import { recentMessagesProvider } from "../shared/providers";
+import { characterProvider,recentMessagesProvider } from "../shared/providers";
 
+/**
+ * Character Builder Plugin
+ *
+ * Provides AI-assisted character creation and editing.
+ *
+ * Two modes:
+ * - CREATOR MODE: Chat with Eliza to create new characters/assistants
+ * - BUILD MODE: Edit existing characters with the character itself
+ *
+ * Actions:
+ * - GUIDE_ONBOARDING: Initial setup, determine build type (creator mode only)
+ * - SUGGEST_CHANGES: Expert guidance with optional character JSON preview
+ * - CREATE_CHARACTER: Finalize and save new character (creator mode only)
+ * - SAVE_CHANGES: Save changes to existing character (build mode only)
+ * - TEST_RESPONSE: Simulate character response (build mode only)
+ * - BUILDER_CHAT: General conversation (both modes)
+ * - GENERATE_IMAGE: Generate images for character
+ */
 export const characterBuilderPlugin: Plugin = {
   name: "eliza-character-builder",
   description: "Character creation and editing assistant",
@@ -32,14 +53,29 @@ export const characterBuilderPlugin: Plugin = {
     ],
     [EventType.MESSAGE_SENT]: [
       async (payload: MessagePayload) => {
-        logger.debug(
-          `[Builder] Message sent: ${payload.message.content.text}`,
-        );
+        logger.debug(`[Builder] Message sent: ${payload.message.content.text}`);
       },
     ],
   },
-  providers: [actionsProvider, characterGuideProvider, currentCharacterProvider, recentMessagesProvider],
-  actions: [generateImageAction, proposeCharacterChangesAction, applyCharacterChangesAction, buildChatAction],
+  providers: [
+    actionsProvider,
+    characterGuideProvider,
+    currentCharacterProvider,
+    recentMessagesProvider,
+    characterProvider,
+  ],
+  actions: [
+    // Creator mode actions
+    guideOnboardingAction,
+    createCharacterAction,
+    // Build mode actions
+    saveChangesAction,
+    testResponseAction,
+    // Shared actions (both modes)
+    suggestChangesAction,
+    builderChatAction,
+    generateImageAction,
+  ],
   evaluators: [roomTitleEvaluator],
 };
 
