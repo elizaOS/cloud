@@ -365,6 +365,57 @@ async function processA2AMessage(
   } else if (skillId === "get_redemption_quote") {
     const result = await executeSkillGetRedemptionQuote(dataContent, ctx);
     responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "create_container") {
+    const result = await executeSkillCreateContainer(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "delete_container") {
+    const result = await executeSkillDeleteContainer(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "get_container_metrics") {
+    const result = await executeSkillGetContainerMetrics(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "get_container_quota") {
+    const result = await executeSkillGetContainerQuota(ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "get_credit_summary") {
+    const result = await executeSkillGetCreditSummary(ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "list_credit_transactions") {
+    const result = await executeSkillListCreditTransactions(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "list_credit_packs") {
+    const result = await executeSkillListCreditPacks(ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "get_billing_usage") {
+    const result = await executeSkillGetBillingUsage(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "create_checkout_session") {
+    const result = await executeSkillCreateCheckoutSession(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "get_agent_budget") {
+    const result = await executeSkillGetAgentBudget(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "allocate_agent_budget") {
+    const result = await executeSkillAllocateAgentBudget(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "get_container_deployments") {
+    const result = await executeSkillGetContainerDeployments(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "get_ecr_credentials") {
+    const result = await executeSkillGetEcrCredentials(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "discover_services") {
+    const result = await executeSkillDiscoverServices(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "get_service_details") {
+    const result = await executeSkillGetServiceDetails(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "find_mcp_tools") {
+    const result = await executeSkillFindMcpTools(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "find_a2a_skills") {
+    const result = await executeSkillFindA2aSkills(dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
   } else {
     // Default to chat completion for unknown skills
     const result = await executeSkillChatCompletion(textContent, dataContent, ctx);
@@ -1312,6 +1363,398 @@ async function executeSkillGetRedemptionQuote(
   return { quote };
 }
 
+// ===== Complete Container Management =====
+
+async function executeSkillCreateContainer(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ containerId: string; name: string; status: string }> {
+  const name = dataContent.name as string;
+  const ecrImageUri = dataContent.ecrImageUri as string;
+  const projectName = dataContent.projectName as string;
+  const port = (dataContent.port as number) || 3000;
+  const cpu = (dataContent.cpu as number) || 1792;
+  const memory = (dataContent.memory as number) || 1792;
+  const environmentVars = dataContent.environmentVars as Record<string, string> | undefined;
+
+  if (!name || !ecrImageUri || !projectName) {
+    throw new Error("name, ecrImageUri, and projectName required");
+  }
+
+  // Container deployment cost
+  const DEPLOYMENT_COST = 10; // $10 per deployment
+  if (Number(ctx.user.organization.credit_balance) < DEPLOYMENT_COST) {
+    throw new Error(`Insufficient credits: need $${DEPLOYMENT_COST}`);
+  }
+
+  const deduction = await creditsService.deductCredits({
+    organizationId: ctx.user.organization_id,
+    amount: DEPLOYMENT_COST,
+    description: `A2A container deployment: ${name}`,
+    metadata: { user_id: ctx.user.id, containerName: name },
+  });
+  if (!deduction.success) throw new Error("Credit deduction failed");
+
+  const container = await containersService.create({
+    organization_id: ctx.user.organization_id,
+    name,
+    project_name: projectName,
+    ecr_image_uri: ecrImageUri,
+    port,
+    cpu,
+    memory,
+    environment_vars: environmentVars || {},
+    status: "deploying",
+  });
+
+  return { containerId: container.id, name: container.name, status: container.status };
+}
+
+async function executeSkillDeleteContainer(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean; containerId: string }> {
+  const containerId = dataContent.containerId as string;
+  if (!containerId) throw new Error("containerId required");
+
+  const { getContainer, deleteContainer } = await import("@/lib/services");
+  const container = await getContainer(containerId, ctx.user.organization_id);
+  if (!container) throw new Error("Container not found");
+
+  await deleteContainer(containerId, ctx.user.organization_id);
+  return { success: true, containerId };
+}
+
+async function executeSkillGetContainerMetrics(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ metrics: Record<string, unknown> }> {
+  const containerId = dataContent.containerId as string;
+  if (!containerId) throw new Error("containerId required");
+
+  const { getContainer } = await import("@/lib/services");
+  const container = await getContainer(containerId, ctx.user.organization_id);
+  if (!container) throw new Error("Container not found");
+
+  // Return basic metrics (CloudWatch metrics would require additional integration)
+  return {
+    metrics: {
+      containerId,
+      status: container.status,
+      cpu: container.cpu,
+      memory: container.memory,
+      createdAt: container.created_at,
+    },
+  };
+}
+
+async function executeSkillGetContainerQuota(
+  ctx: A2AContext
+): Promise<{ quota: Record<string, unknown> }> {
+  const { containersService } = await import("@/lib/services");
+  const containers = await containersService.listByOrganization(ctx.user.organization_id);
+  
+  return {
+    quota: {
+      used: containers.length,
+      limit: 5, // Default quota
+      remaining: Math.max(0, 5 - containers.length),
+    },
+  };
+}
+
+// ===== Complete Credit/Monetization Management =====
+
+async function executeSkillGetCreditSummary(
+  ctx: A2AContext
+): Promise<{ summary: Record<string, unknown> }> {
+  const { organizationsService, redeemableEarningsService, agentBudgetService } = await import("@/lib/services");
+  
+  const org = await organizationsService.getById(ctx.user.organization_id);
+  if (!org) throw new Error("Organization not found");
+
+  const redeemable = await redeemableEarningsService.getBalance(ctx.user.organization_id);
+  const agentBudgets = await agentBudgetService.getOrgBudgets(ctx.user.organization_id);
+
+  const totalAgentBudgets = agentBudgets.reduce((sum, b) => sum + Number(b.remaining_budget || 0), 0);
+
+  return {
+    summary: {
+      organizationCredits: Number(org.credit_balance),
+      redeemableEarnings: redeemable,
+      totalAgentBudgets,
+      agentCount: agentBudgets.length,
+    },
+  };
+}
+
+async function executeSkillListCreditTransactions(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ transactions: Array<Record<string, unknown>>; total: number }> {
+  const limit = Math.min(100, (dataContent.limit as number) || 50);
+  const hours = dataContent.hours as number | undefined;
+
+  let transactions = await creditsService.listTransactionsByOrganization(ctx.user.organization_id, limit);
+
+  if (hours) {
+    const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
+    transactions = transactions.filter((t) => new Date(t.created_at) >= cutoffTime);
+  }
+
+  return {
+    transactions: transactions.map((t) => ({
+      id: t.id,
+      amount: Number(t.amount),
+      type: t.type,
+      description: t.description,
+      createdAt: t.created_at.toISOString(),
+    })),
+    total: transactions.length,
+  };
+}
+
+async function executeSkillListCreditPacks(
+  ctx: A2AContext
+): Promise<{ packs: Array<Record<string, unknown>> }> {
+  const packs = await creditsService.listActiveCreditPacks();
+
+  return {
+    packs: packs.map((p) => ({
+      id: p.id,
+      name: p.name,
+      credits: Number(p.credits),
+      price: Number(p.price),
+      currency: p.currency,
+      popular: p.popular,
+    })),
+  };
+}
+
+async function executeSkillGetBillingUsage(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ usage: Record<string, unknown> }> {
+  const days = (dataContent.days as number) || 30;
+
+  const { usageService } = await import("@/lib/services");
+  const usage = await usageService.listByOrganization(ctx.user.organization_id, 1000);
+
+  const cutoffTime = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const recentUsage = usage.filter((u) => new Date(u.created_at) >= cutoffTime);
+
+  const totalCost = recentUsage.reduce((sum, u) => sum + Number(u.input_cost || 0) + Number(u.output_cost || 0), 0);
+  const totalTokens = recentUsage.reduce((sum, u) => sum + (u.input_tokens || 0) + (u.output_tokens || 0), 0);
+
+  return {
+    usage: {
+      period: `${days} days`,
+      totalRequests: recentUsage.length,
+      totalTokens,
+      totalCost,
+      byType: {
+        chat: recentUsage.filter((u) => u.type === "chat").length,
+        image: recentUsage.filter((u) => u.type === "image").length,
+        video: recentUsage.filter((u) => u.type === "video").length,
+        embedding: recentUsage.filter((u) => u.type === "embedding").length,
+      },
+    },
+  };
+}
+
+// ===== Stripe Checkout =====
+
+async function executeSkillCreateCheckoutSession(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ sessionId: string; url: string }> {
+  const creditPackId = dataContent.creditPackId as string | undefined;
+  const amount = dataContent.amount as number | undefined;
+
+  if (!creditPackId && !amount) {
+    throw new Error("Either creditPackId or amount required");
+  }
+
+  const { stripe } = await import("@/lib/stripe");
+  const { organizationsService } = await import("@/lib/services");
+
+  const org = await organizationsService.getById(ctx.user.organization_id);
+  if (!org) throw new Error("Organization not found");
+
+  // Get or create Stripe customer
+  let customerId = org.stripe_customer_id;
+  if (!customerId) {
+    const customer = await stripe.customers.create({
+      email: ctx.user.email || undefined,
+      metadata: { organization_id: ctx.user.organization_id },
+    });
+    customerId = customer.id;
+    await organizationsService.update(ctx.user.organization_id, { stripe_customer_id: customerId });
+  }
+
+  let lineItems;
+  if (creditPackId) {
+    const pack = await creditsService.getCreditPack(creditPackId);
+    if (!pack) throw new Error("Credit pack not found");
+    lineItems = [{ price: pack.stripe_price_id, quantity: 1 }];
+  } else {
+    lineItems = [{
+      price_data: {
+        currency: "usd",
+        product_data: { name: `$${amount} Credit Top-up`, description: `${amount! * 100} credits` },
+        unit_amount: Math.round(amount! * 100),
+      },
+      quantity: 1,
+    }];
+  }
+
+  const session = await stripe.checkout.sessions.create({
+    customer: customerId,
+    line_items: lineItems,
+    mode: "payment",
+    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/settings?success=true`,
+    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/settings?canceled=true`,
+    metadata: { organization_id: ctx.user.organization_id, credit_pack_id: creditPackId || null, custom_amount: amount?.toString() || null },
+  });
+
+  return { sessionId: session.id, url: session.url! };
+}
+
+// ===== Agent Budget Management =====
+
+async function executeSkillGetAgentBudget(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ budget: Record<string, unknown> }> {
+  const agentId = dataContent.agentId as string;
+  if (!agentId) throw new Error("agentId required");
+
+  const { agentBudgetService } = await import("@/lib/services/agent-budgets");
+  const { charactersService } = await import("@/lib/services/characters/characters");
+
+  const agent = await charactersService.getById(agentId);
+  if (!agent) throw new Error("Agent not found");
+  if (agent.organization_id !== ctx.user.organization_id) throw new Error("Not authorized");
+
+  const budget = await agentBudgetService.getOrCreateBudget(agentId);
+  if (!budget) throw new Error("Failed to get budget");
+
+  return {
+    budget: {
+      agentId,
+      allocated: Number(budget.allocated_budget),
+      spent: Number(budget.spent_budget),
+      available: Number(budget.allocated_budget) - Number(budget.spent_budget),
+      dailyLimit: budget.daily_limit ? Number(budget.daily_limit) : null,
+      dailySpent: Number(budget.daily_spent),
+      status: budget.status,
+      autoRefillEnabled: budget.auto_refill_enabled,
+    },
+  };
+}
+
+async function executeSkillAllocateAgentBudget(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean; newBalance: number }> {
+  const agentId = dataContent.agentId as string;
+  const amount = dataContent.amount as number;
+
+  if (!agentId || !amount) throw new Error("agentId and amount required");
+  if (amount <= 0 || amount > 10000) throw new Error("Amount must be between 0 and 10000");
+
+  const { agentBudgetService } = await import("@/lib/services/agent-budgets");
+  const { charactersService } = await import("@/lib/services/characters/characters");
+  const { organizationsService } = await import("@/lib/services");
+
+  const agent = await charactersService.getById(agentId);
+  if (!agent) throw new Error("Agent not found");
+  if (agent.organization_id !== ctx.user.organization_id) throw new Error("Not authorized");
+
+  // Check org balance
+  const org = await organizationsService.getById(ctx.user.organization_id);
+  if (!org || Number(org.credit_balance) < amount) throw new Error("Insufficient organization credits");
+
+  // Deduct from org
+  const deduction = await creditsService.deductCredits({
+    organizationId: ctx.user.organization_id,
+    amount,
+    description: `Budget allocation to agent: ${agent.name}`,
+    metadata: { agent_id: agentId },
+  });
+  if (!deduction.success) throw new Error("Credit deduction failed");
+
+  // Allocate to agent
+  await agentBudgetService.allocateBudget(agentId, amount, `A2A allocation from ${ctx.user.id}`);
+
+  const budget = await agentBudgetService.getOrCreateBudget(agentId);
+  return { success: true, newBalance: Number(budget!.allocated_budget) - Number(budget!.spent_budget) };
+}
+
+// ===== Container Deployments & ECR =====
+
+async function executeSkillGetContainerDeployments(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ deployments: Array<Record<string, unknown>> }> {
+  const containerId = dataContent.containerId as string;
+  if (!containerId) throw new Error("containerId required");
+
+  const container = await containersService.getById(containerId, ctx.user.organization_id);
+  if (!container) throw new Error("Container not found");
+
+  const { usageRecordsRepository } = await import("@/db/repositories/usage-records");
+  const records = await usageRecordsRepository.listByOrganization(ctx.user.organization_id, 50);
+
+  interface DeploymentMetadata { container_id?: string; container_name?: string; }
+  const deployments = records
+    .filter((r) => r.type === "container_deployment")
+    .filter((r) => {
+      const meta = (r.metadata as DeploymentMetadata | null) ?? {};
+      return meta.container_id === containerId || meta.container_name === container.name;
+    })
+    .map((d) => ({
+      id: d.id,
+      status: d.is_successful ? "success" : "failed",
+      cost: d.input_cost,
+      error: d.error_message,
+      createdAt: d.created_at,
+    }));
+
+  return { deployments };
+}
+
+async function executeSkillGetEcrCredentials(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ credentials: Record<string, unknown> }> {
+  const projectId = dataContent.projectId as string;
+  const version = dataContent.version as string;
+
+  if (!projectId || !version) throw new Error("projectId and version required");
+
+  const { getECRManager } = await import("@/lib/services/ecr");
+  const ecrManager = getECRManager();
+
+  const repositoryName = `elizaos/${ctx.user.organization_id}/${projectId}`.toLowerCase();
+  const repository = await ecrManager.createRepository(repositoryName);
+  const authData = await ecrManager.getAuthorizationToken();
+
+  const imageTag = `${version}-${Date.now()}`;
+  const imageUri = ecrManager.getImageUri(repository.repositoryUri, imageTag);
+
+  return {
+    credentials: {
+      ecrRepositoryUri: repository.repositoryUri,
+      ecrImageUri: imageUri,
+      ecrImageTag: imageTag,
+      authToken: authData.authorizationToken,
+      authTokenExpiresAt: authData.expiresAt?.toISOString(),
+      registryEndpoint: authData.proxyEndpoint,
+    },
+  };
+}
+
 // ===== tasks/get Handler =====
 
 async function handleTasksGet(params: TaskGetParams, ctx: A2AContext): Promise<Task> {
@@ -1534,6 +1977,261 @@ const handleLegacyGetRedemptionQuote = async (params: Record<string, unknown>, c
   return executeSkillGetRedemptionQuote(params, ctx);
 };
 
+const handleLegacyCreateContainer = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillCreateContainer(params, ctx);
+};
+
+const handleLegacyDeleteContainer = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillDeleteContainer(params, ctx);
+};
+
+const handleLegacyGetContainerMetrics = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillGetContainerMetrics(params, ctx);
+};
+
+const handleLegacyGetContainerQuota = async (_params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillGetContainerQuota(ctx);
+};
+
+const handleLegacyGetCreditSummary = async (_params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillGetCreditSummary(ctx);
+};
+
+const handleLegacyListCreditTransactions = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillListCreditTransactions(params, ctx);
+};
+
+const handleLegacyListCreditPacks = async (_params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillListCreditPacks(ctx);
+};
+
+const handleLegacyGetBillingUsage = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillGetBillingUsage(params, ctx);
+};
+
+const handleLegacyCreateCheckoutSession = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillCreateCheckoutSession(params, ctx);
+};
+
+const handleLegacyGetAgentBudget = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillGetAgentBudget(params, ctx);
+};
+
+const handleLegacyAllocateAgentBudget = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillAllocateAgentBudget(params, ctx);
+};
+
+const handleLegacyGetContainerDeployments = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillGetContainerDeployments(params, ctx);
+};
+
+const handleLegacyGetEcrCredentials = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillGetEcrCredentials(params, ctx);
+};
+
+// ===== ERC-8004 Discovery Skills =====
+
+async function executeSkillDiscoverServices(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ services: Array<Record<string, unknown>>; count: number }> {
+  const { agent0Service } = await import("@/lib/services/agent0");
+  const { userMcpsService } = await import("@/lib/services/user-mcps");
+  const { charactersMarketplaceService } = await import("@/lib/services/characters/marketplace");
+  const { getDefaultNetwork, CHAIN_IDS } = await import("@/lib/config/erc8004");
+  const { agent0ToDiscoveredService } = await import("@/lib/types/erc8004");
+
+  const query = dataContent.query as string | undefined;
+  const types = dataContent.types as string[] | undefined;
+  const sources = dataContent.sources as string[] | undefined;
+  const categories = dataContent.categories as string[] | undefined;
+  const mcpTools = dataContent.mcpTools as string[] | undefined;
+  const a2aSkills = dataContent.a2aSkills as string[] | undefined;
+  const x402Only = dataContent.x402Only as boolean | undefined;
+  const limit = Math.min(50, (dataContent.limit as number) || 20);
+
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+  const services: Array<Record<string, unknown>> = [];
+
+  const searchSources = sources ?? ["local", "erc8004"];
+  const searchTypes = types ?? ["agent", "mcp"];
+
+  // Search local services
+  if (searchSources.includes("local")) {
+    if (searchTypes.includes("agent")) {
+      const chars = await charactersMarketplaceService.searchPublic({
+        search: query,
+        category: categories?.[0],
+        limit: limit,
+      });
+      for (const char of chars) {
+        services.push({
+          id: char.id,
+          name: char.name,
+          description: Array.isArray(char.bio) ? char.bio.join(" ") : char.bio,
+          type: "agent",
+          source: "local",
+          a2aEndpoint: `${baseUrl}/api/agents/${char.id}/a2a`,
+          mcpEndpoint: `${baseUrl}/api/agents/${char.id}/mcp`,
+          x402Support: false,
+        });
+      }
+    }
+
+    if (searchTypes.includes("mcp")) {
+      const mcps = await userMcpsService.listPublic({
+        category: categories?.[0],
+        search: query,
+        limit: limit,
+      });
+      for (const mcp of mcps) {
+        services.push({
+          id: mcp.id,
+          name: mcp.name,
+          description: mcp.description,
+          type: "mcp",
+          source: "local",
+          mcpEndpoint: userMcpsService.getEndpointUrl(mcp, baseUrl),
+          x402Support: mcp.x402_enabled,
+        });
+      }
+    }
+  }
+
+  // Search ERC-8004 registry
+  if (searchSources.includes("erc8004")) {
+    const network = getDefaultNetwork();
+    const chainId = CHAIN_IDS[network];
+
+    const agents = await agent0Service.searchAgentsCached({
+      name: query,
+      mcpTools: mcpTools,
+      a2aSkills: a2aSkills,
+      x402Support: x402Only,
+      active: true,
+    });
+
+    for (const agent of agents) {
+      const discovered = agent0ToDiscoveredService(agent, network, chainId);
+      if (!searchTypes.length || searchTypes.includes(discovered.type)) {
+        services.push({
+          id: discovered.id,
+          name: discovered.name,
+          description: discovered.description,
+          type: discovered.type,
+          source: "erc8004",
+          mcpEndpoint: discovered.mcpEndpoint,
+          a2aEndpoint: discovered.a2aEndpoint,
+          x402Support: discovered.x402Support,
+        });
+      }
+    }
+  }
+
+  return { success: true, services: services.slice(0, limit), count: services.length };
+}
+
+async function executeSkillGetServiceDetails(
+  dataContent: Record<string, unknown>,
+  _ctx: A2AContext
+): Promise<{ service: Record<string, unknown> }> {
+  const agentId = dataContent.agentId as string;
+  if (!agentId) throw new Error("agentId required (format: chainId:tokenId)");
+
+  const { agent0Service } = await import("@/lib/services/agent0");
+  const { getDefaultNetwork, CHAIN_IDS } = await import("@/lib/config/erc8004");
+  const { agent0ToDiscoveredService } = await import("@/lib/types/erc8004");
+
+  const agent = await agent0Service.getAgentCached(agentId);
+  if (!agent) throw new Error(`Agent not found: ${agentId}`);
+
+  const network = getDefaultNetwork();
+  const chainId = CHAIN_IDS[network];
+  const service = agent0ToDiscoveredService(agent, network, chainId);
+
+  return { success: true, service };
+}
+
+async function executeSkillFindMcpTools(
+  dataContent: Record<string, unknown>,
+  _ctx: A2AContext
+): Promise<{ services: Array<Record<string, unknown>>; searchedTools: string[] }> {
+  const tools = dataContent.tools as string[];
+  const x402Only = dataContent.x402Only as boolean | undefined;
+
+  if (!tools?.length) throw new Error("tools array required");
+
+  const { agent0Service } = await import("@/lib/services/agent0");
+  const { getDefaultNetwork, CHAIN_IDS } = await import("@/lib/config/erc8004");
+
+  const network = getDefaultNetwork();
+  const chainId = CHAIN_IDS[network];
+
+  const agents = await agent0Service.findAgentsWithToolsCached(tools);
+  const filtered = x402Only ? agents.filter((a) => a.x402Support) : agents;
+
+  const results = filtered.map((agent) => ({
+    agentId: agent.agentId,
+    name: agent.name,
+    description: agent.description,
+    mcpEndpoint: agent.mcpEndpoint,
+    mcpTools: agent.mcpTools,
+    x402Support: agent.x402Support,
+    network,
+    chainId,
+  }));
+
+  return { success: true, services: results, searchedTools: tools, count: results.length };
+}
+
+async function executeSkillFindA2aSkills(
+  dataContent: Record<string, unknown>,
+  _ctx: A2AContext
+): Promise<{ agents: Array<Record<string, unknown>>; searchedSkills: string[] }> {
+  const skills = dataContent.skills as string[];
+  const x402Only = dataContent.x402Only as boolean | undefined;
+
+  if (!skills?.length) throw new Error("skills array required");
+
+  const { agent0Service } = await import("@/lib/services/agent0");
+  const { getDefaultNetwork, CHAIN_IDS } = await import("@/lib/config/erc8004");
+
+  const network = getDefaultNetwork();
+  const chainId = CHAIN_IDS[network];
+
+  const agents = await agent0Service.findAgentsWithSkillsCached(skills);
+  const filtered = x402Only ? agents.filter((a) => a.x402Support) : agents;
+
+  const results = filtered.map((agent) => ({
+    agentId: agent.agentId,
+    name: agent.name,
+    description: agent.description,
+    a2aEndpoint: agent.a2aEndpoint,
+    a2aSkills: agent.a2aSkills,
+    x402Support: agent.x402Support,
+    network,
+    chainId,
+  }));
+
+  return { success: true, agents: results, searchedSkills: skills, count: results.length };
+}
+
+const handleLegacyDiscoverServices = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillDiscoverServices(params, ctx);
+};
+
+const handleLegacyGetServiceDetails = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillGetServiceDetails(params, ctx);
+};
+
+const handleLegacyFindMcpTools = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillFindMcpTools(params, ctx);
+};
+
+const handleLegacyFindA2aSkills = async (params: Record<string, unknown>, ctx: A2AContext) => {
+  return executeSkillFindA2aSkills(params, ctx);
+};
+
 // ===== Method Registry =====
 
 type MethodHandler<T = Record<string, unknown>, R = unknown> = (params: T, ctx: A2AContext) => Promise<R>;
@@ -1718,6 +2416,80 @@ const METHODS: Record<string, MethodDefinition> = {
   "a2a.getRedemptionQuote": {
     handler: handleLegacyGetRedemptionQuote,
     description: "Get token redemption quote (extension)",
+  },
+  // Container CRUD
+  "a2a.createContainer": {
+    handler: handleLegacyCreateContainer,
+    description: "Create and deploy container (extension)",
+  },
+  "a2a.deleteContainer": {
+    handler: handleLegacyDeleteContainer,
+    description: "Delete container (extension)",
+  },
+  "a2a.getContainerMetrics": {
+    handler: handleLegacyGetContainerMetrics,
+    description: "Get container metrics (extension)",
+  },
+  "a2a.getContainerQuota": {
+    handler: handleLegacyGetContainerQuota,
+    description: "Get container quota (extension)",
+  },
+  // Credit/Monetization
+  "a2a.getCreditSummary": {
+    handler: handleLegacyGetCreditSummary,
+    description: "Get credit summary (extension)",
+  },
+  "a2a.listCreditTransactions": {
+    handler: handleLegacyListCreditTransactions,
+    description: "List credit transactions (extension)",
+  },
+  "a2a.listCreditPacks": {
+    handler: handleLegacyListCreditPacks,
+    description: "List available credit packs (extension)",
+  },
+  "a2a.getBillingUsage": {
+    handler: handleLegacyGetBillingUsage,
+    description: "Get billing usage stats (extension)",
+  },
+  // Stripe Checkout
+  "a2a.createCheckoutSession": {
+    handler: handleLegacyCreateCheckoutSession,
+    description: "Create Stripe checkout session (extension)",
+  },
+  // Agent Budget
+  "a2a.getAgentBudget": {
+    handler: handleLegacyGetAgentBudget,
+    description: "Get agent budget status (extension)",
+  },
+  "a2a.allocateAgentBudget": {
+    handler: handleLegacyAllocateAgentBudget,
+    description: "Allocate credits to agent budget (extension)",
+  },
+  // Container Deployments & ECR
+  "a2a.getContainerDeployments": {
+    handler: handleLegacyGetContainerDeployments,
+    description: "Get container deployment history (extension)",
+  },
+  "a2a.getEcrCredentials": {
+    handler: handleLegacyGetEcrCredentials,
+    description: "Get ECR credentials for Docker push (extension)",
+  },
+  // ERC-8004 Discovery
+  "a2a.discoverServices": {
+    handler: handleLegacyDiscoverServices,
+    description: "Discover services from local and ERC-8004 registry (extension)",
+  },
+  "a2a.getServiceDetails": {
+    handler: handleLegacyGetServiceDetails,
+    description: "Get detailed info about a service from ERC-8004 (extension)",
+  },
+  "a2a.findMcpTools": {
+    handler: handleLegacyFindMcpTools,
+    description: "Find services that provide specific MCP tools (extension)",
+  },
+  "a2a.findA2aSkills": {
+    handler: handleLegacyFindA2aSkills,
+    description: "Find agents with specific A2A skills (extension)",
   },
 };
 
