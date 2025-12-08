@@ -252,7 +252,7 @@ async function fetchLocalAgents(
       mcpEndpoint: `${baseUrl}/api/agents/${char.id}/mcp`,
       mcpTools: [],
       a2aSkills: [],
-      x402Support: false, // TODO: Check character monetization settings
+      x402Support: false, // Agents use credits, not direct x402. Credits can be topped up via x402.
       organizationId: char.organization_id,
       creatorId: char.user_id,
       verified: false, // TODO: Add verification support
