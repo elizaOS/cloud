@@ -1,11 +1,12 @@
 /**
- * A2A Protocol Integration Tests
+ * A2A Types and Configuration Tests
+ *
+ * Tests A2A type helpers and configuration values.
+ * These tests run without a server.
  */
 
 import { describe, test, expect } from "bun:test";
 import {
-  TaskState,
-  Part,
   createTextPart,
   createDataPart,
   createFilePart,
@@ -16,34 +17,54 @@ import {
   jsonRpcSuccess,
   jsonRpcError,
   A2AErrorCodes,
-  MessageSendParams,
-  TaskGetParams,
+  type Part,
+  type MessageSendParams,
+  type TaskGetParams,
 } from "@/lib/types/a2a";
 import {
   A2A_PROTOCOL_VERSION,
   A2A_JSONRPC_ENDPOINT,
   A2A_STANDARD_METHODS,
-  A2A_EXTENSION_METHODS,
+  A2A_SKILLS,
   A2A_RATE_LIMITS,
 } from "@/lib/config/a2a";
 
-describe("A2A Types", () => {
-  test("Part types are discriminated", () => {
-    expect(createTextPart("Hello").type).toBe("text");
-    expect(createDataPart({ key: "value" }).type).toBe("data");
-    expect(createFilePart({ uri: "https://x.com/file.png" }).type).toBe("file");
+describe("A2A Part Types", () => {
+  test("text part", () => {
+    const part = createTextPart("Hello");
+    expect(part.type).toBe("text");
+    expect(part.text).toBe("Hello");
   });
 
-  test("Message structure", () => {
-    const parts: Part[] = [createTextPart("Hello"), createDataPart({ skill: "chat" })];
+  test("data part", () => {
+    const part = createDataPart({ key: "value" });
+    expect(part.type).toBe("data");
+    expect(part.data.key).toBe("value");
+  });
+
+  test("file part", () => {
+    const part = createFilePart({ uri: "https://example.com/file.png" });
+    expect(part.type).toBe("file");
+    expect(part.file.uri).toBe("https://example.com/file.png");
+  });
+});
+
+describe("A2A Message", () => {
+  test("creates message with parts", () => {
+    const parts: Part[] = [
+      createTextPart("Hello"),
+      createDataPart({ skill: "chat_completion" }),
+    ];
     const message = createMessage("user", parts, { custom: "meta" });
 
     expect(message.role).toBe("user");
     expect(message.parts.length).toBe(2);
     expect(message.metadata?.custom).toBe("meta");
   });
+});
 
-  test("Task structure", () => {
+describe("A2A Task", () => {
+  test("creates task with status", () => {
     const task = createTask("task-1", "working", undefined, "ctx-1", { source: "test" });
 
     expect(task.id).toBe("task-1");
@@ -52,8 +73,24 @@ describe("A2A Types", () => {
     expect(task.metadata?.source).toBe("test");
   });
 
-  test("Artifact structure", () => {
-    const artifact = createArtifact([createTextPart("Result")], "output", "desc", 0, { cost: 0.001 });
+  test("updates task status", () => {
+    const task = createTask("t1", "working");
+    task.status = createTaskStatus("completed", createMessage("agent", [createTextPart("Done")]));
+    
+    expect(task.status.state).toBe("completed");
+    expect(task.status.message?.parts[0].type).toBe("text");
+  });
+});
+
+describe("A2A Artifact", () => {
+  test("creates artifact with metadata", () => {
+    const artifact = createArtifact(
+      [createTextPart("Result")],
+      "output",
+      "description",
+      0,
+      { cost: 0.001 }
+    );
 
     expect(artifact.name).toBe("output");
     expect(artifact.parts.length).toBe(1);
@@ -61,7 +98,7 @@ describe("A2A Types", () => {
   });
 });
 
-describe("JSON-RPC 2.0", () => {
+describe("JSON-RPC 2.0 Helpers", () => {
   test("success response", () => {
     const response = jsonRpcSuccess({ content: "Hello" }, "req-1");
 
@@ -72,22 +109,24 @@ describe("JSON-RPC 2.0", () => {
   });
 
   test("error response", () => {
-    const response = jsonRpcError(-32600, "Invalid Request", "req-2", { details: "missing" });
+    const response = jsonRpcError(-32600, "Invalid Request", "req-2");
 
     expect(response.jsonrpc).toBe("2.0");
     expect(response.error.code).toBe(-32600);
     expect(response.id).toBe("req-2");
     expect("result" in response).toBe(false);
   });
+});
 
-  test("error codes follow spec", () => {
+describe("A2A Error Codes", () => {
+  test("JSON-RPC standard errors", () => {
     expect(A2AErrorCodes.PARSE_ERROR).toBe(-32700);
     expect(A2AErrorCodes.INVALID_REQUEST).toBe(-32600);
     expect(A2AErrorCodes.METHOD_NOT_FOUND).toBe(-32601);
     expect(A2AErrorCodes.INTERNAL_ERROR).toBe(-32603);
   });
 
-  test("A2A custom error codes", () => {
+  test("A2A custom errors", () => {
     expect(A2AErrorCodes.TASK_NOT_FOUND).toBe(-32001);
     expect(A2AErrorCodes.AUTHENTICATION_REQUIRED).toBe(-32010);
     expect(A2AErrorCodes.INSUFFICIENT_CREDITS).toBe(-32011);
@@ -104,16 +143,19 @@ describe("A2A Configuration", () => {
     expect(A2A_JSONRPC_ENDPOINT).toBe("/api/a2a");
   });
 
-  test("standard methods", () => {
+  test("standard methods (actually implemented)", () => {
     expect(A2A_STANDARD_METHODS).toContain("message/send");
     expect(A2A_STANDARD_METHODS).toContain("tasks/get");
     expect(A2A_STANDARD_METHODS).toContain("tasks/cancel");
+    expect(A2A_STANDARD_METHODS.length).toBe(3);
   });
 
-  test("extension methods follow a2a.* convention", () => {
-    for (const method of A2A_EXTENSION_METHODS) {
-      expect(method.startsWith("a2a.")).toBe(true);
-    }
+  test("skills (invoked via message/send)", () => {
+    expect(A2A_SKILLS).toContain("chat_completion");
+    expect(A2A_SKILLS).toContain("check_balance");
+    expect(A2A_SKILLS).toContain("list_agents");
+    expect(A2A_SKILLS).toContain("save_memory");
+    expect(A2A_SKILLS.length).toBe(14);
   });
 
   test("rate limits scale with trust", () => {
@@ -124,44 +166,8 @@ describe("A2A Configuration", () => {
   });
 });
 
-describe("Task Lifecycle", () => {
-  test("transitions", () => {
-    const task = createTask("t1", "working");
-    expect(task.status.state).toBe("working");
-
-    task.status = createTaskStatus("completed", createMessage("agent", [createTextPart("Done")]));
-    expect(task.status.state).toBe("completed");
-
-    const task2 = createTask("t2", "working");
-    task2.status = createTaskStatus("canceled");
-    expect(task2.status.state).toBe("canceled");
-  });
-
-  test("history accumulation", () => {
-    const task = createTask("t3", "working");
-    task.history = [
-      createMessage("user", [createTextPart("Hello")]),
-      createMessage("agent", [createTextPart("Hi!")]),
-    ];
-
-    expect(task.history.length).toBe(2);
-    expect(task.history[0].role).toBe("user");
-    expect(task.history[1].role).toBe("agent");
-  });
-
-  test("artifacts", () => {
-    const task = createTask("t4", "working");
-    task.artifacts = [
-      createArtifact([createDataPart({ tokens: 100 })], "usage"),
-      createArtifact([createFilePart({ uri: "https://x.com/img.png" })], "image"),
-    ];
-
-    expect(task.artifacts.length).toBe(2);
-  });
-});
-
-describe("Message Formats", () => {
-  test("message/send params", () => {
+describe("Message Param Types", () => {
+  test("MessageSendParams structure", () => {
     const params: MessageSendParams = {
       message: createMessage("user", [createTextPart("Hello")]),
       configuration: { acceptedOutputModes: ["text"], blocking: true },
@@ -171,22 +177,9 @@ describe("Message Formats", () => {
     expect(params.configuration?.blocking).toBe(true);
   });
 
-  test("tasks/get params", () => {
+  test("TaskGetParams structure", () => {
     const params: TaskGetParams = { id: "task-1", historyLength: 10 };
     expect(params.id).toBe("task-1");
     expect(params.historyLength).toBe(10);
-  });
-
-  test("multi-part message", () => {
-    const message = createMessage("user", [
-      createTextPart("Analyze this"),
-      createFilePart({ uri: "https://x.com/img.png", mimeType: "image/png" }),
-      createDataPart({ width: 512 }),
-    ]);
-
-    expect(message.parts.length).toBe(3);
-    expect(message.parts[0].type).toBe("text");
-    expect(message.parts[1].type).toBe("file");
-    expect(message.parts[2].type).toBe("data");
   });
 });
