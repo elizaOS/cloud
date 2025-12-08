@@ -4,6 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { getContainer } from "@/lib/services/containers";
 import {
@@ -93,7 +94,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Error fetching container metrics:", error);
+    logger.error("Error fetching container metrics:", error);
     return NextResponse.json(
       {
         success: false,
@@ -258,7 +259,7 @@ async function fetchMetric(
 
     return latest.Average || 0;
   } catch (error) {
-    console.error(`Failed to fetch ${metricName}:`, error);
+    logger.error(`Failed to fetch ${metricName}:`, error);
     return 0;
   }
 }

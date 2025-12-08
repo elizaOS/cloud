@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
 import type { UUID } from "@elizaos/core";
@@ -112,7 +113,7 @@ async function handlePOST(req: NextRequest) {
             status: "success",
           };
         } catch (fileError) {
-          console.error(`Error processing file ${file.name}:`, fileError);
+          logger.error(`Error processing file ${file.name}:`, fileError);
           return {
             id: "",
             filename: file.name,
@@ -143,7 +144,7 @@ async function handlePOST(req: NextRequest) {
       totalCount: results.length,
     });
   } catch (error) {
-    console.error("Error uploading files to knowledge:", error);
+    logger.error("Error uploading files to knowledge:", error);
     return NextResponse.json(
       {
         error: "Failed to upload files",

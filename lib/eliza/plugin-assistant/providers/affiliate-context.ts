@@ -133,18 +133,27 @@ export const affiliateContextProvider: Provider = {
   description: "Affiliate character vibe and behavioral instructions",
 
   get: async (runtime: IAgentRuntime, _message: Memory, _state?: State) => {
-    const affiliate = runtime.character.settings?.affiliateData as Record<string, unknown> | undefined;
+    const affiliate = runtime.character.settings?.affiliateData as {
+      vibe?: string;
+      backstory?: string;
+      source?: string;
+      affiliateId?: string;
+      instagram?: string;
+      twitter?: string;
+      imageUrls?: string[];
+      [key: string]: unknown;
+    } | undefined;
     if (!affiliate) {
       return { values: { affiliateContext: "" }, data: {}, text: "" };
     }
 
-    const vibe = (affiliate.vibe as string | undefined)?.toLowerCase();
-    const backstory = affiliate.backstory as string | undefined;
-    const source = affiliate.source as string | undefined;
-    const affiliateId = affiliate.affiliateId as string | undefined;
-    const instagram = affiliate.instagram as string | undefined;
-    const twitter = affiliate.twitter as string | undefined;
-    const imageUrls = (affiliate.imageUrls as string[] | undefined) || [];
+    const vibe = affiliate.vibe?.toLowerCase();
+    const backstory = affiliate.backstory;
+    const source = affiliate.source;
+    const affiliateId = affiliate.affiliateId;
+    const instagram = affiliate.instagram;
+    const twitter = affiliate.twitter;
+    const imageUrls = affiliate.imageUrls || [];
 
     const contextLines: string[] = [];
 

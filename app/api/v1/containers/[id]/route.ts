@@ -5,6 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import {
   getContainer,
@@ -48,7 +49,7 @@ export async function GET(
       data: container,
     });
   } catch (error) {
-    console.error("Error fetching container:", error);
+    logger.error("Error fetching container:", error);
     return NextResponse.json(
       {
         success: false,
@@ -128,7 +129,7 @@ export async function DELETE(
 
       console.log(`✅ CloudFormation stack deleted for ${containerId}`);
     } catch (cfError) {
-      console.error(`Failed to delete CloudFormation stack:`, cfError);
+      logger.error(`Failed to delete CloudFormation stack:`, cfError);
 
       // Log error but continue with cleanup
       // Stack may have been manually deleted or may not exist
@@ -142,7 +143,7 @@ export async function DELETE(
       await dbPriorityManager.releasePriority(containerId);
       console.log(`✅ Released ALB priority for ${containerId}`);
     } catch (priorityError) {
-      console.error(`Failed to release ALB priority:`, priorityError);
+      logger.error(`Failed to release ALB priority:`, priorityError);
       // Non-critical - continue with cleanup
     }
 
@@ -185,7 +186,7 @@ export async function DELETE(
           console.log(`✅ Refunded ${refundAmount} credits for early deletion`);
         }
       } catch (refundError) {
-        console.error(`Failed to process refund:`, refundError);
+        logger.error(`Failed to process refund:`, refundError);
         // Log but don't fail the deletion
       }
     }
@@ -201,7 +202,7 @@ export async function DELETE(
       refundAmount: refundAmount > 0 ? refundAmount : undefined,
     });
   } catch (error) {
-    console.error("Error deleting container:", error);
+    logger.error("Error deleting container:", error);
 
     // Try to update status to failed
     try {
@@ -419,7 +420,7 @@ export async function PATCH(
         data: updatedContainer,
       });
     } catch (cfError) {
-      console.error(`Failed to update CloudFormation stack:`, cfError);
+      logger.error(`Failed to update CloudFormation stack:`, cfError);
 
       // Mark as failed
       await updateContainerStatus(containerId, "failed", {
@@ -440,7 +441,7 @@ export async function PATCH(
       );
     }
   } catch (error) {
-    console.error("Error updating container:", error);
+    logger.error("Error updating container:", error);
     return NextResponse.json(
       {
         success: false,

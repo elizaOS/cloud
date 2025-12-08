@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { organizationsRepository, creditTransactionsRepository } from "@/db/repositories";
 import { db } from "@/db/client";
@@ -114,7 +115,7 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("[Billing Usage API] Error:", error);
+    logger.error("[Billing Usage API] Error:", error);
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : "Failed to fetch usage",

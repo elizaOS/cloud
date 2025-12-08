@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { generationsService } from "@/lib/services/generations";
 import { usageService } from "@/lib/services/usage";
@@ -44,7 +45,7 @@ async function handleGET() {
       },
     });
   } catch (error) {
-    console.error("Error fetching account stats:", error);
+    logger.error("Error fetching account stats:", error);
 
     return NextResponse.json(
       {

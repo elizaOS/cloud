@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { logger } from "@/lib/utils/logger";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -154,7 +155,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
     }
   } catch (invoiceError) {
     // Non-critical - credits were added successfully
-    console.error(
+    logger.error(
       "[BillingSuccess] Invoice creation error (non-critical):",
       invoiceError,
     );

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { userSessionsService } from "@/lib/services/user-sessions";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -36,7 +37,7 @@ async function handleGET() {
       },
     });
   } catch (error) {
-    console.error("Error fetching current session stats:", error);
+    logger.error("Error fetching current session stats:", error);
 
     return NextResponse.json(
       {

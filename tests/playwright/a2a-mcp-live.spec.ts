@@ -1,15 +1,17 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * A2A and MCP Live Integration Tests
+ * A2A Live Integration Tests
  *
- * These tests actually call the live A2A and MCP endpoints to verify
- * that all skills/tools are really working, not just responding with 200.
+ * Tests the A2A endpoint with real HTTP calls.
+ * The A2A route now only has 3 standard methods:
+ * - message/send (with skill parameter for different operations)
+ * - tasks/get
+ * - tasks/cancel
  *
  * Prerequisites:
  * - TEST_API_KEY environment variable required
- * - Cloud running on port 3000
- * - Sufficient credits in the test account
+ * - Server running on port 3000
  *
  * NOTE: Some tests cost credits to run!
  */
@@ -34,6 +36,17 @@ function jsonRpc(method: string, params: Record<string, unknown> = {}, id = 1) {
   };
 }
 
+// Helper to invoke a skill via message/send
+function skillMessage(skill: string, text?: string, extraData?: Record<string, unknown>) {
+  const parts: Array<{ type: string; text?: string; data?: Record<string, unknown> }> = [];
+  if (text) parts.push({ type: "text", text });
+  parts.push({ type: "data", data: { skill, ...extraData } });
+
+  return jsonRpc("message/send", {
+    message: { role: "user", parts },
+  });
+}
+
 // ============================================================================
 // A2A Service Discovery
 // ============================================================================
@@ -41,584 +54,344 @@ function jsonRpc(method: string, params: Record<string, unknown> = {}, id = 1) {
 test.describe("A2A Service Discovery", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY required");
 
-  test("GET /api/a2a returns service info with all methods", async ({ request }) => {
+  test("GET /api/a2a returns service info with 3 methods and skills", async ({ request }) => {
     const response = await request.get(`${BASE_URL}/api/a2a`);
     expect(response.status()).toBe(200);
 
     const data = await response.json();
     expect(data.name).toBe("Eliza Cloud A2A");
     expect(data.protocolVersion).toBe("0.3.0");
+
+    // Should have exactly 3 standard methods
     expect(data.methods).toBeDefined();
     expect(Array.isArray(data.methods)).toBe(true);
+    expect(data.methods.length).toBe(3);
 
-    // Should have many methods
-    expect(data.methods.length).toBeGreaterThan(50);
-
-    // Standard A2A methods
     const methodNames = data.methods.map((m: { name: string }) => m.name);
     expect(methodNames).toContain("message/send");
     expect(methodNames).toContain("tasks/get");
     expect(methodNames).toContain("tasks/cancel");
 
-    // Extension methods
-    expect(methodNames).toContain("a2a.chatCompletion");
-    expect(methodNames).toContain("a2a.generateImage");
-    expect(methodNames).toContain("a2a.getBalance");
-    expect(methodNames).toContain("a2a.discoverServices");
+    // Should list available skills
+    expect(data.skills).toBeDefined();
+    expect(Array.isArray(data.skills)).toBe(true);
+    expect(data.skills.length).toBeGreaterThan(10);
 
-    console.log(`✅ A2A service discovery: ${data.methods.length} methods available`);
+    console.log(`✅ A2A service discovery: ${data.methods.length} methods, ${data.skills.length} skills`);
   });
 });
 
 // ============================================================================
-// A2A Credits & Billing (FREE tools)
+// A2A Authentication
 // ============================================================================
 
-test.describe("A2A Credits & Billing", () => {
+test.describe("A2A Authentication", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY required");
 
-  test("a2a.getBalance returns real balance", async ({ request }) => {
+  test("unauthenticated POST returns 401 or 402", async ({ request }) => {
+    const response = await request.post(`${BASE_URL}/api/a2a`, {
+      headers: { "Content-Type": "application/json" },
+      data: skillMessage("check_balance"),
+    });
+    expect([401, 402]).toContain(response.status());
+  });
+
+  test("invalid method returns 404", async ({ request }) => {
     const response = await request.post(`${BASE_URL}/api/a2a`, {
       headers: authHeaders(),
-      data: jsonRpc("a2a.getBalance"),
+      data: jsonRpc("nonexistent.method"),
+    });
+    expect(response.status()).toBe(404);
+
+    const data = await response.json();
+    expect(data.error).toBeDefined();
+    expect(data.error.code).toBe(-32601); // METHOD_NOT_FOUND
+  });
+});
+
+// ============================================================================
+// Skill: check_balance (FREE)
+// ============================================================================
+
+test.describe("Skill: check_balance", () => {
+  test.skip(() => !API_KEY, "TEST_API_KEY required");
+
+  test("returns real credit balance via message/send", async ({ request }) => {
+    const response = await request.post(`${BASE_URL}/api/a2a`, {
+      headers: authHeaders(),
+      data: skillMessage("check_balance"),
     });
     expect(response.status()).toBe(200);
 
     const data = await response.json();
     expect(data.jsonrpc).toBe("2.0");
     expect(data.result).toBeDefined();
-    expect(typeof data.result.credits).toBe("number");
-    expect(data.result.credits).toBeGreaterThanOrEqual(0);
 
-    console.log(`✅ a2a.getBalance: ${data.result.credits} credits`);
-  });
+    // Task should be completed
+    const task = data.result;
+    expect(task.status.state).toBe("completed");
+    expect(task.id).toBeDefined();
 
-  test("a2a.getCreditSummary returns detailed summary", async ({ request }) => {
-    const response = await request.post(`${BASE_URL}/api/a2a`, {
-      headers: authHeaders(),
-      data: jsonRpc("a2a.getCreditSummary"),
-    });
-    expect(response.status()).toBe(200);
-
-    const data = await response.json();
-    expect(data.result).toBeDefined();
-    expect(data.result.success).toBe(true);
-    expect(data.result.summary).toBeDefined();
-
-    console.log(`✅ a2a.getCreditSummary: balance=${data.result.summary?.currentBalance || 0}`);
-  });
-
-  test("a2a.getUsage returns usage stats", async ({ request }) => {
-    const response = await request.post(`${BASE_URL}/api/a2a`, {
-      headers: authHeaders(),
-      data: jsonRpc("a2a.getUsage", { limit: 10 }),
-    });
-    expect(response.status()).toBe(200);
-
-    const data = await response.json();
-    expect(data.result).toBeDefined();
-    expect(data.result.success).toBe(true);
-
-    console.log(`✅ a2a.getUsage: ${data.result.records?.length || 0} usage records`);
-  });
-
-  test("a2a.listCreditPacks returns available packs", async ({ request }) => {
-    const response = await request.post(`${BASE_URL}/api/a2a`, {
-      headers: authHeaders(),
-      data: jsonRpc("a2a.listCreditPacks"),
-    });
-    expect(response.status()).toBe(200);
-
-    const data = await response.json();
-    expect(data.result).toBeDefined();
-    expect(data.result.success).toBe(true);
-    expect(Array.isArray(data.result.packs)).toBe(true);
-
-    console.log(`✅ a2a.listCreditPacks: ${data.result.packs?.length || 0} packs available`);
-  });
-
-  test("a2a.getBillingUsage returns billing stats", async ({ request }) => {
-    const response = await request.post(`${BASE_URL}/api/a2a`, {
-      headers: authHeaders(),
-      data: jsonRpc("a2a.getBillingUsage", { days: 7 }),
-    });
-    expect(response.status()).toBe(200);
-
-    const data = await response.json();
-    expect(data.result).toBeDefined();
-    expect(data.result.success).toBe(true);
-
-    console.log(`✅ a2a.getBillingUsage: ${data.result.usage?.totalRequests || 0} requests in 7 days`);
+    console.log(`✅ check_balance: task ${task.id} completed`);
   });
 });
 
 // ============================================================================
-// A2A Agent Management (FREE tools)
+// Skill: list_agents (FREE)
 // ============================================================================
 
-test.describe("A2A Agent Management", () => {
+test.describe("Skill: list_agents", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY required");
 
-  test("a2a.listAgents returns agents list", async ({ request }) => {
+  test("returns agents list via message/send", async ({ request }) => {
     const response = await request.post(`${BASE_URL}/api/a2a`, {
       headers: authHeaders(),
-      data: jsonRpc("a2a.listAgents", { limit: 10 }),
+      data: skillMessage("list_agents", undefined, { limit: 10 }),
     });
     expect(response.status()).toBe(200);
 
     const data = await response.json();
     expect(data.result).toBeDefined();
-    expect(data.result.success).toBe(true);
-    expect(Array.isArray(data.result.agents)).toBe(true);
+    expect(data.result.status.state).toBe("completed");
 
-    console.log(`✅ a2a.listAgents: ${data.result.agents?.length || 0} agents`);
-  });
-
-  test("a2a.createAgent, a2a.updateAgent, a2a.deleteAgent lifecycle", async ({ request }) => {
-    // Create
-    const createResponse = await request.post(`${BASE_URL}/api/a2a`, {
-      headers: authHeaders(),
-      data: jsonRpc("a2a.createAgent", {
-        name: "A2A Test Agent",
-        bio: "Created by A2A live test",
-      }),
-    });
-    expect(createResponse.status()).toBe(200);
-
-    const createData = await createResponse.json();
-    expect(createData.result).toBeDefined();
-
-    // Skip if creation failed (maybe quota exceeded)
-    if (!createData.result.success) {
-      console.log(`ℹ️ a2a.createAgent: ${createData.result.error || "skipped"}`);
-      return;
-    }
-
-    const agentId = createData.result.agent?.id;
-    expect(agentId).toBeDefined();
-    console.log(`✅ a2a.createAgent: created ${agentId}`);
-
-    // Update
-    const updateResponse = await request.post(`${BASE_URL}/api/a2a`, {
-      headers: authHeaders(),
-      data: jsonRpc("a2a.updateAgent", {
-        id: agentId,
-        name: "A2A Test Agent Updated",
-      }),
-    });
-    expect(updateResponse.status()).toBe(200);
-
-    const updateData = await updateResponse.json();
-    expect(updateData.result.success).toBe(true);
-    console.log(`✅ a2a.updateAgent: updated ${agentId}`);
-
-    // Delete
-    const deleteResponse = await request.post(`${BASE_URL}/api/a2a`, {
-      headers: authHeaders(),
-      data: jsonRpc("a2a.deleteAgent", { id: agentId }),
-    });
-    expect(deleteResponse.status()).toBe(200);
-
-    const deleteData = await deleteResponse.json();
-    expect(deleteData.result.success).toBe(true);
-    console.log(`✅ a2a.deleteAgent: deleted ${agentId}`);
+    console.log(`✅ list_agents: completed`);
   });
 });
 
 // ============================================================================
-// A2A Infrastructure (FREE tools)
+// Skill: get_user_profile (FREE)
 // ============================================================================
 
-test.describe("A2A Infrastructure", () => {
+test.describe("Skill: get_user_profile", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY required");
 
-  test("a2a.listModels returns available models", async ({ request }) => {
+  test("returns user profile via message/send", async ({ request }) => {
     const response = await request.post(`${BASE_URL}/api/a2a`, {
       headers: authHeaders(),
-      data: jsonRpc("a2a.listModels"),
+      data: skillMessage("get_user_profile"),
     });
     expect(response.status()).toBe(200);
 
     const data = await response.json();
     expect(data.result).toBeDefined();
-    expect(data.result.success).toBe(true);
-    expect(Array.isArray(data.result.models)).toBe(true);
-    expect(data.result.models.length).toBeGreaterThan(0);
+    expect(data.result.status.state).toBe("completed");
 
-    console.log(`✅ a2a.listModels: ${data.result.models?.length || 0} models`);
-  });
-
-  test("a2a.listContainers returns containers", async ({ request }) => {
-    const response = await request.post(`${BASE_URL}/api/a2a`, {
-      headers: authHeaders(),
-      data: jsonRpc("a2a.listContainers"),
-    });
-    expect(response.status()).toBe(200);
-
-    const data = await response.json();
-    expect(data.result).toBeDefined();
-    expect(data.result.success).toBe(true);
-    expect(Array.isArray(data.result.containers)).toBe(true);
-
-    console.log(`✅ a2a.listContainers: ${data.result.containers?.length || 0} containers`);
-  });
-
-  test("a2a.listGallery returns gallery items", async ({ request }) => {
-    const response = await request.post(`${BASE_URL}/api/a2a`, {
-      headers: authHeaders(),
-      data: jsonRpc("a2a.listGallery", { limit: 10 }),
-    });
-    expect(response.status()).toBe(200);
-
-    const data = await response.json();
-    expect(data.result).toBeDefined();
-    expect(data.result.success).toBe(true);
-
-    console.log(`✅ a2a.listGallery: ${data.result.items?.length || 0} items`);
-  });
-
-  test("a2a.getAnalytics returns analytics", async ({ request }) => {
-    const response = await request.post(`${BASE_URL}/api/a2a`, {
-      headers: authHeaders(),
-      data: jsonRpc("a2a.getAnalytics", { timeRange: "daily" }),
-    });
-    expect(response.status()).toBe(200);
-
-    const data = await response.json();
-    expect(data.result).toBeDefined();
-    expect(data.result.success).toBe(true);
-
-    console.log(`✅ a2a.getAnalytics: overview retrieved`);
-  });
-
-  test("a2a.listVoices returns TTS voices", async ({ request }) => {
-    const response = await request.post(`${BASE_URL}/api/a2a`, {
-      headers: authHeaders(),
-      data: jsonRpc("a2a.listVoices"),
-    });
-    expect(response.status()).toBe(200);
-
-    const data = await response.json();
-    expect(data.result).toBeDefined();
-    expect(data.result.success).toBe(true);
-
-    console.log(`✅ a2a.listVoices: ${data.result.voices?.length || 0} voices`);
+    console.log(`✅ get_user_profile: completed`);
   });
 });
 
 // ============================================================================
-// A2A API Keys (FREE tools)
+// Skill: list_containers (FREE)
 // ============================================================================
 
-test.describe("A2A API Keys", () => {
+test.describe("Skill: list_containers", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY required");
 
-  test("a2a.listApiKeys returns keys", async ({ request }) => {
+  test("returns containers list via message/send", async ({ request }) => {
     const response = await request.post(`${BASE_URL}/api/a2a`, {
       headers: authHeaders(),
-      data: jsonRpc("a2a.listApiKeys"),
+      data: skillMessage("list_containers"),
     });
     expect(response.status()).toBe(200);
 
     const data = await response.json();
     expect(data.result).toBeDefined();
-    expect(data.result.success).toBe(true);
-    expect(Array.isArray(data.result.keys)).toBe(true);
+    expect(data.result.status.state).toBe("completed");
 
-    console.log(`✅ a2a.listApiKeys: ${data.result.keys?.length || 0} keys`);
-  });
-
-  test("a2a.createApiKey, a2a.deleteApiKey lifecycle", async ({ request }) => {
-    // Create
-    const createResponse = await request.post(`${BASE_URL}/api/a2a`, {
-      headers: authHeaders(),
-      data: jsonRpc("a2a.createApiKey", { name: "A2A Test Key" }),
-    });
-    expect(createResponse.status()).toBe(200);
-
-    const createData = await createResponse.json();
-    expect(createData.result).toBeDefined();
-
-    if (!createData.result.success) {
-      console.log(`ℹ️ a2a.createApiKey: ${createData.result.error || "skipped"}`);
-      return;
-    }
-
-    const keyId = createData.result.apiKey?.id;
-    expect(keyId).toBeDefined();
-    console.log(`✅ a2a.createApiKey: created ${keyId}`);
-
-    // Delete
-    const deleteResponse = await request.post(`${BASE_URL}/api/a2a`, {
-      headers: authHeaders(),
-      data: jsonRpc("a2a.deleteApiKey", { id: keyId }),
-    });
-    expect(deleteResponse.status()).toBe(200);
-
-    const deleteData = await deleteResponse.json();
-    expect(deleteData.result.success).toBe(true);
-    console.log(`✅ a2a.deleteApiKey: deleted ${keyId}`);
+    console.log(`✅ list_containers: completed`);
   });
 });
 
 // ============================================================================
-// A2A MCP Management (FREE tools)
+// Skill: get_usage (FREE)
 // ============================================================================
 
-test.describe("A2A MCP Management", () => {
+test.describe("Skill: get_usage", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY required");
 
-  test("a2a.listMcps returns MCPs", async ({ request }) => {
+  test("returns usage stats via message/send", async ({ request }) => {
     const response = await request.post(`${BASE_URL}/api/a2a`, {
       headers: authHeaders(),
-      data: jsonRpc("a2a.listMcps"),
+      data: skillMessage("get_usage", undefined, { limit: 10 }),
     });
     expect(response.status()).toBe(200);
 
     const data = await response.json();
     expect(data.result).toBeDefined();
-    expect(data.result.success).toBe(true);
+    expect(data.result.status.state).toBe("completed");
 
-    console.log(`✅ a2a.listMcps: ${data.result.mcps?.length || 0} MCPs`);
+    console.log(`✅ get_usage: completed`);
   });
 });
 
 // ============================================================================
-// A2A ERC-8004 Discovery (FREE tools)
+// Task Lifecycle
 // ============================================================================
 
-test.describe("A2A ERC-8004 Discovery", () => {
+test.describe("Task Lifecycle", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY required");
 
-  test("a2a.discoverServices returns services", async ({ request }) => {
+  let createdTaskId: string | null = null;
+
+  test("message/send creates and returns a task", async ({ request }) => {
     const response = await request.post(`${BASE_URL}/api/a2a`, {
       headers: authHeaders(),
-      data: jsonRpc("a2a.discoverServices", {
-        types: ["agent", "mcp"],
-        sources: ["local"],
-        limit: 10,
-      }),
+      data: skillMessage("check_balance"),
     });
     expect(response.status()).toBe(200);
 
     const data = await response.json();
-    expect(data.result).toBeDefined();
-    expect(data.result.success).toBe(true);
+    const task = data.result;
 
-    console.log(`✅ a2a.discoverServices: ${data.result.count || 0} services`);
+    expect(task.id).toBeDefined();
+    expect(task.contextId).toBeDefined();
+    expect(task.status.state).toBe("completed");
+
+    createdTaskId = task.id;
+    console.log(`✅ Created task: ${createdTaskId}`);
   });
 
-  test("a2a.findMcpTools searches for tools", async ({ request }) => {
+  test("tasks/get retrieves the created task", async ({ request }) => {
+    if (!createdTaskId) return;
+
     const response = await request.post(`${BASE_URL}/api/a2a`, {
       headers: authHeaders(),
-      data: jsonRpc("a2a.findMcpTools", { tools: ["get_price"] }),
+      data: jsonRpc("tasks/get", { id: createdTaskId }),
     });
     expect(response.status()).toBe(200);
 
     const data = await response.json();
-    expect(data.result).toBeDefined();
-    expect(data.result.success).toBe(true);
+    expect(data.result.id).toBe(createdTaskId);
+    expect(data.result.status.state).toBe("completed");
 
-    console.log(`✅ a2a.findMcpTools: ${data.result.count || 0} services with requested tools`);
+    console.log(`✅ Retrieved task: ${createdTaskId}`);
   });
 
-  test("a2a.findA2aSkills searches for skills", async ({ request }) => {
+  test("tasks/get for nonexistent task returns 404", async ({ request }) => {
     const response = await request.post(`${BASE_URL}/api/a2a`, {
       headers: authHeaders(),
-      data: jsonRpc("a2a.findA2aSkills", { skills: ["chat_completion"] }),
+      data: jsonRpc("tasks/get", { id: "nonexistent-task-id-12345" }),
     });
-    expect(response.status()).toBe(200);
+    expect(response.status()).toBe(404);
 
     const data = await response.json();
-    expect(data.result).toBeDefined();
-    expect(data.result.success).toBe(true);
-
-    console.log(`✅ a2a.findA2aSkills: ${data.result.count || 0} agents with requested skills`);
+    expect(data.error).toBeDefined();
   });
 });
 
 // ============================================================================
-// A2A Redemptions (FREE tools)
+// Skill: chat_completion (COSTS CREDITS)
 // ============================================================================
 
-test.describe("A2A Redemptions", () => {
+test.describe("Skill: chat_completion (costs credits)", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY required");
 
-  test("a2a.getRedemptionBalance returns balance", async ({ request }) => {
+  test("generates real text response via message/send", async ({ request }) => {
     const response = await request.post(`${BASE_URL}/api/a2a`, {
       headers: authHeaders(),
-      data: jsonRpc("a2a.getRedemptionBalance"),
+      data: skillMessage(
+        "chat_completion",
+        "What is 2+2? Reply with just the number.",
+        { model: "gpt-4o-mini", maxTokens: 10 }
+      ),
     });
     expect(response.status()).toBe(200);
 
     const data = await response.json();
     expect(data.result).toBeDefined();
-    expect(data.result.success).toBe(true);
+    expect(data.result.status.state).toBe("completed");
 
-    console.log(`✅ a2a.getRedemptionBalance: $${data.result.balance?.availableBalance || 0} available`);
+    // Should have text response in the status message
+    const textPart = data.result.status.message?.parts?.find(
+      (p: { type: string }) => p.type === "text"
+    );
+    expect(textPart?.text).toBeDefined();
+    expect(textPart?.text.length).toBeGreaterThan(0);
+
+    console.log(`✅ chat_completion: "${textPart?.text?.substring(0, 50)}..."`);
   });
 
-  test("a2a.getRedemptionQuote returns quote", async ({ request }) => {
-    const response = await request.post(`${BASE_URL}/api/a2a`, {
-      headers: authHeaders(),
-      data: jsonRpc("a2a.getRedemptionQuote", { amount: 10 }),
-    });
-    expect(response.status()).toBe(200);
-
-    const data = await response.json();
-    expect(data.result).toBeDefined();
-    // May fail if no balance, but should not error
-
-    console.log(`✅ a2a.getRedemptionQuote: quote retrieved`);
-  });
-});
-
-// ============================================================================
-// A2A User Profile (FREE tools)
-// ============================================================================
-
-test.describe("A2A User Profile", () => {
-  test.skip(() => !API_KEY, "TEST_API_KEY required");
-
-  test("a2a.getUserProfile returns profile", async ({ request }) => {
-    const response = await request.post(`${BASE_URL}/api/a2a`, {
-      headers: authHeaders(),
-      data: jsonRpc("a2a.getUserProfile"),
-    });
-    expect(response.status()).toBe(200);
-
-    const data = await response.json();
-    expect(data.result).toBeDefined();
-    expect(data.result.success).toBe(true);
-    expect(data.result.user).toBeDefined();
-
-    console.log(`✅ a2a.getUserProfile: ${data.result.user?.email || data.result.user?.id}`);
-  });
-});
-
-// ============================================================================
-// A2A Generation (COSTS CREDITS)
-// ============================================================================
-
-test.describe("A2A Generation (costs credits)", () => {
-  test.skip(() => !API_KEY, "TEST_API_KEY required");
-
-  test("a2a.chatCompletion generates real text", async ({ request }) => {
-    const response = await request.post(`${BASE_URL}/api/a2a`, {
-      headers: authHeaders(),
-      data: jsonRpc("a2a.chatCompletion", {
-        messages: [{ role: "user", content: "Say 'Hello from A2A test' in exactly 5 words." }],
-        model: "gpt-4o-mini",
-        maxTokens: 50,
-      }),
-    });
-    expect(response.status()).toBe(200);
-
-    const data = await response.json();
-    expect(data.result).toBeDefined();
-    expect(data.result.content).toBeDefined();
-    expect(data.result.content.length).toBeGreaterThan(0);
-
-    console.log(`✅ a2a.chatCompletion: "${data.result.content.substring(0, 50)}..."`);
-    console.log(`   Cost: $${data.result.cost || 0}, Tokens: ${data.result.usage?.totalTokens || 0}`);
-  });
-
-  test("message/send with chat_completion skill generates text", async ({ request }) => {
+  test("default skill is chat_completion when text provided", async ({ request }) => {
     const response = await request.post(`${BASE_URL}/api/a2a`, {
       headers: authHeaders(),
       data: jsonRpc("message/send", {
         message: {
           role: "user",
-          parts: [
-            { type: "text", text: "What is 2+2? Reply with just the number." },
-            { type: "data", data: { skill: "chat_completion", model: "gpt-4o-mini" } },
-          ],
+          parts: [{ type: "text", text: "Say hello in one word" }],
         },
       }),
     });
     expect(response.status()).toBe(200);
 
     const data = await response.json();
-    expect(data.result).toBeDefined();
-    expect(data.result.status).toBeDefined();
+    expect(data.result.status.state).toBe("completed");
 
-    console.log(`✅ message/send (chat_completion): state=${data.result.status?.state}`);
+    console.log(`✅ Default chat_completion: completed`);
   });
 });
 
 // ============================================================================
-// MCP Tool Tests
+// CORS
 // ============================================================================
 
-test.describe("MCP Tools - Core", () => {
+test.describe("CORS", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY required");
 
-  // Note: MCP uses a different protocol - tools/call with JSON-RPC style
-  // But the mcp-handler abstracts this. We test via MCP endpoint
-
-  test("MCP endpoint returns server info", async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/mcp`, {
-      headers: authHeaders(),
+  test("OPTIONS returns CORS headers", async ({ request }) => {
+    const response = await request.fetch(`${BASE_URL}/api/a2a`, {
+      method: "OPTIONS",
     });
-
-    // MCP returns various responses based on state
-    expect([200, 400, 500]).toContain(response.status());
-
-    console.log(`✅ MCP endpoint accessible`);
+    expect(response.status()).toBe(204);
+    expect(response.headers()["access-control-allow-origin"]).toBe("*");
+    expect(response.headers()["access-control-allow-methods"]).toContain("POST");
   });
 });
 
 // ============================================================================
-// Summary Test
+// Summary
 // ============================================================================
 
-test.describe("A2A/MCP Implementation Summary", () => {
+test.describe("A2A Test Summary", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY required");
 
-  test("prints implementation summary", async ({ request }) => {
-    // Get A2A service info
-    const a2aResponse = await request.get(`${BASE_URL}/api/a2a`);
-    const a2aData = await a2aResponse.json();
-
-    const standardMethods = a2aData.methods?.filter((m: { isStandard: boolean }) => m.isStandard)?.length || 0;
-    const extensionMethods = a2aData.methods?.filter((m: { isStandard: boolean }) => !m.isStandard)?.length || 0;
+  test("prints summary", async ({ request }) => {
+    const response = await request.get(`${BASE_URL}/api/a2a`);
+    const data = await response.json();
 
     console.log(`
 ════════════════════════════════════════════════════════════════════
-              A2A & MCP LIVE TEST SUMMARY
+              A2A LIVE TEST SUMMARY
 ════════════════════════════════════════════════════════════════════
 
-A2A Endpoint: /api/a2a
+Endpoint: /api/a2a
 Protocol: JSON-RPC 2.0
-Version: ${a2aData.protocolVersion || "0.3.0"}
+Version: ${data.protocolVersion || "0.3.0"}
 
-Methods:
-├── Standard: ${standardMethods} (message/send, tasks/get, tasks/cancel)
-└── Extension: ${extensionMethods} (a2a.* methods)
+Standard Methods (3):
+├── message/send    - Send message with skill parameter
+├── tasks/get       - Get task status and history
+└── tasks/cancel    - Cancel a running task
 
-Categories Tested:
-├── Credits & Billing (FREE)
-├── Agent Management (FREE)
-├── Infrastructure (FREE)
-├── API Keys (FREE)
-├── MCP Management (FREE)
-├── ERC-8004 Discovery (FREE)
-├── Redemptions (FREE)
-├── User Profile (FREE)
-└── Generation (COSTS CREDITS)
+Available Skills (${data.skills?.length || 0}):
+├── chat_completion - LLM text generation
+├── image_generation - Image generation
+├── video_generation - Video generation (async)
+├── check_balance   - Check credit balance
+├── get_usage       - Get usage statistics
+├── list_agents     - List available agents
+├── chat_with_agent - Chat with specific agent
+├── save_memory     - Save a memory
+├── retrieve_memories - Retrieve memories
+├── delete_memory   - Delete a memory
+├── create_conversation - Create conversation
+├── get_conversation_context - Get conversation details
+├── list_containers - List deployed containers
+└── get_user_profile - Get user profile
 
-MCP Endpoint: /api/mcp
-Tools: 60+ registered
-
-All tests verify REAL functionality:
-- Real credit balance checks
-- Real agent CRUD operations
-- Real model listing
-- Real LLM inference (costs credits)
-- Real ERC-8004 registry queries
+Skills are invoked via message/send with:
+  { "skill": "skill_name", ...params }
 
 ════════════════════════════════════════════════════════════════════
 `);
   });
 });
-

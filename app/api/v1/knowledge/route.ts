@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
 import type { UUID } from "@elizaos/core";
@@ -53,8 +54,8 @@ async function handleGET(req: NextRequest) {
 
     if (!knowledgeService) {
       const status = runtime.getServiceRegistrationStatus("knowledge");
-      console.error("[Knowledge API] Knowledge service not available!");
-      console.error("[Knowledge API] Service registration status:", status);
+      logger.error("[Knowledge API] Knowledge service not available!");
+      logger.error("[Knowledge API] Service registration status:", status);
 
       return NextResponse.json(
         {
@@ -92,7 +93,7 @@ async function handleGET(req: NextRequest) {
       offset,
     });
   } catch (error) {
-    console.error("Error listing knowledge documents:", error);
+    logger.error("Error listing knowledge documents:", error);
     return NextResponse.json(
       {
         error: "Failed to list documents",
@@ -190,7 +191,7 @@ async function handlePOST(req: NextRequest) {
       message: `Document processed successfully. Created ${result.fragmentCount} knowledge fragments.`,
     });
   } catch (error) {
-    console.error("Error uploading knowledge document:", error);
+    logger.error("Error uploading knowledge document:", error);
     return NextResponse.json(
       {
         error: "Failed to upload document",

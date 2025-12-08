@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { purchasesService } from "@/lib/services/purchases";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -56,7 +57,7 @@ async function handleGetPurchaseStatus(req: NextRequest) {
       metadata: paymentIntent.metadata,
     });
   } catch (error) {
-    console.error("Error getting purchase status:", error);
+    logger.error("Error getting purchase status:", error);
 
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

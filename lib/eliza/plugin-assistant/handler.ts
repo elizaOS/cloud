@@ -75,7 +75,11 @@ export async function handleMessage({
     await runtime.createMemory(message, "messages");
 
     // Check for affiliate character (uses minimal providers to save tokens)
-    const affiliateData = runtime.character.settings?.affiliateData as Record<string, unknown> | undefined;
+    const affiliateData = runtime.character.settings?.affiliateData as {
+      vibe?: string;
+      affiliateId?: string;
+      [key: string]: unknown;
+    } | undefined;
     const isAffiliateChat = !!(affiliateData && Object.keys(affiliateData).length > 0);
 
     logger.info(`[Assistant] Processing for ${runtime.character.name}, affiliate: ${isAffiliateChat}`);

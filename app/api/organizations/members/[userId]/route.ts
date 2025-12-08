@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuth } from "@/lib/auth";
 import { usersService } from "@/lib/services/users";
 import { z } from "zod";
@@ -121,7 +122,7 @@ async function handlePATCH(
       message: "Member role updated successfully",
     });
   } catch (error) {
-    console.error("Error updating member:", error);
+    logger.error("Error updating member:", error);
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -241,7 +242,7 @@ async function handleDELETE(
       message: "Member removed successfully",
     });
   } catch (error) {
-    console.error("Error removing member:", error);
+    logger.error("Error removing member:", error);
 
     return NextResponse.json(
       {

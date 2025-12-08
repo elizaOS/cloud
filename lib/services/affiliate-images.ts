@@ -277,7 +277,7 @@ export function buildAffiliateImageReferences(
 }
 
 export function extractSafeImageUrls(
-  affiliateData: Record<string, unknown> | undefined,
+  affiliateData: { imageUrls?: unknown; [key: string]: unknown } | undefined,
 ): string[] {
   if (!affiliateData) return [];
 
@@ -290,7 +290,7 @@ export function extractSafeImageUrls(
 }
 
 export function hasValidReferenceImages(
-  affiliateData: Record<string, unknown> | undefined,
+  affiliateData: { imageUrls?: unknown; [key: string]: unknown } | undefined,
 ): boolean {
   const urls = extractSafeImageUrls(affiliateData);
   return urls.length > 0;

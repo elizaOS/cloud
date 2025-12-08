@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
 import type { UUID } from "@elizaos/core";
@@ -70,7 +71,7 @@ async function handleDELETE(
       message: "Document deleted successfully",
     });
   } catch (error) {
-    console.error("Error deleting knowledge document:", error);
+    logger.error("Error deleting knowledge document:", error);
     return NextResponse.json(
       {
         error: "Failed to delete document",

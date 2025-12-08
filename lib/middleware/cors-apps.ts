@@ -156,11 +156,11 @@ export function withCors<T extends NextResponse>(
  * Higher-order function to wrap API handlers with CORS validation
  */
 export function withCorsValidation(
-  handler: (request: NextRequest, ...args: unknown[]) => Promise<NextResponse>,
+  handler: (request: NextRequest, context?: { params: Promise<Record<string, string | string[]>> }) => Promise<NextResponse>,
 ) {
   return async function corsHandler(
     request: NextRequest,
-    ...args: unknown[]
+    context?: { params: Promise<Record<string, string | string[]>> }
   ): Promise<NextResponse> {
     // Handle OPTIONS preflight
     if (request.method === "OPTIONS") {
@@ -184,7 +184,7 @@ export function withCorsValidation(
     }
 
     // Call the actual handler
-    const response = await handler(request, ...args);
+    const response = await handler(request, context);
 
     // Add CORS headers to response
     return addCorsHeaders(response, corsResult.origin);

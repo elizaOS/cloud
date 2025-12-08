@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { listContainers } from "@/lib/services/containers";
 import {
@@ -70,7 +71,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Error fetching quota:", error);
+    logger.error("Error fetching quota:", error);
 
     return NextResponse.json(
       {

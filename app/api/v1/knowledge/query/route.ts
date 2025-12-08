@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
 import type { UUID } from "@elizaos/core";
@@ -106,7 +107,7 @@ async function handlePOST(req: NextRequest) {
       count: limitedResults.length,
     });
   } catch (error) {
-    console.error("Error querying knowledge:", error);
+    logger.error("Error querying knowledge:", error);
     return NextResponse.json(
       {
         error: "Failed to query knowledge",

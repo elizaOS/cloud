@@ -425,7 +425,7 @@ export class CreditsService {
         `[CreditsService] Auto top-up triggered: balance $${newBalance.toFixed(2)} < threshold $${threshold.toFixed(2)}`
       );
 
-      // Import auto top-up service dynamically to avoid circular dependency
+      // Import auto top-up service dynamically for lazy loading (only when needed)
       const { autoTopUpService } = await import("./auto-top-up");
 
       // Execute auto top-up asynchronously (don't block the main operation)

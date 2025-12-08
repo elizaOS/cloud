@@ -1,4 +1,5 @@
 import { requireAuthOrApiKey } from "@/lib/auth";
+import { logger } from "@/lib/utils/logger";
 import {
   getAnonymousUser,
   getOrCreateAnonymousUser,
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
     // Return OpenAI-compatible format
     return Response.json(data);
   } catch (error) {
-    console.error("Error fetching models:", error);
+    logger.error("Error fetching models:", error);
     return Response.json(
       {
         error: {

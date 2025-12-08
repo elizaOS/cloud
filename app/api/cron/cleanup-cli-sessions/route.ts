@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { cliAuthSessionsService } from "@/lib/services/cli-auth-sessions";
 
 /**
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
       message: "Expired CLI auth sessions cleaned up successfully",
     });
   } catch (error) {
-    console.error("Error cleaning up CLI auth sessions:", error);
+    logger.error("Error cleaning up CLI auth sessions:", error);
     return NextResponse.json(
       { error: "Failed to clean up sessions" },
       { status: 500 },

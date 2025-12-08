@@ -100,18 +100,13 @@ export const getCurrentUser = cache(
       // Just-in-time sync: If user doesn't exist, fetch from Privy and create
       // This handles race conditions where webhooks haven't fired yet
       if (!user) {
-        // Fetch full user data from Privy API
-        const privyUser = await privyClient.getUser(verifiedClaims.userId);
-
-        if (privyUser) {
-          // Type cast needed because Privy SDK types don't match our simplified interface
-          interface PrivyUserShape {
-            id: string;
-            email?: { address: string };
-            name?: string | null;
-            linkedAccounts?: Array<Record<string, unknown>>;
+        // Use privy-id-token to get user data (avoids rate limits vs getUser(userId))
+        const idToken = cookieStore.get("privy-id-token");
+        if (idToken?.value) {
+          const privyUser = await privyClient.getUser({ idToken: idToken.value });
+          if (privyUser) {
+            user = await syncUserFromPrivy(privyUser);
           }
-          user = await syncUserFromPrivy(privyUser as PrivyUserShape);
         }
       }
 

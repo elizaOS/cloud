@@ -40,7 +40,7 @@ export interface MessageResult {
 export interface MessageOptions {
   roomId: string;
   text: string;
-  attachments?: unknown[];
+  attachments?: Media[];
   characterId?: string;
   model?: string;
   agentModeConfig?: AgentModeConfig;
@@ -204,7 +204,7 @@ export class MessageHandler {
     await this.runtime.ensureParticipantInRoom(entityUuid, roomId).catch(() => {});
   }
 
-  private createMessage(roomId: string, entityId: string, content: { text?: string; attachments?: unknown[] }): Memory {
+  private createMessage(roomId: string, entityId: string, content: { text?: string; attachments?: Media[] }): Memory {
     const entityUuid = stringToUuid(entityId) as UUID;
     return {
       id: uuidv4() as UUID,

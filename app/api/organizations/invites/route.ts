@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { invitesService } from "@/lib/services/invites";
 import { z } from "zod";
@@ -57,7 +58,7 @@ async function handlePOST(request: NextRequest) {
       message: "Invitation sent successfully",
     });
   } catch (error) {
-    console.error("Error creating invite:", error);
+    logger.error("Error creating invite:", error);
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -151,7 +152,7 @@ async function handleGET() {
       }),
     });
   } catch (error) {
-    console.error("Error fetching invites:", error);
+    logger.error("Error fetching invites:", error);
 
     return NextResponse.json(
       {

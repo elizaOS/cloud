@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { organizationsRepository } from "@/db/repositories";
 
@@ -68,7 +69,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    console.error("[Balance API] Error:", error);
+    logger.error("[Balance API] Error:", error);
     return NextResponse.json(
       { error: errorMessage },
       {
