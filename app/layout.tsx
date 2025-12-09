@@ -167,7 +167,7 @@ export default function RootLayout({
                     backdropFilter: "blur(12px)",
                     borderRadius: "0px",
                   },
-                  className: "font-mono",
+                  className: "font-sf-pro",
                 }}
               />
             </ThemeProvider>

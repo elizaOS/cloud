@@ -56,7 +56,6 @@ export function SectionHeader({
             labelClassName,
           )}
           style={{
-            fontFamily: "var(--font-geist-mono)",
             color: "#E1E1E1",
             lineHeight: "26px",
           }}
@@ -108,7 +107,6 @@ export function SectionLabel({
       <span
         className="text-xl uppercase tracking-wider font-normal"
         style={{
-          fontFamily: "var(--font-geist-mono)",
           color: "#E1E1E1",
           lineHeight: "26px",
         }}
