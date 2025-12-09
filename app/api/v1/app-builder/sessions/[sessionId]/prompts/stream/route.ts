@@ -18,8 +18,11 @@ const SendPromptSchema = z.object({
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    await requireAuthOrApiKeyWithOrg(request);
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { sessionId } = await params;
+
+    // Verify user owns this session
+    await aiAppBuilderService.verifySessionOwnership(sessionId, user.id);
 
     const body = await request.json();
     const validationResult = SendPromptSchema.safeParse(body);
@@ -93,13 +96,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       },
     });
   } catch (error) {
-    logger.error("Auth failed for prompt stream", { error });
+    logger.error("Auth or ownership verification failed for prompt stream", { error });
+    const message = error instanceof Error ? error.message : "Authentication failed";
+    const status = message.includes("Unauthorized") ? 403 : message.includes("not found") ? 404 : 401;
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : "Authentication failed",
+        error: message,
       }),
-      { status: 401, headers: { "Content-Type": "application/json" } }
+      { status, headers: { "Content-Type": "application/json" } }
     );
   }
 }

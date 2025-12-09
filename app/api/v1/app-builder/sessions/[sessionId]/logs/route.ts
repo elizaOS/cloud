@@ -12,8 +12,11 @@ export async function GET(
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
-    await requireAuthOrApiKeyWithOrg(request);
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { sessionId } = await params;
+
+    // Verify user owns this session
+    await aiAppBuilderService.verifySessionOwnership(sessionId, user.id);
 
     const url = new URL(request.url);
     const tail = parseInt(url.searchParams.get("tail") || "50", 10);
@@ -26,9 +29,11 @@ export async function GET(
     });
   } catch (error) {
     logger.error("Failed to get session logs", { error });
+    const message = error instanceof Error ? error.message : "Failed to get logs";
+    const status = message.includes("Unauthorized") ? 403 : message.includes("not found") ? 404 : 500;
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Failed to get logs" },
-      { status: 500 }
+      { success: false, error: message },
+      { status }
     );
   }
 }

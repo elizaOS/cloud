@@ -17,6 +17,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { sessionId } = await params;
 
+    // Verify user owns this session
+    await aiAppBuilderService.verifySessionOwnership(sessionId, user.id);
+
     const session = await aiAppBuilderService.getSession(sessionId);
 
     if (!session) {
@@ -32,12 +35,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     logger.error("Failed to get app builder session", { error });
+    const message = error instanceof Error ? error.message : "Failed to get session";
+    const status = message.includes("Unauthorized") ? 403 : message.includes("not found") ? 404 : 500;
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to get session",
+        error: message,
       },
-      { status: 500 }
+      { status }
     );
   }
 }
@@ -54,6 +59,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { sessionId } = await params;
+
+    // Verify user owns this session
+    await aiAppBuilderService.verifySessionOwnership(sessionId, user.id);
 
     const body = await request.json();
     const validationResult = ExtendSessionSchema.safeParse(body);
@@ -80,13 +88,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     logger.error("Failed to extend app builder session", { error });
+    const message = error instanceof Error ? error.message : "Failed to extend session";
+    const status = message.includes("Unauthorized") ? 403 : message.includes("not found") ? 404 : 500;
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to extend session",
+        error: message,
       },
-      { status: 500 }
+      { status }
     );
   }
 }
@@ -100,6 +109,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { sessionId } = await params;
 
+    // Verify user owns this session
+    await aiAppBuilderService.verifySessionOwnership(sessionId, user.id);
+
     await aiAppBuilderService.stopSession(sessionId);
 
     return NextResponse.json({
@@ -108,12 +120,14 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     logger.error("Failed to stop app builder session", { error });
+    const message = error instanceof Error ? error.message : "Failed to stop session";
+    const status = message.includes("Unauthorized") ? 403 : message.includes("not found") ? 404 : 500;
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to stop session",
+        error: message,
       },
-      { status: 500 }
+      { status }
     );
   }
 }
