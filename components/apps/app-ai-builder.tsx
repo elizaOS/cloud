@@ -452,130 +452,9 @@ ANTHROPIC_API_KEY=your_key_here`}
 
   // Render active session
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-[600px]">
-      {/* Chat Panel */}
-      <BrandCard className="relative flex flex-col h-[600px] overflow-hidden">
-        <CornerBrackets className="opacity-20" />
-        
-        {/* Header */}
-        <div className="relative z-10 flex items-center justify-between p-4 border-b border-white/10 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <Bot className="h-5 w-5 text-[#FF5800]" />
-            <span className="font-semibold text-white">AI Assistant</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div
-              className={`w-2 h-2 rounded-full ${
-                status === "ready"
-                  ? "bg-green-500"
-                  : status === "generating"
-                  ? "bg-yellow-500 animate-pulse"
-                  : "bg-gray-500"
-              }`}
-            />
-            <span className="text-xs text-white/60 capitalize">{status}</span>
-          </div>
-        </div>
-
-        {/* Messages - Scrollable Container */}
-        <div 
-          ref={messagesContainerRef}
-          className="relative z-10 flex-1 overflow-y-auto p-4 scroll-smooth"
-          style={{ scrollBehavior: 'smooth' }}
-        >
-          <div className="space-y-4">
-            {messages.map((message, index) => (
-              <div
-                key={index}
-                className={`flex gap-3 ${
-                  message.role === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
-                <div
-                  className={`max-w-[90%] rounded-lg px-4 py-2 ${
-                    message.role === "user"
-                      ? "bg-[#FF5800]/20 border border-[#FF5800]/40"
-                      : "bg-white/5 border border-white/10"
-                  }`}
-                >
-                  <div className="prose prose-sm prose-invert max-w-none overflow-hidden">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {message.content}
-                    </ReactMarkdown>
-                  </div>
-                  {message.filesAffected && message.filesAffected.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-white/10">
-                      <div className="text-xs text-white/40 mb-1">Files modified:</div>
-                      <div className="flex flex-wrap gap-1">
-                        {message.filesAffected.map((file, i) => (
-                          <span
-                            key={i}
-                            className="text-xs px-1.5 py-0.5 bg-white/10 rounded text-white/70"
-                          >
-                            {file}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-            {isLoading && status === "generating" && (
-              <div className="flex gap-3">
-                <div className="bg-white/5 border border-white/10 rounded-lg px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
-                    <span className="text-sm text-white/60">Generating...</span>
-                  </div>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-        </div>
-
-        {/* Input */}
-        <div className="relative z-10 p-4 border-t border-white/10 flex-shrink-0">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              sendPrompt(input);
-            }}
-            className="flex gap-2"
-          >
-            <Textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  sendPrompt(input);
-                }
-              }}
-              placeholder="Describe what you want to build..."
-              disabled={isLoading}
-              className="flex-1 min-h-[44px] max-h-[120px] resize-none"
-              rows={1}
-            />
-            <Button
-              type="submit"
-              disabled={!input.trim() || isLoading}
-              size="icon"
-              className="bg-[#FF5800] hover:bg-[#FF5800]/90 h-[44px] w-[44px]"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </Button>
-          </form>
-        </div>
-      </BrandCard>
-
-      {/* Preview Panel */}
-      <BrandCard className="relative flex flex-col h-[600px] overflow-hidden">
+    <div className="flex flex-col gap-4 h-[calc(100dvh-360px)] min-h-[500px]">
+      {/* Preview Panel - Top */}
+      <BrandCard className="relative flex flex-col h-[500px] overflow-hidden">
         <CornerBrackets className="opacity-20" />
         
         {/* Preview Header */}
@@ -583,7 +462,7 @@ ANTHROPIC_API_KEY=your_key_here`}
           <div className="flex items-center gap-3">
             <span className="font-medium text-white">Live Preview</span>
             {session?.sandboxUrl && (
-              <code className="text-xs text-white/60 bg-white/5 px-2 py-1 rounded max-w-[150px] truncate">
+              <code className="text-xs text-white/60 bg-white/5 px-2 py-1 rounded max-w-[200px] truncate">
                 {session.sandboxUrl}
               </code>
             )}
@@ -628,7 +507,7 @@ ANTHROPIC_API_KEY=your_key_here`}
         </div>
 
         {/* Preview Iframe */}
-        <div className="relative z-10 flex-1 bg-white rounded-b-lg overflow-hidden">
+        <div className="relative z-10 flex-1 bg-white overflow-hidden">
           {session?.sandboxUrl ? (
             <iframe
               ref={iframeRef}
@@ -664,6 +543,127 @@ ANTHROPIC_API_KEY=your_key_here`}
             <Square className="h-3 w-3 mr-1" />
             Stop Session
           </Button>
+        </div>
+      </BrandCard>
+
+      {/* Chat Panel - Bottom */}
+      <BrandCard className="relative flex flex-col flex-1 min-h-[200px] overflow-hidden">
+        <CornerBrackets className="opacity-20" />
+        
+        {/* Header */}
+        <div className="relative z-10 flex items-center justify-between p-3 border-b border-white/10 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <Bot className="h-5 w-5 text-[#FF5800]" />
+            <span className="font-semibold text-white">AI Assistant</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div
+              className={`w-2 h-2 rounded-full ${
+                status === "ready"
+                  ? "bg-green-500"
+                  : status === "generating"
+                  ? "bg-yellow-500 animate-pulse"
+                  : "bg-gray-500"
+              }`}
+            />
+            <span className="text-xs text-white/60 capitalize">{status}</span>
+          </div>
+        </div>
+
+        {/* Messages - Scrollable Container */}
+        <div 
+          ref={messagesContainerRef}
+          className="relative z-10 flex-1 overflow-y-auto p-3 scroll-smooth"
+          style={{ scrollBehavior: 'smooth' }}
+        >
+          <div className="space-y-3">
+            {messages.map((message, index) => (
+              <div
+                key={index}
+                className={`flex gap-3 ${
+                  message.role === "user" ? "justify-end" : "justify-start"
+                }`}
+              >
+                <div
+                  className={`max-w-[85%] rounded-lg px-3 py-2 ${
+                    message.role === "user"
+                      ? "bg-[#FF5800]/20 border border-[#FF5800]/40"
+                      : "bg-white/5 border border-white/10"
+                  }`}
+                >
+                  <div className="prose prose-sm prose-invert max-w-none overflow-hidden">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {message.content}
+                    </ReactMarkdown>
+                  </div>
+                  {message.filesAffected && message.filesAffected.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-white/10">
+                      <div className="text-xs text-white/40 mb-1">Files modified:</div>
+                      <div className="flex flex-wrap gap-1">
+                        {message.filesAffected.map((file, i) => (
+                          <span
+                            key={i}
+                            className="text-xs px-1.5 py-0.5 bg-white/10 rounded text-white/70"
+                          >
+                            {file}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            {isLoading && status === "generating" && (
+              <div className="flex gap-3">
+                <div className="bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
+                    <span className="text-sm text-white/60">Generating...</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+
+        {/* Input */}
+        <div className="relative z-10 p-3 border-t border-white/10 flex-shrink-0">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              sendPrompt(input);
+            }}
+            className="flex gap-2"
+          >
+            <Textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  sendPrompt(input);
+                }
+              }}
+              placeholder="Describe what you want to build..."
+              disabled={isLoading}
+              className="flex-1 min-h-[40px] max-h-[80px] resize-none"
+              rows={1}
+            />
+            <Button
+              type="submit"
+              disabled={!input.trim() || isLoading}
+              size="icon"
+              className="bg-[#FF5800] hover:bg-[#FF5800]/90 h-[40px] w-[40px]"
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
+          </form>
         </div>
       </BrandCard>
     </div>
