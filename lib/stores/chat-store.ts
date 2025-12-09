@@ -107,7 +107,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         if (Array.isArray(data.rooms)) {
           const roomItems: RoomItem[] = data.rooms
             .slice(0, 20)
-            .map((r: RoomPreview & { characterName?: string }) => ({
+            .map((r: RoomPreview) => ({
               id: r.id,
               characterId: r.characterId,
               characterName: r.characterName,
@@ -122,7 +122,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           );
 
           const charactersFromRooms: Character[] = [];
-          for (const room of roomItems) {
+          for (const room of data.rooms as RoomPreview[]) {
             if (
               room.characterId &&
               room.characterName &&
@@ -131,6 +131,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               charactersFromRooms.push({
                 id: room.characterId,
                 name: room.characterName,
+                avatarUrl: room.characterAvatarUrl,
               });
               existingCharacterIds.add(room.characterId);
             }
