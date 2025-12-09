@@ -5,7 +5,7 @@
  * Vercel Sandbox and Claude Code CLI.
  */
 
-import { sandboxService, type SandboxSessionData } from "./sandbox";
+import { sandboxService, type SandboxSessionData, type SandboxProgress } from "./sandbox";
 import { buildSystemPrompt, EXAMPLE_PROMPTS } from "@/lib/config/claude-prompts";
 import { logger } from "@/lib/utils/logger";
 import { db } from "@/db/client";
@@ -30,7 +30,11 @@ export interface BuilderSessionConfig {
   templateType?: "chat" | "agent-dashboard" | "landing-page" | "analytics" | "blank";
   includeMonetization?: boolean;
   includeAnalytics?: boolean;
+  onProgress?: (progress: SandboxProgress) => void;
 }
+
+// Re-export SandboxProgress for consumers
+export type { SandboxProgress };
 
 export interface BuilderSession {
   id: string;
@@ -70,6 +74,7 @@ export class AIAppBuilderService {
       templateType = "blank",
       includeMonetization = false,
       includeAnalytics = true,
+      onProgress,
     } = config;
 
     logger.info("Starting AI App Builder session", {
@@ -96,6 +101,7 @@ export class AIAppBuilderService {
         env: {
           ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || "",
         },
+        onProgress,
       });
 
       // Build the system prompt
