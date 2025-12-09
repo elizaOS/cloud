@@ -26,9 +26,10 @@ import {
   Zap,
   Sparkles,
   Crown,
+  BookOpen,
 } from "lucide-react";
+import Link from "next/link";
 import { ElizaAvatar } from "./eliza-avatar";
-import { KnowledgeDrawer } from "./knowledge-drawer";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
 import { useModelTier } from "./hooks/use-model-tier";
@@ -1324,7 +1325,13 @@ export function ElizaChatInterface({
                         <h4 className="font-medium mb-3 text-sm">
                           Knowledge Base
                         </h4>
-                        <KnowledgeDrawer characterId={selectedCharacterId} />
+                        <Link
+                          href={`/dashboard/build?characterId=${selectedCharacterId}&tab=knowledge`}
+                          className="inline-flex items-center gap-2 px-3 py-2 text-sm border border-white/10 bg-transparent text-white/70 hover:bg-white/5 hover:text-white rounded-md transition-colors"
+                        >
+                          <BookOpen className="h-4 w-4" />
+                          Knowledge (RAG)
+                        </Link>
                       </div>
                     </div>
                   </DropdownMenuContent>
