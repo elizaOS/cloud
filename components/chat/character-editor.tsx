@@ -61,7 +61,9 @@ export function CharacterEditor({
   useEffect(() => {
     const tab = searchParams.get("tab") as MainTab | null;
     if (tab && ["character", "plugins", "stats", "knowledge"].includes(tab)) {
-      setActiveTab(tab);
+      queueMicrotask(() => {
+        setActiveTab(tab);
+      });
     }
   }, [searchParams]);
 
