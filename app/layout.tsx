@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Roboto_Mono, Roboto_Flex } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "@/components/theme/theme-provider";
@@ -8,65 +7,47 @@ import NextTopLoader from "nextjs-toploader";
 import PrivyProvider from "@/lib/providers/PrivyProvider";
 import { CreditsProvider } from "@/lib/providers/CreditsProvider";
 import DebugProvider from "@/components/debug/debug-provider";
-import localFont from 'next/font/local';
-
-const robotoMono = Roboto_Mono({
-  variable: "--font-roboto-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
-const robotoFlex = Roboto_Flex({
-  variable: "--font-roboto-flex",
-  subsets: ["latin"],
-  weight: ["400", "500"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
+import localFont from "next/font/local";
 
 const sfPro = localFont({
   src: [
     {
-      path: './fonts/sf-pro/SF-Pro-Display-Ultralight.otf',
-      weight: '200',
-      style: 'normal',
+      path: "./fonts/sf-pro/SF-Pro-Display-Ultralight.otf",
+      weight: "200",
+      style: "normal",
     },
     {
-      path: './fonts/sf-pro/SF-Pro-Display-Thin.otf',
-      weight: '300',
-      style: 'normal',
+      path: "./fonts/sf-pro/SF-Pro-Display-Thin.otf",
+      weight: "300",
+      style: "normal",
     },
     {
-      path: './fonts/sf-pro/SF-Pro-Display-Light.otf',
-      weight: '350',
-      style: 'normal',
+      path: "./fonts/sf-pro/SF-Pro-Display-Light.otf",
+      weight: "350",
+      style: "normal",
     },
     {
-      path: './fonts/sf-pro/SF-Pro-Display-Regular.otf',
-      weight: '400',
-      style: 'normal',
+      path: "./fonts/sf-pro/SF-Pro-Display-Regular.otf",
+      weight: "400",
+      style: "normal",
     },
     {
-      path: './fonts/sf-pro/SF-Pro-Display-Medium.otf',
-      weight: '500',
-      style: 'normal',
+      path: "./fonts/sf-pro/SF-Pro-Display-Medium.otf",
+      weight: "500",
+      style: "normal",
     },
     {
-      path: './fonts/sf-pro/SF-Pro-Display-Semibold.otf',
-      weight: '600',
-      style: 'normal',
+      path: "./fonts/sf-pro/SF-Pro-Display-Semibold.otf",
+      weight: "600",
+      style: "normal",
     },
     {
-      path: './fonts/sf-pro/SF-Pro-Display-Bold.otf',
-      weight: '700',
-      style: 'normal',
+      path: "./fonts/sf-pro/SF-Pro-Display-Bold.otf",
+      weight: "700",
+      style: "normal",
     },
   ],
-  variable: '--font-sf-pro',
+  variable: "--font-sf-pro",
 });
 
 /**
@@ -163,9 +144,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${robotoMono.variable} ${robotoFlex.variable} ${geistMono.variable} ${sfPro.variable} antialiased`}
-      >
+      <body className={`${sfPro.variable} antialiased`}>
         <PrivyProvider>
           <CreditsProvider>
             <ThemeProvider
