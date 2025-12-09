@@ -46,7 +46,9 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
 
   useEffect(() => {
     if (tabFromUrl) {
-      setActiveTab(tabFromUrl);
+      queueMicrotask(() => {
+        setActiveTab(tabFromUrl);
+      });
     }
   }, [tabFromUrl]);
 
