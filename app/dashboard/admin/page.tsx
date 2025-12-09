@@ -380,7 +380,7 @@ export default function AdminPage() {
                       <TableCell className="text-xs text-muted-foreground">
                         {new Date(v.createdAt).toLocaleString()}
                       </TableCell>
-                      <TableCell className="font-mono text-xs">
+                      <TableCell className="text-xs">
                         {v.userId.slice(0, 8)}...
                       </TableCell>
                       <TableCell>
@@ -442,7 +442,7 @@ export default function AdminPage() {
                       className="flex items-center justify-between rounded-lg border p-3"
                     >
                       <div>
-                        <p className="font-mono text-sm">{u.userId.slice(0, 12)}...</p>
+                        <p className="text-sm">{u.userId.slice(0, 12)}...</p>
                         <div className="flex gap-2 text-xs text-muted-foreground">
                           <span>{u.totalViolations} violations</span>
                           <span>•</span>
@@ -493,7 +493,7 @@ export default function AdminPage() {
                       className="flex items-center justify-between rounded-lg border border-destructive/20 bg-destructive/5 p-3"
                     >
                       <div>
-                        <p className="font-mono text-sm">{u.userId.slice(0, 12)}...</p>
+                        <p className="text-sm">{u.userId.slice(0, 12)}...</p>
                         <p className="text-xs text-muted-foreground">
                           {u.banReason || "No reason provided"}
                         </p>
@@ -547,7 +547,7 @@ export default function AdminPage() {
                 <TableBody>
                   {admins.map((admin) => (
                     <TableRow key={admin.id}>
-                      <TableCell className="font-mono text-sm">
+                      <TableCell className="text-sm">
                         {admin.walletAddress.slice(0, 10)}...{admin.walletAddress.slice(-8)}
                       </TableCell>
                       <TableCell>
@@ -664,7 +664,7 @@ export default function AdminPage() {
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
                     <span className="text-muted-foreground">ID:</span>{" "}
-                    <span className="font-mono">{userDetail.user?.id}</span>
+                    <span>{userDetail.user?.id}</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Email:</span>{" "}
@@ -672,7 +672,7 @@ export default function AdminPage() {
                   </div>
                   <div>
                     <span className="text-muted-foreground">Wallet:</span>{" "}
-                    <span className="font-mono">{userDetail.user?.wallet_address?.slice(0, 10)}...</span>
+                    <span>{userDetail.user?.wallet_address?.slice(0, 10)}...</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Generations:</span>{" "}
