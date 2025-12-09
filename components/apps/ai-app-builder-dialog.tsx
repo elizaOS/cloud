@@ -659,7 +659,7 @@ What would you like to build?`,
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-[95vw] w-[95vw] h-[90vh] p-0 gap-0 overflow-hidden">
+      <DialogContent className="max-w-[95vw] w-[95vw] h-[90vh] p-0 gap-0 overflow-hidden" showCloseButton={false}>
         {step === "setup" ? renderSetup() : renderBuilding()}
       </DialogContent>
     </Dialog>
