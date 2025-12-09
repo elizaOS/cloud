@@ -42,6 +42,8 @@ import { agentBudgetService } from "@/lib/services/agent-budgets";
 import { analyticsService } from "@/lib/services/analytics";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
 import { characterMarketplaceService } from "@/lib/services/characters/marketplace";
+import { storageService, calculateUploadCost, formatPrice } from "@/lib/services/storage";
+import { ipfsService } from "@/lib/services/ipfs";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import {
@@ -4524,6 +4526,84 @@ const mcpHandler = createMcpHandler(
       },
     );
 
+    // Tool 56: Get x402 Topup Payment Requirements
+    // NOTE: This tool does NOT require authentication - it's designed for permissionless access
+    // The MCP handler will still try to authenticate, but this tool works even if auth fails
+    server.registerTool(
+      "get_x402_topup_requirements",
+      {
+        description: "Get x402 payment requirements for permissionless credit topup. Returns payment details needed to top up credits via x402. FREE tool - works without authentication.",
+        inputSchema: {},
+      },
+      async () => {
+        try {
+          const {
+            X402_ENABLED,
+            X402_RECIPIENT_ADDRESS,
+            getDefaultNetwork,
+            USDC_ADDRESSES,
+            TOPUP_PRICE,
+            CREDITS_PER_DOLLAR,
+            isX402Configured,
+          } = await import("@/lib/config/x402");
+
+          if (!isX402Configured()) {
+            return {
+              content: [{
+                type: "text" as const,
+                text: JSON.stringify({
+                  error: "x402 payments not configured",
+                  message: "x402 payments are not enabled on this server",
+                }, null, 2),
+              }],
+              isError: true,
+            };
+          }
+
+          const network = getDefaultNetwork();
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                success: true,
+                x402: {
+                  enabled: X402_ENABLED,
+                  topupEndpoint: `${baseUrl}/api/v1/credits/topup`,
+                  network,
+                  asset: USDC_ADDRESSES[network],
+                  payTo: X402_RECIPIENT_ADDRESS,
+                  price: TOPUP_PRICE,
+                  creditsPerDollar: CREDITS_PER_DOLLAR,
+                  creditsPerTopup: Math.floor(parseFloat(TOPUP_PRICE.replace("$", "")) * CREDITS_PER_DOLLAR),
+                  instructions: [
+                    "1. Sign payment authorization with your wallet using x402 protocol",
+                    "2. Include X-PAYMENT header in POST request to topupEndpoint",
+                    "3. Credits will be added to your organization (created from wallet address if needed)",
+                    "4. Get API key from the organization to use for subsequent MCP/A2A calls",
+                    "5. Use the credits to call MCP tools or A2A skills",
+                  ],
+                  docs: "https://x402.org",
+                  note: "After topping up, you can get an API key from your organization to authenticate future requests",
+                },
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                error: error instanceof Error ? error.message : "Failed to get x402 topup requirements",
+              }, null, 2),
+            }],
+            isError: true,
+          };
+        }
+      },
+    );
+
     // Tool 56: Get Billing Usage
     server.registerTool(
       "get_billing_usage",
@@ -4848,6 +4928,1395 @@ const mcpHandler = createMcpHandler(
         } catch (error) {
           return {
             content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to find A2A skills" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // ============ STORAGE TOOLS ============
+
+    // Tool: Storage Upload
+    server.registerTool(
+      "storage_upload",
+      {
+        description: "Upload file to decentralized storage (Vercel Blob + optional IPFS pinning)",
+        inputSchema: {
+          content: z.string().describe("Base64 encoded file content"),
+          filename: z.string().describe("Filename for the upload"),
+          contentType: z.string().optional().describe("MIME type (default: application/octet-stream)"),
+          pinToIPFS: z.boolean().optional().default(true).describe("Also pin to IPFS"),
+        },
+      },
+      async ({ content, filename, contentType = "application/octet-stream", pinToIPFS = true }) => {
+        const { user } = getAuthContext();
+        
+        const buffer = Buffer.from(content, "base64");
+        const cost = calculateUploadCost(buffer.length);
+        
+        // Check balance
+        const org = await organizationsService.getById(user.organization_id);
+        if (!org || Number(org.credit_balance) < cost) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: `Insufficient credits: need ${formatPrice(cost)}` }, null, 2) }],
+            isError: true,
+          };
+        }
+        
+        // Deduct credits
+        await creditsService.deductCredits({
+          organizationId: user.organization_id,
+          amount: cost,
+          description: `MCP storage upload: ${filename}`,
+          metadata: { user_id: user.id, filename, size: buffer.length },
+        });
+        
+        const result = await storageService.upload(buffer, {
+          filename,
+          contentType,
+          ownerAddress: user.id,
+          pinToIPFS,
+        });
+        
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              id: result.id,
+              url: result.url,
+              cid: result.cid,
+              ipfsGatewayUrl: result.ipfsGatewayUrl,
+              size: result.size,
+              contentType: result.contentType,
+              cost: formatPrice(cost),
+              pinned: result.pinned,
+            }, null, 2),
+          }],
+        };
+      },
+    );
+
+    // Tool: Storage List
+    server.registerTool(
+      "storage_list",
+      {
+        description: "List your stored files",
+        inputSchema: {
+          limit: z.number().int().min(1).max(100).optional().default(50).describe("Max files to return"),
+          cursor: z.string().optional().describe("Pagination cursor"),
+        },
+      },
+      async ({ limit = 50, cursor }) => {
+        const { user } = getAuthContext();
+        
+        const result = await storageService.list({
+          ownerAddress: user.id,
+          limit,
+          cursor,
+        });
+        
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              items: result.items.map(item => ({
+                id: item.id,
+                url: item.url,
+                pathname: item.pathname,
+                contentType: item.contentType,
+                size: item.size,
+                uploadedAt: item.uploadedAt.toISOString(),
+              })),
+              count: result.items.length,
+              hasMore: result.hasMore,
+              cursor: result.cursor,
+            }, null, 2),
+          }],
+        };
+      },
+    );
+
+    // Tool: Storage Stats
+    server.registerTool(
+      "storage_stats",
+      {
+        description: "Get storage statistics and pricing",
+        inputSchema: {},
+      },
+      async () => {
+        const { user } = getAuthContext();
+        
+        const stats = await storageService.getStats(user.id);
+        const pricing = storageService.getPricing();
+        
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              totalFiles: stats.totalFiles,
+              totalSizeBytes: stats.totalSizeBytes,
+              totalSizeGB: stats.totalSizeGB,
+              pricing,
+            }, null, 2),
+          }],
+        };
+      },
+    );
+
+    // Tool: Storage Calculate Cost
+    server.registerTool(
+      "storage_calculate_cost",
+      {
+        description: "Calculate storage cost for a given file size",
+        inputSchema: {
+          sizeBytes: z.number().int().positive().describe("File size in bytes"),
+        },
+      },
+      async ({ sizeBytes }) => {
+        const cost = calculateUploadCost(sizeBytes);
+        const pricing = storageService.getPricing();
+        
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              sizeBytes,
+              sizeMB: (sizeBytes / (1024 * 1024)).toFixed(2),
+              cost,
+              costFormatted: formatPrice(cost),
+              pricing,
+            }, null, 2),
+          }],
+        };
+      },
+    );
+
+    // Tool: IPFS Pin
+    server.registerTool(
+      "ipfs_pin",
+      {
+        description: "Pin an existing CID to IPFS",
+        inputSchema: {
+          cid: z.string().describe("IPFS Content ID to pin"),
+          name: z.string().optional().describe("Name for the pin"),
+        },
+      },
+      async ({ cid, name }) => {
+        const health = await ipfsService.health().catch(() => null);
+        if (!health) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "IPFS service unavailable" }, null, 2) }],
+            isError: true,
+          };
+        }
+        
+        const result = await ipfsService.pin({ cid, name: name || cid });
+        
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              id: result.id,
+              cid: result.cid,
+              status: result.status,
+              gatewayUrl: ipfsService.getGatewayUrl(result.cid),
+            }, null, 2),
+          }],
+        };
+      },
+    );
+
+    // Tool: IPFS List Pins
+    server.registerTool(
+      "ipfs_list_pins",
+      {
+        description: "List pinned content on IPFS",
+        inputSchema: {
+          status: z.string().optional().describe("Filter by status (pinning, pinned, failed)"),
+          limit: z.number().int().min(1).max(100).optional().default(50),
+        },
+      },
+      async ({ status, limit = 50 }) => {
+        const health = await ipfsService.health().catch(() => null);
+        if (!health) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "IPFS service unavailable" }, null, 2) }],
+            isError: true,
+          };
+        }
+        
+        const result = await ipfsService.listPins({ status, limit });
+        
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              count: result.count,
+              pins: result.results.map(pin => ({
+                ...pin,
+                gatewayUrl: ipfsService.getGatewayUrl(pin.cid),
+              })),
+            }, null, 2),
+          }],
+        };
+      },
+    );
+
+    // ============ N8N WORKFLOW TOOLS ============
+
+    // Tool: Create N8N Workflow
+    server.registerTool(
+      "n8n_create_workflow",
+      {
+        description: "Create a new n8n workflow. Requires workflow name and workflow data (nodes, connections, etc.)",
+        inputSchema: {
+          name: z.string().describe("Workflow name"),
+          description: z.string().optional().describe("Workflow description"),
+          workflowData: z.record(z.unknown()).describe("n8n workflow JSON (nodes, connections, settings)"),
+          tags: z.array(z.string()).optional().describe("Workflow tags"),
+        },
+      },
+      async ({ name, description, workflowData, tags }) => {
+        const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
+
+        if (!user.organization_id) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "User has no organization" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        const validationResult = await n8nWorkflowsService.validateWorkflow(workflowData);
+        if (!validationResult.valid) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "Invalid workflow structure", errors: validationResult.errors }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        const workflow = await n8nWorkflowsService.createWorkflow({
+          organizationId: user.organization_id,
+          userId: user.id,
+          name,
+          description,
+          workflowData,
+          tags,
+        });
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              success: true,
+              workflow: {
+                id: workflow.id,
+                name: workflow.name,
+                status: workflow.status,
+                version: workflow.version,
+                createdAt: workflow.created_at,
+              },
+            }, null, 2),
+          }],
+        };
+      },
+    );
+
+    // Tool: List N8N Workflows
+    server.registerTool(
+      "n8n_list_workflows",
+      {
+        description: "List n8n workflows. Can filter by status (draft, active, archived).",
+        inputSchema: {
+          status: z.enum(["draft", "active", "archived"]).optional().describe("Filter by workflow status"),
+          limit: z.number().int().min(1).max(100).optional().default(20),
+        },
+      },
+      async ({ status, limit = 20 }) => {
+        const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
+
+        if (!user.organization_id) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "User has no organization" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        const workflows = await n8nWorkflowsService.listWorkflows(user.organization_id, {
+          status,
+          limit,
+        });
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              success: true,
+              workflows: workflows.map((w) => ({
+                id: w.id,
+                name: w.name,
+                description: w.description,
+                status: w.status,
+                version: w.version,
+                tags: w.tags,
+                createdAt: w.created_at.toISOString(),
+                updatedAt: w.updated_at.toISOString(),
+              })),
+              count: workflows.length,
+            }, null, 2),
+          }],
+        };
+      },
+    );
+
+    // Tool: Generate N8N Workflow
+    server.registerTool(
+      "n8n_generate_workflow",
+      {
+        description: "Generate an n8n workflow using AI from a natural language prompt. Uses Claude Opus 4.5.",
+        inputSchema: {
+          prompt: z.string().describe("Natural language description of the desired workflow"),
+          context: z.object({
+            availableNodes: z.array(z.unknown()).optional().describe("Available n8n nodes for context"),
+            existingWorkflows: z.array(z.unknown()).optional().describe("Existing workflows for reference"),
+            variables: z.record(z.string()).optional().describe("Available variables"),
+          }).optional().describe("Additional context for generation"),
+          autoSave: z.boolean().optional().default(false).describe("Automatically save the generated workflow"),
+          workflowName: z.string().optional().describe("Name for the workflow (required if autoSave is true)"),
+          tags: z.array(z.string()).optional().describe("Tags for the workflow"),
+        },
+      },
+      async ({ prompt, context, autoSave, workflowName, tags }) => {
+        const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
+        const { endpointDiscoveryService } = await import("@/lib/services/endpoint-discovery");
+
+        if (!user.organization_id) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "User has no organization" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        try {
+          // Discover available endpoints
+          const availableEndpoints = await endpointDiscoveryService.discoverAllEndpoints();
+          const endpointNodes = availableEndpoints.map(e => ({
+            id: e.id,
+            name: e.name,
+            description: e.description,
+            type: e.type,
+            category: e.category,
+            endpoint: e.endpoint,
+            method: e.method,
+          }));
+
+          // Get user's existing workflows for context
+          const existingWorkflows = await n8nWorkflowsService.listWorkflows(user.organization_id, { limit: 10 });
+          const workflowContext = existingWorkflows.map(w => ({
+            id: w.id,
+            name: w.name,
+            description: w.description,
+            tags: w.tags,
+          }));
+
+          // Get global variables
+          const globalVariables = await n8nWorkflowsService.getGlobalVariables(user.organization_id);
+          const variablesContext = Object.fromEntries(
+            globalVariables.map(v => [v.name, v.is_secret ? "***" : v.value])
+          );
+
+          // Call the generation endpoint via HTTP (using API key for internal calls)
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+          const apiKey = process.env.ELIZA_CLOUD_API_KEY;
+
+          if (!apiKey) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: "Cloud API key not configured" }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          const response = await fetch(`${baseUrl}/api/v1/n8n/generate-workflow`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+              prompt,
+              context: {
+                ...context,
+                availableNodes: endpointNodes,
+                existingWorkflows: workflowContext,
+                variables: variablesContext,
+              },
+              autoSave,
+              workflowName,
+              tags,
+            }),
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({ error: "Unknown error" }));
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: error.error || response.statusText }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          const result = await response.json();
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                success: true,
+                workflow: result.workflow,
+                savedWorkflow: result.savedWorkflow,
+                validation: result.validation,
+                metadata: result.metadata,
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to generate workflow" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Get N8N Workflow
+    server.registerTool(
+      "n8n_get_workflow",
+      {
+        description: "Get details of a specific n8n workflow by ID",
+        inputSchema: {
+          workflowId: z.string().describe("Workflow ID"),
+        },
+      },
+      async ({ workflowId }) => {
+        const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
+        const { appsService } = await import("@/lib/services/apps");
+
+        if (!user.organization_id) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "User has no organization" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        const apps = await appsService.listByOrganization(user.organization_id);
+        if (apps.length === 0) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "No app found for this organization" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        const workflow = await n8nWorkflowsService.getWorkflow(workflowId);
+        if (!workflow || workflow.app_id !== apps[0].id) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "Workflow not found" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              success: true,
+              workflow: {
+                id: workflow.id,
+                name: workflow.name,
+                description: workflow.description,
+                workflowData: workflow.workflow_data,
+                status: workflow.status,
+                version: workflow.version,
+                tags: workflow.tags,
+                n8nWorkflowId: workflow.n8n_workflow_id,
+                isActiveInN8n: workflow.is_active_in_n8n,
+                createdAt: workflow.created_at.toISOString(),
+                updatedAt: workflow.updated_at.toISOString(),
+              },
+            }, null, 2),
+          }],
+        };
+      },
+    );
+
+    // Tool: Update N8N Workflow
+    server.registerTool(
+      "n8n_update_workflow",
+      {
+        description: "Update an existing n8n workflow",
+        inputSchema: {
+          workflowId: z.string().describe("Workflow ID"),
+          name: z.string().optional().describe("New workflow name"),
+          description: z.string().optional().describe("New workflow description"),
+          workflowData: z.record(z.unknown()).optional().describe("Updated workflow data"),
+          status: z.enum(["draft", "active", "archived"]).optional().describe("New workflow status"),
+          tags: z.array(z.string()).optional().describe("New workflow tags"),
+        },
+      },
+      async ({ workflowId, name, description, workflowData, status, tags }) => {
+        const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
+        const { appsService } = await import("@/lib/services/apps");
+
+        if (!user.organization_id) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "User has no organization" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        const apps = await appsService.listByOrganization(user.organization_id);
+        if (apps.length === 0) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "No app found for this organization" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        if (workflowData) {
+          const validationResult = await n8nWorkflowsService.validateWorkflow(workflowData);
+          if (!validationResult.valid) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: "Invalid workflow structure", errors: validationResult.errors }, null, 2) }],
+              isError: true,
+            };
+          }
+        }
+
+        const workflow = await n8nWorkflowsService.updateWorkflow(workflowId, {
+          name,
+          description,
+          workflowData,
+          status,
+          tags,
+        });
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              success: true,
+              workflow: {
+                id: workflow.id,
+                name: workflow.name,
+                status: workflow.status,
+                version: workflow.version,
+                updatedAt: workflow.updated_at.toISOString(),
+              },
+            }, null, 2),
+          }],
+        };
+      },
+    );
+
+    // Tool: List N8N Workflow Versions
+    server.registerTool(
+      "n8n_list_workflow_versions",
+      {
+        description: "List version history for a workflow",
+        inputSchema: {
+          workflowId: z.string().describe("Workflow ID"),
+          limit: z.number().int().min(1).max(100).optional().default(50),
+        },
+      },
+      async ({ workflowId, limit = 50 }) => {
+        const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
+
+        const versions = await n8nWorkflowsService.getWorkflowVersions(workflowId, limit);
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              success: true,
+              versions: versions.map((v) => ({
+                id: v.id,
+                version: v.version,
+                changeDescription: v.change_description,
+                createdAt: v.created_at.toISOString(),
+                createdBy: v.created_by,
+              })),
+              count: versions.length,
+            }, null, 2),
+          }],
+        };
+      },
+    );
+
+    // Tool: Revert N8N Workflow
+    server.registerTool(
+      "n8n_revert_workflow",
+      {
+        description: "Revert a workflow to a specific version",
+        inputSchema: {
+          workflowId: z.string().describe("Workflow ID"),
+          version: z.number().int().positive().describe("Version number to revert to"),
+        },
+      },
+      async ({ workflowId, version }) => {
+        const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
+
+        if (!user.organization_id) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "User has no organization" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        const workflow = await n8nWorkflowsService.revertWorkflowToVersion(
+          workflowId,
+          version,
+          user.id
+        );
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              success: true,
+              workflow: {
+                id: workflow.id,
+                version: workflow.version,
+                updatedAt: workflow.updated_at.toISOString(),
+              },
+            }, null, 2),
+          }],
+        };
+      },
+    );
+
+    // Tool: Test N8N Workflow
+    server.registerTool(
+      "n8n_test_workflow",
+      {
+        description: "Test execution of a workflow",
+        inputSchema: {
+          workflowId: z.string().describe("Workflow ID"),
+          inputData: z.record(z.unknown()).optional().describe("Input data for the workflow test"),
+        },
+      },
+      async ({ workflowId, inputData }) => {
+        const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
+
+        if (!user.organization_id) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "User has no organization" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        const execution = await n8nWorkflowsService.testWorkflow({
+          workflowId,
+          inputData,
+          userId: user.id,
+        });
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              success: true,
+              execution: {
+                id: execution.id,
+                status: execution.status,
+                outputData: execution.output_data,
+                errorMessage: execution.error_message,
+                durationMs: execution.duration_ms,
+                startedAt: execution.started_at.toISOString(),
+                finishedAt: execution.finished_at?.toISOString(),
+              },
+            }, null, 2),
+          }],
+        };
+      },
+    );
+
+    // ============ N8N NODE DISCOVERY & GENERATION TOOLS ============
+
+    // Tool: Discover N8N Nodes
+    server.registerTool(
+      "n8n_discover_nodes",
+      {
+        description: "Discover all available A2A, MCP, and REST endpoints that can be used as n8n workflow nodes. Search across the entire marketplace network.",
+        inputSchema: {
+          query: z.string().optional().describe("Search query to filter endpoints by name, description, or category"),
+          types: z.array(z.enum(["a2a", "mcp", "rest"])).optional().describe("Filter by endpoint type"),
+          categories: z.array(z.string()).optional().describe("Filter by category (e.g., 'ai', 'storage', 'infrastructure')"),
+          limit: z.number().int().min(1).max(200).optional().default(100).describe("Maximum number of results"),
+        },
+      },
+      async ({ query, types, categories, limit }) => {
+        const { endpointDiscoveryService } = await import("@/lib/services/endpoint-discovery");
+
+        const results = await endpointDiscoveryService.searchEndpoints(query || "", {
+          types,
+          categories,
+          limit,
+        });
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              success: true,
+              nodes: results.nodes,
+              total: results.total,
+              categories: results.categories,
+            }, null, 2),
+          }],
+        };
+      },
+    );
+
+    // Tool: Generate N8N Node from Endpoint
+    server.registerTool(
+      "n8n_generate_node",
+      {
+        description: "Generate an n8n workflow node from a discovered endpoint. Creates an HTTP Request node configured for the endpoint.",
+        inputSchema: {
+          endpointId: z.string().describe("Endpoint ID from discover_nodes"),
+          position: z.tuple([z.number(), z.number()]).optional().describe("Node position [x, y]"),
+          parameters: z.record(z.unknown()).optional().describe("Additional parameters for the node"),
+        },
+      },
+      async ({ endpointId, position, parameters }) => {
+        const { n8nNodeGeneratorService } = await import("@/lib/services/n8n-node-generator");
+
+        const node = await n8nNodeGeneratorService.generateNode({
+          endpointId,
+          position,
+          parameters,
+        });
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              success: true,
+              node,
+            }, null, 2),
+          }],
+        };
+      },
+    );
+
+    // Tool: Generate N8N Workflow from Endpoints
+    server.registerTool(
+      "n8n_generate_workflow_from_endpoints",
+      {
+        description: "Generate a complete n8n workflow by connecting multiple endpoints as nodes.",
+        inputSchema: {
+          endpointIds: z.array(z.string()).min(1).describe("Array of endpoint IDs to include in the workflow"),
+          workflowName: z.string().min(1).describe("Name for the generated workflow"),
+        },
+      },
+      async ({ endpointIds, workflowName }) => {
+        const { n8nNodeGeneratorService } = await import("@/lib/services/n8n-node-generator");
+
+        const workflow = await n8nNodeGeneratorService.generateWorkflowFromEndpoints(
+          endpointIds,
+          workflowName
+        );
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              success: true,
+              workflow,
+            }, null, 2),
+          }],
+        };
+      },
+    );
+
+    // Tool: Generate Fragment
+    server.registerTool(
+      "fragments_generate",
+      {
+        description: "Generate a code fragment from a natural language prompt. Supports Next.js, Vue, Streamlit, Gradio, and Python templates.",
+        inputSchema: {
+          prompt: z.string().describe("Natural language description of the desired code fragment"),
+          template: z.string().optional().describe("Template to use (auto, nextjs-developer, vue-developer, streamlit-developer, gradio-developer, code-interpreter-v1)"),
+          model: z.string().optional().describe("Model to use for generation (default: gpt-4o)"),
+          temperature: z.number().optional().describe("Temperature for generation (0-1)"),
+        },
+      },
+      async ({ prompt, template = "auto", model = "gpt-4o", temperature }) => {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const apiKey = process.env.ELIZA_CLOUD_API_KEY;
+
+        if (!apiKey) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "Cloud API key not configured" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        try {
+          const response = await fetch(`${baseUrl}/api/fragments/chat`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+              messages: [{ role: "user", content: prompt }],
+              template,
+              model,
+              config: {
+                model,
+                temperature: temperature || 0.7,
+                maxTokens: 4000,
+              },
+            }),
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({ error: "Unknown error" }));
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: error.error || response.statusText }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          // Parse streaming response
+          const reader = response.body?.getReader();
+          if (!reader) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: "No response body" }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          const decoder = new TextDecoder();
+          let buffer = "";
+          let fragment: unknown = null;
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                const data = line.slice(6);
+                if (data === "[DONE]") continue;
+                if (!data.trim()) continue;
+
+                try {
+                  const parsed = JSON.parse(data);
+                  if (parsed.object) {
+                    fragment = parsed.object;
+                  }
+                } catch {
+                  // Ignore parse errors
+                }
+              }
+            }
+          }
+
+          if (!fragment) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: "Failed to parse fragment" }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                success: true,
+                fragment,
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to generate fragment" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Execute Fragment
+    server.registerTool(
+      "fragments_execute",
+      {
+        description: "Execute a code fragment in a sandbox environment. Returns preview URL for web apps or execution results for Python.",
+        inputSchema: {
+          fragment: z.object({
+            template: z.string(),
+            code: z.string(),
+            file_path: z.string(),
+            port: z.number().nullable().optional(),
+            additional_dependencies: z.array(z.string()).optional(),
+            has_additional_dependencies: z.boolean().optional(),
+            install_dependencies_command: z.string().optional(),
+          }).describe("Fragment object to execute"),
+        },
+      },
+      async ({ fragment }) => {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const apiKey = process.env.ELIZA_CLOUD_API_KEY;
+
+        if (!apiKey) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "Cloud API key not configured" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        try {
+          const response = await fetch(`${baseUrl}/api/fragments/sandbox`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+              fragment,
+            }),
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({ error: "Unknown error" }));
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: error.error || response.statusText }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          const result = await response.json();
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                success: true,
+                result,
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to execute fragment" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: List Fragment Projects
+    server.registerTool(
+      "fragments_list_projects",
+      {
+        description: "List all fragment projects for the organization. Supports filtering by status and userId.",
+        inputSchema: {
+          status: z.string().optional().describe("Filter by status (draft, deployed, archived)"),
+          userId: z.string().optional().describe("Filter by user ID"),
+        },
+      },
+      async ({ status, userId }) => {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const apiKey = process.env.ELIZA_CLOUD_API_KEY;
+
+        if (!apiKey) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "Cloud API key not configured" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        try {
+          const searchParams = new URLSearchParams();
+          if (status) searchParams.set("status", status);
+          if (userId) searchParams.set("userId", userId);
+
+          const response = await fetch(`${baseUrl}/api/v1/fragments/projects?${searchParams.toString()}`, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+            },
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({ error: "Unknown error" }));
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: error.error || response.statusText }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          const data = await response.json();
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                success: true,
+                projects: data.projects,
+                count: data.projects?.length || 0,
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list projects" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Create Fragment Project
+    server.registerTool(
+      "fragments_create_project",
+      {
+        description: "Create a new fragment project from a fragment. Saves the fragment for later use and deployment.",
+        inputSchema: {
+          name: z.string().describe("Project name"),
+          description: z.string().optional().describe("Project description"),
+          fragment: z.object({
+            template: z.string(),
+            code: z.string(),
+            file_path: z.string(),
+            commentary: z.string().optional(),
+            title: z.string().optional(),
+            description: z.string().optional(),
+            additional_dependencies: z.array(z.string()).optional(),
+            has_additional_dependencies: z.boolean().optional(),
+            install_dependencies_command: z.string().optional(),
+            port: z.number().nullable().optional(),
+          }).describe("Fragment object to save as project"),
+        },
+      },
+      async ({ name, description, fragment }) => {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const apiKey = process.env.ELIZA_CLOUD_API_KEY;
+
+        if (!apiKey) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "Cloud API key not configured" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        try {
+          const response = await fetch(`${baseUrl}/api/v1/fragments/projects`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+              name,
+              description,
+              fragment,
+            }),
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({ error: "Unknown error" }));
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: error.error || response.statusText }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          const data = await response.json();
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                success: true,
+                project: data.project,
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to create project" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Get Fragment Project
+    server.registerTool(
+      "fragments_get_project",
+      {
+        description: "Get a fragment project by ID. Returns full project details including fragment data.",
+        inputSchema: {
+          projectId: z.string().describe("Project ID"),
+        },
+      },
+      async ({ projectId }) => {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const apiKey = process.env.ELIZA_CLOUD_API_KEY;
+
+        if (!apiKey) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "Cloud API key not configured" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        try {
+          const response = await fetch(`${baseUrl}/api/v1/fragments/projects/${projectId}`, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+            },
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({ error: "Unknown error" }));
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: error.error || response.statusText }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          const data = await response.json();
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                success: true,
+                project: data.project,
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get project" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Update Fragment Project
+    server.registerTool(
+      "fragments_update_project",
+      {
+        description: "Update a fragment project. Can update name, description, fragment data, or status.",
+        inputSchema: {
+          projectId: z.string().describe("Project ID"),
+          name: z.string().optional().describe("New project name"),
+          description: z.string().optional().describe("New project description"),
+          fragment: z.object({
+            template: z.string(),
+            code: z.string(),
+            file_path: z.string(),
+            commentary: z.string().optional(),
+            title: z.string().optional(),
+            description: z.string().optional(),
+            additional_dependencies: z.array(z.string()).optional(),
+            has_additional_dependencies: z.boolean().optional(),
+            install_dependencies_command: z.string().optional(),
+            port: z.number().nullable().optional(),
+          }).optional().describe("Updated fragment data"),
+          status: z.enum(["draft", "deployed", "archived"]).optional().describe("Project status"),
+        },
+      },
+      async ({ projectId, name, description, fragment, status }) => {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const apiKey = process.env.ELIZA_CLOUD_API_KEY;
+
+        if (!apiKey) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "Cloud API key not configured" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        try {
+          const updateData: Record<string, unknown> = {};
+          if (name !== undefined) updateData.name = name;
+          if (description !== undefined) updateData.description = description;
+          if (fragment !== undefined) updateData.fragment = fragment;
+          if (status !== undefined) updateData.status = status;
+
+          const response = await fetch(`${baseUrl}/api/v1/fragments/projects/${projectId}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify(updateData),
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({ error: "Unknown error" }));
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: error.error || response.statusText }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          const data = await response.json();
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                success: true,
+                project: data.project,
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to update project" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Delete Fragment Project
+    server.registerTool(
+      "fragments_delete_project",
+      {
+        description: "Delete a fragment project. This is a permanent action.",
+        inputSchema: {
+          projectId: z.string().describe("Project ID to delete"),
+        },
+      },
+      async ({ projectId }) => {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const apiKey = process.env.ELIZA_CLOUD_API_KEY;
+
+        if (!apiKey) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "Cloud API key not configured" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        try {
+          const response = await fetch(`${baseUrl}/api/v1/fragments/projects/${projectId}`, {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+            },
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({ error: "Unknown error" }));
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: error.error || response.statusText }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                success: true,
+                message: "Project deleted successfully",
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to delete project" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Deploy Fragment Project
+    server.registerTool(
+      "fragments_deploy_project",
+      {
+        description: "Deploy a fragment project as a miniapp or container. Returns deployment details including app ID and API key.",
+        inputSchema: {
+          projectId: z.string().describe("Project ID to deploy"),
+          type: z.enum(["miniapp", "container"]).describe("Deployment type"),
+          appUrl: z.string().url().optional().describe("App URL for miniapp deployment (auto-generated if not provided)"),
+          allowedOrigins: z.array(z.string()).optional().describe("Allowed origins for miniapp"),
+          autoStorage: z.boolean().optional().default(true).describe("Auto-create storage collections"),
+          autoInject: z.boolean().optional().default(true).describe("Auto-inject miniapp helpers"),
+          // Container deployment options
+          name: z.string().optional().describe("Container name (for container deployment)"),
+          project_name: z.string().optional().describe("Project name (for container deployment)"),
+          port: z.number().optional().describe("Container port (for container deployment)"),
+        },
+      },
+      async ({ projectId, type, appUrl, allowedOrigins, autoStorage, autoInject, name, project_name, port }) => {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const apiKey = process.env.ELIZA_CLOUD_API_KEY;
+
+        if (!apiKey) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "Cloud API key not configured" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        try {
+          const deployData: Record<string, unknown> = { type };
+          if (type === "miniapp") {
+            if (appUrl) deployData.appUrl = appUrl;
+            if (allowedOrigins) deployData.allowedOrigins = allowedOrigins;
+            if (autoStorage !== undefined) deployData.autoStorage = autoStorage;
+            if (autoInject !== undefined) deployData.autoInject = autoInject;
+          } else {
+            if (name) deployData.name = name;
+            if (project_name) deployData.project_name = project_name;
+            if (port) deployData.port = port;
+          }
+
+          const response = await fetch(`${baseUrl}/api/v1/fragments/projects/${projectId}/deploy`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify(deployData),
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({ error: "Unknown error" }));
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: error.error || response.statusText }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          const data = await response.json();
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                success: true,
+                deployment: data.deployment,
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to deploy project" }, null, 2) }],
             isError: true,
           };
         }

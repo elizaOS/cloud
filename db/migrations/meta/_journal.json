@@ -8,6 +8,27 @@
       "when": 1765166754718,
       "tag": "0000_last_reavers",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1765243469308,
+      "tag": "0001_third_orphan",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1765300000000,
+      "tag": "0002_n8n_workflows",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1765257250394,
+      "tag": "0003_high_black_cat",
+      "breakpoints": true
     }
   ]
 }

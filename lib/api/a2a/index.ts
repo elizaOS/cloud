@@ -13,6 +13,7 @@ export {
   executeSkillImageGeneration,
   executeSkillCheckBalance,
   executeSkillGetUsage,
+  executeSkillGetX402TopupRequirements,
   executeSkillListAgents,
   executeSkillChatWithAgent,
   executeSkillSaveMemory,
@@ -23,6 +24,20 @@ export {
   executeSkillGetConversationContext,
   executeSkillVideoGeneration,
   executeSkillGetUserProfile,
+  // Storage skills
+  executeSkillStorageUpload,
+  executeSkillStorageList,
+  executeSkillStorageStats,
+  executeSkillStorageCalculateCost,
+  executeSkillStoragePin,
+  executeSkillFragmentGenerate,
+  executeSkillFragmentExecute,
+  executeSkillFragmentListProjects,
+  executeSkillFragmentCreateProject,
+  executeSkillFragmentGetProject,
+  executeSkillFragmentUpdateProject,
+  executeSkillFragmentDeleteProject,
+  executeSkillFragmentDeployProject,
 } from "./skills";
 
 // Handlers

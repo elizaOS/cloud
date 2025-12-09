@@ -1,0 +1,26 @@
+{
+  "$schema": "../../jeju-manifest.schema.json",
+  "name": "cloud",
+  "displayName": "Jeju Cloud Dashboard",
+  "version": "1.0.0",
+  "type": "vendor",
+  "description": "Next.js dashboard for Jeju L3 cloud infrastructure management",
+  "commands": {
+    "dev": "bun run dev",
+    "build": "bun run build",
+    "start": "bun run start"
+  },
+  "ports": {
+    "main": 5006
+  },
+  "dependencies": ["config", "contracts"],
+  "optional": true,
+  "enabled": true,
+  "autoStart": true,
+  "tags": ["dashboard", "infrastructure", "nextjs"],
+  "healthCheck": {
+    "url": "http://localhost:5006/api/health",
+    "interval": 10000
+  }
+}
+

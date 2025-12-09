@@ -40,45 +40,124 @@ export const maxDuration = 60;
  * If we reach this point, payment verification succeeded.
  */
 async function topupHandler(request: NextRequest): Promise<NextResponse> {
-  // Authenticate user - required to know which org to credit
-  // If auth fails, return 401 - withX402 will NOT settle payment (status >= 400)
-  const authResult = await requireAuthOrApiKeyWithOrg(request).catch(() => null);
+  // Try to authenticate user - if not authenticated, we'll create org from wallet address
+  let authResult = await requireAuthOrApiKeyWithOrg(request).catch(() => null);
+  let organizationId: string;
 
   if (!authResult) {
-    logger.warn("[Credits TopUp] Auth failed after payment verification - payment NOT settled");
-    return NextResponse.json(
-      { error: "Authentication required for credit top-up. Payment was NOT charged." },
-      { status: 401 }
-    );
+    // Permissionless mode: Extract payer address from x402 payment header
+    const paymentHeader = request.headers.get("X-PAYMENT");
+    if (!paymentHeader) {
+      logger.warn("[Credits TopUp] No payment header and no auth - payment NOT settled");
+      return NextResponse.json(
+        { error: "Payment header required for permissionless topup" },
+        { status: 401 }
+      );
+    }
+
+    // Extract payer address from payment header
+    let payerAddress: string | null = null;
+    try {
+      const decoded = JSON.parse(Buffer.from(paymentHeader, "base64").toString());
+      payerAddress = decoded.payload?.authorization?.from || null;
+    } catch {
+      // Ignore decode errors
+    }
+
+    if (!payerAddress) {
+      logger.warn("[Credits TopUp] Could not extract payer address - payment NOT settled");
+      return NextResponse.json(
+        { error: "Could not extract payer address from payment header" },
+        { status: 401 }
+      );
+    }
+
+    // Find or create user/organization from wallet address
+    const { usersService } = await import("@/lib/services/users");
+    const { generateSlugFromWallet } = await import("@/lib/privy-sync");
+    
+    let user = await usersService.getByWalletAddressWithOrganization(payerAddress.toLowerCase());
+    
+    if (!user || !user.organization_id) {
+      // Create organization from wallet address
+      const orgSlug = generateSlugFromWallet(payerAddress);
+      const organization = await organizationsService.create({
+        name: `Wallet ${payerAddress.slice(0, 8)}... Organization`,
+        slug: orgSlug,
+        credit_balance: "0.00",
+      });
+
+      // Create user linked to organization
+      const newUser = await usersRepository.create({
+        wallet_address: payerAddress.toLowerCase(),
+        wallet_chain_type: "ethereum",
+        wallet_verified: false,
+        organization_id: organization.id,
+        role: "owner",
+        is_anonymous: false,
+        is_active: true,
+      });
+
+      organizationId = organization.id;
+      logger.info("[Credits TopUp] Created organization from wallet", {
+        walletAddress: payerAddress,
+        organizationId: organization.id,
+        userId: newUser.id,
+      });
+    } else {
+      organizationId = user.organization_id;
+      logger.info("[Credits TopUp] Found existing organization from wallet", {
+        walletAddress: payerAddress,
+        organizationId,
+        userId: user.id,
+      });
+    }
+  } else {
+    organizationId = authResult.user.organization_id!;
   }
 
   // Calculate credits to add based on the fixed price
   const priceValue = parseFloat(TOPUP_PRICE.replace("$", ""));
   const creditsToAdd = Math.floor(priceValue * CREDITS_PER_DOLLAR);
 
-  // Extract payer info from X-PAYMENT header for logging/audit
+  // Extract payer info from X-PAYMENT header for logging/audit (if not already extracted)
   let payerAddress = "unknown";
-  const paymentHeader = request.headers.get("X-PAYMENT");
-  if (paymentHeader) {
-    try {
-      const decoded = JSON.parse(Buffer.from(paymentHeader, "base64").toString());
-      payerAddress = decoded.payload?.authorization?.from || "unknown";
-    } catch {
-      // Ignore decode errors - payer address is just for logging
+  if (!authResult) {
+    // Already extracted above in permissionless mode
+    const paymentHeader = request.headers.get("X-PAYMENT");
+    if (paymentHeader) {
+      try {
+        const decoded = JSON.parse(Buffer.from(paymentHeader, "base64").toString());
+        payerAddress = decoded.payload?.authorization?.from || "unknown";
+      } catch {
+        // Ignore decode errors
+      }
+    }
+  } else {
+    // For authenticated users, extract from payment header if available
+    const paymentHeader = request.headers.get("X-PAYMENT");
+    if (paymentHeader) {
+      try {
+        const decoded = JSON.parse(Buffer.from(paymentHeader, "base64").toString());
+        payerAddress = decoded.payload?.authorization?.from || "unknown";
+      } catch {
+        // Ignore decode errors
+      }
     }
   }
 
-  // Add credits to user's organization
+  // Add credits to organization
   // NOTE: If settlement fails after this, we need manual reconciliation
   const result = await creditsService.addCredits({
-    organizationId: authResult.user.organization_id,
+    organizationId,
     amount: creditsToAdd,
     description: `Credit top-up via x402 (${TOPUP_PRICE})`,
     metadata: {
-      user_id: authResult.user.id,
+      user_id: authResult?.user.id || null,
       payment_source: "x402",
       payer_address: payerAddress,
       network: getDefaultNetwork(),
+      permissionless: !authResult,
       // Store payment header hash for potential reconciliation
       payment_header_hash: paymentHeader ? Buffer.from(paymentHeader).toString("base64").slice(0, 32) : null,
     },
@@ -86,14 +165,15 @@ async function topupHandler(request: NextRequest): Promise<NextResponse> {
 
   logger.info("[Credits TopUp] Credits added, settlement pending", {
     creditsAdded: creditsToAdd,
-    organizationId: authResult.user.organization_id,
+    organizationId,
     transactionId: result.transaction.id,
     payerAddress,
     network: getDefaultNetwork(),
+    permissionless: !authResult,
   });
 
   // Track payment in agent reputation system (fire and forget)
-  const agentIdentifier = `org:${authResult.user.organization_id}`;
+  const agentIdentifier = `org:${organizationId}`;
   agentReputationService.recordPayment({
     agentIdentifier,
     amountUsd: priceValue,
@@ -103,7 +183,7 @@ async function topupHandler(request: NextRequest): Promise<NextResponse> {
     logger.error("[Credits TopUp] Failed to record payment for reputation", { error: err });
   });
 
-  const org = await organizationsService.getById(authResult.user.organization_id);
+  const org = await organizationsService.getById(organizationId);
 
   // Return success - withX402 wrapper will settle payment after this
   // If settlement fails, client gets 402 but credits are already added (manual reconciliation needed)

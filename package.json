@@ -53,6 +53,8 @@
     "onchain:verify": "bun run scripts/erc8004-verify-all.ts",
     "onchain:deploy:base": "cd docs/docs/erc-8004-contracts && npm run deploy:upgradeable:base",
     "anvil:start": "cd docs/docs/erc-8004-contracts && npm run local",
+    "contracts:check": "bun run scripts/bootstrap-contracts.ts",
+    "contracts:deploy": "bun run scripts/bootstrap-contracts.ts --network anvil --deploy",
     "test": "bun test tests/unit tests/security tests/integration/comprehensive-api.test.ts tests/integration/erc8004-marketplace.test.ts tests/integration/payout-flow.test.ts tests/integration/payout-status.test.ts tests/integration/agent-budgets.test.ts tests/integration/agent-monetization.test.ts",
     "test:unit": "bun test tests/unit",
     "test:security": "bun test tests/security",
@@ -67,7 +69,10 @@
     "test:playwright:report": "playwright show-report tests/playwright/test-reports/html",
     "admin:promote": "bun run scripts/promote-admin.ts",
     "admin:list": "bun run scripts/promote-admin.ts --list",
-    "admin:revoke": "bun run scripts/promote-admin.ts --revoke"
+    "admin:revoke": "bun run scripts/promote-admin.ts --revoke",
+    "storage:register": "bun run scripts/register-storage-provider.ts",
+    "storage:register:testnet": "bun run scripts/register-storage-provider.ts --network testnet",
+    "storage:register:mainnet": "bun run scripts/register-storage-provider.ts --network mainnet"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^2.0.18",
@@ -150,6 +155,7 @@
     "@xyflow/react": "^12.9.3",
     "agent0-sdk": "^0.31.0",
     "ai": "^5.0.106",
+    "canvas": "^3.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

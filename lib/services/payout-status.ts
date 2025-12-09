@@ -10,10 +10,11 @@ import { ELIZA_TOKEN_ADDRESSES, type SupportedNetwork } from "./eliza-token-pric
 import {
   createPublicClient,
   http,
-  parseAbi,
   type Address,
 } from "viem";
+import { ERC20_ABI } from "@/lib/utils/abis/erc20";
 import { mainnet, base, bsc } from "viem/chains";
+import { jeju, jejuTestnet } from "@/lib/config/chains";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { getAssociatedTokenAddress, getAccount } from "@solana/spl-token";
 import { privateKeyToAccount } from "viem/accounts";
@@ -224,10 +225,6 @@ class PayoutStatusService {
       chain,
       transport: http(),
     });
-
-    const ERC20_ABI = parseAbi([
-      "function balanceOf(address account) view returns (uint256)",
-    ]);
 
     let balance = 0;
     let error: string | null = null;

@@ -11,6 +11,9 @@
  *   /api/proxy/agents/:id/chats -> /api/v1/miniapp/agents/:id/chats
  *   /api/proxy/billing       -> /api/v1/miniapp/billing
  *   /api/proxy/stream/:roomId -> /api/eliza/rooms/:roomId/messages/stream
+ *   /api/proxy/storage       -> /api/v1/miniapp/storage (collections)
+ *   /api/proxy/storage/:collection -> /api/v1/miniapp/storage/:collection (documents)
+ *   /api/proxy/storage/:collection/:id -> /api/v1/miniapp/storage/:collection/:id
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -36,6 +39,12 @@ async function forwardRequest(
   if (path[0] === "stream" && path[1]) {
     // Stream endpoint: /api/proxy/stream/:roomId -> /api/eliza/rooms/:roomId/messages/stream
     targetPath = `/api/eliza/rooms/${path[1]}/messages/stream`;
+  } else if (path[0] === "n8n") {
+    // N8N endpoints: /api/proxy/n8n/* -> /api/v1/miniapp/n8n/*
+    targetPath = `/api/v1/miniapp/n8n/${path.slice(1).join("/")}`;
+  } else if (path[0] === "storage") {
+    // Storage endpoints: /api/proxy/storage/* -> /api/v1/miniapp/storage/*
+    targetPath = `/api/v1/miniapp/storage/${path.slice(1).join("/")}`;
   } else {
     // Miniapp endpoints: /api/proxy/* -> /api/v1/miniapp/*
     targetPath = `/api/v1/miniapp/${path.join("/")}`;

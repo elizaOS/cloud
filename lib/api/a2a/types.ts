@@ -172,6 +172,94 @@ export interface VideoGenerationResult {
 }
 
 /**
+ * Fragment generation result
+ */
+export interface FragmentGenerationResult {
+  fragment: {
+    commentary: string;
+    template: string;
+    title: string;
+    description: string;
+    file_path: string;
+    code: string;
+    port: number | null;
+    additional_dependencies: string[];
+    has_additional_dependencies: boolean;
+    install_dependencies_command: string;
+  };
+  cost: number;
+}
+
+/**
+ * Fragment execution result
+ */
+export interface FragmentExecutionResult {
+  containerId: string;
+  template: string;
+  url?: string;
+  stdout?: string[];
+  stderr?: string[];
+  runtimeError?: {
+    message: string;
+    name: string;
+    traceback?: string;
+  };
+}
+
+/**
+ * Fragment project result
+ */
+export interface FragmentProjectResult {
+  project: {
+    id: string;
+    name: string;
+    description?: string;
+    organization_id: string;
+    user_id: string;
+    fragment_data: Record<string, unknown>;
+    template: string;
+    status: string;
+    deployed_app_id?: string;
+    deployed_container_id?: string;
+    metadata: Record<string, unknown>;
+    created_at: string;
+    updated_at: string;
+    deployed_at?: string;
+  };
+}
+
+/**
+ * Fragment project list result
+ */
+export interface FragmentProjectListResult {
+  projects: Array<FragmentProjectResult["project"]>;
+  count: number;
+}
+
+/**
+ * Fragment deployment result
+ */
+export interface FragmentDeploymentResult {
+  deployment: {
+    type: "miniapp" | "container";
+    app?: {
+      id: string;
+      name: string;
+      slug: string;
+      app_url: string;
+    };
+    apiKey?: string;
+    containerId?: string;
+    collections?: Array<{
+      name: string;
+      schema: Record<string, unknown>;
+    }>;
+    injectedCode?: string;
+    proxyRouteCode?: string;
+  };
+}
+
+/**
  * A2A method handler type
  */
 export type MethodHandler<T = Record<string, unknown>, R = unknown> = (

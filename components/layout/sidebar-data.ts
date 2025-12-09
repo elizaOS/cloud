@@ -16,6 +16,7 @@ import {
   Shield,
   Wallet,
   Coins,
+  FolderOpen,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import type { FeatureFlag } from "@/lib/config/feature-flags";
@@ -86,6 +87,21 @@ export const sidebarSections: SidebarSection[] = [
   {
     title: "Generation Studio",
     items: [
+      {
+        id: "fragments",
+        label: "Fragments",
+        href: "/dashboard/fragments",
+        icon: Code,
+        freeAllowed: false, // Requires signup
+        isNew: true,
+      },
+      {
+        id: "fragment-projects",
+        label: "Fragment Projects",
+        href: "/dashboard/fragments/projects",
+        icon: FolderOpen,
+        freeAllowed: false, // Requires signup
+      },
       {
         id: "image-generation",
         label: "Images",

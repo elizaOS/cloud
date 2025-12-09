@@ -55,7 +55,7 @@ function generateSlugFromEmail(email: string): string {
  * @param walletAddress - Wallet address.
  * @returns Unique slug string.
  */
-function generateSlugFromWallet(walletAddress: string): string {
+export function generateSlugFromWallet(walletAddress: string): string {
   const shortAddress = walletAddress.substring(0, 8);
   const sanitized = shortAddress.toLowerCase().replace(/[^a-z0-9]/g, "-");
   const random = Math.random().toString(36).substring(2, 8);

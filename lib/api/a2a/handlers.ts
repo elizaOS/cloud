@@ -1,7 +1,5 @@
 /**
  * A2A Method Handlers
- *
- * Implements the A2A protocol standard methods and task management.
  */
 
 import { v4 as uuidv4 } from "uuid";
@@ -24,22 +22,84 @@ import {
   createArtifact,
   createMessage,
 } from "./types";
-import {
-  executeSkillChatCompletion,
-  executeSkillImageGeneration,
-  executeSkillCheckBalance,
-  executeSkillGetUsage,
-  executeSkillListAgents,
-  executeSkillChatWithAgent,
-  executeSkillSaveMemory,
-  executeSkillRetrieveMemories,
-  executeSkillCreateConversation,
-  executeSkillListContainers,
-  executeSkillDeleteMemory,
-  executeSkillGetConversationContext,
-  executeSkillVideoGeneration,
-  executeSkillGetUserProfile,
-} from "./skills";
+import * as skills from "./skills";
+
+type SkillHandler = (
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+) => Promise<unknown>;
+
+type SkillEntry = {
+  handler: SkillHandler;
+  description: string;
+  aliases?: string[];
+  formatResult?: (result: unknown) => Message;
+};
+
+const SKILL_REGISTRY: Record<string, SkillEntry> = {
+  chat_completion: {
+    handler: skills.executeSkillChatCompletion,
+    description: "Generate text with LLMs",
+    formatResult: (r) => {
+      const result = r as { content: string };
+      return createMessage("agent", [createTextPart(result.content)]);
+    },
+  },
+  image_generation: {
+    handler: skills.executeSkillImageGeneration,
+    description: "Generate images",
+    formatResult: (r) => {
+      const result = r as { image: string; mimeType: string };
+      return createMessage("agent", [
+        { type: "file", file: { bytes: result.image.split(",")[1], mimeType: result.mimeType } },
+      ]);
+    },
+  },
+  video_generation: { handler: skills.executeSkillVideoGeneration, description: "Generate videos (async)", aliases: ["generate_video"] },
+  get_x402_topup_requirements: { handler: skills.executeSkillGetX402TopupRequirements, description: "Get x402 payment requirements", aliases: ["x402_topup_requirements"] },
+  check_balance: { handler: (_, __, ctx) => skills.executeSkillCheckBalance(ctx), description: "Check credit balance" },
+  get_usage: { handler: (_, data, ctx) => skills.executeSkillGetUsage(data, ctx), description: "Get usage statistics" },
+  list_agents: { handler: (_, data, ctx) => skills.executeSkillListAgents(data, ctx), description: "List available agents" },
+  chat_with_agent: {
+    handler: skills.executeSkillChatWithAgent,
+    description: "Chat with agent",
+    formatResult: (r) => {
+      const result = r as { response: string };
+      return createMessage("agent", [createTextPart(result.response)]);
+    },
+  },
+  save_memory: { handler: skills.executeSkillSaveMemory, description: "Save a memory" },
+  retrieve_memories: { handler: skills.executeSkillRetrieveMemories, description: "Retrieve memories by query" },
+  delete_memory: { handler: (_, data, ctx) => skills.executeSkillDeleteMemory(data, ctx), description: "Delete a memory" },
+  create_conversation: { handler: (_, data, ctx) => skills.executeSkillCreateConversation(data, ctx), description: "Create a new conversation" },
+  get_conversation_context: { handler: (_, data, ctx) => skills.executeSkillGetConversationContext(data, ctx), description: "Get conversation details" },
+  list_containers: { handler: (_, data, ctx) => skills.executeSkillListContainers(data, ctx), description: "List deployed containers" },
+  get_user_profile: { handler: (_, __, ctx) => skills.executeSkillGetUserProfile(ctx), description: "Get current user profile", aliases: ["profile"] },
+  storage_upload: { handler: (_, data, ctx) => skills.executeSkillStorageUpload(data, ctx), description: "Upload file to storage", aliases: ["upload_file"] },
+  storage_list: { handler: (_, data, ctx) => skills.executeSkillStorageList(data, ctx), description: "List stored files", aliases: ["list_files"] },
+  storage_stats: { handler: (_, __, ctx) => skills.executeSkillStorageStats(ctx), description: "Get storage statistics" },
+  storage_cost: { handler: (_, data) => skills.executeSkillStorageCalculateCost(data), description: "Calculate storage cost", aliases: ["calculate_storage_cost"] },
+  storage_pin: { handler: (_, data, ctx) => skills.executeSkillStoragePin(data, ctx), description: "Pin to IPFS", aliases: ["pin_to_ipfs"] },
+  n8n_create_workflow: { handler: skills.executeSkillN8nCreateWorkflow, description: "Create n8n workflow", aliases: ["create_n8n_workflow"] },
+  n8n_list_workflows: { handler: (_, data, ctx) => skills.executeSkillN8nListWorkflows(data, ctx), description: "List n8n workflows", aliases: ["list_n8n_workflows"] },
+  n8n_generate_workflow: { handler: skills.executeSkillN8nGenerateWorkflow, description: "AI-generate n8n workflow", aliases: ["generate_n8n_workflow"] },
+  generate_fragment: { handler: skills.executeSkillFragmentGenerate, description: "Generate code fragment", aliases: ["fragment_generate"] },
+  execute_fragment: { handler: skills.executeSkillFragmentExecute, description: "Execute fragment in sandbox", aliases: ["fragment_execute"] },
+  list_fragment_projects: { handler: skills.executeSkillFragmentListProjects, description: "List fragment projects", aliases: ["fragment_list_projects"] },
+  create_fragment_project: { handler: skills.executeSkillFragmentCreateProject, description: "Create fragment project", aliases: ["fragment_create_project"] },
+  get_fragment_project: { handler: skills.executeSkillFragmentGetProject, description: "Get fragment project", aliases: ["fragment_get_project"] },
+  update_fragment_project: { handler: skills.executeSkillFragmentUpdateProject, description: "Update fragment project", aliases: ["fragment_update_project"] },
+  delete_fragment_project: { handler: skills.executeSkillFragmentDeleteProject, description: "Delete fragment project", aliases: ["fragment_delete_project"] },
+  deploy_fragment_project: { handler: skills.executeSkillFragmentDeployProject, description: "Deploy fragment project", aliases: ["fragment_deploy_project"] },
+};
+
+// Build alias lookup
+const SKILL_ALIAS_MAP = new Map<string, string>();
+for (const [id, entry] of Object.entries(SKILL_REGISTRY)) {
+  SKILL_ALIAS_MAP.set(id, id);
+  entry.aliases?.forEach((alias) => SKILL_ALIAS_MAP.set(alias, id));
+}
 
 // Task store helpers
 async function getTaskStore(taskId: string, organizationId: string): Promise<TaskStoreEntry | null> {
@@ -154,98 +214,49 @@ async function processA2AMessage(
   ctx: A2AContext,
   _configuration?: MessageSendParams["configuration"]
 ): Promise<Task> {
-  const textParts = message.parts.filter(
-    (p): p is { type: "text"; text: string } => p.type === "text"
-  );
-  const dataParts = message.parts.filter(
-    (p): p is { type: "data"; data: Record<string, unknown> } => p.type === "data"
-  );
+  const textParts = message.parts.filter((p): p is { type: "text"; text: string } => p.type === "text");
+  const dataParts = message.parts.filter((p): p is { type: "data"; data: Record<string, unknown> } => p.type === "data");
 
   const textContent = textParts.map((p) => p.text).join("\n");
   const dataContent = dataParts.length > 0 ? dataParts[0].data : {};
+  const requestedSkill = dataContent.skill as string | undefined;
 
-  // Check for explicit skill request
-  const skillId = dataContent.skill as string | undefined;
+  // Resolve skill from registry (use chat_completion as default)
+  const resolvedSkillId = requestedSkill ? SKILL_ALIAS_MAP.get(requestedSkill) : undefined;
+  const skillId = resolvedSkillId || (textContent && !requestedSkill ? "chat_completion" : resolvedSkillId);
+  const skillEntry = skillId ? SKILL_REGISTRY[skillId] : undefined;
 
   let responseMessage: Message;
   const artifacts: Artifact[] = [];
 
-  // Dispatch to appropriate skill
-  if (skillId === "chat_completion" || (textContent && !skillId)) {
-    const result = await executeSkillChatCompletion(textContent, dataContent, ctx);
-    responseMessage = createMessage("agent", [createTextPart(result.content)]);
-    artifacts.push(
-      createArtifact(
-        [createDataPart({ model: result.model, usage: result.usage, cost: result.cost })],
-        "usage",
-        "Token usage and cost information"
-      )
-    );
-  } else if (skillId === "image_generation") {
-    const result = await executeSkillImageGeneration(textContent, dataContent, ctx);
-    responseMessage = createMessage("agent", [
-      { type: "file", file: { bytes: result.image.split(",")[1], mimeType: result.mimeType } },
-    ]);
-    artifacts.push(
-      createArtifact([createDataPart({ cost: result.cost })], "cost", "Generation cost")
-    );
-  } else if (skillId === "chat_with_agent") {
-    const result = await executeSkillChatWithAgent(textContent, dataContent, ctx);
-    responseMessage = createMessage("agent", [createTextPart(result.response)]);
-  } else if (skillId === "list_agents") {
-    const result = await executeSkillListAgents(dataContent, ctx);
-    responseMessage = createMessage("agent", [createDataPart(result)]);
-  } else if (skillId === "check_balance") {
-    const result = await executeSkillCheckBalance(ctx);
-    responseMessage = createMessage("agent", [createDataPart(result)]);
-  } else if (skillId === "get_usage") {
-    const result = await executeSkillGetUsage(dataContent, ctx);
-    responseMessage = createMessage("agent", [createDataPart(result)]);
-  } else if (skillId === "save_memory") {
-    const result = await executeSkillSaveMemory(textContent, dataContent, ctx);
-    responseMessage = createMessage("agent", [createDataPart(result)]);
-  } else if (skillId === "retrieve_memories") {
-    const result = await executeSkillRetrieveMemories(textContent, dataContent, ctx);
-    responseMessage = createMessage("agent", [createDataPart(result)]);
-  } else if (skillId === "list_containers") {
-    const result = await executeSkillListContainers(dataContent, ctx);
-    responseMessage = createMessage("agent", [createDataPart(result)]);
-  } else if (skillId === "create_conversation") {
-    const result = await executeSkillCreateConversation(dataContent, ctx);
-    responseMessage = createMessage("agent", [createDataPart(result)]);
-  } else if (skillId === "delete_memory") {
-    const result = await executeSkillDeleteMemory(dataContent, ctx);
-    responseMessage = createMessage("agent", [createDataPart(result)]);
-  } else if (skillId === "get_conversation_context") {
-    const result = await executeSkillGetConversationContext(dataContent, ctx);
-    responseMessage = createMessage("agent", [createDataPart(result)]);
-  } else if (skillId === "video_generation" || skillId === "generate_video") {
-    const result = await executeSkillVideoGeneration(textContent, dataContent, ctx);
-    responseMessage = createMessage("agent", [createDataPart(result)]);
-  } else if (skillId === "get_user_profile" || skillId === "profile") {
-    const result = await executeSkillGetUserProfile(ctx);
-    responseMessage = createMessage("agent", [createDataPart(result)]);
+  if (skillEntry) {
+    const result = await skillEntry.handler(textContent, dataContent, ctx);
+    responseMessage = skillEntry.formatResult
+      ? skillEntry.formatResult(result)
+      : createMessage("agent", [createDataPart(result as Record<string, unknown>)]);
+
+    // Add cost artifacts for certain skills
+    if (skillId === "chat_completion") {
+      const r = result as { model: string; usage: unknown; cost: number };
+      artifacts.push(createArtifact([createDataPart({ model: r.model, usage: r.usage, cost: r.cost })], "usage", "Token usage and cost"));
+    } else if (skillId === "image_generation") {
+      const r = result as { cost: number };
+      artifacts.push(createArtifact([createDataPart({ cost: r.cost })], "cost", "Generation cost"));
+    }
   } else {
-    // Default: treat as chat completion
-    const result = await executeSkillChatCompletion(textContent, dataContent, ctx);
+    // Fallback to chat completion
+    const result = await skills.executeSkillChatCompletion(textContent, dataContent, ctx);
     responseMessage = createMessage("agent", [createTextPart(result.content)]);
   }
 
-  // Update task in store with response
   await addMessageToHistory(task.id, ctx.user.organization_id, responseMessage);
   for (const artifact of artifacts) {
     await addArtifactToTask(task.id, ctx.user.organization_id, artifact);
   }
 
-  // Update state and get the fully updated task from store
   const updatedTask = await updateTaskState(task.id, ctx.user.organization_id, "completed", responseMessage);
+  if (updatedTask) return updatedTask;
 
-  // Return the updated task from store (includes history and artifacts)
-  if (updatedTask) {
-    return updatedTask;
-  }
-
-  // Fallback to local task if store update failed
   task.status = createTaskStatus("completed", responseMessage);
   return task;
 }
@@ -295,22 +306,10 @@ export async function handleTasksCancel(params: TaskCancelParams, ctx: A2AContex
 }
 
 /**
- * Available skills for service discovery
+ * Available skills for service discovery (generated from registry)
  */
-export const AVAILABLE_SKILLS = [
-  { id: "chat_completion", description: "Generate text with LLMs" },
-  { id: "image_generation", description: "Generate images" },
-  { id: "video_generation", description: "Generate videos (async)" },
-  { id: "check_balance", description: "Check credit balance" },
-  { id: "get_usage", description: "Get usage statistics" },
-  { id: "list_agents", description: "List available agents" },
-  { id: "chat_with_agent", description: "Chat with agent (requires agentId or roomId)" },
-  { id: "save_memory", description: "Save a memory (requires roomId)" },
-  { id: "retrieve_memories", description: "Retrieve memories by query" },
-  { id: "delete_memory", description: "Delete a memory (requires memoryId)" },
-  { id: "create_conversation", description: "Create a new conversation (requires title)" },
-  { id: "get_conversation_context", description: "Get conversation details (requires conversationId)" },
-  { id: "list_containers", description: "List deployed containers" },
-  { id: "get_user_profile", description: "Get current user profile" },
-] as const;
+export const AVAILABLE_SKILLS = Object.entries(SKILL_REGISTRY).map(([id, entry]) => ({
+  id,
+  description: entry.description,
+}));
 

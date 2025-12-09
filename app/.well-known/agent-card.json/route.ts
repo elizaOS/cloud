@@ -86,9 +86,9 @@ export async function GET() {
     name: "Eliza Cloud",
     description:
       "AI agent infrastructure service providing inference, generation, " +
-      "character creation/management, group chats, memory systems, knowledge bases, " +
-      "and containerized agent deployment. Supports OpenAI-compatible API, " +
-      "MCP protocol, and A2A protocol.",
+      "character creation/management, memory systems, knowledge bases, " +
+      "decentralized storage (Blob + IPFS), and containerized agent deployment. " +
+      "Supports OpenAI-compatible API, MCP protocol, A2A protocol, and x402 micropayments.",
     url: `${baseUrl}/api/a2a`,
     preferredTransport: "JSONRPC",
     additionalInterfaces: [
@@ -264,6 +264,48 @@ export async function GET() {
         name: "List Containers",
         description: "List all deployed containers and their statuses.",
         tags: ["container", "management"],
+        inputModes: ["data"],
+        outputModes: ["data"],
+      },
+
+      // ===== Storage Skills =====
+      {
+        id: "storage_upload",
+        name: "Storage Upload",
+        description: "Upload files to decentralized storage (Vercel Blob + IPFS pinning). Supports x402 micropayments.",
+        tags: ["storage", "ipfs", "upload", "x402"],
+        inputModes: ["file", "data"],
+        outputModes: ["data"],
+      },
+      {
+        id: "storage_list",
+        name: "List Stored Files",
+        description: "List your stored files with pagination.",
+        tags: ["storage", "management"],
+        inputModes: ["data"],
+        outputModes: ["data"],
+      },
+      {
+        id: "storage_stats",
+        name: "Storage Statistics",
+        description: "Get storage usage statistics and current pricing.",
+        tags: ["storage", "analytics", "billing"],
+        inputModes: ["data"],
+        outputModes: ["data"],
+      },
+      {
+        id: "storage_cost",
+        name: "Calculate Storage Cost",
+        description: "Calculate the cost to store a file of given size.",
+        tags: ["storage", "pricing"],
+        inputModes: ["data"],
+        outputModes: ["data"],
+      },
+      {
+        id: "storage_pin",
+        name: "Pin to IPFS",
+        description: "Pin an existing CID to IPFS for decentralized persistence.",
+        tags: ["storage", "ipfs", "pinning"],
         inputModes: ["data"],
         outputModes: ["data"],
       },

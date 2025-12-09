@@ -45,6 +45,8 @@ const publicPaths = [
   "/api/a2a", // A2A protocol endpoint (uses API key or x402 auth)
   "/api/agents", // Agent-specific A2A/MCP endpoints (handle their own auth)
   "/.well-known", // ERC-8004 and A2A discovery files
+  "/api/v1/discovery", // Public discovery endpoints for ERC-8004 marketplace
+  "/api/v1/erc8004", // ERC-8004 status endpoints
 ];
 
 // Paths that should be checked for authentication
@@ -60,6 +62,11 @@ const protectedPaths = [
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Allow OPTIONS requests through for CORS preflight
+  if (request.method === "OPTIONS") {
+    return NextResponse.next();
+  }
 
   // Check if path is explicitly public
   const isPublicPath = publicPaths.some(
@@ -95,8 +102,11 @@ export async function proxy(request: NextRequest) {
     // Check for API key (support both X-API-Key header and Bearer token)
     const apiKey = request.headers.get("X-API-Key");
 
-    // If API key is provided, allow through (will be validated in the route handler)
-    if (apiKey || (bearerToken && bearerToken.startsWith("eliza_"))) {
+    // Check for miniapp token
+    const miniappToken = request.headers.get("X-Miniapp-Token");
+
+    // If API key or miniapp token is provided, allow through (will be validated in the route handler)
+    if (apiKey || miniappToken || (bearerToken && bearerToken.startsWith("eliza_"))) {
       return NextResponse.next();
     }
 

@@ -60,8 +60,10 @@ import { appCreditBalances } from "@/db/schemas/app-credit-balances";
 import { eq, and, sql, gte } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 import { elizaTokenPriceService, ELIZA_TOKEN_ADDRESSES, type SupportedNetwork } from "./eliza-token-price";
-import { isAddress, getAddress, createPublicClient, http, parseAbi, type Address } from "viem";
+import { isAddress, getAddress, createPublicClient, http, type Address } from "viem";
+import { ERC20_ABI } from "@/lib/utils/abis/erc20";
 import { mainnet, base, bsc } from "viem/chains";
+import { jeju, jejuTestnet } from "@/lib/config/chains";
 import { PublicKey, Connection } from "@solana/web3.js";
 import { getAssociatedTokenAddress, getAccount } from "@solana/spl-token";
 
@@ -100,17 +102,16 @@ const ELIZA_DECIMALS: Record<SupportedNetwork, number> = {
   solana: 9,
 };
 
-// EVM chains configuration
+// EVM chains configuration - includes Jeju networks
 const EVM_CHAINS = {
   ethereum: mainnet,
   base: base,
   bnb: bsc,
+  jeju: jeju,
+  "jeju-testnet": jejuTestnet,
 };
 
-// ERC20 ABI for balance checks
-const ERC20_ABI = parseAbi([
-  "function balanceOf(address account) view returns (uint256)",
-]);
+// ERC20 ABI for balance checks - local definition
 
 // Validation result types
 interface ValidationResult {

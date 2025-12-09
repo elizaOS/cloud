@@ -33,6 +33,7 @@ export * from "./user-sessions";
 export * from "./anonymous-sessions";
 export * from "./api-keys";
 export * from "./cli-auth-sessions";
+export * from "./miniapp-auth-sessions";
 export * from "./credit-transactions";
 export * from "./credit-packs";
 export * from "./usage-records";
@@ -94,3 +95,17 @@ export * from "./user-mcps";
 // Token Redemptions (elizaOS payouts)
 // ============================================
 export * from "./token-redemptions";
+
+// ============================================
+// Miniapp Storage
+// ============================================
+
+// ============================================
+// N8N Workflows Miniapp
+// ============================================
+export * from "./n8n-workflows";
+
+// ============================================
+// Fragment Projects
+// ============================================
+export * from "./fragment-projects";

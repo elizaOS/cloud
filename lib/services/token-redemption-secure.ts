@@ -36,11 +36,12 @@ import {
   getAddress,
   createPublicClient,
   http,
-  parseAbi,
   type Address,
   verifyTypedData,
 } from "viem";
+import { ERC20_ABI } from "@/lib/utils/abis/erc20";
 import { mainnet, base, bsc } from "viem/chains";
+import { jeju, jejuTestnet } from "@/lib/config/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import {
   checkKnownAddress,
@@ -968,10 +969,6 @@ export class SecureTokenRedemptionService {
       chain,
       transport: http(),
     });
-
-    const ERC20_ABI = parseAbi([
-      "function balanceOf(address account) view returns (uint256)",
-    ]);
 
     const rawBalance = await publicClient.readContract({
       address: tokenAddress,
