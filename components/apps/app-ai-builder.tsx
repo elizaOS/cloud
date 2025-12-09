@@ -261,9 +261,47 @@ Some ideas:
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
 
+    // Add a "thinking" message that we'll update with progress
+    const thinkingId = Date.now();
+    let thinkingContent = "";
+    let actionsContent = "";
+    
+    const updateThinking = (thinking: string, actions: string) => {
+      let content = "";
+      if (thinking) {
+        content += `💭 *${thinking.substring(0, 200)}${thinking.length > 200 ? "..." : ""}*\n\n`;
+      }
+      if (actions) {
+        content += actions;
+      }
+      if (!content) {
+        content = "🤔 **Thinking...**";
+      }
+      
+      setMessages((prev) => {
+        const updated = [...prev];
+        const thinkingIdx = updated.findIndex(m => (m as any)._thinkingId === thinkingId);
+        if (thinkingIdx >= 0) {
+          updated[thinkingIdx] = {
+            ...updated[thinkingIdx],
+            content,
+          };
+        }
+        return updated;
+      });
+    };
+
+    // Add initial thinking message
+    setMessages((prev) => [...prev, {
+      role: "assistant",
+      content: "🤔 **Thinking...**",
+      timestamp: new Date().toISOString(),
+      _thinkingId: thinkingId,
+    } as Message & { _thinkingId: number }]);
+
     try {
       const response = await fetch(
-        `/api/v1/app-builder/sessions/${session.id}/prompts`,
+        `/api/v1/app-builder/sessions/${session.id}/prompts/stream`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -271,33 +309,143 @@ Some ideas:
         }
       );
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.error || "Failed to send prompt");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to send prompt");
       }
 
-      const assistantMessage: Message = {
-        role: "assistant",
-        content: data.output,
-        filesAffected: data.filesAffected,
-        timestamp: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No response body");
 
-      if (data.filesAffected && data.filesAffected.length > 0) {
-        addLog(`Modified files: ${data.filesAffected.join(", ")}`, "success");
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let finalData: { output?: string; filesAffected?: string[]; success?: boolean; error?: string } = {};
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        let eventType = "";
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            eventType = line.slice(7);
+          } else if (line.startsWith("data: ") && eventType) {
+            try {
+              const data = JSON.parse(line.slice(6));
+
+              if (eventType === "thinking") {
+                // Update thinking content
+                thinkingContent = data.text || "";
+                updateThinking(thinkingContent, actionsContent);
+                
+                // Also log to console (truncated)
+                const shortThinking = data.text?.substring(0, 100) || "";
+                if (shortThinking) {
+                  addLog(`💭 ${shortThinking}${data.text?.length > 100 ? "..." : ""}`, "info");
+                }
+              } else if (eventType === "tool_use") {
+                const toolName = data.tool;
+                let toolDisplay = "";
+                
+                if (toolName === "write_file") {
+                  const path = data.input?.path || "file";
+                  toolDisplay = `📝 Writing \`${path}\``;
+                } else if (toolName === "read_file") {
+                  const path = data.input?.path || "file";
+                  toolDisplay = `👀 Reading \`${path}\``;
+                } else if (toolName === "install_packages") {
+                  const packages = data.input?.packages?.join(", ") || "packages";
+                  toolDisplay = `📦 Installing ${packages}`;
+                } else if (toolName === "check_build") {
+                  toolDisplay = `🔍 Checking build...`;
+                } else if (toolName === "list_files") {
+                  toolDisplay = `📂 Listing files`;
+                } else if (toolName === "run_command") {
+                  toolDisplay = `⚡ Running command`;
+                } else {
+                  toolDisplay = `🔧 ${toolName}`;
+                }
+
+                actionsContent += `${toolDisplay}\n`;
+                updateThinking(thinkingContent, actionsContent);
+                
+                addLog(`🔧 ${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`, "info");
+              } else if (eventType === "complete") {
+                finalData = data;
+              } else if (eventType === "error") {
+                throw new Error(data.error || "Failed to process prompt");
+              }
+            } catch (e) {
+              if (e instanceof SyntaxError) continue;
+              throw e;
+            }
+            eventType = "";
+          }
+        }
+      }
+
+      if (!finalData.success) {
+        throw new Error(finalData.error || "Failed to process prompt");
+      }
+
+      // Finalize thinking message and add final response
+      setMessages((prev) => {
+        const updated = prev.map(m => {
+          if ((m as any)._thinkingId === thinkingId) {
+            // Finalize the thinking message - remove the _thinkingId and clean up content
+            const { _thinkingId, ...rest } = m as any;
+            return {
+              ...rest,
+              content: actionsContent ? `**Progress:**\n${actionsContent}` : "🤔 *Processing...*",
+            };
+          }
+          return m;
+        });
+        // Add the final response as a new message
+        return [...updated, {
+          role: "assistant",
+          content: finalData.output || "",
+          filesAffected: finalData.filesAffected,
+          timestamp: new Date().toISOString(),
+        }];
+      });
+
+      if (finalData.filesAffected && finalData.filesAffected.length > 0) {
+        addLog(`✅ Modified: ${finalData.filesAffected.join(", ")}`, "success");
       }
       addLog("Changes applied, refreshing preview...", "info");
 
-      // Refresh iframe
       if (iframeRef.current && session) {
         iframeRef.current.src = session.sandboxUrl;
       }
 
       setStatus("ready");
     } catch (error) {
+      // Finalize thinking message with error indicator and add error message
+      setMessages((prev) => {
+        const updated = prev.map(m => {
+          if ((m as any)._thinkingId === thinkingId) {
+            const { _thinkingId, ...rest } = m as any;
+            return {
+              ...rest,
+              content: actionsContent ? `**Progress:**\n${actionsContent}\n\n⚠️ *Error occurred*` : "⚠️ *Error occurred*",
+            };
+          }
+          return m;
+        });
+        return [...updated, {
+          role: "assistant",
+          content: `❌ **Error:** ${error instanceof Error ? error.message : "Something went wrong"}`,
+          timestamp: new Date().toISOString(),
+        }];
+      });
+      
       setStatus("ready");
+      addLog(`Error: ${error instanceof Error ? error.message : "Unknown error"}`, "error");
       toast.error("Failed to process prompt", {
         description: error instanceof Error ? error.message : "Please try again",
       });
@@ -305,8 +453,6 @@ Some ideas:
       setIsLoading(false);
     }
   }, [session, isLoading, addLog]);
-
-  // Stop the session
   const stopSession = useCallback(async () => {
     if (!session) return;
 
@@ -563,11 +709,6 @@ ANTHROPIC_API_KEY=your_key_here`}
                 )}
               </button>
             </div>
-            {previewTab === "preview" && session?.sandboxUrl && (
-              <code className="text-xs text-white/50 bg-white/5 px-2 py-1 rounded max-w-[180px] truncate">
-                {session.sandboxUrl}
-              </code>
-            )}
           </div>
           <div className="flex items-center gap-1">
             {previewTab === "console" && consoleLogs.length > 0 && (
@@ -609,15 +750,16 @@ ANTHROPIC_API_KEY=your_key_here`}
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => window.open(session?.sandboxUrl, "_blank")}
-                  title="Open in new tab"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </Button>
+                {session?.sandboxUrl && (
+                  <button
+                    onClick={() => window.open(session.sandboxUrl, "_blank")}
+                    className="flex items-center gap-1.5 h-7 px-2 rounded text-xs text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                    title={session.sandboxUrl}
+                  >
+                    <span className="max-w-[100px] truncate">{session.sandboxUrl.replace('https://', '').split('.')[0]}</span>
+                    <ExternalLink className="h-3 w-3 shrink-0" />
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -721,15 +863,13 @@ ANTHROPIC_API_KEY=your_key_here`}
       <BrandCard className="relative flex flex-col flex-1 min-h-[200px] overflow-hidden">
         <CornerBrackets className="opacity-20" />
         
-        {/* Header */}
-        <div className="relative z-10 flex items-center justify-between p-3 border-b border-white/10 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <Bot className="h-5 w-5 text-[#FF5800]" />
-            <span className="font-semibold text-white">AI Assistant</span>
-          </div>
-          <div className="flex items-center gap-2">
+        {/* Compact Header */}
+        <div className="relative z-10 flex items-center justify-between px-3 py-1.5 border-b border-white/10 flex-shrink-0">
+          <div className="flex items-center gap-1.5">
+            <Bot className="h-4 w-4 text-[#FF5800]" />
+            <span className="text-sm font-medium text-white">AI Assistant</span>
             <div
-              className={`w-2 h-2 rounded-full ${
+              className={`w-1.5 h-1.5 rounded-full ml-1 ${
                 status === "ready"
                   ? "bg-green-500"
                   : status === "generating"
@@ -737,7 +877,6 @@ ANTHROPIC_API_KEY=your_key_here`}
                   : "bg-gray-500"
               }`}
             />
-            <span className="text-xs text-white/60 capitalize">{status}</span>
           </div>
         </div>
 

@@ -174,7 +174,11 @@ export class AIAppBuilderService {
   /**
    * Send a prompt to Claude Code in the sandbox
    */
-  async sendPrompt(sessionId: string, prompt: string): Promise<PromptResult> {
+  async sendPrompt(
+    sessionId: string,
+    prompt: string,
+    options: { onToolUse?: (tool: string, input: unknown, result: string) => void; onThinking?: (text: string) => void } = {}
+  ): Promise<PromptResult> {
     logger.info("Sending prompt to AI App Builder", {
       sessionId,
       promptLength: prompt.length,
@@ -227,6 +231,8 @@ export class AIAppBuilderService {
         prompt,
         {
           systemPrompt: systemPromptRecord?.content,
+          onToolUse: options.onToolUse,
+          onThinking: options.onThinking,
         }
       );
 

@@ -459,7 +459,7 @@ export class SandboxService {
   async executeClaudeCode(
     sandboxId: string,
     prompt: string,
-    options: { systemPrompt?: string } = {}
+    options: { systemPrompt?: string; onToolUse?: (tool: string, input: unknown, result: string) => void; onThinking?: (text: string) => void } = {}
   ): Promise<{ output: string; filesAffected: string[]; success: boolean }> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
@@ -513,6 +513,10 @@ REMEMBER:
         
         for (const block of response.content) {
           if (block.type === "text") {
+            // Stream thinking text
+            if (options.onThinking && block.text.trim()) {
+              options.onThinking(block.text);
+            }
             outputText += block.text + "\n";
           } else if (block.type === "tool_use") {
             logger.info("Tool use", { sandboxId, tool: block.name, iteration });
@@ -558,6 +562,11 @@ REMEMBER:
             } catch (err) {
               result = `Error: ${err}`;
               logger.error("Tool error", { sandboxId, tool: block.name, error: err });
+            }
+
+            // Call the onToolUse callback if provided
+            if (options.onToolUse) {
+              options.onToolUse(block.name, block.input, result);
             }
 
             toolResults.push({ type: "tool_result", tool_use_id: block.id, content: result });
