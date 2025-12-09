@@ -138,8 +138,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error('[Generate Photo] Error:', error);
-    
-    const encoder = new TextEncoder();
     const errorMessage = error instanceof Error ? error.message : 'Failed to generate photo';
     
     const stream = new ReadableStream({

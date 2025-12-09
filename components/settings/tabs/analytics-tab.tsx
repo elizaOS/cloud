@@ -315,7 +315,7 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
                 </h3>
               </div>
               <p className="text-xs font-mono text-[#858585] tracking-tight">
-                Overlay throughput spend, and reliability in a unified timeline
+                Overlay throughput spend, and reliability in a timeline
                 to expose trend shifts instantly.
               </p>
             </div>

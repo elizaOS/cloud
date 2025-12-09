@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { generationsService } from "@/lib/services";
+import { generationsService } from "@/lib/services/generations";
 
 export const dynamic = "force-dynamic";
 
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest) {
       { status: 200 },
     );
   } catch (error) {
-    console.error("[GALLERY API] Error:", error);
+    logger.error("[GALLERY API] Error:", error);
     const errorMessage =
       error instanceof Error ? error.message : "Failed to fetch gallery items";
 

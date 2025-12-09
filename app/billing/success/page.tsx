@@ -11,7 +11,8 @@ import {
 } from "@/components/ui/card";
 import { CheckCircle, XCircle, ArrowRight } from "lucide-react";
 import { stripe } from "@/lib/stripe";
-import { creditsService, invoicesService } from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
+import { invoicesService } from "@/lib/services/invoices";
 import { logger } from "@/lib/utils/logger";
 
 // Maximum allowed credit amount for validation

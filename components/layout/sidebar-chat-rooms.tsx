@@ -10,7 +10,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Plus, MessageSquare, Trash2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useChatStore } from "@/stores/chat-store";
+import { useChatStore } from "@/lib/stores/chat-store";
 import { toast } from "sonner";
 
 export function SidebarChatRooms() {

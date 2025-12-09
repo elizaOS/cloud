@@ -14,8 +14,8 @@ import {
   getModelBreakdown,
   getTrendData,
   type TimeGranularity,
-  organizationsService,
-} from "@/lib/services";
+} from "@/lib/services/analytics";
+import { organizationsService } from "@/lib/services/organizations";
 import {
   generateProjections,
   generateProjectionAlerts,

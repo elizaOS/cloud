@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
-import { creditsService, organizationsService } from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
+import { organizationsService } from "@/lib/services/organizations";
 import {
   addCorsHeaders,
   validateOrigin,

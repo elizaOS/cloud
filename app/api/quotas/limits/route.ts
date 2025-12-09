@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { usageQuotasService } from "@/lib/services";
+import { usageQuotasService } from "@/lib/services/usage-quotas";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 /**
@@ -62,7 +63,7 @@ async function handlePOST(req: NextRequest) {
       { status: 201 },
     );
   } catch (error) {
-    console.error("Error creating quota:", error);
+    logger.error("Error creating quota:", error);
 
     return NextResponse.json(
       {
@@ -94,7 +95,7 @@ async function handleGET() {
       data: quotas,
     });
   } catch (error) {
-    console.error("Error fetching quotas:", error);
+    logger.error("Error fetching quotas:", error);
 
     return NextResponse.json(
       {

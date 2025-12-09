@@ -126,174 +126,92 @@ const VIBE_PERSONALITIES: Record<
 };
 
 /**
- * AFFILIATE_CONTEXT Provider (Enhanced)
- *
- * Extracts affiliate metadata (vibe, backstory, Instagram, Twitter)
- * from character settings and provides concrete, actionable personality instructions.
- *
- * This provider now includes:
- * - Specific behavioral guidelines for each vibe
- * - Concrete examples of how to embody the personality
- * - Extracted social media content from bio
- * - Clear, actionable instructions for the LLM
+ * Provides affiliate character context: vibe personality, backstory, social handles.
  */
 export const affiliateContextProvider: Provider = {
   name: "affiliateContext",
-  description:
-    "Affiliate character vibe and social media context with behavioral instructions",
+  description: "Affiliate character vibe and behavioral instructions",
 
   get: async (runtime: IAgentRuntime, _message: Memory, _state?: State) => {
-    const character = runtime.character;
-
-    try {
-      // Get affiliate data from character settings
-      const affiliate = character.settings?.affiliateData as
-        | Record<string, unknown>
-        | undefined;
-
-      if (!affiliate) {
-        return {
-          values: { affiliateContext: "" },
-          data: {},
-          text: "",
-        };
-      }
-
-      // Extract affiliate metadata
-      const vibe = (affiliate.vibe as string | undefined)?.toLowerCase();
-      const backstory = affiliate.backstory as string | undefined;
-      const source = affiliate.source as string | undefined;
-      const instagram = affiliate.instagram as string | undefined;
-      const twitter = affiliate.twitter as string | undefined;
-      const imageUrls = (affiliate.imageUrls as string[] | undefined) || [];
-
-      // Build context with strong personality instructions (CONCISE to save tokens)
-      const contextLines: string[] = [];
-
-      // Add vibe-specific personality instructions
-      if (vibe && VIBE_PERSONALITIES[vibe]) {
-        const vibeConfig = VIBE_PERSONALITIES[vibe];
-        contextLines.push(
-          `[VIBE: ${vibe.toUpperCase()}] ${vibeConfig.description}`,
-        );
-        contextLines.push(
-          `Style: ${vibeConfig.behaviors.slice(0, 3).join("; ")}`,
-        );
-        contextLines.push(``);
-      }
-
-      // Add backstory (CONCISE - first 200 chars only)
-      if (backstory && backstory.trim()) {
-        const shortBackstory = backstory.trim().slice(0, 200);
-        contextLines.push(
-          `[Backstory] ${shortBackstory}${backstory.length > 200 ? "..." : ""}`,
-        );
-        contextLines.push(``);
-      }
-
-      // AFFILIATE MODE: Conversational instructions
-      // Detect affiliate character by presence of: source, affiliateId, or vibe
-      const affiliateId = affiliate?.affiliateId as string | undefined;
-      const isAffiliateCharacter = !!(
-        source || // Any source indicates affiliate character
-        affiliateId || // Any affiliateId indicates affiliate character
-        vibe // Any vibe indicates affiliate character
-      );
-
-      if (isAffiliateCharacter) {
-        contextLines.push(`[CONVERSATION STYLE]`);
-        contextLines.push(
-          `- Talk TO the user, not AT them. This is a real conversation, not a monologue.`,
-        );
-        contextLines.push(
-          `- Ask questions, show curiosity about them, respond to what they said.`,
-        );
-        contextLines.push(
-          `- Be warm, engaging, and human. Use natural conversational flow.`,
-        );
-        contextLines.push(
-          `- When sharing an image, react naturally like you're sharing a selfie with a friend.`,
-        );
-        contextLines.push(
-          `- Example: "Just took this for you 😘 What do you think?" NOT "I taste like trouble"`,
-        );
-        contextLines.push(``);
-      }
-
-      // Extract social media handles - prefer metadata, fallback to bio parsing
-      let instagramHandle = instagram;
-      let twitterHandle = twitter;
-
-      if (!instagramHandle || !twitterHandle) {
-        const bio = character.bio;
-        const bioText = Array.isArray(bio) ? bio.join(" ") : bio || "";
-
-        if (!instagramHandle) {
-          const instagramMatch =
-            bioText.match(/Instagram[:\s]*\(@?([a-zA-Z0-9._]+)\)/i) ||
-            bioText.match(/Instagram:\s*@?([a-zA-Z0-9._]+)/i);
-          if (instagramMatch) instagramHandle = instagramMatch[1];
-        }
-
-        if (!twitterHandle) {
-          const twitterMatch =
-            bioText.match(/Twitter[:\s]*\(@?([a-zA-Z0-9._]+)\)/i) ||
-            bioText.match(/Twitter:\s*@?([a-zA-Z0-9._]+)/i);
-          if (twitterMatch) twitterHandle = twitterMatch[1];
-        }
-      }
-
-      if (instagramHandle || twitterHandle) {
-        const handles: string[] = [];
-        if (instagramHandle) handles.push(`IG: @${instagramHandle}`);
-        if (twitterHandle) handles.push(`X: @${twitterHandle}`);
-        contextLines.push(`[Social] ${handles.join(" | ")}`);
-      }
-
-      // Add reference photos info if available (for image generation context)
-      if (imageUrls.length > 0) {
-        contextLines.push(
-          `[Reference Photos] ${imageUrls.length} photo(s) available`,
-        );
-      }
-
-      if (contextLines.length === 0) {
-        return {
-          values: { affiliateContext: "" },
-          data: { affiliate },
-          text: "",
-        };
-      }
-
-      const contextText = contextLines.join("\n");
-
-      return {
-        values: { affiliateContext: contextText },
-        data: {
-          affiliate,
-          vibe,
-          source,
-          affiliateId,
-          isAffiliateCharacter,
-          instagram: instagramHandle,
-          twitter: twitterHandle,
-          imageUrls,
-          hasImages: imageUrls.length > 0,
-          contextLength: contextText.length,
-        },
-        text: contextText,
-      };
-    } catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error);
-      runtime.logger?.error(
-        "[Affiliate Context Provider] Failed to load affiliate context:",
-        errMsg,
-      );
-      return {
-        values: { affiliateContext: "" },
-        data: { error: errMsg },
-        text: "",
-      };
+    const affiliate = runtime.character.settings?.affiliateData as {
+      vibe?: string;
+      backstory?: string;
+      source?: string;
+      affiliateId?: string;
+      instagram?: string;
+      twitter?: string;
+      imageUrls?: string[];
+      [key: string]: unknown;
+    } | undefined;
+    if (!affiliate) {
+      return { values: { affiliateContext: "" }, data: {}, text: "" };
     }
+
+    const vibe = affiliate.vibe?.toLowerCase();
+    const backstory = affiliate.backstory;
+    const source = affiliate.source;
+    const affiliateId = affiliate.affiliateId;
+    const instagram = affiliate.instagram;
+    const twitter = affiliate.twitter;
+    const imageUrls = affiliate.imageUrls || [];
+
+    const contextLines: string[] = [];
+
+    // Vibe personality
+    if (vibe && VIBE_PERSONALITIES[vibe]) {
+      const vibeConfig = VIBE_PERSONALITIES[vibe];
+      contextLines.push(`[VIBE: ${vibe.toUpperCase()}] ${vibeConfig.description}`);
+      contextLines.push(`Style: ${vibeConfig.behaviors.slice(0, 3).join("; ")}`);
+      contextLines.push("");
+    }
+
+    // Backstory (truncated)
+    if (backstory?.trim()) {
+      const short = backstory.trim().slice(0, 200);
+      contextLines.push(`[Backstory] ${short}${backstory.length > 200 ? "..." : ""}`);
+      contextLines.push("");
+    }
+
+    // Conversation style for affiliate characters
+    const isAffiliateCharacter = !!(source || affiliateId || vibe);
+    if (isAffiliateCharacter) {
+      contextLines.push(
+        "[CONVERSATION STYLE]",
+        "- Talk TO the user, not AT them. Real conversation, not monologue.",
+        "- Ask questions, show curiosity, respond to what they said.",
+        "- Be warm, engaging, human. Natural conversational flow.",
+        ""
+      );
+    }
+
+    // Social handles
+    let instagramHandle = instagram;
+    let twitterHandle = twitter;
+    if (!instagramHandle || !twitterHandle) {
+      const bioText = Array.isArray(runtime.character.bio) ? runtime.character.bio.join(" ") : runtime.character.bio || "";
+      if (!instagramHandle) {
+        const match = bioText.match(/Instagram[:\s]*\(@?([a-zA-Z0-9._]+)\)/i) || bioText.match(/Instagram:\s*@?([a-zA-Z0-9._]+)/i);
+        if (match) instagramHandle = match[1];
+      }
+      if (!twitterHandle) {
+        const match = bioText.match(/Twitter[:\s]*\(@?([a-zA-Z0-9._]+)\)/i) || bioText.match(/Twitter:\s*@?([a-zA-Z0-9._]+)/i);
+        if (match) twitterHandle = match[1];
+      }
+    }
+    if (instagramHandle || twitterHandle) {
+      const handles = [instagramHandle && `IG: @${instagramHandle}`, twitterHandle && `X: @${twitterHandle}`].filter(Boolean);
+      contextLines.push(`[Social] ${handles.join(" | ")}`);
+    }
+
+    if (imageUrls.length > 0) {
+      contextLines.push(`[Reference Photos] ${imageUrls.length} available`);
+    }
+
+    const contextText = contextLines.join("\n");
+    return {
+      values: { affiliateContext: contextText },
+      data: { affiliate, vibe, source, affiliateId, isAffiliateCharacter, instagram: instagramHandle, twitter: twitterHandle, imageUrls, hasImages: imageUrls.length > 0 },
+      text: contextText,
+    };
   },
 };

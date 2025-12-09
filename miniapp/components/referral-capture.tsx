@@ -27,4 +27,3 @@ export function clearPendingReferralCode(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(REFERRAL_CODE_KEY);
 }
-

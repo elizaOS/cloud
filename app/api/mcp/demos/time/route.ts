@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
-
-const RECIPIENT_WALLET = (process.env.X402_RECIPIENT_WALLET ||
-  process.env.CDP_WALLET_ADDRESS ||
-  "0x0000000000000000000000000000000000000000") as `0x${string}`;
+import { X402_RECIPIENT_ADDRESS, getDefaultNetwork } from "@/lib/config/x402";
 
 /**
  * GET /api/mcp/demos/time
@@ -53,9 +50,9 @@ export async function GET() {
     ],
     payment: {
       protocol: "x402",
-      network: "base",
+      network: getDefaultNetwork(),
       currency: "USDC",
-      recipient: RECIPIENT_WALLET,
+      recipient: X402_RECIPIENT_ADDRESS,
       pricePerRequest: "$0.0001",
     },
     features: [

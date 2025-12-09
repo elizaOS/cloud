@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { marketplaceService } from "@/lib/services";
+import { characterMarketplaceService } from "@/lib/services/characters/marketplace";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +23,7 @@ export async function POST(
 
     logger.debug("[Marketplace API] Tracking interaction for character:", id);
 
-    const result = await marketplaceService.trackInteraction(id);
+    const result = await characterMarketplaceService.trackInteraction(id);
 
     return NextResponse.json({
       success: result.success,

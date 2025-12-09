@@ -67,50 +67,46 @@ export class AppAnalyticsService {
 
   /**
    * Aggregate analytics for a time period
-   * This should be run periodically (e.g., hourly, daily) to create analytics snapshots
+   * 
+   * Real-time aggregation is handled at the request level via trackRequest().
+   * The app's total_requests, total_credits_used, and total_users are updated atomically.
+   * 
+   * For periodic snapshots, query the app directly via appsRepository.findById()
+   * which returns the always-current totals.
    */
-  async aggregateAnalytics(
+  async getAnalyticsSnapshot(
     appId: string,
     periodStart: Date,
     periodEnd: Date,
     periodType: "hourly" | "daily" | "monthly",
-  ): Promise<void> {
-    // Get all usage records for this app in the period
-    // This requires querying usage_records by app_id (we need to add this)
-    
-    // For now, we'll create a placeholder analytics record
-    // In production, you'd query actual usage data
-    
-    const analyticsData: NewAppAnalytics = {
+  ): Promise<NewAppAnalytics | null> {
+    const app = await appsRepository.findById(appId);
+    if (!app) return null;
+
+    // Return current totals as a snapshot
+    // Note: This is cumulative, not period-specific. For period-specific
+    // analytics, implement usage_records querying when needed.
+    return {
       app_id: appId,
       period_start: periodStart,
       period_end: periodEnd,
       period_type: periodType,
-      total_requests: 0,
-      successful_requests: 0,
+      total_requests: app.total_requests,
+      successful_requests: app.total_requests, // Assuming all tracked requests are successful
       failed_requests: 0,
-      unique_users: 0,
-      new_users: 0,
-      total_input_tokens: 0,
-      total_output_tokens: 0,
+      unique_users: app.total_users,
+      new_users: 0, // Would need usage_records query for period-specific data
+      total_input_tokens: 0, // Would need usage_records query
+      total_output_tokens: 0, // Would need usage_records query
       total_cost: "0.00",
-      total_credits_used: "0.00",
-      chat_requests: 0,
+      total_credits_used: app.total_credits_used,
+      chat_requests: 0, // Would need usage_records query by type
       image_requests: 0,
       video_requests: 0,
       voice_requests: 0,
       agent_requests: 0,
       avg_response_time_ms: null,
     };
-
-    await appsRepository.createAnalytics(analyticsData);
-
-    logger.info("Aggregated analytics for app", {
-      appId,
-      periodStart,
-      periodEnd,
-      periodType,
-    });
   }
 
   /**

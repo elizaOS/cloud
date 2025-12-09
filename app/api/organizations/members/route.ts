@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { usersService } from "@/lib/services";
+import { usersService } from "@/lib/services/users";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 /**
@@ -43,7 +44,7 @@ async function handleGET() {
       })),
     });
   } catch (error) {
-    console.error("Error fetching members:", error);
+    logger.error("Error fetching members:", error);
 
     return NextResponse.json(
       {

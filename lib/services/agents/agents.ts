@@ -20,15 +20,22 @@
  */
 
 import { agentsRepository, type AgentInfo } from "@/db/repositories/agents";
+import { participantsRepository, memoriesRepository } from "@/db/repositories";
+import { charactersService } from "@/lib/services/characters/characters";
 import { logger } from "@/lib/utils/logger";
 import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import {
   agentStateCache,
   type RoomContext,
 } from "@/lib/cache/agent-state-cache";
+import { cache as cacheClient } from "@/lib/cache/client";
+import { CacheTTL } from "@/lib/cache/keys";
 import { distributedLocks } from "@/lib/cache/distributed-locks";
 import { agentEventEmitter } from "@/lib/events/agent-events";
 import { roomsService } from "./rooms";
+
+// Cache key helper for agent info
+const agentInfoCacheKey = (agentId: string) => `agent:info:${agentId}`;
 
 // Re-export AgentInfo type
 export type { AgentInfo };
@@ -81,11 +88,33 @@ class AgentsService {
   /**
    * Get agent by ID
    * Returns agent info without spinning up runtime
+   * Cached for 5 minutes to reduce database load
    */
   async getById(agentId: string): Promise<AgentInfo | null> {
-    // TODO: Add caching here
+    const cacheKey = agentInfoCacheKey(agentId);
+    
+    // Try cache first
+    const cached = await cacheClient.get<AgentInfo>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+    
+    // Fetch from database
     const agent = await agentsRepository.findById(agentId);
+    
+    // Cache for 5 minutes
+    if (agent) {
+      await cacheClient.set(cacheKey, agent, CacheTTL.MEDIUM);
+    }
+    
     return agent;
+  }
+  
+  /**
+   * Invalidate agent cache after updates
+   */
+  async invalidateCache(agentId: string): Promise<void> {
+    await cacheClient.delete(agentInfoCacheKey(agentId));
   }
 
   /**
@@ -154,7 +183,6 @@ class AgentsService {
     }
 
     // Load character data to create agent
-    const { charactersService } = await import("@/lib/services/characters");
     const character = await charactersService.getById(characterId);
     
     if (!character) {
@@ -225,7 +253,6 @@ class AgentsService {
    */
   async getOrCreateRoom(entityId: string, agentId: string): Promise<string> {
     // Use repository to check for existing rooms
-    const { participantsRepository } = await import("@/db/repositories");
     const existingRoomIds =
       await participantsRepository.findRoomsByEntityId(entityId);
 
@@ -335,9 +362,6 @@ class AgentsService {
     logger.debug(
       `[Agents Service] Cache miss for room ${roomId}, fetching from DB`,
     );
-
-    const { memoriesRepository, participantsRepository } =
-      await import("@/db/repositories");
 
     const messages = await memoriesRepository.findMessages(roomId, {
       limit: 20,

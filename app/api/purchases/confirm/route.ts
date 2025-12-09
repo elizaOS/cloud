@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { purchasesService } from "@/lib/services/purchases";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -64,7 +65,7 @@ async function handleConfirmPurchase(req: NextRequest) {
           : `Payment status: ${paymentIntent.status}`,
     });
   } catch (error) {
-    console.error("Error confirming purchase:", error);
+    logger.error("Error confirming purchase:", error);
 
     if (error instanceof Error) {
       if (

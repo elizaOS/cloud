@@ -24,7 +24,7 @@ export function DashboardPageWrapper({
   useSetPageHeader(
     {
       title: "Dashboard",
-      description: `Hi, ${userName}`,
+
     },
     [userName],
   );

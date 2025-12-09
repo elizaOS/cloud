@@ -5,18 +5,18 @@
 "use server";
 
 import { requireAuthWithOrg } from "@/lib/auth";
-import {
-  generationsService,
-  charactersService,
-  listContainers,
-  apiKeysService,
-  agentDiscoveryService,
-  roomsService,
-} from "@/lib/services";
+import { generationsService } from "@/lib/services/generations";
+import { charactersService } from "@/lib/services/characters/characters";
+import { listContainers } from "@/lib/services/containers";
+import { apiKeysService } from "@/lib/services/api-keys";
+import { characterDeploymentDiscoveryService } from "@/lib/services/deployments";
+import { roomsService } from "@/lib/services/agents/rooms";
+import { usageService } from "@/lib/services/usage";
 import { cache as cacheClient } from "@/lib/cache/client";
 import { CacheKeys, CacheStaleTTL } from "@/lib/cache/keys";
 import { cache } from "react";
 import type { AgentStats } from "@/lib/cache/agent-state-cache";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Display version of AgentStats for dashboard (without cache-specific fields).
@@ -98,9 +98,14 @@ async function fetchDashboardDataInternal(
   const videoGenerations =
     generationStats.byType.find((t) => t.type === "video")?.count || 0;
 
-  // Use total generations as API calls approximation
-  // TODO: Implement proper 24h API call tracking
-  const apiCalls24h = generationStats.totalGenerations;
+  // Get actual 24h API call count from usage records
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const usageStats = await usageService.getStatsByOrganization(
+    organizationId,
+    twentyFourHoursAgo,
+    new Date()
+  );
+  const apiCalls24h = usageStats.totalRequests;
 
   // Fetch agent stats in batch
   const characterIds = userCharacters.map((c) => c.id);
@@ -109,7 +114,7 @@ async function fetchDashboardDataInternal(
   if (characterIds.length > 0) {
     try {
       const statsMap =
-        await agentDiscoveryService.getCharacterStatisticsBatch(characterIds);
+        await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(characterIds);
       statsMap.forEach((stats, id) => {
         agentStatsMap.set(id, {
           roomCount: stats.roomCount,

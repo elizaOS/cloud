@@ -29,11 +29,11 @@ export interface EnvValidationResult {
  * Environment variable definitions
  */
 const ENV_VARS = {
-  // Database - Single unified database for platform and ElizaOS
+  // Database - Single database for platform and ElizaOS
   DATABASE_URL: {
     required: true,
     description:
-      "PostgreSQL connection string (unified platform + ElizaOS tables)",
+      "PostgreSQL connection string (platform + ElizaOS tables)",
     validate: (value: string) =>
       value.startsWith("postgresql://") || value.startsWith("postgres://"),
     errorMessage: "Must be a valid PostgreSQL connection string",
@@ -191,13 +191,13 @@ export function requireValidEnvironment(): void {
     throw new Error("Invalid environment configuration");
   }
 
-  console.log("✅ Environment validation passed");
+  logger.info("✅ Environment validation passed");
   if (result.warnings.length > 0) {
-    console.log(
+    logger.info(
       `⚠️  ${result.warnings.length} optional variable(s) not set - some features may be unavailable`,
     );
   }
-  console.log("");
+  logger.info("");
 }
 
 /**
@@ -246,7 +246,7 @@ export function getConfiguredFeatures(): string[] {
  * Prints which features are enabled/disabled.
  */
 export function logConfigurationStatus(): void {
-  console.log("📋 Feature Configuration Status:");
+  logger.info("📋 Feature Configuration Status:");
 
   const features = [
     { name: "Container Deployments", key: "containers" },
@@ -258,8 +258,8 @@ export function logConfigurationStatus(): void {
   for (const feature of features) {
     const configured = isFeatureConfigured(feature.key);
     const status = configured ? "✅ Enabled" : "⚠️  Disabled";
-    console.log(`  ${status} - ${feature.name}`);
+    logger.info(`  ${status} - ${feature.name}`);
   }
 
-  console.log("");
+  logger.info("");
 }

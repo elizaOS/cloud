@@ -1,0 +1,10 @@
+# Test artifacts
+test-results/
+test-reports/
+
+# Synpress cache
+.cache-synpress/
+
+# Node modules (if any)
+node_modules/
+

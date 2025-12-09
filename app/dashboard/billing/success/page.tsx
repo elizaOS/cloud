@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { logger } from "@/lib/utils/logger";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +13,8 @@ import {
 import { CheckCircle, XCircle, ArrowRight } from "lucide-react";
 import { CreditBalanceDisplay } from "@/components/billing/success-client";
 import { stripe } from "@/lib/stripe";
-import { creditsService, invoicesService } from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
+import { invoicesService } from "@/lib/services/invoices";
 
 export const metadata: Metadata = {
   title: "Purchase Successful",
@@ -153,7 +155,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
     }
   } catch (invoiceError) {
     // Non-critical - credits were added successfully
-    console.error(
+    logger.error(
       "[BillingSuccess] Invoice creation error (non-critical):",
       invoiceError,
     );

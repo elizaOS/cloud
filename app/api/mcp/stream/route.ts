@@ -110,12 +110,15 @@ export async function GET(request: NextRequest) {
 
     const encoder = new TextEncoder();
 
+    // Use ReturnType to be environment-agnostic (DOM returns number, Node returns Timeout)
+    type TimerId = ReturnType<typeof setTimeout>;
+
     const stream = new ReadableStream({
       async start(controller) {
         let isActive = true;
         let pollCount = 0;
-        let pollInterval: NodeJS.Timeout | null = null;
-        let timeoutHandle: NodeJS.Timeout | null = null;
+        let pollInterval: TimerId | null = null;
+        let timeoutHandle: TimerId | null = null;
         // PERFORMANCE FIX: Implement exponential backoff to reduce Redis load when no messages
         let currentBackoff = SSE_BACKOFF_INITIAL_MS;
         let consecutiveEmptyPolls = 0;
@@ -224,10 +227,7 @@ export async function GET(request: NextRequest) {
 
               // Schedule next poll with current backoff
               if (isActive) {
-                pollInterval = setTimeout(
-                  poll,
-                  currentBackoff,
-                ) as unknown as NodeJS.Timeout;
+                pollInterval = setTimeout(poll, currentBackoff);
               }
             } catch (error) {
               logger.error("[SSE Stream] Polling error:", error);
@@ -264,10 +264,7 @@ export async function GET(request: NextRequest) {
 
               // Retry poll after backoff on error
               if (isActive) {
-                pollInterval = setTimeout(
-                  poll,
-                  currentBackoff,
-                ) as unknown as NodeJS.Timeout;
+                pollInterval = setTimeout(poll, currentBackoff);
               }
             }
           };

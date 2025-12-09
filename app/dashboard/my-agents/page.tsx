@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { requireAuth } from "@/lib/auth";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
+import { migrateAnonymousSession } from "@/lib/session";
 import { MyAgentsClient } from "./my-agents";
 import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 import { logger } from "@/lib/utils/logger";
@@ -35,7 +37,6 @@ export default async function MyAgentsPage() {
       },
     );
 
-    const { anonymousSessionsService } = await import("@/lib/services");
     const anonSession = await anonymousSessionsService.getByToken(
       anonSessionCookie.value,
     );
@@ -46,8 +47,7 @@ export default async function MyAgentsPage() {
         anonymousUserId: anonSession.user_id,
       });
 
-      const { convertAnonymousToReal } = await import("@/lib/auth-anonymous");
-      await convertAnonymousToReal(anonSession.user_id, user.privy_user_id);
+      await migrateAnonymousSession(anonSession.user_id, user.privy_user_id);
 
       logger.info("[MyAgents] Migration completed successfully");
     }

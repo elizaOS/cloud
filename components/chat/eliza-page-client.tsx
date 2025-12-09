@@ -15,7 +15,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { ElizaChatInterface } from "@/components/chat/eliza-chat-interface";
 import { SignupPromptBanner } from "@/components/chat/signup-prompt-banner";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
-import { useChatStore, type Character } from "@/stores/chat-store";
+import { useChatStore, type Character } from "@/lib/stores/chat-store";
 import type { ElizaCharacter } from "@/lib/types";
 import { getOrCreateAnonymousUserAction } from "@/app/actions/anonymous";
 

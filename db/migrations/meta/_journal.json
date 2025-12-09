@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1762457948497,
-      "tag": "0000_vector_extension",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1762457959420,
-      "tag": "0001_init",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1764940817940,
-      "tag": "0002_chemical_dragon_lord",
+      "when": 1765166754718,
+      "tag": "0000_last_reavers",
       "breakpoints": true
     }
   ]

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
 import type { UUID } from "@elizaos/core";
@@ -6,6 +7,7 @@ import { stringToUuid } from "@elizaos/core";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { userContextService } from "@/lib/eliza/user-context";
 import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
+import { AgentMode } from "@/lib/eliza/agent-mode-types";
 
 export const maxDuration = 60;
 
@@ -28,11 +30,12 @@ async function handleGET(req: NextRequest) {
     const count = parseInt(urlParams.get("count") || "100");
     const offset = parseInt(urlParams.get("offset") || "0");
 
-    // Build user context with characterId
+    // Build user context with ASSISTANT mode (required for knowledge plugin)
     const userContext = await userContextService.buildContext({
       user,
       apiKey: authResult.apiKey,
       isAnonymous: false,
+      agentMode: AgentMode.ASSISTANT,
     });
 
     if (characterId) {
@@ -43,18 +46,12 @@ async function handleGET(req: NextRequest) {
     const runtimeFactory = RuntimeFactory.getInstance();
     const runtime = await runtimeFactory.createRuntimeForUser(userContext);
 
-    console.log("[Knowledge API] Runtime initialized:", {
-      agentId: runtime.agentId,
-      hasRuntime: !!runtime,
-    });
-
     // Wait for knowledge service to be available
     const knowledgeService = await getKnowledgeService(runtime);
 
     if (!knowledgeService) {
       const status = runtime.getServiceRegistrationStatus("knowledge");
-      console.error("[Knowledge API] Knowledge service not available!");
-      console.error("[Knowledge API] Service registration status:", status);
+      logger.error("[Knowledge API] Knowledge service not available, status:", status);
 
       return NextResponse.json(
         {
@@ -64,8 +61,6 @@ async function handleGET(req: NextRequest) {
         { status: 503 },
       );
     }
-
-    console.log("[Knowledge API] Knowledge service loaded successfully");
 
     // Use runtime.agentId as roomId (matching plugin pattern)
     const roomId = runtime.agentId;
@@ -92,7 +87,7 @@ async function handleGET(req: NextRequest) {
       offset,
     });
   } catch (error) {
-    console.error("Error listing knowledge documents:", error);
+    logger.error("Error listing knowledge documents:", error);
     return NextResponse.json(
       {
         error: "Failed to list documents",
@@ -119,11 +114,12 @@ async function handlePOST(req: NextRequest) {
     const body = await req.json();
     const { content, contentType, filename, metadata, characterId } = body;
 
-    // Build user context with characterId
+    // Build user context with ASSISTANT mode (required for knowledge plugin)
     const userContext = await userContextService.buildContext({
       user,
       apiKey: authResult.apiKey,
       isAnonymous: false,
+      agentMode: AgentMode.ASSISTANT,
     });
 
     if (characterId) {
@@ -190,7 +186,7 @@ async function handlePOST(req: NextRequest) {
       message: `Document processed successfully. Created ${result.fragmentCount} knowledge fragments.`,
     });
   } catch (error) {
-    console.error("Error uploading knowledge document:", error);
+    logger.error("Error uploading knowledge document:", error);
     return NextResponse.json(
       {
         error: "Failed to upload document",

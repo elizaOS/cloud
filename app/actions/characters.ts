@@ -1,7 +1,9 @@
 "use server";
 
 import { requireAuthWithOrg } from "@/lib/auth";
-import { charactersService, discordService } from "@/lib/services";
+import { logger } from "@/lib/utils/logger";
+import { charactersService } from "@/lib/services/characters/characters";
+import { discordService } from "@/lib/services/discord";
 import { uploadToBlob } from "@/lib/blob";
 import type { ElizaCharacter, NewUserCharacter } from "@/lib/types";
 import { revalidatePath } from "next/cache";
@@ -33,7 +35,7 @@ export async function uploadCharacterAvatar(formData: FormData) {
 
     return { success: true, url };
   } catch (error) {
-    console.error("Error uploading character avatar:", error);
+    logger.error("Error uploading character avatar:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to upload avatar",
@@ -100,7 +102,7 @@ export async function createCharacter(elizaCharacter: ElizaCharacter) {
       plugins: elizaCharacter.plugins,
     })
     .catch((error) => {
-      console.error("[CharacterCreate] Failed to log to Discord:", error);
+      logger.error("[CharacterCreate] Failed to log to Discord:", error);
     });
 
   revalidatePath("/dashboard/character-creator");

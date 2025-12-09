@@ -15,6 +15,7 @@ import {
   type ImageIdentifier,
   type AuthorizationData,
 } from "@aws-sdk/client-ecr";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Configuration for ECR client
@@ -84,7 +85,7 @@ export class ECRManager {
     const repository = describeResponse.repositories?.[0];
 
     if (repository) {
-      console.log("Repository already exists:", repository.repositoryUri);
+      logger.info("Repository already exists:", repository.repositoryUri);
       return {
         repositoryUri: repository.repositoryUri!,
         repositoryArn: repository.repositoryArn!,
@@ -92,7 +93,7 @@ export class ECRManager {
       };
     }
 
-    console.log("Creating new ECR repository:", repositoryName);
+    logger.info("Creating new ECR repository:", repositoryName);
     const createCommand = new CreateRepositoryCommand({
       repositoryName,
       imageScanningConfiguration: {
@@ -107,7 +108,7 @@ export class ECRManager {
     const createResponse = await this.client.send(createCommand);
     const createdRepository = createResponse.repository!;
 
-    console.log("Repository created:", createdRepository.repositoryUri);
+    logger.info("Repository created:", createdRepository.repositoryUri);
 
     // Set lifecycle policy to prevent storage bloat
     await this.setLifecyclePolicy(repositoryName);
@@ -173,7 +174,7 @@ export class ECRManager {
     });
 
     await this.client.send(command);
-    console.log(
+    logger.info(
       `✅ ECR lifecycle policy set for repository: ${repositoryName}`,
     );
   }
@@ -234,7 +235,7 @@ export class ECRManager {
     });
 
     await this.client.send(command);
-    console.log(`Deleted ${imageIds.length} images from ${repositoryName}`);
+    logger.info(`Deleted ${imageIds.length} images from ${repositoryName}`);
   }
 
   /**

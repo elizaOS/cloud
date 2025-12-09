@@ -1,14 +1,20 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
+import { nanoid } from "nanoid";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
-import { db } from "@/db/client";
-import { users, anonymousSessions } from "@/db/schemas";
+import { createAnonymousUserAndSession } from "@/lib/services/anonymous-session-creator";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { cookies } from "next/headers";
 
 // Cookie name - must match auth-anonymous.ts
 const ANON_SESSION_COOKIE = "eliza-anon-session";
+
+// Session expiry in days
+const ANON_SESSION_EXPIRY_DAYS = Number.parseInt(
+  process.env.ANON_SESSION_EXPIRY_DAYS || "7",
+  10,
+);
 
 // Get message limit from env or default
 const ANON_MESSAGE_LIMIT = Number.parseInt(
@@ -53,51 +59,51 @@ export async function POST(request: NextRequest) {
 
     const { characterId, source } = validationResult.data;
 
-    // Generate session token
-    const sessionToken = randomUUID();
+    // Generate session token using nanoid (consistent with other endpoints)
+    const sessionToken = nanoid(32);
 
-    // Session expires in 7 days (matching auth-anonymous.ts)
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
+    // Session expires in configured days
+    const expiresAt = new Date(
+      Date.now() + ANON_SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+    );
 
     // Extract client info
+    const realIp = request.headers.get("x-real-ip")?.trim();
     const forwardedFor = request.headers.get("x-forwarded-for");
-    const ipAddress = forwardedFor?.split(",")[0]?.trim() || undefined;
+    const ipAddress = realIp || forwardedFor?.split(",")[0]?.trim() || undefined;
     const userAgent = request.headers.get("user-agent") || undefined;
 
-    // Use transaction to ensure consistency - if session creation fails,
-    // the user creation is rolled back (no orphaned users)
-    const result = await db.transaction(async (tx) => {
-      // Create a REAL anonymous user in the database
-      const [newUser] = await tx
-        .insert(users)
-        .values({
-          is_anonymous: true,
-          anonymous_session_id: sessionToken,
-          organization_id: null, // No org for anonymous users
-          is_active: true,
-          expires_at: expiresAt,
-          role: "member",
-        })
-        .returning();
+    // Check for IP-based abuse (max 5 sessions per IP in production)
+    if (process.env.NODE_ENV === "production" && ipAddress) {
+      const isAbuse = await anonymousSessionsService.checkIpAbuse(ipAddress);
+      if (isAbuse) {
+        logger.warn("[Create Session] IP abuse detected", {
+          ipAddress: ipAddress.slice(0, 8) + "...",
+          characterId,
+        });
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Too many sessions from this IP. Please sign up for continued access.",
+            code: "RATE_LIMIT_EXCEEDED",
+          },
+          { status: 429 },
+        );
+      }
+    }
 
-      logger.info(`[Create Session] Created anonymous user: ${newUser.id}`);
-
-      // Create anonymous session linked to the real user
-      const [newSession] = await tx
-        .insert(anonymousSessions)
-        .values({
-          session_token: sessionToken,
-          user_id: newUser.id,
-          expires_at: expiresAt,
-          ip_address: ipAddress,
-          user_agent: userAgent,
-          messages_limit: ANON_MESSAGE_LIMIT,
-        })
-        .returning();
-
-      return { user: newUser, session: newSession };
+    // Use shared creator function (handles transaction internally)
+    const { newUser, newSession } = await createAnonymousUserAndSession({
+      sessionToken,
+      expiresAt,
+      ipAddress,
+      userAgent,
+      messagesLimit: ANON_MESSAGE_LIMIT,
     });
+
+    logger.info(`[Create Session] Created anonymous user: ${newUser.id}`);
+
+    const result = { user: newUser, session: newSession };
 
     // Set the session cookie so getAnonymousUser() can find this user
     // Only set cookie AFTER successful transaction

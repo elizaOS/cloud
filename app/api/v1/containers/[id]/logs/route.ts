@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { getContainer } from "@/lib/services";
+import { getContainer } from "@/lib/services/containers";
 import {
   CloudWatchLogsClient,
   GetLogEventsCommand,
@@ -100,7 +101,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Error fetching container logs:", error);
+    logger.error("Error fetching container logs:", error);
     return NextResponse.json(
       {
         success: false,
@@ -385,7 +386,7 @@ async function getCloudWatchLogs(
       }
     }
 
-    console.error("Error fetching CloudWatch logs:", error);
+    logger.error("Error fetching CloudWatch logs:", error);
     return [];
   }
 }

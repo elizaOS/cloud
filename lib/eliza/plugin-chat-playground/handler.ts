@@ -4,6 +4,7 @@ import {
   createUniqueUuid,
   EventType,
   logger,
+  MemoryType,
   type Memory,
   ModelType,
   parseKeyValueXml,
@@ -13,6 +14,7 @@ import {
   type State,
   type HandlerCallback,
 } from "@elizaos/core";
+import type { DialogueMetadata } from "@/lib/types/message-content";
 import { v4 } from "uuid";
 import {
   chatPlaygroundSystemPrompt,
@@ -28,10 +30,7 @@ import type { ParsedResponse } from "../shared/utils/parsers";
 import type { MessageReceivedHandlerParams } from "../shared/types";
 
 /**
- * Chat Playground Workflow Handler
- *
- * Supports MCP tool calling for external data access.
- * Checks for available MCP actions before generating responses.
+ * Simple chat handler with MCP tool support.
  */
 export async function handleMessage({
   runtime,
@@ -42,212 +41,96 @@ export async function handleMessage({
   const runId = asUUID(v4());
   const startTime = Date.now();
 
-  logger.debug(
-    `[ChatPlayground] Generated response ID: ${responseId.substring(0, 8)}`,
-  );
-  logger.debug(`[ChatPlayground] Generated run ID: ${runId.substring(0, 8)}`);
-  logger.debug(`[ChatPlayground] MESSAGE RECEIVED:`, JSON.stringify(message));
+  if (message.entityId === runtime.agentId) {
+    throw new Error("Message is from the agent itself");
+  }
 
   await setLatestResponseId(runtime, message.roomId, responseId);
-
-  // Emit run started event
   await runtime.emitEvent(EventType.RUN_STARTED, {
-    runtime,
-    runId,
-    messageId: message.id,
-    roomId: message.roomId,
-    entityId: message.entityId,
-    startTime,
-    status: "started",
-    source: "chatPlaygroundWorkflow",
+    runtime, runId, messageId: message.id, roomId: message.roomId, entityId: message.entityId,
+    startTime, status: "started", source: "chatPlaygroundWorkflow",
   });
 
-  try {
-    if (message.entityId === runtime.agentId) {
-      throw new Error("Message is from the agent itself");
-    }
+  const originalSystemPrompt = runtime.character.system;
 
-    // Save the incoming message
-    logger.debug("[ChatPlayground] Saving message to memory");
+  try {
     await runtime.createMemory(message, "messages");
 
-    // RACE CONDITION FIX: Wait for MCP initialization BEFORE composing state
-    // This ensures the MCP provider data is fresh and not stale
-    const mcpService = runtime.getService("mcp") as
-      | {
-          waitForInitialization?: () => Promise<void>;
-          getProviderData?: () => unknown;
-        }
-      | undefined;
-
+    // Wait for MCP if available
+    const mcpService = runtime.getService("mcp") as { waitForInitialization?: () => Promise<void> } | undefined;
     if (mcpService?.waitForInitialization) {
-      logger.debug(
-        "[ChatPlayground] Waiting for MCP service initialization before state composition...",
-      );
       await mcpService.waitForInitialization();
-      logger.debug(
-        "[ChatPlayground] MCP service initialization complete, proceeding with state composition",
-      );
     }
 
-    // Compose state with providers including MCP for tool access
-    logger.info(
-      `[ChatPlayground] Processing message for character: ${runtime.character.name} (ID: ${runtime.character.id})`,
-    );
-    logger.debug(
-      "[ChatPlayground] Composing state with providers including MCP",
-    );
     const state = await runtime.composeState(message, [
-      "SUMMARIZED_CONTEXT",
-      "RECENT_MESSAGES",
-      "LONG_TERM_MEMORY", // User facts and knowledge
-      "CHARACTER",
-      "MCP", // MCP tools and resources - now guaranteed to be fresh
+      "SUMMARIZED_CONTEXT", "RECENT_MESSAGES", "LONG_TERM_MEMORY", "CHARACTER", "MCP",
     ]);
 
-    // Check if MCP action should be triggered
-    const mcpAction = await checkAndRunMcpAction(
-      runtime,
-      message,
-      state,
-      callback,
-    );
-    if (mcpAction) {
-      logger.info(
-        "[ChatPlayground] MCP action executed, using tool result for response",
-      );
-      // MCP action already called callback with response
+    // Try MCP action first
+    if (await checkAndRunMcpAction(runtime, message, state, callback)) {
       await clearLatestResponseId(runtime, message.roomId);
-
-      const endTime = Date.now();
       await runtime.emitEvent(EventType.RUN_ENDED, {
-        runtime,
-        runId,
-        messageId: message.id,
-        roomId: message.roomId,
-        entityId: message.entityId,
-        startTime,
-        status: "completed",
-        endTime,
-        duration: endTime - startTime,
+        runtime, runId, messageId: message.id, roomId: message.roomId, entityId: message.entityId,
+        startTime, status: "completed", endTime: Date.now(), duration: Date.now() - startTime,
         source: "chatPlaygroundWorkflow",
       });
       return;
     }
 
-    // Compose system prompt
-    const originalSystemPrompt = runtime.character.system;
-    const composedSystemPromptRaw = composePromptFromState({
-      state,
-      template: chatPlaygroundSystemPrompt,
-    });
-    const composedSystemPrompt = cleanPrompt(composedSystemPromptRaw);
-    runtime.character.system = composedSystemPrompt;
+    runtime.character.system = cleanPrompt(composePromptFromState({ state, template: chatPlaygroundSystemPrompt }));
 
-    // Compose user prompt
-    const promptRaw = composePromptFromState({
+    const prompt = cleanPrompt(composePromptFromState({
       state,
-      template:
-        runtime.character.templates?.chatPlaygroundTemplate ||
-        chatPlaygroundTemplate,
-    });
-    const prompt = cleanPrompt(promptRaw);
-    logger.debug(
-      "*** CHAT PLAYGROUND SYSTEM PROMPT ***\n",
-      runtime.character.system,
-    );
-    logger.debug("*** CHAT PLAYGROUND PROMPT ***\n", prompt);
+      template: runtime.character.templates?.chatPlaygroundTemplate || chatPlaygroundTemplate,
+    }));
 
-    // Single LLM call to get response
     const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
-    logger.debug("*** CHAT PLAYGROUND RESPONSE ***\n", response);
+    runtime.character.system = originalSystemPrompt;
 
     const parsedResponse = parseKeyValueXml(response) as ParsedResponse | null;
-
     if (!parsedResponse?.text) {
       throw new Error("Failed to generate valid response");
     }
 
-    const responseContent = parsedResponse.text;
-    const thought = parsedResponse.thought || "";
-
-    // Restore original system prompt
-    runtime.character.system = originalSystemPrompt;
-
-    // Check if this is still the latest response ID for this room
-    if (!(await isResponseStillValid(runtime, message.roomId, responseId))) {
-      logger.info(
-        `[ChatPlayground] Response discarded - newer message being processed for agent: ${runtime.agentId}, room: ${message.roomId}`,
-      );
-      return;
-    }
-
-    // Clean up the response ID
+    if (!(await isResponseStillValid(runtime, message.roomId, responseId))) return;
     await clearLatestResponseId(runtime, message.roomId);
 
-    // Trigger callback with response content
-    // Memory storage is handled by the MessageHandler callback
     if (callback) {
       await callback({
-        text: responseContent,
-        thought,
+        text: parsedResponse.text,
+        thought: parsedResponse.thought || "",
         source: "agent",
         inReplyTo: message.id,
       });
     }
 
-    // Create memory reference for evaluators (without re-saving)
     const responseMemory: Memory = {
       id: createUniqueUuid(runtime, (message.id ?? v4()) as UUID),
       entityId: runtime.agentId,
       roomId: message.roomId,
       worldId: message.worldId,
-      content: {
-        text: responseContent,
-        thought,
-        source: "agent",
-        inReplyTo: message.id,
-      },
+      content: { text: parsedResponse.text, thought: parsedResponse.thought || "", source: "agent", inReplyTo: message.id },
+      metadata: {
+        type: MemoryType.MESSAGE,
+        role: 'agent',
+        dialogueType: 'message',
+        visibility: 'visible',
+        agentMode: 'chat',
+      } as DialogueMetadata,
     };
 
-    // Run evaluators asynchronously in background
-    await runEvaluatorsWithTimeout(
-      runtime,
-      message,
-      state,
-      responseMemory,
-      callback,
-    );
+    await runEvaluatorsWithTimeout(runtime, message, state, responseMemory, callback);
 
-    logger.info(
-      `[ChatPlayground] Run ${runId.substring(0, 8)} completed successfully`,
-    );
-
-    const endTime = Date.now();
     await runtime.emitEvent(EventType.RUN_ENDED, {
-      runtime,
-      runId,
-      messageId: message.id,
-      roomId: message.roomId,
-      entityId: message.entityId,
-      startTime,
-      status: "completed",
-      endTime,
-      duration: endTime - startTime,
+      runtime, runId, messageId: message.id, roomId: message.roomId, entityId: message.entityId,
+      startTime, status: "completed", endTime: Date.now(), duration: Date.now() - startTime,
       source: "chatPlaygroundWorkflow",
     });
   } catch (error) {
-    // Emit run ended event with error
+    runtime.character.system = originalSystemPrompt;
     await runtime.emitEvent(EventType.RUN_ENDED, {
-      runtime,
-      runId,
-      messageId: message.id,
-      roomId: message.roomId,
-      entityId: message.entityId,
-      startTime,
-      status: "error",
-      endTime: Date.now(),
-      duration: Date.now() - startTime,
+      runtime, runId, messageId: message.id, roomId: message.roomId, entityId: message.entityId,
+      startTime, status: "error", endTime: Date.now(), duration: Date.now() - startTime,
       error: error instanceof Error ? error.message : String(error),
       source: "chatPlaygroundWorkflow",
     });
@@ -256,8 +139,7 @@ export async function handleMessage({
 }
 
 /**
- * Check if an MCP action should be triggered and run it
- * Returns true if an MCP action was executed
+ * Check for and execute MCP action if available.
  */
 async function checkAndRunMcpAction(
   runtime: IAgentRuntime,
@@ -266,10 +148,6 @@ async function checkAndRunMcpAction(
   callback?: HandlerCallback,
 ): Promise<boolean> {
   try {
-    // RACE CONDITION FIX: Since we now wait for MCP initialization before
-    // composing state (see handleMessage), we can rely on state data being fresh
-    // and don't need to re-check the service directly
-
     // Check if MCP data is available in state
     const stateData = state.data as Record<string, unknown> | undefined;
     const mcpData = stateData?.providers as Record<string, unknown> | undefined;
@@ -341,7 +219,7 @@ async function checkAndRunMcpAction(
     );
     return false;
   } catch (error) {
-    logger.error("[ChatPlayground] Error checking/running MCP action", error);
+    logger.error("[ChatPlayground] Error checking/running MCP action", error instanceof Error ? error.message : String(error));
     return false;
   }
 }

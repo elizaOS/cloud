@@ -2,7 +2,7 @@
  * Analytics projection utilities for forecasting usage and costs.
  */
 
-import type { TimeSeriesDataPoint } from "@/lib/services";
+import type { TimeSeriesDataPoint } from "@/lib/services/analytics";
 
 /**
  * Projection configuration constants.

@@ -15,7 +15,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { AuthUser, AuthState } from "./types";
+
+import type { AuthState,AuthUser } from "./types";
 
 const CLOUD_URL = process.env.NEXT_PUBLIC_ELIZA_CLOUD_URL || "http://localhost:3000";
 const AUTH_TOKEN_KEY = "miniapp_auth_token";
@@ -23,13 +24,22 @@ const USER_ID_KEY = "miniapp_user_id";
 const ORG_ID_KEY = "miniapp_org_id";
 
 /**
+ * Helper to safely get localStorage value (handles SSR)
+ */
+function getStoredValue(key: string): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(key);
+}
+
+/**
  * Auth hook that manages token-based authentication
  */
 export function useAuth(): AuthState {
+  // Use lazy initialization to avoid calling setState in effect
   const [ready, setReady] = useState(false);
-  const [authToken, setAuthToken] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(() => getStoredValue(AUTH_TOKEN_KEY));
+  const [userId, setUserId] = useState<string | null>(() => getStoredValue(USER_ID_KEY));
+  const [organizationId, setOrganizationId] = useState<string | null>(() => getStoredValue(ORG_ID_KEY));
   const [user, setUser] = useState<AuthUser | null>(null);
 
   // Clear auth state - defined first since it's used by other callbacks
@@ -45,83 +55,82 @@ export function useAuth(): AuthState {
 
   // Fetch user info from Cloud API - defined before the useEffect that uses it
   const fetchUserInfo = useCallback(async (token: string) => {
-    const response = await fetch("/api/proxy/user", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      setUser({
-        id: data.user.id,
-        email: data.user.email,
-        name: data.user.name,
-        avatar: data.user.avatar,
+    try {
+      const response = await fetch("/api/proxy/user", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
-    } else {
-      // Token might be invalid, clear auth state
-      clearAuth();
+
+      if (response.ok) {
+        const data = await response.json();
+        setUser({
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.name,
+          avatar: data.user.avatar,
+        });
+      } else if (response.status === 401) {
+        clearAuth();
+      }
+    } catch {
+      // Network error - don't clear auth, just skip user info fetch
+      console.warn("[useAuth] Failed to fetch user info");
     }
   }, [clearAuth]);
 
-  // Load auth state from localStorage on mount and on storage changes
+  // Fetch user info on mount if we have a token (from lazy initialization)
   useEffect(() => {
-    const loadAuthState = () => {
-      const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
-      const storedUserId = localStorage.getItem(USER_ID_KEY);
-      const storedOrgId = localStorage.getItem(ORG_ID_KEY);
-
-      if (storedToken && storedUserId) {
-        setAuthToken(storedToken);
-        setUserId(storedUserId);
-        setOrganizationId(storedOrgId);
-        
-        // Fetch user info
-        fetchUserInfo(storedToken);
-      } else {
-        // Clear state if no token
-        setAuthToken(null);
-        setUserId(null);
-        setOrganizationId(null);
-        setUser(null);
+    // State is already initialized from localStorage via lazy init (lines 40-42)
+    // Defer all state updates to avoid synchronous setState in effect
+    queueMicrotask(() => {
+      if (authToken) {
+        fetchUserInfo(authToken);
       }
-      
       setReady(true);
-    };
+    });
+  }, [authToken, fetchUserInfo]);
 
-    loadAuthState();
-
-    // Listen for storage changes (e.g., from auth callback in another tab)
+  // Listen for storage changes (e.g., from auth callback in another tab)
+  useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === AUTH_TOKEN_KEY) {
-        loadAuthState();
+        const newToken = localStorage.getItem(AUTH_TOKEN_KEY);
+        const newUserId = localStorage.getItem(USER_ID_KEY);
+        const newOrgId = localStorage.getItem(ORG_ID_KEY);
+
+        if (newToken && newUserId) {
+          setAuthToken(newToken);
+          setUserId(newUserId);
+          setOrganizationId(newOrgId);
+          fetchUserInfo(newToken);
+        } else {
+          clearAuth();
+        }
       }
     };
 
-    // Also check on window focus (for same-tab navigation)
-    const handleFocus = () => {
-      const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
-      if (storedToken !== authToken) {
-        loadAuthState();
-      }
-    };
-
-    // Also listen for our custom auth event
     const handleAuthChanged = () => {
-      loadAuthState();
+      const newToken = localStorage.getItem(AUTH_TOKEN_KEY);
+      const newUserId = localStorage.getItem(USER_ID_KEY);
+      const newOrgId = localStorage.getItem(ORG_ID_KEY);
+
+      if (newToken && newUserId) {
+        setAuthToken(newToken);
+        setUserId(newUserId);
+        setOrganizationId(newOrgId);
+        fetchUserInfo(newToken);
+      }
     };
 
     window.addEventListener("storage", handleStorageChange);
-    window.addEventListener("focus", handleFocus);
     window.addEventListener("miniapp_auth_changed", handleAuthChanged);
 
     return () => {
       window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("focus", handleFocus);
       window.removeEventListener("miniapp_auth_changed", handleAuthChanged);
     };
-  }, [authToken, fetchUserInfo]);
+  }, [fetchUserInfo, clearAuth]);
 
   // Start the login flow
   const login = useCallback(async () => {

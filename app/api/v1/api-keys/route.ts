@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { apiKeysService } from "@/lib/services";
+import { apiKeysService } from "@/lib/services/api-keys";
 
 /**
  * GET /api/v1/api-keys
@@ -16,7 +17,7 @@ export async function GET() {
 
     return NextResponse.json({ keys });
   } catch (error) {
-    console.error("Error fetching API keys:", error);
+    logger.error("Error fetching API keys:", error);
     return NextResponse.json(
       { error: "Failed to fetch API keys" },
       { status: 500 },
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch (error) {
-    console.error("Error creating API key:", error);
+    logger.error("Error creating API key:", error);
     return NextResponse.json(
       { error: "Failed to create API key" },
       { status: 500 },

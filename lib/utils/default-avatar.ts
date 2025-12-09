@@ -99,18 +99,6 @@ export function isBuiltInAvatar(url: string | null | undefined): boolean {
 }
 
 /**
- * @deprecated Use isBuiltInAvatar instead
- * Kept for backward compatibility
- */
-export function isDiceBearAvatar(url: string | null | undefined): boolean {
-  if (!url) return false;
-  // Check for old DiceBear URLs (for migration purposes)
-  if (url.includes("api.dicebear.com")) return true;
-  // Also check for built-in avatars
-  return isBuiltInAvatar(url);
-}
-
-/**
  * Get available avatar options for UI selection
  */
 export function getAvailableAvatarStyles(): Array<{
@@ -151,8 +139,12 @@ export function getAvailableAvatarStyles(): Array<{
  * @returns A valid avatar URL (either the original or the fallback)
  */
 export function ensureAvatarUrl(avatarUrl: string | null | undefined): string {
+  console.log(`[ensureAvatarUrl] avatarUrl=${avatarUrl}`);
+  console.log(`[ensureAvatarUrl] DEFAULT_AVATAR=${DEFAULT_AVATAR}`);
   if (avatarUrl && avatarUrl.trim() !== "") {
+    console.log(`[ensureAvatarUrl] returning avatarUrl=${avatarUrl}`);
     return avatarUrl;
   }
+  console.log(`[ensureAvatarUrl] returning DEFAULT_AVATAR=${DEFAULT_AVATAR}`);
   return DEFAULT_AVATAR;
 }

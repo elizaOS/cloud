@@ -6,7 +6,6 @@
 
 export {
   characterDeploymentDiscoveryService,
-  deploymentDiscoveryService,
   type CharacterDiscoveryFilters,
   type DiscoveredCharacterInfo,
   type CharacterListResult,

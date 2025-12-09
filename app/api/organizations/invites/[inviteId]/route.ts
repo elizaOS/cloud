@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { invitesService } from "@/lib/services";
+import { invitesService } from "@/lib/services/invites";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 /**
@@ -45,7 +46,7 @@ async function handleDELETE(
       message: "Invitation revoked successfully",
     });
   } catch (error) {
-    console.error("Error revoking invite:", error);
+    logger.error("Error revoking invite:", error);
 
     const errorMessage =
       error instanceof Error ? error.message : "Failed to revoke invitation";

@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { paymentMethodsService } from "@/lib/services/payment-methods";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -47,7 +48,7 @@ async function handleSetDefaultPaymentMethod(req: NextRequest) {
       message: "Default payment method updated successfully",
     });
   } catch (error) {
-    console.error("Error setting default payment method:", error);
+    logger.error("Error setting default payment method:", error);
 
     if (error instanceof Error) {
       return NextResponse.json(

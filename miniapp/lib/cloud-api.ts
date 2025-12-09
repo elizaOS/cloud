@@ -8,28 +8,48 @@
  * separation from the main app. Never import types from the parent app.
  */
 
-import { getAuthToken } from "./use-auth";
 import type {
   Agent,
   AgentDetails,
-  MessageExampleConversation,
+  AppBilling,
+  Billing,
   Chat,
+  CreditPack,
   Message,
   MessageAttachment,
-  User,
+  MessageExampleConversation,
   Organization,
-  Billing,
-  AppBilling,
-  CreditPack,
-  UsageSummary,
-  Transaction,
   Pagination,
-  StreamCallbacks,
   ReferralInfo,
   RewardsStatus,
+  StreamCallbacks,
+  Transaction,
+  UsageSummary,
+  User,
 } from "./types";
+import { getAuthToken } from "./use-auth";
 
 const API_BASE = "/api/proxy";
+
+/**
+ * Safely convert a timestamp/date to ISO string
+ * Handles undefined, null, invalid dates, and various formats
+ */
+function safeToISOString(value: unknown): string {
+  if (!value) {
+    return new Date().toISOString();
+  }
+
+  try {
+    const date = new Date(value as string | number);
+    if (isNaN(date.getTime())) {
+      return new Date().toISOString();
+    }
+    return date.toISOString();
+  } catch {
+    return new Date().toISOString();
+  }
+}
 
 /**
  * Get auth headers for API requests
@@ -47,7 +67,7 @@ function getAuthHeaders(): HeadersInit {
   return headers;
 }
 
-async function fetchApi<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function fetchApi<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE}${path}`;
 
   const response = await fetch(url, {
@@ -340,7 +360,7 @@ export async function sendMessage(
               id: data.id,
               content: data.content?.text || "",
               role: "user",
-              createdAt: new Date(data.createdAt).toISOString(),
+              createdAt: safeToISOString(data.createdAt),
               attachments: userAttachments.length > 0 ? userAttachments : undefined,
             };
             callbacks.onUserMessage?.(userMsg);
@@ -370,7 +390,7 @@ export async function sendMessage(
               id: data.id,
               content: responseText,
               role: "assistant",
-              createdAt: new Date(data.createdAt || Date.now()).toISOString(),
+              createdAt: safeToISOString(data.createdAt),
               attachments: attachments.length > 0 ? attachments : undefined,
             };
             
@@ -489,18 +509,18 @@ export async function qualifyReferral(): Promise<{ success: boolean; qualified: 
 export type {
   Agent,
   AgentDetails,
-  Billing,
   AppBilling,
+  Billing,
   Chat,
   CreditPack,
   Message,
   MessageAttachment,
   Organization,
   Pagination,
+  ReferralInfo,
+  RewardsStatus,
   StreamCallbacks,
   Transaction,
   UsageSummary,
   User,
-  ReferralInfo,
-  RewardsStatus,
 } from "./types";

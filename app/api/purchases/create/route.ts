@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { purchasesService, PURCHASE_LIMITS } from "@/lib/services/purchases";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -77,7 +78,7 @@ async function handleCreatePurchase(req: NextRequest) {
           : "Payment intent created",
     });
   } catch (error) {
-    console.error("Error creating purchase:", error);
+    logger.error("Error creating purchase:", error);
 
     if (error instanceof Error) {
       // Check for specific error types

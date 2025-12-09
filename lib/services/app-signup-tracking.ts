@@ -6,6 +6,7 @@
 
 import { appsRepository } from "@/db/repositories/apps";
 import { appsService } from "./apps";
+import { creditsService } from "./credits";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -166,7 +167,6 @@ export class AppSignupTrackingService {
     }
 
     // Award bonus credits to the app's organization
-    const { creditsService } = await import("./credits");
     await creditsService.addCredits({
       organizationId: app.organization_id,
       amount: bonusAmount,

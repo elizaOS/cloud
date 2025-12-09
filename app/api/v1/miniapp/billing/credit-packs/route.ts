@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { creditsService } from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
 import {
   addCorsHeaders,
   validateOrigin,

@@ -8,6 +8,7 @@ import { creditsService } from "./credits";
 import { invoicesService } from "./invoices";
 import { emailService } from "./email";
 import type Stripe from "stripe";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Constants for one-time purchase validation
@@ -94,7 +95,7 @@ export class PurchasesService {
 
       return customer.id;
     } catch (error) {
-      console.error("Failed to create Stripe customer:", error);
+      logger.error("Failed to create Stripe customer:", error);
       throw new Error("Failed to create payment customer. Please try again.");
     }
   }
@@ -163,7 +164,7 @@ export class PurchasesService {
       // This prevents race condition where client fetches balance before webhook fires
       // Webhook will still fire but will be deduplicated (already has duplicate check)
       if (paymentIntent.status === "succeeded") {
-        console.log(
+        logger.info(
           `[PurchasesService] Payment succeeded immediately, adding ${amount} credits synchronously for org ${organizationId}`,
         );
 
@@ -178,7 +179,7 @@ export class PurchasesService {
           stripePaymentIntentId: paymentIntent.id,
         });
 
-        console.log(
+        logger.info(
           `[PurchasesService] ✓ Credits added synchronously for payment ${paymentIntent.id}`,
         );
 
@@ -229,7 +230,7 @@ export class PurchasesService {
                     : undefined,
                 });
 
-                console.log(
+                logger.info(
                   `[PurchasesService] ✓ Created invoice record for payment ${paymentIntent.id}`,
                 );
               }
@@ -255,7 +256,7 @@ export class PurchasesService {
                 paid_at: new Date(),
               });
 
-              console.log(
+              logger.info(
                 `[PurchasesService] ✓ Created invoice record for direct payment ${paymentIntent.id}`,
               );
             }
@@ -276,7 +277,7 @@ export class PurchasesService {
         amount: amount,
       };
     } catch (error) {
-      console.error("Failed to create payment intent:", error);
+      logger.error("Failed to create payment intent:", error);
 
       if (error instanceof Error) {
         // Check for specific Stripe errors
@@ -358,7 +359,7 @@ export class PurchasesService {
 
       return paymentIntent;
     } catch (error) {
-      console.error(
+      logger.error(
         `Failed to confirm payment intent ${paymentIntentId}:`,
         error,
       );
@@ -412,37 +413,37 @@ export class PurchasesService {
     paymentIntentId: string,
     paymentMethodId?: string,
   ): Promise<void> {
-    console.log(
+    logger.info(
       `[PurchasesService] sendPurchaseConfirmationEmail START for org ${organizationId}`,
     );
 
     const org = await organizationsRepository.findById(organizationId);
     if (!org) {
-      console.error(
+      logger.error(
         `[PurchasesService] CRITICAL: Cannot send email - org ${organizationId} not found`,
       );
       return;
     }
-    console.log(`[PurchasesService] Organization found: ${org.name}`);
+    logger.info(`[PurchasesService] Organization found: ${org.name}`);
 
-    console.log(
+    logger.info(
       `[PurchasesService] Fetching users for org ${organizationId}`,
     );
     const users = await usersRepository.listByOrganization(organizationId);
-    console.log(`[PurchasesService] Found ${users.length} users`);
+    logger.info(`[PurchasesService] Found ${users.length} users`);
 
     if (!users || users.length === 0) {
-      console.error(
+      logger.error(
         `[PurchasesService] CRITICAL: No users found for org ${organizationId} - EMAIL NOT SENT`,
       );
       return;
     }
 
     const userEmail = users[0].email;
-    console.log(`[PurchasesService] User email: ${userEmail || "NONE"}`);
+    logger.info(`[PurchasesService] User email: ${userEmail || "NONE"}`);
 
     if (!userEmail) {
-      console.error(
+      logger.error(
         `[PurchasesService] CRITICAL: No email for user in org ${organizationId} - EMAIL NOT SENT`,
       );
       return;
@@ -486,14 +487,14 @@ export class PurchasesService {
         dashboardUrl,
       };
 
-      console.log(
+      logger.info(
         `[PurchasesService] Calling emailService.sendPurchaseConfirmationEmail with:`,
       );
-      console.log(JSON.stringify(emailData, null, 2));
+      logger.info(JSON.stringify(emailData, null, 2));
 
       await emailService.sendPurchaseConfirmationEmail(emailData);
 
-      console.log(
+      logger.info(
         `[PurchasesService] ✓ Purchase confirmation email sent to ${userEmail}`,
       );
   }

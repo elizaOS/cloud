@@ -4,6 +4,7 @@
 
 import { usageQuotasRepository } from "@/db/repositories";
 import type { UsageQuota, NewUsageQuota } from "@/db/schemas/usage-quotas";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Parameters for creating a usage quota.
@@ -223,7 +224,7 @@ class UsageQuotasService {
       await usageQuotasRepository.updatePeriod(quota.id, weekStart, weekEnd);
     }
 
-    console.log(`Reset ${expiredQuotas.length} expired weekly quotas`);
+    logger.info(`Reset ${expiredQuotas.length} expired weekly quotas`);
   }
 
   calculateWeekDates(): { weekStart: Date; weekEnd: Date } {

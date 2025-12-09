@@ -13,7 +13,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import type { Billing, CreditPack, AppBilling } from "@/lib/cloud-api";
+import type { AppBilling,Billing, CreditPack } from "@/lib/cloud-api";
 import {
   createCheckoutSession,
   getBilling,
@@ -115,7 +115,7 @@ export default function SettingsPage() {
   if (!ready || !authenticated) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
       </div>
     );
   }
@@ -137,7 +137,6 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white">Settings</h1>
-        <p className="mt-1 text-sm text-white/60">Manage your account</p>
       </div>
 
       {/* Error */}
@@ -157,32 +156,21 @@ export default function SettingsPage() {
       {/* Account Section */}
       <section className="mb-8">
         <h2 className="mb-4 flex items-center gap-2 text-lg font-medium text-white">
-          <User className="h-5 w-5 text-pink-400" />
+          <User className="h-5 w-5 text-brand-400" />
           Account
         </h2>
         <div className="space-y-4 rounded-lg border border-white/10 bg-white/5 p-4">
           {displayName && (
             <div className="flex items-center gap-3">
               <User className="h-4 w-4 text-white/40" />
-              <div>
-                <p className="text-xs text-white/40">Name</p>
-                <p className="text-sm text-white">{displayName}</p>
-              </div>
+              <p className="text-sm text-white">{displayName}</p>
             </div>
           )}
           {displayEmail && (
             <div className="flex items-center gap-3">
               <Mail className="h-4 w-4 text-white/40" />
-              <div>
-                <p className="text-xs text-white/40">Email</p>
-                <p className="text-sm text-white">{displayEmail}</p>
-              </div>
+              <p className="text-sm text-white">{displayEmail}</p>
             </div>
-          )}
-          {!displayEmail && !displayName && (
-            <p className="text-sm text-white/60">
-              No account details available
-            </p>
           )}
           <button
             onClick={logout}
@@ -196,13 +184,13 @@ export default function SettingsPage() {
       {/* Credits Section */}
       <section className="mb-8">
         <h2 className="mb-4 flex items-center gap-2 text-lg font-medium text-white">
-          <Coins className="h-5 w-5 text-pink-400" />
+          <Coins className="h-5 w-5 text-brand-400" />
           Credits
         </h2>
 
         {loading ? (
           <div className="flex items-center justify-center rounded-lg border border-white/10 bg-white/5 py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-pink-500" />
+            <Loader2 className="h-6 w-6 animate-spin text-brand" />
           </div>
         ) : billing ? (
           <div className="rounded-lg border border-white/10 bg-white/5 p-4">
@@ -212,15 +200,11 @@ export default function SettingsPage() {
                 <p className="text-3xl font-bold text-white">
                   {creditBalance.toLocaleString()}
                 </p>
-                <p className="text-sm text-white/40">
-                  {appBilling?.monetizationEnabled 
-                    ? `${appBilling.appName || 'App'} credits` 
-                    : 'credits available'}
-                </p>
+                <p className="text-sm text-white/40">credits</p>
               </div>
               <button
                 onClick={handleOpenCreditPacks}
-                className="flex items-center gap-2 rounded-lg bg-pink-500 px-4 py-2 text-sm font-medium text-white hover:bg-pink-600"
+                className="flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-600"
               >
                 <Plus className="h-4 w-4" />
                 Add Credits
@@ -256,7 +240,7 @@ export default function SettingsPage() {
 
             {loadingPacks ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
+                <Loader2 className="h-8 w-8 animate-spin text-brand" />
               </div>
             ) : (
               <>
@@ -274,12 +258,12 @@ export default function SettingsPage() {
                         disabled={checkoutLoading !== null}
                         className={`relative w-full rounded-lg border p-4 text-left transition ${
                           pack.isPopular
-                            ? "border-pink-500/50 bg-pink-500/10"
+                            ? "border-brand/50 bg-brand/10"
                             : "border-white/10 bg-white/5 hover:border-white/20"
                         } ${checkoutLoading !== null ? "opacity-50" : ""}`}
                       >
                         {pack.isPopular && (
-                          <span className="absolute -top-2 right-3 flex items-center gap-1 rounded-full bg-pink-500 px-2 py-0.5 text-xs font-medium text-white">
+                          <span className="absolute -top-2 right-3 flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 text-xs font-medium text-white">
                             <Sparkles className="h-3 w-3" /> Popular
                           </span>
                         )}
@@ -291,7 +275,7 @@ export default function SettingsPage() {
                                 {pack.description}
                               </p>
                             )}
-                            <p className="mt-1 text-lg font-bold text-pink-400">
+                            <p className="mt-1 text-lg font-bold text-brand-400">
                               {packCredits.toLocaleString()} credits
                             </p>
                             {bonusCredits > 0 && (
@@ -305,7 +289,7 @@ export default function SettingsPage() {
                               ${parseFloat(pack.price).toFixed(2)}
                             </p>
                             {checkoutLoading === pack.id && (
-                              <Loader2 className="mt-1 h-4 w-4 animate-spin text-pink-400" />
+                              <Loader2 className="mt-1 h-4 w-4 animate-spin text-brand-400" />
                             )}
                           </div>
                         </div>
@@ -316,7 +300,6 @@ export default function SettingsPage() {
 
                 {/* Custom Amount */}
                 <div className="border-t border-white/10 pt-4">
-                  <p className="mb-3 text-sm text-white/60">Custom Amount</p>
                   <div className="flex gap-3">
                     <div className="relative flex-1">
                       <input
@@ -326,7 +309,7 @@ export default function SettingsPage() {
                         placeholder="500 - 100,000"
                         min="500"
                         max="100000"
-                        className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white placeholder:text-white/30 focus:border-pink-500 focus:outline-none"
+                        className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white placeholder:text-white/30 focus:border-brand focus:outline-none"
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/40">
                         credits
@@ -335,7 +318,7 @@ export default function SettingsPage() {
                     <button
                       onClick={handleCustomCreditsCheckout}
                       disabled={checkoutLoading !== null || !customCredits}
-                      className="flex items-center gap-2 rounded-lg bg-pink-500 px-4 py-2 text-sm font-medium text-white hover:bg-pink-600 disabled:opacity-50"
+                      className="flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
                     >
                       {checkoutLoading === "custom" ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -346,7 +329,7 @@ export default function SettingsPage() {
                     </button>
                   </div>
                   <p className="mt-2 text-xs text-white/40">
-                    Enter credits between 500 and 100,000 (100 credits = $1)
+                    Min 500, max 100,000
                   </p>
                 </div>
               </>

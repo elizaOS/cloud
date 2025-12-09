@@ -46,3 +46,13 @@ plan-files
 *.tsbuildinfo
 next-env.d.ts
 test-results/
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/apple/build/
+src-tauri/gen/apple/Externals/
+src-tauri/gen/android/
+src-tauri/Cargo.lock
+
+ignore/
+.env*.local

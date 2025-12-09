@@ -13,6 +13,7 @@ import { apps, appUsers, appAnalytics } from "./apps";
 import { apiKeys } from "./api-keys";
 import { appCreditBalances } from "./app-credit-balances";
 import { appEarnings, appEarningsTransactions } from "./app-earnings";
+import { tokenRedemptions, redemptionLimits } from "./token-redemptions";
 
 /**
  * Organizations table relations.
@@ -184,6 +185,34 @@ export const appEarningsTransactionsRelations = relations(appEarningsTransaction
   }),
   user: one(users, {
     fields: [appEarningsTransactions.user_id],
+    references: [users.id],
+  }),
+}));
+
+/**
+ * Token redemptions table relations.
+ */
+export const tokenRedemptionsRelations = relations(tokenRedemptions, ({ one }) => ({
+  user: one(users, {
+    fields: [tokenRedemptions.user_id],
+    references: [users.id],
+  }),
+  app: one(apps, {
+    fields: [tokenRedemptions.app_id],
+    references: [apps.id],
+  }),
+  reviewer: one(users, {
+    fields: [tokenRedemptions.reviewed_by],
+    references: [users.id],
+  }),
+}));
+
+/**
+ * Redemption limits table relations.
+ */
+export const redemptionLimitsRelations = relations(redemptionLimits, ({ one }) => ({
+  user: one(users, {
+    fields: [redemptionLimits.user_id],
     references: [users.id],
   }),
 }));

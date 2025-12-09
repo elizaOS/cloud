@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
 import type { UUID } from "@elizaos/core";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { userContextService } from "@/lib/eliza/user-context";
 import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
+import { AgentMode } from "@/lib/eliza/agent-mode-types";
 
 export const maxDuration = 60;
 
@@ -29,11 +31,12 @@ async function handleDELETE(
     const searchParams = req.nextUrl.searchParams;
     const characterId = searchParams.get("characterId") || undefined;
 
-    // Build user context with characterId
+    // Build user context with ASSISTANT mode (required for knowledge plugin)
     const userContext = await userContextService.buildContext({
       user,
       apiKey: authResult.apiKey,
       isAnonymous: false,
+      agentMode: AgentMode.ASSISTANT,
     });
 
     if (characterId) {
@@ -70,7 +73,7 @@ async function handleDELETE(
       message: "Document deleted successfully",
     });
   } catch (error) {
-    console.error("Error deleting knowledge document:", error);
+    logger.error("Error deleting knowledge document:", error);
     return NextResponse.json(
       {
         error: "Failed to delete document",

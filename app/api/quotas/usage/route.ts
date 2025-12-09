@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { usageQuotasService } from "@/lib/services";
+import { usageQuotasService } from "@/lib/services/usage-quotas";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 /**
@@ -22,7 +23,7 @@ async function handleGET() {
       data: usage,
     });
   } catch (error) {
-    console.error("Error fetching quota usage:", error);
+    logger.error("Error fetching quota usage:", error);
 
     return NextResponse.json(
       {

@@ -1,12 +1,11 @@
 // app/api/v1/chat/completions/route.ts
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { getProvider } from "@/lib/providers";
-import {
-  creditsService,
-  usageService,
-  generationsService,
-  organizationsService,
-} from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
+import { usageService } from "@/lib/services/usage";
+import { generationsService } from "@/lib/services/generations";
+import { organizationsService } from "@/lib/services/organizations";
+import { contentModerationService } from "@/lib/services/content-moderation";
 import {
   calculateCost,
   getProviderFromModel,
@@ -153,6 +152,46 @@ async function handlePOST(req: NextRequest) {
             },
           },
           { status: 400 },
+        );
+      }
+    }
+
+    // Check if user is blocked due to moderation violations
+    if (await contentModerationService.shouldBlockUser(user.id)) {
+      logger.warn("[Chat Completions API] User blocked due to moderation violations", {
+        userId: user.id,
+      });
+      return Response.json(
+        {
+          error: {
+            message: "Your account has been suspended due to policy violations. Please contact support.",
+            type: "account_suspended",
+            code: "moderation_violation",
+          },
+        },
+        { status: 403 },
+      );
+    }
+
+    // Start async content moderation (runs in background, doesn't block)
+    const lastUserMessage = [...request.messages].reverse().find(m => m.role === "user");
+    if (lastUserMessage?.content) {
+      const messageText = typeof lastUserMessage.content === "string" 
+        ? lastUserMessage.content 
+        : lastUserMessage.content.find(c => c.type === "text")?.text || "";
+      
+      if (messageText) {
+        contentModerationService.moderateInBackground(
+          messageText,
+          user.id,
+          undefined,
+          (result) => {
+            logger.warn("[Chat Completions API] Async moderation detected violation", {
+              userId: user.id,
+              categories: result.flaggedCategories,
+              action: result.action,
+            });
+          }
         );
       }
     }

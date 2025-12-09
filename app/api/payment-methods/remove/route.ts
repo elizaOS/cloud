@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { paymentMethodsService } from "@/lib/services/payment-methods";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -48,7 +49,7 @@ async function handleRemovePaymentMethod(req: NextRequest) {
       message: "Payment method removed successfully",
     });
   } catch (error) {
-    console.error("Error removing payment method:", error);
+    logger.error("Error removing payment method:", error);
 
     if (error instanceof Error) {
       // Check for specific error conditions

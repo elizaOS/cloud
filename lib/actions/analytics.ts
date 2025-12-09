@@ -11,7 +11,7 @@ import {
   getUsageByUser,
   getCostTrending,
   type TimeGranularity,
-} from "@/lib/services";
+} from "@/lib/services/analytics";
 
 /**
  * Filters for analytics queries.

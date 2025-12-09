@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { referralsService } from "@/lib/services";
+import { referralsService } from "@/lib/services/referrals";
 import { addCorsHeaders, validateOrigin, createPreflightResponse } from "@/lib/middleware/cors-apps";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
