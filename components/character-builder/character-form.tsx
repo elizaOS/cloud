@@ -380,7 +380,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                 onChange={(e) =>
                   updateField("style", {
                     ...character.style,
-                    all: e.target.value.split("\n"),
+                    all: e.target.value.split("\n").filter((s) => s.trim()),
                   })
                 }
                 placeholder="One guideline per line..."
