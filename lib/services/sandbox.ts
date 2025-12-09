@@ -60,7 +60,7 @@ export interface SandboxSessionData {
   startedAt?: Date;
 }
 
-const DEFAULT_TEMPLATE_URL = "https://github.com/vercel/sandbox-example-next.git";
+const DEFAULT_TEMPLATE_URL = "https://github.com/elizaOS/sandbox-template-cloud.git";
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
 
 // Global storage
