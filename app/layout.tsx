@@ -8,6 +8,7 @@ import NextTopLoader from "nextjs-toploader";
 import PrivyProvider from "@/lib/providers/PrivyProvider";
 import { CreditsProvider } from "@/lib/providers/CreditsProvider";
 import DebugProvider from "@/components/debug/debug-provider";
+import localFont from 'next/font/local';
 
 const robotoMono = Roboto_Mono({
   variable: "--font-roboto-mono",
@@ -24,6 +25,48 @@ const robotoFlex = Roboto_Flex({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+
+const sfPro = localFont({
+  src: [
+    {
+      path: './fonts/sf-pro/SF-Pro-Display-Ultralight.otf',
+      weight: '200',
+      style: 'normal',
+    },
+    {
+      path: './fonts/sf-pro/SF-Pro-Display-Thin.otf',
+      weight: '300',
+      style: 'normal',
+    },
+    {
+      path: './fonts/sf-pro/SF-Pro-Display-Light.otf',
+      weight: '350',
+      style: 'normal',
+    },
+    {
+      path: './fonts/sf-pro/SF-Pro-Display-Regular.otf',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: './fonts/sf-pro/SF-Pro-Display-Medium.otf',
+      weight: '500',
+      style: 'normal',
+    },
+    {
+      path: './fonts/sf-pro/SF-Pro-Display-Semibold.otf',
+      weight: '600',
+      style: 'normal',
+    },
+    {
+      path: './fonts/sf-pro/SF-Pro-Display-Bold.otf',
+      weight: '700',
+      style: 'normal',
+    },
+  ],
+  variable: '--font-sf-pro',
 });
 
 /**
@@ -121,7 +164,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${robotoMono.variable} ${robotoFlex.variable} ${geistMono.variable} antialiased`}
+        className={`${robotoMono.variable} ${robotoFlex.variable} ${geistMono.variable} ${sfPro.variable} antialiased`}
       >
         <PrivyProvider>
           <CreditsProvider>
