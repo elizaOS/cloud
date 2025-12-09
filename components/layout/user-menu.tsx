@@ -197,7 +197,7 @@ export default function UserMenu() {
             <Badge
               variant="secondary"
               className="gap-1.5 px-3 py-1.5 w-full justify-center cursor-pointer hover:bg-white/10"
-              onClick={() => router.push("/dashboard/settings")}
+              onClick={() => router.push("/dashboard/settings?tab=billing")}
             >
               <Coins className="h-3.5 w-3.5 select-none" />
               <span className="font-semibold select-none">

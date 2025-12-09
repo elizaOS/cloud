@@ -68,7 +68,7 @@ export function CharacterEditor({
   const tabs: TabItem[] = [
     {
       value: "character",
-      label: "Character",
+      label: "Agent",
       icon: <Sparkles className="h-4 w-4" />,
     },
     {
@@ -115,7 +115,7 @@ export function CharacterEditor({
       <div className="flex-shrink-0 border-b border-white/10 px-6 py-4">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-white">Character Builder</h2>
+            <h2 className="text-xl font-bold text-white">Agent Builder</h2>
             <Zap
               className={cn([
                 mode === "chat" ? "text-[#FF5800]" : "text-[#E500FF]",
@@ -161,9 +161,9 @@ export function CharacterEditor({
 
       {/* Responsive Tabs + JSON Toggle */}
       <div className="flex-shrink-0 border-b border-white/10 px-6">
-        <div className="flex flex-col md:flex-row md:items-center gap-3 py-3">
-          {/* Tabs - Dropdown on mobile, tabs on desktop */}
-          <div className="flex-1 min-w-0">
+        <div className="space-y-4 xl:space-y-0 flex flex-col xl:flex-row xl:items-center gap-3 py-3">
+          {/* Tabs - Dropdown on mobile, tabs on desktop with horizontal scroll */}
+          <div className="flex-1 min-w-0 overflow-x-auto scrollbar-thin">
             <BrandTabsResponsive
               id="character-editor-tabs"
               tabs={tabs}
@@ -177,26 +177,27 @@ export function CharacterEditor({
           </div>
 
           {/* JSON Toggle Switch */}
-          <div className="flex items-center gap-2 shrink-0 md:ml-auto md:pl-4">
-            <span className="text-xs text-white/60">JSON</span>
+          <div className="flex mb-3 xl:mb-0 -mt-2 items-center gap-2 shrink-0 xl:ml-auto xl:pl-4">
+            <span className="text-xs text-white/60 whitespace-nowrap">
+              JSON
+            </span>
             <button
               onClick={() => setShowJson(!showJson)}
               className={cn(
                 "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                showJson ? "bg-[#E500FF]" : "bg-white/20",
+                showJson ? "bg-[#E500FF]" : "bg-white/20"
               )}
             >
               <span
                 className={cn(
                   "inline-block h-3 w-3 transform rounded-full bg-white transition-transform",
-                  showJson ? "translate-x-5" : "translate-x-1",
+                  showJson ? "translate-x-5" : "translate-x-1"
                 )}
               />
             </button>
           </div>
         </div>
       </div>
-
       {/* Content Area - Full Height */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
         {showJson ? (
