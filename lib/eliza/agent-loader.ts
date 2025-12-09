@@ -7,10 +7,65 @@ import { assistantPlugin } from "./plugin-assistant";
 import { chatPlaygroundPlugin } from "./plugin-chat-playground";
 import { characterBuilderPlugin } from "./plugin-character-builder";
 import { charactersService } from "@/lib/services/characters";
+import { memoriesRepository } from "@/db/repositories/agents/memories";
 import type { ElizaCharacter } from "@/lib/types";
 import defaultAgent from "./agent";
 import { getElizaCloudApiUrl } from "./config";
 import { AgentMode, AGENT_MODE_PLUGINS } from "./agent-mode-types";
+
+/**
+ * Reasons why mode was upgraded to ASSISTANT.
+ * Used for logging and debugging.
+ */
+export type ModeUpgradeReason = "mcp_plugin" | "has_knowledge" | "none";
+
+export interface ModeResolution {
+  mode: AgentMode;
+  upgradeReason: ModeUpgradeReason;
+}
+
+/**
+ * Determines the effective agent mode based on character capabilities.
+ * Upgrades to ASSISTANT mode when advanced features are needed.
+ *
+ * @param requestedMode - The mode originally requested
+ * @param characterId - The character ID to check capabilities for
+ * @param characterPlugins - Plugins configured on the character
+ * @returns The effective mode and reason for any upgrade
+ */
+async function resolveEffectiveMode(
+  requestedMode: AgentMode,
+  characterId: string,
+  characterPlugins: string[],
+): Promise<ModeResolution> {
+  // BUILD mode is never upgraded - it's a specific workflow
+  if (requestedMode === AgentMode.BUILD) {
+    return { mode: requestedMode, upgradeReason: "none" };
+  }
+
+  // Already ASSISTANT mode - no upgrade needed
+  if (requestedMode === AgentMode.ASSISTANT) {
+    return { mode: requestedMode, upgradeReason: "none" };
+  }
+
+  // Check 1: MCP plugin requires ASSISTANT mode for tool execution
+  if (characterPlugins.includes("@elizaos/plugin-mcp")) {
+    return { mode: AgentMode.ASSISTANT, upgradeReason: "mcp_plugin" };
+  }
+
+  // Check 2: Knowledge documents require ASSISTANT mode for RAG
+  const documentCount = await memoriesRepository.countByType(
+    characterId,
+    "documents",
+    characterId,
+  );
+  if (documentCount > 0) {
+    return { mode: AgentMode.ASSISTANT, upgradeReason: "has_knowledge" };
+  }
+
+  // No upgrade needed
+  return { mode: requestedMode, upgradeReason: "none" };
+}
 
 async function loadKnowledgePlugin() {
   const { knowledgePluginCore } = await import("@elizaos/plugin-knowledge");
@@ -42,7 +97,10 @@ const AVAILABLE_PLUGINS: Record<string, Plugin> = {
  * Loads characters and resolves plugins based on AgentMode.
  */
 export class AgentLoader {
-  async loadCharacter(characterId: string, agentMode: AgentMode): Promise<{ character: Character; plugins: Plugin[] }> {
+  async loadCharacter(
+    characterId: string,
+    agentMode: AgentMode,
+  ): Promise<{ character: Character; plugins: Plugin[]; modeResolution: ModeResolution }> {
     const dbCharacter = await charactersService.getById(characterId);
     if (!dbCharacter) {
       throw new Error(`Character not found: ${characterId}`);
@@ -51,18 +109,24 @@ export class AgentLoader {
     const elizaCharacter = charactersService.toElizaCharacter(dbCharacter);
     const character = this.buildCharacter(elizaCharacter);
 
-    // Auto-switch to ASSISTANT mode if character has MCP plugin
-    const effectiveMode = (elizaCharacter.plugins || []).includes("@elizaos/plugin-mcp") && agentMode !== AgentMode.ASSISTANT
-      ? AgentMode.ASSISTANT
-      : agentMode;
+    // Resolve effective mode based on character capabilities
+    const modeResolution = await resolveEffectiveMode(
+      agentMode,
+      characterId,
+      elizaCharacter.plugins || [],
+    );
 
-    const plugins = await this.resolvePlugins(effectiveMode, elizaCharacter.plugins || []);
-    return { character, plugins };
+    const plugins = await this.resolvePlugins(modeResolution.mode, elizaCharacter.plugins || []);
+    return { character, plugins, modeResolution };
   }
 
-  async getDefaultCharacter(agentMode: AgentMode): Promise<{ character: Character; plugins: Plugin[] }> {
+  async getDefaultCharacter(
+    agentMode: AgentMode,
+  ): Promise<{ character: Character; plugins: Plugin[]; modeResolution: ModeResolution }> {
+    // Default character has no capabilities that require mode upgrade
+    const modeResolution: ModeResolution = { mode: agentMode, upgradeReason: "none" };
     const plugins = await this.resolvePlugins(agentMode, []);
-    return { character: defaultAgent.character, plugins };
+    return { character: defaultAgent.character, plugins, modeResolution };
   }
 
   /** Build Character with merged settings (env + character config) */
