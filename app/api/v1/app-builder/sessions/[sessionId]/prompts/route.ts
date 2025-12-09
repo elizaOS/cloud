@@ -21,6 +21,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { sessionId } = await params;
 
+    // Verify user owns this session
+    await aiAppBuilderService.verifySessionOwnership(sessionId, user.id);
+
     const body = await request.json();
     const validationResult = SendPromptSchema.safeParse(body);
 
@@ -48,12 +51,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     logger.error("Failed to send prompt", { error });
+    const message = error instanceof Error ? error.message : "Failed to send prompt";
+    const status = message.includes("Unauthorized") ? 403 : message.includes("not found") ? 404 : 500;
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to send prompt",
+        error: message,
       },
-      { status: 500 }
+      { status }
     );
   }
 }

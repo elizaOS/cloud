@@ -316,6 +316,29 @@ export class AIAppBuilderService {
     }
   }
 
+
+  /**
+   * Verify that a user owns a session
+   * Returns the session if ownership is verified, throws an error otherwise
+   */
+  async verifySessionOwnership(
+    sessionId: string,
+    userId: string
+  ): Promise<AppSandboxSession> {
+    const session = await db.query.appSandboxSessions.findFirst({
+      where: eq(appSandboxSessions.id, sessionId),
+    });
+
+    if (!session) {
+      throw new Error("Session not found");
+    }
+
+    if (session.user_id !== userId) {
+      throw new Error("Unauthorized: You do not have access to this session");
+    }
+
+    return session;
+  }
   /**
    * Get session details
    */
