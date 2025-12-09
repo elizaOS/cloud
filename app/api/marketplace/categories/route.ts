@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { marketplaceService } from "@/lib/services";
+import { characterMarketplaceService } from "@/lib/services/characters/marketplace";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       user.organization_id!,
     );
 
-    const categories = await marketplaceService.getCategories(
+    const categories = await characterMarketplaceService.getCategories(
       user.organization_id!,
       user.id,
     );

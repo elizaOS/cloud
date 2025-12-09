@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { getContainer } from "@/lib/services";
+import { getContainer } from "@/lib/services/containers";
 import { redirect } from "next/navigation";
 import { ContainerDeploymentHistory } from "@/components/containers/container-deployment-history";
 import { ContainerLogsViewer } from "@/components/containers/container-logs-viewer";

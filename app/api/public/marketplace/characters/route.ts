@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { marketplaceService } from "@/lib/services";
+import { characterMarketplaceService } from "@/lib/services/characters/marketplace";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 import type { CategoryId, SortBy, SortOrder } from "@/lib/types/marketplace";
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
       page: params.page,
     });
 
-    const result = await marketplaceService.searchCharactersPublic({
+    const result = await characterMarketplaceService.searchCharactersPublic({
       filters: {
         search: params.search,
         category: params.category,

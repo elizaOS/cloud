@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { appsService, appEarningsService } from "@/lib/services";
+import { appsService } from "@/lib/services/apps";
+import { appEarningsService } from "@/lib/services/app-earnings";
 import { logger } from "@/lib/utils/logger";
 
 // Generate realistic test data for verifying the earnings dashboard UI

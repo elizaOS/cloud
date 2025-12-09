@@ -1,12 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { anonymousSessionsService, usersService } from "@/lib/services";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
+import { usersService } from "@/lib/services/users";
 import { logger } from "@/lib/utils/logger";
 import { db } from "@/db/client";
-import { users } from "@/db/schemas";
-import { sql } from "drizzle-orm";
+import { users, anonymousSessions } from "@/db/schemas";
+import { eq } from "drizzle-orm";
 
 const ANON_SESSION_COOKIE = "eliza-anon-session";
+
+/**
+ * Simple in-memory rate limiter per IP address.
+ * Prevents abuse of the session cookie setting endpoint.
+ */
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 10; // 10 requests per minute per IP
+
+function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+
+  // Periodic cleanup
+  if (rateLimitMap.size > 1000) {
+    const cutoff = now - 5 * RATE_LIMIT_WINDOW_MS;
+    for (const [key, value] of rateLimitMap.entries()) {
+      if (value.resetAt < cutoff) {
+        rateLimitMap.delete(key);
+      }
+    }
+  }
+
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - 1 };
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return { allowed: false, remaining: 0 };
+  }
+
+  entry.count++;
+  return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - entry.count };
+}
 
 /**
  * POST /api/set-anonymous-session
@@ -22,6 +58,26 @@ const ANON_SESSION_COOKIE = "eliza-anon-session";
  * @returns Success status with user and session IDs.
  */
 export async function POST(request: NextRequest) {
+  // Rate limiting by IP
+  const realIp = request.headers.get("x-real-ip")?.trim();
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  const clientIp = realIp || forwardedFor?.split(",")[0]?.trim() || "unknown";
+
+  const rateLimit = checkRateLimit(clientIp);
+  if (!rateLimit.allowed) {
+    logger.warn("[Set Session] Rate limit exceeded for IP");
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": "60",
+          "X-RateLimit-Remaining": "0",
+        },
+      },
+    );
+  }
+
   logger.info("[Set Session] Received request to set anonymous session cookie");
 
   try {
@@ -82,41 +138,33 @@ export async function POST(request: NextRequest) {
     let user = await usersService.getById(session.user_id);
 
     if (!user) {
-      // User doesn't exist - create a real anonymous user
+      // User doesn't exist - create a real anonymous user and update the session
       logger.info(
         "[Set Session] User not found, creating anonymous user for session:",
         session.id,
       );
 
-      try {
-        const [newUser] = await db
-          .insert(users)
-          .values({
-            is_anonymous: true,
-            anonymous_session_id: sessionToken,
-            organization_id: null,
-            is_active: true,
-            expires_at: session.expires_at,
-            role: "member",
-          })
-          .returning();
+      // Create anonymous user
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          is_anonymous: true,
+          anonymous_session_id: sessionToken,
+          organization_id: null,
+          is_active: true,
+          expires_at: session.expires_at,
+          role: "member",
+        })
+        .returning();
 
-        // Update the session to point to the real user
-        await db.execute(sql`
-          UPDATE anonymous_sessions
-          SET user_id = ${newUser.id}
-          WHERE id = ${session.id}
-        `);
+      // Update the existing session to point to the new user
+      await db
+        .update(anonymousSessions)
+        .set({ user_id: newUser.id })
+        .where(eq(anonymousSessions.id, session.id));
 
-        user = newUser;
-        logger.info("[Set Session] Created anonymous user:", newUser.id);
-      } catch (dbError) {
-        logger.error("[Set Session] Failed to create anonymous user:", dbError);
-        return NextResponse.json(
-          { error: "Failed to create user", code: "USER_CREATE_FAILED" },
-          { status: 500 },
-        );
-      }
+      user = newUser;
+      logger.info("[Set Session] Created anonymous user:", newUser.id);
     }
 
     // Set the cookie

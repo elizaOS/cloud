@@ -6,7 +6,8 @@
  */
 
 import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import { users, organizations } from "./index";
+import { users } from "./users";
+import { organizations } from "./organizations";
 
 export const miniappAuthSessions = pgTable("miniapp_auth_sessions", {
   id: uuid("id").primaryKey().defaultRandom(),

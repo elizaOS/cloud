@@ -7,17 +7,15 @@
  * 2. Just-in-time sync (fallback for race conditions)
  */
 
-import {
-  usersService,
-  organizationsService,
-  emailService,
-  invitesService,
-  discordService,
-  apiKeysService,
-  creditsService,
-  abuseDetectionService,
-  type SignupContext,
-} from "@/lib/services";
+import { usersService } from "@/lib/services/users";
+import { organizationsService } from "@/lib/services/organizations";
+import { emailService } from "@/lib/services/email";
+import { invitesService } from "@/lib/services/invites";
+import { discordService } from "@/lib/services/discord";
+import { apiKeysService } from "@/lib/services/api-keys";
+import { creditsService } from "@/lib/services/credits";
+import { organizationInvitesRepository } from "@/db/repositories";
+import { abuseDetectionService, type SignupContext } from "@/lib/services/abuse-detection";
 import type { UserWithOrganization } from "@/lib/types";
 
 const DEFAULT_INITIAL_CREDITS = 5.0;
@@ -65,21 +63,13 @@ function generateSlugFromWallet(walletAddress: string): string {
   return `wallet-${sanitized}-${timestamp}${random}`;
 }
 
+import type { User as PrivyUser } from "@privy-io/server-auth";
+
 /**
- * Flexible interface for Privy user data.
- * Handles both webhook payload and SDK User type.
+ * Type for Privy user data that handles both SDK User and webhook payloads.
+ * Uses the SDK User type as the base since it's more complete.
  */
-interface PrivyUserData {
-  id: string;
-  email?: { address: string };
-  name?: string | null;
-  linkedAccounts?: Array<Record<string, unknown>>;
-  wallet?: {
-    address: string;
-    chainType: "ethereum" | "solana";
-    verified?: boolean;
-  };
-}
+type PrivyUserData = PrivyUser;
 
 /**
  * Sync a Privy user to the local database
@@ -93,32 +83,29 @@ export async function syncUserFromPrivy(
   const { signupContext, skipAbuseCheck = false } = options;
   const privyUserId = privyUser.id;
 
-  // Extract email
+  // Extract email (optional - only some OAuth providers share this)
   let email: string | undefined;
+  
+  // Try primary email field first
   if (privyUser.email?.address) {
     email = privyUser.email.address.toLowerCase().trim();
   }
 
-  // Try to get email from linked accounts if not in primary email field
+  // Try linked accounts if no primary email
   if (!email && privyUser.linkedAccounts) {
     for (const account of privyUser.linkedAccounts) {
-      // Check for email account type
-      if (
-        "address" in account &&
-        account.type === "email" &&
-        typeof account.address === "string"
-      ) {
+      // Email account type
+      if (account.type === "email" && "address" in account && typeof account.address === "string") {
         email = account.address.toLowerCase().trim();
         break;
       }
-      // Check for OAuth providers (google_oauth, discord_oauth, github_oauth, etc.)
-      // These have an 'email' field directly on the account object
+      
+      // OAuth providers (Discord, Google, etc.) may include email
       if (
+        account.type.includes("oauth") &&
         "email" in account &&
         typeof account.email === "string" &&
-        account.email.length > 0 &&
-        typeof account.type === "string" &&
-        account.type.includes("oauth")
+        account.email.length > 0
       ) {
         email = account.email.toLowerCase().trim();
         break;
@@ -126,78 +113,54 @@ export async function syncUserFromPrivy(
     }
   }
 
-  // Extract wallet address from linkedAccounts
+  // Extract wallet (optional)
   let walletAddress: string | undefined;
   let walletChainType: "ethereum" | "solana" | undefined;
   let walletVerified = false;
 
   if (privyUser.linkedAccounts) {
     for (const account of privyUser.linkedAccounts) {
-      // Check for wallet account types
-      if (
-        (account.type === "wallet" ||
-          account.type === "ethereum_wallet" ||
-          account.type === "solana_wallet") &&
-        "address" in account &&
-        typeof account.address === "string"
-      ) {
+      if (account.type === "wallet" && "address" in account && typeof account.address === "string") {
         walletAddress = account.address.toLowerCase();
-        // Determine chain type from account type or chainType field
-        if ("chainType" in account && typeof account.chainType === "string") {
-          walletChainType = account.chainType.includes("solana")
-            ? "solana"
-            : "ethereum";
-        } else if (account.type === "solana_wallet") {
-          walletChainType = "solana";
-        } else {
-          walletChainType = "ethereum";
-        }
+        walletChainType = "chainType" in account && typeof account.chainType === "string" && account.chainType.includes("solana")
+          ? "solana"
+          : "ethereum";
         walletVerified = "verified" in account && account.verified === true;
         break;
       }
     }
   }
 
-  // Validation: User must have email OR wallet (hybrid approach)
-  if (!email && !walletAddress) {
-    console.error("[PrivySync] Validation failed - no email or wallet:", {
-      privyUserId,
-      hasEmail: !!email,
-      hasWallet: !!walletAddress,
-    });
-    throw new Error(
-      `User ${privyUserId} has neither email nor wallet - cannot sync`,
-    );
-  }
-
-  // Extract name from various sources
-  let name = privyUser.name;
-  if (!name && privyUser.linkedAccounts) {
+  // Extract name - prioritize: OAuth name > OAuth username > email > wallet
+  let name: string | null | undefined;
+  
+  if (privyUser.linkedAccounts) {
+    // Try OAuth account name first
     for (const account of privyUser.linkedAccounts) {
-      // Prioritize OAuth provider names
-      if (
-        "name" in account &&
-        typeof account.name === "string" &&
-        account.name.length > 0
-      ) {
+      if ("name" in account && typeof account.name === "string" && account.name.length > 0) {
         name = account.name;
         break;
       }
-      // Fallback to username for providers like Discord/GitHub
-      if (
-        !name &&
-        "username" in account &&
-        typeof account.username === "string" &&
-        account.username.length > 0
-      ) {
-        name = account.username;
+    }
+    
+    // Fallback to OAuth username (GitHub, Discord, etc.)
+    if (!name) {
+      for (const account of privyUser.linkedAccounts) {
+        if ("username" in account && typeof account.username === "string" && account.username.length > 0) {
+          name = account.username;
+          break;
+        }
       }
     }
   }
+  
+  // Final fallbacks for name
   if (!name && email) {
-    name = email.split("@")[0];
+    name = email.split("@")[0]; // Use email prefix
   } else if (!name && walletAddress) {
-    name = `${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}`;
+    name = `${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}`; // Truncated wallet
+  } else if (!name) {
+    name = `user-${privyUserId.substring(11, 19)}`; // Last resort: use part of Privy ID
   }
 
   // Check if user already exists
@@ -230,6 +193,7 @@ export async function syncUserFromPrivy(
     return user;
   }
 
+
   // Check for pending invite first (before creating new organization)
   if (email) {
     const pendingInvite = await invitesService.findPendingInviteByEmail(email);
@@ -248,8 +212,6 @@ export async function syncUserFromPrivy(
         is_active: true,
       });
 
-      const { organizationInvitesRepository } =
-        await import("@/db/repositories");
       await organizationInvitesRepository.markAsAccepted(
         pendingInvite.id,
         newUser.id,
@@ -277,7 +239,7 @@ export async function syncUserFromPrivy(
           isNewOrganization: false,
         })
         .catch((error) => {
-          console.error("[PrivySync] Failed to log signup to Discord:", error);
+          console.error("[SYNC] Discord log failed:", error);
         });
 
       return userWithOrg;
@@ -285,7 +247,6 @@ export async function syncUserFromPrivy(
   }
 
   // Create new user and organization
-
   // Check for abuse before creating new account
   if (!skipAbuseCheck && signupContext) {
     const abuseCheck = await abuseDetectionService.checkSignupAbuse({
@@ -296,22 +257,25 @@ export async function syncUserFromPrivy(
     });
 
     if (!abuseCheck.allowed) {
-      console.warn("[PrivySync] Signup blocked due to abuse detection:", {
-        privyUserId,
-        riskScore: abuseCheck.riskScore,
-        flags: abuseCheck.flags,
-      });
       throw new Error(abuseCheck.reason || "Signup blocked due to suspicious activity");
     }
   }
 
+  // Generate organization slug - require at least email, wallet, or name
   let orgSlug: string;
   if (email) {
     orgSlug = generateSlugFromEmail(email);
   } else if (walletAddress) {
     orgSlug = generateSlugFromWallet(walletAddress);
+  } else if (name) {
+    // Use name from OAuth username (GitHub, Discord, etc.)
+    const sanitized = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
+    const random = Math.random().toString(36).substring(2, 8);
+    const timestamp = Date.now().toString(36).slice(-4);
+    orgSlug = `${sanitized}-${timestamp}${random}`;
   } else {
-    throw new Error("Cannot generate org slug without email or wallet");
+    // Should never reach here - name always has a fallback
+    throw new Error(`Cannot generate organization slug for user ${privyUserId}`);
   }
 
   // Ensure slug is unique
@@ -335,6 +299,7 @@ export async function syncUserFromPrivy(
     credit_balance: "0.00",
   });
 
+
   // Record signup metadata for future abuse detection
   if (signupContext) {
     await abuseDetectionService.recordSignupMetadata(organization.id, signupContext);
@@ -342,6 +307,7 @@ export async function syncUserFromPrivy(
 
   // Add initial free credits via creditsService for proper tracking
   const initialCredits = getInitialCredits();
+
   if (initialCredits > 0) {
     try {
       await creditsService.addCredits({
@@ -354,7 +320,6 @@ export async function syncUserFromPrivy(
         },
       });
     } catch (error) {
-      console.error("[PrivySync] Failed to add initial credits:", error);
       // Fallback: update organization balance directly if addCredits fails
       await organizationsService.update(organization.id, {
         credit_balance: String(initialCredits),
@@ -416,10 +381,12 @@ export async function syncUserFromPrivy(
         if (existingUser) {
           // Check if it's the same Privy user or a different one
           if (existingUser.privy_user_id !== privyUserId) {
+            // Email is already registered with a different Privy account
+            // This happens when user signs up with email, then tries OAuth with same email
+            // TODO: Consider account linking instead of blocking
             console.warn(
               `User with email ${email} already exists with different Privy ID: ${existingUser.privy_user_id}`,
             );
-            // Clean up orphaned org and throw - this is a data integrity issue
             await organizationsService.delete(organization.id);
             throw new Error(
               `Email ${email} is already registered with a different account`,
@@ -455,6 +422,7 @@ export async function syncUserFromPrivy(
   if (!userWithOrg) {
     throw new Error(`Failed to fetch newly created user ${privyUserId}`);
   }
+
 
   // Send welcome email asynchronously (fire-and-forget)
   const recipientEmail = email || userWithOrg.organization?.billing_email;

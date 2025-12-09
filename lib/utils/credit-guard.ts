@@ -3,11 +3,9 @@
  * Provides a reusable pattern for credit deduction, generation execution, and automatic refunds on failure
  */
 
-import {
-  creditsService,
-  usageService,
-  organizationsService,
-} from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
+import { usageService } from "@/lib/services/usage";
+import { organizationsService } from "@/lib/services/organizations";
 
 interface CreditMetadata {
   user_id: string;

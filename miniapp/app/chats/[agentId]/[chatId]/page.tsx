@@ -294,26 +294,34 @@ function ChatPage() {
     return "New conversation";
   };
 
-  // Format relative time
-  const formatRelativeTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
+  // Format relative time with safe date handling
+  const formatRelativeTime = (dateValue: string | number | Date | null | undefined) => {
+    if (!dateValue) return "Just now";
 
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
+    try {
+      const date = new Date(dateValue);
+      if (isNaN(date.getTime())) return "Just now";
+
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+
+      if (diffMins < 1) return "Just now";
+      if (diffMins < 60) return `${diffMins}m ago`;
+      if (diffHours < 24) return `${diffHours}h ago`;
+      if (diffDays < 7) return `${diffDays}d ago`;
+      return date.toLocaleDateString();
+    } catch {
+      return "Just now";
+    }
   };
 
   if (!ready || !authenticated) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
       </div>
     );
   }
@@ -321,7 +329,7 @@ function ChatPage() {
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
       </div>
     );
   }
@@ -346,7 +354,7 @@ function ChatPage() {
           {/* Sidebar Header */}
           <div className="flex items-center justify-between border-b border-white/10 p-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-pink-500/20">
+              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-brand/20">
                 {agent?.avatarUrl ? (
                   <Image
                     src={agent.avatarUrl}
@@ -356,7 +364,7 @@ function ChatPage() {
                     className="h-10 w-10 rounded-lg object-cover"
                   />
                 ) : (
-                  <Bot className="h-5 w-5 text-pink-400" />
+                  <Bot className="h-5 w-5 text-brand-400" />
                 )}
               </div>
               <div className="min-w-0 flex-1">
@@ -378,7 +386,7 @@ function ChatPage() {
             <button
               onClick={handleNewChat}
               disabled={creatingChat}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-pink-500 py-2.5 text-sm font-medium text-white transition-colors hover:bg-pink-600 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-600 disabled:opacity-50"
             >
               {creatingChat ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -404,7 +412,7 @@ function ChatPage() {
                   onClick={() => setSidebarOpen(false)}
                   className={`flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors ${
                     chat.id === chatId
-                      ? "bg-pink-500/20 text-white"
+                      ? "bg-brand/20 text-white"
                       : "text-white/60 hover:bg-white/5 hover:text-white"
                   }`}
                 >
@@ -454,7 +462,7 @@ function ChatPage() {
             <Menu className="h-4 w-4" />
           </button>
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-pink-500/20">
+            <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-brand/20">
               {agent?.avatarUrl ? (
                 <Image
                   src={agent.avatarUrl}
@@ -464,7 +472,7 @@ function ChatPage() {
                   className="h-8 w-8 rounded-lg object-cover"
                 />
               ) : (
-                <Bot className="h-4 w-4 text-pink-400" />
+                <Bot className="h-4 w-4 text-brand-400" />
               )}
             </div>
             <span className="font-medium text-white">{agent?.name}</span>
@@ -484,7 +492,7 @@ function ChatPage() {
           <div className="mx-auto max-w-2xl space-y-4">
             {messages.length === 0 && !streamingContent && !isThinking && (
               <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-pink-500/20">
+                <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-brand/20">
                   {agent?.avatarUrl ? (
                     <Image
                       src={agent.avatarUrl}
@@ -494,7 +502,7 @@ function ChatPage() {
                       className="h-16 w-16 rounded-full object-cover"
                     />
                   ) : (
-                    <Bot className="h-8 w-8 text-pink-400" />
+                    <Bot className="h-8 w-8 text-brand-400" />
                   )}
                 </div>
                 <p className="mt-4 text-sm text-white/60">
@@ -511,7 +519,7 @@ function ChatPage() {
                 }`}
               >
                 {message.role === "assistant" && (
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-pink-500/20">
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand/20">
                     {agent?.avatarUrl ? (
                       <Image
                         src={agent.avatarUrl}
@@ -521,14 +529,14 @@ function ChatPage() {
                         className="h-8 w-8 rounded-lg object-cover"
                       />
                     ) : (
-                      <Bot className="h-4 w-4 text-pink-400" />
+                      <Bot className="h-4 w-4 text-brand-400" />
                     )}
                   </div>
                 )}
                 <div
                   className={`max-w-[80%] rounded-lg px-4 py-2 ${
                     message.role === "user"
-                      ? "bg-pink-500 text-white"
+                      ? "bg-brand text-white"
                       : "bg-white/10 text-white"
                   }`}
                 >
@@ -539,7 +547,7 @@ function ChatPage() {
                         <button
                           key={attachment.id}
                           onClick={() => openImageModal(attachment.url)}
-                          className="relative overflow-hidden rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                          className="relative overflow-hidden rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
@@ -567,7 +575,7 @@ function ChatPage() {
             {/* Thinking indicator - shown when waiting for response */}
             {isThinking && !streamingContent && (
               <div className="flex gap-3 animate-in fade-in duration-300">
-                <div className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-pink-500/20">
+                <div className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand/20">
                   {agent?.avatarUrl ? (
                     <Image
                       src={agent.avatarUrl}
@@ -577,21 +585,21 @@ function ChatPage() {
                       className="h-8 w-8 rounded-lg object-cover"
                     />
                   ) : (
-                    <Bot className="h-4 w-4 text-pink-400" />
+                    <Bot className="h-4 w-4 text-brand-400" />
                   )}
                   {/* Subtle pulsing glow */}
-                  <span className="absolute inset-0 animate-pulse rounded-lg bg-pink-500/30" />
+                  <span className="absolute inset-0 animate-pulse rounded-lg bg-brand/30" />
                 </div>
-                <div className="rounded-lg bg-gradient-to-r from-pink-500/10 to-purple-500/10 px-4 py-3 text-white border border-pink-500/20">
+                <div className="rounded-lg bg-gradient-to-r from-brand/10 to-accent-brand/10 px-4 py-3 text-white border border-brand/20">
                   <div className="flex items-center gap-2.5">
-                    <Sparkles className="h-4 w-4 animate-pulse text-pink-400" />
+                    <Sparkles className="h-4 w-4 animate-pulse text-brand-400" />
                     <span className="text-sm text-white/70">
                       {agent?.name} is thinking
                     </span>
                     <span className="flex gap-1 ml-1">
-                      <span className="animate-thinking-dot h-1.5 w-1.5 rounded-full bg-pink-400" />
-                      <span className="animate-thinking-dot h-1.5 w-1.5 rounded-full bg-pink-400" />
-                      <span className="animate-thinking-dot h-1.5 w-1.5 rounded-full bg-pink-400" />
+                      <span className="animate-thinking-dot h-1.5 w-1.5 rounded-full bg-brand-400" />
+                      <span className="animate-thinking-dot h-1.5 w-1.5 rounded-full bg-brand-400" />
+                      <span className="animate-thinking-dot h-1.5 w-1.5 rounded-full bg-brand-400" />
                     </span>
                   </div>
                 </div>
@@ -601,7 +609,7 @@ function ChatPage() {
             {/* Streaming message - shown when receiving response content */}
             {streamingContent && (
               <div className="flex gap-3 animate-in fade-in duration-200">
-                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-pink-500/20">
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand/20">
                   {agent?.avatarUrl ? (
                     <Image
                       src={agent.avatarUrl}
@@ -611,14 +619,14 @@ function ChatPage() {
                       className="h-8 w-8 rounded-lg object-cover"
                     />
                   ) : (
-                    <Bot className="h-4 w-4 text-pink-400" />
+                    <Bot className="h-4 w-4 text-brand-400" />
                   )}
                 </div>
                 <div className="max-w-[80%] rounded-lg bg-white/10 px-4 py-2 text-white">
                   <p className="whitespace-pre-wrap text-sm">
                     {streamingContent}
                     {/* Typing cursor */}
-                    <span className="animate-typing-cursor ml-0.5 inline-block h-4 w-0.5 bg-pink-400 align-middle" />
+                    <span className="animate-typing-cursor ml-0.5 inline-block h-4 w-0.5 bg-brand-400 align-middle" />
                   </p>
                 </div>
               </div>
@@ -634,7 +642,6 @@ function ChatPage() {
             <div className="mx-auto max-w-2xl">
               <OutOfCreditsPrompt
                 currentBalance={creditBalance ?? 0}
-                onClose={() => setShowLowCredits(false)}
               />
             </div>
           </div>
@@ -694,12 +701,12 @@ function ChatPage() {
               placeholder="Type a message..."
               rows={1}
               disabled={sending}
-              className="flex-1 resize-none rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-white placeholder-white/40 focus:border-pink-500 focus:outline-none disabled:opacity-50"
+              className="flex-1 resize-none rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-white placeholder-white/40 focus:border-brand focus:outline-none disabled:opacity-50"
             />
             <button
               onClick={handleSend}
                 disabled={(!input.trim() && !selectedImage) || sending}
-              className="flex items-center justify-center rounded-lg bg-pink-500 px-4 py-2 text-white transition-colors hover:bg-pink-600 disabled:opacity-50"
+              className="flex items-center justify-center rounded-lg bg-brand px-4 py-2 text-white transition-colors hover:bg-brand-600 disabled:opacity-50"
             >
               {sending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

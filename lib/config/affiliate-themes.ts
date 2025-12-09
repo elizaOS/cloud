@@ -268,11 +268,11 @@ export function getAffiliateIdFromCharacter(
   if (!characterData) return undefined;
 
   const affiliate = characterData.affiliate as
-    | Record<string, unknown>
+    | { affiliateId?: string; [key: string]: unknown }
     | undefined;
   if (!affiliate) return undefined;
 
-  return affiliate.affiliateId as string | undefined;
+  return affiliate.affiliateId;
 }
 
 /**

@@ -76,7 +76,6 @@ export * from "./generations";
 // ============================================
 // App Domain
 // ============================================
-export * from "./eliza-room-characters";
 export * from "./apps";
 export * from "./app-credit-balances";
 export * from "./app-earnings";
@@ -85,3 +84,13 @@ export * from "./app-earnings";
 // Referrals & Rewards
 // ============================================
 export * from "./referrals";
+
+// ============================================
+// User MCPs (Monetizable MCP Servers)
+// ============================================
+export * from "./user-mcps";
+
+// ============================================
+// Token Redemptions (elizaOS payouts)
+// ============================================
+export * from "./token-redemptions";

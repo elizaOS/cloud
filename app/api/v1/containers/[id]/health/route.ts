@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { getContainerHealthStatus } from "@/lib/services/health-monitor";
 import { containersRepository } from "@/db/repositories/containers";
@@ -65,7 +66,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Error checking container health:", error);
+    logger.error("Error checking container health:", error);
     return NextResponse.json(
       {
         success: false,

@@ -1,7 +1,7 @@
 "use server";
 
 import { requireAuthWithOrg } from "@/lib/auth";
-import { organizationsService } from "@/lib/services";
+import { organizationsService } from "@/lib/services/organizations";
 
 /**
  * Gets the credit balance for the authenticated user's organization.

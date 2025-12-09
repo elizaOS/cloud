@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { invitesService } from "@/lib/services";
+import { invitesService } from "@/lib/services/invites";
 import { z } from "zod";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
@@ -57,7 +58,7 @@ async function handlePOST(request: NextRequest) {
       message: "Invitation sent successfully",
     });
   } catch (error) {
-    console.error("Error creating invite:", error);
+    logger.error("Error creating invite:", error);
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -114,26 +115,24 @@ async function handleGET() {
       user.organization_id!,
     );
 
-    // Type for invite with inviter relation
-    interface InviteWithInviter {
-      id: string;
-      invited_email: string;
-      invited_role: string;
-      status: string;
-      expires_at: Date;
-      created_at: Date;
-      accepted_at: Date | null;
+    /**
+     * Type for invite with inviter relation.
+     * The repository query uses `with: { inviter }` but Drizzle's base return type
+     * doesn't include relations. This type extends the base invite with the relation.
+     */
+    type InviteWithInviter = typeof invites[number] & {
       inviter?: {
         id: string;
         name: string | null;
         email: string | null;
       } | null;
-    }
+    };
 
     return NextResponse.json({
       success: true,
       data: invites.map((invite) => {
-        const inviteWithRelation = invite as unknown as InviteWithInviter;
+        // Safe cast: repository query includes inviter relation via `with` clause
+        const inviteWithRelation = invite as InviteWithInviter;
         return {
           id: inviteWithRelation.id,
           email: inviteWithRelation.invited_email,
@@ -153,7 +152,7 @@ async function handleGET() {
       }),
     });
   } catch (error) {
-    console.error("Error fetching invites:", error);
+    logger.error("Error fetching invites:", error);
 
     return NextResponse.json(
       {

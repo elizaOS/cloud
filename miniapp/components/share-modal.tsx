@@ -13,10 +13,8 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { siteConfig } from "@/app/config";
 import { claimShareReward, getReferralInfo, getRewardsStatus } from "@/lib/cloud-api";
-
-// Default share text - makes it clear what the app is
-const DEFAULT_SHARE_TEXT = "I'm chatting with AI friends on Eliza! Create your own AI companion 🤖✨";
 
 // Platform icons as simple components
 function XIcon({ className }: { className?: string }) {
@@ -158,7 +156,7 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
       return;
     }
 
-    const text = shareContent?.text || DEFAULT_SHARE_TEXT;
+    const text = shareContent?.text || siteConfig.sharing.defaultText;
     const url = shareContent?.url || shareUrl;
     
     // Claim reward immediately (server-side tracking)
@@ -190,7 +188,7 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
       return;
     }
 
-    const text = shareContent?.text || DEFAULT_SHARE_TEXT;
+    const text = shareContent?.text || siteConfig.sharing.defaultText;
     const url = shareContent?.url || shareUrl;
     
     // Claim reward immediately (server-side tracking)
@@ -234,7 +232,7 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <div className="flex items-center gap-2">
-            <Gift className="h-5 w-5 text-pink-500" />
+            <Gift className="h-5 w-5 text-brand" />
             <h2 className="text-lg font-semibold text-white">Share & Earn</h2>
           </div>
           <button
@@ -247,9 +245,8 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
         </div>
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
-            <p className="text-sm text-white/40">Loading your rewards...</p>
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="h-8 w-8 animate-spin text-brand" />
           </div>
         ) : error ? (
           <div className="p-6 text-center space-y-4">
@@ -264,7 +261,7 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
         ) : (
           <div className="p-6 space-y-5">
             {/* Stats - Always show, with zero state */}
-            <div className="flex items-center justify-center gap-6 p-4 rounded-xl bg-gradient-to-r from-pink-500/10 to-purple-500/10 border border-pink-500/20">
+            <div className="flex items-center justify-center gap-6 p-4 rounded-xl bg-gradient-to-r from-brand/10 to-accent-brand/10 border border-brand/20">
               <div className="text-center">
                 <p className="text-2xl font-bold text-white">{stats?.totalReferrals || 0}</p>
                 <p className="text-xs text-white/60">Referrals</p>
@@ -279,16 +276,11 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
             {/* Share Buttons Section */}
             {shareStatus?.x.claimed && shareStatus?.farcaster.claimed ? (
               // All shares claimed today - show success message
-              <div className="space-y-3">
-                <div className="flex items-center justify-center gap-2 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                  <Sparkles className="h-5 w-5 text-emerald-400" />
-                  <span className="text-sm font-medium text-emerald-400">
-                    Today&apos;s share rewards collected!
-                  </span>
-                </div>
-                <p className="text-xs text-white/40 text-center">
-                  Come back tomorrow for 50 credits more. Your referral link always works!
-                </p>
+              <div className="flex items-center justify-center gap-2 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                <Sparkles className="h-5 w-5 text-emerald-400" />
+                <span className="text-sm font-medium text-emerald-400">
+                  Today&apos;s rewards collected
+                </span>
               </div>
             ) : (
               // Show share buttons for unclaimed platforms
@@ -312,11 +304,11 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
                         ? "bg-emerald-500/10 border-emerald-500/30"
                         : claiming === "x"
                         ? "bg-white/5 border-white/10 opacity-60 cursor-not-allowed"
-                        : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-pink-500/30 hover:scale-[1.02] active:scale-[0.98]"
+                        : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-brand/30 hover:scale-[1.02] active:scale-[0.98]"
                     }`}
                   >
                     {claiming === "x" ? (
-                      <Loader2 className="h-6 w-6 animate-spin text-pink-400" />
+                      <Loader2 className="h-6 w-6 animate-spin text-brand-400" />
                     ) : shareStatus?.x.claimed ? (
                       <>
                         <div className="flex items-center gap-1.5">
@@ -345,11 +337,11 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
                         ? "bg-emerald-500/10 border-emerald-500/30"
                         : claiming === "farcaster"
                         ? "bg-white/5 border-white/10 opacity-60 cursor-not-allowed"
-                        : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-purple-500/30 hover:scale-[1.02] active:scale-[0.98]"
+                        : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-accent-brand/30 hover:scale-[1.02] active:scale-[0.98]"
                     }`}
                   >
                     {claiming === "farcaster" ? (
-                      <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
+                      <Loader2 className="h-6 w-6 animate-spin text-accent-brand-400" />
                     ) : shareStatus?.farcaster.claimed ? (
                       <>
                         <div className="flex items-center gap-1.5">
@@ -397,9 +389,6 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
                   )}
                 </button>
               </div>
-            <p className="text-xs text-white/40 text-center">
-              Friends get 50 credits • You get 100 credits (+50 when they link) + 5% forever
-            </p>
             </div>
 
             {/* Copy Link - Primary CTA */}
@@ -408,7 +397,7 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
               className={`flex items-center justify-center gap-2 w-full px-4 py-3.5 rounded-xl font-medium transition-all ${
                 linkCopied
                   ? "bg-emerald-500/20 border border-emerald-500/30 text-emerald-400"
-                  : "bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:opacity-90 hover:scale-[1.01] active:scale-[0.99]"
+                  : "bg-gradient-to-r from-brand to-accent-brand-600 text-white hover:opacity-90 hover:scale-[1.01] active:scale-[0.99]"
               }`}
             >
               {linkCopied ? (
@@ -429,4 +418,3 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
     </div>
   );
 }
-

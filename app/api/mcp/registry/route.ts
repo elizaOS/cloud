@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { z } from "zod";
+import { userMcpsService } from "@/lib/services/user-mcps";
+import { agent0Service } from "@/lib/services/agent0";
+import { getDefaultNetwork, CHAIN_IDS } from "@/lib/config/erc8004";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +44,11 @@ const queryParamsSchema = z.object({
     .max(100)
     .optional()
     .describe("Search term for filtering by name or description"),
+  includeExternal: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe("Include external ERC-8004 registered MCPs"),
 });
 
 /**
@@ -279,6 +288,8 @@ export async function GET(request: NextRequest) {
         ? parseInt(request.nextUrl.searchParams.get("limit")!, 10)
         : 100,
       search: request.nextUrl.searchParams.get("search") || undefined,
+      includeExternal:
+        request.nextUrl.searchParams.get("includeExternal") === "true",
     };
 
     // Validate query parameters with Zod schema
@@ -298,29 +309,116 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { category, status, limit, search } = validationResult.data;
+    const { category, status, limit, search, includeExternal } =
+      validationResult.data;
 
-    // Process registry entries - keep pathnames, don't inject baseUrl
-    // This allows configs to work across dev/prod/localhost environments
-    const registry = MCP_REGISTRY.map((entry) => ({
+    // Process built-in registry entries
+    const builtInRegistry = MCP_REGISTRY.map((entry) => ({
       ...entry,
+      source: "platform" as const,
       configTemplate: {
         servers: Object.fromEntries(
           Object.entries(entry.configTemplate.servers).map(([key, value]) => [
             key,
             {
               ...value,
-              // Remove ${BASE_URL} placeholder - store as pathname only
               url: value.url.replace("${BASE_URL}", ""),
             },
           ]),
         ),
       },
-      // Include full endpoint URL for display/testing purposes only
       fullEndpoint: entry.endpoint.startsWith("http")
         ? entry.endpoint
         : `${baseUrl}${entry.endpoint}`,
     }));
+
+    // Fetch user MCPs (public, live)
+    let userMcpRegistry: typeof builtInRegistry = [];
+    try {
+      const userMcps = await userMcpsService.listPublic({
+        category: category !== "all" ? category : undefined,
+        search,
+        limit: 50,
+      });
+
+      userMcpRegistry = userMcps.map((mcp) => {
+        const formatted = userMcpsService.toRegistryFormat(mcp, baseUrl);
+        return {
+          ...formatted,
+          source: "community" as const,
+          fullEndpoint: formatted.endpoint,
+        };
+      });
+    } catch (error) {
+      // If user MCPs fail to load, continue with built-in only
+      console.warn("[MCP Registry] Failed to load user MCPs:", error);
+    }
+
+    // Fetch external ERC-8004 registered MCPs if requested
+    let externalMcpRegistry: typeof builtInRegistry = [];
+    if (includeExternal) {
+      try {
+        const network = getDefaultNetwork();
+        const chainId = CHAIN_IDS[network];
+
+        // Search for services with MCP endpoints
+        const externalAgents = await agent0Service.searchAgentsCached({
+          name: search,
+          active: true,
+        });
+
+        // Filter to only include agents with MCP endpoints
+        const mcpAgents = externalAgents.filter((agent) => agent.mcpEndpoint);
+
+        externalMcpRegistry = mcpAgents.map((agent) => ({
+          id: `erc8004-${agent.agentId}`,
+          name: agent.name,
+          description: agent.description || "External MCP service",
+          category: "external",
+          endpoint: agent.mcpEndpoint!,
+          type: "streamable-http" as const,
+          version: "1.0.0",
+          status: "live" as const,
+          icon: "globe",
+          color: "#8B5CF6",
+          toolCount: agent.mcpTools?.length || 0,
+          features: agent.mcpTools || [],
+          pricing: {
+            type: agent.x402Support ? ("x402" as const) : ("free" as const),
+            description: agent.x402Support
+              ? "Pay-per-request via x402"
+              : "Free to use",
+          },
+          x402Enabled: agent.x402Support,
+          source: "erc8004" as const,
+          fullEndpoint: agent.mcpEndpoint!,
+          configTemplate: {
+            servers: {
+              [agent.agentId.replace(":", "-")]: {
+                type: "streamable-http" as const,
+                url: agent.mcpEndpoint!,
+              },
+            },
+          },
+          // ERC-8004 specific metadata
+          erc8004: {
+            agentId: agent.agentId,
+            network,
+            chainId,
+            walletAddress: agent.walletAddress,
+          },
+        }));
+      } catch (error) {
+        console.warn("[MCP Registry] Failed to load ERC-8004 MCPs:", error);
+      }
+    }
+
+    // Combine registries
+    const registry = [
+      ...builtInRegistry,
+      ...userMcpRegistry,
+      ...externalMcpRegistry,
+    ];
 
     let filteredRegistry = registry;
 
@@ -350,26 +448,30 @@ export async function GET(request: NextRequest) {
     // Apply limit with validated input
     filteredRegistry = filteredRegistry.slice(0, limit);
 
-    // Get unique categories from the full registry (not filtered)
-    const categories = [...new Set(MCP_REGISTRY.map((e) => e.category))];
-    const statuses = [...new Set(MCP_REGISTRY.map((e) => e.status))];
+    // Get unique categories from the full registry
+    const categories = [...new Set(registry.map((e) => e.category))];
+    const statuses = [...new Set(registry.map((e) => e.status))];
 
     return NextResponse.json({
       registry: filteredRegistry,
       categories,
       statuses,
       total: filteredRegistry.length,
-      totalInRegistry: MCP_REGISTRY.length,
+      totalInRegistry: registry.length,
+      platformMcps: builtInRegistry.length,
+      communityMcps: userMcpRegistry.length,
+      externalMcps: externalMcpRegistry.length,
       appliedFilters: {
         category: category !== "all" ? category : null,
         status: status !== "all" ? status : null,
         search: search || null,
         limit,
+        includeExternal,
       },
       isAuthenticated,
     });
   } catch (error) {
-    console.error("[MCP Registry] Error:", error);
+    logger.error("[MCP Registry] Error:", error);
     return NextResponse.json(
       {
         error:

@@ -8,7 +8,8 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import type { UserWithOrganization } from "@/lib/types";
 import { SettingsTabs } from "./settings-tabs";
@@ -36,7 +37,20 @@ export type SettingsTab =
   | "organization";
 
 export function SettingsPageClient({ user }: SettingsPageClientProps) {
-  const [activeTab, setActiveTab] = useState<SettingsTab>("general");
+  const searchParams = useSearchParams();
+  const tabFromUrl = searchParams.get("tab") as SettingsTab | null;
+
+  const [activeTab, setActiveTab] = useState<SettingsTab>(
+    tabFromUrl || "general"
+  );
+
+  useEffect(() => {
+    if (tabFromUrl) {
+      queueMicrotask(() => {
+        setActiveTab(tabFromUrl);
+      });
+    }
+  }, [tabFromUrl]);
 
   useSetPageHeader({
     title: "Settings",

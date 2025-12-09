@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { paymentMethodsService } from "@/lib/services/payment-methods";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -42,7 +43,7 @@ async function handleListPaymentMethods(req: NextRequest) {
       defaultPaymentMethodId: org?.stripe_default_payment_method || null,
     });
   } catch (error) {
-    console.error("Error listing payment methods:", error);
+    logger.error("Error listing payment methods:", error);
 
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { creditsService } from "@/lib/services";
+import { logger } from "@/lib/utils/logger";
+import { creditsService } from "@/lib/services/credits";
 
 /**
  * GET /api/stripe/credit-packs
@@ -13,7 +14,7 @@ export async function GET() {
     const creditPacks = await creditsService.listActiveCreditPacks();
     return NextResponse.json({ creditPacks }, { status: 200 });
   } catch (error) {
-    console.error("Error fetching credit packs:", error);
+    logger.error("Error fetching credit packs:", error);
     return NextResponse.json(
       { error: "Failed to fetch credit packs" },
       { status: 500 },

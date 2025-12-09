@@ -18,6 +18,7 @@ import {
   type Stack,
   type StackStatus,
 } from "@aws-sdk/client-cloudformation";
+import { logger } from "@/lib/utils/logger";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { dbPriorityManager } from "./alb-priority-manager";
@@ -91,17 +92,17 @@ export class CloudFormationService {
       // Vercel deployment (relative to project root)
       path.join(
         process.cwd(),
-        "infrastructure/cloudformation/per-user-stack.json",
+        "scripts/cloudformation/per-user-stack.json",
       ),
       // Local development (from lib/services/)
       path.join(
         __dirname,
-        "../../infrastructure/cloudformation/per-user-stack.json",
+        "../../scripts/cloudformation/per-user-stack.json",
       ),
       // Build output (from .next/server/)
       path.join(
         __dirname,
-        "../../../infrastructure/cloudformation/per-user-stack.json",
+        "../../../scripts/cloudformation/per-user-stack.json",
       ),
     ];
 
@@ -117,7 +118,7 @@ export class CloudFormationService {
     if (!fs.existsSync(this.templatePath)) {
       throw new Error(
         `CloudFormation template not found at: ${this.templatePath}. ` +
-          `Expected location: infrastructure/cloudformation/per-user-stack.json from project root. ` +
+          `Expected location: scripts/cloudformation/per-user-stack.json from project root. ` +
           `Current working directory: ${process.cwd()}`,
       );
     }
@@ -171,21 +172,21 @@ export class CloudFormationService {
     maxRetries: number = 3,
     delayMs: number = 1000,
   ): Promise<T> {
-    console.log(
+    logger.info(
       `[CloudFormation withRetry] Starting operation with ${maxRetries} max retries`,
     );
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(
+        logger.info(
           `[CloudFormation withRetry] Attempt ${attempt}/${maxRetries}`,
         );
         const result = await operation();
-        console.log(`[CloudFormation withRetry] Attempt ${attempt} succeeded`);
+        logger.info(`[CloudFormation withRetry] Attempt ${attempt} succeeded`);
         return result;
       } catch (error: unknown) {
         // Don't retry validation errors
         if (error instanceof Error && error.name === "ValidationError") {
-          console.error(
+          logger.error(
             `[CloudFormation withRetry] ValidationError, not retrying:`,
             error.message,
           );
@@ -194,13 +195,13 @@ export class CloudFormationService {
 
         const errorMessage =
           error instanceof Error ? error.message : String(error);
-        console.error(
+        logger.error(
           `[CloudFormation withRetry] Attempt ${attempt}/${maxRetries} failed:`,
           errorMessage,
         );
 
         if (attempt === maxRetries) {
-          console.error(
+          logger.error(
             `[CloudFormation withRetry] All ${maxRetries} attempts failed, throwing error`,
           );
           throw error;
@@ -231,7 +232,7 @@ export class CloudFormationService {
       const albPriority = await dbPriorityManager.allocatePriority(
         config.userId,
       );
-      console.log(`Allocated ALB priority ${albPriority} for ${config.userId}`);
+      logger.info(`Allocated ALB priority ${albPriority} for ${config.userId}`);
 
       // Load template and parse as JSON for dynamic modification
       const templateJson = JSON.parse(
@@ -257,7 +258,7 @@ export class CloudFormationService {
         ) {
           templateJson.Resources.TaskDefinition.Properties.ContainerDefinitions[0].Environment =
             envArray;
-          console.log(
+          logger.info(
             `Injected ${envArray.length} environment variables into task definition`,
           );
         }
@@ -348,7 +349,7 @@ export class CloudFormationService {
         const response = await this.client.send(command);
         return response.StackId!;
       } catch (createError) {
-        console.error(`❌ [CloudFormation] CreateStack API call failed:`, {
+        logger.error(`❌ [CloudFormation] CreateStack API call failed:`, {
           error:
             createError instanceof Error
               ? createError.message
@@ -396,7 +397,7 @@ export class CloudFormationService {
         ) {
           templateJson.Resources.TaskDefinition.Properties.ContainerDefinitions[0].Environment =
             envArray;
-          console.log(
+          logger.info(
             `Injected ${envArray.length} environment variables into task definition for update`,
           );
         }
@@ -506,7 +507,7 @@ export class CloudFormationService {
       });
 
       const response = await this.client.send(command);
-      console.log(`✅ Stack update initiated for ${stackName}`);
+      logger.info(`✅ Stack update initiated for ${stackName}`);
       return response.StackId!;
     });
   }
@@ -534,7 +535,7 @@ export class CloudFormationService {
 
       // Terminal success states
       if (status === "CREATE_COMPLETE" || status === "UPDATE_COMPLETE") {
-        console.log(`Stack ${stackName} completed successfully`);
+        logger.info(`Stack ${stackName} completed successfully`);
         return status;
       }
 
@@ -550,7 +551,7 @@ export class CloudFormationService {
         const failureDetails = await this.getStackFailureDetails(stackName);
         const failureReason = stack.StackStatusReason || "Unknown failure";
 
-        console.error(`❌ [CloudFormation] Stack ${stackName} failed:`, {
+        logger.error(`❌ [CloudFormation] Stack ${stackName} failed:`, {
           status,
           reason: failureReason,
           failedResources: failureDetails,
@@ -571,7 +572,7 @@ export class CloudFormationService {
       }
 
       // Still in progress, wait and retry
-      console.log(`Stack ${stackName} status: ${status}, waiting...`);
+      logger.info(`Stack ${stackName} status: ${status}, waiting...`);
       await new Promise((resolve) => setTimeout(resolve, 10000)); // Wait 10 seconds
     }
 
@@ -628,7 +629,7 @@ export class CloudFormationService {
           status: event.ResourceStatus || "Unknown",
         }));
     } catch (error) {
-      console.error("Failed to get stack failure details", { stackName, error });
+      logger.error("Failed to get stack failure details", { stackName, error });
       return [];
     }
   }
@@ -695,7 +696,7 @@ export class CloudFormationService {
       });
 
       await this.client.send(command);
-      console.log(`Stack deletion initiated: ${stackName}`);
+      logger.info(`Stack deletion initiated: ${stackName}`);
 
       // Release ALB priority after stack deletion initiated
       // This will set expiry timestamp for cleanup
@@ -719,7 +720,7 @@ export class CloudFormationService {
       const stack = await this.getStack(userId, projectName);
 
       if (!stack) {
-        console.log(`Stack ${stackName} deleted successfully`);
+        logger.info(`Stack ${stackName} deleted successfully`);
         return;
       }
 
@@ -732,7 +733,7 @@ export class CloudFormationService {
         );
       }
 
-      console.log(
+      logger.info(
         `Stack ${stackName} status: ${status}, waiting for deletion...`,
       );
       await new Promise((resolve) => setTimeout(resolve, 10000));
@@ -793,7 +794,7 @@ export class CloudFormationService {
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      console.error(
+      logger.error(
         "Failed to get shared infrastructure outputs:",
         errorMessage,
       );
@@ -833,7 +834,7 @@ export class CloudFormationService {
 
       // Complete states
       if (status === "UPDATE_COMPLETE") {
-        console.log(`✅ Stack ${stackName} updated successfully`);
+        logger.info(`✅ Stack ${stackName} updated successfully`);
         return status;
       }
 
@@ -850,7 +851,7 @@ export class CloudFormationService {
       }
 
       // Still in progress
-      console.log(`Stack ${stackName} status: ${status}, waiting...`);
+      logger.info(`Stack ${stackName} status: ${status}, waiting...`);
       await new Promise((resolve) => setTimeout(resolve, 10000));
     }
 

@@ -35,6 +35,13 @@ export const CacheKeys = {
     validation: (keyHash: string) => `apikey:validation:${keyHash}:v1`,
     pattern: () => `apikey:*`,
   },
+  session: {
+    /** Cache session token validation results */
+    privy: (tokenHash: string) => `session:privy:${tokenHash}:v1`,
+    /** Cache user data by session token */
+    user: (tokenHash: string) => `session:user:${tokenHash}:v1`,
+    pattern: () => `session:*`,
+  },
   user: {
     byEmail: (email: string) => `user:email:${email}:v1`,
     pattern: () => `user:*`,
@@ -78,6 +85,21 @@ export const CacheKeys = {
     orgBalance: (orgId: string) => `eliza:org:${orgId}:balance:v1`,
     pattern: () => `eliza:*`,
   },
+  /**
+   * ERC-8004 registry cache keys
+   * Used for caching searches and agent lookups from the on-chain registry
+   */
+  erc8004: {
+    /** Cache search results by network and filter hash */
+    search: (network: string, filterHash: string) =>
+      `erc8004:search:${network}:${filterHash}:v1`,
+    /** Cache individual agent details by agentId */
+    agent: (agentId: string) => `erc8004:agent:${agentId}:v1`,
+    /** Cache discovery results (combined local + external) */
+    discovery: (filterHash: string) => `erc8004:discovery:${filterHash}:v1`,
+    /** Pattern for invalidating all ERC-8004 cache */
+    pattern: () => `erc8004:*`,
+  },
 } as const;
 
 /**
@@ -105,6 +127,10 @@ export const CacheTTL = {
   },
   apiKey: {
     validation: 600, // 10 minutes (was 300s)
+  },
+  session: {
+    privy: 300, // 5 minutes - Privy token validation
+    user: 300, // 5 minutes - User data by session
   },
   user: {
     byEmail: 600, // 10 minutes (was 300s)
@@ -135,6 +161,15 @@ export const CacheTTL = {
     roomCharacter: 600, // 10 minutes - room character mappings rarely change
     orgBalance: 30, // 30 seconds - balance changes frequently but we can tolerate slight staleness
   },
+  /**
+   * ERC-8004 registry cache TTLs
+   * Longer TTLs since on-chain data changes infrequently
+   */
+  erc8004: {
+    search: 300, // 5 minutes - search results
+    agent: 3600, // 1 hour - individual agent details (rarely change)
+    discovery: 180, // 3 minutes - combined discovery results
+  },
 } as const;
 
 /**
@@ -150,5 +185,9 @@ export const CacheStaleTTL = {
     overview: 180, // Serve stale after 3 minutes
     breakdown: 300, // Serve stale after 5 minutes
     stats: 300, // Serve stale after 5 minutes
+  },
+  erc8004: {
+    search: 180, // Serve stale search results after 3 minutes
+    discovery: 120, // Serve stale discovery after 2 minutes
   },
 } as const;

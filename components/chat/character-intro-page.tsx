@@ -63,9 +63,9 @@ export function CharacterIntroPage({
     | Record<string, unknown>
     | undefined;
   const affiliate = characterData?.affiliate as
-    | Record<string, unknown>
+    | { vibe?: string; [key: string]: unknown }
     | undefined;
-  const vibeLabel = affiliate?.vibe as string | undefined;
+  const vibeLabel = affiliate?.vibe;
 
   const handleStartChat = () => {
     // If user is authenticated, skip the modal and go directly to chat

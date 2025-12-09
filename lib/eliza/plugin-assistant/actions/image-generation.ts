@@ -13,7 +13,7 @@ import {
   logger,
 } from "@elizaos/core";
 import { v4 } from "uuid";
-import { uploadBase64Image } from "@/lib/blob";
+import { uploadBase64Image, isFalAiUrl, ensureElizaCloudUrl } from "@/lib/blob";
 import type { AffiliateData } from "@/lib/types/affiliate";
 
 interface AffiliateImageConfig {
@@ -421,8 +421,6 @@ async function ensureBlobUrl(
 ): Promise<string | null> {
   if (!isBase64DataUrl(imageUrl)) {
     // Check if it's a Fal.ai URL - if so, upload to our storage
-    const { isFalAiUrl, ensureElizaCloudUrl } = await import("@/lib/blob");
-
     if (isFalAiUrl(imageUrl)) {
       logger.info(
         "[GENERATE_IMAGE] Fal.ai URL detected, uploading to our storage...",
@@ -523,7 +521,7 @@ The person you are generating MUST match this EXACT description:
 - Appropriate pose (cute, flirty, confident)
 
 # Recent conversation:
-{{recentMessages}}
+{{conversationLog}}
 
 # OUTPUT FORMAT:
 Your prompt MUST start with the gender and key features from the appearance description.
@@ -679,7 +677,7 @@ ${vibeSection}
 - User asks "what do you do?" → "I'm actually a photographer! Love capturing moments ✨ What do you do? Any fun hobbies?"
 
 # Recent conversation:
-{{recentMessages}}
+{{conversationLog}}
 
 Write a CONVERSATIONAL REPLY that responds to what they said. Do NOT mention the photo.
 Your response should be formatted in XML like this:
@@ -705,7 +703,7 @@ const affiliateImageGenerationTemplate = `# Task: Generate an image prompt for t
 4. Match the mood and energy of the conversation
 
 # Recent conversation:
-{{recentMessages}}
+{{conversationLog}}
 
 Based on the conversation context, generate an image prompt that:
 1. Represents the character appropriately

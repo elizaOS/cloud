@@ -1,7 +1,7 @@
 /**
  * Character Marketplace Service
  *
- * Unified service for character marketplace operations.
+ * Service for character marketplace operations.
  * This service handles BOTH public marketplace AND user's personal character library.
  *
  * Domain: Characters (user_characters table)
@@ -676,13 +676,48 @@ export class CharacterMarketplaceService {
       `[Character Marketplace] Invalidated caches for user: ${userId}`,
     );
   }
+
+  /**
+   * Delete a character owned by the user
+   */
+  async deleteCharacter(characterId: string, userId: string): Promise<boolean> {
+    // Verify ownership
+    const character = await userCharactersRepository.findById(characterId);
+    if (!character || character.user_id !== userId) {
+      return false;
+    }
+
+    // Delete the character
+    await userCharactersRepository.delete(characterId);
+
+    // Invalidate caches
+    await this.invalidateUserCache(userId, character.organization_id);
+    await marketplaceCache.invalidateCharacter(characterId);
+
+    logger.info(
+      `[Character Marketplace] Deleted character: ${characterId} for user: ${userId}`,
+    );
+
+    return true;
+  }
+
+  /**
+   * Get a character by ID for a specific user (with ownership check)
+   */
+  async getCharacterById(
+    characterId: string,
+    userId: string,
+  ): Promise<ExtendedCharacter | null> {
+    const character = await userCharactersRepository.findById(characterId);
+    
+    // Return null if not found or not owned by user
+    if (!character || character.user_id !== userId) {
+      return null;
+    }
+
+    return this.toExtendedCharacter(character);
+  }
 }
 
 // Export singleton instance
 export const characterMarketplaceService = new CharacterMarketplaceService();
-
-// Backward compatibility exports
-/** @deprecated Use characterMarketplaceService instead */
-export const marketplaceService = characterMarketplaceService;
-/** @deprecated Use characterMarketplaceService instead */
-export const myAgentsService = characterMarketplaceService;

@@ -1,6 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
-import { creditsService, invoicesService, appCreditsService, referralsService } from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
+import { invoicesService } from "@/lib/services/invoices";
+import { appCreditsService } from "@/lib/services/app-credits";
+import { referralsService } from "@/lib/services/referrals";
+import { agentReputationService } from "@/lib/services/agent-reputation";
 import { referralSignupsRepository } from "@/db/repositories/referrals";
 import { usersRepository } from "@/db/repositories/users";
 import { headers } from "next/headers";
@@ -219,6 +223,17 @@ export async function POST(req: NextRequest) {
             logger.info(
               `[Stripe Webhook] Credits added: ${credits} to org ${organizationId}`,
             );
+
+            // Track payment for agent reputation (fire and forget)
+            const agentIdentifier = `org:${organizationId}`;
+            agentReputationService.recordPayment({
+              agentIdentifier,
+              amountUsd: credits,
+              paymentType: "stripe",
+              transactionId: paymentIntentId,
+            }).catch((err) => {
+              logger.error("[Stripe Webhook] Failed to record payment for reputation", { error: err });
+            });
           }
 
           // Process referral commission if this user was referred

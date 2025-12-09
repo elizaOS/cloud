@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { appsService } from "@/lib/services";
+import { appsService } from "@/lib/services/apps";
 import { logger } from "@/lib/utils/logger";
 
 /**

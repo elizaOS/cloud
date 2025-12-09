@@ -12,11 +12,13 @@ import {
   type RoomWithPreview,
 } from "@/db/repositories";
 import { db } from "@/db/client";
-import { roomTable, entityTable, participantTable } from "@/db/schemas/eliza";
+import { roomTable } from "@/db/schemas/eliza";
 import type { Memory } from "@elizaos/core";
-import { logger } from "@/lib/utils/logger";
 import { v4 as uuidv4 } from "uuid";
-import { eq, sql } from "drizzle-orm";
+import { 
+  parseMessageContent, 
+  isVisibleDialogueMessage,
+} from "@/lib/types/message-content";
 
 /**
  * Input for creating a room.
@@ -48,6 +50,8 @@ export interface RoomPreview {
   id: string;
   title?: string; // room name or generated title
   characterId?: string; // agentId from room
+  characterName?: string; // character name from user_characters
+  characterAvatarUrl?: string; // avatar_url from user_characters
   lastTime?: number; // from last message createdAt (ms timestamp)
   lastText?: string; // from last message content.text (truncated)
 }
@@ -58,13 +62,18 @@ export type { RoomWithPreview };
 export class RoomsService {
   /**
    * Get room by ID with messages
+   * 
+   * Automatically filters out:
+   * - Hidden messages (metadata.visibility === 'hidden')
+   * - Action result messages (internal system messages)
+   * - Duplicate messages (same text within 5 second window)
    */
   async getRoomWithMessages(
     roomId: string,
     limit = 50,
     afterTimestamp?: number,
   ): Promise<RoomWithMessages | null> {
-    const [room, messages, participantIds] = await Promise.all([
+    const [room, rawMessages, participantIds] = await Promise.all([
       roomsRepository.findById(roomId),
       memoriesRepository.findMessages(roomId, { limit, afterTimestamp }),
       participantsRepository.getEntityIdsByRoomId(roomId),
@@ -74,9 +83,75 @@ export class RoomsService {
       return null;
     }
 
+    // Reverse to get chronological order
+    const messagesInOrder = rawMessages.reverse();
+
+    // Filter out hidden and action result messages
+    const visibleMessages = messagesInOrder.filter((msg) => {
+      const content = parseMessageContent(msg.content);
+      const metadata = msg.metadata as Record<string, unknown> | undefined;
+      
+      // Check if message should be visible using helper
+      const isVisible = isVisibleDialogueMessage(metadata, content);
+      
+      return isVisible;
+    });
+
+    // Deduplicate messages: Remove duplicate agent responses that might have been
+    // stored twice (once by action callback, once by handler). Keep the one with
+    // attachments or the first one if both/neither have attachments.
+    const seenTexts = new Map<string, { 
+      index: number; 
+      hasAttachments: boolean; 
+      isAgent: boolean;
+      message: Memory;
+    }>();
+    const indicesToRemove = new Set<number>();
+
+    visibleMessages.forEach((msg, index) => {
+      const content = parseMessageContent(msg.content);
+      const text = content?.text?.trim();
+      if (!text) return;
+
+      // Create a key based on text and approximate timestamp (within 5 seconds)
+      const createdAt = msg.createdAt || Date.now();
+      const timeWindow = Math.floor(createdAt / 5000);
+      const key = `${text}:${timeWindow}`;
+
+      const existing = seenTexts.get(key);
+      if (existing) {
+        const currentHasAttachments =
+          Array.isArray(content?.attachments) && content.attachments.length > 0;
+        const isAgentBySource = content?.source === "agent";
+        const isAgentByEntityId = msg.entityId === msg.agentId;
+        const isAgent = content?.source ? isAgentBySource : isAgentByEntityId;
+
+        if (currentHasAttachments && !existing.hasAttachments) {
+          // Current has attachments, existing doesn't - keep current
+          indicesToRemove.add(existing.index);
+          seenTexts.set(key, { index, hasAttachments: currentHasAttachments, isAgent, message: msg });
+        } else if (isAgent && !existing.isAgent) {
+          // Current is from agent, existing isn't - keep current
+          indicesToRemove.add(existing.index);
+          seenTexts.set(key, { index, hasAttachments: currentHasAttachments, isAgent, message: msg });
+        } else {
+          // Keep existing, remove current
+          indicesToRemove.add(index);
+        }
+      } else {
+        const hasAttachments = Array.isArray(content?.attachments) && content.attachments.length > 0;
+        const isAgentBySource = content?.source === "agent";
+        const isAgentByEntityId = msg.entityId === msg.agentId;
+        const isAgent = content?.source ? isAgentBySource : isAgentByEntityId;
+        seenTexts.set(key, { index, hasAttachments, isAgent, message: msg });
+      }
+    });
+
+    const cleanMessages = visibleMessages.filter((_, index) => !indicesToRemove.has(index));
+
     return {
       room,
-      messages: messages.reverse(), // Reverse to get chronological order
+      messages: cleanMessages,
       participants: participantIds,
     };
   }
@@ -89,7 +164,7 @@ export class RoomsService {
    * @returns Room previews sorted by most recent activity
    */
   async getRoomsForEntity(entityId: string): Promise<RoomPreview[]> {
-    // Single query: participants → rooms → last message
+    // Single query: participants → rooms → last message → user_characters
     const roomsWithPreview =
       await roomsRepository.findRoomsWithPreviewForEntity(entityId);
 
@@ -98,6 +173,8 @@ export class RoomsService {
       id: room.id,
       title: room.name || undefined,
       characterId: room.characterId || undefined,
+      characterName: room.characterName || undefined,
+      characterAvatarUrl: room.characterAvatarUrl || undefined,
       lastTime: room.lastMessageTime?.getTime() || room.createdAt?.getTime(),
       lastText: room.lastMessageText?.substring(0, 100) || undefined,
     }));
@@ -130,9 +207,6 @@ export class RoomsService {
       })
       .returning();
 
-    logger.info(
-      `[Rooms Service] Created room ${roomId} for entity ${input.entityId || "none"} with agent ${input.agentId || "none"}`,
-    );
     return room;
   }
 
@@ -150,8 +224,6 @@ export class RoomsService {
    * Delete room and all related data
    */
   async deleteRoom(roomId: string): Promise<void> {
-    logger.info(`[Rooms Service] Deleting room ${roomId}`);
-
     // Delete in order: messages, participants, then room
     // (CASCADE should handle most of this, but explicit is better)
     await Promise.all([
@@ -160,8 +232,6 @@ export class RoomsService {
     ]);
 
     await roomsRepository.delete(roomId);
-
-    logger.info(`[Rooms Service] Successfully deleted room ${roomId}`);
   }
 
   /**
@@ -252,9 +322,6 @@ export class RoomsService {
       agentId,
     });
 
-    logger.info(
-      `[Rooms Service] Added participant ${entityId} to room ${roomId}`,
-    );
   }
 
   /**

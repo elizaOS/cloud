@@ -55,12 +55,26 @@ export function CharacterLibraryCard({
     router.push(`/dashboard/character-creator?id=${character.id}`);
   }, [router, character.id]);
 
-  const handleDuplicate = useCallback(() => {
+  const handleDuplicate = useCallback(async () => {
     toast.info("Duplicating character...");
-    // TODO: Implement duplicate functionality
-    // For now, just navigate to creator with character data
-    router.push(`/dashboard/character-creator`);
-  }, [router]);
+    
+    const response = await fetch(`/api/my-agents/characters/${character.id}/clone`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: `${character.name} (Copy)` }),
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      toast.success(`Created "${data.data.character.name}"`);
+      router.refresh();
+      // Navigate to edit the new character
+      router.push(`/dashboard/character-creator?id=${data.data.character.id}`);
+    } else {
+      const error = await response.json();
+      toast.error(error.error || "Failed to duplicate character");
+    }
+  }, [router, character.id, character.name]);
 
   const handleExport = useCallback(() => {
     const dataStr = JSON.stringify(character, null, 2);
@@ -84,10 +98,20 @@ export function CharacterLibraryCard({
     }
 
     setIsDeleting(true);
-    // TODO: Implement delete API call
-    toast.success(`Deleted ${character.name}`);
-    router.refresh();
-  }, [character.name, router]);
+    
+    const response = await fetch(`/api/my-agents/characters/${character.id}`, {
+      method: "DELETE",
+    });
+    
+    if (response.ok) {
+      toast.success(`Deleted ${character.name}`);
+      router.refresh();
+    } else {
+      const error = await response.json();
+      toast.error(error.error || "Failed to delete character");
+      setIsDeleting(false);
+    }
+  }, [character.id, character.name, router]);
 
   const bio = Array.isArray(character.bio)
     ? character.bio[0] || ""

@@ -17,7 +17,6 @@ import {
   type Agent,
   createAgent,
   listAgents,
-  type Pagination,
 } from "@/lib/cloud-api";
 import { useAuth } from "@/lib/use-auth";
 
@@ -26,7 +25,6 @@ export default function ChatsPage() {
   const { ready, authenticated } = useAuth();
   const { allClaimedToday, availableToday } = useShareStatus();
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +43,6 @@ export default function ChatsPage() {
     setError(null);
     const result = await listAgents();
     setAgents(result.agents);
-    setPagination(result.pagination);
     setLoading(false);
   }, []);
 
@@ -74,7 +71,7 @@ export default function ChatsPage() {
   if (!ready || !authenticated) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
       </div>
     );
   }
@@ -91,7 +88,7 @@ export default function ChatsPage() {
           {allClaimedToday !== true && (
             <button
               onClick={() => setShareModalOpen(true)}
-              className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 px-4 py-2 text-sm font-medium text-pink-400 transition-colors hover:from-pink-500/30 hover:to-purple-500/30"
+              className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-brand/20 to-accent-brand/20 border border-brand/30 px-4 py-2 text-sm font-medium text-brand-400 transition-colors hover:from-brand/30 hover:to-accent-brand/30"
             >
               <Gift className="h-4 w-4" />
               <span>{availableToday > 0 ? `Earn ${Math.round(availableToday).toLocaleString()} credits` : "Share & Earn"}</span>
@@ -100,7 +97,7 @@ export default function ChatsPage() {
           <button
             onClick={handleCreate}
             disabled={creating}
-            className="flex items-center gap-2 rounded-lg bg-pink-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-pink-600 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600 disabled:opacity-50"
           >
             {creating ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -125,7 +122,7 @@ export default function ChatsPage() {
       {/* Loading */}
       {loading && (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
+          <Loader2 className="h-8 w-8 animate-spin text-brand" />
         </div>
       )}
 
@@ -137,7 +134,7 @@ export default function ChatsPage() {
           <button
             onClick={handleCreate}
             disabled={creating}
-            className="mt-4 flex items-center gap-2 rounded-lg bg-pink-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-pink-600 disabled:opacity-50"
+            className="mt-4 flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600 disabled:opacity-50"
           >
             {creating ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -156,10 +153,10 @@ export default function ChatsPage() {
             <Link
               key={agent.id}
               href={`/chats/${agent.id}`}
-              className="group relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] transition-all hover:border-pink-500/30 hover:shadow-lg hover:shadow-pink-500/5"
+              className="group relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] transition-all hover:border-brand/30 hover:shadow-lg hover:shadow-brand/5"
             >
               {/* Agent Image */}
-              <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-pink-500/20 to-purple-500/20">
+              <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-brand/20 to-accent-brand/20">
                   {agent.avatarUrl ? (
                     <Image
                       src={agent.avatarUrl}
@@ -169,7 +166,7 @@ export default function ChatsPage() {
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center">
-                    <Bot className="h-16 w-16 text-pink-400/50" />
+                    <Bot className="h-16 w-16 text-brand-400/50" />
                     </div>
                   )}
                 {/* Gradient overlay */}
@@ -190,12 +187,6 @@ export default function ChatsPage() {
         </div>
       )}
 
-      {/* Pagination info */}
-      {pagination && pagination.totalCount > 0 && (
-        <p className="mt-6 text-center text-sm text-white/40">
-          Showing {agents.length} of {pagination.totalCount} friends
-        </p>
-      )}
     </div>
   );
 }

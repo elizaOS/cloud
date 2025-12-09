@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { creditsService } from "@/lib/services/credits";
+import { usageService } from "@/lib/services/usage";
 import {
-  creditsService,
-  usageService,
   containersService,
   listContainers,
   getContainer,
   updateContainerStatus,
-  QuotaExceededError,
   type NewContainer,
-} from "@/lib/services";
+} from "@/lib/services/containers";
+import { QuotaExceededError } from "@/lib/services/container-quota";
 import { creditEventEmitter } from "@/lib/events/credit-events";
 import {
   calculateDeploymentCost,
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
       data: containers,
     });
   } catch (error) {
-    console.error("Error fetching containers:", error);
+    logger.error("Error fetching containers:", error);
     return NextResponse.json(
       {
         success: false,
@@ -184,7 +185,7 @@ async function handleCreateContainer(request: NextRequest) {
         );
       }
     } catch (error) {
-      console.error("Failed to verify ECR image:", error);
+      logger.error("Failed to verify ECR image:", error);
       // Log but don't block deployment - image might exist but verification failed
       console.warn(
         "Proceeding with deployment despite image verification failure",
@@ -462,7 +463,7 @@ async function handleCreateContainer(request: NextRequest) {
         { status: 202 }, // 202 Accepted - request accepted, processing asynchronously
       );
     } catch (stackError) {
-      console.error(
+      logger.error(
         `❌ [handleCreateContainer] CloudFormation stack creation failed:`,
         stackError,
       );
@@ -487,7 +488,7 @@ async function handleCreateContainer(request: NextRequest) {
           `✅ Refunded ${deploymentCost} credits for failed deployment`,
         );
       } catch (refundError) {
-        console.error(`❌ Failed to refund credits:`, refundError);
+        logger.error(`❌ Failed to refund credits:`, refundError);
       }
 
       return NextResponse.json(
@@ -503,7 +504,7 @@ async function handleCreateContainer(request: NextRequest) {
       );
     }
   } catch (error) {
-    console.error("Error creating container:", error);
+    logger.error("Error creating container:", error);
 
     // Handle validation errors
     if (error instanceof z.ZodError) {

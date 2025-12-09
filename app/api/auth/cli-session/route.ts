@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cliAuthSessionsService } from "@/lib/services";
+import { logger } from "@/lib/utils/logger";
+import { cliAuthSessionsService } from "@/lib/services/cli-auth-sessions";
 
 /**
  * POST /api/auth/cli-session
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch (error) {
-    console.error("Error creating CLI auth session:", error);
+    logger.error("Error creating CLI auth session:", error);
     return NextResponse.json(
       { error: "Failed to create authentication session" },
       { status: 500 },

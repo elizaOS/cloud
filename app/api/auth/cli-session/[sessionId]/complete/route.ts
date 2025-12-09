@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { cliAuthSessionsService } from "@/lib/services";
+import { cliAuthSessionsService } from "@/lib/services/cli-auth-sessions";
 
 /**
  * POST /api/auth/cli-session/[sessionId]/complete
@@ -41,7 +42,7 @@ export async function POST(
       { status: 200 },
     );
   } catch (error) {
-    console.error("Error completing CLI authentication:", error);
+    logger.error("Error completing CLI authentication:", error);
 
     if (error instanceof Error) {
       if (

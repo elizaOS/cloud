@@ -1,0 +1,323 @@
+# Tauri Mobile Build Workflow
+#
+# Builds the Eliza Cloud mobile app for iOS and Android using Tauri v2.
+# The app uses a webview to load elizacloud.ai with native IAP integration.
+#
+# Triggered on:
+# - Version tags (v*)
+# - Manual dispatch
+#
+# Prerequisites:
+# - Apple Developer account with App Store Connect access
+# - Google Play Console access
+# - All secrets configured in GitHub repository settings
+
+name: Tauri Mobile Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Platform to build'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - ios
+          - android
+      upload_to_store:
+        description: 'Upload to App Store / Play Store'
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: tauri-mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUST_VERSION: "1.75"
+
+jobs:
+  # Build iOS app
+  build-ios:
+    name: Build iOS
+    runs-on: macos-14
+    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios' || github.event_name == 'push' }}
+    timeout-minutes: 45
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: aarch64-apple-ios
+      
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: rust-ios-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: rust-ios-
+      
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: 'latest-stable'
+      
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2.0" --locked
+      
+      - name: Initialize iOS project
+        run: cargo tauri ios init
+      
+      - name: Import Apple certificates
+        uses: apple-actions/import-codesign-certs@v2
+        with:
+          p12-file-base64: ${{ secrets.IOS_CERTIFICATES_P12 }}
+          p12-password: ${{ secrets.IOS_CERTIFICATES_PASSWORD }}
+      
+      - name: Install provisioning profile
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "${{ secrets.IOS_PROVISIONING_PROFILE }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+      
+      - name: Build iOS app
+        run: cargo tauri ios build --release
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          IOS_DEVELOPMENT_TEAM: ${{ secrets.IOS_DEVELOPMENT_TEAM }}
+      
+      - name: Find and rename IPA
+        id: find-ipa
+        run: |
+          IPA_PATH=$(find src-tauri/gen/apple -name "*.ipa" -type f | head -1)
+          if [ -n "$IPA_PATH" ]; then
+            echo "ipa_path=$IPA_PATH" >> $GITHUB_OUTPUT
+            echo "Found IPA: $IPA_PATH"
+          else
+            echo "No IPA found"
+            exit 1
+          fi
+      
+      - name: Upload iOS build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build
+          path: ${{ steps.find-ipa.outputs.ipa_path }}
+          retention-days: 14
+      
+      - name: Upload to TestFlight
+        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || github.event.inputs.upload_to_store == 'true' }}
+        run: |
+          xcrun altool --upload-app \
+            --type ios \
+            --file "${{ steps.find-ipa.outputs.ipa_path }}" \
+            --apiKey ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }} \
+            --apiIssuer ${{ secrets.APP_STORE_CONNECT_API_ISSUER }}
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+
+  # Build Android app
+  build-android:
+    name: Build Android
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' || github.event_name == 'push' }}
+    timeout-minutes: 45
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      
+      - name: Install Android NDK
+        run: |
+          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --install "ndk;25.2.9519653"
+      
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android
+      
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: rust-android-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: rust-android-
+      
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2.0" --locked
+      
+      - name: Initialize Android project
+        run: cargo tauri android init
+      
+      - name: Decode Android keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE }}" | base64 --decode > android.keystore
+      
+      - name: Build Android app
+        run: cargo tauri android build --release
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/25.2.9519653
+          TAURI_SIGNING_STORE_FILE: ${{ github.workspace }}/android.keystore
+          TAURI_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          TAURI_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          TAURI_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: src-tauri/gen/android/app/build/outputs/apk/release/*.apk
+          retention-days: 14
+          if-no-files-found: warn
+      
+      - name: Upload Android AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-aab
+          path: src-tauri/gen/android/app/build/outputs/bundle/release/*.aab
+          retention-days: 14
+          if-no-files-found: warn
+      
+      - name: Upload to Play Store (Internal Track)
+        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || github.event.inputs.upload_to_store == 'true' }}
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT }}
+          packageName: ai.elizacloud.mobile
+          releaseFiles: src-tauri/gen/android/app/build/outputs/bundle/release/*.aab
+          track: internal
+          status: completed
+          whatsNewDirectory: src-tauri/distribution/whatsnew
+
+  # Create GitHub release on tag push
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build-ios, build-android]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Download iOS build
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-build
+          path: release/ios/
+        continue-on-error: true
+      
+      - name: Download Android APK
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apk
+          path: release/android/
+        continue-on-error: true
+      
+      - name: Download Android AAB
+        uses: actions/download-artifact@v4
+        with:
+          name: android-aab
+          path: release/android/
+        continue-on-error: true
+      
+      - name: Get version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      
+      - name: Read release notes
+        id: notes
+        run: |
+          if [ -f "src-tauri/distribution/whatsnew/en-US.txt" ]; then
+            NOTES=$(cat src-tauri/distribution/whatsnew/en-US.txt)
+            echo "notes<<EOF" >> $GITHUB_OUTPUT
+            echo "$NOTES" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "notes=No release notes available." >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Eliza Cloud Mobile v${{ steps.version.outputs.version }}
+          draft: true
+          prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'alpha') }}
+          files: |
+            release/ios/*.ipa
+            release/android/*.apk
+            release/android/*.aab
+          body: |
+            ## Eliza Cloud Mobile v${{ steps.version.outputs.version }}
+            
+            ### What's New
+            ${{ steps.notes.outputs.notes }}
+            
+            ### Downloads
+            - **iOS**: Available on TestFlight (or download IPA below)
+            - **Android APK**: Direct download for sideloading
+            - **Android AAB**: Available on Play Store Internal Track
+            
+            ### Requirements
+            - iOS 15.0 or later
+            - Android API 24 (Android 7.0) or later
+            
+            ---
+            *Built with Tauri v2*
+
+  # Summary job
+  summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [build-ios, build-android]
+    if: always()
+    
+    steps:
+      - name: Check results
+        run: |
+          echo "## Mobile Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          ios="${{ needs.build-ios.result }}"
+          android="${{ needs.build-android.result }}"
+          
+          if [ "$ios" == "success" ]; then
+            echo "✅ iOS: Success" >> $GITHUB_STEP_SUMMARY
+          elif [ "$ios" == "skipped" ]; then
+            echo "⏭️ iOS: Skipped" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ iOS: $ios" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "$android" == "success" ]; then
+            echo "✅ Android: Success" >> $GITHUB_STEP_SUMMARY
+          elif [ "$android" == "skipped" ]; then
+            echo "⏭️ Android: Skipped" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Android: $android" >> $GITHUB_STEP_SUMMARY
+          fi

@@ -18,19 +18,18 @@
  * - IP-based abuse detection in production
  * - Tokens hashed for logging
  *
- * NOTE: This module is being deprecated in favor of lib/session/unified-session.ts
+ * NOTE: This module is being deprecated in favor of lib/session/session.ts
  * Use getOrCreateSessionUser() from @/lib/session for new code.
  */
 
 import { nanoid } from "nanoid";
 import { createHash } from "node:crypto";
 import { cookies, headers } from "next/headers";
-import { usersService, anonymousSessionsService } from "@/lib/services";
-import { db } from "@/db/client";
-import { users } from "@/db/schemas";
+import { usersService } from "@/lib/services/users";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
+import { createAnonymousUserAndSession } from "@/lib/services/anonymous-session-creator";
 import { logger } from "@/lib/utils/logger";
 import type { UserWithOrganization, User } from "@/lib/types";
-import { migrateAnonymousSession } from "@/lib/session";
 
 // Constants - can be overridden via environment variables
 const ANON_SESSION_COOKIE = "eliza-anon-session";
@@ -164,25 +163,12 @@ export async function getOrCreateAnonymousUser(): Promise<{
     }
   }
 
-  const [newUser] = await db
-    .insert(users)
-    .values({
-      is_anonymous: true,
-      anonymous_session_id: newSessionToken,
-      organization_id: null,
-      is_active: true,
-      expires_at: expiresAt,
-      role: "member",
-    })
-    .returning();
-
-  const newSession = await anonymousSessionsService.create({
-    session_token: newSessionToken,
-    user_id: newUser.id,
-    expires_at: expiresAt,
-    ip_address: ipAddress,
-    user_agent: userAgent,
-    messages_limit: ANON_MESSAGE_LIMIT,
+  const { newUser, newSession } = await createAnonymousUserAndSession({
+    sessionToken: newSessionToken,
+    expiresAt,
+    ipAddress,
+    userAgent,
+    messagesLimit: ANON_MESSAGE_LIMIT,
   });
 
   cookieStore.set(ANON_SESSION_COOKIE, newSessionToken, {
@@ -191,12 +177,6 @@ export async function getOrCreateAnonymousUser(): Promise<{
     sameSite: "strict",
     path: "/",
     expires: expiresAt,
-  });
-
-  logger.info("[auth-anonymous] Created new anonymous session", {
-    userId: newUser.id,
-    sessionId: newSession.id,
-    expiresAt,
   });
 
   const anonymousUser: AnonymousUserWithOrganization = {
@@ -214,37 +194,6 @@ export async function getOrCreateAnonymousUser(): Promise<{
   };
 }
 
-/**
- * Convert anonymous user to real authenticated user
- *
- * @deprecated Use migrateAnonymousSession from @/lib/session instead.
- * This function is kept for backwards compatibility.
- *
- * @param anonymousUserId - ID of anonymous user to convert
- * @param privyUserId - Privy user ID of new authenticated user
- */
-export async function convertAnonymousToReal(
-  anonymousUserId: string,
-  privyUserId: string,
-): Promise<void> {
-  logger.info("[auth-anonymous] convertAnonymousToReal called (deprecated)", {
-    anonymousUserId,
-    privyUserId,
-    note: "Use migrateAnonymousSession from @/lib/session instead",
-  });
-
-  const result = await migrateAnonymousSession(anonymousUserId, privyUserId);
-
-  if (!result.success) {
-    throw new Error("Migration failed");
-  }
-
-  logger.info("[auth-anonymous] Migration completed via unified session", {
-    anonymousUserId,
-    privyUserId,
-    ...result.mergedData,
-  });
-}
 
 /**
  * Check if user has reached their free message limit

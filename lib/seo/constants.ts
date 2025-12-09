@@ -106,7 +106,7 @@ export const ROUTE_METADATA = {
   textGeneration: {
     title: "Text Generation",
     description:
-      "Generate text with advanced AI models. Access GPT-4, Claude, Gemini, and more through our unified API.",
+      "Generate text with advanced AI models. Access GPT-4, Claude, Gemini, and more through our API.",
     keywords: ["text generation", "GPT-4", "Claude", "AI writing", "LLM API"],
   },
   imageGeneration: {

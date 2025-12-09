@@ -6,13 +6,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import {
-  organizationsService,
-  creditsService,
-  usageService,
-  appCreditsService,
-  appsService,
-} from "@/lib/services";
+import { organizationsService } from "@/lib/services/organizations";
+import { creditsService } from "@/lib/services/credits";
+import { usageService } from "@/lib/services/usage";
+import { appCreditsService } from "@/lib/services/app-credits";
+import { appsService } from "@/lib/services/apps";
 import {
   addCorsHeaders,
   validateOrigin,

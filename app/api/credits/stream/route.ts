@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { organizationsService } from "@/lib/services";
+import { organizationsService } from "@/lib/services/organizations";
 import { creditEventEmitter } from "@/lib/events/credit-events";
 import type { CreditUpdateEvent } from "@/lib/events/credit-events";
 import { logger } from "@/lib/utils/logger";

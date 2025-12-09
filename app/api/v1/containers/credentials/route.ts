@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getECRManager } from "@/lib/services/ecr";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -62,7 +63,7 @@ async function handleECRCredentials(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Error getting ECR credentials:", error);
+    logger.error("Error getting ECR credentials:", error);
     return NextResponse.json(
       {
         success: false,

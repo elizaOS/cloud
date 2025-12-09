@@ -34,12 +34,17 @@ const publicPaths = [
   "/api/v1/responses",
   "/api/v1/embeddings",
   "/api/v1/models",
+  "/api/v1/credits/topup", // x402 credit top-up (uses x402 or API key auth)
   "/api/stripe/webhook",
   "/api/privy/webhook", // Privy webhook endpoint
   "/api/cron", // Cron endpoints (protected by CRON_SECRET)
   "/api/v1/cron", // V1 Cron endpoints (protected by CRON_SECRET)
   "/api/mcp/demos", // Public demo MCP servers (GET returns server info)
   "/api/mcp/list", // Public MCP server list
+  "/api/mcp", // MCP protocol endpoint (uses API key or x402 auth)
+  "/api/a2a", // A2A protocol endpoint (uses API key or x402 auth)
+  "/api/agents", // Agent-specific A2A/MCP endpoints (handle their own auth)
+  "/.well-known", // ERC-8004 and A2A discovery files
 ];
 
 // Paths that should be checked for authentication

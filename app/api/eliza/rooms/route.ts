@@ -8,7 +8,8 @@ import {
 } from "@/lib/auth-anonymous";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { agentsService } from "@/lib/services/agents/agents";
-import { anonymousSessionsService, usersService } from "@/lib/services";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
+import { usersService } from "@/lib/services/users";
 
 // Default agent ID - used when no character is selected
 // This is the ID of the built-in Eliza character

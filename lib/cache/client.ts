@@ -28,7 +28,7 @@ export class CacheClient {
   private lastFailureTime = 0;
   private readonly MAX_FAILURES = 5;
   private readonly CIRCUIT_BREAKER_TIMEOUT = 60000;
-  private revalidationQueue = new Map<string, Promise<unknown>>();
+  private revalidationQueue = new Map<string, Promise<void>>();
   // MEMORY LEAK FIX: Add limits and timeouts to revalidation queue
   private readonly MAX_REVALIDATION_QUEUE_SIZE = 100;
   private readonly REVALIDATION_TIMEOUT_MS = 30000; // 30 seconds

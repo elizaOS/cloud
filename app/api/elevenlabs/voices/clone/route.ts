@@ -2,11 +2,9 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
-import {
-  creditsService,
-  usageService,
-  organizationsService,
-} from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
+import { usageService } from "@/lib/services/usage";
+import { organizationsService } from "@/lib/services/organizations";
 import { logger } from "@/lib/utils/logger";
 import {
   VOICE_CLONE_INSTANT_COST,

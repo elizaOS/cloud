@@ -1,6 +1,7 @@
 /**
  * Sidebar navigation section component with collapsible functionality.
  * Persists open/closed state to localStorage and provides color-coded sections.
+ * Supports admin-only sections that are hidden from non-admin users.
  *
  * @param props - Sidebar section configuration
  * @param props.section - Section data including title, items, and metadata
@@ -10,6 +11,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { ChevronDown } from "lucide-react";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { SidebarNavigationItem } from "./sidebar-item";
 import type { SidebarSection, SidebarItem } from "./sidebar-data";
 import {
@@ -20,6 +22,13 @@ import {
 import { cn } from "@/lib/utils";
 import { isFeatureEnabled } from "@/lib/config/feature-flags";
 
+// Default anvil wallet for devnet admin access
+const ANVIL_DEFAULT_WALLET = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
+
+function isDevnet(): boolean {
+  return process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_DEVNET === "true";
+}
+
 interface SidebarNavigationSectionProps {
   section: SidebarSection;
 }
@@ -27,12 +36,9 @@ interface SidebarNavigationSectionProps {
 export function SidebarNavigationSection({
   section,
 }: SidebarNavigationSectionProps) {
-  const filteredItems = useMemo(() => {
-    return section.items.filter((item: SidebarItem) => {
-      if (!item.featureFlag) return true;
-      return isFeatureEnabled(item.featureFlag);
-    });
-  }, [section.items]);
+  const { authenticated } = usePrivy();
+  const { wallets } = useWallets();
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Generate a storage key based on section title
   const storageKey = section.title
@@ -40,11 +46,54 @@ export function SidebarNavigationSection({
     : null;
 
   // Initialize state from localStorage (default to open)
+  // MUST be before any conditional returns to follow React hooks rules
   const [isOpen, setIsOpen] = useState(() => {
     if (typeof window === "undefined" || !storageKey) return true;
     const stored = localStorage.getItem(storageKey);
     return stored === null ? true : stored === "true";
   });
+
+  // Check if user is admin (client-side check)
+  // Uses AbortController for cleanup and async pattern to satisfy lint rules
+  useEffect(() => {
+    const abortController = new AbortController();
+
+    const checkAdmin = async () => {
+      // Early exit if not authenticated
+      if (!authenticated) {
+        return false;
+      }
+
+      // Get connected wallet address
+      const connectedWallet = wallets?.[0]?.address;
+      if (!connectedWallet) {
+        return false;
+      }
+
+      // In devnet, anvil wallet is always admin
+      if (isDevnet() && connectedWallet.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase()) {
+        return true;
+      }
+
+      // Check admin status via API (async)
+      const res = await fetch("/api/v1/admin/moderation", { 
+        method: "HEAD",
+        signal: abortController.signal,
+      }).catch(() => null);
+      
+      return res?.ok ?? false;
+    };
+
+    checkAdmin().then((adminStatus) => {
+      if (!abortController.signal.aborted) {
+        setIsAdmin(adminStatus);
+      }
+    });
+
+    return () => {
+      abortController.abort();
+    };
+  }, [authenticated, wallets]);
 
   // Persist state to localStorage
   useEffect(() => {
@@ -52,6 +101,25 @@ export function SidebarNavigationSection({
       localStorage.setItem(storageKey, String(isOpen));
     }
   }, [isOpen, storageKey]);
+
+  const filteredItems = useMemo(() => {
+    return section.items.filter((item: SidebarItem) => {
+      // Check feature flag
+      if (item.featureFlag && !isFeatureEnabled(item.featureFlag)) {
+        return false;
+      }
+      // Check admin-only items
+      if (item.adminOnly && !isAdmin) {
+        return false;
+      }
+      return true;
+    });
+  }, [section.items, isAdmin]);
+
+  // Hide admin-only sections from non-admins
+  if (section.adminOnly && !isAdmin) {
+    return null;
+  }
 
   if (filteredItems.length === 0) {
     return null;
@@ -68,6 +136,8 @@ export function SidebarNavigationSection({
         return "#FF5800"; // Orange - Creative/Generation
       case "infrastructure":
         return "#22C55E"; // Green - System/Infrastructure
+      case "admin":
+        return "#EF4444"; // Red - Admin/Moderation
       default:
         return "#FF5800"; // Default orange
     }

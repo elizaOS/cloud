@@ -6,6 +6,7 @@
 import { db } from "@/db/client";
 import { containers } from "@/db/schemas";
 import { eq, and } from "drizzle-orm";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Result of a container health check.
@@ -52,7 +53,7 @@ export async function checkContainerHealth(
   const startTime = Date.now();
   const fullUrl = `${containerUrl}${healthCheckPath}`;
 
-  console.log("Performing health check", { url: fullUrl });
+  logger.debug("Performing health check", { url: fullUrl });
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -125,7 +126,7 @@ export async function updateContainerHealth(
         .set(baseUpdate)
         .where(eq(containers.id, containerId));
 
-      console.log(
+      logger.debug(
         "Container health check failed, but status changed (not running anymore)",
         {
           containerId,
@@ -135,7 +136,7 @@ export async function updateContainerHealth(
       return;
     }
 
-    console.log("Container health status updated to failed", {
+    logger.info("Container health status updated to failed", {
       containerId,
       healthy: false,
       previousStatus: "running",
@@ -165,14 +166,14 @@ export async function updateContainerHealth(
         .set(baseUpdate)
         .where(eq(containers.id, containerId));
 
-      console.log("Container health check passed, status unchanged", {
+      logger.debug("Container health check passed, status unchanged", {
         containerId,
         healthy: true,
       });
       return;
     }
 
-    console.log("Container health status restored to running", {
+    logger.info("Container health status restored to running", {
       containerId,
       healthy: true,
       previousStatus: "failed",
@@ -190,7 +191,7 @@ export async function monitorAllContainers(
 ): Promise<HealthCheckResult[]> {
   const finalConfig = { ...DEFAULT_CONFIG, ...config };
 
-  console.log("Starting health check for all containers");
+  logger.info("Starting health check for all containers");
 
   // Get all running containers
   const runningContainers = await db
@@ -198,7 +199,7 @@ export async function monitorAllContainers(
     .from(containers)
     .where(eq(containers.status, "running"));
 
-  console.log(
+  logger.info(
     `Found ${runningContainers.length} running containers to check`,
   );
 
@@ -206,7 +207,7 @@ export async function monitorAllContainers(
   const results: HealthCheckResult[] = await Promise.all(
     runningContainers.map(async (container) => {
       if (!container.load_balancer_url) {
-        console.warn("Container has no URL, skipping health check", {
+        logger.warn("Container has no URL, skipping health check", {
           containerId: container.id,
         });
         return {
@@ -227,7 +228,7 @@ export async function monitorAllContainers(
       await updateContainerHealth(container.id, result);
 
       if (!result.healthy) {
-        console.warn("Container health check failed", {
+        logger.warn("Container health check failed", {
           containerId: container.id,
           url: container.load_balancer_url,
           error: result.error,
@@ -241,7 +242,7 @@ export async function monitorAllContainers(
   const healthyCount = results.filter((r) => r.healthy).length;
   const unhealthyCount = results.length - healthyCount;
 
-  console.log("Health check completed", {
+  logger.info("Health check completed", {
     total: results.length,
     healthy: healthyCount,
     unhealthy: unhealthyCount,
@@ -285,61 +286,3 @@ export async function getContainerHealthStatus(
   return result;
 }
 
-/**
- * Start continuous health monitoring
- *
- * ⚠️ SERVERLESS WARNING: This function does NOT work in serverless environments!
- *
- * In serverless deployments (Vercel, AWS Lambda, etc.), background intervals
- * do NOT persist across function invocations. This function will:
- * - Start an interval that stops when the serverless function completes
- * - Run multiple times (once per instance) in multi-instance deployments
- * - Waste resources and not provide reliable monitoring
- *
- * For serverless environments, use one of these alternatives:
- * 1. Call monitorAllContainers() from a cron endpoint (recommended)
- *    Example: Create /api/v1/cron/health-check that calls monitorAllContainers()
- * 2. Use Vercel Cron Jobs (https://vercel.com/docs/cron-jobs)
- * 3. Use external schedulers (GitHub Actions, Upstash QStash, etc.)
- *
- * @deprecated Use monitorAllContainers() via cron endpoint for serverless
- */
-export function startHealthMonitoring(
-  intervalMs: number = 60000,
-): NodeJS.Timeout {
-  const isServerless =
-    process.env.VERCEL === "1" ||
-    process.env.AWS_LAMBDA_FUNCTION_NAME ||
-    process.env.FUNCTION_NAME;
-
-  if (isServerless) {
-    console.error(
-      "🚨 [Health Monitor] CRITICAL: startHealthMonitoring() called in serverless environment!\n" +
-        "This will NOT work correctly. Background intervals stop when serverless functions complete.\n" +
-        "Use a cron endpoint instead: POST /api/v1/cron/health-check\n" +
-        "See lib/services/health-monitor.ts for details.",
-    );
-  }
-
-  console.warn(
-    "[Health Monitor] Starting continuous health monitoring (NOT serverless-compatible)",
-    { intervalMs, isServerless },
-  );
-
-  const interval = setInterval(async () => {
-    await monitorAllContainers();
-  }, intervalMs);
-
-  // Also run immediately on startup
-  void monitorAllContainers();
-
-  return interval;
-}
-
-/**
- * Stop health monitoring
- */
-export function stopHealthMonitoring(interval: NodeJS.Timeout): void {
-  clearInterval(interval);
-  console.log("Health monitoring stopped");
-}

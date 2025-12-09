@@ -1,5 +1,7 @@
 "use client";
 
+import { Toaster } from "sonner";
+
 import { ThemeProvider } from "@/components/theme-provider";
 import { DevProvider } from "@/lib/dev/dev-provider";
 
@@ -15,6 +17,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ThemeProvider>
       {/* DevProvider initializes why-did-you-render and render tracking in development */}
       <DevProvider>{children}</DevProvider>
+      <Toaster richColors position="top-center" />
     </ThemeProvider>
   );
 }

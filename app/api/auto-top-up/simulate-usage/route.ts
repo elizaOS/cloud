@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { creditsService } from "@/lib/services/credits";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -59,7 +60,7 @@ async function handleSimulateUsage(req: NextRequest) {
       newBalance: result.newBalance,
     });
   } catch (error) {
-    console.error("[SimulateUsage] Error:", error);
+    logger.error("[SimulateUsage] Error:", error);
     return NextResponse.json(
       {
         error:

@@ -12,6 +12,8 @@ import { apps } from "@/db/schemas/apps";
 import { db } from "@/db/client";
 import { eq, sql } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
+import { usersRepository } from "@/db/repositories/users";
+import { redeemableEarningsService } from "./redeemable-earnings";
 
 /**
  * Parameters for purchasing app credits.
@@ -111,7 +113,6 @@ export class AppCreditsService {
     description: string
   ): Promise<{ newBalance: number }> {
     // Get user's organization ID to ensure balance exists
-    const { usersRepository } = await import("@/db/repositories/users");
     const user = await usersRepository.findById(userId);
     
     if (!user?.organization_id) {
@@ -345,12 +346,14 @@ export class AppCreditsService {
     amount: number,
     metadata: Record<string, unknown>
   ): Promise<void> {
+    // Update app-level earnings tracking
     if (type === "inference_markup") {
       await appEarningsRepository.addInferenceEarnings(appId, amount);
     } else {
       await appEarningsRepository.addPurchaseEarnings(appId, amount);
     }
 
+    // Create transaction record
     await appEarningsRepository.createTransaction({
       app_id: appId,
       user_id: userId,
@@ -359,6 +362,43 @@ export class AppCreditsService {
       description: type === "inference_markup" ? "Inference markup earnings" : "Credit purchase share",
       metadata,
     });
+
+    // CRITICAL: Credit the app creator's redeemable_earnings balance
+    // This allows them to redeem earnings as elizaOS tokens
+    const app = await appsRepository.findById(appId);
+    if (app?.created_by_user_id) {
+      const result = await redeemableEarningsService.addEarnings({
+        userId: app.created_by_user_id,
+        amount,
+        source: "miniapp",
+        sourceId: appId,
+        description: type === "inference_markup" 
+          ? `Inference markup from miniapp: ${app.name || appId}`
+          : `Purchase share from miniapp: ${app.name || appId}`,
+        metadata: {
+          appId,
+          earningsType: type,
+          transactionUserId: userId, // User who triggered this earning
+          ...metadata,
+        },
+      });
+
+      if (!result.success) {
+        logger.error("[AppCredits] Failed to credit redeemable earnings", {
+          appId,
+          creatorId: app.created_by_user_id,
+          amount,
+          error: result.error,
+        });
+      } else {
+        logger.info("[AppCredits] Credited redeemable earnings to creator", {
+          appId,
+          creatorId: app.created_by_user_id,
+          amount,
+          newBalance: result.newBalance,
+        });
+      }
+    }
   }
 
   /**

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { getContainer } from "@/lib/services";
+import { getContainer } from "@/lib/services/containers";
 import {
   CloudWatchLogsClient,
   GetLogEventsCommand,
@@ -113,7 +114,7 @@ export async function GET(
               }
             }
           } catch (error) {
-            console.error("Error streaming logs:", error);
+            logger.error("Error streaming logs:", error);
             sendEvent({
               type: "error",
               message:
@@ -140,7 +141,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Error setting up log stream:", error);
+    logger.error("Error setting up log stream:", error);
     return new Response(
       JSON.stringify({
         success: false,
@@ -337,7 +338,7 @@ async function getCloudWatchLogs(
       )
       .slice(0, options.limit || 50);
   } catch (error) {
-    console.error("Error fetching CloudWatch logs:", error);
+    logger.error("Error fetching CloudWatch logs:", error);
     if (error instanceof Error && error.name === "ResourceNotFoundException") {
       console.warn(
         `Log group ${logGroupName} not found - container may not be deployed yet`,

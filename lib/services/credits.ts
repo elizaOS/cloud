@@ -15,6 +15,7 @@ import { organizations } from "@/db/schemas/organizations";
 import { creditTransactions } from "@/db/schemas/credit-transactions";
 import { eq } from "drizzle-orm";
 import { emailService } from "./email";
+import { organizationsService } from "./organizations";
 import {
   canSendLowCreditsEmail,
   markLowCreditsEmailSent,
@@ -22,6 +23,7 @@ import {
 import { CacheInvalidation } from "@/lib/cache/invalidation";
 import { invalidateOrganizationCache } from "@/lib/cache/organizations-cache";
 import { userSessionsService } from "./user-sessions";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Parameters for adding credits to an organization.
@@ -119,7 +121,7 @@ export class CreditsService {
         await this.getTransactionByStripePaymentIntent(stripePaymentIntentId);
 
       if (existingTransaction) {
-        console.log(
+        logger.info(
           `[CreditsService] Idempotency: Payment intent ${stripePaymentIntentId} already processed (transaction ${existingTransaction.id})`
         );
 
@@ -151,7 +153,7 @@ export class CreditsService {
           });
 
           if (existingInTx) {
-            console.log(
+            logger.info(
               `[CreditsService] Race condition detected: Payment intent ${stripePaymentIntentId} was inserted by another thread`
             );
 
@@ -213,7 +215,7 @@ export class CreditsService {
       .then(async (result) => {
         // Invalidate organization cache since balance changed
         invalidateOrganizationCache(organizationId).catch((error) => {
-          console.error(
+          logger.error(
             "[CreditsService] Failed to invalidate org cache:",
             error
           );
@@ -342,7 +344,7 @@ export class CreditsService {
         // Invalidate organization cache if balance changed
         if (result.success) {
           invalidateOrganizationCache(organizationId).catch((error) => {
-            console.error(
+            logger.error(
               "[CreditsService] Failed to invalidate org cache:",
               error
             );
@@ -360,7 +362,7 @@ export class CreditsService {
                 tokens_consumed: tokens_consumed || 0,
               })
               .catch((error) => {
-                console.error(
+                logger.error(
                   "[CreditsService] Failed to track session usage:",
                   error
                 );
@@ -372,7 +374,7 @@ export class CreditsService {
             organizationId,
             result.newBalance
           ).catch((error) => {
-            console.error(
+            logger.error(
               "[CreditsService] Failed to check auto top-up:",
               error
             );
@@ -381,7 +383,7 @@ export class CreditsService {
           // Queue low credits email
           this.queueLowCreditsEmail(organizationId, result.newBalance).catch(
             (error) => {
-              console.error(
+              logger.error(
                 "[CreditsService] Failed to queue low credits email:",
                 error
               );
@@ -419,22 +421,22 @@ export class CreditsService {
         return;
       }
 
-      console.log(
+      logger.info(
         `[CreditsService] Auto top-up triggered: balance $${newBalance.toFixed(2)} < threshold $${threshold.toFixed(2)}`
       );
 
-      // Import auto top-up service dynamically to avoid circular dependency
+      // Import auto top-up service dynamically for lazy loading (only when needed)
       const { autoTopUpService } = await import("./auto-top-up");
 
       // Execute auto top-up asynchronously (don't block the main operation)
       autoTopUpService.executeAutoTopUp(org).catch((error) => {
-        console.error(
+        logger.error(
           `[CreditsService] Auto top-up execution failed for org ${organizationId}:`,
           error
         );
       });
     } catch (error) {
-      console.error(
+      logger.error(
         `[CreditsService] Error checking auto top-up for org ${organizationId}:`,
         error
       );
@@ -460,7 +462,6 @@ export class CreditsService {
         return;
       }
 
-      const { organizationsService } = await import("./organizations");
       const org = await organizationsService.getById(organizationId);
       if (!org) {
         return;
@@ -486,7 +487,7 @@ export class CreditsService {
         await markLowCreditsEmailSent(organizationId);
       }
     } catch (error) {
-      console.error(
+      logger.error(
         `[CreditsService] Error queueing low credits email for org ${organizationId}:`,
         error
       );
@@ -550,7 +551,7 @@ export class CreditsService {
       .then(async (result) => {
         // Invalidate organization cache since balance changed
         invalidateOrganizationCache(organizationId).catch((error) => {
-          console.error(
+          logger.error(
             "[CreditsService] Failed to invalidate org cache:",
             error
           );

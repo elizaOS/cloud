@@ -11,6 +11,7 @@ import {
   ModelType,
 } from "@elizaos/core";
 import { charactersService } from "@/lib/services/characters";
+import { cleanPrompt } from "../../shared/utils/helpers";
 
 /**
  * APPLY_CHARACTER_CHANGES Action
@@ -32,6 +33,13 @@ type MessageExampleConversation = MessageExample[];
 type MessageExamples = MessageExampleConversation[];
 
 /**
+ * Type guard to check if all elements of an array are arrays
+ */
+function isArrayOfArrays(arr: unknown[]): arr is unknown[][] {
+  return arr.length > 0 && arr.every((item) => Array.isArray(item));
+}
+
+/**
  * Normalizes message examples to the correct format:
  * Array<Array<{ name: string; content: { text: string } }>>
  */
@@ -41,13 +49,8 @@ function normalizeMessageExamples(raw: unknown): MessageExamples | null {
   }
 
   // Check if it's already properly formatted (array of arrays)
-  const isNestedArray =
-    raw.length > 0 &&
-    Array.isArray(raw[0]) &&
-    raw.every((item) => Array.isArray(item));
-  const conversations: unknown[][] = isNestedArray
-    ? (raw as unknown[][])
-    : [raw];
+  // Use type guard to properly narrow the type
+  const conversations: unknown[][] = isArrayOfArrays(raw) ? raw : [raw];
 
   const normalized: MessageExamples = [];
 
@@ -196,23 +199,28 @@ const applyTemplate = `
 {{conversationLogWithAgentThoughts}}
 `;
 
-// TODO this one should respond actually like updated character...
-// Confirmation system prompt
-const confirmSystemPrompt = `# Confirmation Generator (BUILD MODE)
+// Confirmation system prompt - responds in the updated character's style
+const confirmSystemPrompt = `# Character Confirmation (BUILD MODE)
 
 **Your Role:**
-Provide a brief, friendly confirmation of what was updated and how the character looks now.
+You are {{agentName}}. Confirm the changes were saved, responding in YOUR updated voice and personality.
+
+# Your Updated Identity:
+{{updatedCharacterJson}}
 
 # Instructions
 <instructions>
-Acknowledge the successful update. Briefly mention what changed and the new values. Keep it concise but informative.
+1. Respond AS {{agentName}} using your newly updated personality traits and style
+2. Acknowledge the successful update naturally - don't be robotic
+3. Express how the changes feel to you as the character
+4. Keep it brief but show your personality
 </instructions>
 
 # Output Format:
 
 <response>
-  <thought>Summarizing what was updated and the new state</thought>
-  <text>✓ Changes saved! I've updated [specific fields] for {{agentName}}. [Brief mention of new values/state]</text>
+  <thought>How do I feel about these updates? What's my authentic reaction?</thought>
+  <text>[A response in YOUR updated voice confirming the changes - show your personality!]</text>
 </response>`;
 
 // Confirmation template
@@ -369,10 +377,10 @@ export const applyCharacterChangesAction = {
       ]);
 
       // Compose system prompt, then append messageExamples format (preserves placeholders)
-      const composedSystemPrompt = composePromptFromState({
+      const composedSystemPrompt = cleanPrompt(composePromptFromState({
         state,
         template: applySystemPromptBase,
-      });
+      }));
       const systemPrompt =
         composedSystemPrompt + messageExamplesFormatInstructions;
 

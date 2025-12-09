@@ -1,4 +1,5 @@
 import { createMcpHandler } from "mcp-handler";
+import { logger } from "@/lib/utils/logger";
 // IMPORTANT: Must use zod v3.x (aliased as zod3) for MCP SDK compatibility
 // The MCP SDK internally uses zod v3.x, and zod v4.x has breaking internal API changes
 import { z } from "zod3";
@@ -18,17 +19,29 @@ type AuthResultWithOrg = AuthResult & {
   };
 };
 import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
-import {
-  creditsService,
-  usageService,
-  organizationsService,
-  generationsService,
-  conversationsService,
-  memoryService,
-  agentDiscoveryService,
-  containersService,
-} from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
+import { usageService } from "@/lib/services/usage";
+import { organizationsService } from "@/lib/services/organizations";
+import { generationsService } from "@/lib/services/generations";
+import { conversationsService } from "@/lib/services/conversations";
+import { memoryService } from "@/lib/services/memory";
+import { containersService } from "@/lib/services/containers";
+import { contentModerationService } from "@/lib/services/content-moderation";
+import { agentReputationService } from "@/lib/services/agent-reputation";
+import { characterDeploymentDiscoveryService as agentDiscoveryService } from "@/lib/services/deployments/discovery";
 import { agentService } from "@/lib/services/agents/agents";
+import { charactersService } from "@/lib/services/characters/characters";
+import { apiKeysService } from "@/lib/services/api-keys";
+import { secureTokenRedemptionService } from "@/lib/services/token-redemption-secure";
+import { getContainer, deleteContainer } from "@/lib/services/containers";
+import { userMcpsService } from "@/lib/services/user-mcps";
+import { roomsService } from "@/lib/services/agents/rooms";
+import { usersService } from "@/lib/services/users";
+import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
+import { agentBudgetService } from "@/lib/services/agent-budgets";
+import { analyticsService } from "@/lib/services/analytics";
+import { getElevenLabsService } from "@/lib/services/elevenlabs";
+import { characterMarketplaceService } from "@/lib/services/characters/marketplace";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import {
@@ -310,6 +323,20 @@ const mcpHandler = createMcpHandler(
           const { user, apiKey } = getAuthContext();
           userOrganizationId = user.organization_id!;
 
+          // Check if user is blocked due to moderation violations
+          if (await contentModerationService.shouldBlockUser(user.id)) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: "Account suspended due to policy violations" }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          // Start async moderation with agent tracking (doesn't block)
+          const agentId = `org:${user.organization_id}`;
+          contentModerationService.moderateAgentInBackground(prompt, user.id, agentId, undefined, (result) => {
+            logger.warn("[MCP] generate_text moderation violation", { userId: user.id, categories: result.flaggedCategories, action: result.action });
+          });
+
           const provider = getProviderFromModel(model);
 
           const org = await organizationsService.getById(user.organization_id!);
@@ -518,7 +545,7 @@ const mcpHandler = createMcpHandler(
                 },
               });
             } catch (refundError) {
-              console.error("Failed to refund credits:", refundError);
+              logger.error("Failed to refund credits:", refundError);
             }
           }
 
@@ -532,7 +559,7 @@ const mcpHandler = createMcpHandler(
                 completed_at: new Date(),
               });
             } catch (updateError) {
-              console.error("Failed to update generation record:", updateError);
+              logger.error("Failed to update generation record:", updateError);
             }
           }
 
@@ -587,6 +614,20 @@ const mcpHandler = createMcpHandler(
         try {
           const { user, apiKey } = getAuthContext();
           userOrganizationId = user.organization_id!;
+
+          // Check if user is blocked due to moderation violations
+          if (await contentModerationService.shouldBlockUser(user.id)) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: "Account suspended due to policy violations" }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          // Start async moderation for image prompt with agent tracking (doesn't block)
+          const agentId = `org:${user.organization_id}`;
+          contentModerationService.moderateAgentInBackground(prompt, user.id, agentId, undefined, (result) => {
+            logger.warn("[MCP] generate_image moderation violation", { userId: user.id, categories: result.flaggedCategories, action: result.action });
+          });
 
           const org = await organizationsService.getById(user.organization_id!);
           if (!org) {
@@ -710,7 +751,7 @@ const mcpHandler = createMcpHandler(
                   metadata: { generation_id: generationId },
                 });
               } catch (refundError) {
-                console.error("Failed to refund credits:", refundError);
+                logger.error("Failed to refund credits:", refundError);
               }
             }
 
@@ -784,7 +825,7 @@ const mcpHandler = createMcpHandler(
             blobUrl = blobResult.url;
             fileSize = blobResult.size ? BigInt(blobResult.size) : null;
           } catch (blobError) {
-            console.error("Failed to upload to Vercel Blob:", blobError);
+            logger.error("Failed to upload to Vercel Blob:", blobError);
           }
 
           // Update generation record
@@ -837,7 +878,7 @@ const mcpHandler = createMcpHandler(
                 },
               });
             } catch (refundError) {
-              console.error("Failed to refund credits:", refundError);
+              logger.error("Failed to refund credits:", refundError);
             }
           }
 
@@ -850,7 +891,7 @@ const mcpHandler = createMcpHandler(
                 completed_at: new Date(),
               });
             } catch (updateError) {
-              console.error("Failed to update generation record:", updateError);
+              logger.error("Failed to update generation record:", updateError);
             }
           }
 
@@ -2801,6 +2842,21 @@ const mcpHandler = createMcpHandler(
       async ({ message, roomId, entityId, streaming = false }) => {
         try {
           const { user } = getAuthContext();
+
+          // Check if user is blocked due to moderation violations
+          if (await contentModerationService.shouldBlockUser(user.id)) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: "Account suspended due to policy violations" }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          // Start async moderation with agent tracking (doesn't block)
+          const agentId = `org:${user.organization_id}`;
+          contentModerationService.moderateAgentInBackground(message, user.id, agentId, roomId, (result) => {
+            logger.warn("[MCP] chat_with_agent moderation violation", { userId: user.id, categories: result.flaggedCategories, action: result.action });
+          });
+
           const org = await organizationsService.getById(user.organization_id!);
 
           if (!org) {
@@ -3200,6 +3256,1603 @@ const mcpHandler = createMcpHandler(
         }
       },
     );
+
+    // Tool 21: Create Agent
+    server.registerTool(
+      "create_agent",
+      {
+        description: "Create a new agent/character. Cost: FREE",
+        inputSchema: {
+          name: z.string().describe("Agent name"),
+          bio: z.union([z.string(), z.array(z.string())]).describe("Agent bio"),
+          system: z.string().optional().describe("System prompt"),
+          category: z.string().optional().default("assistant").describe("Agent category"),
+          tags: z.array(z.string()).optional().describe("Agent tags"),
+        },
+      },
+      async ({ name, bio, system, category, tags }) => {
+        try {
+          const { user } = getAuthContext();
+
+          const character = await charactersService.create({
+            organization_id: user.organization_id!,
+            user_id: user.id,
+            name,
+            bio: Array.isArray(bio) ? bio : [bio],
+            system: system || null,
+            category: category || "assistant",
+            tags: tags || [],
+            source: "mcp",
+          });
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ success: true, agentId: character.id, name: character.name }, null, 2),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to create agent" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 22: Update Agent
+    server.registerTool(
+      "update_agent",
+      {
+        description: "Update an existing agent/character. Cost: FREE",
+        inputSchema: {
+          agentId: z.string().describe("Agent ID to update"),
+          name: z.string().optional().describe("New agent name"),
+          bio: z.union([z.string(), z.array(z.string())]).optional().describe("New agent bio"),
+          system: z.string().optional().describe("New system prompt"),
+          category: z.string().optional().describe("New category"),
+          tags: z.array(z.string()).optional().describe("New tags"),
+        },
+      },
+      async ({ agentId, name, bio, system, category, tags }) => {
+        try {
+          const { user } = getAuthContext();
+
+          const updates: Record<string, unknown> = {};
+          if (name) updates.name = name;
+          if (bio) updates.bio = Array.isArray(bio) ? bio : [bio];
+          if (system !== undefined) updates.system = system;
+          if (category) updates.category = category;
+          if (tags) updates.tags = tags;
+
+          const updated = await charactersService.updateForUser(agentId, user.id, updates);
+          if (!updated) throw new Error("Agent not found or not owned by user");
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, agentId }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to update agent" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 23: Delete Agent
+    server.registerTool(
+      "delete_agent",
+      {
+        description: "Delete an agent/character. Cost: FREE",
+        inputSchema: {
+          agentId: z.string().describe("Agent ID to delete"),
+        },
+      },
+      async ({ agentId }) => {
+        try {
+          const { user } = getAuthContext();
+
+          const deleted = await charactersService.deleteForUser(agentId, user.id);
+          if (!deleted) throw new Error("Agent not found or not owned by user");
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, agentId }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to delete agent" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 24: Generate Video
+    server.registerTool(
+      "generate_video",
+      {
+        description: "Generate a video using AI models. Cost: $5 per video",
+        inputSchema: {
+          prompt: z.string().describe("Video generation prompt"),
+          model: z.string().optional().default("fal-ai/veo3").describe("Model to use for generation"),
+        },
+      },
+      async ({ prompt, model }) => {
+        try {
+          const { user, apiKey } = getAuthContext();
+          const VIDEO_COST = 5;
+
+          if (Number(user.organization.credit_balance) < VIDEO_COST) {
+            throw new Error(`Insufficient credits: need $${VIDEO_COST.toFixed(2)}`);
+          }
+
+          const deduction = await creditsService.deductCredits({
+            organizationId: user.organization_id!,
+            amount: VIDEO_COST,
+            description: `MCP video generation: ${model}`,
+            metadata: { user_id: user.id, model },
+          });
+          if (!deduction.success) throw new Error("Credit deduction failed");
+
+          const generation = await generationsService.create({
+            organization_id: user.organization_id!,
+            user_id: user.id,
+            api_key_id: apiKey?.id || null,
+            type: "video",
+            model,
+            provider: "fal",
+            prompt,
+            status: "pending",
+            credits: String(VIDEO_COST),
+            cost: String(VIDEO_COST),
+          });
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({
+                  success: true,
+                  jobId: generation.id,
+                  status: "pending",
+                  cost: VIDEO_COST,
+                  message: "Video generation started. Poll /api/v1/gallery to check status.",
+                }, null, 2),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to generate video" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 25: Generate Embeddings
+    server.registerTool(
+      "generate_embeddings",
+      {
+        description: "Generate vector embeddings for text. Cost: ~$0.00002 per 1K tokens",
+        inputSchema: {
+          input: z.union([z.string(), z.array(z.string())]).describe("Text or array of texts to embed"),
+          model: z.string().optional().default("text-embedding-3-small").describe("Embedding model"),
+        },
+      },
+      async ({ input, model }) => {
+        try {
+          const { user } = getAuthContext();
+          const inputs = Array.isArray(input) ? input : [input];
+          const totalTokens = inputs.reduce((sum, text) => sum + estimateTokens(text), 0);
+          const COST_PER_TOKEN = 0.00002 / 1000;
+          const cost = totalTokens * COST_PER_TOKEN;
+
+          if (Number(user.organization.credit_balance) < cost) {
+            throw new Error(`Insufficient credits: need $${cost.toFixed(6)}`);
+          }
+
+          const deduction = await creditsService.deductCredits({
+            organizationId: user.organization_id!,
+            amount: cost,
+            description: `MCP embeddings: ${model}`,
+            metadata: { user_id: user.id, tokenCount: totalTokens },
+          });
+          if (!deduction.success) throw new Error("Credit deduction failed");
+
+          const provider = getProvider();
+          const response = await provider.createEmbeddings({ model, input: inputs });
+          const data = await response.json();
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              embeddings: data.data.map((d: { embedding: number[] }) => d.embedding),
+              model,
+              usage: { totalTokens },
+              cost,
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to generate embeddings" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 26: List Models
+    server.registerTool(
+      "list_models",
+      {
+        description: "List all available AI models. FREE tool.",
+        inputSchema: {},
+      },
+      async () => {
+        try {
+          const provider = getProvider();
+          const response = await provider.listModels();
+          const data = await response.json();
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              models: data.data.map((m: { id: string; owned_by: string }) => ({
+                id: m.id,
+                owned_by: m.owned_by,
+              })),
+              total: data.data.length,
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list models" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 27: Query Knowledge
+    server.registerTool(
+      "query_knowledge",
+      {
+        description: "Query the knowledge base using semantic search. Cost: varies by result count",
+        inputSchema: {
+          query: z.string().describe("Search query"),
+          characterId: z.string().optional().describe("Filter by character/agent ID"),
+          limit: z.number().int().min(1).max(20).optional().default(5).describe("Max results"),
+        },
+      },
+      async ({ query, characterId, limit }) => {
+        try {
+          const { user } = getAuthContext();
+
+          const results = await memoryService.retrieveMemories({
+            organizationId: user.organization_id!,
+            query,
+            roomId: characterId,
+            limit,
+            sortBy: "relevance",
+          });
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              results: results.map((r) => ({
+                content: r.memory.content?.text || String(r.memory.content),
+                score: r.score,
+                id: r.memory.id,
+              })),
+              count: results.length,
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to query knowledge" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 28: List Gallery
+    server.registerTool(
+      "list_gallery",
+      {
+        description: "List all generated media (images and videos). FREE tool.",
+        inputSchema: {
+          type: z.enum(["image", "video"]).optional().describe("Filter by media type"),
+          limit: z.number().int().min(1).max(50).optional().default(20).describe("Max results"),
+        },
+      },
+      async ({ type, limit }) => {
+        try {
+          const { user } = getAuthContext();
+
+          let generations = await generationsService.listByOrganization(user.organization_id!, limit);
+          if (type) {
+            generations = generations.filter((g) => g.type === type);
+          }
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              media: generations.map((g) => ({
+                id: g.id,
+                type: g.type,
+                url: g.storage_url || g.content || "",
+                prompt: g.prompt || "",
+                status: g.status,
+                createdAt: g.created_at,
+              })),
+              total: generations.length,
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list gallery" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 29: Text to Speech
+    server.registerTool(
+      "text_to_speech",
+      {
+        description: "Convert text to speech audio. Cost: ~$0.001 per 100 chars",
+        inputSchema: {
+          text: z.string().max(5000).describe("Text to convert to speech"),
+          voiceId: z.string().optional().describe("ElevenLabs voice ID"),
+        },
+      },
+      async ({ text, voiceId }) => {
+        try {
+          const { user } = getAuthContext();
+          const TTS_COST = 0.001 * Math.ceil(text.length / 100);
+
+          const deduction = await creditsService.deductCredits({
+            organizationId: user.organization_id!,
+            amount: TTS_COST,
+            description: "MCP text-to-speech",
+            metadata: { user_id: user.id, chars: text.length },
+          });
+          if (!deduction.success) throw new Error("Insufficient credits");
+
+          const elevenLabs = await getElevenLabsService();
+          const audioBuffer = await elevenLabs.textToSpeech(text, voiceId || "21m00Tcm4TlvDq8ikWAM");
+          const { uploadFromBuffer } = await import("@/lib/blob");
+          const audioUrl = await uploadFromBuffer(audioBuffer, `tts-${Date.now()}.mp3`, "audio/mpeg");
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, audioUrl, format: "mp3", cost: TTS_COST }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to generate speech" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 30: List Voices
+    server.registerTool(
+      "list_voices",
+      {
+        description: "List available TTS voices. FREE tool.",
+        inputSchema: {},
+      },
+      async () => {
+        try {
+          const elevenLabs = await getElevenLabsService();
+          const voices = await elevenLabs.listVoices();
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              voices: voices.map((v: { voice_id: string; name: string; category: string }) => ({
+                id: v.voice_id,
+                name: v.name,
+                category: v.category,
+              })),
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list voices" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 31: Get Analytics
+    server.registerTool(
+      "get_analytics",
+      {
+        description: "Get usage analytics overview. FREE tool.",
+        inputSchema: {
+          timeRange: z.enum(["daily", "weekly", "monthly"]).optional().default("daily").describe("Time range"),
+        },
+      },
+      async ({ timeRange }) => {
+        try {
+          const { user } = getAuthContext();
+          const overview = await analyticsService.getOverview(user.organization_id!, timeRange);
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              overview: {
+                totalRequests: overview.summary.totalRequests,
+                successRate: overview.summary.successRate,
+                totalCost: overview.summary.totalCost,
+                avgCostPerRequest: overview.summary.avgCostPerRequest,
+                timeRange,
+              },
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get analytics" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 32: List API Keys
+    server.registerTool(
+      "list_api_keys",
+      {
+        description: "List all API keys. FREE tool.",
+        inputSchema: {},
+      },
+      async () => {
+        try {
+          const { user } = getAuthContext();
+          const keys = await apiKeysService.listByOrganization(user.organization_id!);
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              apiKeys: keys.map((k) => ({
+                id: k.id,
+                name: k.name,
+                keyPrefix: k.key_prefix,
+                isActive: k.is_active,
+                createdAt: k.created_at,
+              })),
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list API keys" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 33: Create API Key
+    server.registerTool(
+      "create_api_key",
+      {
+        description: "Create a new API key. FREE tool. Returns plain key only once!",
+        inputSchema: {
+          name: z.string().min(1).describe("API key name"),
+          description: z.string().optional().describe("Description"),
+          rateLimit: z.number().int().min(1).optional().default(1000).describe("Rate limit per minute"),
+        },
+      },
+      async ({ name, description, rateLimit }) => {
+        try {
+          const { user } = getAuthContext();
+
+          const { apiKey, plainKey } = await apiKeysService.create({
+            name,
+            description: description || null,
+            organization_id: user.organization_id!,
+            user_id: user.id,
+            permissions: [],
+            rate_limit: rateLimit,
+            expires_at: null,
+            is_active: true,
+          });
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              apiKey: { id: apiKey.id, name: apiKey.name, keyPrefix: apiKey.key_prefix },
+              plainKey, // IMPORTANT: Only shown once!
+              warning: "Store this key securely - it will not be shown again!",
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to create API key" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 34: Delete API Key
+    server.registerTool(
+      "delete_api_key",
+      {
+        description: "Delete an API key. FREE tool.",
+        inputSchema: {
+          apiKeyId: z.string().uuid().describe("API key ID to delete"),
+        },
+      },
+      async ({ apiKeyId }) => {
+        try {
+          const { user } = getAuthContext();
+          await apiKeysService.delete(apiKeyId, user.organization_id!);
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, apiKeyId }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to delete API key" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 35: Get Redemption Balance
+    server.registerTool(
+      "get_redemption_balance",
+      {
+        description: "Get redeemable token balance. FREE tool.",
+        inputSchema: {},
+      },
+      async () => {
+        try {
+          const { user } = getAuthContext();
+          const balance = await secureTokenRedemptionService.getEarnedBalance(user.organization_id!);
+          const pending = await secureTokenRedemptionService.getPendingRedemptions(user.organization_id!);
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              redeemableBalance: balance,
+              pendingRedemptions: pending.reduce((sum, p) => sum + p.pointsAmount, 0),
+              pendingCount: pending.length,
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get redemption balance" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 36: Generate Prompts
+    server.registerTool(
+      "generate_prompts",
+      {
+        description: "Generate AI agent concept prompts. Cost: ~$0.01",
+        inputSchema: {},
+      },
+      async () => {
+        try {
+          const { user } = getAuthContext();
+          const COST = 0.01;
+
+          const deduction = await creditsService.deductCredits({
+            organizationId: user.organization_id!,
+            amount: COST,
+            description: "MCP prompt generation",
+            metadata: { user_id: user.id },
+          });
+          if (!deduction.success) throw new Error("Insufficient credits");
+
+          const { openai } = await import("@ai-sdk/openai");
+          const { generateText } = await import("ai");
+
+          const { text } = await generateText({
+            model: openai("gpt-4o-mini"),
+            prompt: `Generate 4 short, practical AI agent concepts (max 8 words each). Return ONLY a JSON array of strings.`,
+          });
+
+          const prompts = JSON.parse(text);
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, prompts, cost: COST }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to generate prompts" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 37: Upload Knowledge
+    server.registerTool(
+      "upload_knowledge",
+      {
+        description: "Upload a knowledge document for RAG. Cost: ~$0.01",
+        inputSchema: {
+          content: z.string().describe("Document content"),
+          title: z.string().describe("Document title"),
+          characterId: z.string().optional().describe("Associate with specific agent"),
+        },
+      },
+      async ({ content, title, characterId }) => {
+        try {
+          const { user } = getAuthContext();
+          const COST = 0.01;
+
+          const deduction = await creditsService.deductCredits({
+            organizationId: user.organization_id!,
+            amount: COST,
+            description: "MCP knowledge upload",
+            metadata: { user_id: user.id, title },
+          });
+          if (!deduction.success) throw new Error("Insufficient credits");
+
+          const result = await memoryService.saveMemory({
+            organizationId: user.organization_id!,
+            content,
+            roomId: characterId,
+            metadata: { title, type: "knowledge" },
+          });
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              documentId: result.memoryId,
+              status: "indexed",
+              cost: COST,
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to upload knowledge" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 38: Get Container
+    server.registerTool(
+      "get_container",
+      {
+        description: "Get container details. FREE tool.",
+        inputSchema: {
+          containerId: z.string().uuid().describe("Container ID"),
+        },
+      },
+      async ({ containerId }) => {
+        try {
+          const { user } = getAuthContext();
+          const container = await getContainer(containerId, user.organization_id!);
+          if (!container) throw new Error("Container not found");
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              container: { id: container.id, name: container.name, status: container.status, url: container.load_balancer_url },
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get container" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 39: Get Container Health
+    server.registerTool(
+      "get_container_health",
+      {
+        description: "Get container health status. FREE tool.",
+        inputSchema: {
+          containerId: z.string().uuid().describe("Container ID"),
+        },
+      },
+      async ({ containerId }) => {
+        try {
+          const { user } = getAuthContext();
+          const container = await getContainer(containerId, user.organization_id!);
+          if (!container) throw new Error("Container not found");
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              healthy: container.status === "running",
+              status: container.status,
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get container health" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 40: Get Container Logs
+    server.registerTool(
+      "get_container_logs",
+      {
+        description: "Get container logs. FREE tool.",
+        inputSchema: {
+          containerId: z.string().uuid().describe("Container ID"),
+          limit: z.number().int().min(1).max(100).optional().default(50).describe("Max log entries"),
+        },
+      },
+      async ({ containerId, limit }) => {
+        try {
+          const { user } = getAuthContext();
+          const container = await getContainer(containerId, user.organization_id!);
+          if (!container) throw new Error("Container not found");
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              logs: [`Container ${containerId} status: ${container.status}`],
+              limit,
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get container logs" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 41: List MCPs
+    server.registerTool(
+      "list_mcps",
+      {
+        description: "List MCP servers. FREE tool.",
+        inputSchema: {
+          scope: z.enum(["own", "public"]).optional().default("own").describe("Scope"),
+          limit: z.number().int().min(1).max(50).optional().default(20).describe("Max results"),
+        },
+      },
+      async ({ scope, limit }) => {
+        try {
+          const { user } = getAuthContext();
+          const mcps = await userMcpsService.list({ organizationId: user.organization_id!, scope, limit, offset: 0 });
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              mcps: mcps.map((m) => ({ id: m.id, name: m.name, slug: m.slug, status: m.status })),
+              total: mcps.length,
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list MCPs" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 42: Create MCP
+    server.registerTool(
+      "create_mcp",
+      {
+        description: "Create a new MCP server. FREE tool.",
+        inputSchema: {
+          name: z.string().min(1).max(100).describe("MCP name"),
+          slug: z.string().min(1).max(50).regex(/^[a-z0-9-]+$/).describe("URL slug"),
+          description: z.string().min(1).max(1000).describe("Description"),
+        },
+      },
+      async ({ name, slug, description }) => {
+        try {
+          const { user } = getAuthContext();
+          const mcp = await userMcpsService.create({
+            organization_id: user.organization_id!,
+            user_id: user.id,
+            name, slug, description,
+            status: "draft",
+          });
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, mcpId: mcp.id, slug: mcp.slug }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to create MCP" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 43: Delete MCP
+    server.registerTool(
+      "delete_mcp",
+      {
+        description: "Delete an MCP server. FREE tool.",
+        inputSchema: {
+          mcpId: z.string().uuid().describe("MCP ID to delete"),
+        },
+      },
+      async ({ mcpId }) => {
+        try {
+          const { user } = getAuthContext();
+          await userMcpsService.delete(mcpId, user.organization_id!);
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, mcpId }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to delete MCP" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 44: List Rooms
+    server.registerTool(
+      "list_rooms",
+      {
+        description: "List chat rooms. FREE tool.",
+        inputSchema: {},
+      },
+      async () => {
+        try {
+          const { user } = getAuthContext();
+          const rooms = await roomsService.getRoomsForEntity(user.id);
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              rooms: rooms.map((r) => ({ id: r.id, characterId: r.character_id, lastMessage: r.last_message_preview })),
+              total: rooms.length,
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list rooms" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 45: Create Room
+    server.registerTool(
+      "create_room",
+      {
+        description: "Create a new chat room. FREE tool.",
+        inputSchema: {
+          characterId: z.string().optional().describe("Character/agent ID"),
+        },
+      },
+      async ({ characterId }) => {
+        try {
+          const { user } = getAuthContext();
+          const room = await roomsService.createRoom({
+            userId: user.id,
+            characterId: characterId || "b850bc30-45f8-0041-a00a-83df46d8555d",
+          });
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, roomId: room.id, characterId: room.character_id }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to create room" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 46: Get User Profile
+    server.registerTool(
+      "get_user_profile",
+      {
+        description: "Get current user profile. FREE tool.",
+        inputSchema: {},
+      },
+      async () => {
+        try {
+          const { user } = getAuthContext();
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              user: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                organizationId: user.organization_id,
+                creditBalance: user.organization.credit_balance,
+              },
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get user profile" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 47: Update User Profile
+    server.registerTool(
+      "update_user_profile",
+      {
+        description: "Update user profile. FREE tool.",
+        inputSchema: {
+          name: z.string().min(1).max(100).optional().describe("New display name"),
+        },
+      },
+      async ({ name }) => {
+        try {
+          const { user } = getAuthContext();
+          if (name) {
+            await usersService.update(user.id, { name });
+          }
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to update profile" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 48: Get Redemption Quote
+    server.registerTool(
+      "get_redemption_quote",
+      {
+        description: "Get token redemption quote. FREE tool.",
+        inputSchema: {
+          pointsAmount: z.number().int().min(100).max(100000).describe("Points to redeem"),
+          network: z.enum(["ethereum", "base", "bnb", "solana"]).describe("Payout network"),
+        },
+      },
+      async ({ pointsAmount, network }) => {
+        try {
+          const quote = await secureTokenRedemptionService.getRedemptionQuote(pointsAmount, network);
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, quote }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get redemption quote" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 49: Create Container
+    server.registerTool(
+      "create_container",
+      {
+        description: "Create and deploy a container. Cost: $10 per deployment",
+        inputSchema: {
+          name: z.string().min(1).max(100).describe("Container name"),
+          ecrImageUri: z.string().describe("ECR image URI"),
+          projectName: z.string().min(1).max(50).describe("Project name"),
+          port: z.number().int().min(1).max(65535).optional().default(3000).describe("Port"),
+          cpu: z.number().int().min(256).max(2048).optional().default(1792).describe("CPU units"),
+          memory: z.number().int().min(256).max(2048).optional().default(1792).describe("Memory MB"),
+          environmentVars: z.record(z.string()).optional().describe("Environment variables"),
+        },
+      },
+      async ({ name, ecrImageUri, projectName, port, cpu, memory, environmentVars }) => {
+        try {
+          const { user } = getAuthContext();
+          const DEPLOYMENT_COST = 10;
+
+          if (Number(user.organization.credit_balance) < DEPLOYMENT_COST) {
+            throw new Error(`Insufficient credits: need $${DEPLOYMENT_COST}`);
+          }
+
+          const deduction = await creditsService.deductCredits({
+            organizationId: user.organization_id!,
+            amount: DEPLOYMENT_COST,
+            description: `MCP container deployment: ${name}`,
+            metadata: { user_id: user.id },
+          });
+          if (!deduction.success) throw new Error("Credit deduction failed");
+
+          const container = await containersService.create({
+            organization_id: user.organization_id!,
+            name,
+            project_name: projectName,
+            ecr_image_uri: ecrImageUri,
+            port,
+            cpu,
+            memory,
+            environment_vars: environmentVars || {},
+            status: "deploying",
+          });
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              containerId: container.id,
+              name: container.name,
+              status: container.status,
+              cost: DEPLOYMENT_COST,
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to create container" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 50: Delete Container
+    server.registerTool(
+      "delete_container",
+      {
+        description: "Delete a container. FREE tool.",
+        inputSchema: {
+          containerId: z.string().uuid().describe("Container ID to delete"),
+        },
+      },
+      async ({ containerId }) => {
+        try {
+          const { user } = getAuthContext();
+          const container = await getContainer(containerId, user.organization_id!);
+          if (!container) throw new Error("Container not found");
+
+          await deleteContainer(containerId, user.organization_id!);
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, containerId }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to delete container" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 51: Get Container Metrics
+    server.registerTool(
+      "get_container_metrics",
+      {
+        description: "Get container metrics. FREE tool.",
+        inputSchema: {
+          containerId: z.string().uuid().describe("Container ID"),
+        },
+      },
+      async ({ containerId }) => {
+        try {
+          const { user } = getAuthContext();
+          const container = await getContainer(containerId, user.organization_id!);
+          if (!container) throw new Error("Container not found");
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              metrics: {
+                containerId,
+                status: container.status,
+                cpu: container.cpu,
+                memory: container.memory,
+                createdAt: container.created_at,
+              },
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get container metrics" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 52: Get Container Quota
+    server.registerTool(
+      "get_container_quota",
+      {
+        description: "Get container quota. FREE tool.",
+        inputSchema: {},
+      },
+      async () => {
+        try {
+          const { user } = getAuthContext();
+          const containers = await containersService.listByOrganization(user.organization_id!);
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              quota: {
+                used: containers.length,
+                limit: 5,
+                remaining: Math.max(0, 5 - containers.length),
+              },
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get container quota" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 53: Get Credit Summary
+    server.registerTool(
+      "get_credit_summary",
+      {
+        description: "Get complete credit summary. FREE tool.",
+        inputSchema: {},
+      },
+      async () => {
+        try {
+          const { user } = getAuthContext();
+          const org = await organizationsService.getById(user.organization_id!);
+          if (!org) throw new Error("Organization not found");
+
+          const redeemable = await redeemableEarningsService.getBalance(user.organization_id!);
+          const agentBudgets = await agentBudgetService.getOrgBudgets(user.organization_id!);
+          const totalAgentBudgets = agentBudgets.reduce((sum, b) => sum + Number(b.remaining_budget || 0), 0);
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              summary: {
+                organizationCredits: Number(org.credit_balance),
+                redeemableEarnings: redeemable,
+                totalAgentBudgets,
+                agentCount: agentBudgets.length,
+              },
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get credit summary" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 54: List Credit Transactions
+    server.registerTool(
+      "list_credit_transactions",
+      {
+        description: "List credit transactions. FREE tool.",
+        inputSchema: {
+          limit: z.number().int().min(1).max(100).optional().default(50).describe("Max results"),
+          hours: z.number().int().min(1).optional().describe("Filter to last N hours"),
+        },
+      },
+      async ({ limit, hours }) => {
+        try {
+          const { user } = getAuthContext();
+          let transactions = await creditsService.listTransactionsByOrganization(user.organization_id!, limit);
+
+          if (hours) {
+            const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
+            transactions = transactions.filter((t) => new Date(t.created_at) >= cutoffTime);
+          }
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              transactions: transactions.map((t) => ({
+                id: t.id,
+                amount: Number(t.amount),
+                type: t.type,
+                description: t.description,
+                createdAt: t.created_at,
+              })),
+              total: transactions.length,
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list transactions" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 55: List Credit Packs
+    server.registerTool(
+      "list_credit_packs",
+      {
+        description: "List available credit packs for purchase. FREE tool.",
+        inputSchema: {},
+      },
+      async () => {
+        try {
+          const packs = await creditsService.listActiveCreditPacks();
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              packs: packs.map((p) => ({
+                id: p.id,
+                name: p.name,
+                credits: Number(p.credits),
+                price: Number(p.price),
+                currency: p.currency,
+                popular: p.popular,
+              })),
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list credit packs" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 56: Get Billing Usage
+    server.registerTool(
+      "get_billing_usage",
+      {
+        description: "Get billing usage statistics. FREE tool.",
+        inputSchema: {
+          days: z.number().int().min(1).max(90).optional().default(30).describe("Days to include"),
+        },
+      },
+      async ({ days }) => {
+        try {
+          const { user } = getAuthContext();
+          const usage = await usageService.listByOrganization(user.organization_id!, 1000);
+
+          const cutoffTime = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+          const recentUsage = usage.filter((u) => new Date(u.created_at) >= cutoffTime);
+
+          const totalCost = recentUsage.reduce((sum, u) => sum + Number(u.input_cost || 0) + Number(u.output_cost || 0), 0);
+          const totalTokens = recentUsage.reduce((sum, u) => sum + (u.input_tokens || 0) + (u.output_tokens || 0), 0);
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({
+              success: true,
+              usage: {
+                period: `${days} days`,
+                totalRequests: recentUsage.length,
+                totalTokens,
+                totalCost,
+                byType: {
+                  chat: recentUsage.filter((u) => u.type === "chat").length,
+                  image: recentUsage.filter((u) => u.type === "image").length,
+                  video: recentUsage.filter((u) => u.type === "video").length,
+                  embedding: recentUsage.filter((u) => u.type === "embedding").length,
+                },
+              },
+            }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get billing usage" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // =========================================================================
+    // ERC-8004 Discovery Tools
+    // Tools for discovering and searching services on the decentralized registry
+    // =========================================================================
+
+    // Tool: Discover Services - Search the discovery API
+    server.registerTool(
+      "discover_services",
+      {
+        description:
+          "Discover services (agents, MCPs, apps) from both Eliza Cloud and the ERC-8004 registry. " +
+          "Use this to find external services to interact with. FREE tool.",
+        inputSchema: {
+          query: z.string().optional().describe("Search query to filter by name or description"),
+          types: z
+            .array(z.enum(["agent", "mcp", "a2a", "app"]))
+            .optional()
+            .describe("Types of services to find"),
+          sources: z
+            .array(z.enum(["local", "erc8004"]))
+            .optional()
+            .describe("Sources to search (local = Eliza Cloud, erc8004 = decentralized)"),
+          categories: z.array(z.string()).optional().describe("Filter by categories"),
+          tags: z.array(z.string()).optional().describe("Filter by tags"),
+          mcpTools: z.array(z.string()).optional().describe("Find services with specific MCP tools"),
+          a2aSkills: z.array(z.string()).optional().describe("Find services with specific A2A skills"),
+          x402Only: z.boolean().optional().describe("Only return services with x402 payment support"),
+          limit: z.number().int().min(1).max(50).optional().default(20).describe("Max results"),
+        },
+      },
+      async ({ query, types, sources, categories, tags, mcpTools, a2aSkills, x402Only, limit }) => {
+        try {
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+          const services: Array<{
+            id: string;
+            name: string;
+            description: string;
+            type: string;
+            source: string;
+            endpoint?: string;
+            mcpEndpoint?: string;
+            a2aEndpoint?: string;
+            x402Support: boolean;
+          }> = [];
+
+          const searchSources = sources ?? ["local", "erc8004"];
+          const searchTypes = types ?? ["agent", "mcp"];
+
+          // Search local services
+          if (searchSources.includes("local")) {
+            if (searchTypes.includes("agent")) {
+              const chars = await characterMarketplaceService.searchPublic({
+                search: query,
+                category: categories?.[0],
+                limit: limit,
+              });
+              for (const char of chars) {
+                services.push({
+                  id: char.id,
+                  name: char.name,
+                  description: Array.isArray(char.bio) ? char.bio.join(" ") : char.bio,
+                  type: "agent",
+                  source: "local",
+                  a2aEndpoint: `${baseUrl}/api/agents/${char.id}/a2a`,
+                  mcpEndpoint: `${baseUrl}/api/agents/${char.id}/mcp`,
+                  x402Support: false,
+                });
+              }
+            }
+
+            if (searchTypes.includes("mcp")) {
+              const mcps = await userMcpsService.listPublic({
+                category: categories?.[0],
+                search: query,
+                limit: limit,
+              });
+              for (const mcp of mcps) {
+                services.push({
+                  id: mcp.id,
+                  name: mcp.name,
+                  description: mcp.description,
+                  type: "mcp",
+                  source: "local",
+                  mcpEndpoint: userMcpsService.getEndpointUrl(mcp, baseUrl),
+                  x402Support: mcp.x402_enabled,
+                });
+              }
+            }
+          }
+
+          // Search ERC-8004 registry
+          if (searchSources.includes("erc8004")) {
+            const network = getDefaultNetwork();
+            const chainId = CHAIN_IDS[network];
+
+            const agents = await agent0Service.searchAgentsCached({
+              name: query,
+              mcpTools: mcpTools,
+              a2aSkills: a2aSkills,
+              x402Support: x402Only,
+              active: true,
+            });
+
+            for (const agent of agents) {
+              const discovered = agent0ToDiscoveredService(agent, network, chainId);
+              if (!searchTypes.length || searchTypes.includes(discovered.type)) {
+                services.push({
+                  id: discovered.id,
+                  name: discovered.name,
+                  description: discovered.description,
+                  type: discovered.type,
+                  source: "erc8004",
+                  mcpEndpoint: discovered.mcpEndpoint,
+                  a2aEndpoint: discovered.a2aEndpoint,
+                  x402Support: discovered.x402Support,
+                });
+              }
+            }
+          }
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                success: true,
+                count: services.length,
+                services: services.slice(0, limit),
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Discovery failed" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Get Service Details - Get detailed info about a discovered service
+    server.registerTool(
+      "get_service_details",
+      {
+        description:
+          "Get detailed information about a specific service from the ERC-8004 registry. " +
+          "Use agentId in format 'chainId:tokenId'. FREE tool.",
+        inputSchema: {
+          agentId: z.string().describe("Agent ID in format 'chainId:tokenId' (e.g., '84532:123')"),
+        },
+      },
+      async ({ agentId }) => {
+        try {
+          const agent = await agent0Service.getAgentCached(agentId);
+          if (!agent) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: "Agent not found", agentId }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          const network = getDefaultNetwork();
+          const chainId = CHAIN_IDS[network];
+          const service = agent0ToDiscoveredService(agent, network, chainId);
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                success: true,
+                service,
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get service details" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Find MCP Tools - Search for services that provide specific MCP tools
+    server.registerTool(
+      "find_mcp_tools",
+      {
+        description:
+          "Find services that provide specific MCP tools. " +
+          "Useful for discovering external capabilities. FREE tool.",
+        inputSchema: {
+          tools: z.array(z.string()).describe("List of MCP tool names to search for"),
+          x402Only: z.boolean().optional().describe("Only return services with x402 payment"),
+        },
+      },
+      async ({ tools, x402Only }) => {
+        try {
+          const network = getDefaultNetwork();
+          const chainId = CHAIN_IDS[network];
+
+          const agents = await agent0Service.findAgentsWithToolsCached(tools);
+          const filtered = x402Only ? agents.filter((a) => a.x402Support) : agents;
+
+          const results = filtered.map((agent) => ({
+            agentId: agent.agentId,
+            name: agent.name,
+            description: agent.description,
+            mcpEndpoint: agent.mcpEndpoint,
+            mcpTools: agent.mcpTools,
+            x402Support: agent.x402Support,
+            network,
+            chainId,
+          }));
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                success: true,
+                searchedTools: tools,
+                count: results.length,
+                services: results,
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to find MCP tools" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Find A2A Skills - Search for agents with specific skills
+    server.registerTool(
+      "find_a2a_skills",
+      {
+        description:
+          "Find agents that have specific A2A skills for agent-to-agent communication. " +
+          "Useful for discovering agents to collaborate with. FREE tool.",
+        inputSchema: {
+          skills: z.array(z.string()).describe("List of A2A skill names to search for"),
+          x402Only: z.boolean().optional().describe("Only return services with x402 payment"),
+        },
+      },
+      async ({ skills, x402Only }) => {
+        try {
+          const network = getDefaultNetwork();
+          const chainId = CHAIN_IDS[network];
+
+          const agents = await agent0Service.findAgentsWithSkillsCached(skills);
+          const filtered = x402Only ? agents.filter((a) => a.x402Support) : agents;
+
+          const results = filtered.map((agent) => ({
+            agentId: agent.agentId,
+            name: agent.name,
+            description: agent.description,
+            a2aEndpoint: agent.a2aEndpoint,
+            a2aSkills: agent.a2aSkills,
+            x402Support: agent.x402Support,
+            network,
+            chainId,
+          }));
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                success: true,
+                searchedSkills: skills,
+                count: results.length,
+                agents: results,
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to find A2A skills" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
   },
   {},
   { basePath: "/api" },
@@ -3242,11 +4895,49 @@ async function handleRequest(req: NextRequest) {
       );
     }
 
+    // Track request for agent reputation (fire and forget)
+    const agentIdentifier = `org:${authResult.user.organization_id}`;
+    agentReputationService.recordRequest({
+      agentIdentifier,
+      isSuccessful: true,
+      method: "mcp",
+    }).catch(() => {
+      // Ignore errors - don't fail MCP request for reputation tracking
+    });
+
     // Run MCP handler within auth context using AsyncLocalStorage
+    // NextRequest extends Request, but the mcp-handler declares a global Request augmentation
+    // that adds an optional `auth` property. Direct cast is safe since NextRequest is a subtype.
     return await authContextStorage.run(authResult, async () => {
-      return await mcpHandler(req as unknown as Request);
+      return await mcpHandler(req as Request);
     });
   } catch (error) {
+    // Return 402 with x402 payment info if enabled and configured
+    const { X402_ENABLED, X402_RECIPIENT_ADDRESS, getDefaultNetwork, USDC_ADDRESSES, TOPUP_PRICE, CREDITS_PER_DOLLAR, isX402Configured } = await import("@/lib/config/x402");
+    
+    if (isX402Configured()) {
+      return NextResponse.json(
+        {
+          error: "authentication_failed",
+          error_description: "Authentication required. Get an API key or top up credits via x402 payment.",
+          x402: {
+            topupEndpoint: "/api/v1/credits/topup",
+            network: getDefaultNetwork(),
+            asset: USDC_ADDRESSES[getDefaultNetwork()],
+            payTo: X402_RECIPIENT_ADDRESS,
+            minimumTopup: TOPUP_PRICE,
+            creditsPerDollar: CREDITS_PER_DOLLAR,
+          },
+        },
+        {
+          status: 402,
+          headers: {
+            "WWW-Authenticate": 'Bearer realm="MCP Server", error="invalid_token"',
+          },
+        },
+      );
+    }
+
     // Return auth error in MCP format
     return NextResponse.json(
       {

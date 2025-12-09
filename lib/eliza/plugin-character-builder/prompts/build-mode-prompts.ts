@@ -67,7 +67,7 @@ export const buildModePlanningTemplate = `
 
 {{receivedMessageHeader}}
 
-{{recentMessages}}
+{{conversationLog}}
 
 {{sessionSummaries}}
 

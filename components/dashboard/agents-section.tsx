@@ -39,6 +39,7 @@ import { formatDistanceToNow } from "date-fns";
 import { isBuiltInAvatar, ensureAvatarUrl } from "@/lib/utils/default-avatar";
 
 import type { DashboardAgentStats as AgentStats } from "@/lib/actions/dashboard";
+import { Skeleton } from "../ui/skeleton";
 
 interface Agent {
   id: string;
@@ -70,7 +71,7 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-semibold text-white">Your Agents</h2>
+            <h2 className="text-xl font-semibold text-white">My Agents</h2>
             <span className="text-sm text-white/30">({agents.length})</span>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -94,7 +95,7 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
           onClick={() => (window.location.href = "/dashboard/my-agents")}
           icon={<Plus className="h-4 w-4" />}
         >
-          New
+          New Agent
         </LockOnButton>
       </div>
 
@@ -275,6 +276,8 @@ function AgentCard({ agent }: { agent: Agent }) {
         </div>
         {/* Avatar Section - Large prominent image */}
         <div className={cn("relative h-36 w-full overflow-hidden")}>
+          <Skeleton className="absolute inset-0 w-full h-full" />
+
           <Image
             src={ensureAvatarUrl(agent.avatarUrl)}
             alt={agent.name}

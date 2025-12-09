@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { marketplaceService } from "@/lib/services";
+import { characterMarketplaceService } from "@/lib/services/characters/marketplace";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +23,7 @@ export async function GET(
 
     logger.debug("[Marketplace API] Getting stats for character:", id);
 
-    const character = await marketplaceService.getCharacterById(id, true);
+    const character = await characterMarketplaceService.getCharacterById(id, true);
 
     if (!character) {
       return NextResponse.json(

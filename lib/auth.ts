@@ -1,9 +1,8 @@
 import { PrivyClient } from "@privy-io/server-auth";
-import {
-  usersService,
-  apiKeysService,
-  userSessionsService,
-} from "@/lib/services";
+import { usersService } from "@/lib/services/users";
+import { apiKeysService } from "@/lib/services/api-keys";
+import { userSessionsService } from "@/lib/services/user-sessions";
+import { syncUserFromPrivy } from "./privy-sync";
 import type { UserWithOrganization, ApiKey } from "@/lib/types";
 import type { Organization } from "@/db/schemas/organizations";
 import { cache } from "react";
@@ -101,20 +100,36 @@ export const getCurrentUser = cache(
       // Just-in-time sync: If user doesn't exist, fetch from Privy and create
       // This handles race conditions where webhooks haven't fired yet
       if (!user) {
-        // Fetch full user data from Privy API
-        const privyUser = await privyClient.getUser(verifiedClaims.userId);
-
-        if (privyUser) {
-          // Import the sync logic from webhook
-          const { syncUserFromPrivy } = await import("./privy-sync");
-          // Type cast needed because Privy SDK types don't match our simplified interface
-          interface PrivyUserShape {
-            id: string;
-            email?: { address: string };
-            name?: string | null;
-            linkedAccounts?: Array<Record<string, unknown>>;
+        console.log("[AUTH] User not in DB, starting JIT sync for:", verifiedClaims.userId);
+        
+        try {
+          let privyUser = null;
+          
+          // Try efficient method first: use privy-id-token to avoid rate limits
+          const idToken = cookieStore.get("privy-id-token");
+          if (idToken?.value) {
+            console.log("[AUTH] Using privy-id-token for user lookup");
+            try {
+              privyUser = await privyClient.getUser({ idToken: idToken.value });
+            } catch (idTokenError) {
+              console.warn("[AUTH] privy-id-token method failed, will fallback to userId");
+            }
           }
-          user = await syncUserFromPrivy(privyUser as PrivyUserShape);
+          
+          // Fallback: use userId directly (counts against rate limits)
+          if (!privyUser) {
+            console.log("[AUTH] Using userId for user lookup (fallback)");
+            privyUser = await privyClient.getUser(verifiedClaims.userId);
+          }
+          
+          if (privyUser) {
+            user = await syncUserFromPrivy(privyUser);
+            console.log("[AUTH] ✓ JIT sync complete:", { userId: user.id, orgId: user.organization_id });
+          } else {
+            console.error("[AUTH] ✗ Privy returned null for user");
+          }
+        } catch (privyError) {
+          console.error("[AUTH] ✗ Failed to fetch user from Privy:", privyError instanceof Error ? privyError.message : privyError);
         }
       }
 
@@ -129,11 +144,13 @@ export const getCurrentUser = cache(
         // Ensure user has an API key for agent runtime (fire-and-forget)
         // This handles existing users who registered before API key auto-generation
         void ensureUserHasApiKey(user.id, user.organization_id);
+      } else if (user && !user.organization_id) {
+        console.error("[AUTH] ✗ User missing organization_id:", user.id);
       }
 
       return user ?? null;
     } catch (error) {
-      console.error("Error verifying Privy token:", error);
+      console.error("[AUTH] ✗ Error:", error instanceof Error ? error.message : error);
       return null;
     }
   },
@@ -174,7 +191,7 @@ export async function requireAuthWithOrg(): Promise<
     throw new Error("Forbidden: User account is inactive");
   }
 
-  if (!user.organization_id!) {
+  if (!user.organization_id) {
     throw new Error(
       "Forbidden: This feature requires a full account. Please sign up to continue.",
     );
@@ -282,7 +299,7 @@ export async function requireAuthOrApiKey(
     };
   }
 
-  // Check for API key in X-API-Key header (legacy)
+  // Check for API key in X-API-Key header
   const apiKeyHeader = request.headers.get("X-API-Key");
 
   // Check for API key in Authorization header (standard)
@@ -412,4 +429,43 @@ export async function getUserFromRequest(
 
   // Check cookies
   return getCurrentUser();
+}
+
+// Re-export x402 utilities for permissionless access
+export {
+  requireCreditsWithX402Fallback,
+  hasX402Payment,
+  getX402Price,
+  generate402Response,
+  refundIfCredits,
+  chargeAdditionalIfCredits,
+  type PaymentContext,
+} from "./auth/x402-or-credits";
+
+// Admin authentication - requires wallet connection and admin role
+import { adminService } from "@/lib/services/admin";
+
+export interface AdminAuthResult {
+  user: UserWithOrganization;
+  isAdmin: boolean;
+  role: string | null;
+}
+
+export async function requireAdmin(
+  request: NextRequest
+): Promise<AdminAuthResult> {
+  const { user } = await requireAuthOrApiKeyWithOrg(request);
+
+  if (!user.wallet_address) {
+    throw new Error("Wallet connection required for admin access");
+  }
+
+  const isAdmin = await adminService.isAdmin(user.wallet_address);
+  if (!isAdmin) {
+    throw new Error("Admin access required");
+  }
+
+  const role = await adminService.getAdminRole(user.wallet_address);
+
+  return { user, isAdmin: true, role };
 }

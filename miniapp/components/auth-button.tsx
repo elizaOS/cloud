@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, ChevronDown, Coins, Loader2, LogIn, LogOut, Settings, User } from "lucide-react";
+import { Bot, ChevronDown, Coins, Loader2, LogIn, LogOut, Settings, User, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -73,7 +73,7 @@ export function AuthButton() {
     return (
       <button
         onClick={login}
-        className="flex items-center gap-2 rounded-lg bg-pink-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-pink-600"
+        className="flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600"
       >
         <LogIn className="h-4 w-4" />
         <span>Sign In</span>
@@ -100,7 +100,7 @@ export function AuthButton() {
           </div>
         )}
         
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-pink-500 to-purple-600">
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-brand to-accent-brand-600">
           <User className="h-4 w-4 text-white" />
         </div>
         <span className="hidden max-w-[120px] truncate text-sm text-white/80 sm:inline">
@@ -130,8 +130,16 @@ export function AuthButton() {
               onClick={() => setIsOpen(false)}
               className="flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 transition-colors hover:bg-white/5 hover:text-white"
             >
-              <Bot className="h-4 w-4 text-pink-400" />
+              <Bot className="h-4 w-4 text-brand-400" />
               My Characters
+            </Link>
+            <Link
+              href="/wallet"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 transition-colors hover:bg-white/5 hover:text-white"
+            >
+              <Wallet className="h-4 w-4 text-emerald-400" />
+              Wallet & Earnings
             </Link>
             <Link
               href="/settings"

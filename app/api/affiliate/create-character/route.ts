@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import {
-  apiKeysService,
-  charactersService,
-  usersService,
-  anonymousSessionsService,
-  organizationsService,
-} from "@/lib/services";
+import { apiKeysService } from "@/lib/services/api-keys";
+import { charactersService } from "@/lib/services/characters/characters";
+import { usersService } from "@/lib/services/users";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
+import { organizationsService } from "@/lib/services/organizations";
 import { processAffiliateImages } from "@/lib/services/affiliate-images";
 import type { ElizaCharacter } from "@/lib/types";
 import type { AffiliateMetadata } from "@/lib/types/affiliate";

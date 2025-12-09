@@ -59,10 +59,6 @@ Always output ALL fields. Leave fields empty when not needed:
  */
 export const chatAssistantPlanningTemplate = `
 # Current Context
-{{receivedMessageHeader}}
-
-{{recentMessages}}
-
 {{affiliateContext}}
 
 {{sessionSummaries}}
@@ -126,7 +122,7 @@ export const chatAssistantResponseTemplate = `
 # Current Context
 {{receivedMessageHeader}}
 
-{{recentMessages}}
+{{conversationLog}}
 
 {{affiliateContext}}
 

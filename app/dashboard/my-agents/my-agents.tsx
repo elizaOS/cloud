@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
+import { logger } from "@/lib/utils/logger";
 import { useRouter } from "next/navigation";
 import { MyAgentsView } from "@/components/marketplace";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
@@ -64,7 +65,7 @@ export function MyAgentsClient() {
         }
       })
       .catch((error) => {
-        console.error(
+        logger.error(
           "[My Agents] Failed to claim affiliate characters:",
           error,
         );

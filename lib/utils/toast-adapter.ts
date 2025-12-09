@@ -1,7 +1,7 @@
 /**
  * Toast Adapter
  *
- * Provides a unified toast interface that wraps sonner
+ * Provides a toast interface that wraps sonner
  * for compatibility with API Explorer components.
  */
 

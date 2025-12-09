@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuth } from "@/lib/auth";
-import { usersService } from "@/lib/services";
+import { usersService } from "@/lib/services/users";
 import { z } from "zod";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
@@ -63,7 +64,7 @@ async function handleGET() {
       },
     });
   } catch (error) {
-    console.error("Error fetching user:", error);
+    logger.error("Error fetching user:", error);
 
     return NextResponse.json(
       {
@@ -148,7 +149,7 @@ async function handlePATCH(request: NextRequest) {
       message: "Profile updated successfully",
     });
   } catch (error) {
-    console.error("Error updating user:", error);
+    logger.error("Error updating user:", error);
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(

@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
 import {
   autoTopUpService,
@@ -50,7 +51,7 @@ async function handleGetSettings(req: NextRequest) {
 
     return NextResponse.json(settings);
   } catch (error) {
-    console.error("Error getting auto top-up settings:", error);
+    logger.error("Error getting auto top-up settings:", error);
 
     if (error instanceof Error) {
       return NextResponse.json(
@@ -117,7 +118,7 @@ async function handleUpdateSettings(req: NextRequest) {
       settings: updatedSettings,
     });
   } catch (error) {
-    console.error("Error updating auto top-up settings:", error);
+    logger.error("Error updating auto top-up settings:", error);
 
     if (error instanceof Error) {
       // Check for specific error types

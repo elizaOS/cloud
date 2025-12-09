@@ -2,14 +2,12 @@ import { NextResponse } from "next/server";
 import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
-import {
-  creditsService,
-  usageService,
-  generationsService,
-  organizationsService,
-  discordService,
-  anonymousSessionsService,
-} from "@/lib/services";
+import { creditsService } from "@/lib/services/credits";
+import { usageService } from "@/lib/services/usage";
+import { organizationsService } from "@/lib/services/organizations";
+import { discordService } from "@/lib/services/discord";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
+import { contentModerationService } from "@/lib/services/content-moderation";
 import {
   calculateCost,
   getProviderFromModel,
@@ -20,26 +18,28 @@ import type { NextRequest } from "next/server";
 import { roomsRepository } from "@/db/repositories";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
+import type { UserWithOrganization, ApiKey } from "@/lib/types";
+import type { AnonymousSession } from "@/db/schemas/anonymous-sessions";
 
 export const maxDuration = 60;
 
 // POST /api/eliza/rooms/[roomId]/messages - Send a message
 export async function POST(
   request: NextRequest,
-  ctx: { params: Promise<{ roomId: string }> },
+  ctx: { params: Promise<{ roomId: string }> }
 ) {
   try {
     // Support both authenticated and anonymous users
-    let user: any;
-    let apiKey: any = undefined;
+    let user: UserWithOrganization;
+    let apiKey: ApiKey | undefined = undefined;
     let isAnonymous = false;
-    let anonymousSession: any = null;
+    let anonymousSession: AnonymousSession | null = null;
 
     try {
       const authResult = await requireAuthOrApiKey(request);
       user = authResult.user;
       apiKey = authResult.apiKey;
-    } catch (error) {
+    } catch {
       // Fallback to anonymous user
       logger.info("[Messages API] Privy auth failed, trying anonymous...");
 
@@ -48,7 +48,7 @@ export async function POST(
       if (!anonData) {
         // Create new anonymous session if none exists
         logger.info(
-          "[Messages API] No session cookie - creating new anonymous session",
+          "[Messages API] No session cookie - creating new anonymous session"
         );
         const { getOrCreateAnonymousUser } =
           await import("@/lib/auth-anonymous");
@@ -75,14 +75,11 @@ export async function POST(
     const body = await request.json();
     const { text, attachments } = body;
 
-    // IMPORTANT: Use authenticated user's ID as entityId (not from request body)
-    const entityId = user.id;
-
     if (!roomId) {
       logger.error("[Eliza Messages API] Missing roomId");
       return NextResponse.json(
         { error: "roomId is required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -90,14 +87,40 @@ export async function POST(
       logger.error("[Eliza Messages API] Invalid or missing text", { text });
       return NextResponse.json(
         { error: "text is required and must be a non-empty string" },
-        { status: 400 },
+        { status: 400 }
       );
     }
+
+    // Check if user is blocked due to moderation violations
+    if (await contentModerationService.shouldBlockUser(user.id)) {
+      logger.warn("[Eliza Messages API] User blocked due to moderation violations", {
+        userId: user.id,
+      });
+      return NextResponse.json(
+        { error: "Your account has been suspended due to policy violations. Please contact support." },
+        { status: 403 },
+      );
+    }
+
+    // Start async content moderation (runs in background, doesn't block)
+    contentModerationService.moderateInBackground(
+      text,
+      user.id,
+      roomId,
+      (result) => {
+        logger.warn("[Eliza Messages API] Async moderation detected violation", {
+          userId: user.id,
+          roomId,
+          categories: result.flaggedCategories,
+          action: result.action,
+        });
+      }
+    );
 
     // Handle anonymous user rate limiting
     if (isAnonymous && anonymousSession) {
       const limitCheck = await checkAnonymousLimit(
-        anonymousSession.session_token,
+        anonymousSession.session_token
       );
 
       if (!limitCheck.allowed) {
@@ -121,7 +144,7 @@ export async function POST(
             limit: limitCheck.limit,
             remaining: limitCheck.remaining,
           },
-          { status: 429 },
+          { status: 429 }
         );
       }
 
@@ -143,17 +166,17 @@ export async function POST(
         model,
         provider,
         estimatedInputTokens,
-        estimatedOutputTokens,
+        estimatedOutputTokens
       );
 
       if (!user.organization_id) {
         logger.error(
           "[Eliza Messages API] User has no organization - cannot proceed",
-          { userId: user.id },
+          { userId: user.id }
         );
         return NextResponse.json(
           { error: "User has no organization" },
-          { status: 400 },
+          { status: 400 }
         );
       }
 
@@ -162,7 +185,7 @@ export async function POST(
       if (!org) {
         return NextResponse.json(
           { error: "Organization not found" },
-          { status: 404 },
+          { status: 404 }
         );
       }
 
@@ -174,13 +197,13 @@ export async function POST(
             creditBalance,
             estimatedCost,
           },
-          { status: 402 },
+          { status: 402 }
         );
       }
     }
 
     // Process message via agent runtime (backward compatibility layer)
-    logger.info("[Eliza Messages API] Processing message:", { roomId, entityId });
+    logger.info("[Eliza Messages API] Processing message:", { roomId, userId: user.id });
 
     const room = await roomsRepository.findById(roomId);
     const characterId = room?.agentId || undefined;
@@ -192,7 +215,7 @@ export async function POST(
       {
         userId: user.id,
         apiKey: apiKey?.key,
-      },
+      }
     );
 
     // Deduct credits and track usage for authenticated users
@@ -203,7 +226,7 @@ export async function POST(
           result.usage.model,
           provider,
           result.usage.inputTokens,
-          result.usage.outputTokens,
+          result.usage.outputTokens
         );
 
         // Deduct credits
@@ -247,23 +270,8 @@ export async function POST(
       });
     }
 
-    // Generate title if this is first message
-    const roomMessages = await db.execute<{ count: number }>(
-      sql`SELECT COUNT(*) as count FROM memories WHERE room_id = ${roomId}::uuid AND type = 'messages'`,
-    );
-    const messageCount = roomMessages.rows[0]?.count || 0;
-
-    if (messageCount <= 2 && !room?.name) {
-      logger.info(
-        "[Eliza Messages API] First message in room, generating title...",
-      );
-
-      const { generateRoomTitle } = await import("@/lib/ai/generate-room-title");
-      const title = await generateRoomTitle(text);
-
-      await roomsRepository.update(roomId, { name: title });
-      logger.info("[Eliza Messages API] Generated room title:", title);
-    }
+    // Note: Room title generation is now handled by roomTitleEvaluator
+    // It will automatically generate a title after 4+ messages
 
     // Send to Discord thread if configured
     const discordThreadId = room?.metadata?.discordThreadId as
@@ -282,7 +290,7 @@ export async function POST(
         const character =
           characterId &&
           (await db.execute<{ name: string }>(
-            sql`SELECT name FROM user_characters WHERE id = ${characterId}::uuid LIMIT 1`,
+            sql`SELECT name FROM user_characters WHERE id = ${characterId}::uuid LIMIT 1`
           ));
 
         const agentMessage = `**${character?.rows[0]?.name || "Agent"}:** ${responseText}`;
@@ -294,7 +302,7 @@ export async function POST(
       } catch (error) {
         logger.error(
           "[Eliza Messages API] Failed to send to Discord thread:",
-          error,
+          error
         );
       }
     }
@@ -310,7 +318,7 @@ export async function POST(
         error:
           error instanceof Error ? error.message : "Failed to process message",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
