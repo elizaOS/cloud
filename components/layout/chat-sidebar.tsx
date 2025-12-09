@@ -88,7 +88,7 @@ export function ChatSidebar({
   const filteredRooms = useMemo(() => {
     // Default Eliza agent ID (same as in rooms/route.ts)
     const DEFAULT_AGENT_ID = "b850bc30-45f8-0041-a00a-83df46d8555d";
-    
+
     if (!selectedCharacterId) {
       // Show rooms with no character assignment OR default Eliza ID
       return rooms.filter(
@@ -101,7 +101,7 @@ export function ChatSidebar({
 
   // Find selected character details
   const selectedCharacter = availableCharacters.find(
-    (c) => c.id === selectedCharacterId,
+    (c) => c.id === selectedCharacterId
   );
 
   useEffect(() => {
@@ -199,7 +199,7 @@ export function ChatSidebar({
           isMobile
             ? `fixed inset-y-0 left-0 z-50 w-64 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
             : "w-64",
-          className,
+          className
         )}
       >
         {/* Header with Logo */}
@@ -300,57 +300,62 @@ export function ChatSidebar({
                   <div
                     key={room.id}
                     className={cn(
-                      "group relative w-full text-left px-2.5 py-2 rounded-sm transition-colors",
+                      "group relative w-full text-left rounded-sm transition-all duration-200",
                       "hover:bg-white/5",
                       roomId === room.id &&
                         "bg-white/10 border-l-2 border-[#FF5800]",
                       (isDeleting || isLoading) &&
-                        "opacity-50 pointer-events-none",
+                        "opacity-50 pointer-events-none"
                     )}
                   >
-                    <button
-                      onClick={() => handleSelectRoom(room.id)}
-                      disabled={isDeleting || isLoading}
-                      className="w-full text-left"
-                    >
-                      <div className="flex items-start gap-2">
-                        {isLoading ? (
-                          <Loader2 className="h-3.5 w-3.5 text-[#FF5800] mt-0.5 shrink-0 animate-spin" />
-                        ) : (
-                          <MessageSquare className="h-3.5 w-3.5 text-white/40 mt-0.5 shrink-0" />
+                    <div className="relative overflow-hidden">
+                      <button
+                        onClick={() => handleSelectRoom(room.id)}
+                        disabled={isDeleting || isLoading}
+                        className={cn(
+                          "w-full text-left px-2.5 py-2 transition-transform duration-200",
+                          "group-hover:-translate-x-8"
                         )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-1.5 mb-0.5">
-                            <span className="text-xs font-medium text-white/90 truncate">
-                              {room.lastText}
-                            </span>
-                            {room.lastTime && !isLoading && (
-                              <span className="text-[10px] text-white/30 shrink-0">
-                                {formatTimestamp(room.lastTime)}
+                      >
+                        <div className="flex items-start gap-2">
+                          {isLoading ? (
+                            <Loader2 className="h-3.5 w-3.5 text-[#FF5800] mt-0.5 shrink-0 animate-spin" />
+                          ) : (
+                            <MessageSquare className="h-3.5 w-3.5 text-white/40 mt-0.5 shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1.5 mb-0.5">
+                              <span className="text-[11px] font-medium text-white/90 truncate">
+                                {room.lastText}
                               </span>
-                            )}
+                              {room.lastTime && !isLoading && (
+                                <span className="text-[10px] text-white/30 shrink-0">
+                                  {formatTimestamp(room.lastTime)}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteRoom(room.id);
-                      }}
-                      disabled={isDeleting}
-                      className={cn(
-                        "absolute top-2 right-2 p-1 rounded-sm",
-                        "opacity-0 group-hover:opacity-100 transition-opacity",
-                        "hover:bg-red-500/10 hover:text-red-400",
-                      )}
-                    >
-                      {isDeleting ? (
-                        <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-2.5 w-2.5" />
-                      )}
-                    </button>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteRoom(room.id);
+                        }}
+                        disabled={isDeleting}
+                        className={cn(
+                          "absolute top-0 right-0 h-full w-8 flex items-center justify-center",
+                          "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
+                          "hover:bg-red-500/10 text-white/60 hover:text-red-400"
+                        )}
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    </div>
                   </div>
                 );
               })}
