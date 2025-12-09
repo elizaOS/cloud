@@ -19,6 +19,233 @@ import type { ParsedResponse, ParsedPlan } from "./parsers";
 export const MAX_RESPONSE_RETRIES = 3;
 export const EVALUATOR_TIMEOUT_MS = 30000;
 
+// =============================================================================
+// Response Post-Processing Utilities
+// =============================================================================
+
+/**
+ * Patterns that indicate AI-speak that should be avoided
+ */
+const AI_SPEAK_PATTERNS = [
+  /\bAs an AI\b/gi,
+  /\bI'm an AI\b/gi,
+  /\bI am an AI\b/gi,
+  /\bAs a language model\b/gi,
+  /\bAs an artificial intelligence\b/gi,
+  /\bI don't have feelings\b/gi,
+  /\bI cannot feel\b/gi,
+  /\bI'm just a program\b/gi,
+  /\bI'm programmed to\b/gi,
+  /\bMy programming\b/gi,
+  /\bI was trained\b/gi,
+  /\bMy training data\b/gi,
+];
+
+/**
+ * Repetitive greeting patterns to detect
+ */
+const REPETITIVE_GREETINGS = [
+  /^Hey!?\s*$/i,
+  /^Hello!?\s*$/i,
+  /^Hi!?\s*$/i,
+  /^Hi there!?\s*$/i,
+  /^Hey there!?\s*$/i,
+  /^Hello there!?\s*$/i,
+  /^Greetings!?\s*$/i,
+];
+
+/**
+ * Check if response contains AI-speak patterns
+ */
+export function containsAISpeak(text: string): boolean {
+  return AI_SPEAK_PATTERNS.some(pattern => pattern.test(text));
+}
+
+/**
+ * Remove AI-speak patterns from response
+ * Returns cleaned text
+ */
+export function removeAISpeak(text: string): string {
+  let cleaned = text;
+  
+  // Remove sentences containing AI-speak
+  AI_SPEAK_PATTERNS.forEach(pattern => {
+    // Find and remove sentences containing the pattern
+    const sentencePattern = new RegExp(
+      `[^.!?]*${pattern.source}[^.!?]*[.!?]?\\s*`,
+      pattern.flags
+    );
+    cleaned = cleaned.replace(sentencePattern, "");
+  });
+  
+  return cleaned.trim();
+}
+
+/**
+ * Check if the opening is a repetitive/generic greeting
+ */
+export function isRepetitiveGreeting(text: string): boolean {
+  const firstLine = text.split("\n")[0].trim();
+  const firstSentence = text.split(/[.!?]/)[0].trim();
+  
+  return REPETITIVE_GREETINGS.some(
+    pattern => pattern.test(firstLine) || pattern.test(firstSentence)
+  );
+}
+
+/**
+ * Track recent response openings to detect repetition
+ */
+const recentOpenings = new Map<string, string[]>();
+const MAX_TRACKED_OPENINGS = 5;
+
+/**
+ * Get the opening of a response (first ~50 chars or first sentence)
+ */
+function getResponseOpening(text: string): string {
+  const firstSentence = text.split(/[.!?]/)[0].trim();
+  return firstSentence.substring(0, 50).toLowerCase();
+}
+
+/**
+ * Check if this opening was used recently in this room
+ */
+export function isRepeatedOpening(roomId: string, text: string): boolean {
+  const opening = getResponseOpening(text);
+  const recent = recentOpenings.get(roomId) || [];
+  return recent.includes(opening);
+}
+
+/**
+ * Track an opening for a room
+ */
+export function trackOpening(roomId: string, text: string): void {
+  const opening = getResponseOpening(text);
+  const recent = recentOpenings.get(roomId) || [];
+  
+  // Add new opening and keep only recent ones
+  recent.push(opening);
+  if (recent.length > MAX_TRACKED_OPENINGS) {
+    recent.shift();
+  }
+  
+  recentOpenings.set(roomId, recent);
+}
+
+/**
+ * Clear tracked openings for a room
+ */
+export function clearTrackedOpenings(roomId: string): void {
+  recentOpenings.delete(roomId);
+}
+
+/**
+ * Post-process a response to ensure quality
+ * - Removes AI-speak
+ * - Flags repetitive openings
+ * - Returns processing metadata
+ */
+export interface ProcessedResponse {
+  text: string;
+  wasModified: boolean;
+  hadAISpeak: boolean;
+  isRepetitive: boolean;
+  warnings: string[];
+}
+
+export function postProcessResponse(
+  text: string,
+  roomId?: string
+): ProcessedResponse {
+  const warnings: string[] = [];
+  let processed = text;
+  let wasModified = false;
+  
+  // Check for AI-speak
+  const hadAISpeak = containsAISpeak(text);
+  if (hadAISpeak) {
+    processed = removeAISpeak(processed);
+    wasModified = true;
+    warnings.push("Removed AI-speak patterns");
+    logger.warn("[Response Post-Process] Removed AI-speak from response");
+  }
+  
+  // Check for repetitive greeting
+  const isRepetitive = isRepetitiveGreeting(processed) || 
+    (roomId ? isRepeatedOpening(roomId, processed) : false);
+  
+  if (isRepetitive) {
+    warnings.push("Response starts with repetitive greeting");
+    logger.warn("[Response Post-Process] Detected repetitive opening");
+  }
+  
+  // Track this opening if room provided
+  if (roomId && processed.trim()) {
+    trackOpening(roomId, processed);
+  }
+  
+  return {
+    text: processed,
+    wasModified,
+    hadAISpeak,
+    isRepetitive,
+    warnings,
+  };
+}
+
+/**
+ * Suggest alternative openings for variety
+ */
+export function getAlternativeOpenings(context: {
+  isFlirty?: boolean;
+  hasSharedContent?: boolean;
+  isFollowUp?: boolean;
+}): string[] {
+  const { isFlirty, hasSharedContent, isFollowUp } = context;
+  
+  if (isFlirty) {
+    return [
+      "okay but...",
+      "so I was thinking...",
+      "you're not gonna believe this",
+      "miss me? 😏",
+      "guess who",
+      "quick question",
+      "be honest with me...",
+    ];
+  }
+  
+  if (hasSharedContent) {
+    return [
+      "Check this out!",
+      "Here you go!",
+      "Took this for you",
+      "What do you think?",
+      "I think you'll like this",
+    ];
+  }
+  
+  if (isFollowUp) {
+    return [
+      "Oh, that reminds me...",
+      "Speaking of which...",
+      "Actually,",
+      "So about that...",
+      "Interesting you say that...",
+    ];
+  }
+  
+  return [
+    "So...",
+    "Okay so",
+    "Actually,",
+    "You know what,",
+    "Wait,",
+    "Honestly,",
+    "Here's the thing,",
+  ];
+}
+
 /**
  * Cached attachment from action results.
  */
@@ -67,6 +294,7 @@ export function cleanPrompt(prompt: string): string {
 interface Attachment {
   url?: string;
   id?: string;
+  title?: string;
   contentType?: string;
   [key: string]: unknown;
 }
@@ -168,7 +396,10 @@ export async function runEvaluatorsWithTimeout(
   if (typeof runtime.evaluate !== "function") return;
 
   await Promise.race([
-    runtime.evaluate(message, { ...state }, true, (content) => callback?.(content) ?? [], [responseMemory]),
+    runtime.evaluate(message, { ...state }, true, async (content) => {
+      const result = await callback?.(content);
+      return result ?? [];
+    }, [responseMemory]),
     new Promise<void>((_, reject) => setTimeout(() => reject(new Error("Evaluators timeout")), EVALUATOR_TIMEOUT_MS)),
   ]);
 }

@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { uploadBase64Image } from "@/lib/blob";
 import { charactersService } from "@/lib/services/characters/characters";
 import {
   addCorsHeaders,
@@ -24,6 +25,15 @@ import {
 } from "@/lib/middleware/miniapp-rate-limit";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+
+// Custom validator for URL or base64 data URL
+const urlOrBase64 = z.string().refine(
+  (val) => {
+    if (!val) return true; // Allow empty
+    return val.startsWith("data:image/") || val.startsWith("http://") || val.startsWith("https://");
+  },
+  { message: "Must be a valid URL or base64 data URL" },
+);
 
 /**
  * OPTIONS /api/v1/miniapp/agents/[id]
@@ -152,7 +162,7 @@ export async function GET(
 const UpdateAgentSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   bio: z.union([z.string(), z.array(z.string())]).optional(),
-  avatarUrl: z.string().url().optional().nullable(),
+  avatarUrl: urlOrBase64.optional().nullable(),
   topics: z.array(z.string()).optional(),
   adjectives: z.array(z.string()).optional(),
   style: z
@@ -281,7 +291,27 @@ async function updateAgent(
     const updateData: Record<string, unknown> = {};
     if (data.name !== undefined) updateData.name = data.name;
     if (data.bio !== undefined) updateData.bio = data.bio;
-    if (data.avatarUrl !== undefined) updateData.avatar_url = data.avatarUrl;
+    
+    // Handle avatar URL - upload base64 to blob storage if needed
+    if (data.avatarUrl !== undefined) {
+      let finalAvatarUrl = data.avatarUrl;
+      
+      if (data.avatarUrl && data.avatarUrl.startsWith("data:image/")) {
+        // Upload base64 image to blob storage
+        const blobResult = await uploadBase64Image(data.avatarUrl, {
+          filename: `avatar-${id}-${Date.now()}.jpg`,
+          folder: "avatars",
+          userId: user.id,
+        });
+        finalAvatarUrl = blobResult.url;
+        logger.info("[Miniapp API] Uploaded avatar to blob storage", {
+          agentId: id,
+          blobUrl: blobResult.url,
+        });
+      }
+      
+      updateData.avatar_url = finalAvatarUrl;
+    }
     if (data.topics !== undefined) updateData.topics = data.topics;
     if (data.adjectives !== undefined) updateData.adjectives = data.adjectives;
     if (data.style !== undefined) updateData.style = data.style;

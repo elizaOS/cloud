@@ -1,3 +1,18 @@
+export type FlirtinessLevel = "low" | "medium" | "high";
+
+export interface PromptConfig {
+  /** Injected before character system prompt */
+  systemPrefix?: string;
+  /** Injected after character system prompt */
+  systemSuffix?: string;
+  /** Style guidelines for responses */
+  responseStyle?: string;
+  /** Flirtiness level for romantic apps */
+  flirtiness?: FlirtinessLevel;
+  /** Enable romantic/relationship mode */
+  romanticMode?: boolean;
+}
+
 export interface SiteConfig {
   name: string;
   shortName: string;
@@ -26,6 +41,8 @@ export interface SiteConfig {
     email: string;
   };
   keywords: string[];
+  /** Prompt configuration for AI behavior customization */
+  prompts?: PromptConfig;
 }
 
 export const siteConfig: SiteConfig = {
@@ -66,4 +83,11 @@ export const siteConfig: SiteConfig = {
     "virtual companion",
     "chatbot",
   ],
+  prompts: {
+    systemPrefix: "",
+    systemSuffix: "",
+    responseStyle: "",
+    flirtiness: "low",
+    romanticMode: false,
+  },
 };

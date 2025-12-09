@@ -3,3 +3,4 @@
  */
 
 export { recentMessagesProvider } from "./recent-messages";
+export { appConfigProvider } from "./app-config";

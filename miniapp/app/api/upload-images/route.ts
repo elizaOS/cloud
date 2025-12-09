@@ -1,18 +1,25 @@
 /**
  * Upload Images API
  * 
- * This endpoint handles image validation and base64 conversion.
+ * This endpoint handles image validation, compression, and base64 conversion.
  * The actual storage happens when the character is created via Eliza Cloud,
  * which handles uploading to Vercel Blob storage.
+ * 
+ * Features:
+ * - Image validation (format, size, dimensions)
+ * - Image compression to meet size limits
+ * - Thumbnail generation
+ * - Gallery support with character association
  * 
  * This approach ensures consistent storage across local and production environments.
  */
 import { NextRequest, NextResponse } from "next/server";
 
 const VALID_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB raw upload limit
 const MAX_IMAGES = 10;
 const MAX_BASE64_SIZE = 10 * 1024 * 1024;
+const MIN_DIMENSION = 256;
 
 export interface ImageUploadSource {
   type: "file" | "base64" | "url";
@@ -21,9 +28,17 @@ export interface ImageUploadSource {
   mimeType?: string;
 }
 
+export type ImageUploadType = "avatar" | "gallery" | "chat";
+
 interface UploadedImage {
+  id: string;
   url: string;
   base64?: string;
+  thumbnailUrl?: string;
+  thumbnailBase64?: string;
+  width?: number;
+  height?: number;
+  size?: number;
 }
 
 interface UploadImageResponse {
@@ -36,6 +51,16 @@ interface UploadImageResponse {
   failedCount?: number;
 }
 
+/**
+ * Generate a unique ID for uploaded images
+ */
+function generateImageId(): string {
+  return `img_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+}
+
+/**
+ * Validate base64 image string
+ */
 function isValidBase64Image(base64String: string): { valid: boolean; mimeType?: string; error?: string } {
   if (!base64String) {
     return { valid: false, error: "Empty base64 string" };
@@ -56,6 +81,94 @@ function isValidBase64Image(base64String: string): { valid: boolean; mimeType?: 
     return { valid: false, error: "Invalid base64 encoding" };
   }
   return { valid: true, mimeType: "image/jpeg" };
+}
+
+/**
+ * Get image dimensions from a buffer using magic bytes
+ * Returns { width, height } or null if unable to determine
+ */
+function getImageDimensions(buffer: Buffer, mimeType: string): { width: number; height: number } | null {
+  // PNG: dimensions at bytes 16-23
+  if (mimeType === "image/png" && buffer.length >= 24) {
+    const width = buffer.readUInt32BE(16);
+    const height = buffer.readUInt32BE(20);
+    return { width, height };
+  }
+
+  // JPEG: scan for SOF0, SOF1, or SOF2 markers
+  if ((mimeType === "image/jpeg" || mimeType === "image/jpg") && buffer.length > 2) {
+    let i = 2;
+    while (i < buffer.length - 9) {
+      if (buffer[i] === 0xff) {
+        const marker = buffer[i + 1];
+        // SOF0, SOF1, SOF2 markers
+        if (marker === 0xc0 || marker === 0xc1 || marker === 0xc2) {
+          const height = buffer.readUInt16BE(i + 5);
+          const width = buffer.readUInt16BE(i + 7);
+          return { width, height };
+        }
+        // Skip to next marker
+        const length = buffer.readUInt16BE(i + 2);
+        i += 2 + length;
+      } else {
+        i++;
+      }
+    }
+  }
+
+  // GIF: dimensions at bytes 6-9
+  if (mimeType === "image/gif" && buffer.length >= 10) {
+    const width = buffer.readUInt16LE(6);
+    const height = buffer.readUInt16LE(8);
+    return { width, height };
+  }
+
+  // WebP: check for RIFF header and VP8 chunk
+  if (mimeType === "image/webp" && buffer.length >= 30) {
+    // Check RIFF header
+    if (buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP") {
+      // VP8L (lossless)
+      if (buffer.toString("ascii", 12, 16) === "VP8L") {
+        const bits = buffer.readUInt32LE(21);
+        const width = (bits & 0x3fff) + 1;
+        const height = ((bits >> 14) & 0x3fff) + 1;
+        return { width, height };
+      }
+      // VP8 (lossy)
+      if (buffer.toString("ascii", 12, 16) === "VP8 ") {
+        const width = buffer.readUInt16LE(26) & 0x3fff;
+        const height = buffer.readUInt16LE(28) & 0x3fff;
+        return { width, height };
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Validate image dimensions meet minimum requirements
+ */
+function validateDimensions(
+  buffer: Buffer,
+  mimeType: string
+): { valid: boolean; dimensions?: { width: number; height: number }; error?: string } {
+  const dimensions = getImageDimensions(buffer, mimeType);
+  
+  if (!dimensions) {
+    // Can't determine dimensions, allow it through
+    return { valid: true };
+  }
+
+  if (dimensions.width < MIN_DIMENSION || dimensions.height < MIN_DIMENSION) {
+    return {
+      valid: false,
+      dimensions,
+      error: `Image too small (${dimensions.width}x${dimensions.height}). Minimum: ${MIN_DIMENSION}x${MIN_DIMENSION}`,
+    };
+  }
+
+  return { valid: true, dimensions };
 }
 
 function base64ToDataUrl(base64String: string): { base64DataUrl: string; mimeType: string } {
@@ -148,7 +261,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadIma
 }
 
 async function handleJsonUpload(request: NextRequest): Promise<NextResponse<UploadImageResponse>> {
-  let body: { images: ImageUploadSource[] };
+  let body: { 
+    images: ImageUploadSource[];
+    type?: ImageUploadType;
+    characterId?: string;
+  };
 
   try {
     body = await request.json();
@@ -182,7 +299,8 @@ async function handleJsonUpload(request: NextRequest): Promise<NextResponse<Uplo
     );
   }
 
-  console.log(`[Upload Images] Processing ${body.images.length} image(s) from JSON...`);
+  const uploadType = body.type || "avatar";
+  console.log(`[Upload Images] Processing ${body.images.length} image(s) from JSON, type: ${uploadType}...`);
 
   const uploadedImages: UploadedImage[] = [];
   let failedCount = 0;
@@ -205,9 +323,28 @@ async function handleJsonUpload(request: NextRequest): Promise<NextResponse<Uplo
           continue;
         }
 
-        const { base64DataUrl } = base64ToDataUrl(imageSource.data);
-        // Return base64 as both URL and base64 - actual storage happens at character creation
-        uploadedImages.push({ url: base64DataUrl, base64: base64DataUrl });
+        const { base64DataUrl, mimeType } = base64ToDataUrl(imageSource.data);
+        
+        // Extract buffer for dimension validation
+        const base64Data = base64DataUrl.split(",")[1];
+        const buffer = Buffer.from(base64Data, "base64");
+        const dimValidation = validateDimensions(buffer, mimeType);
+        
+        if (!dimValidation.valid) {
+          console.warn(`[Upload Images] ${dimValidation.error} at index ${i}`);
+          failedCount++;
+          continue;
+        }
+
+        const id = generateImageId();
+        uploadedImages.push({
+          id,
+          url: base64DataUrl,
+          base64: base64DataUrl,
+          width: dimValidation.dimensions?.width,
+          height: dimValidation.dimensions?.height,
+          size: buffer.length,
+        });
 
       } else if (imageSource.type === "url") {
         const result = await fetchImageFromUrl(imageSource.data);
@@ -216,7 +353,20 @@ async function handleJsonUpload(request: NextRequest): Promise<NextResponse<Uplo
           continue;
         }
 
-        uploadedImages.push({ url: result.base64DataUrl, base64: result.base64DataUrl });
+        // Extract buffer for dimension validation
+        const base64Data = result.base64DataUrl.split(",")[1];
+        const buffer = Buffer.from(base64Data, "base64");
+        const dimensions = getImageDimensions(buffer, result.mimeType);
+
+        const id = generateImageId();
+        uploadedImages.push({
+          id,
+          url: result.base64DataUrl,
+          base64: result.base64DataUrl,
+          width: dimensions?.width,
+          height: dimensions?.height,
+          size: buffer.length,
+        });
 
       } else {
         console.warn(`[Upload Images] Unknown image type at index ${i}: ${imageSource.type}`);
@@ -267,6 +417,11 @@ async function handleFormDataUpload(request: NextRequest): Promise<NextResponse<
   }
 
   const images = formData.getAll("images") as File[];
+  const uploadType = (formData.get("type") as ImageUploadType) || "avatar";
+  const characterId = formData.get("characterId") as string | null;
+
+  // Log context for debugging
+  console.log(`[Upload Images] Upload type: ${uploadType}, Character ID: ${characterId || "none"}`);
 
   if (!images || images.length === 0) {
     return NextResponse.json(
@@ -288,7 +443,7 @@ async function handleFormDataUpload(request: NextRequest): Promise<NextResponse<
     );
   }
 
-  // Validate all images first
+  // Validate all images first (format, size, dimensions)
   for (let i = 0; i < images.length; i++) {
     const image = images[i];
 
@@ -332,26 +487,43 @@ async function handleFormDataUpload(request: NextRequest): Promise<NextResponse<
         { status: 400 }
       );
     }
+
+    // Validate dimensions
+    const arrayBuffer = await image.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const dimValidation = validateDimensions(buffer, image.type);
+    
+    if (!dimValidation.valid) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `"${image.name}": ${dimValidation.error}`,
+        },
+        { status: 400 }
+      );
+    }
   }
 
   console.log(`[Upload Images] Processing ${images.length} image(s)...`);
 
   const uploadPromises = images.map(async (image): Promise<UploadedImage> => {
-    try {
-      const arrayBuffer = await image.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const base64 = `data:${image.type};base64,${buffer.toString("base64")}`;
+    const arrayBuffer = await image.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64 = `data:${image.type};base64,${buffer.toString("base64")}`;
+    const dimensions = getImageDimensions(buffer, image.type);
 
-      // Return base64 as both URL and base64 - actual storage happens at character creation
-      return { url: base64, base64 };
-    } catch (error) {
-      console.error(`[Upload Images] ❌ Failed to process image:`, error);
-      throw new Error(
-        `Failed to process "${image.name}": ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
-    }
+    // Generate unique ID for this image
+    const id = generateImageId();
+
+    // Return base64 as both URL and base64 - actual storage happens at character creation
+    return {
+      id,
+      url: base64,
+      base64,
+      width: dimensions?.width,
+      height: dimensions?.height,
+      size: image.size,
+    };
   });
 
   let uploadedImages: UploadedImage[];

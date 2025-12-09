@@ -1,10 +1,17 @@
 import { roomsRepository } from "@/db/repositories";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { checkAnonymousLimit, getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
+import {
+  checkAnonymousLimit,
+  getAnonymousUser,
+  getOrCreateAnonymousUser,
+} from "@/lib/auth-anonymous";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { usersService } from "@/lib/services/users";
 import type { AgentModeConfig } from "@/lib/eliza/agent-mode-types";
-import { AgentMode, isValidAgentModeConfig } from "@/lib/eliza/agent-mode-types";
+import {
+  AgentMode,
+  isValidAgentModeConfig,
+} from "@/lib/eliza/agent-mode-types";
 import { createMessageHandler } from "@/lib/eliza/message-handler";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { userContextService } from "@/lib/eliza/user-context";
@@ -47,6 +54,7 @@ export async function POST(
       sessionToken,
       attachments,
       appId: bodyAppId,
+      appPromptConfig,
     } = body;
 
     // App ID can come from body OR X-App-Id header (miniapp proxy uses header)
@@ -87,7 +95,7 @@ export async function POST(
     const userContext = await authenticateAndBuildContext(
       request,
       agentModeConfig.mode,
-      { sessionToken, appId }
+      { sessionToken, appId, appPromptConfig }
     );
 
     logger.info("[Stream] 📊 UserContext after auth:", {
@@ -104,9 +112,10 @@ export async function POST(
       });
       return new Response(
         JSON.stringify({
-          error: "Your account has been suspended due to policy violations. Please contact support.",
+          error:
+            "Your account has been suspended due to policy violations. Please contact support.",
         }),
-        { status: 403, headers: { "Content-Type": "application/json" } },
+        { status: 403, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -305,7 +314,7 @@ export async function POST(
             error: "Your message was blocked due to content policy violations.",
             details: error.message,
           }),
-          { status: 403, headers: { "Content-Type": "application/json" } },
+          { status: 403, headers: { "Content-Type": "application/json" } }
         );
       }
       throw error;
@@ -463,7 +472,11 @@ export async function POST(
 async function authenticateAndBuildContext(
   request: NextRequest,
   agentMode: AgentMode,
-  body?: { sessionToken?: string; appId?: string }
+  body?: {
+    sessionToken?: string;
+    appId?: string;
+    appPromptConfig?: Record<string, unknown>;
+  }
 ) {
   const headerToken = request.headers.get("X-Anonymous-Session");
   const bodyToken = body?.sessionToken;
@@ -502,6 +515,7 @@ async function authenticateAndBuildContext(
       isAnonymous: false,
       agentMode,
       appId: body?.appId,
+      appPromptConfig: body?.appPromptConfig,
     });
   } catch (error) {
     logger.info(
@@ -567,6 +581,7 @@ async function authenticateAndBuildContext(
             isAnonymous: true,
             agentMode,
             appId: body?.appId,
+            appPromptConfig: body?.appPromptConfig,
           });
         }
 
@@ -618,6 +633,7 @@ async function authenticateAndBuildContext(
     isAnonymous: true,
     agentMode,
     appId: body?.appId,
+    appPromptConfig: body?.appPromptConfig,
   });
 }
 

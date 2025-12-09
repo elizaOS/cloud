@@ -1,25 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowUpRight,
-  Coins,
-  Wallet,
   CheckCircle2,
-  AlertCircle,
   Clock,
-  Loader2,
   ExternalLink,
-  Copy,
-  Check,
   Info,
+  Loader2,
+  Wallet,
 } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 
-import { useAuth } from "@/lib/use-auth";
 import { fetchApi } from "@/lib/cloud-api";
+import { useAuth } from "@/lib/use-auth";
 
 interface RedemptionBalance {
   summary: {

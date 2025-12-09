@@ -156,6 +156,8 @@ export class RuntimeFactory {
       ENTITY_ID: context.entityId,
       ORGANIZATION_ID: context.organizationId,
       IS_ANONYMOUS: context.isAnonymous,
+      // App-specific prompt config (for APP_CONFIG provider)
+      ...(context.appPromptConfig ? { appPromptConfig: context.appPromptConfig } : {}),
     };
   }
 

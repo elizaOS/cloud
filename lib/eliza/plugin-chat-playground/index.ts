@@ -7,7 +7,7 @@ import {
 import { characterProvider } from "./providers/character";
 import { handleMessage } from "./handler";
 import { roomTitleEvaluator } from "../shared/evaluators";
-import { recentMessagesProvider } from "../shared/providers";
+import { recentMessagesProvider, appConfigProvider } from "../shared/providers";
 
 export const chatPlaygroundPlugin: Plugin = {
   name: "eliza-chat-playground",
@@ -25,7 +25,7 @@ export const chatPlaygroundPlugin: Plugin = {
       },
     ],
   },
-  providers: [characterProvider, recentMessagesProvider],
+  providers: [characterProvider, recentMessagesProvider, appConfigProvider],
   actions: [],
   evaluators: [roomTitleEvaluator],
 };

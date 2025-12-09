@@ -15,6 +15,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
+import { siteConfig } from "@/app/config";
+
 const ELIZA_CLOUD_URL =
   process.env.NEXT_PUBLIC_ELIZA_CLOUD_URL || "http://localhost:3000";
 const ELIZA_CLOUD_API_KEY = process.env.ELIZA_CLOUD_API_KEY;
@@ -110,6 +112,13 @@ async function forwardRequest(
   let body: string | null = null;
   if (method !== "GET" && method !== "HEAD") {
     body = await request.text();
+    
+    // For stream requests, inject the miniapp's prompt config
+    if (path[0] === "stream" && path[1] && body && siteConfig.prompts) {
+      const parsedBody = JSON.parse(body) as Record<string, unknown>;
+      parsedBody.appPromptConfig = siteConfig.prompts;
+      body = JSON.stringify(parsedBody);
+    }
   }
 
   try {

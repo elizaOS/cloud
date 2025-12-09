@@ -45,7 +45,7 @@ class MiniappAuthSessionsRepository {
    * Gets an active (non-expired, pending) session by session ID.
    */
   async getActiveSession(
-    sessionId: string,
+    sessionId: string
   ): Promise<MiniappAuthSession | null> {
     const [session] = await db
       .select()
@@ -53,8 +53,8 @@ class MiniappAuthSessionsRepository {
       .where(
         and(
           eq(miniappAuthSessions.session_id, sessionId),
-          gt(miniappAuthSessions.expires_at, new Date()),
-        ),
+          gt(miniappAuthSessions.expires_at, new Date())
+        )
       )
       .limit(1);
     return session || null;
@@ -62,8 +62,9 @@ class MiniappAuthSessionsRepository {
 
   /**
    * Marks a session as authenticated and stores user/org/auth token information.
-   * 
+   *
    * Only updates sessions with status "pending".
+   * Updates expires_at to TOKEN_EXPIRY_DAYS from now (token valid for 30 days).
    */
   async markAuthenticated(
     sessionId: string,
@@ -71,6 +72,7 @@ class MiniappAuthSessionsRepository {
     organizationId: string,
     authToken: string,
     authTokenHash: string,
+    tokenExpiresAt: Date
   ): Promise<MiniappAuthSession | null> {
     const [session] = await db
       .update(miniappAuthSessions)
@@ -81,12 +83,13 @@ class MiniappAuthSessionsRepository {
         auth_token: authToken,
         auth_token_hash: authTokenHash,
         authenticated_at: new Date(),
+        expires_at: tokenExpiresAt,
       })
       .where(
         and(
           eq(miniappAuthSessions.session_id, sessionId),
-          eq(miniappAuthSessions.status, "pending"),
-        ),
+          eq(miniappAuthSessions.status, "pending")
+        )
       )
       .returning();
     return session || null;
@@ -94,14 +97,12 @@ class MiniappAuthSessionsRepository {
 
   /**
    * Gets and clears auth token (one-time retrieval for security).
-   * 
+   *
    * Marks session as "used" after retrieval. Only works for authenticated sessions.
-   * 
+   *
    * @returns Auth token, user ID, and organization ID, or null if not found.
    */
-  async getAndClearAuthToken(
-    sessionId: string,
-  ): Promise<{
+  async getAndClearAuthToken(sessionId: string): Promise<{
     authToken: string;
     userId: string;
     organizationId: string;
@@ -112,8 +113,8 @@ class MiniappAuthSessionsRepository {
       .where(
         and(
           eq(miniappAuthSessions.session_id, sessionId),
-          eq(miniappAuthSessions.status, "authenticated"),
-        ),
+          eq(miniappAuthSessions.status, "authenticated")
+        )
       )
       .limit(1);
 
@@ -145,13 +146,13 @@ class MiniappAuthSessionsRepository {
 
   /**
    * Verifies an auth token against stored hash.
-   * 
+   *
    * Only verifies non-expired sessions.
-   * 
+   *
    * @returns User ID and organization ID if token is valid, null otherwise.
    */
   async verifyAuthToken(
-    authTokenHash: string,
+    authTokenHash: string
   ): Promise<{ userId: string; organizationId: string } | null> {
     const [session] = await db
       .select()
@@ -159,8 +160,8 @@ class MiniappAuthSessionsRepository {
       .where(
         and(
           eq(miniappAuthSessions.auth_token_hash, authTokenHash),
-          gt(miniappAuthSessions.expires_at, new Date()),
-        ),
+          gt(miniappAuthSessions.expires_at, new Date())
+        )
       )
       .limit(1);
 
@@ -176,7 +177,7 @@ class MiniappAuthSessionsRepository {
 
   /**
    * Deletes expired sessions that were never authenticated (cleanup).
-   * 
+   *
    * @returns Number of sessions deleted.
    */
   async deleteExpired(): Promise<number> {
@@ -185,8 +186,8 @@ class MiniappAuthSessionsRepository {
       .where(
         and(
           gt(new Date(), miniappAuthSessions.expires_at),
-          isNull(miniappAuthSessions.user_id),
-        ),
+          isNull(miniappAuthSessions.user_id)
+        )
       );
     return result.rowCount || 0;
   }
