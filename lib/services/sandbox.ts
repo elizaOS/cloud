@@ -631,6 +631,24 @@ REMEMBER:
     await sandbox.extendTimeout(durationMs);
   }
 
+
+  async getLogs(sandboxId: string, tail: number = 50): Promise<string[]> {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+    if (!sandbox) return [];
+    try {
+      // Get dev server logs
+      const logsResult = await sandbox.runCommand({
+        cmd: "sh",
+        args: ["-c", `tail -${tail} /tmp/next-dev.log 2>/dev/null || echo ""`],
+      });
+      const stdout = await logsResult.stdout();
+      const lines = stdout.split("\n").filter((l: string) => l.trim());
+      return lines;
+    } catch (error) {
+      logger.error("Failed to get logs", { sandboxId, error });
+      return [];
+    }
+  }
   async stop(sandboxId: string): Promise<void> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) return;

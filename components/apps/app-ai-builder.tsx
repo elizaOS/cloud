@@ -25,6 +25,8 @@ import {
   Settings,
   ExternalLinkIcon,
   Bot,
+  Terminal,
+  Monitor,
 } from "lucide-react";
 import { toast } from "sonner";
 import { BrandCard, CornerBrackets } from "@/components/brand";
@@ -69,6 +71,8 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
   const [copied, setCopied] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [progressStep, setProgressStep] = useState<ProgressStep>("creating");
+  const [previewTab, setPreviewTab] = useState<"preview" | "console">("preview");
+  const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -77,10 +81,69 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
     }
   }, [messages, isLoading]);
 
+
+  // Listen for console messages from iframe and sandbox
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // Accept messages from sandbox
+      if (event.data?.type === "console" && event.data?.message) {
+        setConsoleLogs(prev => [...prev, `[${event.data.level || "log"}] ${event.data.message}`]);
+      }
+      // Handle Next.js dev server messages
+      if (event.data?.type === "webpack-hmr" || event.data?.action === "built") {
+        setConsoleLogs(prev => [...prev, `[hmr] ${event.data.action || "update"}`]);
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
+
+  // Add log helper
+  const addLog = useCallback((message: string, level: string = "info") => {
+    const timestamp = new Date().toLocaleTimeString();
+    setConsoleLogs(prev => [...prev, `[${timestamp}] [${level}] ${message}`]);
+  }, []);
+
+  // Poll for sandbox logs when session is active
+  const lastLogIndexRef = useRef<number>(0);
+  useEffect(() => {
+    if (!session || status !== "ready") {
+      lastLogIndexRef.current = 0;
+      return;
+    }
+
+    const fetchLogs = async () => {
+      try {
+        const res = await fetch(`/api/v1/app-builder/sessions/${session.id}/logs?tail=100`);
+        const data = await res.json();
+        if (data.success && data.logs?.length > 0) {
+          // Only add new logs
+          const newLogs = data.logs.slice(lastLogIndexRef.current);
+          if (newLogs.length > 0) {
+            setConsoleLogs(prev => {
+              const timestamp = new Date().toLocaleTimeString();
+              const formatted = newLogs.map((log: string) => `[${timestamp}] ${log}`);
+              return [...prev, ...formatted];
+            });
+            lastLogIndexRef.current = data.logs.length;
+          }
+        }
+      } catch (e) {
+        // Silently ignore polling errors
+      }
+    };
+
+    // Poll every 3 seconds
+    const interval = setInterval(fetchLogs, 3000);
+    fetchLogs(); // Initial fetch
+
+    return () => clearInterval(interval);
+  }, [session, status]);
   // Start a new builder session for this app using SSE streaming
   const startSession = useCallback(async () => {
     setIsLoading(true);
     setStatus("initializing");
+    addLog("Starting sandbox environment...", "info");
     setProgressStep("creating");
     setErrorMessage(null);
 
@@ -136,6 +199,7 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
               
               if (eventType === "progress") {
                 setProgressStep(data.step as ProgressStep);
+                addLog(`Progress: ${data.step}`, "info");
               } else if (eventType === "complete") {
                 setSession(data.session);
                 setStatus("ready");
@@ -154,6 +218,7 @@ Some ideas:
 - Integrate more APIs`,
                   timestamp: new Date().toISOString(),
                 }]);
+                addLog(`Sandbox ready at ${data.session.sandboxUrl}`, "success");
                 toast.success("Sandbox started!", {
                   description: "Your development environment is ready.",
                 });
@@ -177,7 +242,7 @@ Some ideas:
     } finally {
       setIsLoading(false);
     }
-  }, [app]);
+  }, [app, addLog]);
 
   // Send a prompt
   const sendPrompt = useCallback(async (prompt: string) => {
@@ -185,6 +250,8 @@ Some ideas:
 
     setIsLoading(true);
     setStatus("generating");
+
+    addLog(`Sending prompt: "${prompt.substring(0, 50)}${prompt.length > 50 ? "..." : ""}"`, "info");
 
     const userMessage: Message = {
       role: "user",
@@ -218,6 +285,11 @@ Some ideas:
       };
       setMessages((prev) => [...prev, assistantMessage]);
 
+      if (data.filesAffected && data.filesAffected.length > 0) {
+        addLog(`Modified files: ${data.filesAffected.join(", ")}`, "success");
+      }
+      addLog("Changes applied, refreshing preview...", "info");
+
       // Refresh iframe
       if (iframeRef.current && session) {
         iframeRef.current.src = session.sandboxUrl;
@@ -232,7 +304,7 @@ Some ideas:
     } finally {
       setIsLoading(false);
     }
-  }, [session, isLoading]);
+  }, [session, isLoading, addLog]);
 
   // Stop the session
   const stopSession = useCallback(async () => {
@@ -245,11 +317,12 @@ Some ideas:
       setSession(null);
       setStatus("idle");
       setMessages([]);
+      addLog("Session stopped", "info");
       toast.success("Session stopped");
     } catch (error) {
       toast.error("Failed to stop session");
     }
-  }, [session]);
+  }, [session, addLog]);
 
   // Copy sandbox URL
   const copyUrl = async () => {
@@ -458,74 +531,172 @@ ANTHROPIC_API_KEY=your_key_here`}
         <CornerBrackets className="opacity-20" />
         
         {/* Preview Header */}
-        <div className="relative z-10 flex items-center justify-between p-4 border-b border-white/10 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <span className="font-medium text-white">Live Preview</span>
-            {session?.sandboxUrl && (
-              <code className="text-xs text-white/60 bg-white/5 px-2 py-1 rounded max-w-[200px] truncate">
+        <div className="relative z-10 flex items-center justify-between p-3 border-b border-white/10 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            {/* Compact Tab Buttons */}
+            <div className="flex bg-white/5 rounded-md p-0.5">
+              <button
+                onClick={() => setPreviewTab("preview")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                  previewTab === "preview"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white/70"
+                }`}
+              >
+                <Monitor className="h-3.5 w-3.5" />
+                Preview
+              </button>
+              <button
+                onClick={() => setPreviewTab("console")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                  previewTab === "console"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white/70"
+                }`}
+              >
+                <Terminal className="h-3.5 w-3.5" />
+                Console
+                {consoleLogs.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 bg-[#FF5800]/20 text-[#FF5800] rounded-full text-[10px]">
+                    {consoleLogs.length}
+                  </span>
+                )}
+              </button>
+            </div>
+            {previewTab === "preview" && session?.sandboxUrl && (
+              <code className="text-xs text-white/50 bg-white/5 px-2 py-1 rounded max-w-[180px] truncate">
                 {session.sandboxUrl}
               </code>
             )}
           </div>
           <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={copyUrl}
-              title="Copy URL"
-            >
-              {copied ? (
-                <Check className="h-4 w-4 text-green-500" />
-              ) : (
-                <Copy className="h-4 w-4" />
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => {
-                if (iframeRef.current && session) {
-                  iframeRef.current.src = session.sandboxUrl;
-                }
-              }}
-              title="Refresh preview"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => window.open(session?.sandboxUrl, "_blank")}
-              title="Open in new tab"
-            >
-              <ExternalLink className="h-4 w-4" />
-            </Button>
+            {previewTab === "console" && consoleLogs.length > 0 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setConsoleLogs([])}
+                title="Clear console"
+              >
+                <Square className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {previewTab === "preview" && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={copyUrl}
+                  title="Copy URL"
+                >
+                  {copied ? (
+                    <Check className="h-3.5 w-3.5 text-green-500" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => {
+                    if (iframeRef.current && session) {
+                      iframeRef.current.src = session.sandboxUrl;
+                    }
+                  }}
+                  title="Refresh preview"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => window.open(session?.sandboxUrl, "_blank")}
+                  title="Open in new tab"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Preview Iframe */}
-        <div className="relative z-10 flex-1 bg-white overflow-hidden">
-          {session?.sandboxUrl ? (
-            <iframe
-              ref={iframeRef}
-              src={session.sandboxUrl}
-              className="w-full h-full border-0"
-              title="App Preview"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full text-white/40 bg-black/50">
-              <div className="text-center">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-                <p>Loading preview...</p>
+        {/* Preview Content */}
+        <div className="relative z-10 flex-1 overflow-hidden">
+          {previewTab === "preview" ? (
+            session?.sandboxUrl ? (
+              <iframe
+                ref={iframeRef}
+                src={session.sandboxUrl}
+                className="w-full h-full border-0 bg-white"
+                title="App Preview"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-white/40 bg-black/50">
+                <div className="text-center">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+                  <p>Loading preview...</p>
+                </div>
               </div>
+            )
+          ) : (
+            <div className="h-full bg-[#1a1a1a] overflow-auto font-mono text-xs">
+              {consoleLogs.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-white/30">
+                  <div className="text-center">
+                    <Terminal className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>No console logs yet</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 space-y-0.5">
+                  {consoleLogs.map((log, i) => {
+                    // Determine log type and color
+                    let colorClass = "text-white/60"; // default server output
+                    let bgClass = "";
+                    
+                    if (log.includes("[info]")) {
+                      colorClass = "text-blue-400";
+                    } else if (log.includes("[success]")) {
+                      colorClass = "text-green-400";
+                    } else if (log.includes("[error]") || log.includes("Error") || log.includes("error")) {
+                      colorClass = "text-red-400";
+                      bgClass = "bg-red-500/10";
+                    } else if (log.includes("[warning]") || log.includes("⚠") || log.includes("Warning")) {
+                      colorClass = "text-yellow-400";
+                      bgClass = "bg-yellow-500/5";
+                    } else if (log.includes("Progress:")) {
+                      colorClass = "text-purple-400";
+                    } else if (log.includes("GET ") || log.includes("POST ") || log.includes("PUT ") || log.includes("DELETE ")) {
+                      // HTTP requests
+                      if (log.includes(" 2")) {
+                        colorClass = "text-green-400/70";
+                      } else if (log.includes(" 4") || log.includes(" 5")) {
+                        colorClass = "text-red-400/70";
+                      } else {
+                        colorClass = "text-cyan-400/70";
+                      }
+                    } else if (log.includes("✓")) {
+                      colorClass = "text-green-400/80";
+                    } else if (log.includes("Next.js") || log.includes("Turbopack")) {
+                      colorClass = "text-white/80";
+                    }
+                    
+                    return (
+                      <div key={i} className={`flex gap-2 hover:bg-white/5 px-1 rounded ${bgClass}`}>
+                        <span className="text-white/20 select-none w-5 text-right shrink-0">{i + 1}</span>
+                        <pre className={`whitespace-pre-wrap break-all ${colorClass}`}>{log}</pre>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
-
         {/* Status Bar */}
         <div className="relative z-10 flex items-center justify-between p-2 border-t border-white/10 flex-shrink-0">
           <div className="flex items-center gap-4 text-xs text-white/40">

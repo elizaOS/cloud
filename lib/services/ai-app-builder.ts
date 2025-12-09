@@ -404,6 +404,12 @@ export class AIAppBuilderService {
   /**
    * Stop a session and cleanup the sandbox
    */
+
+  async getLogs(sessionId: string, tail: number = 50): Promise<string[]> {
+    const session = await this.getSession(sessionId);
+    if (!session) return [];
+    return sandboxService.getLogs(session.sandboxId, tail);
+  }
   async stopSession(sessionId: string): Promise<void> {
     const session = await db.query.appSandboxSessions.findFirst({
       where: eq(appSandboxSessions.id, sessionId),
