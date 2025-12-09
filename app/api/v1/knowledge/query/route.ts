@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from "uuid";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { userContextService } from "@/lib/eliza/user-context";
 import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
+import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import type { QueryResult } from "@/lib/types/knowledge";
 
 export const maxDuration = 60;
@@ -32,11 +33,12 @@ async function handlePOST(req: NextRequest) {
       return NextResponse.json({ error: "Query is required" }, { status: 400 });
     }
 
-    // Build user context with characterId
+    // Build user context with ASSISTANT mode (required for knowledge plugin)
     const userContext = await userContextService.buildContext({
       user,
       apiKey: authResult.apiKey,
       isAnonymous: false,
+      agentMode: AgentMode.ASSISTANT,
     });
 
     if (characterId) {

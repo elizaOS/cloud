@@ -87,7 +87,7 @@ export function MyAgentsHeader({
           className="hidden sm:flex"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Create
+          New Agent
         </Button>
         <Button
           onClick={() => router.push("/dashboard/character-creator")}

@@ -521,7 +521,7 @@ The person you are generating MUST match this EXACT description:
 - Appropriate pose (cute, flirty, confident)
 
 # Recent conversation:
-{{recentMessages}}
+{{conversationLog}}
 
 # OUTPUT FORMAT:
 Your prompt MUST start with the gender and key features from the appearance description.
@@ -677,7 +677,7 @@ ${vibeSection}
 - User asks "what do you do?" → "I'm actually a photographer! Love capturing moments ✨ What do you do? Any fun hobbies?"
 
 # Recent conversation:
-{{recentMessages}}
+{{conversationLog}}
 
 Write a CONVERSATIONAL REPLY that responds to what they said. Do NOT mention the photo.
 Your response should be formatted in XML like this:
@@ -703,7 +703,7 @@ const affiliateImageGenerationTemplate = `# Task: Generate an image prompt for t
 4. Match the mood and energy of the conversation
 
 # Recent conversation:
-{{recentMessages}}
+{{conversationLog}}
 
 Based on the conversation context, generate an image prompt that:
 1. Represents the character appropriately

@@ -50,7 +50,7 @@ export function AvatarGenerator({
 
   const handleRandomize = () => {
     onAvatarChange(
-      generateDefaultAvatarUrl(characterName || `char-${Date.now()}`),
+      generateDefaultAvatarUrl(characterName || `char-${Date.now()}`)
     );
     toast.success("Random avatar selected");
   };
@@ -84,14 +84,14 @@ export function AvatarGenerator({
         const newAvatarUrl = data.images[0].url || data.images[0].image;
         if (!newAvatarUrl) throw new Error("No valid image URL in response");
         onAvatarChange(newAvatarUrl);
-        toast.success("AI avatar generated! ($0.01)");
+        toast.success("AI avatar generated!");
       } else {
         throw new Error("No image returned");
       }
     } catch (error) {
       console.error("Error generating AI avatar:", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to generate AI avatar",
+        error instanceof Error ? error.message : "Failed to generate AI avatar"
       );
     } finally {
       setIsGeneratingAI(false);
@@ -112,6 +112,7 @@ export function AvatarGenerator({
             className="object-cover"
             sizes="80px"
             unoptimized={!isBuiltInAvatar(currentAvatarUrl)}
+            draggable={false}
           />
         </div>
 
@@ -140,7 +141,7 @@ export function AvatarGenerator({
               ) : (
                 <Sparkles className="h-4 w-4 mr-2" />
               )}
-              {isGeneratingAI ? "Generating..." : "AI Avatar ($0.01)"}
+              {isGeneratingAI ? "Generating..." : "AI Avatar"}
             </Button>
           </div>
         </div>
@@ -162,7 +163,7 @@ export function AvatarGenerator({
                   "relative w-full aspect-square rounded-lg overflow-hidden border-2 transition-all",
                   isSelected
                     ? "border-[#FF5800] ring-2 ring-[#FF5800]/30"
-                    : "border-white/10 hover:border-white/30",
+                    : "border-white/10 hover:border-white/30"
                 )}
                 title={avatar.name}
               >
@@ -171,6 +172,7 @@ export function AvatarGenerator({
                   alt={avatar.name}
                   fill
                   className="object-cover"
+                  draggable={false}
                   sizes="64px"
                 />
                 {isSelected && (

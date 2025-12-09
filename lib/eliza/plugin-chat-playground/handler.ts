@@ -4,6 +4,7 @@ import {
   createUniqueUuid,
   EventType,
   logger,
+  MemoryType,
   type Memory,
   ModelType,
   parseKeyValueXml,
@@ -13,6 +14,7 @@ import {
   type State,
   type HandlerCallback,
 } from "@elizaos/core";
+import type { DialogueMetadata } from "@/lib/types/message-content";
 import { v4 } from "uuid";
 import {
   chatPlaygroundSystemPrompt,
@@ -108,6 +110,13 @@ export async function handleMessage({
       roomId: message.roomId,
       worldId: message.worldId,
       content: { text: parsedResponse.text, thought: parsedResponse.thought || "", source: "agent", inReplyTo: message.id },
+      metadata: {
+        type: MemoryType.MESSAGE,
+        role: 'agent',
+        dialogueType: 'message',
+        visibility: 'visible',
+        agentMode: 'chat',
+      } as DialogueMetadata,
     };
 
     await runEvaluatorsWithTimeout(runtime, message, state, responseMemory, callback);
