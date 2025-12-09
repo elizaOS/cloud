@@ -156,6 +156,13 @@ export function ElizaChatInterface({
       character?.name || selectedCharacter?.name || agentInfo?.name || "Agent",
     [character?.name, selectedCharacter?.name, agentInfo?.name]
   );
+  
+  // Get avatar URL from prop (preferred), store, or agentInfo
+  const characterAvatarUrl = useMemo(
+    () =>
+      character?.avatarUrl || character?.avatar_url || selectedCharacter?.avatarUrl || agentInfo?.avatarUrl,
+    [character?.avatarUrl, character?.avatar_url, selectedCharacter?.avatarUrl, agentInfo?.avatarUrl]
+  );
 
   // Consolidated loading states
   const [loadingState, setLoadingState] = useState({
@@ -820,7 +827,7 @@ export function ElizaChatInterface({
               {loadingState.isLoadingMessages && (
                 <div className="flex flex-col items-center justify-center h-full text-center py-12 space-y-6">
                   <ElizaAvatar
-                    avatarUrl={agentInfo?.avatarUrl}
+                    avatarUrl={characterAvatarUrl}
                     name={characterName}
                     className="h-16 w-16 mb-4"
                     fallbackClassName="bg-muted"
@@ -869,7 +876,7 @@ export function ElizaChatInterface({
                 !error && (
                   <div className="flex flex-col items-center justify-center h-full text-center py-12">
                     <ElizaAvatar
-                      avatarUrl={agentInfo?.avatarUrl}
+                      avatarUrl={characterAvatarUrl}
                       name={characterName}
                       className="h-16 w-16 mb-4"
                       fallbackClassName="bg-muted"
@@ -930,7 +937,7 @@ export function ElizaChatInterface({
                           {/* Agent Name Row with Avatar */}
                           <div className="flex items-center gap-2 pl-1">
                             <ElizaAvatar
-                              avatarUrl={agentInfo?.avatarUrl}
+                              avatarUrl={characterAvatarUrl}
                               name={characterName}
                               className="flex-shrink-0 w-5 h-5"
                               iconClassName="h-3 w-3"

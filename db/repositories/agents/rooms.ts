@@ -6,7 +6,8 @@
 
 import { db } from "@/db/client";
 import { roomTable, participantTable, memoryTable } from "@/db/schemas/eliza";
-import { eq, inArray, sql, desc, and } from "drizzle-orm";
+import { userCharacters } from "@/db/schemas/user-characters";
+import { eq, inArray, sql, and } from "drizzle-orm";
 import type { Room as BaseRoom } from "@elizaos/core";
 
 /**
@@ -23,6 +24,8 @@ export interface RoomWithPreview {
   id: string;
   name: string | null;
   characterId: string | null; // agentId from room
+  characterName: string | null; // character name from user_characters
+  characterAvatarUrl: string | null; // avatar_url from user_characters
   createdAt: Date;
   lastMessageTime: Date | null;
   lastMessageText: string | null;
@@ -201,6 +204,7 @@ export class RoomsRepository {
    * Gets all rooms for an entity (user) with last message preview.
    * 
    * Uses a single optimized query with joins. Returns rooms sorted by most recent activity.
+   * Includes character name and avatar from user_characters table.
    * 
    * @param entityId - The user's ID (from auth).
    * @returns Rooms with preview data, sorted by most recent activity.
@@ -223,12 +227,14 @@ export class RoomsRepository {
       .where(eq(memoryTable.type, "messages"))
       .as("latest_messages");
 
-    // Main query: join participants -> rooms -> latest messages
+    // Main query: join participants -> rooms -> latest messages -> user_characters
     const results = await db
       .select({
         id: roomTable.id,
         name: roomTable.name,
         characterId: roomTable.agentId,
+        characterName: userCharacters.name,
+        characterAvatarUrl: userCharacters.avatar_url,
         createdAt: roomTable.createdAt,
         lastMessageTime: latestMessagesSubquery.createdAt,
         lastMessageText: latestMessagesSubquery.text,
@@ -242,6 +248,7 @@ export class RoomsRepository {
           eq(latestMessagesSubquery.rn, 1),
         ),
       )
+      .leftJoin(userCharacters, eq(roomTable.agentId, userCharacters.id))
       .where(eq(participantTable.entityId, entityId));
 
     // Sort by last message time, falling back to room creation time
