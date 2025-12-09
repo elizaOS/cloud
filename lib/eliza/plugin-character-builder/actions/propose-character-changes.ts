@@ -11,6 +11,7 @@ import {
   ModelType,
 } from "@elizaos/core";
 import { MESSAGE_EXAMPLES_FORMAT_INSTRUCTIONS } from "../providers/character-guide";
+import { cleanPrompt } from "../../shared/utils/helpers";
 
 /**
  * PROPOSE_CHARACTER_CHANGES Action
@@ -91,8 +92,9 @@ const proposeTemplate = `
 ## Current Character JSON:
 {{currentCharacter}}
 
-# Conversation Context:
 {{conversationLogWithAgentThoughts}}
+
+{{receivedMessageHeader}}
 `;
 
 export const proposeCharacterChangesAction = {
@@ -127,19 +129,19 @@ export const proposeCharacterChangesAction = {
       const originalSystemPrompt = runtime.character.system;
 
       // Compose system prompt
-      const systemPrompt = composePromptFromState({
+      const systemPrompt = cleanPrompt(composePromptFromState({
         state,
         template: proposeSystemPrompt,
-      });
+      }));
 
       runtime.character.system = systemPrompt;
 
       // Compose prompt with character context and reasoning
       // Then append messageExamples format (preserves {{user1}} placeholder)
-      const composedPrompt = composePromptFromState({
+      const composedPrompt = cleanPrompt(composePromptFromState({
         state,
         template: proposeTemplate,
-      });
+      }));
       const prompt = composedPrompt + MESSAGE_EXAMPLES_FORMAT_INSTRUCTIONS;
 
       const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
@@ -170,8 +172,8 @@ export const proposeCharacterChangesAction = {
       // Parse the character JSON
       const updatedCharacter: Record<string, unknown> = JSON.parse(parsedResponse.character);
 
-      logger.info(
-        "[PROPOSE_CHARACTER_CHANGES] ✅ Proposal generated successfully with full character JSON",
+      logger.debug(
+        "[PROPOSE_CHARACTER_CHANGES] Proposal generated successfully with full character JSON",
       );
 
       // Callback to frontend with the conversational proposal AND the full character JSON
