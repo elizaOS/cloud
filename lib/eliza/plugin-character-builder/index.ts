@@ -13,6 +13,7 @@ import { applyCharacterChangesAction } from "./actions/apply-character-changes";
 import { buildChatAction } from "./actions/build-chat";
 import { handleMessage } from "./handler";
 import { roomTitleEvaluator } from "../shared/evaluators";
+import { recentMessagesProvider } from "../shared/providers";
 
 export const characterBuilderPlugin: Plugin = {
   name: "eliza-character-builder",
@@ -37,7 +38,7 @@ export const characterBuilderPlugin: Plugin = {
       },
     ],
   },
-  providers: [actionsProvider, characterGuideProvider, currentCharacterProvider],
+  providers: [actionsProvider, characterGuideProvider, currentCharacterProvider, recentMessagesProvider],
   actions: [generateImageAction, proposeCharacterChangesAction, applyCharacterChangesAction, buildChatAction],
   evaluators: [roomTitleEvaluator],
 };
