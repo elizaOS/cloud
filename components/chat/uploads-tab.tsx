@@ -43,7 +43,9 @@ export function UploadsTab({ characterId }: UploadsTabProps) {
 
   useEffect(() => {
     if (characterId) {
-      fetchDocuments();
+      queueMicrotask(() => {
+        fetchDocuments();
+      });
     }
   }, [characterId, fetchDocuments]);
 
