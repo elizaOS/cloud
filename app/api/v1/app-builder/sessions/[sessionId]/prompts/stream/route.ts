@@ -1,0 +1,105 @@
+import { NextRequest } from "next/server";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { aiAppBuilderService } from "@/lib/services/ai-app-builder";
+import { logger } from "@/lib/utils/logger";
+import { z } from "zod";
+
+interface RouteParams {
+  params: Promise<{ sessionId: string }>;
+}
+
+const SendPromptSchema = z.object({
+  prompt: z.string().min(1).max(10000),
+});
+
+/**
+ * POST /api/v1/app-builder/sessions/:sessionId/prompts/stream
+ * Send a prompt with SSE streaming for tool calls and thinking
+ */
+export async function POST(request: NextRequest, { params }: RouteParams) {
+  try {
+    await requireAuthOrApiKeyWithOrg(request);
+    const { sessionId } = await params;
+
+    const body = await request.json();
+    const validationResult = SendPromptSchema.safeParse(body);
+
+    if (!validationResult.success) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Invalid request data",
+          details: validationResult.error.format(),
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Create SSE stream
+    const encoder = new TextEncoder();
+    const stream = new TransformStream();
+    const writer = stream.writable.getWriter();
+
+    const sendEvent = async (event: string, data: unknown) => {
+      const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+      await writer.write(encoder.encode(message));
+    };
+
+    // Run prompt in background with callbacks
+    (async () => {
+      try {
+        const result = await aiAppBuilderService.sendPrompt(
+          sessionId,
+          validationResult.data.prompt,
+          {
+            onThinking: async (text) => {
+              // Send thinking/reasoning text
+              await sendEvent("thinking", {
+                text: text.substring(0, 1000), // Limit size
+              });
+            },
+            onToolUse: async (tool, input, result) => {
+              await sendEvent("tool_use", {
+                tool,
+                input,
+                result: result.substring(0, 500),
+              });
+            },
+          }
+        );
+
+        await sendEvent("complete", {
+          success: result.success,
+          output: result.output,
+          filesAffected: result.filesAffected,
+          error: result.error,
+        });
+      } catch (error) {
+        logger.error("Failed to send prompt via stream", { error });
+        await sendEvent("error", {
+          success: false,
+          error: error instanceof Error ? error.message : "Failed to send prompt",
+        });
+      } finally {
+        await writer.close();
+      }
+    })();
+
+    return new Response(stream.readable, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
+  } catch (error) {
+    logger.error("Auth failed for prompt stream", { error });
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : "Authentication failed",
+      }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
+    );
+  }
+}
