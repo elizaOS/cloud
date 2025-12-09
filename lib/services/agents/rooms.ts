@@ -12,15 +12,12 @@ import {
   type RoomWithPreview,
 } from "@/db/repositories";
 import { db } from "@/db/client";
-import { roomTable, entityTable, participantTable } from "@/db/schemas/eliza";
+import { roomTable } from "@/db/schemas/eliza";
 import type { Memory } from "@elizaos/core";
-import { logger } from "@/lib/utils/logger";
 import { v4 as uuidv4 } from "uuid";
-import { eq, sql } from "drizzle-orm";
 import { 
   parseMessageContent, 
   isVisibleDialogueMessage,
-  type MessageContent 
 } from "@/lib/types/message-content";
 
 /**
@@ -53,6 +50,8 @@ export interface RoomPreview {
   id: string;
   title?: string; // room name or generated title
   characterId?: string; // agentId from room
+  characterName?: string; // character name from user_characters
+  characterAvatarUrl?: string; // avatar_url from user_characters
   lastTime?: number; // from last message createdAt (ms timestamp)
   lastText?: string; // from last message content.text (truncated)
 }
@@ -94,12 +93,6 @@ export class RoomsService {
       
       // Check if message should be visible using helper
       const isVisible = isVisibleDialogueMessage(metadata, content);
-      
-      if (!isVisible) {
-        logger.debug(
-          `[Rooms Service] 🚫 Filtering out hidden/action_result message: ${msg.id?.substring(0, 8)}`
-        );
-      }
       
       return isVisible;
     });
@@ -156,17 +149,6 @@ export class RoomsService {
 
     const cleanMessages = visibleMessages.filter((_, index) => !indicesToRemove.has(index));
 
-    if (indicesToRemove.size > 0) {
-      logger.info(
-        `[Rooms Service] 🧹 Removed ${indicesToRemove.size} duplicate message(s) from room ${roomId}`
-      );
-    }
-
-    logger.info(
-      `[Rooms Service] 📊 Room ${roomId} - Raw: ${rawMessages.length}, ` +
-      `After filtering: ${visibleMessages.length}, Final: ${cleanMessages.length}`
-    );
-
     return {
       room,
       messages: cleanMessages,
@@ -182,7 +164,7 @@ export class RoomsService {
    * @returns Room previews sorted by most recent activity
    */
   async getRoomsForEntity(entityId: string): Promise<RoomPreview[]> {
-    // Single query: participants → rooms → last message
+    // Single query: participants → rooms → last message → user_characters
     const roomsWithPreview =
       await roomsRepository.findRoomsWithPreviewForEntity(entityId);
 
@@ -191,6 +173,8 @@ export class RoomsService {
       id: room.id,
       title: room.name || undefined,
       characterId: room.characterId || undefined,
+      characterName: room.characterName || undefined,
+      characterAvatarUrl: room.characterAvatarUrl || undefined,
       lastTime: room.lastMessageTime?.getTime() || room.createdAt?.getTime(),
       lastText: room.lastMessageText?.substring(0, 100) || undefined,
     }));
@@ -223,9 +207,6 @@ export class RoomsService {
       })
       .returning();
 
-    logger.info(
-      `[Rooms Service] Created room ${roomId} for entity ${input.entityId || "none"} with agent ${input.agentId || "none"}`,
-    );
     return room;
   }
 
@@ -243,8 +224,6 @@ export class RoomsService {
    * Delete room and all related data
    */
   async deleteRoom(roomId: string): Promise<void> {
-    logger.info(`[Rooms Service] Deleting room ${roomId}`);
-
     // Delete in order: messages, participants, then room
     // (CASCADE should handle most of this, but explicit is better)
     await Promise.all([
@@ -253,8 +232,6 @@ export class RoomsService {
     ]);
 
     await roomsRepository.delete(roomId);
-
-    logger.info(`[Rooms Service] Successfully deleted room ${roomId}`);
   }
 
   /**
@@ -345,9 +322,6 @@ export class RoomsService {
       agentId,
     });
 
-    logger.info(
-      `[Rooms Service] Added participant ${entityId} to room ${roomId}`,
-    );
   }
 
   /**
