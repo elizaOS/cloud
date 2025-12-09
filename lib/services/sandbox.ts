@@ -36,12 +36,20 @@ interface CommandResult {
   stderr: () => Promise<string>;
 }
 
+export type SandboxProgress = 
+  | { step: "creating"; message: string }
+  | { step: "installing"; message: string }
+  | { step: "starting"; message: string }
+  | { step: "ready"; message: string }
+  | { step: "error"; message: string };
+
 export interface SandboxConfig {
   templateUrl?: string;
   timeout?: number;
   vcpus?: number;
   ports?: number[];
   env?: Record<string, string>;
+  onProgress?: (progress: SandboxProgress) => void;
 }
 
 export interface SandboxSessionData {
@@ -351,6 +359,7 @@ export class SandboxService {
       vcpus = 4,
       ports = [3000],
       env = {},
+      onProgress,
     } = config;
 
     const creds = getSandboxCredentials();
@@ -366,6 +375,7 @@ export class SandboxService {
       const { Sandbox } = await import("@vercel/sandbox");
 
       logger.info("Creating sandbox", { templateUrl, vcpus });
+      onProgress?.({ step: "creating", message: "Creating sandbox instance..." });
 
       const createOptions: Record<string, unknown> = {
         source: { url: templateUrl, type: "git" },
@@ -387,9 +397,11 @@ export class SandboxService {
 
       logger.info("Sandbox created", { sandboxId, devServerUrl });
       getActiveSandboxes().set(sandboxId, sandbox);
+      onProgress?.({ step: "creating", message: "Sandbox instance created" });
 
       // Install dependencies
       logger.info("Installing dependencies", { sandboxId });
+      onProgress?.({ step: "installing", message: "Installing dependencies..." });
       let install = await sandbox.runCommand({ cmd: "pnpm", args: ["install"] });
       if (install.exitCode !== 0) {
         install = await sandbox.runCommand({ cmd: "npm", args: ["install"] });
@@ -398,8 +410,11 @@ export class SandboxService {
         }
       }
 
+      onProgress?.({ step: "installing", message: "Dependencies installed" });
+
       // Start dev server with logging
       logger.info("Starting dev server", { sandboxId });
+      onProgress?.({ step: "starting", message: "Starting dev server..." });
       await sandbox.runCommand({
         cmd: "sh",
         args: ["-c", "pnpm dev 2>&1 | tee /tmp/next-dev.log &"],
@@ -410,6 +425,7 @@ export class SandboxService {
       await this.waitForDevServer(sandbox, 3000);
 
       logger.info("Sandbox ready", { sandboxId, devServerUrl });
+      onProgress?.({ step: "ready", message: "Sandbox is ready!" });
 
       return {
         sandboxId,
@@ -420,6 +436,7 @@ export class SandboxService {
       };
     } catch (error) {
       logger.error("Failed to create sandbox", { error });
+      onProgress?.({ step: "error", message: error instanceof Error ? error.message : "Unknown error" });
       throw error;
     }
   }

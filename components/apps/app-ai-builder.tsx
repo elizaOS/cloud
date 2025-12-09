@@ -38,6 +38,8 @@ interface AppAIBuilderProps {
 
 type SessionStatus = "idle" | "initializing" | "ready" | "generating" | "error" | "stopped" | "not_configured";
 
+type ProgressStep = "creating" | "installing" | "starting" | "ready" | "error";
+
 interface Message {
   role: "user" | "assistant";
   content: string;
@@ -66,6 +68,7 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [progressStep, setProgressStep] = useState<ProgressStep>("creating");
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -74,14 +77,15 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
     }
   }, [messages, isLoading]);
 
-  // Start a new builder session for this app
+  // Start a new builder session for this app using SSE streaming
   const startSession = useCallback(async () => {
     setIsLoading(true);
     setStatus("initializing");
+    setProgressStep("creating");
     setErrorMessage(null);
 
     try {
-      const response = await fetch("/api/v1/app-builder", {
+      const response = await fetch("/api/v1/app-builder/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -94,27 +98,50 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
         }),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        if (data.error?.includes("credentials not configured") || 
-            data.error?.includes("VERCEL_TOKEN") ||
-            data.error?.includes("OIDC")) {
+        const errorData = await response.json();
+        if (errorData.error?.includes("credentials not configured") || 
+            errorData.error?.includes("VERCEL_TOKEN") ||
+            errorData.error?.includes("OIDC")) {
           setStatus("not_configured");
-          setErrorMessage(data.error);
+          setErrorMessage(errorData.error);
+          setIsLoading(false);
           return;
         }
-        throw new Error(data.error || "Failed to start session");
+        throw new Error(errorData.error || "Failed to start session");
       }
 
-      setSession(data.session);
-      setStatus("ready");
+      // Read SSE stream
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No response body");
 
-      // Add welcome message
-      setMessages([
-        {
-          role: "assistant",
-          content: `🚀 **Sandbox ready for ${app.name}!**
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        let eventType = "";
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            eventType = line.slice(7);
+          } else if (line.startsWith("data: ") && eventType) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (eventType === "progress") {
+                setProgressStep(data.step as ProgressStep);
+              } else if (eventType === "complete") {
+                setSession(data.session);
+                setStatus("ready");
+                setMessages([{
+                  role: "assistant",
+                  content: `🚀 **Sandbox ready for ${app.name}!**
 
 I'll help you build and enhance your app. The live preview is loading on the right.
 
@@ -125,13 +152,22 @@ Some ideas:
 - Improve the UI design
 - Add analytics tracking
 - Integrate more APIs`,
-          timestamp: new Date().toISOString(),
-        },
-      ]);
-
-      toast.success("Sandbox started!", {
-        description: "Your development environment is ready.",
-      });
+                  timestamp: new Date().toISOString(),
+                }]);
+                toast.success("Sandbox started!", {
+                  description: "Your development environment is ready.",
+                });
+              } else if (eventType === "error") {
+                throw new Error(data.error || "Failed to start session");
+              }
+            } catch (e) {
+              if (e instanceof SyntaxError) continue;
+              throw e;
+            }
+            eventType = "";
+          }
+        }
+      }
     } catch (error) {
       setStatus("error");
       setErrorMessage(error instanceof Error ? error.message : "Unknown error");
@@ -338,6 +374,14 @@ ANTHROPIC_API_KEY=your_key_here`}
 
   // Render initializing state
   if (status === "initializing") {
+    const steps = [
+      { key: "creating", label: "Creating sandbox instance" },
+      { key: "installing", label: "Installing dependencies" },
+      { key: "starting", label: "Starting dev server" },
+    ];
+    
+    const currentStepIndex = steps.findIndex(s => s.key === progressStep);
+    
     return (
       <BrandCard className="relative">
         <CornerBrackets className="opacity-20" />
@@ -351,18 +395,29 @@ ANTHROPIC_API_KEY=your_key_here`}
               Setting up your development environment...
             </p>
             <div className="mt-6 space-y-2 text-left max-w-xs mx-auto">
-              <div className="flex items-center gap-2 text-sm text-white/60">
-                <Check className="h-4 w-4 text-green-500" />
-                Creating sandbox instance
-              </div>
-              <div className="flex items-center gap-2 text-sm text-white/60">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Installing dependencies
-              </div>
-              <div className="flex items-center gap-2 text-sm text-white/40">
-                <div className="h-4 w-4" />
-                Starting dev server
-              </div>
+              {steps.map((step, index) => {
+                const isComplete = index < currentStepIndex;
+                const isCurrent = index === currentStepIndex;
+                const isPending = index > currentStepIndex;
+                
+                return (
+                  <div 
+                    key={step.key}
+                    className={`flex items-center gap-2 text-sm transition-all duration-300 ${
+                      isComplete ? "text-white/60" : isCurrent ? "text-white/80" : "text-white/40"
+                    }`}
+                  >
+                    {isComplete ? (
+                      <Check className="h-4 w-4 text-green-500" />
+                    ) : isCurrent ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
+                    ) : (
+                      <div className="h-4 w-4" />
+                    )}
+                    {step.label}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
