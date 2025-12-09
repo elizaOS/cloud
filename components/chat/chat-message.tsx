@@ -19,6 +19,10 @@ import { Clock, Volume2, Square, Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
+import "highlight.js/styles/github-dark.css";
 
 interface ChatMessageProps {
   message: {
@@ -132,8 +136,51 @@ export function ChatMessage({
           </div>
         ) : (
           <>
-            <div className="text-sm whitespace-pre-wrap text-white leading-relaxed">
-              {message.content.text}
+            <div className="text-sm text-white leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 prose-headings:my-3 prose-pre:my-2">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeHighlight]}
+                components={{
+                  code: ({ className, children, ...props }) => {
+                    const isInline = !className;
+                    return isInline ? (
+                      <code
+                        className="bg-white/10 px-1.5 py-0.5 rounded text-xs"
+                        {...props}
+                      >
+                        {children}
+                      </code>
+                    ) : (
+                      <code className={className} {...props}>
+                        {children}
+                      </code>
+                    );
+                  },
+                  pre: ({ children }) => (
+                    <pre className="bg-black/40 border border-white/10 rounded-lg p-3 overflow-x-auto">
+                      {children}
+                    </pre>
+                  ),
+                  a: ({ href, children }) => (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#FF5800] hover:text-[#FF5800]/80 underline"
+                    >
+                      {children}
+                    </a>
+                  ),
+                  ul: ({ children }) => (
+                    <ul className="list-disc list-inside">{children}</ul>
+                  ),
+                  ol: ({ children }) => (
+                    <ol className="list-decimal list-inside">{children}</ol>
+                  ),
+                }}
+              >
+                {message.content.text}
+              </ReactMarkdown>
             </div>
             <div
               className={cn(
