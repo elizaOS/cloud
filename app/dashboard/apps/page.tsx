@@ -6,6 +6,7 @@ import { AppsSkeleton } from "@/components/apps/apps-skeleton";
 import { Grid3x3, Users, TrendingUp, Activity } from "lucide-react";
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import { CreateAppButton } from "@/components/apps/create-app-button";
+import { AIAppBuilderButton } from "@/components/apps/ai-app-builder-button";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,10 @@ export default async function AppsPage() {
             Create and manage apps that integrate with your Eliza Cloud services
           </p>
         </div>
-        <CreateAppButton />
+        <div className="flex items-center gap-3">
+          <AIAppBuilderButton />
+          <CreateAppButton />
+        </div>
       </div>
 
       {/* Stats Grid */}
