@@ -67,7 +67,7 @@ function getAuthHeaders(): HeadersInit {
   return headers;
 }
 
-async function fetchApi<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function fetchApi<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE}${path}`;
 
   const response = await fetch(url, {
