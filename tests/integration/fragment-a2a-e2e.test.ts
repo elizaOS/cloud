@@ -4,7 +4,7 @@
  * Tests the COMPLETE frontend builder flow through A2A and MCP:
  * - Generate code with real LLM calls
  * - Create and manage projects
- * - Deploy to miniapp/container
+ * - Deploy to app/container
  * - Verify deployment works
  * 
  * NO MOCKS. REAL TESTS. REAL LLM CALLS.
@@ -13,7 +13,7 @@
  */
 
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import "@dotenvx/dotenvx";
+
 
 const SERVER_URL = process.env.TEST_SERVER_URL || "http://localhost:3000";
 const API_KEY = process.env.TEST_API_KEY;
@@ -533,17 +533,17 @@ describe("A2A Full E2E Flow", () => {
     }
   }, TIMEOUT);
 
-  test("Step 5: deploy_fragment_project as miniapp", async () => {
+  test("Step 5: deploy_fragment_project as app", async () => {
     if (!apiKeyValid || !projectId) {
       console.log("⚠️ Skipping - no project created");
       return;
     }
 
-    console.log("🚀 Step 5: Deploying project as miniapp...");
+    console.log("🚀 Step 5: Deploying project as app...");
     
     const response = await a2aPost(skillMessage("deploy_fragment_project", undefined, {
       projectId,
-      type: "miniapp",
+      type: "app",
       autoStorage: true,
       autoInject: true,
     }));
@@ -556,13 +556,13 @@ describe("A2A Full E2E Flow", () => {
       expect(data?.deployment).toBeDefined();
       
       const deployment = data?.deployment as { type: string; app?: { id: string } };
-      expect(deployment.type).toBe("miniapp");
+      expect(deployment.type).toBe("app");
       
       if (deployment.app?.id) {
         createdResources.apps.push(deployment.app.id);
       }
       
-      console.log(`   ✅ Deployed as miniapp`);
+      console.log(`   ✅ Deployed as app`);
     } else {
       console.log(`   ⚠️ Deployment state: ${task?.status.state}`);
     }
@@ -741,7 +741,7 @@ describe("Fragment A2A/MCP E2E Test Summary", () => {
 ║  ✅ list_fragment_projects - Project listing                      ║
 ║  ✅ update_fragment_project - Project updates                     ║
 ║  ✅ delete_fragment_project - Project deletion                    ║
-║  ✅ deploy_fragment_project - Miniapp deployment                  ║
+║  ✅ deploy_fragment_project - App deployment                  ║
 ║                                                                   ║
 ║  MCP Tools Tested:                                                ║
 ║  ✅ fragments_generate     - Code generation                      ║
@@ -753,7 +753,7 @@ describe("Fragment A2A/MCP E2E Test Summary", () => {
 ║  ✅ Generate → Create → Execute → Preview → Deploy                ║
 ║  ✅ Real LLM calls to generate code                               ║
 ║  ✅ Preview URL returns rendered HTML                             ║
-║  ✅ Miniapp deployment creates app                                ║
+║  ✅ App deployment creates app                                ║
 ║                                                                   ║
 ║  The frontend builder is fully operational through A2A and MCP!   ║
 ╚═══════════════════════════════════════════════════════════════════╝

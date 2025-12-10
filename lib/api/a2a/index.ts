@@ -38,6 +38,23 @@ export {
   executeSkillFragmentUpdateProject,
   executeSkillFragmentDeleteProject,
   executeSkillFragmentDeployProject,
+  // ERC-8004 Marketplace Discovery skills
+  executeSkillMarketplaceDiscover,
+  executeSkillMarketplaceGetTags,
+  executeSkillMarketplaceFindByTags,
+  executeSkillMarketplaceFindByMCPTools,
+  executeSkillMarketplaceFindPayable,
+  // Full App Builder skills
+  executeSkillFullAppBuilderStart,
+  executeSkillFullAppBuilderPrompt,
+  executeSkillFullAppBuilderStatus,
+  executeSkillFullAppBuilderStop,
+  executeSkillFullAppBuilderExtend,
+  executeSkillFullAppBuilderListSessions,
+  // Telegram skills
+  executeSkillTelegramSendMessage,
+  executeSkillTelegramListChats,
+  executeSkillTelegramListBots,
 } from "./skills";
 
 // Handlers

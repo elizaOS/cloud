@@ -84,6 +84,13 @@ const SKILL_REGISTRY: Record<string, SkillEntry> = {
   n8n_create_workflow: { handler: skills.executeSkillN8nCreateWorkflow, description: "Create n8n workflow", aliases: ["create_n8n_workflow"] },
   n8n_list_workflows: { handler: (_, data, ctx) => skills.executeSkillN8nListWorkflows(data, ctx), description: "List n8n workflows", aliases: ["list_n8n_workflows"] },
   n8n_generate_workflow: { handler: skills.executeSkillN8nGenerateWorkflow, description: "AI-generate n8n workflow", aliases: ["generate_n8n_workflow"] },
+  n8n_trigger_workflow: { handler: skills.executeSkillN8nTriggerWorkflow, description: "Execute n8n workflow via trigger", aliases: ["trigger_n8n_workflow", "execute_workflow_trigger"] },
+  n8n_list_triggers: { handler: (_, data, ctx) => skills.executeSkillN8nListTriggers(data, ctx), description: "List n8n workflow triggers", aliases: ["list_n8n_triggers", "list_workflow_triggers"] },
+  n8n_create_trigger: { handler: skills.executeSkillN8nCreateTrigger, description: "Create n8n workflow trigger", aliases: ["create_n8n_trigger", "create_workflow_trigger"] },
+  // Application triggers (apps, agents, MCPs)
+  create_app_trigger: { handler: skills.executeSkillCreateAppTrigger, description: "Create trigger for an app, agent, or MCP", aliases: ["create_trigger", "add_trigger"] },
+  list_app_triggers: { handler: (_, data, ctx) => skills.executeSkillListAppTriggers(data, ctx), description: "List triggers for apps, agents, or MCPs", aliases: ["list_triggers", "get_triggers"] },
+  execute_app_trigger: { handler: skills.executeSkillExecuteAppTrigger, description: "Execute a trigger manually", aliases: ["run_trigger", "trigger"] },
   generate_fragment: { handler: skills.executeSkillFragmentGenerate, description: "Generate code fragment", aliases: ["fragment_generate"] },
   execute_fragment: { handler: skills.executeSkillFragmentExecute, description: "Execute fragment in sandbox", aliases: ["fragment_execute"] },
   list_fragment_projects: { handler: skills.executeSkillFragmentListProjects, description: "List fragment projects", aliases: ["fragment_list_projects"] },
@@ -92,6 +99,23 @@ const SKILL_REGISTRY: Record<string, SkillEntry> = {
   update_fragment_project: { handler: skills.executeSkillFragmentUpdateProject, description: "Update fragment project", aliases: ["fragment_update_project"] },
   delete_fragment_project: { handler: skills.executeSkillFragmentDeleteProject, description: "Delete fragment project", aliases: ["fragment_delete_project"] },
   deploy_fragment_project: { handler: skills.executeSkillFragmentDeployProject, description: "Deploy fragment project", aliases: ["fragment_deploy_project"] },
+  // ERC-8004 Marketplace Discovery
+  marketplace_discover: { handler: skills.executeSkillMarketplaceDiscover, description: "Search ERC-8004 marketplace for agents/MCPs", aliases: ["discover_agents", "search_marketplace", "erc8004_discover"] },
+  marketplace_get_tags: { handler: () => skills.executeSkillMarketplaceGetTags(), description: "Get available marketplace tags for search", aliases: ["get_tags", "list_tags", "erc8004_tags"] },
+  marketplace_find_by_tags: { handler: skills.executeSkillMarketplaceFindByTags, description: "Find agents/MCPs by tags", aliases: ["find_by_tags"] },
+  marketplace_find_by_mcp_tools: { handler: skills.executeSkillMarketplaceFindByMCPTools, description: "Find MCPs with specific tools", aliases: ["find_mcp_tools", "find_by_tools"] },
+  marketplace_find_payable: { handler: skills.executeSkillMarketplaceFindPayable, description: "Find x402-enabled services", aliases: ["find_x402", "find_payable_agents"] },
+  // Full App Builder - Multi-file complete app generation
+  full_app_builder_start: { handler: skills.executeSkillFullAppBuilderStart, description: "Start full app builder session with Vercel sandbox", aliases: ["start_app_builder", "create_app_session"] },
+  full_app_builder_prompt: { handler: skills.executeSkillFullAppBuilderPrompt, description: "Send prompt to app builder to generate/modify files", aliases: ["app_builder_prompt", "build_app"] },
+  full_app_builder_status: { handler: skills.executeSkillFullAppBuilderStatus, description: "Get app builder session status and files", aliases: ["app_builder_status", "get_app_session"] },
+  full_app_builder_stop: { handler: skills.executeSkillFullAppBuilderStop, description: "Stop app builder session and release resources", aliases: ["stop_app_builder", "end_app_session"] },
+  full_app_builder_extend: { handler: skills.executeSkillFullAppBuilderExtend, description: "Extend app builder session timeout", aliases: ["extend_app_session"] },
+  full_app_builder_list: { handler: (_, data, ctx) => skills.executeSkillFullAppBuilderListSessions(data, ctx), description: "List app builder sessions", aliases: ["list_app_sessions"] },
+  // Telegram skills
+  telegram_send_message: { handler: skills.executeSkillTelegramSendMessage, description: "Send a Telegram message", aliases: ["send_telegram", "telegram_message"] },
+  telegram_list_chats: { handler: (_, data, ctx) => skills.executeSkillTelegramListChats(data, ctx), description: "List Telegram chats", aliases: ["list_telegram_chats"] },
+  telegram_list_bots: { handler: (_, __, ctx) => skills.executeSkillTelegramListBots(ctx), description: "List connected Telegram bots", aliases: ["list_telegram_bots"] },
 };
 
 // Build alias lookup

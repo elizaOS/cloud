@@ -5,7 +5,7 @@
  * - Project creation and persistence
  * - Project retrieval
  * - Preview URL functionality
- * - Deployment as miniapp
+ * - Deployment as app
  * 
  * Requirements:
  * - TEST_API_KEY: Valid API key with credits
@@ -13,7 +13,7 @@
  */
 
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import "@dotenvx/dotenvx";
+
 
 const SERVER_URL = process.env.TEST_SERVER_URL || "http://localhost:3000";
 const API_KEY = process.env.TEST_API_KEY;

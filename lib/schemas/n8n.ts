@@ -21,7 +21,7 @@ export const UpdateWorkflowSchema = z.object({
 
 export const ExecuteWorkflowSchema = z.object({
   inputData: z.record(z.unknown()).optional(),
-  triggerType: z.enum(["manual", "api", "miniapp"]).optional().default("api"),
+  triggerType: z.enum(["manual", "api", "app"]).optional().default("api"),
 });
 
 export const DeployWorkflowSchema = z.object({

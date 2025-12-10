@@ -7,7 +7,7 @@ import { appsService } from "./apps";
 import { containersService } from "./containers";
 import { logger } from "@/lib/utils/logger";
 import type { FragmentSchema } from "@/lib/fragments/schema";
-import { fragmentMiniappAutomation } from "./fragment-miniapp-automation";
+import { fragmentAppAutomation } from "./fragment-app-automation";
 
 export class FragmentProjectsService {
   async create(data: {
@@ -84,13 +84,13 @@ export class FragmentProjectsService {
     logger.info(`Deleted fragment project: ${id}`);
   }
 
-  async deployAsMiniapp(
+  async deployAsApp(
     projectId: string,
     options: {
       appUrl?: string; // Optional - auto-generated if not provided
       allowedOrigins?: string[];
       autoStorage?: boolean; // Auto-create storage collections
-      autoInject?: boolean; // Auto-inject miniapp helpers
+      autoInject?: boolean; // Auto-inject app helpers
     } = {}
   ) {
     const project = await fragmentProjectsRepository.findById(projectId);
@@ -99,7 +99,7 @@ export class FragmentProjectsService {
     }
 
     // Use automation service for full automation
-    const result = await fragmentMiniappAutomation.deployFragment(
+    const result = await fragmentAppAutomation.deployFragment(
       project.fragment_data,
       {
         organizationId: project.organization_id,
@@ -119,7 +119,7 @@ export class FragmentProjectsService {
       metadata: {
         ...project.metadata,
         deployment: {
-          type: "miniapp",
+          type: "app",
           appId: result.app.id,
           appUrl: result.app.app_url,
           collections: result.collections.map((c) => c.name),
@@ -128,7 +128,7 @@ export class FragmentProjectsService {
       },
     });
 
-    logger.info(`Deployed fragment project as miniapp (automated)`, {
+    logger.info(`Deployed fragment project as app (automated)`, {
       projectId,
       appId: result.app.id,
       collectionsCreated: result.collections.length,

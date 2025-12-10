@@ -70,24 +70,39 @@ interface MarketplaceStats {
 // ============================================================================
 
 export async function GET(_request: NextRequest) {
-  const cacheKey = "discovery:stats";
+  try {
+    const cacheKey = "discovery:stats";
 
-  // Check cache (10 minutes TTL)
-  const cached = await cache.get<MarketplaceStats>(cacheKey);
-  if (cached) {
-    return NextResponse.json({ ...cached, meta: { ...cached.meta, cached: true } });
-  }
+    // Check cache (10 minutes TTL)
+    const cached = await cache.get<MarketplaceStats>(cacheKey);
+    if (cached) {
+      return NextResponse.json({ ...cached, meta: { ...cached.meta, cached: true } });
+    }
 
-  // Fetch all data in parallel
-  const [characters, mcps, agents] = await Promise.all([
-    characterMarketplaceService.searchPublic({ limit: 1000 }),
-    userMcpsService.listPublic({ limit: 1000 }),
-    agent0Service.searchAgentsCached({ active: true }),
-  ]);
+    // Fetch data with graceful fallbacks
+    let characters: { category?: string; tags?: string[] }[] = [];
+    let mcps: { status: string; category?: string; tags?: string[]; x402_enabled: boolean; is_verified: boolean }[] = [];
+    
+    // Try to fetch local data
+    try {
+      const result = await characterMarketplaceService.searchCharactersPublic({
+        filters: {},
+        sortOptions: { field: "popularity_score", direction: "desc" },
+        pagination: { limit: 1000, page: 1 },
+        includeStats: false,
+      });
+      characters = result.characters;
+      mcps = await userMcpsService.listPublic({ limit: 1000 });
+    } catch {
+      // Database unavailable - continue with ERC-8004 only
+    }
+    
+    // Always fetch ERC-8004 agents
+    const agents = await agent0Service.searchAgentsCached({ active: true });
 
   // Count by type
-  let localAgents = characters.length;
-  let localMCPs = mcps.filter(m => m.status === "live").length;
+  const localAgents = characters.length;
+  const localMCPs = mcps.filter(m => m.status === "live").length;
   let onChainAgents = 0;
   let onChainMCPs = 0;
   let onChainApps = 0;
@@ -188,5 +203,11 @@ export async function GET(_request: NextRequest) {
   await cache.set(cacheKey, response, CacheTTL.erc8004.discovery);
 
   return NextResponse.json(response);
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Internal server error", message: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
+  }
 }
 

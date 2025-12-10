@@ -14,6 +14,8 @@ import { apiKeys } from "./api-keys";
 import { appCreditBalances } from "./app-credit-balances";
 import { appEarnings, appEarningsTransactions } from "./app-earnings";
 import { tokenRedemptions, redemptionLimits } from "./token-redemptions";
+import { appDomains } from "./app-domains";
+import { appBundles } from "./app-bundles";
 
 /**
  * Organizations table relations.
@@ -121,6 +123,8 @@ export const appsRelations = relations(apps, ({ one, many }) => ({
   analytics: many(appAnalytics),
   creditBalances: many(appCreditBalances),
   earningsTransactions: many(appEarningsTransactions),
+  domains: many(appDomains),
+  bundles: many(appBundles),
 }));
 
 /**
@@ -214,5 +218,25 @@ export const redemptionLimitsRelations = relations(redemptionLimits, ({ one }) =
   user: one(users, {
     fields: [redemptionLimits.user_id],
     references: [users.id],
+  }),
+}));
+
+/**
+ * App domains table relations.
+ */
+export const appDomainsRelations = relations(appDomains, ({ one }) => ({
+  app: one(apps, {
+    fields: [appDomains.app_id],
+    references: [apps.id],
+  }),
+}));
+
+/**
+ * App bundles table relations.
+ */
+export const appBundlesRelations = relations(appBundles, ({ one }) => ({
+  app: one(apps, {
+    fields: [appBundles.app_id],
+    references: [apps.id],
   }),
 }));

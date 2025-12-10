@@ -1,7 +1,7 @@
 /**
  * Deploy Fragment Project API
  * 
- * Deploy a fragment project as a miniapp or container
+ * Deploy a fragment project as a app or container
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -11,12 +11,12 @@ import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
 
-const DeployMiniappSchema = z.object({
-  type: z.literal("miniapp"),
+const DeployAppSchema = z.object({
+  type: z.literal("app"),
   appUrl: z.string().url().optional(), // Optional - auto-generated if not provided
   allowedOrigins: z.array(z.string()).optional(),
   autoStorage: z.boolean().optional().default(true), // Auto-create storage collections
-  autoInject: z.boolean().optional().default(true), // Auto-inject miniapp helpers
+  autoInject: z.boolean().optional().default(true), // Auto-inject app helpers
 });
 
 const DeployContainerSchema = z.object({
@@ -26,7 +26,7 @@ const DeployContainerSchema = z.object({
   port: z.number().int().min(1).max(65535).optional(),
 });
 
-const DeploySchema = z.union([DeployMiniappSchema, DeployContainerSchema]);
+const DeploySchema = z.union([DeployAppSchema, DeployContainerSchema]);
 
 /**
  * POST /api/v1/fragments/projects/:id/deploy
@@ -71,8 +71,8 @@ async function handlePOST(
 
     const deployData = validationResult.data;
 
-    if (deployData.type === "miniapp") {
-      const result = await fragmentProjectsService.deployAsMiniapp(id, {
+    if (deployData.type === "app") {
+      const result = await fragmentProjectsService.deployAsApp(id, {
         appUrl: deployData.appUrl,
         allowedOrigins: deployData.allowedOrigins,
         autoStorage: deployData.autoStorage,
@@ -82,7 +82,7 @@ async function handlePOST(
       return NextResponse.json({
         success: true,
         deployment: {
-          type: "miniapp",
+          type: "app",
           app: result.app,
           apiKey: result.apiKey,
           collections: result.collections,

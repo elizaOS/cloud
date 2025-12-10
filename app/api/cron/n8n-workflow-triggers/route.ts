@@ -10,8 +10,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { n8nWorkflowsService } from "@/lib/services/n8n-workflows";
+import { n8nWorkflowTriggersRepository } from "@/db/repositories/n8n-workflows";
 import { logger } from "@/lib/utils/logger";
-import cronParser from "cron-parser";
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
@@ -48,57 +48,90 @@ function verifyCronSecret(request: NextRequest): boolean {
 }
 
 /**
- * Simple cron expression matcher (supports basic patterns).
- * For production, consider using a library like node-cron or cron-parser.
+ * Cron expression matcher supporting:
+ * - * (any value)
+ * - N (specific value)
+ * - N-M (range)
+ * - N,M,O (list)
+ * - *\/N or N-M/S (step)
  */
 function shouldExecuteCron(cronExpression: string, lastExecutedAt: Date | null): boolean {
   try {
     const now = new Date();
-    const [minute, hour, dayOfMonth, month, dayOfWeek] = cronExpression.split(" ");
+    const parts = cronExpression.trim().split(/\s+/);
+    
+    if (parts.length !== 5) {
+      logger.warn(`[N8N Workflow Triggers Cron] Invalid cron expression (need 5 parts): ${cronExpression}`);
+      return false;
+    }
+    
+    const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
 
-    // Simple matching - check if current time matches pattern
-    // This is a basic implementation; for production use a proper cron parser
     const currentMinute = now.getMinutes();
     const currentHour = now.getHours();
     const currentDay = now.getDate();
     const currentMonth = now.getMonth() + 1;
     const currentDayOfWeek = now.getDay();
 
-    const matches = (pattern: string, value: number): boolean => {
+    const matches = (pattern: string, value: number, max: number): boolean => {
+      // Wildcard
       if (pattern === "*") return true;
+      
+      // Step pattern: */N or N-M/S
       if (pattern.includes("/")) {
-        const [_, step] = pattern.split("/");
-        return value % Number.parseInt(step) === 0;
+        const [base, stepStr] = pattern.split("/");
+        const step = parseInt(stepStr, 10);
+        if (isNaN(step) || step <= 0) return false;
+        
+        if (base === "*") {
+          return value % step === 0;
+        }
+        // Range with step: N-M/S
+        if (base.includes("-")) {
+          const [startStr, endStr] = base.split("-");
+          const start = parseInt(startStr, 10);
+          const end = parseInt(endStr, 10);
+          if (value < start || value > end) return false;
+          return (value - start) % step === 0;
+        }
+        return false;
       }
+      
+      // List pattern: N,M,O
       if (pattern.includes(",")) {
-        return pattern.split(",").map(Number.parseInt).includes(value);
+        return pattern.split(",").some(p => matches(p.trim(), value, max));
       }
-      return Number.parseInt(pattern) === value;
+      
+      // Range pattern: N-M
+      if (pattern.includes("-")) {
+        const [startStr, endStr] = pattern.split("-");
+        const start = parseInt(startStr, 10);
+        const end = parseInt(endStr, 10);
+        return value >= start && value <= end;
+      }
+      
+      // Exact value
+      return parseInt(pattern, 10) === value;
     };
 
-    const minuteMatch = matches(minute, currentMinute);
-    const hourMatch = matches(hour, currentHour);
-    const dayMatch = matches(dayOfMonth, currentDay);
-    const monthMatch = matches(month, currentMonth);
-    const dayOfWeekMatch = matches(dayOfWeek, currentDayOfWeek);
+    const minuteMatch = matches(minute, currentMinute, 59);
+    const hourMatch = matches(hour, currentHour, 23);
+    const dayMatch = matches(dayOfMonth, currentDay, 31);
+    const monthMatch = matches(month, currentMonth, 12);
+    const dayOfWeekMatch = matches(dayOfWeek, currentDayOfWeek, 6);
+
+    const allMatch = minuteMatch && hourMatch && dayMatch && monthMatch && dayOfWeekMatch;
 
     // If never executed, execute if matches now
     if (!lastExecutedAt) {
-      return minuteMatch && hourMatch && dayMatch && monthMatch && dayOfWeekMatch;
+      return allMatch;
     }
 
     // If executed before, only execute if at least 1 minute has passed
     const timeSinceLastExecution = now.getTime() - lastExecutedAt.getTime();
     const oneMinute = 60 * 1000;
     
-    return (
-      timeSinceLastExecution >= oneMinute &&
-      minuteMatch &&
-      hourMatch &&
-      dayMatch &&
-      monthMatch &&
-      dayOfWeekMatch
-    );
+    return timeSinceLastExecution >= oneMinute && allMatch;
   } catch (error) {
     logger.error(`[N8N Workflow Triggers Cron] Invalid cron expression: ${cronExpression}`, error);
     return false;

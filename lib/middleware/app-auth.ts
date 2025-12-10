@@ -1,208 +1,123 @@
 /**
- * App Authentication and Origin Validation Middleware
+ * App Authentication Middleware
  *
- * This middleware validates requests from apps by:
- * 1. Checking if the API key belongs to an app
- * 2. Validating the origin against the app's allowed origins
- * 3. Enforcing rate limits for the app
- * 4. Tracking app usage
+ * Verifies app auth tokens and attaches user context to requests.
+ * This handles authentication for app API requests that come with
+ * an X-App-Token header.
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { appsService } from "@/lib/services/apps";
-import { apiKeysService } from "@/lib/services/api-keys";
-import { logger } from "@/lib/utils/logger";
-import type { App, ApiKey } from "@/lib/types";
+import { appAuthSessionsService } from "@/lib/services/app-auth-sessions";
+import { usersService } from "@/lib/services/users";
+import type { UserWithOrganization } from "@/lib/types";
 
-/**
- * App authentication context with validated app and API key.
- */
-export interface AppAuthContext {
-  appId: string;
-  app: App;
-  apiKey: ApiKey;
-  origin: string;
-}
-
-/**
- * Validate origin against app's allowed origins
- */
-export function validateOrigin(
-  allowedOrigins: string[],
-  requestOrigin: string,
-): boolean {
-  // Allow requests with no origin (e.g., server-to-server)
-  if (!requestOrigin) {
-    return true;
-  }
-
-  // Check if wildcard is allowed
-  if (allowedOrigins.includes("*")) {
-    return true;
-  }
-
-  // Check exact matches
-  if (allowedOrigins.includes(requestOrigin)) {
-    return true;
-  }
-
-  // Check wildcard subdomains (e.g., *.example.com)
-  for (const allowed of allowedOrigins) {
-    if (allowed.includes("*")) {
-      const pattern = allowed.replace(/\*/g, ".*");
-      const regex = new RegExp(`^${pattern}$`);
-      if (regex.test(requestOrigin)) {
-        return true;
-      }
+type AppAuthResult =
+  | {
+      success: true;
+      user: UserWithOrganization;
     }
-  }
-
-  return false;
-}
+  | {
+      success: false;
+      error: string;
+      status: number;
+    };
 
 /**
- * Validate and authenticate app from API key
+ * Verify app token and get user
  */
-export async function validateAppAuth(
+export async function verifyAppToken(
   request: NextRequest,
-): Promise<AppAuthContext | NextResponse> {
-  // Get API key from header
-  const apiKeyHeader = request.headers.get("X-API-Key");
-  const authHeader = request.headers.get("authorization");
+): Promise<AppAuthResult> {
+  const token = request.headers.get("x-app-token");
 
-  let apiKeyValue: string | null = null;
-
-  if (apiKeyHeader) {
-    apiKeyValue = apiKeyHeader;
-  } else if (authHeader?.startsWith("Bearer ")) {
-    apiKeyValue = authHeader.substring(7);
+  if (!token) {
+    return {
+      success: false,
+      error: "Missing authentication token",
+      status: 401,
+    };
   }
 
-  if (!apiKeyValue) {
-    return NextResponse.json(
-      {
+  try {
+    // Verify the token
+    const tokenData = await appAuthSessionsService.verifyToken(token);
+
+    if (!tokenData) {
+      return {
         success: false,
-        error: "API key is required",
-        code: "MISSING_API_KEY",
-      },
-      { status: 401 },
-    );
-  }
+        error: "Invalid or expired token",
+        status: 401,
+      };
+    }
 
-  // Validate API key
-  const apiKey = await apiKeysService.validateApiKey(apiKeyValue);
+    // Get the user
+    const user = await usersService.getById(tokenData.userId);
 
-  if (!apiKey) {
-    return NextResponse.json(
-      {
+    if (!user) {
+      return {
         success: false,
-        error: "Invalid or expired API key",
-        code: "INVALID_API_KEY",
-      },
-      { status: 401 },
-    );
-  }
+        error: "User not found",
+        status: 401,
+      };
+    }
 
-  // Check if this API key is associated with an app
-  // (We need to query apps table to find which app uses this API key)
-  const apps = await appsService.listByOrganization(apiKey.organization_id);
-  const app = apps.find((a) => a.api_key_id === apiKey.id);
-
-  if (!app) {
-    // This is a regular API key, not an app API key
-    // We can allow it to proceed without app-specific validation
-    return NextResponse.json(
-      {
+    // Verify organization matches
+    if (user.organization_id !== tokenData.organizationId) {
+      return {
         success: false,
-        error: "This API key is not associated with an app",
-        code: "NOT_AN_APP_KEY",
-      },
-      { status: 403 },
-    );
+        error: "Organization mismatch",
+        status: 403,
+      };
+    }
+
+    return {
+      success: true,
+      user,
+    };
+  } catch (error) {
+    console.error("[App Auth] Token verification failed:", error);
+    return {
+      success: false,
+      error: "Authentication failed",
+      status: 500,
+    };
   }
-
-  // Check if app is active
-  if (!app.is_active) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "App is inactive",
-        code: "APP_INACTIVE",
-      },
-      { status: 403 },
-    );
-  }
-
-  // Get and validate origin
-  const origin =
-    request.headers.get("origin") || request.headers.get("referer") || "";
-  const allowedOrigins = app.allowed_origins as string[];
-
-  if (!validateOrigin(allowedOrigins, origin)) {
-    logger.warn(`Origin validation failed for app ${app.id}`, {
-      appId: app.id,
-      origin,
-      allowedOrigins,
-    });
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Origin not allowed",
-        code: "ORIGIN_NOT_ALLOWED",
-        origin,
-        allowedOrigins,
-      },
-      { status: 403 },
-    );
-  }
-
-  // Return validated context
-  return {
-    appId: app.id,
-    app,
-    apiKey,
-    origin,
-  };
 }
 
 /**
- * Middleware wrapper for app authentication
- * Use this in API routes that should be accessible by apps
+ * Require app authentication
+ * Returns the user if authenticated, or throws an error response
  */
 export async function requireAppAuth(
   request: NextRequest,
-  handler: (context: AppAuthContext) => Promise<NextResponse>,
-): Promise<NextResponse> {
-  const authResult = await validateAppAuth(request);
+): Promise<UserWithOrganization> {
+  const result = await verifyAppToken(request);
 
-  // If validation failed, authResult is a NextResponse error
-  if (authResult instanceof NextResponse) {
-    return authResult;
+  if (!result.success) {
+    throw NextResponse.json({ error: result.error }, { status: result.status });
   }
 
-  // Track API key usage
-  await apiKeysService.incrementUsage(authResult.apiKey.id);
-
-  // Track app usage (async, don't wait)
-  void appsService.incrementUsage(authResult.appId, "0.00");
-
-  // Call the handler with validated context
-  return handler(authResult);
+  return result.user;
 }
 
 /**
- * Extract app ID from API key without full validation
- * Useful for tracking purposes
+ * Optional app authentication
+ * Returns the user if authenticated, or null if not
  */
-export async function getAppFromApiKey(apiKey: string): Promise<string | null> {
-  const validatedKey = await apiKeysService.validateApiKey(apiKey);
-  if (!validatedKey) return null;
+export async function optionalAppAuth(
+  request: NextRequest,
+): Promise<UserWithOrganization | null> {
+  const token = request.headers.get("x-app-token");
 
-  const apps = await appsService.listByOrganization(
-    validatedKey.organization_id,
-  );
-  const app = apps.find((a) => a.api_key_id === validatedKey.id);
+  if (!token) {
+    return null;
+  }
 
-  return app?.id || null;
+  const result = await verifyAppToken(request);
+
+  if (!result.success) {
+    return null;
+  }
+
+  return result.user;
 }

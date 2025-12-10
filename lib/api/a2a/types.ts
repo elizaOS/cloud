@@ -35,12 +35,18 @@ export {
 } from "@/lib/types/a2a";
 
 /**
- * A2A execution context with authenticated user
+ * A2A execution context with authenticated user and secrets
  */
 export interface A2AContext {
   user: UserWithOrganization & { organization_id: string; organization: Organization };
   apiKeyId: string | null;
   agentIdentifier: string;
+  /**
+   * Decrypted secrets available to this A2A session.
+   * Loaded from secrets service based on organization and optional agent/project.
+   * Access via ctx.secrets['SECRET_NAME']
+   */
+  secrets: Record<string, string>;
 }
 
 /**
@@ -241,7 +247,7 @@ export interface FragmentProjectListResult {
  */
 export interface FragmentDeploymentResult {
   deployment: {
-    type: "miniapp" | "container";
+    type: "app" | "container";
     app?: {
       id: string;
       name: string;
@@ -257,6 +263,44 @@ export interface FragmentDeploymentResult {
     injectedCode?: string;
     proxyRouteCode?: string;
   };
+}
+
+/**
+ * Full App Builder session result
+ */
+export interface FullAppBuilderSessionResult {
+  sessionId: string;
+  sandboxId: string;
+  sandboxUrl: string;
+  status: string;
+  examplePrompts: string[];
+}
+
+/**
+ * Full App Builder prompt result
+ */
+export interface FullAppBuilderPromptResult {
+  success: boolean;
+  output: string;
+  filesAffected: string[];
+  error?: string;
+}
+
+/**
+ * Full App Builder session status result
+ */
+export interface FullAppBuilderStatusResult {
+  sessionId: string;
+  sandboxId: string;
+  sandboxUrl: string;
+  status: string;
+  messages: Array<{
+    role: "user" | "assistant";
+    content: string;
+    timestamp: string;
+    filesAffected?: string[];
+  }>;
+  generatedFiles: string[];
 }
 
 /**

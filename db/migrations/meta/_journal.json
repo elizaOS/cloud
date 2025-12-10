@@ -29,6 +29,41 @@
       "when": 1765257250394,
       "tag": "0003_high_black_cat",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1765262690260,
+      "tag": "0004_rapid_preak",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1765400000000,
+      "tag": "0008_secrets_management",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1765271277237,
+      "tag": "0006_smiling_red_shift",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1765295202468,
+      "tag": "0007_outstanding_slapstick",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1765296166902,
+      "tag": "0008_fast_khan",
+      "breakpoints": true
     }
   ]
 }

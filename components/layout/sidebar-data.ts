@@ -17,6 +17,7 @@ import {
   Wallet,
   Coins,
   FolderOpen,
+  Workflow,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import type { FeatureFlag } from "@/lib/config/feature-flags";
@@ -143,6 +144,14 @@ export const sidebarSections: SidebarSection[] = [
         href: "/dashboard/apps",
         icon: Grid3x3,
         freeAllowed: false, // Requires signup
+      },
+      {
+        id: "workflows",
+        label: "Workflows",
+        href: "/dashboard/workflows",
+        icon: Workflow,
+        freeAllowed: false,
+        isNew: true,
       },
       {
         id: "containers",

@@ -11,7 +11,7 @@ interface PageProps {
 }
 
 async function getPublicCharacter(id: string) {
-  // Only return cloud-created public characters - miniapp agents should never appear in marketplace
+  // Only return cloud-created public characters - app agents should never appear in marketplace
   const [character] = await db
     .select()
     .from(userCharacters)

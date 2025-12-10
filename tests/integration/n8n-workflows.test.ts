@@ -1,24 +1,21 @@
 /**
- * Integration tests for N8N Workflow Miniapp
+ * Integration tests for N8N Workflow System
  *
  * Tests the complete workflow management system including:
  * - Workflow CRUD operations
  * - Version control
  * - Variables management
- * - API key management
+ * - API key management (with hash validation)
  * - Workflow testing
  * - n8n instance integration
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
-import { db } from "@/db/client";
 import { n8nWorkflowsService } from "@/lib/services/n8n-workflows";
-import { appsService } from "@/lib/services/apps";
 import { organizationsService } from "@/lib/services/organizations";
 import { usersService } from "@/lib/services/users";
 
-describe("N8N Workflow Miniapp Integration Tests", () => {
-  let testAppId: string;
+describe("N8N Workflow Integration Tests", () => {
   let testUserId: string;
   let testOrgId: string;
 
@@ -37,14 +34,6 @@ describe("N8N Workflow Miniapp Integration Tests", () => {
       organization_id: testOrgId,
     });
     testUserId = user.id;
-
-    // Create test app
-    const app = await appsService.create({
-      name: "Test N8N App",
-      organization_id: testOrgId,
-      allowed_origins: ["http://localhost:3000"],
-    });
-    testAppId = app.id;
   });
 
   afterAll(async () => {
@@ -67,7 +56,7 @@ describe("N8N Workflow Miniapp Integration Tests", () => {
       };
 
       const workflow = await n8nWorkflowsService.createWorkflow({
-        appId: testAppId,
+        organizationId: testOrgId,
         userId: testUserId,
         name: "Test Workflow",
         description: "A test workflow",
@@ -82,13 +71,13 @@ describe("N8N Workflow Miniapp Integration Tests", () => {
     });
 
     it("should list workflows", async () => {
-      const workflows = await n8nWorkflowsService.listWorkflows(testAppId);
+      const workflows = await n8nWorkflowsService.listWorkflows(testOrgId);
       expect(workflows.length).toBeGreaterThan(0);
     });
 
     it("should get a workflow by ID", async () => {
       const workflow = await n8nWorkflowsService.createWorkflow({
-        appId: testAppId,
+        organizationId: testOrgId,
         userId: testUserId,
         name: "Get Test Workflow",
         workflowData: { nodes: [], connections: {} },
@@ -101,7 +90,7 @@ describe("N8N Workflow Miniapp Integration Tests", () => {
 
     it("should update a workflow", async () => {
       const workflow = await n8nWorkflowsService.createWorkflow({
-        appId: testAppId,
+        organizationId: testOrgId,
         userId: testUserId,
         name: "Update Test Workflow",
         workflowData: { nodes: [], connections: {} },
@@ -118,7 +107,7 @@ describe("N8N Workflow Miniapp Integration Tests", () => {
 
     it("should delete a workflow", async () => {
       const workflow = await n8nWorkflowsService.createWorkflow({
-        appId: testAppId,
+        organizationId: testOrgId,
         userId: testUserId,
         name: "Delete Test Workflow",
         workflowData: { nodes: [], connections: {} },
@@ -134,7 +123,7 @@ describe("N8N Workflow Miniapp Integration Tests", () => {
   describe("Version Control", () => {
     it("should create versions on workflow update", async () => {
       const workflow = await n8nWorkflowsService.createWorkflow({
-        appId: testAppId,
+        organizationId: testOrgId,
         userId: testUserId,
         name: "Version Test Workflow",
         workflowData: { nodes: [], connections: {} },
@@ -154,7 +143,7 @@ describe("N8N Workflow Miniapp Integration Tests", () => {
 
     it("should revert to a specific version", async () => {
       const workflow = await n8nWorkflowsService.createWorkflow({
-        appId: testAppId,
+        organizationId: testOrgId,
         userId: testUserId,
         name: "Revert Test Workflow",
         workflowData: { nodes: [{ id: "node-1" }], connections: {} },
@@ -177,7 +166,7 @@ describe("N8N Workflow Miniapp Integration Tests", () => {
   describe("Variables Management", () => {
     it("should create a global variable", async () => {
       const variable = await n8nWorkflowsService.createVariable({
-        appId: testAppId,
+        organizationId: testOrgId,
         name: "TEST_API_URL",
         value: "https://api.example.com",
         type: "string",
@@ -189,20 +178,20 @@ describe("N8N Workflow Miniapp Integration Tests", () => {
     });
 
     it("should list global variables", async () => {
-      const variables = await n8nWorkflowsService.getGlobalVariables(testAppId);
+      const variables = await n8nWorkflowsService.getGlobalVariables(testOrgId);
       expect(variables.length).toBeGreaterThan(0);
     });
 
     it("should create a workflow variable", async () => {
       const workflow = await n8nWorkflowsService.createWorkflow({
-        appId: testAppId,
+        organizationId: testOrgId,
         userId: testUserId,
         name: "Variable Test Workflow",
         workflowData: { nodes: [], connections: {} },
       });
 
       const variable = await n8nWorkflowsService.createVariable({
-        appId: testAppId,
+        organizationId: testOrgId,
         workflowId: workflow.id,
         name: "WORKFLOW_SECRET",
         value: "secret-value",
@@ -215,7 +204,7 @@ describe("N8N Workflow Miniapp Integration Tests", () => {
 
     it("should update a variable", async () => {
       const variable = await n8nWorkflowsService.createVariable({
-        appId: testAppId,
+        organizationId: testOrgId,
         name: "UPDATE_TEST",
         value: "old-value",
       });
@@ -229,7 +218,7 @@ describe("N8N Workflow Miniapp Integration Tests", () => {
 
     it("should delete a variable", async () => {
       const variable = await n8nWorkflowsService.createVariable({
-        appId: testAppId,
+        organizationId: testOrgId,
         name: "DELETE_TEST",
         value: "value",
       });
@@ -243,7 +232,7 @@ describe("N8N Workflow Miniapp Integration Tests", () => {
   describe("API Key Management", () => {
     it("should create a global API key", async () => {
       const result = await n8nWorkflowsService.createApiKey({
-        appId: testAppId,
+        organizationId: testOrgId,
         name: "Test API Key",
         scopes: ["read", "write"],
       });
@@ -254,28 +243,102 @@ describe("N8N Workflow Miniapp Integration Tests", () => {
     });
 
     it("should list API keys", async () => {
-      const apiKeys = await n8nWorkflowsService.listApiKeys(testAppId);
+      const apiKeys = await n8nWorkflowsService.listApiKeys(testOrgId);
       expect(apiKeys.length).toBeGreaterThan(0);
     });
 
     it("should validate an API key", async () => {
       const result = await n8nWorkflowsService.createApiKey({
-        appId: testAppId,
+        organizationId: testOrgId,
         name: "Validation Test Key",
       });
 
-      const keyPrefix = result.plaintextKey.substring(0, 12);
-      const validated = await n8nWorkflowsService.validateApiKey(keyPrefix);
+      // Validate using the full plaintext key (not just prefix)
+      const validated = await n8nWorkflowsService.validateApiKey(result.plaintextKey);
 
       expect(validated).toBeDefined();
       expect(validated?.is_active).toBe(true);
+    });
+
+    it("should reject invalid API key", async () => {
+      // Create a valid key then try to validate a modified version
+      const result = await n8nWorkflowsService.createApiKey({
+        organizationId: testOrgId,
+        name: "Invalid Test Key",
+      });
+
+      // Try to validate with just the prefix (should fail now)
+      const keyPrefix = result.plaintextKey.substring(0, 12);
+      const invalidValidation = await n8nWorkflowsService.validateApiKey(keyPrefix);
+      expect(invalidValidation).toBeNull();
+
+      // Try to validate with a tampered key
+      const tamperedKey = result.plaintextKey.slice(0, -5) + "xxxxx";
+      const tamperedValidation = await n8nWorkflowsService.validateApiKey(tamperedKey);
+      expect(tamperedValidation).toBeNull();
+    });
+
+    it("should validate API key with scopes", async () => {
+      const result = await n8nWorkflowsService.createApiKey({
+        organizationId: testOrgId,
+        name: "Scoped API Key",
+        scopes: ["workflows:read", "workflows:write"],
+      });
+
+      // Validate with required scope
+      const validWithScope = await n8nWorkflowsService.validateApiKeyWithScope(
+        result.plaintextKey,
+        "workflows:read"
+      );
+      expect(validWithScope).toBeDefined();
+
+      // Validate with missing scope should fail
+      const invalidWithScope = await n8nWorkflowsService.validateApiKeyWithScope(
+        result.plaintextKey,
+        "admin:delete"
+      );
+      expect(invalidWithScope).toBeNull();
+    });
+
+    it("should check scope with wildcards", async () => {
+      const result = await n8nWorkflowsService.createApiKey({
+        organizationId: testOrgId,
+        name: "Wildcard Scope Key",
+        scopes: ["workflows:*"],
+      });
+
+      const validated = await n8nWorkflowsService.validateApiKey(result.plaintextKey);
+      expect(validated).toBeDefined();
+
+      // Check wildcard scope
+      expect(n8nWorkflowsService.hasScope(validated!, "workflows:read")).toBe(true);
+      expect(n8nWorkflowsService.hasScope(validated!, "workflows:write")).toBe(true);
+      expect(n8nWorkflowsService.hasScope(validated!, "admin:delete")).toBe(false);
+    });
+
+    it("should revoke API key", async () => {
+      const result = await n8nWorkflowsService.createApiKey({
+        organizationId: testOrgId,
+        name: "Revoke Test Key",
+      });
+
+      // Verify key is active
+      const validBefore = await n8nWorkflowsService.validateApiKey(result.plaintextKey);
+      expect(validBefore?.is_active).toBe(true);
+
+      // Revoke the key
+      await n8nWorkflowsService.revokeApiKey(result.apiKey.id);
+
+      // Verify key is now invalid
+      const validAfter = await n8nWorkflowsService.validateApiKey(result.plaintextKey);
+      expect(validAfter).toBeNull();
     });
   });
 
   describe("Workflow Testing", () => {
     it("should test a workflow execution", async () => {
       const workflow = await n8nWorkflowsService.createWorkflow({
-        appId: testAppId,
+        organizationId: testOrgId,
         userId: testUserId,
         name: "Test Execution Workflow",
         workflowData: { nodes: [], connections: {} },
@@ -294,7 +357,7 @@ describe("N8N Workflow Miniapp Integration Tests", () => {
 
     it("should list workflow executions", async () => {
       const workflow = await n8nWorkflowsService.createWorkflow({
-        appId: testAppId,
+        organizationId: testOrgId,
         userId: testUserId,
         name: "Execution History Workflow",
         workflowData: { nodes: [], connections: {} },
@@ -344,7 +407,7 @@ describe("N8N Workflow Miniapp Integration Tests", () => {
     it("should create an n8n instance", async () => {
       // Note: This will fail connection test, but should create the instance
       const instance = await n8nWorkflowsService.createInstance(
-        testAppId,
+        testOrgId,
         testUserId,
         "Test Instance",
         "https://n8n.example.com",
@@ -357,7 +420,7 @@ describe("N8N Workflow Miniapp Integration Tests", () => {
     });
 
     it("should list n8n instances", async () => {
-      const instances = await n8nWorkflowsService.listInstances(testAppId);
+      const instances = await n8nWorkflowsService.listInstances(testOrgId);
       expect(instances.length).toBeGreaterThan(0);
     });
   });

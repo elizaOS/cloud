@@ -17,7 +17,7 @@ import { agent0Service } from "@/lib/services/agent0";
 import { userMcpsService } from "@/lib/services/user-mcps";
 import { characterMarketplaceService } from "@/lib/services/characters/marketplace";
 import { cache } from "@/lib/cache/client";
-import { CacheKeys, CacheTTL, CacheStaleTTL } from "@/lib/cache/keys";
+import { CacheKeys, CacheStaleTTL } from "@/lib/cache/keys";
 import { createHash } from "crypto";
 import { logger } from "@/lib/utils/logger";
 import { getDefaultNetwork, CHAIN_IDS } from "@/lib/config/erc8004";
@@ -77,19 +77,22 @@ const querySchema = z.object({
 // ============================================================================
 
 export async function GET(request: NextRequest) {
-  const url = new URL(request.url);
-  const rawParams = Object.fromEntries(url.searchParams);
+  try {
+    logger.info("[Discovery] Request received");
+    
+    const url = new URL(request.url);
+    const rawParams = Object.fromEntries(url.searchParams);
 
-  // Validate query parameters
-  const parseResult = querySchema.safeParse(rawParams);
-  if (!parseResult.success) {
-    return NextResponse.json(
-      { error: "Invalid parameters", details: parseResult.error.issues },
-      { status: 400 }
-    );
-  }
+    // Validate query parameters
+    const parseResult = querySchema.safeParse(rawParams);
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: "Invalid parameters", details: parseResult.error.issues },
+        { status: 400 }
+      );
+    }
 
-  const params = parseResult.data;
+    const params = parseResult.data;
 
   // Generate cache key from params
   const paramHash = createHash("md5")
@@ -214,6 +217,14 @@ export async function GET(request: NextRequest) {
     ...result,
     cached: true, // Will be true if served from cache
   });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("[Discovery] Error fetching discovery results", { error: errorMessage });
+    return NextResponse.json(
+      { error: "Internal server error", message: errorMessage },
+      { status: 500 }
+    );
+  }
 }
 
 // ============================================================================
@@ -228,43 +239,53 @@ async function fetchLocalAgents(
 ): Promise<DiscoveredService[]> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
 
-  const characters = await characterMarketplaceService.searchPublic({
-    search: params.query,
-    category: params.categories?.[0],
-    limit: params.limit,
-    offset: params.offset,
-  });
+  try {
+    const result = await characterMarketplaceService.searchCharactersPublic({
+      filters: {
+        search: params.query,
+        category: params.categories?.[0],
+      },
+      sortOptions: { field: "popularity_score", direction: "desc" },
+      pagination: { limit: params.limit, page: Math.floor(params.offset / params.limit) + 1 },
+      includeStats: false,
+    });
 
-  return characters.map((char): DiscoveredService => {
-    const bio = Array.isArray(char.bio) ? char.bio.join(" ") : char.bio;
+    return result.characters.map((char): DiscoveredService => {
+      const bio = Array.isArray(char.bio) ? char.bio.join(" ") : char.bio;
 
-    return {
-      id: char.id,
-      name: char.name,
-      description: bio,
-      type: "agent",
-      source: "local",
-      image: char.avatar_url ?? undefined,
-      category: char.category ?? undefined,
-      tags: char.tags ?? [],
-      active: true,
-      a2aEndpoint: `${baseUrl}/api/agents/${char.id}/a2a`,
-      mcpEndpoint: `${baseUrl}/api/agents/${char.id}/mcp`,
-      mcpTools: [],
-      a2aSkills: [],
-      x402Support: false, // Agents use credits, not direct x402. Credits can be topped up via x402.
-      organizationId: char.organization_id,
-      creatorId: char.user_id,
-      verified: false, // Verification requires ERC-8004 on-chain attestation - see docs/ERC8004_VERIFICATION.md
-      slug: char.slug ?? undefined,
-      pricing: char.monetization_enabled
-        ? {
-            type: "credits",
-            description: `${char.inference_markup_percentage}% markup on inference costs`,
-          }
-        : { type: "free", description: "Free to use" },
-    };
-  });
+      return {
+        id: char.id,
+        name: char.name,
+        description: bio || "",
+        type: "agent",
+        source: "local",
+        image: char.avatar_url ?? undefined,
+        category: char.category ?? undefined,
+        tags: char.tags ?? [],
+        active: true,
+        a2aEndpoint: `${baseUrl}/api/agents/${char.id}/a2a`,
+        mcpEndpoint: `${baseUrl}/api/agents/${char.id}/mcp`,
+        mcpTools: [],
+        a2aSkills: [],
+        x402Support: false,
+        organizationId: char.organization_id,
+        creatorId: char.user_id,
+        verified: false,
+        slug: char.slug ?? undefined,
+        pricing: char.monetization_enabled
+          ? {
+              type: "credits",
+              description: `${char.inference_markup_percentage}% markup on inference costs`,
+            }
+          : { type: "free", description: "Free to use" },
+      };
+    });
+  } catch (dbError) {
+    logger.warn("[Discovery] Database unavailable, skipping local agents", {
+      error: dbError instanceof Error ? dbError.message : String(dbError),
+    });
+    return [];
+  }
 }
 
 /**
@@ -275,46 +296,53 @@ async function fetchLocalMcps(
 ): Promise<DiscoveredService[]> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
 
-  const mcps = await userMcpsService.listPublic({
-    category: params.categories?.[0],
-    search: params.query,
-    limit: params.limit,
-    offset: params.offset,
-  });
+  try {
+    const mcps = await userMcpsService.listPublic({
+      category: params.categories?.[0],
+      search: params.query,
+      limit: params.limit,
+      offset: params.offset,
+    });
 
-  return mcps.map((mcp): DiscoveredService => ({
-    id: mcp.id,
-    name: mcp.name,
-    description: mcp.description,
-    type: "mcp",
-    source: "local",
-    category: mcp.category,
-    tags: mcp.tags ?? [],
-    active: mcp.status === "live",
-    mcpEndpoint: userMcpsService.getEndpointUrl(mcp, baseUrl),
-    mcpTools: mcp.tools.map((t) => t.name),
-    a2aSkills: [],
-    x402Support: mcp.x402_enabled,
-    organizationId: mcp.organization_id,
-    creatorId: mcp.created_by_user_id,
-    verified: mcp.is_verified,
-    slug: mcp.slug,
-    pricing:
-      mcp.pricing_type === "free"
-        ? { type: "free", description: "Free to use" }
-        : mcp.pricing_type === "credits"
-          ? {
-              type: "credits",
-              amount: Number(mcp.credits_per_request),
-              description: `${mcp.credits_per_request} credits per request`,
-            }
-          : {
-              type: "x402",
-              amount: Number(mcp.x402_price_usd),
-              currency: "USD",
-              description: `$${mcp.x402_price_usd} per request`,
-            },
-  }));
+    return mcps.map((mcp): DiscoveredService => ({
+      id: mcp.id,
+      name: mcp.name,
+      description: mcp.description || "",
+      type: "mcp",
+      source: "local",
+      category: mcp.category ?? undefined,
+      tags: mcp.tags ?? [],
+      active: mcp.status === "live",
+      mcpEndpoint: userMcpsService.getEndpointUrl(mcp, baseUrl),
+      mcpTools: mcp.tools.map((t) => t.name),
+      a2aSkills: [],
+      x402Support: mcp.x402_enabled,
+      organizationId: mcp.organization_id,
+      creatorId: mcp.created_by_user_id,
+      verified: mcp.is_verified,
+      slug: mcp.slug ?? undefined,
+      pricing:
+        mcp.pricing_type === "free"
+          ? { type: "free", description: "Free to use" }
+          : mcp.pricing_type === "credits"
+            ? {
+                type: "credits",
+                amount: Number(mcp.credits_per_request),
+                description: `${mcp.credits_per_request} credits per request`,
+              }
+            : {
+                type: "x402",
+                amount: Number(mcp.x402_price_usd),
+                currency: "USD",
+                description: `$${mcp.x402_price_usd} per request`,
+              },
+    }));
+  } catch (dbError) {
+    logger.warn("[Discovery] Database unavailable, skipping local MCPs", {
+      error: dbError instanceof Error ? dbError.message : String(dbError),
+    });
+    return [];
+  }
 }
 
 /**

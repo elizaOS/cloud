@@ -253,6 +253,7 @@ export function agent0ToDiscoveredService(
     a2aEndpoint?: string;
     mcpTools?: string[];
     a2aSkills?: string[];
+    tags?: string[];
     active: boolean;
     x402Support: boolean;
     // Extended metadata that may contain pricing info
@@ -300,7 +301,7 @@ export function agent0ToDiscoveredService(
     type,
     source: "erc8004",
     image: agent.image,
-    tags: [],
+    tags: agent.tags ?? [],
     active: agent.active,
     a2aEndpoint: agent.a2aEndpoint,
     mcpEndpoint: agent.mcpEndpoint,

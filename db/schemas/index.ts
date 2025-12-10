@@ -10,7 +10,7 @@ export * from "./user-sessions";
 export * from "./anonymous-sessions";
 export * from "./api-keys";
 export * from "./cli-auth-sessions";
-export * from "./miniapp-auth-sessions";
+export * from "./app-auth-sessions";
 export * from "./usage-records";
 export * from "./usage-quotas";
 export * from "./credit-transactions";
@@ -40,12 +40,14 @@ export * from "./admin-users";
 export * from "./moderation-violations";
 export * from "./agent-reputation";
 export * from "./agent-budgets";
-<<<<<<< HEAD
-export * from "./miniapp-storage";
+export * from "./app-storage";
 export * from "./n8n-workflows";
 export * from "./fragment-projects";
-export * from "./miniapp-bundles";
-export * from "./miniapp-domains";
-=======
+export * from "./app-bundles";
+export * from "./app-domains";
 export * from "./app-sandboxes";
->>>>>>> 6b39a1e023342afc41b11adb0716b4e87c40c416
+export * from "./secrets";
+export * from "./org-platforms";
+export * from "./org-agents";
+export * from "./platform-credentials";
+export * from "./application-triggers";

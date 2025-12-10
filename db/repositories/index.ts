@@ -33,7 +33,7 @@ export * from "./user-sessions";
 export * from "./anonymous-sessions";
 export * from "./api-keys";
 export * from "./cli-auth-sessions";
-export * from "./miniapp-auth-sessions";
+export * from "./app-auth-sessions";
 export * from "./credit-transactions";
 export * from "./credit-packs";
 export * from "./usage-records";
@@ -45,6 +45,7 @@ export * from "./provider-health";
 // Character Domain (User-created definitions)
 // ============================================
 export * from "./characters";
+// Note: user-characters.ts is deprecated, use characters.ts instead
 
 // ============================================
 // Deployment Domain (Infrastructure)
@@ -97,11 +98,12 @@ export * from "./user-mcps";
 export * from "./token-redemptions";
 
 // ============================================
-// Miniapp Storage
+// App Storage
 // ============================================
+export * from "./app-storage";
 
 // ============================================
-// N8N Workflows Miniapp
+// N8N Workflows
 // ============================================
 export * from "./n8n-workflows";
 

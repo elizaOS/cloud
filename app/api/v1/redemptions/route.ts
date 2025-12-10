@@ -27,7 +27,7 @@ import { SUPPLY_SHOCK_PROTECTION } from "@/lib/config/redemption-security";
 /**
  * Request validation schema with strict bounds.
  * 
- * IMPORTANT: Only EARNED points from miniapps, agents, and MCPs can be redeemed.
+ * IMPORTANT: Only EARNED points from apps, agents, and MCPs can be redeemed.
  * Purchased credits are NOT redeemable.
  */
 const CreateRedemptionSchema = z.object({

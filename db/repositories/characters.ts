@@ -32,7 +32,7 @@ export class UserCharactersRepository {
    * @param userId - User ID to list characters for.
    * @param source - Filter by source type (default: "cloud").
    */
-  async listByUser(userId: string, source: "cloud" | "miniapp" = "cloud"): Promise<UserCharacter[]> {
+  async listByUser(userId: string, source: "cloud" | "app" = "cloud"): Promise<UserCharacter[]> {
     const interactedCharacterIds = db
       .selectDistinct({ character_id: elizaRoomCharactersTable.character_id })
       .from(elizaRoomCharactersTable)
@@ -59,7 +59,7 @@ export class UserCharactersRepository {
    * @param organizationId - Organization ID.
    * @param source - Filter by source type (default: "cloud").
    */
-  async listByOrganization(organizationId: string, source: "cloud" | "miniapp" = "cloud"): Promise<UserCharacter[]> {
+  async listByOrganization(organizationId: string, source: "cloud" | "app" = "cloud"): Promise<UserCharacter[]> {
     return await db.query.userCharacters.findMany({
       where: and(
         eq(userCharacters.organization_id, organizationId),
@@ -177,7 +177,7 @@ export class UserCharactersRepository {
       conditions.push(eq(userCharacters.featured, filters.featured));
     }
 
-    // Filter by source (cloud vs miniapp)
+    // Filter by source (cloud vs app)
     if (filters.source) {
       conditions.push(eq(userCharacters.source, filters.source));
     }
@@ -278,7 +278,7 @@ export class UserCharactersRepository {
       conditions.push(eq(userCharacters.featured, filters.featured));
     }
 
-    // Filter by source (cloud vs miniapp)
+    // Filter by source (cloud vs app)
     if (filters.source) {
       conditions.push(eq(userCharacters.source, filters.source));
     }
@@ -420,7 +420,7 @@ export class UserCharactersRepository {
       conditions.push(eq(userCharacters.featured, filters.featured));
     }
 
-    // Filter by source (cloud vs miniapp) - miniapp agents should never appear in public marketplace
+    // Filter by source (cloud vs app) - app agents should never appear in public marketplace
     if (filters.source) {
       conditions.push(eq(userCharacters.source, filters.source));
     }
@@ -507,7 +507,7 @@ export class UserCharactersRepository {
       conditions.push(eq(userCharacters.featured, filters.featured));
     }
 
-    // Filter by source (cloud vs miniapp) - miniapp agents should never appear in public marketplace
+    // Filter by source (cloud vs app) - app agents should never appear in public marketplace
     if (filters.source) {
       conditions.push(eq(userCharacters.source, filters.source));
     }
@@ -518,6 +518,76 @@ export class UserCharactersRepository {
       .where(and(...conditions));
 
     return result[0]?.count || 0;
+  }
+
+  /**
+   * Lists public characters registered on ERC-8004.
+   * Used for marketplace discovery by external agents.
+   */
+  async findPublicRegistered(options: {
+    erc8004Only?: boolean;
+    category?: string;
+    limit?: number;
+  } = {}): Promise<UserCharacter[]> {
+    const { erc8004Only = false, category, limit = 100 } = options;
+
+    const conditions: SQL[] = [
+      eq(userCharacters.is_public, true),
+      eq(userCharacters.source, "cloud"),
+    ];
+
+    if (erc8004Only) {
+      conditions.push(eq(userCharacters.erc8004_registered, true));
+    }
+
+    if (category) {
+      conditions.push(eq(userCharacters.category, category));
+    }
+
+    return await db
+      .select()
+      .from(userCharacters)
+      .where(and(...conditions))
+      .orderBy(desc(userCharacters.popularity_score), desc(userCharacters.created_at))
+      .limit(limit);
+  }
+
+  /**
+   * Gets characters by ERC-8004 agent ID.
+   */
+  async getByERC8004AgentId(
+    network: string,
+    agentId: number
+  ): Promise<UserCharacter | undefined> {
+    return await db.query.userCharacters.findFirst({
+      where: and(
+        eq(userCharacters.erc8004_network, network),
+        eq(userCharacters.erc8004_agent_id, agentId)
+      ),
+    });
+  }
+
+  /**
+   * Lists all ERC-8004 registered characters.
+   */
+  async listERC8004Registered(options: {
+    network?: string;
+    limit?: number;
+  } = {}): Promise<UserCharacter[]> {
+    const { network, limit = 100 } = options;
+
+    const conditions: SQL[] = [eq(userCharacters.erc8004_registered, true)];
+
+    if (network) {
+      conditions.push(eq(userCharacters.erc8004_network, network));
+    }
+
+    return await db
+      .select()
+      .from(userCharacters)
+      .where(and(...conditions))
+      .orderBy(desc(userCharacters.erc8004_registered_at))
+      .limit(limit);
   }
 }
 

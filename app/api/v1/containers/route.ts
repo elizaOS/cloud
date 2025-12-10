@@ -19,6 +19,7 @@ import {
 import { isFeatureConfigured } from "@/lib/config/env-validator";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
+import { secretsService } from "@/lib/services/secrets";
 
 export const dynamic = "force-dynamic";
 // Set max duration to handle CloudFormation deployments
@@ -612,17 +613,25 @@ async function initiateCloudFormationStack(
     deploymentLog: `Creating CloudFormation stack (1x ${instanceType} ${architecture === "arm64" ? "ARM" : "x86_64"} instance)...`,
   });
 
-  // Prepare environment variables
-  const environmentVars: Record<string, string> = {
-    ...(process.env.OPENAI_API_KEY && {
-      OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-    }),
-    ...(config.environment_vars || {}),
-  };
+  // Load encrypted secrets from secrets service
+  let encryptedSecrets: Record<string, string> = {};
+  if (secretsService.isConfigured) {
+    const orgSecrets = await secretsService.getDecrypted({ organizationId });
+    Object.assign(encryptedSecrets, orgSecrets);
 
-  console.log(
-    `🔐 [initiateCloudFormationStack] Injecting ${Object.keys(environmentVars).length} environment variables`,
-  );
+    const containerSecrets = await secretsService.getDecrypted({
+      organizationId,
+      projectId: containerId,
+    });
+    Object.assign(encryptedSecrets, containerSecrets);
+  }
+
+  // Priority: secrets (highest) > user env vars > platform defaults
+  const environmentVars: Record<string, string> = {
+    ...(process.env.OPENAI_API_KEY && { OPENAI_API_KEY: process.env.OPENAI_API_KEY }),
+    ...(config.environment_vars || {}),
+    ...encryptedSecrets,
+  };
 
   // Get container to check if this is an update
   const container = await getContainer(containerId, organizationId);

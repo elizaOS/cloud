@@ -216,6 +216,15 @@ export const n8nWorkflowVariablesRepository = {
     return variable;
   },
 
+  async findById(id: string): Promise<N8nWorkflowVariable | undefined> {
+    const [variable] = await db
+      .select()
+      .from(n8nWorkflowVariables)
+      .where(eq(n8nWorkflowVariables.id, id))
+      .limit(1);
+    return variable;
+  },
+
   async findByOrganization(organizationId: string): Promise<N8nWorkflowVariable[]> {
     return db
       .select()
@@ -290,6 +299,15 @@ export const n8nWorkflowApiKeysRepository = {
       .insert(n8nWorkflowApiKeys)
       .values(data)
       .returning();
+    return apiKey;
+  },
+
+  async findById(id: string): Promise<N8nWorkflowApiKey | undefined> {
+    const [apiKey] = await db
+      .select()
+      .from(n8nWorkflowApiKeys)
+      .where(eq(n8nWorkflowApiKeys.id, id))
+      .limit(1);
     return apiKey;
   },
 
@@ -477,7 +495,7 @@ export const n8nWorkflowTriggersRepository = {
       .where(eq(n8nWorkflowTriggers.id, id));
   },
 
-  async incrementErrorCount(id: string): Promise<void> {
+  async incrementErrorCount(id: string, errorMessage?: string): Promise<void> {
     await db
       .update(n8nWorkflowTriggers)
       .set({
@@ -485,6 +503,41 @@ export const n8nWorkflowTriggersRepository = {
         updated_at: new Date(),
       })
       .where(eq(n8nWorkflowTriggers.id, id));
+  },
+
+  async updateLastError(id: string, errorMessage: string): Promise<void> {
+    await db
+      .update(n8nWorkflowTriggers)
+      .set({
+        error_count: sql`${n8nWorkflowTriggers.error_count} + 1`,
+        updated_at: new Date(),
+      })
+      .where(eq(n8nWorkflowTriggers.id, id));
+  },
+
+  async getTodayExecutionCount(triggerId: string): Promise<number> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(n8nWorkflowExecutions)
+      .where(
+        and(
+          eq(n8nWorkflowExecutions.trigger_id, triggerId),
+          sql`${n8nWorkflowExecutions.created_at} >= ${today}`
+        )
+      );
+    
+    return result[0]?.count ?? 0;
+  },
+
+  async findByOrganization(organizationId: string): Promise<N8nWorkflowTrigger[]> {
+    return db
+      .select()
+      .from(n8nWorkflowTriggers)
+      .where(eq(n8nWorkflowTriggers.organization_id, organizationId))
+      .orderBy(desc(n8nWorkflowTriggers.created_at));
   },
 };
 

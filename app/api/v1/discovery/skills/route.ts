@@ -76,56 +76,65 @@ const querySchema = z.object({
 // ============================================================================
 
 export async function GET(request: NextRequest) {
-  const url = new URL(request.url);
-  const rawParams = Object.fromEntries(url.searchParams);
+  try {
+    const url = new URL(request.url);
+    const rawParams = Object.fromEntries(url.searchParams);
 
-  const parseResult = querySchema.safeParse(rawParams);
-  if (!parseResult.success) {
-    return NextResponse.json(
-      { error: "Invalid parameters", details: parseResult.error.issues },
-      { status: 400 }
-    );
-  }
+    const parseResult = querySchema.safeParse(rawParams);
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: "Invalid parameters", details: parseResult.error.issues },
+        { status: 400 }
+      );
+    }
 
-  const params = parseResult.data;
-  const cacheKey = `discovery:skills:${JSON.stringify(params)}`;
+    const params = parseResult.data;
+    const cacheKey = `discovery:skills:${JSON.stringify(params)}`;
 
-  // Check cache (10 minutes TTL)
-  const cached = await cache.get<SkillsResponse>(cacheKey);
-  if (cached) {
-    return NextResponse.json({ ...cached, meta: { ...cached.meta, cached: true } });
-  }
+    // Check cache (10 minutes TTL)
+    const cached = await cache.get<SkillsResponse>(cacheKey);
+    if (cached) {
+      return NextResponse.json({ ...cached, meta: { ...cached.meta, cached: true } });
+    }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://elizacloud.ai";
-  const allSkills: SkillInfo[] = [];
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://elizacloud.ai";
+    const allSkills: SkillInfo[] = [];
 
-  // ========================================================================
-  // Get skills from local agents (marketplace characters)
-  // ========================================================================
+    // ========================================================================
+    // Get skills from local agents (marketplace characters)
+    // ========================================================================
+    try {
+      const result = await characterMarketplaceService.searchCharactersPublic({
+        filters: {},
+        sortOptions: { field: "popularity_score", direction: "desc" },
+        pagination: { limit: 200, page: 1 },
+        includeStats: false,
+      });
 
-  const characters = await characterMarketplaceService.searchPublic({ limit: 200 });
+      for (const char of result.characters) {
+        const endpoint = `${baseUrl}/api/agents/${char.id}/a2a`;
 
-  for (const char of characters) {
-    const endpoint = `${baseUrl}/api/agents/${char.id}/a2a`;
-
-    // Each character exposes a "chat" skill by default
-    allSkills.push({
-      id: `${char.id}-chat`,
-      name: "Chat",
-      description: `Chat with ${char.name}`,
-      provider: {
-        id: char.id,
-        name: char.name,
-        type: "local",
-        a2aEndpoint: endpoint,
-      },
-      category: char.category ?? "ai",
-      tags: char.tags ?? [],
-      x402Required: false, // Characters use credits
-      inputModes: ["text"],
-      outputModes: ["text"],
-    });
-  }
+        // Each character exposes a "chat" skill by default
+        allSkills.push({
+          id: `${char.id}-chat`,
+          name: "Chat",
+          description: `Chat with ${char.name}`,
+          provider: {
+            id: char.id,
+            name: char.name,
+            type: "local",
+            a2aEndpoint: endpoint,
+          },
+          category: char.category ?? "ai",
+          tags: char.tags ?? [],
+          x402Required: false, // Characters use credits
+          inputModes: ["text"],
+          outputModes: ["text"],
+        });
+      }
+    } catch {
+      // Database unavailable - continue with ERC-8004 only
+    }
 
   // ========================================================================
   // Get skills from ERC-8004 agents
@@ -226,5 +235,11 @@ export async function GET(request: NextRequest) {
   await cache.set(cacheKey, response, CacheTTL.erc8004.discovery);
 
   return NextResponse.json(response);
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Internal server error", message: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
+  }
 }
 

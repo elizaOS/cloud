@@ -260,22 +260,22 @@ export async function getUserFromApiKey(
 
 /**
  * Require authentication via session or API key
- * Supports X-API-Key header, Authorization: Bearer header, and X-Miniapp-Token header
+ * Supports X-API-Key header, Authorization: Bearer header, and X-App-Token header
  * Note: This allows anonymous users. Use requireAuthOrApiKeyWithOrg for paid features.
  */
 export async function requireAuthOrApiKey(
   request: NextRequest,
 ): Promise<AuthResult> {
-  // Check for miniapp token (pass-through auth from miniapps)
-  const miniappToken = request.headers.get("X-Miniapp-Token");
-  if (miniappToken) {
-    const { miniappAuthSessionsService } =
-      await import("@/lib/services/miniapp-auth-sessions");
+  // Check for app token (pass-through auth from apps)
+  const appToken = request.headers.get("X-App-Token");
+  if (appToken) {
+    const { appAuthSessionsService } =
+      await import("@/lib/services/app-auth-sessions");
     const tokenData =
-      await miniappAuthSessionsService.verifyToken(miniappToken);
+      await appAuthSessionsService.verifyToken(appToken);
 
     if (!tokenData) {
-      throw new Error("Unauthorized: Invalid or expired miniapp token");
+      throw new Error("Unauthorized: Invalid or expired app token");
     }
 
     // IMPORTANT: Use getWithOrganization to include org data for billing/credits

@@ -5736,6 +5736,394 @@ const mcpHandler = createMcpHandler(
       },
     );
 
+    // Tool: Execute N8N Workflow via Trigger
+    server.registerTool(
+      "n8n_execute_trigger",
+      {
+        description: "Execute an n8n workflow via its A2A or MCP trigger. Use this to run workflows that have been configured with triggers.",
+        inputSchema: {
+          triggerKey: z.string().optional().describe("Trigger key to execute"),
+          workflowId: z.string().optional().describe("Workflow ID (finds active A2A/MCP trigger)"),
+          inputData: z.record(z.unknown()).optional().describe("Input data to pass to the workflow"),
+        },
+      },
+      async ({ triggerKey, workflowId, inputData }) => {
+        const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
+
+        if (!user.organization_id) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "No organization" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        if (!triggerKey && !workflowId) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "Either triggerKey or workflowId is required" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        let trigger;
+        if (triggerKey) {
+          trigger = await n8nWorkflowsService.findTriggerByKey(triggerKey);
+        } else if (workflowId) {
+          const triggers = await n8nWorkflowsService.listTriggers(workflowId);
+          trigger = triggers.find(t => t.is_active && (t.trigger_type === "a2a" || t.trigger_type === "mcp"));
+        }
+
+        if (!trigger) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "No active A2A/MCP trigger found" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        if (trigger.organization_id !== user.organization_id) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "Unauthorized" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        if (trigger.trigger_type !== "a2a" && trigger.trigger_type !== "mcp") {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "Use webhook endpoint for webhook triggers" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        const execution = await n8nWorkflowsService.executeWorkflowTrigger(trigger.id, inputData);
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              success: true,
+              executionId: execution.id,
+              status: execution.status,
+              workflowId: trigger.workflow_id,
+              triggerId: trigger.id,
+            }, null, 2),
+          }],
+        };
+      },
+    );
+
+    // Tool: List N8N Workflow Triggers
+    server.registerTool(
+      "n8n_list_triggers",
+      {
+        description: "List n8n workflow triggers for your organization. Can filter by workflow ID or trigger type.",
+        inputSchema: {
+          workflowId: z.string().optional().describe("Filter by workflow ID"),
+          triggerType: z.enum(["cron", "webhook", "a2a", "mcp"]).optional().describe("Filter by trigger type"),
+        },
+      },
+      async ({ workflowId, triggerType }) => {
+        const { n8nWorkflowTriggersRepository } = await import("@/db/repositories/n8n-workflows");
+
+        if (!user.organization_id) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "No organization" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        let triggers;
+        if (workflowId) {
+          triggers = await n8nWorkflowTriggersRepository.findByWorkflow(workflowId);
+        } else {
+          triggers = await n8nWorkflowTriggersRepository.findByOrganization(user.organization_id);
+        }
+
+        if (triggerType) {
+          triggers = triggers.filter(t => t.trigger_type === triggerType);
+        }
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              success: true,
+              triggers: triggers.map(t => ({
+                id: t.id,
+                workflowId: t.workflow_id,
+                triggerType: t.trigger_type,
+                triggerKey: t.trigger_type === "webhook" ? t.trigger_key.slice(0, 8) + "..." : t.trigger_key,
+                isActive: t.is_active,
+                executionCount: t.execution_count,
+                lastExecutedAt: t.last_executed_at?.toISOString() || null,
+              })),
+              total: triggers.length,
+            }, null, 2),
+          }],
+        };
+      },
+    );
+
+    // Tool: Create N8N Workflow Trigger
+    server.registerTool(
+      "n8n_create_trigger",
+      {
+        description: "Create a new trigger for an n8n workflow. Supports cron, webhook, A2A, and MCP trigger types.",
+        inputSchema: {
+          workflowId: z.string().describe("Workflow ID to create trigger for"),
+          triggerType: z.enum(["cron", "webhook", "a2a", "mcp"]).describe("Type of trigger"),
+          triggerKey: z.string().optional().describe("Custom trigger key (auto-generated if not provided)"),
+          config: z.object({
+            cronExpression: z.string().optional().describe("Cron expression (required for cron triggers)"),
+            maxExecutionsPerDay: z.number().optional().describe("Maximum executions per day"),
+            estimatedCostPerExecution: z.number().optional().describe("Estimated cost in credits per execution"),
+          }).optional().describe("Trigger configuration"),
+        },
+      },
+      async ({ workflowId, triggerType, triggerKey, config }) => {
+        const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
+
+        if (!user.organization_id) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "No organization" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        const workflow = await n8nWorkflowsService.getWorkflow(workflowId);
+        if (!workflow || workflow.organization_id !== user.organization_id) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "Workflow not found" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        if (triggerType === "cron" && !config?.cronExpression) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "cronExpression is required for cron triggers" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        const trigger = await n8nWorkflowsService.createTrigger(workflowId, triggerType, triggerKey, config || {});
+
+        const result: Record<string, unknown> = {
+          success: true,
+          triggerId: trigger.id,
+          triggerType: trigger.trigger_type,
+          triggerKey: trigger.trigger_key,
+          isActive: trigger.is_active,
+        };
+
+        if (triggerType === "webhook") {
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+          result.webhookUrl = `${baseUrl}/api/v1/n8n/webhooks/${trigger.trigger_key}`;
+          result.webhookSecret = trigger.config.webhookSecret;
+          result.note = "Save webhookSecret now - it will not be shown again";
+        }
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify(result, null, 2),
+          }],
+        };
+      },
+    );
+
+    // ============ APPLICATION TRIGGERS (Apps, Agents, MCPs) ============
+
+    // Tool: Create Application Trigger
+    server.registerTool(
+      "create_app_trigger",
+      {
+        description: "Create a trigger for an app (fragment project), agent (container), or MCP. Supports cron, webhook, and event triggers.",
+        inputSchema: {
+          targetType: z.enum(["fragment_project", "container", "user_mcp"]).describe("Type of target: fragment_project (app), container (agent), or user_mcp"),
+          targetId: z.string().uuid().describe("ID of the target app, agent, or MCP"),
+          triggerType: z.enum(["cron", "webhook", "event"]).describe("Type of trigger"),
+          name: z.string().describe("Human-readable name for the trigger"),
+          description: z.string().optional().describe("Description of what this trigger does"),
+          config: z.object({
+            cronExpression: z.string().optional().describe("Cron expression (required for cron triggers)"),
+            eventTypes: z.array(z.string()).optional().describe("Event types to listen for (required for event triggers)"),
+            maxExecutionsPerDay: z.number().optional().describe("Maximum executions per day"),
+            timeout: z.number().optional().describe("Timeout in seconds"),
+          }).optional().describe("Trigger configuration"),
+          actionType: z.enum(["call_endpoint", "restart", "execute_workflow", "notify"]).optional().describe("Action to perform"),
+          actionConfig: z.object({
+            endpoint: z.string().optional().describe("Endpoint to call"),
+            method: z.enum(["GET", "POST", "PUT", "DELETE"]).optional().describe("HTTP method"),
+            workflowId: z.string().uuid().optional().describe("N8N workflow ID for execute_workflow action"),
+          }).optional().describe("Action configuration"),
+        },
+      },
+      async ({ targetType, targetId, triggerType, name, description, config, actionType, actionConfig }) => {
+        const { applicationTriggersService } = await import("@/lib/services/application-triggers");
+
+        if (!user.organization_id) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "No organization" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        if (triggerType === "cron" && !config?.cronExpression) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "cronExpression is required for cron triggers" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        if (triggerType === "event" && (!config?.eventTypes || config.eventTypes.length === 0)) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "eventTypes is required for event triggers" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        const trigger = await applicationTriggersService.createTrigger({
+          organizationId: user.organization_id,
+          createdBy: user.id,
+          targetType,
+          targetId,
+          triggerType,
+          name,
+          description,
+          config,
+          actionType,
+          actionConfig,
+        });
+
+        const result: Record<string, unknown> = {
+          success: true,
+          triggerId: trigger.id,
+          triggerType: trigger.trigger_type,
+          triggerKey: trigger.trigger_key,
+          isActive: trigger.is_active,
+        };
+
+        if (triggerType === "webhook") {
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+          result.webhookUrl = `${baseUrl}/api/v1/triggers/webhooks/${trigger.trigger_key}`;
+          result.webhookSecret = trigger.config.webhookSecret;
+          result.note = "Save webhookSecret now - it will not be shown again";
+        }
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify(result, null, 2),
+          }],
+        };
+      },
+    );
+
+    // Tool: List Application Triggers
+    server.registerTool(
+      "list_app_triggers",
+      {
+        description: "List triggers for apps, agents, or MCPs in your organization.",
+        inputSchema: {
+          targetType: z.enum(["fragment_project", "container", "user_mcp"]).optional().describe("Filter by target type"),
+          targetId: z.string().uuid().optional().describe("Filter by specific target ID"),
+          triggerType: z.enum(["cron", "webhook", "event"]).optional().describe("Filter by trigger type"),
+        },
+      },
+      async ({ targetType, targetId, triggerType }) => {
+        const { applicationTriggersService } = await import("@/lib/services/application-triggers");
+
+        if (!user.organization_id) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "No organization" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        let triggers;
+        if (targetId && targetType) {
+          triggers = await applicationTriggersService.listTriggersByTarget(targetType, targetId);
+          triggers = triggers.filter(t => t.organization_id === user.organization_id);
+        } else {
+          triggers = await applicationTriggersService.listTriggersByOrganization(
+            user.organization_id,
+            { targetType, triggerType }
+          );
+        }
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              success: true,
+              triggers: triggers.map(t => ({
+                id: t.id,
+                name: t.name,
+                targetType: t.target_type,
+                targetId: t.target_id,
+                triggerType: t.trigger_type,
+                triggerKey: t.trigger_type === "webhook" ? t.trigger_key.slice(0, 8) + "..." : t.trigger_key,
+                isActive: t.is_active,
+                executionCount: t.execution_count,
+                lastExecutedAt: t.last_executed_at?.toISOString() || null,
+              })),
+              total: triggers.length,
+            }, null, 2),
+          }],
+        };
+      },
+    );
+
+    // Tool: Execute Application Trigger
+    server.registerTool(
+      "execute_app_trigger",
+      {
+        description: "Manually execute a trigger for an app, agent, or MCP.",
+        inputSchema: {
+          triggerId: z.string().uuid().describe("ID of the trigger to execute"),
+          inputData: z.record(z.unknown()).optional().describe("Input data to pass to the trigger"),
+        },
+      },
+      async ({ triggerId, inputData }) => {
+        const { applicationTriggersService } = await import("@/lib/services/application-triggers");
+
+        if (!user.organization_id) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "No organization" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        const trigger = await applicationTriggersService.getTrigger(triggerId);
+        if (!trigger) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "Trigger not found" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        if (trigger.organization_id !== user.organization_id) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "Unauthorized" }, null, 2) }],
+            isError: true,
+          };
+        }
+
+        const result = await applicationTriggersService.executeTrigger(triggerId, inputData, "manual");
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              success: result.status === "success",
+              executionId: result.executionId,
+              status: result.status,
+              ...(result.output && { output: result.output }),
+              ...(result.error && { error: result.error }),
+            }, null, 2),
+          }],
+        };
+      },
+    );
+
     // Tool: Generate Fragment
     server.registerTool(
       "fragments_generate",
@@ -6248,14 +6636,14 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "fragments_deploy_project",
       {
-        description: "Deploy a fragment project as a miniapp or container. Returns deployment details including app ID and API key.",
+        description: "Deploy a fragment project as a app or container. Returns deployment details including app ID and API key.",
         inputSchema: {
           projectId: z.string().describe("Project ID to deploy"),
-          type: z.enum(["miniapp", "container"]).describe("Deployment type"),
-          appUrl: z.string().url().optional().describe("App URL for miniapp deployment (auto-generated if not provided)"),
-          allowedOrigins: z.array(z.string()).optional().describe("Allowed origins for miniapp"),
+          type: z.enum(["app", "container"]).describe("Deployment type"),
+          appUrl: z.string().url().optional().describe("App URL for app deployment (auto-generated if not provided)"),
+          allowedOrigins: z.array(z.string()).optional().describe("Allowed origins for app"),
           autoStorage: z.boolean().optional().default(true).describe("Auto-create storage collections"),
-          autoInject: z.boolean().optional().default(true).describe("Auto-inject miniapp helpers"),
+          autoInject: z.boolean().optional().default(true).describe("Auto-inject app helpers"),
           // Container deployment options
           name: z.string().optional().describe("Container name (for container deployment)"),
           project_name: z.string().optional().describe("Project name (for container deployment)"),
@@ -6275,7 +6663,7 @@ const mcpHandler = createMcpHandler(
 
         try {
           const deployData: Record<string, unknown> = { type };
-          if (type === "miniapp") {
+          if (type === "app") {
             if (appUrl) deployData.appUrl = appUrl;
             if (allowedOrigins) deployData.allowedOrigins = allowedOrigins;
             if (autoStorage !== undefined) deployData.autoStorage = autoStorage;

@@ -37,7 +37,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const result = await aiAppBuilderService.sendPrompt(
       sessionId,
-      validationResult.data.prompt
+      validationResult.data.prompt,
+      user.id
     );
 
     return NextResponse.json({
@@ -48,12 +49,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     logger.error("Failed to send prompt", { error });
+    const status = (error as Error).message?.includes("Access denied") ? 403 : 500;
     return NextResponse.json(
       {
         success: false,
         error: error instanceof Error ? error.message : "Failed to send prompt",
       },
-      { status: 500 }
+      { status }
     );
   }
 }

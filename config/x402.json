@@ -1,6 +1,7 @@
 {
   "$schema": "./x402.schema.json",
-  "_comment": "x402 Payment Configuration. Supports Jeju and Base networks with OIF cross-chain routing.",
+  "_comment": "x402 Payment Configuration - SINGLE SOURCE OF TRUTH for all contract addresses",
+  "_lastUpdated": "2025-12-09",
   
   "pricing": {
     "creditsPerDollar": 100,
@@ -32,16 +33,18 @@
       "blockExplorer": "https://testnet-explorer.jeju.network",
       "isTestnet": true,
       "usdc": "0x0000000000000000000000000000000000000000",
+      "_note": "Deploy USDC when Jeju testnet RPC is live",
       "l1ChainId": 11155111,
       "l1RpcUrl": "https://ethereum-sepolia-rpc.publicnode.com"
     },
     "jeju": {
-      "name": "Jeju",
+      "name": "Jeju Mainnet",
       "chainId": 420691,
       "rpcUrl": "https://rpc.jeju.network",
       "blockExplorer": "https://explorer.jeju.network",
       "isTestnet": false,
       "usdc": "0x0000000000000000000000000000000000000000",
+      "_note": "Deploy USDC when Jeju mainnet is live",
       "l1ChainId": 1,
       "l1RpcUrl": "https://eth.llamarpc.com"
     },
@@ -52,7 +55,7 @@
       "blockExplorer": "https://sepolia.basescan.org",
       "isTestnet": true,
       "usdc": "0x953F6516E5d2864cE7f13186B45dE418EA665EB2",
-      "_usdcNote": "MockJejuUSDC deployed for testing - has faucet()",
+      "_usdcNote": "MockJejuUSDC - has faucet() for testing",
       "l1ChainId": 11155111
     },
     "base": {
@@ -62,6 +65,7 @@
       "blockExplorer": "https://basescan.org",
       "isTestnet": false,
       "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "_usdcNote": "Official Circle USDC",
       "l1ChainId": 1
     }
   },
@@ -92,7 +96,7 @@
   },
 
   "elizaToken": {
-    "_comment": "elizaOS Token addresses for payouts - users can choose payout chain",
+    "_comment": "ElizaOS Token addresses - payout destinations",
     "evm": {
       "ethereum": "0xea17df5cf6d172224892b5477a16acb111182478",
       "base": "0xea17df5cf6d172224892b5477a16acb111182478",
@@ -105,12 +109,28 @@
   },
 
   "oifContracts": {
-    "_comment": "OIF contract addresses for cross-chain intents",
+    "_comment": "Open Intents Framework contracts - deployed 2025-12-09",
     "base-sepolia": {
       "SolverRegistry": "0xecfE47302D941c8ce5B0009C0ac2E6D6ee2A42de",
       "SimpleOracle": "0xE30218678a940d1553b285B0eB5C5364BBF70ed9",
       "InputSettler": "0x9bb59d0329FcCEdD99f1753D20AF50347Ad2eB75",
-      "OutputSettler": "0xf7ef3C6a54dA3E03A96D23864e5865E7e3EBEcF5"
+      "OutputSettler": "0xf7ef3C6a54dA3E03A96D23864e5865E7e3EBEcF5",
+      "_deployed": "2025-12-09",
+      "_deployer": "0x5dB1268e424da5C26451e4a8B9C221e6DE3C3064"
+    },
+    "jeju-testnet": {
+      "SolverRegistry": "0x0000000000000000000000000000000000000000",
+      "SimpleOracle": "0x0000000000000000000000000000000000000000",
+      "InputSettler": "0x0000000000000000000000000000000000000000",
+      "OutputSettler": "0x0000000000000000000000000000000000000000",
+      "_note": "Deploy when Jeju testnet RPC is live"
+    },
+    "jeju": {
+      "SolverRegistry": "0x0000000000000000000000000000000000000000",
+      "SuperchainOracle": "0x0000000000000000000000000000000000000000",
+      "InputSettler": "0x0000000000000000000000000000000000000000",
+      "OutputSettler": "0x0000000000000000000000000000000000000000",
+      "_note": "Deploy when Jeju mainnet is live"
     }
   },
 

@@ -107,39 +107,48 @@ const CATEGORY_META: Record<string, { displayName: string; description: string; 
 // ============================================================================
 
 export async function GET(_request: NextRequest) {
-  const cacheKey = "discovery:categories";
+  try {
+    const cacheKey = "discovery:categories";
 
-  // Check cache (15 minutes TTL)
-  const cached = await cache.get<CategoriesResponse>(cacheKey);
-  if (cached) {
-    return NextResponse.json({ ...cached, meta: { ...cached.meta, cached: true } });
-  }
-
-  const categoryCounts = new Map<string, { local: number; erc8004: number }>();
-
-  // ========================================================================
-  // Count from local sources
-  // ========================================================================
-
-  // Characters
-  const characters = await characterMarketplaceService.searchPublic({ limit: 500 });
-  for (const char of characters) {
-    if (char.category) {
-      const existing = categoryCounts.get(char.category) ?? { local: 0, erc8004: 0 };
-      existing.local++;
-      categoryCounts.set(char.category, existing);
+    // Check cache (15 minutes TTL)
+    const cached = await cache.get<CategoriesResponse>(cacheKey);
+    if (cached) {
+      return NextResponse.json({ ...cached, meta: { ...cached.meta, cached: true } });
     }
-  }
 
-  // MCPs
-  const mcps = await userMcpsService.listPublic({ limit: 500 });
-  for (const mcp of mcps) {
-    if (mcp.category) {
-      const existing = categoryCounts.get(mcp.category) ?? { local: 0, erc8004: 0 };
-      existing.local++;
-      categoryCounts.set(mcp.category, existing);
+    const categoryCounts = new Map<string, { local: number; erc8004: number }>();
+
+    // ========================================================================
+    // Count from local sources (with graceful fallback)
+    // ========================================================================
+    try {
+      // Characters
+      const result = await characterMarketplaceService.searchCharactersPublic({
+        filters: {},
+        sortOptions: { field: "popularity_score", direction: "desc" },
+        pagination: { limit: 500, page: 1 },
+        includeStats: false,
+      });
+      for (const char of result.characters) {
+        if (char.category) {
+          const existing = categoryCounts.get(char.category) ?? { local: 0, erc8004: 0 };
+          existing.local++;
+          categoryCounts.set(char.category, existing);
+        }
+      }
+
+      // MCPs
+      const mcps = await userMcpsService.listPublic({ limit: 500 });
+      for (const mcp of mcps) {
+        if (mcp.category) {
+          const existing = categoryCounts.get(mcp.category) ?? { local: 0, erc8004: 0 };
+          existing.local++;
+          categoryCounts.set(mcp.category, existing);
+        }
+      }
+    } catch {
+      // Database unavailable - continue with ERC-8004 only
     }
-  }
 
   // ========================================================================
   // Count from ERC-8004
@@ -204,6 +213,12 @@ export async function GET(_request: NextRequest) {
   await cache.set(cacheKey, response, CacheTTL.erc8004.discovery);
 
   return NextResponse.json(response);
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Internal server error", message: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
+  }
 }
 
 // ============================================================================

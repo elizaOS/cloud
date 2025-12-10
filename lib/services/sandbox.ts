@@ -9,6 +9,7 @@
 import { logger } from "@/lib/utils/logger";
 import crypto from "crypto";
 import Anthropic from "@anthropic-ai/sdk";
+import { secretsService } from "@/lib/services/secrets";
 
 // Types for Vercel Sandbox
 interface SandboxInstance {
@@ -42,6 +43,9 @@ export interface SandboxConfig {
   vcpus?: number;
   ports?: number[];
   env?: Record<string, string>;
+  // For loading secrets from the vault
+  organizationId?: string;
+  projectId?: string;
 }
 
 export interface SandboxSessionData {
@@ -55,9 +59,8 @@ export interface SandboxSessionData {
 const DEFAULT_TEMPLATE_URL = "https://github.com/vercel/sandbox-example-next.git";
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
 
-// Global storage
+// Global storage for sandbox instances (persists across hot reloads in dev)
 declare global {
-  // eslint-disable-next-line no-var
   var __sandboxInstances: Map<string, SandboxInstance> | undefined;
 }
 
@@ -159,63 +162,162 @@ const TOOLS: Anthropic.Tool[] = [
   }
 ];
 
-const SYSTEM_PROMPT = `You are an expert Next.js 16 developer building a live web application.
+const SYSTEM_PROMPT = `You are an expert Next.js developer building production-ready apps on Eliza Cloud.
 
-TECH STACK:
-- Next.js 16 with App Router + Turbopack
-- React 19
-- TypeScript  
-- Tailwind CSS 4 (NOT v3!)
+## Tech Stack
+Next.js 15 (App Router) | React 19 | TypeScript | Tailwind CSS 4
 
-⚠️ TAILWIND CSS 4 IMPORTANT:
-- Don't use custom utility classes like "border-border" or "bg-background"
-- Don't add @layer or @apply rules that reference non-standard utilities
-- Use standard Tailwind classes: bg-gray-100, border-gray-200, text-gray-900, etc.
-- Keep globals.css simple with just: @tailwind base; @tailwind components; @tailwind utilities;
+## Project Structure
+\`\`\`
+src/
+├── app/           # Pages: layout.tsx, page.tsx, [routes]/
+├── components/
+│   ├── ui/        # button.tsx, card.tsx, input.tsx
+│   └── layout/    # header.tsx, sidebar.tsx
+├── lib/
+│   ├── eliza.ts   # Eliza Cloud API client ⭐
+│   └── utils.ts
+├── hooks/
+│   └── use-eliza.ts  # React hook for Eliza ⭐
+└── types/
+\`\`\`
 
-PROJECT STRUCTURE:
-src/app/
-├── layout.tsx
-├── page.tsx  
-├── globals.css (keep it simple!)
+## ⚡ WORKFLOW
+1. install_packages (if needed)
+2. Create lib/eliza.ts (API client)
+3. Create hooks/use-eliza.ts
+4. Create components/ui/* 
+5. Create components/layout/*
+6. Create app pages
+7. check_build after each file → fix → repeat
 
-⚠️ WORKFLOW - ALWAYS FOLLOW:
-1. If you need packages → install_packages first
-2. Write your files
-3. Use check_build to verify no errors
-4. If errors → read the file and FIX them
-5. check_build again until clean
+## 🎨 TAILWIND CSS 4
+- Standard classes ONLY: bg-gray-900, text-white, border-gray-700
+- NO custom utilities (border-border, bg-background)
+- globals.css: just @tailwind directives
 
-WHEN MODIFYING globals.css:
-- Keep it minimal
-- DON'T add custom CSS variables or @layer rules
-- Use standard Tailwind only
+## 📁 REQUIRED: lib/eliza.ts
+\`\`\`typescript
+const API = '';
+class ElizaClient {
+  constructor(private apiKey: string) {}
+  private async fetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
+    const res = await fetch(\`\${API}\${path}\`, {
+      ...opts,
+      headers: { 'Content-Type': 'application/json', 'X-Api-Key': this.apiKey, ...opts.headers },
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  }
+  // AI
+  chat = (messages: Array<{role: string; content: string}>, model = 'gpt-4o') =>
+    this.fetch('/api/v1/chat/completions', { method: 'POST', body: JSON.stringify({ messages, model }) });
+  async *chatStream(messages: Array<{role: string; content: string}>, model = 'gpt-4o') {
+    const res = await fetch('/api/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Api-Key': this.apiKey },
+      body: JSON.stringify({ messages, model, stream: true }),
+    });
+    const reader = res.body?.getReader();
+    const decoder = new TextDecoder();
+    while (reader) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      for (const line of decoder.decode(value).split('\\n')) {
+        if (line.startsWith('data: ') && !line.includes('[DONE]')) {
+          try { yield JSON.parse(line.slice(6)); } catch {}
+        }
+      }
+    }
+  }
+  generateImage = (prompt: string) => this.fetch<{url: string}>('/api/v1/generate-image', { method: 'POST', body: JSON.stringify({ prompt }) });
+  generateVideo = (prompt: string) => this.fetch<{jobId: string}>('/api/v1/generate-video', { method: 'POST', body: JSON.stringify({ prompt }) });
+  // Storage
+  listFiles = () => this.fetch<{items: Array<{id: string; url: string}>}>('/api/v1/storage');
+  // Billing
+  getBalance = () => this.fetch<{balance: number}>('/api/v1/credits/balance');
+  getUsage = (limit = 20) => this.fetch<{usage: Array<{type: string; cost: number}>}>(\`/api/v1/usage?limit=\${limit}\`);
+  // Agents
+  listAgents = () => this.fetch<{agents: Array<{id: string; name: string}>}>('/api/v1/agents');
+  chatWithAgent = (agentId: string, message: string, roomId?: string) =>
+    this.fetch<{response: string; roomId: string}>('/api/v1/agents/chat', { method: 'POST', body: JSON.stringify({ agentId, message, roomId }) });
+  // Memory
+  saveMemory = (content: string, roomId: string, type = 'fact') =>
+    this.fetch<{memoryId: string}>('/api/v1/memory', { method: 'POST', body: JSON.stringify({ content, roomId, type }) });
+  searchMemories = (query: string, roomId?: string) =>
+    this.fetch<{memories: Array<{id: string; content: string}>}>('/api/v1/memory/search', { method: 'POST', body: JSON.stringify({ query, roomId }) });
+  // Workflows
+  listWorkflows = () => this.fetch<{workflows: Array<{id: string; name: string}>}>('/api/v1/n8n/workflows');
+  executeWorkflow = (id: string, data: Record<string, unknown>) =>
+    this.fetch<{executionId: string}>(\`/api/v1/n8n/workflows/\${id}/execute\`, { method: 'POST', body: JSON.stringify({ data }) });
+}
+export const eliza = (apiKey: string) => new ElizaClient(apiKey);
+\`\`\`
 
-Example safe globals.css:
-\`\`\`css
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-body {
-  font-family: system-ui, sans-serif;
+## 📁 REQUIRED: hooks/use-eliza.ts
+\`\`\`typescript
+'use client';
+import { useState, useMemo, useCallback } from 'react';
+import { eliza } from '@/lib/eliza';
+export function useEliza(apiKey: string) {
+  const client = useMemo(() => eliza(apiKey), [apiKey]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const call = useCallback(async <T>(fn: (c: ReturnType<typeof eliza>) => Promise<T>) => {
+    setLoading(true); setError(null);
+    try { return await fn(client); }
+    catch (e) { setError(e instanceof Error ? e.message : 'Error'); return null; }
+    finally { setLoading(false); }
+  }, [client]);
+  return { client, call, loading, error };
 }
 \`\`\`
 
-KEY RULES:
-1. Files are in src/app/ (not app/)
-2. Write COMPLETE, valid TypeScript
-3. Every page needs: export default function
-4. Use 'use client' for hooks/event handlers
-5. ALWAYS check_build after changes
-6. FIX any errors before finishing
+## 🔑 API Key
+- Use process.env.NEXT_PUBLIC_ELIZA_API_KEY
+- Or prompt user to enter (store in localStorage)
 
-BUILD BEAUTIFUL UIs with standard Tailwind classes!`;
+## 📋 API Quick Reference
+| Endpoint | Method | Use |
+|----------|--------|-----|
+| /api/v1/chat/completions | POST | AI chat (stream: true) |
+| /api/v1/generate-image | POST | Images |
+| /api/v1/generate-video | POST | Videos |
+| /api/v1/storage | GET | List files |
+| /api/v1/credits/balance | GET | Check balance |
+| /api/v1/agents | GET | List agents |
+| /api/v1/agents/chat | POST | Chat with agent |
+| /api/v1/memory | POST | Save memory |
+| /api/v1/memory/search | POST | Search memories |
+| /api/v1/n8n/workflows | GET | List workflows |
+| /api/v1/n8n/workflows/:id/execute | POST | Run workflow |
+
+BUILD COMPLETE MULTI-PAGE APPS with proper architecture!`;
+
+// Allowed directories for file operations (security: prevent path traversal)
+const ALLOWED_PATHS = [
+  'src/', 'app/', 'components/', 'lib/', 'public/', 'styles/', 'pages/',
+  'utils/', 'hooks/', 'types/', 'context/', 'store/', 'services/', 'api/',
+  'layouts/', 'templates/', 'features/', 'modules/', 'assets/', 'config/',
+  'package.json', 'tsconfig.json', 'tailwind.config.ts', 'tailwind.config.js',
+  'next.config.ts', 'next.config.js', 'next.config.mjs', 'postcss.config.js',
+  'postcss.config.mjs', '.env.local', '.env.example'
+];
+
+function isPathAllowed(filePath: string): boolean {
+  const normalized = filePath.replace(/^\.\//, '').replace(/\.\.\//g, '');
+  return ALLOWED_PATHS.some(allowed => normalized.startsWith(allowed) || normalized === allowed);
+}
 
 /**
  * Write file via shell
  */
 async function writeFileViaSh(sandbox: SandboxInstance, filePath: string, content: string): Promise<void> {
+  // Security: Validate path to prevent traversal attacks
+  if (!isPathAllowed(filePath)) {
+    throw new Error(`Path not allowed: ${filePath}. Files must be in: ${ALLOWED_PATHS.join(', ')}`);
+  }
+  
   const base64Content = Buffer.from(content, 'utf-8').toString('base64');
   const dir = filePath.split('/').slice(0, -1).join('/');
   
@@ -223,8 +325,9 @@ async function writeFileViaSh(sandbox: SandboxInstance, filePath: string, conten
     await sandbox.runCommand({ cmd: "mkdir", args: ["-p", dir] });
   }
   
-  const script = `require('fs').writeFileSync('${filePath}', Buffer.from('${base64Content}', 'base64').toString('utf-8'))`;
-  const result = await sandbox.runCommand({ cmd: "node", args: ["-e", script] });
+  // Use base64 encoding to safely pass content without shell escaping issues
+  const script = `require('fs').writeFileSync(process.argv[1], Buffer.from(process.argv[2], 'base64').toString('utf-8'))`;
+  const result = await sandbox.runCommand({ cmd: "node", args: ["-e", script, filePath, base64Content] });
   
   if (result.exitCode !== 0) {
     throw new Error(`Failed to write ${filePath}: ${await result.stderr()}`);
@@ -351,7 +454,24 @@ export class SandboxService {
       vcpus = 4,
       ports = [3000],
       env = {},
+      organizationId,
+      projectId,
     } = config;
+
+    // Load encrypted secrets from vault if organizationId is provided
+    let encryptedSecrets: Record<string, string> = {};
+    if (organizationId && secretsService.isConfigured) {
+      const orgSecrets = await secretsService.getDecrypted({ organizationId });
+      Object.assign(encryptedSecrets, orgSecrets);
+
+      if (projectId) {
+        const projectSecrets = await secretsService.getDecrypted({ organizationId, projectId });
+        Object.assign(encryptedSecrets, projectSecrets);
+      }
+    }
+
+    // Explicit env vars take precedence over secrets
+    const mergedEnv = { ...encryptedSecrets, ...env };
 
     const creds = getSandboxCredentials();
     
@@ -398,13 +518,13 @@ export class SandboxService {
         }
       }
 
-      // Start dev server with logging
-      logger.info("Starting dev server", { sandboxId });
+      // Start dev server with logging and secrets injected
+      logger.info("Starting dev server", { sandboxId, envVarCount: Object.keys(mergedEnv).length });
       await sandbox.runCommand({
         cmd: "sh",
         args: ["-c", "pnpm dev 2>&1 | tee /tmp/next-dev.log &"],
         detached: true,
-        env,
+        env: mergedEnv,
       });
 
       await this.waitForDevServer(sandbox, 3000);
@@ -479,7 +599,9 @@ REMEMBER:
       let continueLoop = true;
       let iteration = 0;
 
-      while (continueLoop && iteration < 20) {
+      // Allow up to 50 iterations for complex multi-file apps
+      const MAX_ITERATIONS = 50;
+      while (continueLoop && iteration < MAX_ITERATIONS) {
         iteration++;
         
         const response = await anthropic.messages.create({

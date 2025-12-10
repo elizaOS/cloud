@@ -44,7 +44,7 @@ export default async function ChatPage({
   }
 
   // Cloud chat page only works with cloud-created agents (including affiliates)
-  // Miniapp agents have their own chat interface
+  // App-deployed agents have their own chat interface
   if (character.source !== "cloud") {
     logger.warn(`[Chat Page] Character ${characterId} is not a cloud agent (source: ${character.source})`);
     notFound();

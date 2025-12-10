@@ -431,7 +431,7 @@ export class SecureTokenRedemptionService {
     // LOCK REDEEMABLE EARNINGS (BULLETPROOF DOUBLE-SPEND PREVENTION)
     // ========================================
     // 
-    // CRITICAL: Only EARNED points from miniapps/agents/MCPs are redeemable.
+    // CRITICAL: Only EARNED points from apps/agents/MCPs are redeemable.
     // This uses the redeemableEarnings table with:
     // - Database CHECK constraints preventing negative balances
     // - Immutable ledger audit trail
@@ -444,7 +444,7 @@ export class SecureTokenRedemptionService {
     if (!earningsBalance) {
       return {
         success: false,
-        error: "No redeemable earnings found. Only earnings from miniapps, agents, and MCPs can be redeemed.",
+        error: "No redeemable earnings found. Only earnings from apps, agents, and MCPs can be redeemed.",
       };
     }
 
@@ -454,7 +454,7 @@ export class SecureTokenRedemptionService {
     if (availableBalance.lt(deductionAmount)) {
       return {
         success: false,
-        error: `Insufficient redeemable earnings. Available: $${availableBalance.toFixed(2)}, Requested: $${deductionAmount.toFixed(2)}. Only earnings from miniapps, agents, and MCPs can be redeemed.`,
+        error: `Insufficient redeemable earnings. Available: $${availableBalance.toFixed(2)}, Requested: $${deductionAmount.toFixed(2)}. Only earnings from apps, agents, and MCPs can be redeemed.`,
       };
     }
 
@@ -468,7 +468,7 @@ export class SecureTokenRedemptionService {
         .for("update");
 
       if (!earningsRecord) {
-        throw new Error("No redeemable earnings found. Only earnings from miniapps, agents, and MCPs can be redeemed.");
+        throw new Error("No redeemable earnings found. Only earnings from apps, agents, and MCPs can be redeemed.");
       }
 
       const currentAvailable = new Decimal(earningsRecord.available_balance);
@@ -572,7 +572,7 @@ export class SecureTokenRedemptionService {
       network,
       payoutAddress: maskAddress(payoutAddress),
       requiresReview,
-      earningsSource: "redeemable_earnings", // Only miniapp/agent/mcp earnings
+      earningsSource: "redeemable_earnings", // Only app/agent/mcp earnings
     });
 
     return {

@@ -222,7 +222,7 @@ test.describe("Earnings Page UI", () => {
     }
   });
 
-  test("earnings breakdown by source shows miniapp/agent/mcp", async ({ page }) => {
+  test("earnings breakdown by source shows app/agent/mcp", async ({ page }) => {
     await page.goto(`${BASE_URL}/dashboard/earnings`);
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(2000);
@@ -234,15 +234,15 @@ test.describe("Earnings Page UI", () => {
     }
 
     // Look for source breakdown
-    const miniapp = page.locator('text=/miniapp/i');
+    const app = page.locator('text=/app/i');
     const agent = page.locator('text=/agent/i');
     const mcp = page.locator('text=/mcp/i');
 
-    const hasMiniapp = await miniapp.isVisible().catch(() => false);
+    const hasApp = await app.isVisible().catch(() => false);
     const hasAgent = await agent.isVisible().catch(() => false);
     const hasMcp = await mcp.isVisible().catch(() => false);
 
-    console.log(`✅ Source breakdown - Miniapp: ${hasMiniapp}, Agent: ${hasAgent}, MCP: ${hasMcp}`);
+    console.log(`✅ Source breakdown - App: ${hasApp}, Agent: ${hasAgent}, MCP: ${hasMcp}`);
   });
 
   test("system status banner shows when payouts limited", async ({ page }) => {
@@ -302,7 +302,7 @@ test.describe("Earnings Balance API", () => {
     expect(Array.isArray(data.bySource)).toBe(true);
 
     for (const source of data.bySource) {
-      expect(["miniapp", "agent", "mcp"]).toContain(source.source);
+      expect(["app", "agent", "mcp"]).toContain(source.source);
       expect(typeof source.totalEarned).toBe("number");
       expect(typeof source.count).toBe("number");
     }

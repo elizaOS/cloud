@@ -70,55 +70,59 @@ const querySchema = z.object({
 // ============================================================================
 
 export async function GET(request: NextRequest) {
-  const url = new URL(request.url);
-  const rawParams = Object.fromEntries(url.searchParams);
+  try {
+    const url = new URL(request.url);
+    const rawParams = Object.fromEntries(url.searchParams);
 
-  const parseResult = querySchema.safeParse(rawParams);
-  if (!parseResult.success) {
-    return NextResponse.json(
-      { error: "Invalid parameters", details: parseResult.error.issues },
-      { status: 400 }
-    );
-  }
-
-  const params = parseResult.data;
-  const cacheKey = `discovery:tools:${JSON.stringify(params)}`;
-
-  // Check cache (10 minutes TTL)
-  const cached = await cache.get<ToolsResponse>(cacheKey);
-  if (cached) {
-    return NextResponse.json({ ...cached, meta: { ...cached.meta, cached: true } });
-  }
-
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://elizacloud.ai";
-  const allTools: ToolInfo[] = [];
-
-  // ========================================================================
-  // Get tools from local MCPs
-  // ========================================================================
-
-  const localMcps = await userMcpsService.listPublic({ limit: 200 });
-
-  for (const mcp of localMcps) {
-    if (mcp.status !== "live") continue;
-    const endpoint = userMcpsService.getEndpointUrl(mcp, baseUrl);
-
-    for (const tool of mcp.tools ?? []) {
-      allTools.push({
-        name: tool.name,
-        description: tool.description,
-        provider: {
-          id: mcp.id,
-          name: mcp.name,
-          type: "local",
-          mcpEndpoint: endpoint,
-        },
-        category: mcp.category,
-        x402Required: mcp.x402_enabled,
-        inputSchema: tool.inputSchema,
-      });
+    const parseResult = querySchema.safeParse(rawParams);
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: "Invalid parameters", details: parseResult.error.issues },
+        { status: 400 }
+      );
     }
-  }
+
+    const params = parseResult.data;
+    const cacheKey = `discovery:tools:${JSON.stringify(params)}`;
+
+    // Check cache (10 minutes TTL)
+    const cached = await cache.get<ToolsResponse>(cacheKey);
+    if (cached) {
+      return NextResponse.json({ ...cached, meta: { ...cached.meta, cached: true } });
+    }
+
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://elizacloud.ai";
+    const allTools: ToolInfo[] = [];
+
+    // ========================================================================
+    // Get tools from local MCPs (with graceful fallback)
+    // ========================================================================
+    try {
+      const localMcps = await userMcpsService.listPublic({ limit: 200 });
+
+      for (const mcp of localMcps) {
+        if (mcp.status !== "live") continue;
+        const endpoint = userMcpsService.getEndpointUrl(mcp, baseUrl);
+
+        for (const tool of mcp.tools ?? []) {
+          allTools.push({
+            name: tool.name,
+            description: tool.description,
+            provider: {
+              id: mcp.id,
+              name: mcp.name,
+              type: "local",
+              mcpEndpoint: endpoint,
+            },
+            category: mcp.category ?? undefined,
+            x402Required: mcp.x402_enabled,
+            inputSchema: tool.inputSchema,
+          });
+        }
+      }
+    } catch {
+      // Database unavailable - continue with ERC-8004 only
+    }
 
   // ========================================================================
   // Get tools from ERC-8004 agents
@@ -200,5 +204,11 @@ export async function GET(request: NextRequest) {
   await cache.set(cacheKey, response, CacheTTL.erc8004.discovery);
 
   return NextResponse.json(response);
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Internal server error", message: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
+  }
 }
 

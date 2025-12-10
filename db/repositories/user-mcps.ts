@@ -259,6 +259,38 @@ export const userMcpsRepository = {
       );
     return mcp ?? null;
   },
+
+  /**
+   * Find public MCPs registered on ERC-8004.
+   * Used for marketplace discovery by external agents.
+   */
+  async findPublicRegistered(options: {
+    erc8004Only?: boolean;
+    category?: string;
+    limit?: number;
+  } = {}): Promise<UserMcp[]> {
+    const { erc8004Only = false, category, limit = 100 } = options;
+
+    const conditions = [
+      eq(userMcps.is_public, true),
+      eq(userMcps.status, "live"),
+    ];
+
+    if (erc8004Only) {
+      conditions.push(eq(userMcps.erc8004_registered, true));
+    }
+
+    if (category) {
+      conditions.push(eq(userMcps.category, category));
+    }
+
+    return db
+      .select()
+      .from(userMcps)
+      .where(and(...conditions))
+      .orderBy(desc(userMcps.total_requests), desc(userMcps.created_at))
+      .limit(limit);
+  },
 };
 
 /**

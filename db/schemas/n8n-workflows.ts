@@ -1,5 +1,5 @@
 /**
- * N8N Workflow Miniapp Schema
+ * N8N Workflow App Schema
  *
  * Schema for managing n8n workflows with:
  * - Workflow CRUD operations
@@ -336,9 +336,14 @@ export const n8nWorkflowExecutions = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
 
-    // Execution type: test, manual, scheduled, webhook
+    // Trigger that initiated this execution (null for manual/test executions)
+    trigger_id: uuid("trigger_id"),
+    // NOTE: No FK constraint here to avoid circular dependency issues
+    // The trigger_id is validated at the application layer
+
+    // Execution type: test, manual, scheduled, webhook, a2a, mcp
     execution_type: text("execution_type")
-      .$type<"test" | "manual" | "scheduled" | "webhook">()
+      .$type<"test" | "manual" | "scheduled" | "webhook" | "a2a" | "mcp">()
       .default("test")
       .notNull(),
 
@@ -378,11 +383,19 @@ export const n8nWorkflowExecutions = pgTable(
       table.workflow_id
     ),
     org_id_idx: index("n8n_workflow_executions_org_id_idx").on(table.organization_id),
+    trigger_id_idx: index("n8n_workflow_executions_trigger_id_idx").on(
+      table.trigger_id
+    ),
     status_idx: index("n8n_workflow_executions_status_idx").on(
       table.workflow_id,
       table.status
     ),
     created_at_idx: index("n8n_workflow_executions_created_at_idx").on(
+      table.created_at
+    ),
+    // Composite index for counting executions by trigger per day
+    trigger_date_idx: index("n8n_workflow_executions_trigger_date_idx").on(
+      table.trigger_id,
       table.created_at
     ),
   })
@@ -391,6 +404,41 @@ export const n8nWorkflowExecutions = pgTable(
 // =============================================================================
 // WORKFLOW TRIGGERS TABLE
 // =============================================================================
+
+/**
+ * Configuration for workflow triggers.
+ * Different trigger types use different fields.
+ */
+export interface WorkflowTriggerConfig {
+  // === Cron trigger config ===
+  cronExpression?: string;
+  inputData?: Record<string, unknown>;
+  
+  // === Webhook trigger config ===
+  /** Auto-generated HMAC secret for signature verification */
+  webhookSecret?: string;
+  /** Whether to require signature verification (default: true) */
+  requireSignature?: boolean;
+  /** Whether to include output data in webhook response (default: false) */
+  includeOutputInResponse?: boolean;
+  /** IP addresses allowed to call webhook (empty = all allowed) */
+  allowedIps?: string[];
+  /** Auto-generated webhook URL (for reference) */
+  webhookUrl?: string;
+  
+  // === A2A/MCP trigger config ===
+  skillId?: string;
+  toolName?: string;
+  
+  // === Common config ===
+  /** Maximum executions per day (default: 10000 for webhooks, 1440 for cron) */
+  maxExecutionsPerDay?: number;
+  /** Estimated cost per execution in credits (for budget control) */
+  estimatedCostPerExecution?: number;
+  
+  // Allow additional custom properties
+  [key: string]: unknown;
+}
 
 /**
  * Triggers for workflows (cron, webhook, A2A, MCP).
@@ -415,8 +463,8 @@ export const n8nWorkflowTriggers = pgTable(
       .$type<"cron" | "webhook" | "a2a" | "mcp">()
       .notNull(),
 
-    // Trigger configuration
-    config: jsonb("config").$type<Record<string, unknown>>().notNull(),
+    // Trigger configuration (typed for IntelliSense)
+    config: jsonb("config").$type<WorkflowTriggerConfig>().notNull(),
 
     // For cron: cron expression (e.g., "0 0 * * *")
     // For webhook: webhook path

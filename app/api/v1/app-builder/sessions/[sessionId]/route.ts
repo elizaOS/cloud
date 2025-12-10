@@ -17,14 +17,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { sessionId } = await params;
 
-    const session = await aiAppBuilderService.getSession(sessionId);
-
-    if (!session) {
-      return NextResponse.json(
-        { success: false, error: "Session not found" },
-        { status: 404 }
-      );
-    }
+    const session = await aiAppBuilderService.getSession(sessionId, user.id);
 
     return NextResponse.json({
       success: true,
@@ -32,12 +25,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     logger.error("Failed to get app builder session", { error });
+    const status = (error as Error).message?.includes("Access denied") ? 403 : 500;
     return NextResponse.json(
       {
         success: false,
         error: error instanceof Error ? error.message : "Failed to get session",
       },
-      { status: 500 }
+      { status }
     );
   }
 }
@@ -71,6 +65,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     await aiAppBuilderService.extendSession(
       sessionId,
+      user.id,
       validationResult.data.durationMs
     );
 
@@ -80,13 +75,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     logger.error("Failed to extend app builder session", { error });
+    const status = (error as Error).message?.includes("Access denied") ? 403 : 500;
     return NextResponse.json(
       {
         success: false,
         error:
           error instanceof Error ? error.message : "Failed to extend session",
       },
-      { status: 500 }
+      { status }
     );
   }
 }
@@ -100,7 +96,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { sessionId } = await params;
 
-    await aiAppBuilderService.stopSession(sessionId);
+    await aiAppBuilderService.stopSession(sessionId, user.id);
 
     return NextResponse.json({
       success: true,
@@ -108,12 +104,13 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     logger.error("Failed to stop app builder session", { error });
+    const status = (error as Error).message?.includes("Access denied") ? 403 : 500;
     return NextResponse.json(
       {
         success: false,
         error: error instanceof Error ? error.message : "Failed to stop session",
       },
-      { status: 500 }
+      { status }
     );
   }
 }

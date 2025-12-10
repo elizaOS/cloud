@@ -8,17 +8,20 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ArrowUp, Paperclip, Square, X } from "lucide-react";
-import { SetStateAction, useEffect, useMemo, useState } from "react";
+import { SetStateAction, useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 // Dynamic import for react-textarea-autosize
 let TextareaAutosize: React.ComponentType<React.TextareaHTMLAttributes<HTMLTextAreaElement> & { minRows?: number; maxRows?: number }>;
 try {
   TextareaAutosize = require("react-textarea-autosize").default;
 } catch {
   // Fallback to regular textarea
-  TextareaAutosize = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { minRows?: number; maxRows?: number }) => {
+  function TextareaAutosizeFallback(props: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { minRows?: number; maxRows?: number }) {
     const { minRows, maxRows, ...rest } = props;
     return <textarea {...rest} rows={minRows || 1} />;
-  };
+  }
+  TextareaAutosizeFallback.displayName = "TextareaAutosizeFallback";
+  TextareaAutosize = TextareaAutosizeFallback;
 }
 
 export function ChatInput({
@@ -62,9 +65,9 @@ export function ChatInput({
     });
   }
 
-  function handleFileRemove(file: File) {
+  const handleFileRemove = useCallback((file: File) => {
     handleFileChange((prev) => prev.filter((f) => f !== file));
-  }
+  }, [handleFileChange]);
 
   function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
     const items = Array.from(e.clipboardData.items);
@@ -128,15 +131,17 @@ export function ChatInput({
           >
             <X className="h-3 w-3 cursor-pointer" />
           </span>
-          <img
+          <Image
             src={URL.createObjectURL(file)}
             alt={file.name}
+            width={40}
+            height={40}
             className="rounded-xl w-10 h-10 object-cover"
           />
         </div>
       );
     });
-  }, [files]);
+  }, [files, handleFileRemove]);
 
   function onEnter(e: React.KeyboardEvent<HTMLFormElement>) {
     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -153,7 +158,7 @@ export function ChatInput({
     if (!isMultiModal) {
       handleFileChange([]);
     }
-  }, [isMultiModal]);
+  }, [isMultiModal, handleFileChange]);
 
   return (
     <form

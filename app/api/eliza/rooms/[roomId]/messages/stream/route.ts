@@ -49,7 +49,7 @@ export async function POST(
       appId: bodyAppId,
     } = body;
 
-    // App ID can come from body OR X-App-Id header (miniapp proxy uses header)
+    // App ID can come from body OR X-App-Id header (app proxy uses header)
     const appId = bodyAppId || request.headers.get("X-App-Id");
 
     if (!roomId || !text?.trim()) {
@@ -161,7 +161,7 @@ export async function POST(
       }
     }
 
-    // Step 3.5: App credit balance check (miniapp billing)
+    // Step 3.5: App credit balance check (app billing)
     // Only check if app has monetization enabled - otherwise user uses org credits
     if (userContext.appId) {
       const monetizationSettings =

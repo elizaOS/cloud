@@ -1,7 +1,7 @@
 /**
  * Agent Monetization Integration Tests
  * 
- * Verifies that agent monetization works like miniapps:
+ * Verifies that agent monetization works like apps:
  * 1. Public agents can charge markup
  * 2. Creator earnings go to redeemable earnings (not org credits)
  * 3. Supports HTTP, A2A, and MCP protocols
@@ -102,7 +102,7 @@ describe("Agent Monetization", () => {
 
     it("tracks earnings breakdown by source", () => {
       const userEarnings = {
-        earned_from_miniapps: 100,
+        earned_from_apps: 100,
         earned_from_agents: 50,
         earned_from_mcps: 25,
         available_balance: 175,
@@ -110,7 +110,7 @@ describe("Agent Monetization", () => {
 
       expect(userEarnings.earned_from_agents).toBe(50);
       expect(
-        userEarnings.earned_from_miniapps +
+        userEarnings.earned_from_apps +
         userEarnings.earned_from_agents +
         userEarnings.earned_from_mcps
       ).toBe(userEarnings.available_balance);
@@ -250,43 +250,43 @@ describe("Agent Monetization", () => {
   });
 });
 
-describe("Agent vs Miniapp Comparison", () => {
+describe("Agent vs App Comparison", () => {
   it("summarizes feature parity", () => {
     const features = {
       monetization: {
-        miniapp: "✅ inference_markup + purchase_share",
+        app: "✅ inference_markup + purchase_share",
         agent: "✅ inference_markup",
       },
       protocols: {
-        miniapp: "✅ HTTP API, WebSocket",
+        app: "✅ HTTP API, WebSocket",
         agent: "✅ HTTP, A2A, MCP",
       },
       discovery: {
-        miniapp: "✅ App directory",
+        app: "✅ App directory",
         agent: "✅ ERC-8004 registry",
       },
       earnings: {
-        miniapp: "✅ → redeemable_earnings (miniapp source)",
+        app: "✅ → redeemable_earnings (app source)",
         agent: "✅ → redeemable_earnings (agent source)",
       },
       redemption: {
-        miniapp: "✅ elizaOS tokens",
+        app: "✅ elizaOS tokens",
         agent: "✅ elizaOS tokens",
       },
     };
 
     console.log("\n" + "═".repeat(60));
-    console.log("AGENT vs MINIAPP FEATURE PARITY");
+    console.log("AGENT vs APP FEATURE PARITY");
     console.log("═".repeat(60));
 
     for (const [category, values] of Object.entries(features)) {
       console.log(`\n${category.toUpperCase()}:`);
-      console.log(`  Miniapp: ${values.miniapp}`);
+      console.log(`  App: ${values.app}`);
       console.log(`  Agent:   ${values.agent}`);
     }
 
     console.log("\n" + "═".repeat(60));
-    console.log("  Both agents and miniapps can:");
+    console.log("  Both agents and apps can:");
     console.log("  • Enable monetization with markup");
     console.log("  • Earn from inference requests");
     console.log("  • Accumulate redeemable earnings");

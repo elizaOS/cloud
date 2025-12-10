@@ -17,6 +17,7 @@ import {
   CreditCard,
   Key,
   PieChart,
+  Shield,
 } from "lucide-react";
 import {
   Select,
@@ -39,6 +40,7 @@ const tabs = [
   { id: "usage" as const, label: "Usage", icon: BarChart3 },
   { id: "billing" as const, label: "Billing", icon: CreditCard },
   { id: "apis" as const, label: "APIs", icon: Key },
+  { id: "secrets" as const, label: "Secrets", icon: Shield },
   { id: "analytics" as const, label: "Analytics", icon: PieChart },
   { id: "organization" as const, label: "Organization", icon: Building2 },
 ];

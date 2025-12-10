@@ -55,13 +55,13 @@ interface BalanceData {
     totalPending: number;
   };
   bySource: Array<{
-    source: "miniapp" | "agent" | "mcp";
+    source: "app" | "agent" | "mcp";
     totalEarned: number;
     count: number;
   }>;
   recentEarnings: Array<{
     id: string;
-    source: "miniapp" | "agent" | "mcp";
+    source: "app" | "agent" | "mcp";
     sourceId: string;
     amount: number;
     description: string;
@@ -122,7 +122,7 @@ const NETWORKS = [
 ];
 
 const SOURCE_ICONS = {
-  miniapp: AppWindow,
+  app: AppWindow,
   agent: Bot,
   mcp: Server,
 };
@@ -415,7 +415,7 @@ export function EarningsPageClient() {
           <div>
             <h4 className="font-semibold text-white mb-1">How Token Redemption Works</h4>
             <p className="text-sm text-white/60">
-              Earnings from your miniapps, agents, and MCPs can be redeemed for elizaOS tokens.
+              Earnings from your apps, agents, and MCPs can be redeemed for elizaOS tokens.
               The conversion rate is $1 = equivalent value in elizaOS at current market price.
               Tokens are sent directly to your wallet on your chosen network (Base, Solana, Ethereum, or BNB).
               Large redemptions ({">"} $1,000) require admin approval for security.

@@ -31,7 +31,7 @@ test.describe("Credit Balance Tracking", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
   test("initial credit balance is accessible", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
+    const response = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
       headers: authHeaders(),
     });
 
@@ -45,7 +45,7 @@ test.describe("Credit Balance Tracking", () => {
   });
 
   test("credit balance persists across requests", async ({ request }) => {
-    const response1 = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
+    const response1 = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
       headers: authHeaders(),
     });
     const data1 = await response1.json();
@@ -53,7 +53,7 @@ test.describe("Credit Balance Tracking", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    const response2 = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
+    const response2 = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
       headers: authHeaders(),
     });
     const data2 = await response2.json();
@@ -69,14 +69,14 @@ test.describe("Chat Message Credit Deduction", () => {
 
   test("sending chat message deducts credits", async ({ request }) => {
     // Get initial balance
-    const balanceResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
+    const balanceResponse = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
       headers: authHeaders(),
     });
     const balanceData = await balanceResponse.json();
     const initialBalance = parseFloat(balanceData.billing.creditBalance);
 
     // Create an agent for testing
-    const agentResponse = await request.post(`${CLOUD_URL}/api/v1/miniapp/agents`, {
+    const agentResponse = await request.post(`${CLOUD_URL}/api/v1/app/agents`, {
       headers: authHeaders(),
       data: {
         name: "Credit Test Agent",
@@ -92,7 +92,7 @@ test.describe("Chat Message Credit Deduction", () => {
 
     // Create a chat
     const chatResponse = await request.post(
-      `${CLOUD_URL}/api/v1/miniapp/agents/${agent.id}/chats`,
+      `${CLOUD_URL}/api/v1/app/agents/${agent.id}/chats`,
       {
         headers: authHeaders(),
       }
@@ -100,7 +100,7 @@ test.describe("Chat Message Credit Deduction", () => {
 
     if (chatResponse.status() !== 201) {
       // Cleanup agent
-      await request.delete(`${CLOUD_URL}/api/v1/miniapp/agents/${agent.id}`, {
+      await request.delete(`${CLOUD_URL}/api/v1/app/agents/${agent.id}`, {
         headers: authHeaders(),
       });
       return;
@@ -111,7 +111,7 @@ test.describe("Chat Message Credit Deduction", () => {
     try {
       // Send a message (this should deduct credits)
       const messageResponse = await request.post(
-        `${CLOUD_URL}/api/v1/miniapp/agents/${agent.id}/chats/${chat.id}/messages`,
+        `${CLOUD_URL}/api/v1/app/agents/${agent.id}/chats/${chat.id}/messages`,
         {
           headers: authHeaders(),
           data: {
@@ -124,7 +124,7 @@ test.describe("Chat Message Credit Deduction", () => {
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       // Check balance after message
-      const balanceAfterResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
+      const balanceAfterResponse = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
         headers: authHeaders(),
       });
       const balanceAfterData = await balanceAfterResponse.json();
@@ -141,7 +141,7 @@ test.describe("Chat Message Credit Deduction", () => {
       }
     } finally {
       // Cleanup
-      await request.delete(`${CLOUD_URL}/api/v1/miniapp/agents/${agent.id}`, {
+      await request.delete(`${CLOUD_URL}/api/v1/app/agents/${agent.id}`, {
         headers: authHeaders(),
       });
     }
@@ -150,7 +150,7 @@ test.describe("Chat Message Credit Deduction", () => {
   test("chat endpoint requires sufficient credits", async ({ request }) => {
     // This test would require setting balance to near zero
     // For now, verify the endpoint exists and handles low balance
-    const response = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
+    const response = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
       headers: authHeaders(),
     });
 
@@ -171,7 +171,7 @@ test.describe("Image Generation Credit Deduction", () => {
 
   test("image generation deducts credits", async ({ request }) => {
     // Get initial balance
-    const balanceResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
+    const balanceResponse = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
       headers: authHeaders(),
     });
     const balanceData = await balanceResponse.json();
@@ -190,7 +190,7 @@ test.describe("Image Generation Credit Deduction", () => {
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Check balance after generation
-    const balanceAfterResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
+    const balanceAfterResponse = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
       headers: authHeaders(),
     });
     const balanceAfterData = await balanceAfterResponse.json();
@@ -215,7 +215,7 @@ test.describe("Video Generation Credit Deduction", () => {
 
   test("video generation deducts credits", async ({ request }) => {
     // Get initial balance
-    const balanceResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
+    const balanceResponse = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
       headers: authHeaders(),
     });
     const balanceData = await balanceResponse.json();
@@ -233,7 +233,7 @@ test.describe("Video Generation Credit Deduction", () => {
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Check balance after generation
-    const balanceAfterResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
+    const balanceAfterResponse = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
       headers: authHeaders(),
     });
     const balanceAfterData = await balanceAfterResponse.json();
@@ -257,7 +257,7 @@ test.describe("Credit Usage Statistics", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
   test("usage statistics track credit consumption", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
+    const response = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
       headers: authHeaders(),
     });
 
@@ -272,7 +272,7 @@ test.describe("Credit Usage Statistics", () => {
   });
 
   test("usage statistics include breakdown", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
+    const response = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
       headers: authHeaders(),
     });
 
@@ -289,7 +289,7 @@ test.describe("Low Credit Paywall", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
   test("low credit balance triggers paywall", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
+    const response = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
       headers: authHeaders(),
     });
 
@@ -308,7 +308,7 @@ test.describe("Low Credit Paywall", () => {
   test("zero balance prevents feature usage", async ({ request }) => {
     // This would require setting balance to zero
     // For now, verify the billing endpoint works
-    const response = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
+    const response = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
       headers: authHeaders(),
     });
 
@@ -356,7 +356,7 @@ test.describe("Auto Top-Up Trigger", () => {
     }
 
     // Get current balance
-    const balanceResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
+    const balanceResponse = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
       headers: authHeaders(),
     });
     const balanceData = await balanceResponse.json();
@@ -384,7 +384,7 @@ test.describe("Auto Top-Up Trigger", () => {
 
   test("auto top-up simulation deducts credits", async ({ request }) => {
     // Get current balance
-    const balanceResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
+    const balanceResponse = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
       headers: authHeaders(),
     });
     const balanceData = await balanceResponse.json();

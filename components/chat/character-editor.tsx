@@ -57,13 +57,16 @@ export function CharacterEditor({
   const [showJson, setShowJson] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Update tab when URL changes
+  // Sync tab from URL when searchParams change
+  const urlTab = searchParams.get("tab") as MainTab | null;
+  const validUrlTab = urlTab && ["character", "plugins", "stats", "knowledge"].includes(urlTab) ? urlTab : null;
+  
   useEffect(() => {
-    const tab = searchParams.get("tab") as MainTab | null;
-    if (tab && ["character", "plugins", "stats", "knowledge"].includes(tab)) {
-      setActiveTab(tab);
+    if (validUrlTab && validUrlTab !== activeTab) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing URL state to local state on navigation
+      setActiveTab(validUrlTab);
     }
-  }, [searchParams]);
+  }, [validUrlTab, activeTab]);
 
   const tabs: TabItem[] = [
     {

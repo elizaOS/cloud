@@ -163,7 +163,8 @@ const querySchema = z.object({
 // ============================================================================
 
 export async function GET(request: NextRequest) {
-  const url = new URL(request.url);
+  try {
+    const url = new URL(request.url);
   const rawParams = Object.fromEntries(url.searchParams);
 
   const parseResult = querySchema.safeParse(rawParams);
@@ -243,65 +244,67 @@ export async function GET(request: NextRequest) {
   }
 
   // ========================================================================
-  // Fetch from Local Marketplace
+  // Fetch from Local Marketplace (with graceful fallback)
   // ========================================================================
   if (params.source === "all" || params.source === "local") {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://elizacloud.ai";
 
-    // Local agents
-    if (!params.types || params.types.includes("agent")) {
-      const characters = await characterMarketplaceService.searchPublic({
-        search: params.query,
-        category: params.categories?.[0],
-        limit: 100,
-      });
-
-      for (const char of characters) {
-        const bio = Array.isArray(char.bio) ? char.bio.join(" ") : char.bio;
-
-        allServices.push({
-          id: char.id,
-          name: char.name,
-          description: bio,
-          type: "agent",
-          image: char.avatar_url ?? undefined,
-          category: char.category ?? undefined,
-          tags: char.tags ?? [],
-          active: true,
-          a2aEndpoint: `${baseUrl}/api/agents/${char.id}/a2a`,
-          mcpEndpoint: `${baseUrl}/api/agents/${char.id}/mcp`,
-          x402Support: false,
-          verified: false,
-          source: "local",
-          pricing: char.monetization_enabled
-            ? {
-                type: "credits",
-                description: `${char.inference_markup_percentage}% markup`,
-              }
-            : { type: "free", description: "Free to use" },
+    try {
+      // Local agents
+      if (!params.types || params.types.includes("agent")) {
+        const result = await characterMarketplaceService.searchCharactersPublic({
+          filters: { search: params.query, category: params.categories?.[0] },
+          sortOptions: { field: "popularity_score", direction: "desc" },
+          pagination: { limit: 100, page: 1 },
+          includeStats: false,
         });
+
+        for (const char of result.characters) {
+          const bio = Array.isArray(char.bio) ? char.bio.join(" ") : char.bio;
+
+          allServices.push({
+            id: char.id,
+            name: char.name,
+            description: bio || "",
+            type: "agent",
+            image: char.avatar_url ?? undefined,
+            category: char.category ?? undefined,
+            tags: char.tags ?? [],
+            active: true,
+            a2aEndpoint: `${baseUrl}/api/agents/${char.id}/a2a`,
+            mcpEndpoint: `${baseUrl}/api/agents/${char.id}/mcp`,
+            x402Support: false,
+            verified: false,
+            source: "local",
+            pricing: char.monetization_enabled
+              ? {
+                  type: "credits",
+                  description: `${char.inference_markup_percentage}% markup`,
+                }
+              : { type: "free", description: "Free to use" },
+          });
+        }
       }
-    }
 
-    // Local MCPs
-    if (!params.types || params.types.includes("mcp")) {
-      const mcps = await userMcpsService.listPublic({
-        category: params.categories?.[0],
-        search: params.query,
-        limit: 100,
-      });
+      // Local MCPs
+      if (!params.types || params.types.includes("mcp")) {
+        const mcps = await userMcpsService.listPublic({
+          category: params.categories?.[0],
+          search: params.query,
+          limit: 100,
+        });
 
-      for (const mcp of mcps) {
-        allServices.push({
-          id: mcp.id,
-          name: mcp.name,
-          description: mcp.description,
-          type: "mcp",
-          category: mcp.category,
-          tags: mcp.tags ?? [],
-          active: mcp.status === "live",
-          mcpEndpoint: userMcpsService.getEndpointUrl(mcp, baseUrl),
-          mcpTools: mcp.tools.map((t) => t.name),
+        for (const mcp of mcps) {
+          allServices.push({
+            id: mcp.id,
+            name: mcp.name,
+            description: mcp.description || "",
+            type: "mcp",
+            category: mcp.category ?? undefined,
+            tags: mcp.tags ?? [],
+            active: mcp.status === "live",
+            mcpEndpoint: userMcpsService.getEndpointUrl(mcp, baseUrl),
+            mcpTools: mcp.tools.map((t) => t.name),
           x402Support: mcp.x402_enabled,
           verified: mcp.is_verified,
           source: "local",
@@ -313,6 +316,9 @@ export async function GET(request: NextRequest) {
                 : { type: "x402", amount: Number(mcp.x402_price_usd), currency: "USD" },
         });
       }
+    }
+    } catch {
+      // Database unavailable - continue with ERC-8004 only
     }
   }
 
@@ -402,7 +408,7 @@ export async function GET(request: NextRequest) {
         return a.registeredAt ? -1 : 1;
       });
       break;
-    case "stake":
+    case "stake": {
       const tierOrder = { high: 3, medium: 2, small: 1, none: 0 };
       filtered.sort((a, b) => {
         const aTier = tierOrder[a.stakeTier ?? "none"];
@@ -410,6 +416,7 @@ export async function GET(request: NextRequest) {
         return bTier - aTier;
       });
       break;
+    }
     default:
       filtered.sort((a, b) => a.name.localeCompare(b.name));
   }
@@ -469,5 +476,11 @@ export async function GET(request: NextRequest) {
   await cache.set(cacheKey, response, CacheTTL.erc8004.discovery);
 
   return NextResponse.json(response);
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Internal server error", message: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
+  }
 }
 

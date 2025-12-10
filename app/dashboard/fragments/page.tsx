@@ -5,11 +5,12 @@ import { ChatInput } from "@/components/fragments/chat-input";
 import { ChatPicker } from "@/components/fragments/chat-picker";
 import { ChatSettings } from "@/components/fragments/chat-settings";
 import { Preview } from "@/components/fragments/preview";
+import { AIAppBuilderDialog } from "@/components/apps/ai-app-builder-dialog";
 import { usePrivy } from "@privy-io/react-auth";
 import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
 import { Button } from "@/components/ui/button";
-import { Save, Rocket, FolderOpen } from "lucide-react";
-import { useState } from "react";
+import { Save, Rocket, FolderOpen, Zap, Layers } from "lucide-react";
+import { useState, useEffect, SetStateAction } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { LLMModelConfig } from "@/lib/fragments/models";
@@ -19,8 +20,9 @@ import templates from "@/lib/fragments/templates";
 import type { ExecutionResult } from "@/lib/fragments/types";
 import { DeepPartial } from "ai";
 import { experimental_useObject as useObject } from "ai/react";
-import { SetStateAction, useEffect, useState } from "react";
 import { fragmentSchema } from "@/lib/fragments/schema";
+
+type BuilderMode = "quick" | "full_app";
 
 function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T) => void] {
   const [storedValue, setStoredValue] = useState<T>(() => {
@@ -51,6 +53,10 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T) => voi
 import { toAISDKMessages, toMessageImage, type Message as MessageType } from "@/lib/fragments/messages";
 
 export default function FragmentsPage() {
+  // Builder mode state
+  const [builderMode, setBuilderMode] = useLocalStorage<BuilderMode>("fragments-builder-mode", "quick");
+  const [showFullAppDialog, setShowFullAppDialog] = useState(false);
+
   const [chatInput, setChatInput] = useLocalStorage("fragments-chat", "");
   const [files, setFiles] = useState<File[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("auto");
@@ -134,26 +140,21 @@ export default function FragmentsPage() {
         { type: "code", text: object.code || "" },
       ];
 
-      if (!lastMessage || lastMessage.role !== "assistant") {
-        addMessage({
-          role: "assistant",
-          content,
-          object,
-        });
-      }
-
-      if (lastMessage && lastMessage.role === "assistant") {
-        setMessage({
-          content,
-          object,
-        });
-      }
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (!last || last.role !== "assistant") {
+          return [...prev, { role: "assistant" as const, content, object }];
+        }
+        const updated = [...prev];
+        updated[prev.length - 1] = { ...last, content, object };
+        return updated;
+      });
     }
   }, [object]);
 
   useEffect(() => {
     if (error) stop();
-  }, [error]);
+  }, [error, stop]);
 
   function setMessage(message: Partial<MessageType>, index?: number) {
     setMessages((previousMessages) => {
@@ -318,9 +319,9 @@ export default function FragmentsPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          type: "miniapp",
+          type: "app",
           autoStorage: true, // Auto-create storage collections
-          autoInject: true, // Auto-inject miniapp helpers
+          autoInject: true, // Auto-inject app helpers
           // appUrl is optional - will be auto-generated
         }),
       });
@@ -335,7 +336,7 @@ export default function FragmentsPage() {
       // Show success with details
       const collectionsCount = deployment.collections?.length || 0;
       toast.success(
-        `Miniapp deployed! ${collectionsCount > 0 ? `${collectionsCount} storage collections created.` : ""}`,
+        `App deployed! ${collectionsCount > 0 ? `${collectionsCount} storage collections created.` : ""}`,
         { duration: 5000 }
       );
       
@@ -358,6 +359,7 @@ export default function FragmentsPage() {
   }
 
   return (
+    <>
     <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 md:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 min-h-0 flex flex-col">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
@@ -371,7 +373,7 @@ export default function FragmentsPage() {
               className="text-2xl sm:text-3xl md:text-4xl font-normal tracking-tight text-white truncate"
               style={{ fontFamily: "var(--font-roboto-mono)" }}
             >
-              Fragments
+              AI Builder
             </h1>
           </div>
           <p className="text-sm sm:text-base text-white/60 mt-2">
@@ -379,6 +381,35 @@ export default function FragmentsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2 sm:flex-nowrap sm:shrink-0">
+          {/* Mode Toggle */}
+          <div className="flex rounded-lg border border-white/10 p-1 bg-white/5">
+            <button
+              onClick={() => setBuilderMode("quick")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                builderMode === "quick"
+                  ? "bg-[#FF5800] text-white"
+                  : "text-white/60 hover:text-white"
+              }`}
+            >
+              <Zap className="h-4 w-4" />
+              <span className="hidden sm:inline">Quick</span>
+            </button>
+            <button
+              onClick={() => {
+                setBuilderMode("full_app");
+                setShowFullAppDialog(true);
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                builderMode === "full_app"
+                  ? "bg-[#FF5800] text-white"
+                  : "text-white/60 hover:text-white"
+              }`}
+            >
+              <Layers className="h-4 w-4" />
+              <span className="hidden sm:inline">Full App</span>
+            </button>
+          </div>
+
           {fragment && (
             <>
               <BrandButton
@@ -500,6 +531,18 @@ export default function FragmentsPage() {
         )}
       </div>
     </div>
+
+    {/* Full App Builder Dialog */}
+    <AIAppBuilderDialog
+      open={showFullAppDialog}
+      onOpenChange={(open) => {
+        setShowFullAppDialog(open);
+        if (!open) {
+          setBuilderMode("quick");
+        }
+      }}
+    />
+    </>
   );
 }
 

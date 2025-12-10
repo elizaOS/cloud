@@ -146,7 +146,7 @@ async function getSummaryHandler(request: NextRequest): Promise<Response> {
       ),
     },
 
-    // Apps (miniapps)
+    // Apps (apps)
     apps: orgApps.map((app) => ({
       id: app.id,
       name: app.name,
@@ -171,7 +171,7 @@ async function getSummaryHandler(request: NextRequest): Promise<Response> {
           totalEarned: 0,
           totalRedeemed: 0,
           totalPending: 0,
-          breakdown: { miniapps: 0, agents: 0, mcps: 0 },
+          breakdown: { apps: 0, agents: 0, mcps: 0 },
         },
 
     // Recent transactions

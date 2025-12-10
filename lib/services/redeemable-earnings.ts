@@ -13,7 +13,7 @@
  * 5. Unique constraints on redeemed earnings
  * 
  * ONLY earnings from these sources are redeemable:
- * - Miniapp creator earnings
+ * - App creator earnings
  * - Agent creator earnings  
  * - MCP creator earnings
  */
@@ -34,7 +34,7 @@ import Decimal from "decimal.js";
 // TYPES
 // ============================================================================
 
-type EarningsSource = "miniapp" | "agent" | "mcp";
+type EarningsSource = "app" | "agent" | "mcp";
 
 interface AddEarningsParams {
   userId: string;
@@ -96,7 +96,7 @@ class RedeemableEarningsService {
     totalRedeemed: number;
     totalPending: number;
     breakdown: {
-      miniapps: number;
+      apps: number;
       agents: number;
       mcps: number;
     };
@@ -115,7 +115,7 @@ class RedeemableEarningsService {
       totalRedeemed: Number(earnings.total_redeemed),
       totalPending: Number(earnings.total_pending),
       breakdown: {
-        miniapps: Number(earnings.earned_from_miniapps),
+        apps: Number(earnings.earned_from_apps),
         agents: Number(earnings.earned_from_agents),
         mcps: Number(earnings.earned_from_mcps),
       },
@@ -123,7 +123,7 @@ class RedeemableEarningsService {
   }
 
   /**
-   * Add earnings from a valid source (miniapp, agent, or mcp)
+   * Add earnings from a valid source (app, agent, or mcp)
    * 
    * SECURITY: This is the ONLY way earnings can be added.
    */
@@ -153,7 +153,7 @@ class RedeemableEarningsService {
             user_id: userId,
             total_earned: amountDecimal,
             available_balance: amountDecimal,
-            earned_from_miniapps: source === "miniapp" ? amountDecimal : "0.0000",
+            earned_from_apps: source === "app" ? amountDecimal : "0.0000",
             earned_from_agents: source === "agent" ? amountDecimal : "0.0000",
             earned_from_mcps: source === "mcp" ? amountDecimal : "0.0000",
             last_earning_at: new Date(),
@@ -162,7 +162,7 @@ class RedeemableEarningsService {
       } else {
         // Update existing record
         const sourceColumn = 
-          source === "miniapp" ? redeemableEarnings.earned_from_miniapps :
+          source === "app" ? redeemableEarnings.earned_from_apps :
           source === "agent" ? redeemableEarnings.earned_from_agents :
           redeemableEarnings.earned_from_mcps;
 

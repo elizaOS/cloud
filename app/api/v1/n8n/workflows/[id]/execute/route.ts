@@ -1,7 +1,7 @@
 /**
  * N8N Workflow Execute API
  *
- * POST /api/v1/n8n/workflows/:id/execute - Execute workflow (REST endpoint for miniapps)
+ * POST /api/v1/n8n/workflows/:id/execute - Execute workflow (REST endpoint for apps)
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -12,12 +12,12 @@ import { z } from "zod";
 
 const ExecuteWorkflowSchema = z.object({
   inputData: z.record(z.unknown()).optional(),
-  triggerType: z.enum(["manual", "api", "miniapp"]).optional().default("api"),
+  triggerType: z.enum(["manual", "api", "app"]).optional().default("api"),
 });
 
 /**
  * POST /api/v1/n8n/workflows/:id/execute
- * Executes a workflow via REST API (for miniapp usage).
+ * Executes a workflow via REST API (for app usage).
  */
 export async function POST(
   request: NextRequest,

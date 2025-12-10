@@ -19,6 +19,7 @@ import {
   UsageTab,
   BillingTab,
   ApisTab,
+  SecretsTab,
   AnalyticsTab,
   OrganizationTab,
 } from "./tabs";
@@ -33,6 +34,7 @@ export type SettingsTab =
   | "usage"
   | "billing"
   | "apis"
+  | "secrets"
   | "analytics"
   | "organization";
 
@@ -45,10 +47,11 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
   );
 
   useEffect(() => {
-    if (tabFromUrl) {
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing URL state to local state on navigation
       setActiveTab(tabFromUrl);
     }
-  }, [tabFromUrl]);
+  }, [tabFromUrl, activeTab]);
 
   useSetPageHeader({
     title: "Settings",
@@ -67,6 +70,8 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
         return <BillingTab user={user} />;
       case "apis":
         return <ApisTab user={user} />;
+      case "secrets":
+        return <SecretsTab user={user} />;
       case "analytics":
         return <AnalyticsTab user={user} />;
       case "organization":

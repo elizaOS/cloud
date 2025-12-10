@@ -6,7 +6,7 @@ import { test, expect } from "@playwright/test";
  * Tests authentication and session management:
  * - Logout
  * - CLI session creation and completion
- * - Miniapp session completion
+ * - App session completion
  * - Anonymous session migration
  * - Current session info
  *
@@ -155,21 +155,21 @@ test.describe("CLI Session API", () => {
   });
 });
 
-test.describe("Miniapp Session Completion API", () => {
+test.describe("App Session Completion API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("POST /api/auth/miniapp-session/:sessionId/complete completes session", async ({
+  test("POST /api/auth/app-session/:sessionId/complete completes session", async ({
     request,
   }) => {
-    // First create a miniapp session
-    const createResponse = await request.post(`${CLOUD_URL}/api/auth/miniapp-session`, {
+    // First create a app session
+    const createResponse = await request.post(`${CLOUD_URL}/api/auth/app-session`, {
       headers: {
         "Content-Type": "application/json",
       },
     });
 
     if (createResponse.status() !== 200 && createResponse.status() !== 201) {
-      console.log(`ℹ️ Miniapp session creation returned ${createResponse.status()}`);
+      console.log(`ℹ️ App session creation returned ${createResponse.status()}`);
       return;
     }
 
@@ -179,7 +179,7 @@ test.describe("Miniapp Session Completion API", () => {
 
     // Complete session
     const response = await request.post(
-      `${CLOUD_URL}/api/auth/miniapp-session/${sessionId}/complete`,
+      `${CLOUD_URL}/api/auth/app-session/${sessionId}/complete`,
       {
         headers: authHeaders(),
       }
@@ -188,9 +188,9 @@ test.describe("Miniapp Session Completion API", () => {
     expect([200, 201, 400, 403, 404, 500, 501]).toContain(response.status());
 
     if (response.status() === 200 || response.status() === 201) {
-      console.log("✅ Miniapp session completion works");
+      console.log("✅ App session completion works");
     } else {
-      console.log(`ℹ️ Miniapp session completion returned ${response.status()}`);
+      console.log(`ℹ️ App session completion returned ${response.status()}`);
     }
   });
 });
@@ -342,14 +342,14 @@ test.describe("Auth Pages UI", () => {
     console.log("✅ CLI login page with session ID loads");
   });
 
-  test("miniapp login page loads", async ({ page }) => {
-    await page.goto(`${BASE_URL}/auth/miniapp-login`);
+  test("app login page loads", async ({ page }) => {
+    await page.goto(`${BASE_URL}/auth/app-login`);
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(2000);
 
     const content = await page.locator("body").textContent();
     expect(content?.length).toBeGreaterThan(0);
-    console.log("✅ Miniapp login page loads");
+    console.log("✅ App login page loads");
   });
 
   test("auth error page shows error info", async ({ page }) => {

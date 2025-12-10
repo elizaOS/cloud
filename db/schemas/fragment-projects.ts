@@ -1,7 +1,8 @@
 /**
  * Fragment Projects Schema
  * 
- * Stores saved fragment projects that can be deployed as miniapps
+ * Stores saved fragment projects that can be deployed as apps.
+ * Supports both "quick mode" (single-file fragments) and "full app mode" (Vercel Sandbox).
  */
 
 import {
@@ -10,14 +11,31 @@ import {
   text,
   jsonb,
   timestamp,
-  boolean,
   index,
+  integer,
 } from "drizzle-orm/pg-core";
 import { organizations } from "./organizations";
 import { users } from "./users";
 import { apps } from "./apps";
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import type { FragmentSchema } from "@/lib/fragments/schema";
+
+/**
+ * Builder mode types:
+ * - fragment: Quick single-file generation (browser-based execution)
+ * - full_app: Full Next.js app via Vercel Sandbox
+ */
+export type BuilderMode = "fragment" | "full_app";
+
+/**
+ * Message structure for conversation history
+ */
+export interface BuilderMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+  timestamp: string;
+  filesAffected?: string[];
+}
 
 export const fragmentProjects = pgTable(
   "fragment_projects",
@@ -36,20 +54,47 @@ export const fragmentProjects = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
 
-    // Fragment data
-    fragment_data: jsonb("fragment_data")
-      .$type<FragmentSchema>()
-      .notNull(),
+    // Builder mode: "fragment" (quick) or "full_app" (Vercel Sandbox)
+    builder_mode: text("builder_mode").$type<BuilderMode>().default("fragment").notNull(),
+
+    // Fragment data (for quick mode)
+    fragment_data: jsonb("fragment_data").$type<FragmentSchema>(),
 
     // Template and status
     template: text("template").notNull(),
-    status: text("status").default("draft").notNull(), // draft, deployed, archived
+    status: text("status").default("draft").notNull(), // draft, generating, ready, deployed, error, archived
+
+    // Sandbox session (for full_app mode)
+    sandbox_id: text("sandbox_id"), // Vercel Sandbox ID
+    sandbox_url: text("sandbox_url"), // Preview URL
+    sandbox_expires_at: timestamp("sandbox_expires_at"),
+
+    // Conversation history (for both modes)
+    messages: jsonb("messages").$type<BuilderMessage[]>().default([]),
+
+    // Generated files tracking (for full_app mode)
+    generated_files: jsonb("generated_files")
+      .$type<Array<{ path: string; type: "created" | "modified" | "deleted"; timestamp: string }>>()
+      .default([]),
+
+    // Build configuration
+    build_config: jsonb("build_config")
+      .$type<{
+        templateType?: "chat" | "agent-dashboard" | "landing-page" | "analytics" | "blank";
+        includeMonetization?: boolean;
+        includeAnalytics?: boolean;
+        features?: string[];
+      }>()
+      .default({}),
 
     // Deployment
     deployed_app_id: uuid("deployed_app_id").references(() => apps.id, {
       onDelete: "set null",
     }),
     deployed_container_id: text("deployed_container_id"), // If deployed as container
+
+    // Resource usage (for full_app mode)
+    cpu_seconds_used: integer("cpu_seconds_used").default(0),
 
     // Metadata
     metadata: jsonb("metadata")
@@ -70,6 +115,12 @@ export const fragmentProjects = pgTable(
     status_idx: index("fragment_projects_status_idx").on(table.status),
     deployed_app_idx: index("fragment_projects_deployed_app_idx").on(
       table.deployed_app_id
+    ),
+    builder_mode_idx: index("fragment_projects_builder_mode_idx").on(
+      table.builder_mode
+    ),
+    sandbox_id_idx: index("fragment_projects_sandbox_id_idx").on(
+      table.sandbox_id
     ),
   })
 );

@@ -654,6 +654,24 @@ export class CharacterMarketplaceService {
       interactionCount: character.interaction_count,
       createdAt: character.created_at,
       updatedAt: character.updated_at,
+      // ERC-8004 registration status
+      erc8004: {
+        registered: character.erc8004_registered,
+        network: character.erc8004_network || undefined,
+        agentId: character.erc8004_agent_id || undefined,
+        agentUri: character.erc8004_agent_uri || undefined,
+        registeredAt: character.erc8004_registered_at || undefined,
+      },
+      // Protocol endpoints
+      protocols: {
+        a2aEnabled: character.a2a_enabled,
+        mcpEnabled: character.mcp_enabled,
+      },
+      // Monetization
+      monetization: {
+        enabled: character.monetization_enabled,
+        markupPercentage: parseFloat(character.inference_markup_percentage as string) || 0,
+      },
     };
   }
 

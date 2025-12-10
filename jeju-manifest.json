@@ -17,10 +17,25 @@
   "optional": true,
   "enabled": true,
   "autoStart": true,
-  "tags": ["dashboard", "infrastructure", "nextjs"],
+  "tags": ["dashboard", "infrastructure", "nextjs", "jns"],
+  "jns": {
+    "name": "cloud.jeju",
+    "description": "Jeju Cloud Dashboard",
+    "url": "https://cloud.jeju.network"
+  },
   "healthCheck": {
     "url": "http://localhost:5006/api/health",
     "interval": 10000
+  },
+  "agent": {
+    "enabled": true,
+    "tags": ["jeju-app", "cloud", "dashboard"],
+    "metadata": {
+      "category": "infrastructure",
+      "provider": "jeju-network"
+    },
+    "trustModels": ["open"],
+    "jnsName": "cloud.jeju"
   }
 }
 

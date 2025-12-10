@@ -35,13 +35,100 @@ import { createHash } from "crypto";
 
 // Lazy import agent0-sdk to avoid JSON import issues during initial load
 let SDK: typeof import("agent0-sdk").SDK | null = null;
+let sdkLoadFailed = false;
 
 async function getSDKModule() {
+  if (sdkLoadFailed) {
+    return null;
+  }
   if (!SDK) {
-    const sdkModule = await import("agent0-sdk");
-    SDK = sdkModule.SDK;
+    try {
+      const sdkModule = await import("agent0-sdk");
+      SDK = sdkModule.SDK;
+    } catch (error) {
+      logger.warn("[Agent0] Failed to load agent0-sdk, falling back to indexer", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      sdkLoadFailed = true;
+      return null;
+    }
   }
   return SDK;
+}
+
+// Indexer fallback - queries the local indexer directly
+const INDEXER_URL = process.env.INDEXER_URL || "http://localhost:4000/graphql";
+
+async function fetchFromIndexer(filters: Agent0SearchFilters): Promise<Agent0Agent[]> {
+  const whereConditions: string[] = [];
+  if (filters.active !== false) whereConditions.push(`active_eq: true`);
+  if (filters.x402Support) whereConditions.push(`x402Support_eq: true`);
+  if (filters.name) whereConditions.push(`name_containsInsensitive: "${filters.name}"`);
+  
+  const whereClause = whereConditions.length > 0 ? `where: { ${whereConditions.join(", ")} }` : "";
+  
+  const query = `
+    query {
+      registeredAgents(limit: ${filters.limit || 50}, orderBy: agentId_DESC${whereClause ? ", " + whereClause : ""}) {
+        agentId
+        name
+        description
+        a2aEndpoint
+        mcpEndpoint
+        serviceType
+        category
+        x402Support
+        mcpTools
+        a2aSkills
+        image
+        tags
+        active
+      }
+    }
+  `;
+  
+  const response = await fetch(INDEXER_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
+  });
+  
+  const result = await response.json();
+  
+  if (result.errors) {
+    logger.warn("[Agent0/Indexer] GraphQL errors", { errors: result.errors });
+    return [];
+  }
+  
+  return (result.data?.registeredAgents || []).map((agent: {
+    agentId: string;
+    name: string;
+    description?: string;
+    a2aEndpoint?: string;
+    mcpEndpoint?: string;
+    serviceType?: string;
+    category?: string;
+    x402Support?: boolean;
+    mcpTools?: string[];
+    a2aSkills?: string[];
+    image?: string;
+    tags?: string[];
+    active?: boolean;
+  }): Agent0Agent => ({
+    agentId: agent.agentId,
+    name: agent.name,
+    description: agent.description,
+    image: agent.image,
+    mcpEndpoint: agent.mcpEndpoint,
+    a2aEndpoint: agent.a2aEndpoint,
+    mcpTools: agent.mcpTools || [],
+    a2aSkills: agent.a2aSkills || [],
+    tags: agent.tags || [],
+    active: agent.active ?? true,
+    x402Support: agent.x402Support ?? false,
+    network: getDefaultNetwork(),
+    ecosystem: getNetworkEcosystem(getDefaultNetwork()),
+  }));
 }
 
 // Type imports from agent0-sdk
@@ -73,6 +160,7 @@ export interface Agent0Agent {
   a2aEndpoint?: string;
   mcpTools?: string[];
   a2aSkills?: string[];
+  tags?: string[];
   active: boolean;
   x402Support: boolean;
   /** Source registry ecosystem */
@@ -165,36 +253,51 @@ class Agent0Service {
 
   /**
    * Search for agents on a single network
+   * Falls back to indexer if SDK is unavailable
    */
   async searchAgents(filters: Agent0SearchFilters = {}, network?: ERC8004Network): Promise<Agent0Agent[]> {
     const targetNetwork = network || this.defaultNetwork;
-    const sdk = await this.ensureSDK(targetNetwork);
+    
+    // Try indexer fallback first if SDK failed to load
+    if (sdkLoadFailed) {
+      logger.debug("[Agent0] Using indexer fallback for search");
+      return fetchFromIndexer(filters);
+    }
+    
+    try {
+      const sdk = await this.ensureSDK(targetNetwork);
 
-    const searchParams: SearchParams = {
-      name: filters.name,
-      mcpTools: filters.mcpTools,
-      a2aSkills: filters.a2aSkills,
-      active: filters.active,
-      x402support: filters.x402Support,
-    };
+      const searchParams: SearchParams = {
+        name: filters.name,
+        mcpTools: filters.mcpTools,
+        a2aSkills: filters.a2aSkills,
+        active: filters.active,
+        x402support: filters.x402Support,
+      };
 
-    const { items } = await sdk.searchAgents(searchParams);
+      const { items } = await sdk.searchAgents(searchParams);
 
-    return items.map((agent: AgentSummary) => ({
-      agentId: agent.agentId,
-      name: agent.name,
-      description: agent.description,
-      image: agent.image,
-      walletAddress: agent.walletAddress,
-      mcpEndpoint: agent.mcpEndpoint,
-      a2aEndpoint: agent.a2aEndpoint,
-      mcpTools: agent.mcpTools,
-      a2aSkills: agent.a2aSkills,
-      active: agent.active ?? false,
-      x402Support: agent.x402support ?? false,
-      ecosystem: getNetworkEcosystem(targetNetwork),
-      network: targetNetwork,
-    }));
+      return items.map((agent: AgentSummary) => ({
+        agentId: agent.agentId,
+        name: agent.name,
+        description: agent.description,
+        image: agent.image,
+        walletAddress: agent.walletAddress,
+        mcpEndpoint: agent.mcpEndpoint,
+        a2aEndpoint: agent.a2aEndpoint,
+        mcpTools: agent.mcpTools,
+        a2aSkills: agent.a2aSkills,
+        active: agent.active ?? false,
+        x402Support: agent.x402support ?? false,
+        ecosystem: getNetworkEcosystem(targetNetwork),
+        network: targetNetwork,
+      }));
+    } catch (error) {
+      logger.warn("[Agent0] SDK search failed, falling back to indexer", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return fetchFromIndexer(filters);
+    }
   }
 
   /**

@@ -287,7 +287,10 @@ class EndpointDiscoveryService {
         return this.getFallbackRESTEndpoints(baseUrl);
       }
 
-      async function scanDirectory(dir: string, basePath: string = ""): Promise<void> {
+      // Store reference to this for use in nested function
+      const self = this;
+      
+      const scanDirectory = async (dir: string, basePath: string = ""): Promise<void> => {
         try {
           const entries = await readdir(dir, { withFileTypes: true });
           
@@ -337,16 +340,16 @@ class EndpointDiscoveryService {
                   }
                   
                   // Determine category from path
-                  const category = this.categorizePath(apiPath);
+                  const category = self.categorizePath(apiPath);
                   
                   // Determine auth requirement
-                  const auth = this.determineAuth(apiPath, content);
+                  const auth = self.determineAuth(apiPath, content);
                   
                   // Generate name from path
-                  const name = this.generateEndpointName(apiPath);
+                  const name = self.generateEndpointName(apiPath);
                   
                   // Generate description
-                  const description = this.generateEndpointDescription(apiPath, content);
+                  const description = self.generateEndpointDescription(apiPath, content);
                   
                   // Create a node for each HTTP method
                   for (const method of methods) {
@@ -382,7 +385,7 @@ class EndpointDiscoveryService {
           // Skip directories we can't read
           logger.debug(`[EndpointDiscovery] Skipping directory ${dir}:`, error);
         }
-      }
+      };
       
       await scanDirectory(apiDir);
       

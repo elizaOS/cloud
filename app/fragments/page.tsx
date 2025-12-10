@@ -9,32 +9,40 @@ import { usePrivy } from "@privy-io/react-auth";
 import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Save, Rocket, FolderOpen } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, SetStateAction } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import type { Message, toAISDKMessages, toMessageImage } from "@/lib/fragments/messages";
 import type { LLMModelConfig } from "@/lib/fragments/models";
 import modelsList from "@/lib/fragments/models";
-import type { FragmentSchema } from "@/lib/fragments/schema";
+import { fragmentSchema, type FragmentSchema } from "@/lib/fragments/schema";
 import templates from "@/lib/fragments/templates";
 import type { ExecutionResult } from "@/lib/fragments/types";
 import { DeepPartial } from "ai";
 import { experimental_useObject as useObject } from "ai/react";
-import { SetStateAction, useEffect, useState } from "react";
-// Note: useLocalStorage from usehooks-ts - if not available, use useState
-let useLocalStorage: <T>(key: string, initialValue: T) => [T, (value: T) => void];
-try {
-  const usehooks = require("usehooks-ts");
-  useLocalStorage = usehooks.useLocalStorage;
-} catch {
-  // Fallback to useState if usehooks-ts not available
-  useLocalStorage = (key: string, initialValue: any) => {
-    const [state, setState] = useState(initialValue);
-    return [state, setState];
-  };
-}
-import { fragmentSchema } from "@/lib/fragments/schema";
 import { toAISDKMessages, toMessageImage, type Message as MessageType } from "@/lib/fragments/messages";
+
+function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T) => void] {
+  const [storedValue, setStoredValue] = useState<T>(() => {
+    if (typeof window === "undefined") {
+      return initialValue;
+    }
+    try {
+      const item = window.localStorage.getItem(key);
+      return item ? JSON.parse(item) : initialValue;
+    } catch {
+      return initialValue;
+    }
+  });
+
+  const setValue = (value: T) => {
+    setStoredValue(value);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    }
+  };
+
+  return [storedValue, setValue];
+}
 
 export default function FragmentsPage() {
   const [chatInput, setChatInput] = useLocalStorage("fragments-chat", "");
@@ -124,26 +132,21 @@ export default function FragmentsPage() {
         { type: "code", text: object.code || "" },
       ];
 
-      if (!lastMessage || lastMessage.role !== "assistant") {
-        addMessage({
-          role: "assistant",
-          content,
-          object,
-        });
-      }
-
-      if (lastMessage && lastMessage.role === "assistant") {
-        setMessage({
-          content,
-          object,
-        });
-      }
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (!last || last.role !== "assistant") {
+          return [...prev, { role: "assistant" as const, content, object }];
+        }
+        const updated = [...prev];
+        updated[prev.length - 1] = { ...last, content, object };
+        return updated;
+      });
     }
   }, [object]);
 
   useEffect(() => {
     if (error) stop();
-  }, [error]);
+  }, [error, stop]);
 
   function setMessage(message: Partial<MessageType>, index?: number) {
     setMessages((previousMessages) => {
@@ -309,7 +312,7 @@ export default function FragmentsPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          type: "miniapp",
+          type: "app",
           appUrl,
         }),
       });

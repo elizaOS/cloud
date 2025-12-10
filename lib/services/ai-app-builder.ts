@@ -6,7 +6,11 @@
  */
 
 import { sandboxService, type SandboxSessionData } from "./sandbox";
-import { buildSystemPrompt, EXAMPLE_PROMPTS } from "@/lib/config/claude-prompts";
+import { 
+  buildFullAppPrompt, 
+  getExamplePrompts,
+  type FullAppTemplateType 
+} from "@/lib/fragments/prompt";
 import { logger } from "@/lib/utils/logger";
 import { db } from "@/db/client";
 import {
@@ -19,6 +23,15 @@ import {
   type NewAppBuilderPrompt,
 } from "@/db/schemas/app-sandboxes";
 import { eq, desc } from "drizzle-orm";
+
+// Re-export EXAMPLE_PROMPTS for backward compatibility
+const EXAMPLE_PROMPTS = {
+  chat: getExamplePrompts("chat"),
+  "agent-dashboard": getExamplePrompts("agent-dashboard"),
+  "landing-page": getExamplePrompts("landing-page"),
+  analytics: getExamplePrompts("analytics"),
+  blank: getExamplePrompts("blank"),
+};
 
 export interface BuilderSessionConfig {
   userId: string;
@@ -57,6 +70,25 @@ export interface PromptResult {
  */
 export class AIAppBuilderService {
   /**
+   * Verify session ownership - throws if user doesn't own the session
+   */
+  private async verifyOwnership(sessionId: string, userId: string): Promise<AppSandboxSession> {
+    const session = await db.query.appSandboxSessions.findFirst({
+      where: eq(appSandboxSessions.id, sessionId),
+    });
+
+    if (!session) {
+      throw new Error("Session not found");
+    }
+
+    if (session.user_id !== userId) {
+      throw new Error("Access denied: You don't own this session");
+    }
+
+    return session;
+  }
+
+  /**
    * Start a new builder session
    */
   async startSession(config: BuilderSessionConfig): Promise<BuilderSession> {
@@ -88,19 +120,20 @@ export class AIAppBuilderService {
         templateUrl = template?.git_repo_url;
       }
 
-      // Create the sandbox
+      // Create the sandbox with organization secrets
+      // NOTE: API keys for AI calls go through our backend, but other secrets
+      // (e.g., third-party APIs) are loaded from the secrets vault
       const sandboxData = await sandboxService.create({
         templateUrl,
         timeout: 30 * 60 * 1000, // 30 minutes
         vcpus: 4,
-        env: {
-          ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || "",
-        },
+        organizationId,
+        projectId: appId,
       });
 
       // Build the system prompt
-      const systemPrompt = buildSystemPrompt({
-        templateType,
+      const systemPrompt = buildFullAppPrompt({
+        templateType: templateType as FullAppTemplateType,
         includeMonetization,
         includeAnalytics,
       });
@@ -168,19 +201,17 @@ export class AIAppBuilderService {
   /**
    * Send a prompt to Claude Code in the sandbox
    */
-  async sendPrompt(sessionId: string, prompt: string): Promise<PromptResult> {
+  async sendPrompt(sessionId: string, prompt: string, userId: string): Promise<PromptResult> {
     logger.info("Sending prompt to AI App Builder", {
       sessionId,
       promptLength: prompt.length,
     });
 
-    // Get the session
-    const session = await db.query.appSandboxSessions.findFirst({
-      where: eq(appSandboxSessions.id, sessionId),
-    });
+    // Verify ownership and get session
+    const session = await this.verifyOwnership(sessionId, userId);
 
-    if (!session || !session.sandbox_id) {
-      throw new Error("Session not found or sandbox not available");
+    if (!session.sandbox_id) {
+      throw new Error("Sandbox not available");
     }
 
     if (session.status !== "ready") {
@@ -307,14 +338,9 @@ export class AIAppBuilderService {
   /**
    * Get session details
    */
-  async getSession(sessionId: string): Promise<BuilderSession | null> {
-    const session = await db.query.appSandboxSessions.findFirst({
-      where: eq(appSandboxSessions.id, sessionId),
-    });
-
-    if (!session) {
-      return null;
-    }
+  async getSession(sessionId: string, userId: string): Promise<BuilderSession | null> {
+    // Verify ownership
+    const session = await this.verifyOwnership(sessionId, userId);
 
     const prompts = await db.query.appBuilderPrompts.findMany({
       where: eq(appBuilderPrompts.sandbox_session_id, sessionId),
@@ -372,13 +398,12 @@ export class AIAppBuilderService {
   /**
    * Extend session timeout
    */
-  async extendSession(sessionId: string, durationMs: number = 15 * 60 * 1000): Promise<void> {
-    const session = await db.query.appSandboxSessions.findFirst({
-      where: eq(appSandboxSessions.id, sessionId),
-    });
+  async extendSession(sessionId: string, userId: string, durationMs: number = 15 * 60 * 1000): Promise<void> {
+    // Verify ownership
+    const session = await this.verifyOwnership(sessionId, userId);
 
-    if (!session || !session.sandbox_id) {
-      throw new Error("Session not found");
+    if (!session.sandbox_id) {
+      throw new Error("Sandbox not available");
     }
 
     await sandboxService.extendTimeout(session.sandbox_id, durationMs);
@@ -398,14 +423,9 @@ export class AIAppBuilderService {
   /**
    * Stop a session and cleanup the sandbox
    */
-  async stopSession(sessionId: string): Promise<void> {
-    const session = await db.query.appSandboxSessions.findFirst({
-      where: eq(appSandboxSessions.id, sessionId),
-    });
-
-    if (!session) {
-      throw new Error("Session not found");
-    }
+  async stopSession(sessionId: string, userId: string): Promise<void> {
+    // Verify ownership
+    const session = await this.verifyOwnership(sessionId, userId);
 
     if (session.sandbox_id) {
       await sandboxService.stop(session.sandbox_id);

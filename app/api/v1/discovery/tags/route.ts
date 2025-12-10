@@ -75,9 +75,6 @@ const TAG_CATEGORIES: Record<string, string[]> = {
   ],
 };
 
-// Flatten for quick lookup
-const ALL_KNOWN_TAGS = new Set(Object.values(TAG_CATEGORIES).flat());
-
 // ============================================================================
 // Query Validation
 // ============================================================================
@@ -96,19 +93,22 @@ const querySchema = z.object({
 // ============================================================================
 
 export async function GET(request: NextRequest) {
-  const url = new URL(request.url);
-  const rawParams = Object.fromEntries(url.searchParams);
+  try {
+    logger.info("[Discovery/Tags] Request received");
+    
+    const url = new URL(request.url);
+    const rawParams = Object.fromEntries(url.searchParams);
 
-  const parseResult = querySchema.safeParse(rawParams);
-  if (!parseResult.success) {
-    return NextResponse.json(
-      { error: "Invalid parameters", details: parseResult.error.issues },
-      { status: 400 }
-    );
-  }
+    const parseResult = querySchema.safeParse(rawParams);
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: "Invalid parameters", details: parseResult.error.issues },
+        { status: 400 }
+      );
+    }
 
-  const params = parseResult.data;
-  const cacheKey = `discovery:tags:${params.sources?.join(",") || "all"}:${params.category || "all"}`;
+    const params = parseResult.data;
+    const cacheKey = `discovery:tags:${params.sources?.join(",") || "all"}:${params.category || "all"}`;
 
   // Cache for 10 minutes (tags don't change frequently)
   const cached = await cache.get<TagsResponse>(cacheKey);
@@ -123,30 +123,39 @@ export async function GET(request: NextRequest) {
   // Collect tags from local sources
   // ========================================================================
   if (sources.includes("local")) {
-    // Get character tags
-    const characters = await characterMarketplaceService.searchPublic({
-      limit: 500,
-    });
+    try {
+      // Get character tags
+      const charactersResult = await characterMarketplaceService.searchCharactersPublic({
+        filters: {},
+        sortOptions: { field: "popularity_score", direction: "desc" },
+        pagination: { limit: 500, page: 1 },
+        includeStats: false,
+      });
 
-    for (const char of characters) {
-      for (const tag of char.tags ?? []) {
-        const normalizedTag = tag.toLowerCase().trim();
-        const existing = tagCounts.get(normalizedTag) ?? { local: 0, erc8004: 0 };
-        existing.local++;
-        tagCounts.set(normalizedTag, existing);
+      for (const char of charactersResult.characters) {
+        for (const tag of char.tags ?? []) {
+          const normalizedTag = tag.toLowerCase().trim();
+          const existing = tagCounts.get(normalizedTag) ?? { local: 0, erc8004: 0 };
+          existing.local++;
+          tagCounts.set(normalizedTag, existing);
+        }
       }
-    }
 
-    // Get MCP tags
-    const mcps = await userMcpsService.listPublic({ limit: 500 });
+      // Get MCP tags
+      const mcps = await userMcpsService.listPublic({ limit: 500 });
 
-    for (const mcp of mcps) {
-      for (const tag of mcp.tags ?? []) {
-        const normalizedTag = tag.toLowerCase().trim();
-        const existing = tagCounts.get(normalizedTag) ?? { local: 0, erc8004: 0 };
-        existing.local++;
-        tagCounts.set(normalizedTag, existing);
+      for (const mcp of mcps) {
+        for (const tag of mcp.tags ?? []) {
+          const normalizedTag = tag.toLowerCase().trim();
+          const existing = tagCounts.get(normalizedTag) ?? { local: 0, erc8004: 0 };
+          existing.local++;
+          tagCounts.set(normalizedTag, existing);
+        }
       }
+    } catch (dbError) {
+      logger.warn("[Discovery/Tags] Database unavailable, skipping local sources", { 
+        error: dbError instanceof Error ? dbError.message : String(dbError) 
+      });
     }
   }
 
@@ -154,21 +163,31 @@ export async function GET(request: NextRequest) {
   // Collect tags from ERC-8004 registry
   // ========================================================================
   if (sources.includes("erc8004")) {
-    const agents = await agent0Service.searchAgentsCached({ active: true });
+    try {
+      const agents = await agent0Service.searchAgentsCached({ active: true });
+      logger.info("[Discovery/Tags] Fetched ERC-8004 agents", { count: agents.length });
 
-    for (const agent of agents) {
-      // Extract tags from agent metadata (stored as mcpTools/a2aSkills or custom metadata)
-      const agentTags = [
-        ...(agent.mcpTools ?? []),
-        ...(agent.a2aSkills ?? []),
-      ];
+      for (const agent of agents) {
+        // Extract tags from agent metadata
+        // Include actual tags array, mcpTools, and a2aSkills
+        const agentTags = [
+          ...(agent.tags ?? []),
+          ...(agent.mcpTools ?? []),
+          ...(agent.a2aSkills ?? []),
+        ];
 
-      for (const tag of agentTags) {
-        const normalizedTag = tag.toLowerCase().trim();
-        const existing = tagCounts.get(normalizedTag) ?? { local: 0, erc8004: 0 };
-        existing.erc8004++;
-        tagCounts.set(normalizedTag, existing);
+        for (const tag of agentTags) {
+          const normalizedTag = tag.toLowerCase().trim();
+          if (!normalizedTag) continue;
+          const existing = tagCounts.get(normalizedTag) ?? { local: 0, erc8004: 0 };
+          existing.erc8004++;
+          tagCounts.set(normalizedTag, existing);
+        }
       }
+    } catch (erc8004Error) {
+      logger.warn("[Discovery/Tags] ERC-8004 query failed", {
+        error: erc8004Error instanceof Error ? erc8004Error.message : String(erc8004Error),
+      });
     }
   }
 
@@ -243,6 +262,14 @@ export async function GET(request: NextRequest) {
   await cache.set(cacheKey, response, CacheTTL.erc8004.discovery);
 
   return NextResponse.json(response);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("[Discovery/Tags] Error fetching tags", { error: errorMessage });
+    return NextResponse.json(
+      { error: "Internal server error", message: errorMessage },
+      { status: 500 }
+    );
+  }
 }
 
 // ============================================================================

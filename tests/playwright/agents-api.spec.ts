@@ -29,7 +29,7 @@ test.describe("Agent Status API", () => {
 
   test("GET /api/v1/agents/:agentId/status returns agent status", async ({ request }) => {
     // First get a list of agents
-    const listResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/agents`, {
+    const listResponse = await request.get(`${CLOUD_URL}/api/v1/app/agents`, {
       headers: authHeaders(),
     });
 
@@ -72,7 +72,7 @@ test.describe("Agent Events API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
   test("GET /api/v1/agents/:agentId/events returns agent events", async ({ request }) => {
-    const listResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/agents`, {
+    const listResponse = await request.get(`${CLOUD_URL}/api/v1/app/agents`, {
       headers: authHeaders(),
     });
 
@@ -106,7 +106,7 @@ test.describe("Agent Events API", () => {
   });
 
   test("agent events support pagination", async ({ request }) => {
-    const listResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/agents`, {
+    const listResponse = await request.get(`${CLOUD_URL}/api/v1/app/agents`, {
       headers: authHeaders(),
     });
 
@@ -142,7 +142,7 @@ test.describe("Agent Logs API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
   test("GET /api/v1/agents/:agentId/logs returns agent logs", async ({ request }) => {
-    const listResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/agents`, {
+    const listResponse = await request.get(`${CLOUD_URL}/api/v1/app/agents`, {
       headers: authHeaders(),
     });
 
@@ -176,7 +176,7 @@ test.describe("Agent Logs API", () => {
   });
 
   test("agent logs support level filter", async ({ request }) => {
-    const listResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/agents`, {
+    const listResponse = await request.get(`${CLOUD_URL}/api/v1/app/agents`, {
       headers: authHeaders(),
     });
 

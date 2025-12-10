@@ -42,6 +42,9 @@ import type {
   FragmentProjectResult,
   FragmentProjectListResult,
   FragmentDeploymentResult,
+  FullAppBuilderSessionResult,
+  FullAppBuilderPromptResult,
+  FullAppBuilderStatusResult,
 } from "./types";
 
 export type {
@@ -1389,7 +1392,7 @@ export async function executeSkillFragmentDeployProject(
   }
 
   const projectId = dataContent.projectId as string;
-  const type = dataContent.type as "miniapp" | "container";
+  const type = dataContent.type as "app" | "container";
   const appUrl = dataContent.appUrl as string | undefined;
   const allowedOrigins = dataContent.allowedOrigins as string[] | undefined;
   const autoStorage = (dataContent.autoStorage as boolean) ?? true;
@@ -1403,7 +1406,7 @@ export async function executeSkillFragmentDeployProject(
   }
 
   const deployData: Record<string, unknown> = { type };
-  if (type === "miniapp") {
+  if (type === "app") {
     if (appUrl) deployData.appUrl = appUrl;
     if (allowedOrigins) deployData.allowedOrigins = allowedOrigins;
     deployData.autoStorage = autoStorage;
@@ -1432,6 +1435,1003 @@ export async function executeSkillFragmentDeployProject(
 
   return {
     deployment: data.deployment,
+  };
+}
+
+// ============ ERC-8004 MARKETPLACE DISCOVERY SKILLS ============
+
+/**
+ * Marketplace discovery result type
+ */
+export interface MarketplaceDiscoveryResult {
+  items: Array<{
+    id: string;
+    type: string;
+    name: string;
+    description: string;
+    image?: string;
+    erc8004: {
+      registered: boolean;
+      agentId?: string;
+      network?: string;
+    };
+    endpoints: {
+      a2a?: string;
+      mcp?: string;
+    };
+    tags: string[];
+    category?: string;
+    capabilities: {
+      streaming: boolean;
+      x402: boolean;
+    };
+    status: {
+      active: boolean;
+      online: boolean;
+    };
+  }>;
+  total: number;
+  hasMore: boolean;
+}
+
+/**
+ * Marketplace tags result type
+ */
+export interface MarketplaceTagsResult {
+  tags: {
+    skills: string[];
+    domains: string[];
+    mcpCategories: string[];
+    capabilities: string[];
+  };
+  all: string[];
+}
+
+/**
+ * Discover marketplace items skill
+ * Search for agents, MCPs, and services in the ERC-8004 marketplace
+ */
+export async function executeSkillMarketplaceDiscover(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<MarketplaceDiscoveryResult> {
+  const { erc8004MarketplaceService } = await import("@/lib/services/erc8004-marketplace");
+
+  const query = (dataContent.query as string) || textContent || undefined;
+  const types = dataContent.types as string[] | undefined;
+  const tags = dataContent.tags as string[] | undefined;
+  const anyTags = dataContent.anyTags as string[] | undefined;
+  const category = dataContent.category as string | undefined;
+  const x402Only = dataContent.x402Only as boolean | undefined;
+  const activeOnly = (dataContent.activeOnly as boolean) ?? true;
+  const registeredOnly = (dataContent.registeredOnly as boolean) ?? true;
+  const mcpTools = dataContent.mcpTools as string[] | undefined;
+  const a2aSkills = dataContent.a2aSkills as string[] | undefined;
+  const sortBy = (dataContent.sortBy as string) || "relevance";
+  const limit = Math.min(50, (dataContent.limit as number) || 20);
+  const page = (dataContent.page as number) || 1;
+
+  const result = await erc8004MarketplaceService.discover(
+    {
+      query,
+      types: types as ("agent" | "mcp" | "app")[] | undefined,
+      tags,
+      anyTags,
+      category,
+      x402Only,
+      activeOnly,
+      registeredOnly,
+      mcpTools,
+      a2aSkills,
+    },
+    {
+      sortBy: sortBy as "relevance" | "popularity" | "recent" | "name",
+      order: "desc",
+    },
+    { page, limit }
+  );
+
+  return {
+    items: result.items.map((item) => ({
+      id: item.id,
+      type: item.type,
+      name: item.name,
+      description: item.description,
+      image: item.image,
+      erc8004: {
+        registered: item.erc8004.registered,
+        agentId: item.erc8004.agentId,
+        network: item.erc8004.network,
+      },
+      endpoints: item.endpoints,
+      tags: item.tags,
+      category: item.category,
+      capabilities: {
+        streaming: item.capabilities.streaming,
+        x402: item.capabilities.x402,
+      },
+      status: {
+        active: item.status.active,
+        online: item.status.online,
+      },
+    })),
+    total: result.pagination.total,
+    hasMore: result.pagination.hasMore,
+  };
+}
+
+/**
+ * Get marketplace tags skill
+ * Returns available tags for filtering and search context
+ */
+export async function executeSkillMarketplaceGetTags(): Promise<MarketplaceTagsResult> {
+  const {
+    AGENT_SKILL_TAGS,
+    AGENT_DOMAIN_TAGS,
+    MCP_CATEGORY_TAGS,
+    CAPABILITY_TAGS,
+  } = await import("@/lib/types/erc8004-marketplace");
+
+  return {
+    tags: {
+      skills: [...AGENT_SKILL_TAGS],
+      domains: [...AGENT_DOMAIN_TAGS],
+      mcpCategories: [...MCP_CATEGORY_TAGS],
+      capabilities: [...CAPABILITY_TAGS],
+    },
+    all: [
+      ...AGENT_SKILL_TAGS,
+      ...AGENT_DOMAIN_TAGS,
+      ...MCP_CATEGORY_TAGS,
+      ...CAPABILITY_TAGS,
+    ],
+  };
+}
+
+/**
+ * Find agents by tags skill
+ * Quick helper to find agents matching specific tags
+ */
+export async function executeSkillMarketplaceFindByTags(
+  textContent: string,
+  dataContent: Record<string, unknown>
+): Promise<MarketplaceDiscoveryResult> {
+  const { erc8004MarketplaceService } = await import("@/lib/services/erc8004-marketplace");
+
+  const tags = (dataContent.tags as string[]) || textContent.split(",").map((t) => t.trim());
+  const limit = Math.min(20, (dataContent.limit as number) || 10);
+  const activeOnly = (dataContent.activeOnly as boolean) ?? true;
+
+  const items = await erc8004MarketplaceService.getByTags(tags, { limit, activeOnly });
+
+  return {
+    items: items.map((item) => ({
+      id: item.id,
+      type: item.type,
+      name: item.name,
+      description: item.description,
+      image: item.image,
+      erc8004: {
+        registered: item.erc8004.registered,
+        agentId: item.erc8004.agentId,
+        network: item.erc8004.network,
+      },
+      endpoints: item.endpoints,
+      tags: item.tags,
+      category: item.category,
+      capabilities: {
+        streaming: item.capabilities.streaming,
+        x402: item.capabilities.x402,
+      },
+      status: {
+        active: item.status.active,
+        online: item.status.online,
+      },
+    })),
+    total: items.length,
+    hasMore: false,
+  };
+}
+
+/**
+ * Find MCPs by tools skill
+ * Quick helper to find MCPs with specific tools
+ */
+export async function executeSkillMarketplaceFindByMCPTools(
+  textContent: string,
+  dataContent: Record<string, unknown>
+): Promise<MarketplaceDiscoveryResult> {
+  const { erc8004MarketplaceService } = await import("@/lib/services/erc8004-marketplace");
+
+  const tools = (dataContent.tools as string[]) || textContent.split(",").map((t) => t.trim());
+  const limit = Math.min(20, (dataContent.limit as number) || 10);
+
+  const items = await erc8004MarketplaceService.getByMCPTools(tools, { limit });
+
+  return {
+    items: items.map((item) => ({
+      id: item.id,
+      type: item.type,
+      name: item.name,
+      description: item.description,
+      image: item.image,
+      erc8004: {
+        registered: item.erc8004.registered,
+        agentId: item.erc8004.agentId,
+        network: item.erc8004.network,
+      },
+      endpoints: item.endpoints,
+      tags: item.tags,
+      category: item.category,
+      capabilities: {
+        streaming: item.capabilities.streaming,
+        x402: item.capabilities.x402,
+      },
+      status: {
+        active: item.status.active,
+        online: item.status.online,
+      },
+    })),
+    total: items.length,
+    hasMore: false,
+  };
+}
+
+/**
+ * Find x402-enabled services skill
+ * Quick helper to find services that accept x402 payments
+ */
+export async function executeSkillMarketplaceFindPayable(
+  textContent: string,
+  dataContent: Record<string, unknown>
+): Promise<MarketplaceDiscoveryResult> {
+  const { erc8004MarketplaceService } = await import("@/lib/services/erc8004-marketplace");
+
+  const type = dataContent.type as "agent" | "mcp" | "app" | undefined;
+  const limit = Math.min(20, (dataContent.limit as number) || 10);
+
+  const items = await erc8004MarketplaceService.getPayableServices({ type, limit });
+
+  return {
+    items: items.map((item) => ({
+      id: item.id,
+      type: item.type,
+      name: item.name,
+      description: item.description,
+      image: item.image,
+      erc8004: {
+        registered: item.erc8004.registered,
+        agentId: item.erc8004.agentId,
+        network: item.erc8004.network,
+      },
+      endpoints: item.endpoints,
+      tags: item.tags,
+      category: item.category,
+      capabilities: {
+        streaming: item.capabilities.streaming,
+        x402: item.capabilities.x402,
+      },
+      status: {
+        active: item.status.active,
+        online: item.status.online,
+      },
+    })),
+    total: items.length,
+    hasMore: false,
+  };
+}
+
+// ============ FULL APP BUILDER SKILLS ============
+
+/**
+ * Start a full app builder session skill
+ * Creates a Vercel sandbox with a Next.js template for building complete multi-file apps
+ */
+export async function executeSkillFullAppBuilderStart(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<FullAppBuilderSessionResult> {
+  const { aiAppBuilderService } = await import("@/lib/services/ai-app-builder");
+
+  const appName = (dataContent.appName as string) || textContent;
+  const appDescription = dataContent.appDescription as string | undefined;
+  const templateType = (dataContent.templateType as "chat" | "agent-dashboard" | "landing-page" | "analytics" | "blank") || "blank";
+  const includeMonetization = (dataContent.includeMonetization as boolean) || false;
+  const includeAnalytics = (dataContent.includeAnalytics as boolean) ?? true;
+
+  const session = await aiAppBuilderService.startSession({
+    userId: ctx.user.id,
+    organizationId: ctx.user.organization_id,
+    appName,
+    appDescription,
+    templateType,
+    includeMonetization,
+    includeAnalytics,
+  });
+
+  return {
+    sessionId: session.id,
+    sandboxId: session.sandboxId,
+    sandboxUrl: session.sandboxUrl,
+    status: session.status,
+    examplePrompts: session.examplePrompts,
+  };
+}
+
+/**
+ * Send prompt to full app builder skill
+ * Sends a prompt to Claude to generate/modify files in the sandbox
+ */
+export async function executeSkillFullAppBuilderPrompt(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<FullAppBuilderPromptResult> {
+  const { aiAppBuilderService } = await import("@/lib/services/ai-app-builder");
+
+  const sessionId = dataContent.sessionId as string;
+  const prompt = (dataContent.prompt as string) || textContent;
+
+  if (!sessionId) {
+    throw new Error("sessionId is required");
+  }
+
+  if (!prompt) {
+    throw new Error("prompt is required");
+  }
+
+  const result = await aiAppBuilderService.sendPrompt(sessionId, prompt, ctx.user.id);
+
+  return {
+    success: result.success,
+    output: result.output,
+    filesAffected: result.filesAffected,
+    error: result.error,
+  };
+}
+
+/**
+ * Get full app builder session status skill
+ * Returns the current state of the session including messages and generated files
+ */
+export async function executeSkillFullAppBuilderStatus(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<FullAppBuilderStatusResult> {
+  const { aiAppBuilderService } = await import("@/lib/services/ai-app-builder");
+  const { db } = await import("@/db/client");
+  const { appSandboxSessions } = await import("@/db/schemas/app-sandboxes");
+  const { eq } = await import("drizzle-orm");
+
+  const sessionId = (dataContent.sessionId as string) || textContent;
+
+  if (!sessionId) {
+    throw new Error("sessionId is required");
+  }
+
+  const session = await aiAppBuilderService.getSession(sessionId, ctx.user.id);
+
+  if (!session) {
+    throw new Error("Session not found");
+  }
+
+  // Get the full session record for generated files
+  const dbSession = await db.query.appSandboxSessions.findFirst({
+    where: eq(appSandboxSessions.id, sessionId),
+  });
+
+  const generatedFiles = (dbSession?.generated_files as Array<{ path: string }>) || [];
+
+  return {
+    sessionId: session.id,
+    sandboxId: session.sandboxId,
+    sandboxUrl: session.sandboxUrl,
+    status: session.status,
+    messages: session.messages.map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+      timestamp: m.timestamp,
+    })),
+    generatedFiles: generatedFiles.map((f) => f.path),
+  };
+}
+
+/**
+ * Stop full app builder session skill
+ * Stops the sandbox and releases resources
+ */
+export async function executeSkillFullAppBuilderStop(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean; message: string }> {
+  const { aiAppBuilderService } = await import("@/lib/services/ai-app-builder");
+
+  const sessionId = (dataContent.sessionId as string) || textContent;
+
+  if (!sessionId) {
+    throw new Error("sessionId is required");
+  }
+
+  await aiAppBuilderService.stopSession(sessionId, ctx.user.id);
+
+  return {
+    success: true,
+    message: "Session stopped successfully",
+  };
+}
+
+/**
+ * Extend full app builder session skill
+ * Extends the session timeout to continue working
+ */
+export async function executeSkillFullAppBuilderExtend(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean; message: string; expiresIn: number }> {
+  const { aiAppBuilderService } = await import("@/lib/services/ai-app-builder");
+
+  const sessionId = (dataContent.sessionId as string) || textContent;
+  const durationMinutes = (dataContent.durationMinutes as number) || 15;
+
+  if (!sessionId) {
+    throw new Error("sessionId is required");
+  }
+
+  const durationMs = durationMinutes * 60 * 1000;
+  await aiAppBuilderService.extendSession(sessionId, ctx.user.id, durationMs);
+
+  return {
+    success: true,
+    message: `Session extended by ${durationMinutes} minutes`,
+    expiresIn: durationMs,
+  };
+}
+
+/**
+ * List full app builder sessions skill
+ * Returns user's active and recent sessions
+ */
+export async function executeSkillFullAppBuilderListSessions(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  sessions: Array<{
+    id: string;
+    sandboxId: string;
+    sandboxUrl: string;
+    status: string;
+    appName: string | null;
+    templateType: string | null;
+    createdAt: string;
+  }>;
+  total: number;
+}> {
+  const { aiAppBuilderService } = await import("@/lib/services/ai-app-builder");
+
+  const limit = Math.min(20, (dataContent.limit as number) || 10);
+  const includeInactive = (dataContent.includeInactive as boolean) || false;
+
+  const sessions = await aiAppBuilderService.listSessions(ctx.user.id, {
+    limit,
+    includeInactive,
+  });
+
+  return {
+    sessions: sessions.map((s) => ({
+      id: s.id,
+      sandboxId: s.sandbox_id || "",
+      sandboxUrl: s.sandbox_url || "",
+      status: s.status,
+      appName: s.app_name,
+      templateType: s.template_type,
+      createdAt: s.created_at.toISOString(),
+    })),
+    total: sessions.length,
+  };
+}
+
+// =============================================================================
+// N8N WORKFLOW TRIGGER SKILLS
+// =============================================================================
+
+/**
+ * Execute N8N workflow via A2A/MCP trigger
+ * 
+ * This skill allows triggering N8N workflows that have been configured
+ * with A2A or MCP trigger types.
+ */
+export async function executeSkillN8nTriggerWorkflow(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  executionId: string;
+  status: string;
+  workflowId: string;
+  triggerId: string;
+}> {
+  const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
+
+  // Find trigger by key or workflow ID
+  const triggerKey = dataContent.triggerKey as string | undefined;
+  const workflowId = dataContent.workflowId as string | undefined;
+  const inputData = dataContent.inputData as Record<string, unknown> | undefined;
+
+  if (!triggerKey && !workflowId) {
+    throw new Error("Either triggerKey or workflowId is required");
+  }
+
+  let trigger;
+  
+  if (triggerKey) {
+    trigger = await n8nWorkflowsService.findTriggerByKey(triggerKey);
+  } else if (workflowId) {
+    // Find an active A2A or MCP trigger for this workflow
+    const triggers = await n8nWorkflowsService.listTriggers(workflowId);
+    trigger = triggers.find(
+      t => t.is_active && (t.trigger_type === "a2a" || t.trigger_type === "mcp")
+    );
+  }
+
+  if (!trigger) {
+    throw new Error("No active A2A/MCP trigger found");
+  }
+
+  // Verify the trigger belongs to the user's organization
+  if (trigger.organization_id !== ctx.user.organization_id) {
+    throw new Error("Unauthorized: Trigger belongs to a different organization");
+  }
+
+  // Verify trigger type is A2A or MCP
+  if (trigger.trigger_type !== "a2a" && trigger.trigger_type !== "mcp") {
+    throw new Error(`Invalid trigger type: ${trigger.trigger_type}. Use webhook endpoint for webhook triggers.`);
+  }
+
+  // Merge text content as message if provided
+  const finalInputData = {
+    ...(inputData || {}),
+    ...(textContent && { message: textContent }),
+    $a2a: {
+      userId: ctx.user.id,
+      organizationId: ctx.user.organization_id,
+      agentIdentifier: ctx.agentIdentifier,
+    },
+  };
+
+  const execution = await n8nWorkflowsService.executeWorkflowTrigger(
+    trigger.id,
+    finalInputData
+  );
+
+  return {
+    executionId: execution.id,
+    status: execution.status,
+    workflowId: trigger.workflow_id,
+    triggerId: trigger.id,
+  };
+}
+
+/**
+ * List N8N workflow triggers skill
+ * Returns triggers available for the user's organization
+ */
+export async function executeSkillN8nListTriggers(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  triggers: Array<{
+    id: string;
+    workflowId: string;
+    triggerType: string;
+    triggerKey: string;
+    isActive: boolean;
+    executionCount: number;
+    lastExecutedAt: string | null;
+  }>;
+  total: number;
+}> {
+  const { n8nWorkflowTriggersRepository } = await import("@/db/repositories/n8n-workflows");
+
+  const workflowId = dataContent.workflowId as string | undefined;
+  const triggerType = dataContent.triggerType as string | undefined;
+
+  let triggers;
+  
+  if (workflowId) {
+    triggers = await n8nWorkflowTriggersRepository.findByWorkflow(workflowId);
+  } else {
+    triggers = await n8nWorkflowTriggersRepository.findByOrganization(ctx.user.organization_id);
+  }
+
+  // Filter by trigger type if specified
+  if (triggerType) {
+    triggers = triggers.filter(t => t.trigger_type === triggerType);
+  }
+
+  return {
+    triggers: triggers.map(t => ({
+      id: t.id,
+      workflowId: t.workflow_id,
+      triggerType: t.trigger_type,
+      triggerKey: t.trigger_type === "webhook" 
+        ? t.trigger_key.slice(0, 8) + "..." // Redact webhook keys
+        : t.trigger_key,
+      isActive: t.is_active,
+      executionCount: t.execution_count,
+      lastExecutedAt: t.last_executed_at?.toISOString() || null,
+    })),
+    total: triggers.length,
+  };
+}
+
+/**
+ * Create N8N workflow trigger skill
+ * Creates a new trigger for a workflow
+ */
+export async function executeSkillN8nCreateTrigger(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  triggerId: string;
+  triggerType: string;
+  triggerKey: string;
+  webhookUrl?: string;
+  webhookSecret?: string;
+}> {
+  const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
+
+  const workflowId = dataContent.workflowId as string;
+  const triggerType = dataContent.triggerType as "cron" | "webhook" | "a2a" | "mcp";
+  const triggerKey = dataContent.triggerKey as string | undefined;
+  const config = dataContent.config as Record<string, unknown> | undefined;
+
+  if (!workflowId) {
+    throw new Error("workflowId is required");
+  }
+
+  if (!triggerType) {
+    throw new Error("triggerType is required (cron, webhook, a2a, or mcp)");
+  }
+
+  // Verify workflow belongs to user's organization
+  const workflow = await n8nWorkflowsService.getWorkflow(workflowId);
+  if (!workflow || workflow.organization_id !== ctx.user.organization_id) {
+    throw new Error("Workflow not found");
+  }
+
+  // Validate cron expression for cron triggers
+  if (triggerType === "cron" && !config?.cronExpression) {
+    throw new Error("cronExpression is required for cron triggers");
+  }
+
+  const trigger = await n8nWorkflowsService.createTrigger(
+    workflowId,
+    triggerType,
+    triggerKey,
+    config || {}
+  );
+
+  const result: {
+    triggerId: string;
+    triggerType: string;
+    triggerKey: string;
+    webhookUrl?: string;
+    webhookSecret?: string;
+  } = {
+    triggerId: trigger.id,
+    triggerType: trigger.trigger_type,
+    triggerKey: trigger.trigger_key,
+  };
+
+  // Include webhook URL and secret for webhook triggers (shown once)
+  if (triggerType === "webhook") {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+    result.webhookUrl = `${baseUrl}/api/v1/n8n/webhooks/${trigger.trigger_key}`;
+    result.webhookSecret = trigger.config.webhookSecret as string;
+  }
+
+  return result;
+}
+
+// =============================================================================
+// APPLICATION TRIGGER SKILLS (Apps, Agents, MCPs)
+// =============================================================================
+
+/**
+ * Create application trigger skill
+ * Creates a trigger for an app, agent, or MCP
+ */
+export async function executeSkillCreateAppTrigger(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  triggerId: string;
+  triggerType: string;
+  triggerKey: string;
+  webhookUrl?: string;
+  webhookSecret?: string;
+}> {
+  const { applicationTriggersService } = await import("@/lib/services/application-triggers");
+
+  const targetType = dataContent.targetType as "fragment_project" | "container" | "user_mcp";
+  const targetId = dataContent.targetId as string;
+  const triggerType = dataContent.triggerType as "cron" | "webhook" | "event";
+  const name = (dataContent.name as string) || textContent || "Unnamed Trigger";
+  const description = dataContent.description as string | undefined;
+  const config = dataContent.config as Record<string, unknown> | undefined;
+  const actionType = dataContent.actionType as string | undefined;
+  const actionConfig = dataContent.actionConfig as Record<string, unknown> | undefined;
+
+  if (!targetType || !targetId) {
+    throw new Error("targetType and targetId are required");
+  }
+
+  if (!triggerType) {
+    throw new Error("triggerType is required (cron, webhook, or event)");
+  }
+
+  if (triggerType === "cron" && !config?.cronExpression) {
+    throw new Error("cronExpression is required for cron triggers");
+  }
+
+  if (triggerType === "event" && (!config?.eventTypes || (config.eventTypes as string[]).length === 0)) {
+    throw new Error("eventTypes is required for event triggers");
+  }
+
+  const trigger = await applicationTriggersService.createTrigger({
+    organizationId: ctx.user.organization_id,
+    createdBy: ctx.user.id,
+    targetType,
+    targetId,
+    triggerType,
+    name,
+    description,
+    config,
+    actionType,
+    actionConfig,
+  });
+
+  const result: {
+    triggerId: string;
+    triggerType: string;
+    triggerKey: string;
+    webhookUrl?: string;
+    webhookSecret?: string;
+  } = {
+    triggerId: trigger.id,
+    triggerType: trigger.trigger_type,
+    triggerKey: trigger.trigger_key,
+  };
+
+  if (triggerType === "webhook") {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+    result.webhookUrl = `${baseUrl}/api/v1/triggers/webhooks/${trigger.trigger_key}`;
+    result.webhookSecret = trigger.config.webhookSecret as string;
+  }
+
+  return result;
+}
+
+/**
+ * List application triggers skill
+ * Lists triggers for an organization or specific target
+ */
+export async function executeSkillListAppTriggers(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  triggers: Array<{
+    id: string;
+    name: string;
+    targetType: string;
+    targetId: string;
+    triggerType: string;
+    isActive: boolean;
+    executionCount: number;
+    lastExecutedAt: string | null;
+  }>;
+  total: number;
+}> {
+  const { applicationTriggersService } = await import("@/lib/services/application-triggers");
+
+  const targetType = dataContent.targetType as "fragment_project" | "container" | "user_mcp" | undefined;
+  const targetId = dataContent.targetId as string | undefined;
+  const triggerType = dataContent.triggerType as "cron" | "webhook" | "event" | undefined;
+
+  let triggers;
+  if (targetId && targetType) {
+    triggers = await applicationTriggersService.listTriggersByTarget(targetType, targetId);
+    triggers = triggers.filter(t => t.organization_id === ctx.user.organization_id);
+  } else {
+    triggers = await applicationTriggersService.listTriggersByOrganization(
+      ctx.user.organization_id,
+      { targetType, triggerType }
+    );
+  }
+
+  return {
+    triggers: triggers.map(t => ({
+      id: t.id,
+      name: t.name,
+      targetType: t.target_type,
+      targetId: t.target_id,
+      triggerType: t.trigger_type,
+      isActive: t.is_active,
+      executionCount: t.execution_count,
+      lastExecutedAt: t.last_executed_at?.toISOString() || null,
+    })),
+    total: triggers.length,
+  };
+}
+
+/**
+ * Execute application trigger skill
+ * Manually executes a trigger
+ */
+export async function executeSkillExecuteAppTrigger(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  executionId: string;
+  status: string;
+  output?: Record<string, unknown>;
+  error?: string;
+}> {
+  const { applicationTriggersService } = await import("@/lib/services/application-triggers");
+
+  const triggerId = dataContent.triggerId as string;
+  const inputData = dataContent.inputData as Record<string, unknown> | undefined;
+
+  if (!triggerId) {
+    throw new Error("triggerId is required");
+  }
+
+  const trigger = await applicationTriggersService.getTrigger(triggerId);
+  if (!trigger) {
+    throw new Error("Trigger not found");
+  }
+
+  if (trigger.organization_id !== ctx.user.organization_id) {
+    throw new Error("Unauthorized: Trigger belongs to a different organization");
+  }
+
+  const result = await applicationTriggersService.executeTrigger(
+    triggerId,
+    {
+      ...inputData,
+      ...(textContent && { message: textContent }),
+      $a2a: {
+        userId: ctx.user.id,
+        organizationId: ctx.user.organization_id,
+        agentIdentifier: ctx.agentIdentifier,
+      },
+    },
+    "manual"
+  );
+
+  return result;
+}
+
+// =============================================================================
+// TELEGRAM SKILLS
+// =============================================================================
+
+/**
+ * Send a Telegram message
+ */
+export async function executeSkillTelegramSendMessage(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  success: boolean;
+  messageId: number;
+  chatId: number;
+}> {
+  const { telegramService } = await import("@/lib/services/telegram");
+  const { botsService } = await import("@/lib/services/bots");
+
+  const chatId = dataContent.chatId as string | number;
+  const text = (dataContent.text as string) || textContent;
+  const connectionId = dataContent.connectionId as string | undefined;
+
+  if (!chatId) throw new Error("chatId is required");
+  if (!text) throw new Error("text is required");
+
+  // Get connection ID
+  let connId = connectionId;
+  if (!connId) {
+    const connections = await botsService.getConnections(ctx.user.organization_id);
+    const telegramConn = connections.find(c => c.platform === "telegram" && c.status === "active");
+    if (!telegramConn) throw new Error("No active Telegram bot connection");
+    connId = telegramConn.id;
+  }
+
+  const message = await telegramService.sendMessageViaConnection(
+    connId,
+    ctx.user.organization_id,
+    chatId,
+    text,
+    { parse_mode: dataContent.parseMode as "HTML" | "Markdown" | "MarkdownV2" | undefined }
+  );
+
+  return {
+    success: true,
+    messageId: message.message_id,
+    chatId: message.chat.id,
+  };
+}
+
+/**
+ * List Telegram chats the bot is in
+ */
+export async function executeSkillTelegramListChats(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  chats: Array<{ chatId: string; name: string; enabled: boolean }>;
+  count: number;
+}> {
+  const { telegramService } = await import("@/lib/services/telegram");
+  const { botsService } = await import("@/lib/services/bots");
+
+  const connectionId = dataContent.connectionId as string | undefined;
+
+  let connId = connectionId;
+  if (!connId) {
+    const connections = await botsService.getConnections(ctx.user.organization_id);
+    const telegramConn = connections.find(c => c.platform === "telegram" && c.status === "active");
+    if (!telegramConn) throw new Error("No active Telegram bot connection");
+    connId = telegramConn.id;
+  }
+
+  const chats = await telegramService.listChats(connId, ctx.user.organization_id);
+
+  return {
+    chats: chats.map(c => ({
+      chatId: c.chatId,
+      name: c.name,
+      enabled: c.enabled,
+    })),
+    count: chats.length,
+  };
+}
+
+/**
+ * List connected Telegram bots
+ */
+export async function executeSkillTelegramListBots(
+  ctx: A2AContext
+): Promise<{
+  bots: Array<{
+    id: string;
+    botId: string | null;
+    botUsername: string | null;
+    status: string;
+  }>;
+  count: number;
+}> {
+  const { botsService } = await import("@/lib/services/bots");
+
+  const connections = await botsService.getConnections(ctx.user.organization_id);
+  const telegramBots = connections.filter(c => c.platform === "telegram");
+
+  return {
+    bots: telegramBots.map(b => ({
+      id: b.id,
+      botId: b.platform_bot_id,
+      botUsername: b.platform_bot_username,
+      status: b.status,
+    })),
+    count: telegramBots.length,
   };
 }
 

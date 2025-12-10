@@ -3,7 +3,7 @@
  *
  * GET /api/v1/redemptions/balance
  *
- * Returns user's REDEEMABLE balance (earnings from miniapps, agents, MCPs).
+ * Returns user's REDEEMABLE balance (earnings from apps, agents, MCPs).
  * 
  * IMPORTANT: This uses the redeemable_earnings table, NOT app_credit_balances.
  * - app_credit_balances = purchased credits (NOT redeemable)
@@ -14,7 +14,7 @@
  * - Available balance (ready to redeem)
  * - Pending balance (still vesting)
  * - Already redeemed
- * - Earnings breakdown by source (miniapp, agent, mcp)
+ * - Earnings breakdown by source (app, agent, mcp)
  * - Eligibility status for redemption
  */
 
@@ -28,14 +28,14 @@ import { eq, and, sql, desc } from "drizzle-orm";
 import { SUPPLY_SHOCK_PROTECTION } from "@/lib/config/redemption-security";
 
 interface EarningsBySource {
-  source: "miniapp" | "agent" | "mcp";
+  source: "app" | "agent" | "mcp";
   totalEarned: number;
   count: number;
 }
 
 interface RecentEarning {
   id: string;
-  source: "miniapp" | "agent" | "mcp";
+  source: "app" | "agent" | "mcp";
   sourceId: string;
   amount: number;
   description: string;
@@ -185,7 +185,7 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
 
   // Format earnings by source
   const bySource: EarningsBySource[] = earningsBySource.map((e) => ({
-    source: (e.source || "miniapp") as "miniapp" | "agent" | "mcp",
+    source: (e.source || "app") as "app" | "agent" | "mcp",
     totalEarned: Number(e.totalEarned || 0),
     count: Number(e.count || 0),
   }));
@@ -193,7 +193,7 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
   // Format recent earnings
   const formattedRecentEarnings: RecentEarning[] = recentEarnings.map((e) => ({
     id: e.id,
-    source: (e.source || "miniapp") as "miniapp" | "agent" | "mcp",
+    source: (e.source || "app") as "app" | "agent" | "mcp",
     sourceId: e.sourceId || "",
     amount: Number(e.amount),
     description: e.description || "",

@@ -93,6 +93,42 @@ export interface McpRegistryEntry {
  */
 const MCP_REGISTRY: McpRegistryEntry[] = [
   {
+    id: "todo-app",
+    name: "Todo App",
+    description:
+      "Personal task management with gamification. Create daily habits, one-off tasks, and aspirational goals. Track points, streaks, and level up!",
+    category: "productivity",
+    endpoint: "/api/mcp/todoapp",
+    type: "http",
+    version: "1.0.0",
+    status: "live",
+    icon: "check-square",
+    color: "#10B981",
+    toolCount: 6,
+    features: [
+      "create_task",
+      "list_tasks",
+      "complete_task",
+      "update_task",
+      "delete_task",
+      "get_points",
+    ],
+    pricing: {
+      type: "credits",
+      description: "Uses your credit balance",
+    },
+    x402Enabled: false,
+    documentation: "https://docs.elizaos.ai/mcps/todo-app",
+    configTemplate: {
+      servers: {
+        "todo-app": {
+          type: "http",
+          url: "${BASE_URL}/api/mcp/todoapp",
+        },
+      },
+    },
+  },
+  {
     id: "crypto-prices",
     name: "Crypto Prices",
     description:
@@ -246,6 +282,124 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
         "web-search": {
           type: "streamable-http",
           url: "${BASE_URL}/api/mcp/demos/search/sse",
+        },
+      },
+    },
+  },
+  {
+    id: "org-tools",
+    name: "Organization Tools",
+    description:
+      "Team coordination and management tools. Manage todos, check-ins, team members, and generate reports across Discord and Telegram.",
+    category: "productivity",
+    endpoint: "/api/mcp/org/sse",
+    type: "streamable-http",
+    version: "1.0.0",
+    status: "live",
+    icon: "users",
+    color: "#8B5CF6",
+    toolCount: 12,
+    features: [
+      "create_todo",
+      "update_todo",
+      "list_todos",
+      "complete_todo",
+      "get_todo_stats",
+      "create_checkin_schedule",
+      "record_checkin_response",
+      "list_checkin_schedules",
+      "generate_report",
+      "add_team_member",
+      "list_team_members",
+      "get_platform_status",
+    ],
+    pricing: {
+      type: "credits",
+      description: "Uses your credit balance",
+    },
+    x402Enabled: false,
+    documentation: "https://docs.elizaos.ai/mcps/org-tools",
+    configTemplate: {
+      servers: {
+        "org-tools": {
+          type: "streamable-http",
+          url: "${BASE_URL}/api/mcp/org/sse",
+        },
+      },
+    },
+  },
+  {
+    id: "credentials",
+    name: "Credentials & Secrets",
+    description:
+      "Secure credential management for AI agents. Store text secrets (API keys, tokens) and connect OAuth platforms (Discord, Twitter, Google, GitHub, Slack).",
+    category: "platform",
+    endpoint: "/api/mcp/credentials/sse",
+    type: "streamable-http",
+    version: "1.0.0",
+    status: "live",
+    icon: "key",
+    color: "#EF4444",
+    toolCount: 9,
+    features: [
+      "store_secret",
+      "get_secret",
+      "delete_secret",
+      "list_secrets",
+      "request_oauth",
+      "get_credential",
+      "get_platform_token",
+      "revoke_credential",
+      "list_credentials",
+    ],
+    pricing: {
+      type: "free",
+      description: "Free for all users",
+    },
+    x402Enabled: false,
+    documentation: "https://docs.elizaos.ai/mcps/credentials",
+    configTemplate: {
+      servers: {
+        credentials: {
+          type: "streamable-http",
+          url: "${BASE_URL}/api/mcp/credentials/sse",
+        },
+      },
+    },
+  },
+  {
+    id: "telegram",
+    name: "Telegram",
+    description:
+      "Telegram messaging and group management. Send messages, manage chats, handle button interactions, and automate Telegram workflows.",
+    category: "communication",
+    endpoint: "/api/mcp/telegram/sse",
+    type: "streamable-http",
+    version: "1.0.0",
+    status: "live",
+    icon: "send",
+    color: "#0088CC",
+    toolCount: 7,
+    features: [
+      "send_telegram_message",
+      "get_telegram_chat",
+      "list_telegram_chats",
+      "send_telegram_buttons",
+      "answer_telegram_callback",
+      "setup_telegram_webhook",
+      "list_telegram_bots",
+    ],
+    pricing: {
+      type: "credits",
+      description: "Uses your credit balance",
+    },
+    x402Enabled: false,
+    documentation: "https://docs.elizaos.ai/mcps/telegram",
+    configTemplate: {
+      servers: {
+        telegram: {
+          type: "streamable-http",
+          url: "${BASE_URL}/api/mcp/telegram/sse",
         },
       },
     },
