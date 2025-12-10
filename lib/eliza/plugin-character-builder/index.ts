@@ -5,6 +5,7 @@ import {
   type Plugin,
 } from "@elizaos/core";
 import { actionsProvider } from "./providers/actions";
+import { assistantGuideProvider } from "./providers/assistant-guide";
 import { characterGuideProvider } from "./providers/character-guide";
 import { currentCharacterProvider } from "./providers/current-character";
 import { generateImageAction } from "./actions/image-generation";
@@ -59,6 +60,7 @@ export const characterBuilderPlugin: Plugin = {
   },
   providers: [
     actionsProvider,
+    assistantGuideProvider,
     characterGuideProvider,
     currentCharacterProvider,
     recentMessagesProvider,

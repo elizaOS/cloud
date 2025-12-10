@@ -19,7 +19,7 @@ import {
  * Pattern: Similar to reflection evaluator but focused on title generation
  */
 
-const roomTitleTemplate = `# Task: Generate Room Title
+export const roomTitleTemplate = `# Task: Generate Room Title
 
 You are a title generator. Extract the CORE TOPIC from the conversation and create a 4-6 word Title Case summary.
 

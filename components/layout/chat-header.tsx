@@ -230,7 +230,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
               mode === "build"
-                ? "bg-[#220725] text-[#E500FF]"
+                ? "bg-[#2D1505] text-[#FF5800]"
                 : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
             )}
             style={{

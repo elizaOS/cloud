@@ -129,10 +129,7 @@ If updating messageExamples, use this exact format:
 - Agent messages use the actual character name`;
 
 const extractTemplate = `
-## Current Character:
-{{agentName}}
-
-## Current Field Values:
+# Current Field Values:
 {{currentCharacter}}
 
 {{conversationLogWithAgentThoughts}}
@@ -389,6 +386,12 @@ export const saveChangesAction = {
       thought: parsed?.thought || "",
       text: confirmText,
       actions: ["SAVE_CHANGES"],
+      metadata: {
+        action: "SAVE_CHANGES",
+        fieldsUpdated,
+        characterId: runtime.character.id,
+        characterName: runtime.character.name,
+      },
     });
   },
   examples: [

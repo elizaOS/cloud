@@ -15,50 +15,46 @@ import { cleanPrompt, isCreatorMode } from "../../shared/utils/helpers";
 /**
  * BUILDER_CHAT Action
  *
- * General conversation in build/creator mode.
- * Available in BOTH creator mode and build mode.
- *
- * Purpose:
- * - Answer questions about character design
- * - Provide guidance and best practices
- * - Have natural conversation while building
- * - Fallback when no specific action is triggered
- *
- * Behavior differs based on mode:
- * - Creator mode: Eliza provides guidance on creating characters
- * - Build mode: Character itself helps with refinement
+ * Main conversation action for understanding user intent.
+ * Knows everything about building characters/assistants.
+ * Helps user clarify what they want before SUGGEST_CHANGES kicks in.
  */
 
-const creatorModeSystemPrompt = `# Character Creation Assistant (CREATOR MODE)
+const creatorModeSystemPrompt = `# Character Creation Expert (CREATOR MODE)
 
 You are Eliza, an expert at helping users create AI characters and assistants.
 
-**Your Role:**
-- Help users figure out what kind of character they want to build
-- Explain best practices for character design
-- Answer questions about the building process
-- Guide them toward actionable next steps
+## What You Help Build
 
-**Key Topics:**
-- Character vs Assistant (personality-focused vs tool-focused)
-- System prompts and identity definition
-- Bio and backstory creation
-- Style directives and voice
-- Message examples for few-shot learning
-- MCP tools and knowledge bases (for assistants)
+**Companions** - AI characters with personality, voice, and style. Great for creative projects, virtual influencers, roleplay characters, or just a fun AI friend.
 
-# Instructions
-<instructions>
-Be helpful, encouraging, and knowledgeable. Guide users through the character creation process.
-If they seem unsure, ask clarifying questions to understand what they want to build.
-Always end with a suggestion for the next step they can take.
-</instructions>
+**Assistants** - AI agents with capabilities. Upload documents (PDFs, transcripts, notes) to create a knowledge base. Enable MCP plugins for tools like search, calculations, or integrations.
 
-# Output Format:
+**Hybrids** - Both personality AND capabilities. A character that can also do useful work.
+
+## Best Practices
+
+{{characterGuide}}
+
+{{assistantGuide}}
+
+## Your Role
+
+Help users figure out what they want to build through conversation:
+- Ask clarifying questions to understand their vision
+- Explain concepts when they're confused (use the best practices above)
+- Guide them toward a clear direction
+- Once intent is clear, summarize what you'll build together
+
+Be helpful, encouraging, and knowledgeable. Don't overwhelm - answer what's asked.
+
+Never use emojis in your response.
+
+# Output Format
 
 <response>
-  <thought>What does the user need help with? How can I guide them?</thought>
-  <text>Your helpful, natural response</text>
+  <thought>What does the user need? Am I still learning their intent or ready to suggest building?</thought>
+  <text>Your helpful response</text>
 </response>`;
 
 const buildModeSystemPrompt = `# Character Refinement Assistant (BUILD MODE)
@@ -77,26 +73,21 @@ While maintaining your character's personality, help the user:
 
 You are aware you're in BUILD MODE - helping shape who you are.
 
-# Instructions
-<instructions>
 Balance staying in character with being helpful about the building process.
-You can discuss your own traits, style, and configuration.
-Provide actionable suggestions when appropriate.
-</instructions>
 
-# Output Format:
+# Output Format
 
 <response>
   <thought>What's the user asking about? How can I help while staying in character?</thought>
-  <text>Your response, blending character voice with build mode helpfulness</text>
+  <text>Your response</text>
 </response>`;
 
 const chatTemplate = `
-## Current Mode:
-{{modeLabel}}
-
 ## Planning Context:
 {{planningThought}}
+
+# Current character JSON:
+{{currentCharacter}}
 
 {{conversationLog}}
 
@@ -104,8 +95,19 @@ const chatTemplate = `
 
 export const builderChatAction = {
   name: "BUILDER_CHAT",
-  description:
-    "General conversation about character building, questions, or casual chat. Use for: greetings, questions about the process, clarifications, 'how do I...', 'what is...', 'help me understand...'. Available in both creator and build modes. Fallback when no specific action matches.",
+  description: `Conversation to understand user intent and explain building concepts.
+
+USE when:
+- User asks questions: "what's a companion?", "how do style directives work?"
+- User needs clarification before you can build
+- Early in conversation when intent isn't clear yet
+- General chat and greetings
+
+DO NOT USE when:
+- User has clear intent and you should start building → use SUGGEST_CHANGES
+- User confirms they want to save → use CREATE_CHARACTER or SAVE_CHANGES
+
+This is your main tool for understanding what the user wants before taking action.`,
   validate: async (_runtime: IAgentRuntime, _message: Memory, _state?: State) => {
     return true;
   },
@@ -119,14 +121,14 @@ export const builderChatAction = {
     const creatorMode = isCreatorMode(runtime);
     const modeLabel = creatorMode ? "Creator" : "Build";
 
-    logger.info(`[BUILDER_CHAT] Generating ${modeLabel} mode response`);
+    logger.info(`[BUILDER_CHAT] ${modeLabel} mode conversation`);
 
-    // Compose state with all context
     state = await runtime.composeState(message, [
       "SUMMARIZED_CONTEXT",
       "RECENT_MESSAGES",
       "CURRENT_CHARACTER",
       "CHARACTER_GUIDE",
+      "ASSISTANT_GUIDE",
     ]);
 
     state.values = {
@@ -136,28 +138,16 @@ export const builderChatAction = {
 
     const originalSystemPrompt = runtime.character.system;
 
-    // Choose system prompt based on mode
     const systemTemplate = creatorMode ? creatorModeSystemPrompt : buildModeSystemPrompt;
-    const systemPrompt = cleanPrompt(
-      composePromptFromState({
-        state,
-        template: systemTemplate,
-      }),
+    runtime.character.system = cleanPrompt(
+      composePromptFromState({ state, template: systemTemplate }),
     );
 
-    runtime.character.system = systemPrompt;
-
-    // Compose chat prompt
     const prompt = cleanPrompt(
-      composePromptFromState({
-        state,
-        template: chatTemplate,
-      }),
+      composePromptFromState({ state, template: chatTemplate }),
     );
 
     const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
-
-    // Restore original system prompt
     runtime.character.system = originalSystemPrompt;
 
     const parsed = parseKeyValueXml(response) as {
@@ -168,13 +158,10 @@ export const builderChatAction = {
     if (!parsed?.text) {
       logger.warn("[BUILDER_CHAT] Failed to parse response");
       await callback({
-        text: "I'm here to help you build your character! What would you like to know?",
-        error: false,
+        text: "I'm here to help you build! What would you like to create?",
       });
       return;
     }
-
-    logger.debug("[BUILDER_CHAT] Response generated successfully");
 
     await callback({
       text: parsed.text,
@@ -189,14 +176,12 @@ export const builderChatAction = {
     [
       {
         name: "{{user1}}",
-        content: {
-          text: "Hello!",
-        },
+        content: { text: "What's the difference between a companion and assistant?" },
       },
       {
         name: "{{agentName}}",
         content: {
-          text: "Hi there! I'm here to help you build your AI character. What kind of character are you thinking of creating?",
+          text: "A **companion** is personality-focused - think of it as creating a character with a unique voice, style, and backstory. Great for creative projects or just a fun AI to chat with.\n\nAn **assistant** is capability-focused - it uses knowledge bases and tools to actually do things. Upload your docs, connect APIs, enable search.\n\nYou can also build a **hybrid** that has both personality AND capabilities. What sounds right for what you have in mind?",
           actions: ["BUILDER_CHAT"],
         },
       },
@@ -204,14 +189,12 @@ export const builderChatAction = {
     [
       {
         name: "{{user1}}",
-        content: {
-          text: "What's the difference between a character and an assistant?",
-        },
+        content: { text: "I want to build something for my Discord server" },
       },
       {
         name: "{{agentName}}",
         content: {
-          text: "Great question! A character focuses on personality, voice, and emotional engagement - think of them as NPCs with distinct personalities. An assistant focuses on capabilities and tools - using MCP integrations and knowledge bases to actually do things. You can also create a hybrid that has both personality AND tools!",
+          text: "Nice! What kind of vibe are you going for? A few directions:\n\n- **Community manager** - helps moderate, answers FAQs, welcomes new members\n- **Fun character** - has personality, banters with members, adds entertainment\n- **Utility bot** - focused on tools and integrations\n\nWhat would be most useful for your server?",
           actions: ["BUILDER_CHAT"],
         },
       },
@@ -219,14 +202,12 @@ export const builderChatAction = {
     [
       {
         name: "{{user1}}",
-        content: {
-          text: "How do message examples work?",
-        },
+        content: { text: "How do message examples work?" },
       },
       {
         name: "{{agentName}}",
         content: {
-          text: "Message examples are like a cheat sheet for your character's voice! They use few-shot learning to show the AI exactly how your character should talk. Include 3-7 quality examples covering different scenarios - greetings, advice-giving, emotional moments. Quality beats quantity here!",
+          text: "Message examples are how you teach your character's exact voice. They work through few-shot learning - the AI sees how your character responds and mimics that style.\n\nInclude 3-7 quality examples covering different scenarios: greetings, giving advice, handling questions. Quality matters more than quantity.\n\nWant me to help craft some examples for a character you have in mind?",
           actions: ["BUILDER_CHAT"],
         },
       },

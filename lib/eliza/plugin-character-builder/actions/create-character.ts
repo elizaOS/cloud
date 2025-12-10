@@ -11,6 +11,7 @@ import {
   ModelType,
 } from "@elizaos/core";
 import { charactersService } from "@/lib/services/characters/characters";
+import { roomsService } from "@/lib/services/agents/rooms";
 import { cleanPrompt, isCreatorMode } from "../../shared/utils/helpers";
 import { MESSAGE_EXAMPLES_FORMAT_INSTRUCTIONS } from "../providers/character-guide";
 
@@ -225,6 +226,17 @@ export const createCharacterAction = {
 
     logger.info(`[CREATE_CHARACTER] Character created with ID: ${savedCharacter.id}`);
 
+    // Lock the room - this creator session is complete
+    const roomId = message.roomId;
+    if (roomId) {
+      await roomsService.updateMetadata(roomId, {
+        locked: true,
+        createdCharacterId: savedCharacter.id,
+        createdCharacterName: savedCharacter.name,
+        lockedAt: Date.now(),
+      });
+    }
+
     // Callback with success and character ID for frontend redirect
     await callback({
       text: parsed.confirmation || `I've created ${parsed.characterName}! You can now continue building and refining the character.`,
@@ -234,6 +246,7 @@ export const createCharacterAction = {
         characterCreated: true,
         characterId: savedCharacter.id,
         characterName: savedCharacter.name,
+        roomLocked: true,
       },
     });
   },
