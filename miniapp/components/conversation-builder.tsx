@@ -36,6 +36,8 @@ export function ConversationBuilder({
   onGenerateExamples,
   isGenerating,
 }: ConversationBuilderProps) {
+  // Suppress unused param warning - kept for future enhancements
+  void characterBio;
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const addExample = () => {
@@ -171,6 +173,9 @@ function ConversationCard({
   canMoveUp,
   canMoveDown,
 }: ConversationCardProps) {
+  // Suppress unused param warnings - kept for future drag-to-reorder feature
+  void onMoveDown;
+  void canMoveDown;
   const hasContent = example.user.trim() || example.agent.trim();
   const preview = example.user
     ? `"${example.user.slice(0, 40)}${example.user.length > 40 ? "..." : ""}"`
