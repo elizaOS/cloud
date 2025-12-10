@@ -50,7 +50,13 @@ function MiniappLoginContent() {
   const [errorMessage, setErrorMessage] = useState(initialStatus.errorMessage);
 
   // Track if login has been triggered to prevent infinite loop
-  const loginTriggeredRef = useRef(false);
+  // Use sessionStorage for persistence across component remounts (e.g., React Strict Mode, hot reload)
+  const LOGIN_TRIGGERED_KEY = `miniapp_login_triggered_${sessionId}`;
+  const loginTriggeredRef = useRef(
+    typeof window !== "undefined"
+      ? sessionStorage.getItem(LOGIN_TRIGGERED_KEY) === "true"
+      : false
+  );
 
   const completeLogin = useCallback(async () => {
     if (!sessionId) {
@@ -122,25 +128,34 @@ function MiniappLoginContent() {
   }, [initialStatus.status, authenticated, sessionId, completeLogin]);
 
   // Auto-trigger login when ready and waiting for auth
-  // Use ref to ensure login is only called once to prevent infinite loop
+  // Use ref + sessionStorage to ensure login is only called once (persistent across remounts)
   useEffect(() => {
     // Reset flag when authenticated (early return prevents race condition)
     if (authenticated) {
       loginTriggeredRef.current = false;
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem(LOGIN_TRIGGERED_KEY);
+      }
       return;
     }
 
     // Trigger login when conditions are met
     if (status === "waiting_auth" && ready && !loginTriggeredRef.current) {
       loginTriggeredRef.current = true;
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(LOGIN_TRIGGERED_KEY, "true");
+      }
       login();
     }
 
     // Cleanup on unmount to prevent memory leaks
     return () => {
       loginTriggeredRef.current = false;
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem(LOGIN_TRIGGERED_KEY);
+      }
     };
-  }, [status, ready, authenticated, login]);
+  }, [status, ready, authenticated, login, LOGIN_TRIGGERED_KEY]);
 
   // Loading state
   if (status === "loading") {

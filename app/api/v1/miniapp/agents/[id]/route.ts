@@ -44,9 +44,7 @@ const ImageGenerationSettingsSchema = z.object({
   enabled: z.boolean(),
   autoGenerate: z.boolean(),
   referenceImages: z.array(z.string()).default([]),
-  vibe: z.enum([
-    "flirty", "shy", "bold", "spicy", "romantic", "playful", "mysterious", "intellectual"
-  ]).optional(),
+  vibe: z.enum(IMAGE_GENERATION_VIBES).optional(),
   appearanceDescription: z.string().optional(),
 });
 
@@ -65,7 +63,7 @@ function imageSettingsToAffiliateData(
 
   return {
     source: "miniapp",
-    vibe: imageSettings.vibe || "playful",
+    vibe: imageSettings.vibe || DEFAULT_VIBE,
     imageUrls: imageSettings.referenceImages || [],
     appearanceDescription: imageSettings.appearanceDescription,
     autoImage: imageSettings.autoGenerate,
@@ -386,24 +384,37 @@ async function updateAgent(
         }
 
         try {
-          // Upload base64 image to blob storage
-          const blobResult = await uploadBase64Image(data.avatarUrl, {
-            filename: `avatar-${id}-${Date.now()}.jpg`,
-            folder: "avatars",
-            userId: user.id,
-          });
+          // Upload base64 image to blob storage (5MB limit for avatars)
+          const blobResult = await uploadBase64Image(
+            data.avatarUrl,
+            {
+              filename: `avatar-${id}-${Date.now()}.jpg`,
+              folder: "avatars",
+              userId: user.id,
+            },
+            5 // 5MB max for avatars (more restrictive than general 10MB limit)
+          );
           finalAvatarUrl = blobResult.url;
           logger.info("[Miniapp API] Uploaded avatar to blob storage", {
             agentId: id,
             blobUrl: blobResult.url,
           });
         } catch (uploadError) {
+          // Comprehensive error logging for debugging production issues
           logger.error("[Miniapp API] Avatar upload failed", {
             agentId: id,
+            userId: user.id,
+            organizationId: user.organization_id,
+            estimatedSize: estimatedSize,
+            estimatedSizeMB: (estimatedSize / 1024 / 1024).toFixed(2),
+            mimeType: base64Match[1],
+            base64Length: base64Content.length,
             error:
               uploadError instanceof Error
                 ? uploadError.message
                 : String(uploadError),
+            errorStack:
+              uploadError instanceof Error ? uploadError.stack : undefined,
           });
 
           // Return error to client instead of continuing with null avatar

@@ -181,7 +181,7 @@ function imageSettingsToAffiliateData(
 
   return {
     source: "miniapp",
-    vibe: imageSettings.vibe || "playful",
+    vibe: imageSettings.vibe || DEFAULT_VIBE,
     imageUrls: imageSettings.referenceImages || [],
     appearanceDescription: imageSettings.appearanceDescription,
     autoImage: imageSettings.autoGenerate,
