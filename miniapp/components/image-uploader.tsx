@@ -7,7 +7,13 @@ import { useCallback, useRef, useState } from "react";
 import { ImageCropper } from "./image-cropper";
 
 // Constants for validation
-const VALID_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
+const VALID_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB raw
 const MAX_COMPRESSED_SIZE = 1 * 1024 * 1024; // 1MB compressed
 const MIN_DIMENSION = 256;
@@ -64,7 +70,9 @@ async function validateImage(file: File): Promise<ValidationError | null> {
 /**
  * Get image dimensions from a file
  */
-function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
+function getImageDimensions(
+  file: File,
+): Promise<{ width: number; height: number }> {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file);
     const img = new window.Image();
@@ -85,7 +93,7 @@ function getImageDimensions(file: File): Promise<{ width: number; height: number
  */
 async function compressImage(
   blob: Blob,
-  targetSize: number = MAX_COMPRESSED_SIZE
+  targetSize: number = MAX_COMPRESSED_SIZE,
 ): Promise<Blob> {
   if (blob.size <= targetSize) return blob;
 
@@ -107,7 +115,7 @@ async function compressImage(
       // Calculate new dimensions while maintaining aspect ratio
       let { width, height } = img;
       const ratio = Math.sqrt(targetSize / blob.size);
-      
+
       // Only downscale if needed
       if (ratio < 1) {
         width = Math.floor(width * ratio);
@@ -141,7 +149,7 @@ async function compressImage(
             }
           },
           "image/jpeg",
-          quality
+          quality,
         );
       };
 
@@ -171,7 +179,9 @@ export function ImageUploader({
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(currentImage || null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(
+    currentImage || null,
+  );
   const [cropImage, setCropImage] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -218,7 +228,7 @@ export function ImageUploader({
         setTimeout(() => setProgress(0), 500);
       }
     },
-    [enableCropping, onUpload]
+    [enableCropping, onUpload],
   );
 
   const handleCrop = useCallback(
@@ -239,7 +249,7 @@ export function ImageUploader({
       setIsProcessing(false);
       setTimeout(() => setProgress(0), 500);
     },
-    [onUpload]
+    [onUpload],
   );
 
   const handleCropCancel = useCallback(() => {
@@ -272,7 +282,7 @@ export function ImageUploader({
         handleFile(files[0]);
       }
     },
-    [handleFile]
+    [handleFile],
   );
 
   const handleFileSelect = useCallback(
@@ -284,7 +294,7 @@ export function ImageUploader({
       // Reset input so same file can be selected again
       e.target.value = "";
     },
-    [handleFile]
+    [handleFile],
   );
 
   const handleClick = useCallback(() => {
@@ -321,7 +331,7 @@ export function ImageUploader({
           <button
             type="button"
             onClick={handleRemove}
-            className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white/80 hover:bg-black/80 hover:text-white"
+            className="absolute top-1 right-1 rounded-full bg-black/60 p-1 text-white/80 hover:bg-black/80 hover:text-white"
           >
             <X className="h-3 w-3" />
           </button>
@@ -335,13 +345,18 @@ export function ImageUploader({
     <div className={className}>
       {/* Preview with remove option */}
       {showPreview && previewUrl && (
-        <div className="relative mb-3 mx-auto max-w-[176px]">
+        <div className="relative mx-auto mb-3 max-w-[176px]">
           <div className="relative aspect-square overflow-hidden rounded-xl border-2 border-white/10">
-            <Image src={previewUrl} alt="Preview" fill className="object-cover" />
+            <Image
+              src={previewUrl}
+              alt="Preview"
+              fill
+              className="object-cover"
+            />
             <button
               type="button"
               onClick={handleRemove}
-              className="absolute right-2 top-2 rounded-full bg-black/60 p-1.5 text-white/80 hover:bg-black/80 hover:text-white"
+              className="absolute top-2 right-2 rounded-full bg-black/60 p-1.5 text-white/80 hover:bg-black/80 hover:text-white"
             >
               <X className="h-4 w-4" />
             </button>
@@ -370,35 +385,31 @@ export function ImageUploader({
             isDragging
               ? "border-brand bg-brand/10"
               : "border-white/10 bg-white/2 hover:border-white/20 hover:bg-white/5"
-          } ${compact ? "h-20 w-20" : "h-44 w-full max-w-[176px] mx-auto"}`}
+          } ${compact ? "h-20 w-20" : "mx-auto h-44 w-full max-w-[176px]"}`}
         >
           {isProcessing ? (
             <div className="flex flex-col items-center gap-2">
-              <Loader2 className="h-6 w-6 animate-spin text-brand" />
+              <Loader2 className="text-brand h-6 w-6 animate-spin" />
               {progress > 0 && (
                 <div className="w-16 overflow-hidden rounded-full bg-white/10">
                   <div
-                    className="h-1 bg-brand transition-all duration-300"
+                    className="bg-brand h-1 transition-all duration-300"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
               )}
             </div>
+          ) : compact ? (
+            <ImagePlus className="h-6 w-6 text-white/30" />
           ) : (
             <>
-              {compact ? (
-                <ImagePlus className="h-6 w-6 text-white/30" />
-              ) : (
-                <>
-                  <Upload className="mb-2 h-8 w-8 text-white/30" />
-                  <p className="text-sm text-white/50">
-                    {isDragging ? "Drop image here" : "Drag & drop or click"}
-                  </p>
-                  <p className="mt-1 text-xs text-white/30">
-                    JPG, PNG, WebP, GIF • Max 5MB
-                  </p>
-                </>
-              )}
+              <Upload className="mb-2 h-8 w-8 text-white/30" />
+              <p className="text-sm text-white/50">
+                {isDragging ? "Drop image here" : "Drag & drop or click"}
+              </p>
+              <p className="mt-1 text-xs text-white/30">
+                JPG, PNG, WebP, GIF • Max 5MB
+              </p>
             </>
           )}
         </div>
@@ -450,4 +461,3 @@ export function InlineImageUploader({
 }
 
 export default ImageUploader;
-
