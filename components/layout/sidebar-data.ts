@@ -67,12 +67,11 @@ export const sidebarSections: SidebarSection[] = [
         freeAllowed: false, // Requires signup
       },
       {
-        id: "character-creator",
-        label: "Creator",
-        href: "/dashboard/character-creator",
+        id: "agent-creator",
+        label: "Agent Creator",
+        href: "/dashboard/build",
         icon: UserCog,
-        freeAllowed: false,
-        featureFlag: "characterBuilder",
+        freeAllowed: true,
       },
       {
         id: "api-explorer",

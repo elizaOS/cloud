@@ -89,7 +89,7 @@ export const FEATURE_ROUTE_MAP: Record<
     api: ["/api/mcp", "/api/v1/mcp"],
   },
   characterBuilder: {
-    frontend: ["/dashboard/character-creator"],
+    frontend: ["/dashboard/build"],
     api: [],
   },
   containers: {

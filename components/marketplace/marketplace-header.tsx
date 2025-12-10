@@ -81,16 +81,16 @@ export function MyAgentsHeader({
             <List className="h-4 w-4" />
           </Button>
         </div>
+
         <LockOnButton
-          size="md"
-          onClick={() => router.push("/dashboard/character-creator")}
-          icon={<Plus className="h-4 w-4" />}
-          className="h-[35px]"
+          onClick={() => router.push("/dashboard/build")}
+          size="sm"
+          className="hidden sm:flex"
         >
-          New Agent
+          + New Agent
         </LockOnButton>
         <Button
-          onClick={() => router.push("/dashboard/character-creator")}
+          onClick={() => router.push("/dashboard/build")}
           size="sm"
           className="sm:hidden h-8 w-8 p-0"
         >

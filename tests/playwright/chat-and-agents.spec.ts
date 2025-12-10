@@ -230,7 +230,7 @@ test.describe("Agent Gallery/Marketplace", () => {
 test.describe("Character Creator (Auth Required)", () => {
   test.beforeEach(async ({ page }) => {
     await page.context().clearCookies();
-    await page.goto(`${BASE_URL}/dashboard/character-creator`);
+    await page.goto(`${BASE_URL}/dashboard/build`);
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(2000);
   });
