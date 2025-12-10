@@ -55,12 +55,12 @@ export async function GET(request: NextRequest) {
   // Rate limiting
   const rateLimitResult = await checkMiniappRateLimit(
     request,
-    MINIAPP_RATE_LIMITS,
+    MINIAPP_RATE_LIMITS
   );
   if (!rateLimitResult.allowed) {
     return createRateLimitErrorResponse(
       rateLimitResult,
-      corsResult.origin ?? undefined,
+      corsResult.origin ?? undefined
     );
   }
 
@@ -72,14 +72,14 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const limit = Math.min(
       50,
-      Math.max(1, parseInt(searchParams.get("limit") || "20", 10)),
+      Math.max(1, parseInt(searchParams.get("limit") || "20", 10))
     );
     const search = searchParams.get("search") || undefined;
 
     const result = await myAgentsService.searchCharacters({
       userId: user.id,
       organizationId: user.organization_id,
-      filters: { 
+      filters: {
         search,
         source: "miniapp", // Only show miniapp-created agents
       },
@@ -94,10 +94,10 @@ export async function GET(request: NextRequest) {
         id: char.id,
         name: char.name,
         bio: char.bio,
-        avatarUrl: char.avatarUrl,
-        isPublic: char.isPublic,
-        createdAt: char.createdAt,
-        updatedAt: char.updatedAt,
+        avatarUrl: char.avatarUrl || char.avatar_url,
+        isPublic: char.isPublic ?? char.is_public ?? false,
+        createdAt: char.createdAt || char.created_at,
+        updatedAt: char.updatedAt || char.updated_at,
         stats: char.stats,
       })),
       pagination: {
@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : "Failed to list agents",
       },
-      { status },
+      { status }
     );
 
     return addCorsHeaders(response, corsResult.origin);
@@ -152,7 +152,7 @@ const CreateAgentSchema = z.object({
         z.number(),
         z.boolean(),
         z.record(z.string(), z.unknown()),
-      ]),
+      ])
     )
     .optional(),
   isPublic: z.boolean().optional(),
@@ -182,12 +182,12 @@ export async function POST(request: NextRequest) {
   // Rate limiting (stricter for write operations)
   const rateLimitResult = await checkMiniappRateLimit(
     request,
-    MINIAPP_WRITE_LIMITS,
+    MINIAPP_WRITE_LIMITS
   );
   if (!rateLimitResult.allowed) {
     return createRateLimitErrorResponse(
       rateLimitResult,
-      corsResult.origin ?? undefined,
+      corsResult.origin ?? undefined
     );
   }
 
@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
           error: "Invalid request data",
           details: validationResult.error.format(),
         },
-        { status: 400 },
+        { status: 400 }
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -253,7 +253,7 @@ export async function POST(request: NextRequest) {
           createdAt: character.created_at,
         },
       },
-      { status: 201 },
+      { status: 201 }
     );
 
     return addCorsHeaders(response, corsResult.origin);
@@ -270,7 +270,7 @@ export async function POST(request: NextRequest) {
         error:
           error instanceof Error ? error.message : "Failed to create agent",
       },
-      { status },
+      { status }
     );
 
     return addCorsHeaders(response, corsResult.origin);
