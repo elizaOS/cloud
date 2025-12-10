@@ -22,7 +22,7 @@ const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
 
 test.describe("Character Creator Form", () => {
   test("character creator form accepts all fields", async ({ page }) => {
-    await page.goto(`${BASE_URL}/dashboard/character-creator`);
+    await page.goto(`${BASE_URL}/dashboard/build`);
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(2000);
 
@@ -77,7 +77,7 @@ test.describe("Character Creator Form", () => {
   });
 
   test("character creator validates required fields", async ({ page }) => {
-    await page.goto(`${BASE_URL}/dashboard/character-creator`);
+    await page.goto(`${BASE_URL}/dashboard/build`);
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(2000);
 

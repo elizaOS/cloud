@@ -64,7 +64,7 @@ export function MyAgentsClient({ initialCharacters }: MyAgentsClientProps) {
   });
 
   const handleCreateNew = useCallback(() => {
-    router.push("/dashboard/character-creator");
+    router.push("/dashboard/build");
   }, [router]);
 
   useSetPageHeader(

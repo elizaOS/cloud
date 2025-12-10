@@ -16,6 +16,20 @@ import {
 import { v4 } from "uuid";
 import type { ParsedResponse, ParsedPlan } from "./parsers";
 
+/**
+ * Default Eliza agent ID - used to detect creator mode
+ */
+export const DEFAULT_ELIZA_ID = "b850bc30-45f8-0041-a00a-83df46d8555d";
+
+/**
+ * Check if runtime is in creator mode (chatting with default Eliza to create new character)
+ * vs build mode (editing existing character)
+ */
+export function isCreatorMode(runtime: IAgentRuntime): boolean {
+  const characterId = runtime.character.id;
+  return !characterId || characterId === DEFAULT_ELIZA_ID;
+}
+
 export const MAX_RESPONSE_RETRIES = 3;
 export const EVALUATOR_TIMEOUT_MS = 30000;
 
@@ -67,6 +81,7 @@ export function cleanPrompt(prompt: string): string {
 interface Attachment {
   url?: string;
   id?: string;
+  title?: string;
   contentType?: string;
   [key: string]: unknown;
 }

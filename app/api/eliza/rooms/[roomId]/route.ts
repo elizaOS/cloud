@@ -146,9 +146,79 @@ export async function GET(
       count: messages.length,
       characterId,
       agent: agentInfo,
+      metadata: roomData.room.metadata || {},
     },
     { headers: { "Cache-Control": "no-store" } },
   );
+}
+
+/**
+ * PATCH /api/eliza/rooms/[roomId] - Update room metadata
+ *
+ * Pure database operation - no runtime needed
+ * Requires the authenticated user to be a participant of the room
+ */
+export async function PATCH(
+  request: NextRequest,
+  ctx: { params: Promise<{ roomId: string }> },
+) {
+  // Get authenticated user ID
+  let userId: string;
+
+  try {
+    const authResult = await requireAuthOrApiKey(request);
+    userId = authResult.user.id;
+  } catch {
+    // Fallback to anonymous user
+    const anonData = await getAnonymousUser();
+    if (!anonData) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 },
+      );
+    }
+    userId = anonData.user.id;
+  }
+
+  const { roomId } = await ctx.params;
+
+  if (!roomId) {
+    return NextResponse.json(
+      { error: "roomId is required" },
+      { status: 400 },
+    );
+  }
+
+  // Access control: verify user is a participant of the room
+  const hasAccess = await roomsService.hasAccess(roomId, userId);
+  if (!hasAccess) {
+    logger.warn(
+      `[Eliza Room API] Access denied: User ${userId} attempted to update room ${roomId}`,
+    );
+    return NextResponse.json(
+      { error: "You don't have permission to update this room" },
+      { status: 403 },
+    );
+  }
+
+  const body = await request.json() as { metadata?: Record<string, unknown> };
+  
+  if (!body.metadata || typeof body.metadata !== "object") {
+    return NextResponse.json(
+      { error: "metadata object is required" },
+      { status: 400 },
+    );
+  }
+
+  await roomsService.updateMetadata(roomId, body.metadata);
+
+  logger.info("[Eliza Room API] ✓ Room metadata updated successfully:", roomId);
+
+  return NextResponse.json({
+    success: true,
+    message: "Room metadata updated successfully",
+    roomId,
+  });
 }
 
 /**
