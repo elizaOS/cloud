@@ -301,6 +301,31 @@ async function updateAgent(
       let finalAvatarUrl = data.avatarUrl;
 
       if (data.avatarUrl && data.avatarUrl.startsWith("data:image/")) {
+        // Early size validation before creating buffer (5MB max for avatars)
+        const base64Match = data.avatarUrl.match(/^data:([^;]+);base64,(.+)$/);
+        if (!base64Match) {
+          const response = NextResponse.json(
+            { success: false, error: "Invalid base64 image format" },
+            { status: 400 }
+          );
+          return addCorsHeaders(response, corsResult.origin);
+        }
+
+        const base64Content = base64Match[2];
+        const estimatedSize = Math.ceil((base64Content.length * 3) / 4);
+        const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB for avatars
+
+        if (estimatedSize > MAX_AVATAR_SIZE) {
+          const response = NextResponse.json(
+            {
+              success: false,
+              error: `Avatar too large (max 5MB). Got ${(estimatedSize / 1024 / 1024).toFixed(2)}MB`,
+            },
+            { status: 400 }
+          );
+          return addCorsHeaders(response, corsResult.origin);
+        }
+
         try {
           // Upload base64 image to blob storage
           const blobResult = await uploadBase64Image(data.avatarUrl, {

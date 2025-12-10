@@ -124,18 +124,16 @@ function MiniappLoginContent() {
   // Auto-trigger login when ready and waiting for auth
   // Use ref to ensure login is only called once to prevent infinite loop
   useEffect(() => {
-    if (
-      status === "waiting_auth" &&
-      ready &&
-      !authenticated &&
-      !loginTriggeredRef.current
-    ) {
-      loginTriggeredRef.current = true;
-      login();
-    }
-    // Reset the flag if user becomes authenticated (for re-auth scenarios)
+    // Reset flag when authenticated (early return prevents race condition)
     if (authenticated) {
       loginTriggeredRef.current = false;
+      return;
+    }
+
+    // Trigger login when conditions are met
+    if (status === "waiting_auth" && ready && !loginTriggeredRef.current) {
+      loginTriggeredRef.current = true;
+      login();
     }
 
     // Cleanup on unmount to prevent memory leaks
