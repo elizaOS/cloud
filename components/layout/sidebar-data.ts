@@ -10,12 +10,12 @@ import {
   Bot,
   Code,
   Mic,
-  Store,
   Puzzle,
   Grid3x3,
   Shield,
   Wallet,
   Coins,
+  MessageCircle,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import type { FeatureFlag } from "@/lib/config/feature-flags";
@@ -56,14 +56,14 @@ export const sidebarSections: SidebarSection[] = [
         id: "chat",
         label: "Chat",
         href: "/dashboard/chat",
-        icon: Bot,
+        icon: MessageCircle,
         freeAllowed: true, // Free tier can access Chat
       },
       {
         id: "my-agents",
         label: "My Agents",
         href: "/dashboard/my-agents",
-        icon: Store,
+        icon: Bot,
         freeAllowed: false, // Requires signup
       },
       {
