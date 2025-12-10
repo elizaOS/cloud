@@ -223,7 +223,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             }}
           >
             <MessageSquare className="h-4 w-4" />
-            <span className="hidden md:inline">Chat Mode</span>
+            <span className="hidden md:inline">Chat</span>
           </button>
           <button
             onClick={() => handleModeChange("build")}
@@ -241,7 +241,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             }}
           >
             <Wrench className="h-4 w-4" />
-            <span className="hidden md:inline">Build Mode</span>
+            <span className="hidden md:inline">Build</span>
           </button>
         </div>
       </div>
