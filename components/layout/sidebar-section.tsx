@@ -136,6 +136,8 @@ export function SidebarNavigationSection({
         return "#FF5800"; // Orange - Creative/Generation
       case "infrastructure":
         return "#22C55E"; // Green - System/Infrastructure
+      case "monetization":
+        return "#FFD700"; // Gold - Monetization/Earnings
       case "admin":
         return "#EF4444"; // Red - Admin/Moderation
       default:
