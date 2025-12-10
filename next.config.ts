@@ -123,9 +123,9 @@ const nextConfig: NextConfig = {
               "form-action 'self'",
               // Frame ancestors - prevent embedding (clickjacking protection)
               "frame-ancestors 'none'",
-              // Child/frame sources - Privy and WalletConnect iframes
-              "child-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://oauth.telegram.org",
-              "frame-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://oauth.telegram.org",
+              // Child/frame sources - Privy, WalletConnect iframes, and Vercel Sandbox
+              "child-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://oauth.telegram.org https://*.vercel.run",
+              "frame-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://oauth.telegram.org https://*.vercel.run",
               // Connect sources - API endpoints, WebSocket connections, and RPC providers
               [
                 "connect-src 'self'",
@@ -151,6 +151,8 @@ const nextConfig: NextConfig = {
                 "https://cdn.jsdelivr.net",
                 // Vercel Analytics
                 "https://vitals.vercel-insights.com",
+                // Vercel Sandbox
+                "https://*.vercel.run",
               ].join(" "),
               // Worker sources - allow self for web workers
               "worker-src 'self' blob:",
