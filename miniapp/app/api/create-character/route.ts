@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+
 import { getCloudUrl } from "@/lib/cloud-url";
 
 interface CreateCharacterRequest {
