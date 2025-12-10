@@ -18,7 +18,7 @@ import { fragmentSchema, type FragmentSchema } from "@/lib/fragments/schema";
 import templates from "@/lib/fragments/templates";
 import type { ExecutionResult } from "@/lib/fragments/types";
 import { DeepPartial } from "ai";
-import { experimental_useObject as useObject } from "ai/react";
+import { experimental_useObject as useObject } from "@ai-sdk/react";
 import { toAISDKMessages, toMessageImage, type Message as MessageType } from "@/lib/fragments/messages";
 
 function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T) => void] {

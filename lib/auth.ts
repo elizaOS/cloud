@@ -469,3 +469,7 @@ export async function requireAdmin(
 
   return { user, isAdmin: true, role };
 }
+
+
+// Re-export app authentication utilities
+export { requireAppAuth, verifyAppToken } from "./middleware/app-auth";

@@ -19,7 +19,7 @@ import type { FragmentSchema } from "@/lib/fragments/schema";
 import templates from "@/lib/fragments/templates";
 import type { ExecutionResult } from "@/lib/fragments/types";
 import { DeepPartial } from "ai";
-import { experimental_useObject as useObject } from "ai/react";
+import { experimental_useObject as useObject } from "@ai-sdk/react";
 import { fragmentSchema } from "@/lib/fragments/schema";
 
 type BuilderMode = "quick" | "full_app";
