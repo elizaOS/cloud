@@ -17,7 +17,7 @@ import { builderChatAction } from "./actions/builder-chat";
 import { guideOnboardingAction } from "./actions/guide-onboarding";
 import { handleMessage } from "./handler";
 import { roomTitleEvaluator } from "../shared/evaluators";
-import { characterProvider,recentMessagesProvider } from "../shared/providers";
+import { characterProvider, recentMessagesProvider } from "../shared/providers";
 
 /**
  * Character Builder Plugin

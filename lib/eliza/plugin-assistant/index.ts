@@ -36,7 +36,6 @@ export const assistantPlugin: Plugin = {
     affiliateContextProvider,
     currentRunContextProvider,
     recentMessagesProvider,
-    characterProvider,
   ],
   actions: [generateImageAction],
   evaluators: [roomTitleEvaluator],
