@@ -85,7 +85,7 @@ export function MyAgentsHeader({
         <LockOnButton
           onClick={() => router.push("/dashboard/build")}
           size="sm"
-          className="hidden sm:flex"
+          className="hidden sm:flex h-[35px]"
         >
           + New Agent
         </LockOnButton>
