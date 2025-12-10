@@ -19,9 +19,17 @@
 import { describe, test, expect, beforeAll, afterAll, setDefaultTimeout } from "bun:test";
 import { config } from "dotenv";
 
+// Preserve TEST_API_URL before dotenv loading
+const PRESERVED_TEST_API_URL = process.env.TEST_API_URL;
+
 // Ensure environment is loaded before any database access
 config({ path: ".env" });
 config({ path: ".env.local", override: true });
+
+// Restore preserved TEST_API_URL
+if (PRESERVED_TEST_API_URL) {
+  process.env.TEST_API_URL = PRESERVED_TEST_API_URL;
+}
 
 import { db } from "@/db/client";
 import { users, adminUsers, moderationViolations, userModerationStatus, organizations } from "@/db/schemas";
