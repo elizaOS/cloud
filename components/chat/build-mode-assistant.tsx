@@ -647,14 +647,13 @@ export function BuildModeAssistant({
 
                       <div className="flex flex-col gap-1.5">
                         {/* Message Text */}
-                        <div className="py-3 px-4 bg-white/[0.03] border border-white/[0.06] rounded-lg transition-colors hover:bg-white/[0.05] hover:border-white/[0.08]">
+                        <div className="py-3 px-4 bg-white/[0.03] border border-white/[0.06] rounded-lg transition-colors hover:bg-white/[0.05] hover:border-white/[0.08] overflow-hidden">
                           <style jsx>{`
                             .build-mode-content :global(pre) {
                               background: rgba(0, 0, 0, 0.4) !important;
                               padding: 12px !important;
                               border-radius: 8px !important;
                               overflow-x: auto !important;
-                              max-width: 100% !important;
                               margin: 8px 0 !important;
                             }
                             .build-mode-content
@@ -674,12 +673,19 @@ export function BuildModeAssistant({
                               :global(pre)::-webkit-scrollbar-thumb:hover {
                               background: rgba(255, 88, 0, 0.6);
                             }
+                            .build-mode-content :global(pre code) {
+                              font-family:
+                                "Monaco", "Menlo", "Ubuntu Mono", "Consolas",
+                                monospace !important;
+                              font-size: 13px !important;
+                              white-space: pre-wrap !important;
+                              word-break: break-word !important;
+                            }
                             .build-mode-content :global(code) {
                               font-family:
                                 "Monaco", "Menlo", "Ubuntu Mono", "Consolas",
                                 monospace !important;
                               font-size: 13px !important;
-                              white-space: pre !important;
                             }
                             /* JSON property keys */
                             .build-mode-content :global(.token.property),
@@ -706,6 +712,7 @@ export function BuildModeAssistant({
                             /* Remove prose margins for tighter spacing */
                             .build-mode-content :global(p) {
                               margin: 0 !important;
+                              word-break: break-word !important;
                             }
                             .build-mode-content :global(p + p) {
                               margin-top: 8px !important;
@@ -736,10 +743,51 @@ export function BuildModeAssistant({
                               font-size: 14px !important;
                             }
                           `}</style>
-                          <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/90 build-mode-content overflow-hidden">
+                          <div className="text-[15px] leading-relaxed text-white/90 build-mode-content break-words">
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
                               rehypePlugins={[rehypeHighlight]}
+                              components={{
+                                code: ({ className, children, ...props }) => {
+                                  const isInline = !className;
+                                  return isInline ? (
+                                    <code
+                                      className="bg-white/10 px-1.5 py-0.5 rounded text-xs break-all"
+                                      {...props}
+                                    >
+                                      {children}
+                                    </code>
+                                  ) : (
+                                    <code className={className} {...props}>
+                                      {children}
+                                    </code>
+                                  );
+                                },
+                                pre: ({ children }) => (
+                                  <pre className="bg-black/40 border border-white/10 rounded-lg p-3 overflow-x-auto my-2">
+                                    {children}
+                                  </pre>
+                                ),
+                                a: ({ href, children }) => (
+                                  <a
+                                    href={href}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[#FF5800] hover:text-[#FF5800]/80 underline break-all"
+                                  >
+                                    {children}
+                                  </a>
+                                ),
+                                ul: ({ children }) => (
+                                  <ul className="list-disc list-inside my-2">{children}</ul>
+                                ),
+                                ol: ({ children }) => (
+                                  <ol className="list-decimal list-inside my-2">{children}</ol>
+                                ),
+                                p: ({ children }) => (
+                                  <p className="my-2 first:mt-0 last:mb-0">{children}</p>
+                                ),
+                              }}
                             >
                               {content}
                             </ReactMarkdown>

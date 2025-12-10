@@ -54,6 +54,8 @@ export interface RoomPreview {
   characterAvatarUrl?: string; // avatar_url from user_characters
   lastTime?: number; // from last message createdAt (ms timestamp)
   lastText?: string; // from last message content.text (truncated)
+  isLocked?: boolean; // Whether the room is locked (character was created/saved)
+  isBuildRoom?: boolean; // Whether this is a BUILD/CREATOR room
 }
 
 // Re-export for convenience
@@ -159,6 +161,10 @@ export class RoomsService {
   /**
    * Get rooms for an entity (user) with last message preview
    * Uses a single optimized query - no N+1 problem
+   * 
+   * Filters out:
+   * - Locked rooms (where a character was created/saved)
+   * - BUILD and CREATOR rooms (character building sessions)
    *
    * @param entityId - The user's ID (from auth)
    * @returns Room previews sorted by most recent activity
@@ -168,16 +174,27 @@ export class RoomsService {
     const roomsWithPreview =
       await roomsRepository.findRoomsWithPreviewForEntity(entityId);
 
-    // Transform to API response format
-    return roomsWithPreview.map((room) => ({
-      id: room.id,
-      title: room.name || undefined,
-      characterId: room.characterId || undefined,
-      characterName: room.characterName || undefined,
-      characterAvatarUrl: room.characterAvatarUrl || undefined,
-      lastTime: room.lastMessageTime?.getTime() || room.createdAt?.getTime(),
-      lastText: room.lastMessageText?.substring(0, 100) || undefined,
-    }));
+    // Transform to API response format and filter out locked/builder rooms
+    return roomsWithPreview
+      .map((room) => {
+        const metadata = room.metadata as { locked?: boolean } | null;
+        const isLocked = metadata?.locked === true;
+        const isBuildRoom = room.name?.startsWith("[BUILD]") || room.name?.startsWith("[CREATOR]") || false;
+        
+        return {
+          id: room.id,
+          title: room.name || undefined,
+          characterId: room.characterId || undefined,
+          characterName: room.characterName || undefined,
+          characterAvatarUrl: room.characterAvatarUrl || undefined,
+          lastTime: room.lastMessageTime?.getTime() || room.createdAt?.getTime(),
+          lastText: room.lastMessageText?.substring(0, 100) || undefined,
+          isLocked,
+          isBuildRoom,
+        };
+      })
+      // Filter out locked rooms and builder rooms from the list
+      .filter((room) => !room.isLocked && !room.isBuildRoom);
   }
 
   /**

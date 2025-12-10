@@ -16,6 +16,19 @@ import type { Room as BaseRoom } from "@elizaos/core";
 export type Room = BaseRoom;
 
 /**
+ * Room metadata with locked state.
+ */
+export interface RoomMetadata {
+  locked?: boolean;
+  createdCharacterId?: string;
+  createdCharacterName?: string;
+  lockedAt?: number;
+  createdAt?: number;
+  creatorUserId?: string;
+  [key: string]: unknown;
+}
+
+/**
  * Room with last message preview for sidebar/list views.
  * 
  * All data comes from a single optimized query.
@@ -29,6 +42,7 @@ export interface RoomWithPreview {
   createdAt: Date;
   lastMessageTime: Date | null;
   lastMessageText: string | null;
+  metadata: RoomMetadata | null; // Room metadata including locked state
 }
 
 /**
@@ -238,6 +252,7 @@ export class RoomsRepository {
         createdAt: roomTable.createdAt,
         lastMessageTime: latestMessagesSubquery.createdAt,
         lastMessageText: latestMessagesSubquery.text,
+        metadata: roomTable.metadata,
       })
       .from(participantTable)
       .innerJoin(roomTable, eq(participantTable.roomId, roomTable.id))

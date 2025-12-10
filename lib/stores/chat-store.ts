@@ -16,6 +16,8 @@ export interface RoomItem {
   characterId?: string;
   characterName?: string;
   title?: string; // AI-generated title from first user message
+  isLocked?: boolean; // Whether the room is locked (character was created/saved)
+  isBuildRoom?: boolean; // Whether this is a BUILD/CREATOR room
 }
 
 export interface Character {
@@ -114,6 +116,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
               lastText: r.lastText,
               lastTime: r.lastTime,
               title: r.title,
+              isLocked: r.isLocked,
+              isBuildRoom: r.isBuildRoom,
             }));
 
           const currentState = get();
