@@ -158,7 +158,7 @@ export function UploadsTab({ characterId }: UploadsTabProps) {
           <Button
             onClick={handleUpload}
             disabled={selectedFiles.length === 0 || uploading}
-            className="bg-[#E500FF] hover:bg-[#E500FF]/90 text-white shrink-0"
+            className="bg-[#FF5800] hover:bg-[#FF5800]/90 text-white shrink-0"
           >
             {uploading ? (
               <>

@@ -46,7 +46,7 @@ const PAGES_TO_WARMUP = [
   "/dashboard/voices",
   "/dashboard/mcps",
   "/dashboard/invoices",
-  "/dashboard/character-creator",
+  "/dashboard/build",
   "/dashboard/apps",
   "/dashboard/organization",
 

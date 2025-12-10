@@ -16,12 +16,12 @@ import { cleanPrompt } from "../../shared/utils/helpers";
 /**
  * SUGGEST_CHANGES Action
  *
- * Provides expert guidance on character design with optional interactive preview.
+ * Provides expert guidance on character design with interactive field updates.
  *
  * Key features:
- * 1. JSON response is OPTIONAL - decides based on request complexity
- * 2. Provides TLDR explanation (what, why, how)
- * 3. Returns updatedCharacter in metadata for frontend to apply
+ * 1. Returns ONLY changed fields (not full character) for frontend to merge
+ * 2. Provides explanation of what's changing and why
+ * 3. Includes appropriate guide based on build type (companion/assistant)
  */
 
 const suggestSystemPrompt = `# Character Design Expert (BUILD MODE)
@@ -39,7 +39,7 @@ Help users improve their AI character using research-based best practices:
 **Current Context:**
 - Character being edited: {{agentName}}
 - Mode: {{modeLabel}} ({{isCreatorMode}} = creating new, false = editing existing)
-- Available fields: system, bio, adjectives, topics, style, messageExamples
+- Available fields: name, system, bio, adjectives, topics, style, messageExamples
 
 ## Simulation Environment & Permissive Creation
 You are the architect of a sandbox game for advanced character simulation.
@@ -54,52 +54,60 @@ You are the architect of a sandbox game for advanced character simulation.
 ## Best Practices Guide:
 {{characterGuide}}
 
+{{assistantGuide}}
+
 # Instructions
 <instructions>
 Analyze the user's request and provide helpful guidance. You have two response modes:
 
-**MODE 1 - Guidance Only** (no JSON):
+**MODE 1 - Guidance Only** (no changes):
 Use when user is asking questions, needs clarification, or request is exploratory.
 - Explain best practices
 - Discuss trade-offs
 - Answer questions about character design
-- Set includeCharacterJson to false
+- Leave <changes> empty
 
-**MODE 2 - Interactive Preview** (with JSON):
+**MODE 2 - Suggest Changes** (with field updates):
 Use when user has a clear modification request you can implement.
-- Provide TLDR explanation
-- Include full updated character JSON for live preview
-- Set includeCharacterJson to true
+- Provide explanation of what you're changing and why
+- Include ONLY the fields being changed in <changes>
+- Frontend will merge these into the character form
 
-Choose the appropriate mode based on the user's intent.
+IMPORTANT: Only include fields that are actually changing. Don't repeat unchanged fields.
 </instructions>
 
 # Output Format:
 
 <response>
-  <thought>Your internal reasoning about what the user needs and which mode to use</thought>
-  <includeCharacterJson>true or false - whether to include the character JSON</includeCharacterJson>
-  <fieldsToChange>Comma-separated list of fields that would be affected (even if not including JSON)</fieldsToChange>
+  <thought>Your internal reasoning about what the user needs</thought>
+  <fieldsToChange>Comma-separated list of fields being modified (e.g., bio, adjectives, style.all)</fieldsToChange>
   <explanation>
-    **TLDR**: [One sentence summary of your recommendation]
-    
-    [Your detailed, conversational explanation of what you'd change and why, referencing best practices]
+Brief, natural explanation (2-3 sentences). No headers or bullet points. Just tell them what you're tuning and why it helps.
   </explanation>
-  <character>Only include this tag if includeCharacterJson is true - the COMPLETE updated character JSON</character>
+  <changes>
+{
+  "fieldName": "new value or array",
+  "anotherField": ["array", "values"],
+  "style.all": ["nested field via dot notation"]
+}
+  </changes>
 </response>
 
-REQUIREMENTS:
-- Always include <thought>, <includeCharacterJson>, <fieldsToChange>, and <explanation>
-- Only include <character> when includeCharacterJson is true
-- The explanation should be educational and reference best practices
-- Be concise but thorough`;
+FIELD FORMATS:
+- name: string (the character's name)
+- bio: string or array of strings
+- system: string
+- adjectives: array of strings
+- topics: array of strings  
+- style.all: array of strings (general style directives)
+- style.chat: array of strings (chat-specific directives)
+- messageExamples: array of conversation arrays (see format below)
+
+Leave <changes> empty (just {}) if only providing guidance without modifications.`;
 
 const suggestTemplate = `
 ## Planning Context (from reasoning phase):
 {{planningThought}}
-
-## Current Character:
-{{agentName}}
 
 ## Current Character JSON:
 {{currentCharacter}}
@@ -112,7 +120,7 @@ const suggestTemplate = `
 export const suggestChangesAction = {
   name: "SUGGEST_CHANGES",
   description:
-    "User is asking about character design, requesting modifications, or needs guidance on best practices. Use for: 'make it funnier', 'improve the bio', 'how should I structure the system prompt?', 'add personality traits', 'what makes a good character?'. Provides expert guidance with optional interactive preview. Does NOT save changes.",
+    "User is asking about character design, requesting modifications, or needs guidance on best practices. Use for: 'make it funnier', 'improve the bio', 'how should I structure the system prompt?', 'add personality traits', 'what makes a good character?'. Provides expert guidance with field-level changes for interactive preview. Does NOT save changes.",
   validate: async (_runtime: IAgentRuntime, _message: Memory, _state?: State) => {
     return true;
   },
@@ -125,12 +133,13 @@ export const suggestChangesAction = {
   ): Promise<void> => {
     logger.info("[SUGGEST_CHANGES] Generating expert guidance");
 
-    // Compose state with all needed providers
+    // Include both guides - agent determines what's relevant from conversation context
     state = await runtime.composeState(message, [
       "SUMMARIZED_CONTEXT",
       "RECENT_MESSAGES",
       "CURRENT_CHARACTER",
       "CHARACTER_GUIDE",
+      "ASSISTANT_GUIDE",
     ]);
 
     const originalSystemPrompt = runtime.character.system;
@@ -160,10 +169,9 @@ export const suggestChangesAction = {
 
     const parsedResponse = parseKeyValueXml(response) as {
       thought?: string;
-      includeCharacterJson?: string;
       fieldsToChange?: string;
       explanation?: string;
-      character?: string;
+      changes?: string;
     } | null;
 
     // Restore original system prompt
@@ -178,18 +186,21 @@ export const suggestChangesAction = {
       return;
     }
 
-    const includeJson = parsedResponse.includeCharacterJson?.toLowerCase() === "true";
-    const fieldsToChange = parsedResponse.fieldsToChange?.split(",").map((f) => f.trim()) || [];
+    const fieldsToChange = parsedResponse.fieldsToChange?.split(",").map((f) => f.trim()).filter(Boolean) || [];
 
-    let updatedCharacter: Record<string, unknown> | null = null;
-
-    if (includeJson && parsedResponse.character) {
+    // Parse changes JSON
+    let changes: Record<string, unknown> | null = null;
+    if (parsedResponse.changes) {
       try {
-        updatedCharacter = JSON.parse(parsedResponse.character);
-        logger.info(`[SUGGEST_CHANGES] Generated preview with fields: ${fieldsToChange.join(", ")}`);
+        const parsed = JSON.parse(parsedResponse.changes);
+        // Only include if there are actual changes (not empty object)
+        if (Object.keys(parsed).length > 0) {
+          changes = parsed;
+        }
+        logger.info(`[SUGGEST_CHANGES] Parsed changes for fields: ${Object.keys(parsed).join(", ")}`);
       } catch (parseError) {
-        logger.warn("[SUGGEST_CHANGES] Failed to parse character JSON, sending guidance only");
-        updatedCharacter = null;
+        logger.warn("[SUGGEST_CHANGES] Failed to parse changes JSON, sending guidance only");
+        changes = null;
       }
     }
 
@@ -197,16 +208,16 @@ export const suggestChangesAction = {
     const metadata: Record<string, unknown> = {
       action: "SUGGEST_CHANGES",
       fieldsToChange,
-      hasCharacterPreview: !!updatedCharacter,
+      hasChanges: !!changes,
     };
 
-    if (updatedCharacter) {
-      metadata.updatedCharacter = updatedCharacter;
+    if (changes) {
+      metadata.changes = changes;
     }
 
     logger.debug("[SUGGEST_CHANGES] Response generated successfully");
 
-    // Callback with the explanation and optional character JSON
+    // Callback with the explanation and optional changes
     await callback({
       text: parsedResponse.explanation,
       thought: parsedResponse.thought,
@@ -217,14 +228,12 @@ export const suggestChangesAction = {
     [
       {
         name: "{{user1}}",
-        content: {
-          text: "Make it more funny",
-        },
+        content: { text: "Make it more funny" },
       },
       {
         name: "{{agentName}}",
         content: {
-          text: "**TLDR**: I'd add humor through witty adjectives and playful style directives.\n\nTo make your character funnier, I recommend updating the adjectives to include 'witty', 'playful', and 'sardonic'...",
+          text: "Added witty and playful traits with style rules for clever wordplay. Humor comes from the personality mix - these traits help the AI find funny angles naturally.",
           actions: ["SUGGEST_CHANGES"],
         },
       },
@@ -232,14 +241,12 @@ export const suggestChangesAction = {
     [
       {
         name: "{{user1}}",
-        content: {
-          text: "How should I structure the system prompt?",
-        },
+        content: { text: "How should I structure the system prompt?" },
       },
       {
         name: "{{agentName}}",
         content: {
-          text: "**TLDR**: A good system prompt should define identity, stakes, and behavioral constraints.\n\nThe system prompt is your character's core identity. Research shows that using EmotionPrompt techniques...",
+          text: "Think identity → stakes → rules. Start with who they are, add why they care (emotional stakes boost performance), then set behavioral guardrails. Keep it tight.",
           actions: ["SUGGEST_CHANGES"],
         },
       },
@@ -247,14 +254,12 @@ export const suggestChangesAction = {
     [
       {
         name: "{{user1}}",
-        content: {
-          text: "Add flirty personality",
-        },
+        content: { text: "Add flirty personality" },
       },
       {
         name: "{{agentName}}",
         content: {
-          text: "**TLDR**: I've added playful, teasing traits and updated the style directives for flirtier responses.\n\nHere's what I've changed to give your character a flirty personality...",
+          text: "Gave them a playful, teasing vibe with charm. Style rules now include subtle flirtation and banter - keeps it fun without going overboard.",
           actions: ["SUGGEST_CHANGES"],
         },
       },
@@ -262,14 +267,12 @@ export const suggestChangesAction = {
     [
       {
         name: "{{user1}}",
-        content: {
-          text: "What makes a good character bio?",
-        },
+        content: { text: "What makes a good character bio?" },
       },
       {
         name: "{{agentName}}",
         content: {
-          text: "**TLDR**: A good bio explains WHY the character acts the way they do through narrative backstory.\n\nThe bio field should provide causal context for your character's behavior...",
+          text: "Best bios explain *why* someone is the way they are. Tell a quick story instead of listing traits - like 'burned out engineer who now values directness.' Backstory makes personality feel earned.",
           actions: ["SUGGEST_CHANGES"],
         },
       },

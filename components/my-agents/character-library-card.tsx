@@ -52,7 +52,7 @@ export function CharacterLibraryCard({
   }, [router, character.id]);
 
   const handleEdit = useCallback(() => {
-    router.push(`/dashboard/character-creator?id=${character.id}`);
+    router.push(`/dashboard/build?characterId=${character.id}`);
   }, [router, character.id]);
 
   const handleDuplicate = useCallback(async () => {
@@ -69,7 +69,7 @@ export function CharacterLibraryCard({
       toast.success(`Created "${data.data.character.name}"`);
       router.refresh();
       // Navigate to edit the new character
-      router.push(`/dashboard/character-creator?id=${data.data.character.id}`);
+      router.push(`/dashboard/build?characterId=${data.data.character.id}`);
     } else {
       const error = await response.json();
       toast.error(error.error || "Failed to duplicate character");

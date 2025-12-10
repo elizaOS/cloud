@@ -4,6 +4,7 @@ import {
   createUniqueUuid,
   EventType,
   logger,
+  type IAgentRuntime,
   type Memory,
   ModelType,
   parseKeyValueXml,
@@ -27,11 +28,50 @@ import {
   DEFAULT_ELIZA_ID,
 } from "../shared/utils/helpers";
 import type { MessageReceivedHandlerParams } from "../shared/types";
+import { roomTitleTemplate } from "../shared/evaluators/room-title";
 
 function parsePlanningResponse(response: string): { thought: string; actions: string } | null {
   const parsed = parseKeyValueXml(response) as { thought?: string; actions?: string } | null;
   if (!parsed?.actions) return null;
   return { thought: parsed.thought || "", actions: parsed.actions };
+}
+
+/**
+ * Temp: Generate room title on first message since evaluators don't run in this flow
+ */
+async function maybeGenerateRoomTitle(runtime: IAgentRuntime, message: Memory): Promise<void> {
+  const existingMessages = await runtime.getMemories({
+    tableName: "messages",
+    roomId: message.roomId,
+    count: 1,
+    unique: false,
+  });
+  if (existingMessages.length > 0) return;
+
+  const room = await runtime.getRoom(message.roomId);
+  if (!room || (room.name && room.name !== "New Chat")) return;
+
+  const state = await runtime.composeState(message, ["RECENT_MESSAGES"]);
+  const prompt = composePromptFromState({ state, template: roomTitleTemplate });
+
+  const response = await runtime.useModel(ModelType.TEXT_SMALL, { prompt });
+  if (!response) return;
+
+  const parsed = parseKeyValueXml(response) as { title?: string } | null;
+  if (!parsed?.title) return;
+
+  let title = parsed.title
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+
+  if (title.length > 60) title = title.substring(0, 57) + "...";
+
+  await runtime.updateRoom({ ...room, name: title });
+  await runtime.setCache<boolean>(`room-title-generated-${message.roomId}`, true);
+  logger.info(`[BuildMode] Generated room title: "${title}"`);
 }
 
 /**
@@ -69,14 +109,15 @@ export async function handleMessage({
     entityId: message.entityId,
     startTime,
     status: "started",
-    source: "buildModeWorkflow",
+    source: "build-mode",
     mode: modeLabel,
   });
 
   try {
+    await maybeGenerateRoomTitle(runtime, message);
     await runtime.createMemory(message, "messages");
 
-    // Compose state
+    // Compose state with all providers including actions
     const state = await runtime.composeState(message, [
       "SUMMARIZED_CONTEXT",
       "RECENT_MESSAGES",
@@ -84,7 +125,7 @@ export async function handleMessage({
       "ACTIONS",
     ]);
 
-    // Inject mode information into state values for template access
+    // Inject mode context for planning phase
     state.values = {
       ...state.values,
       isCreatorMode: creatorMode,
@@ -93,21 +134,23 @@ export async function handleMessage({
       characterName: runtime.character.name,
     };
 
+    // Planning phase - let the model decide the best action
     runtime.character.system = cleanPrompt(
       composePromptFromState({ state, template: buildModeSystemPrompt }),
     );
+  
+    const planningPrompt = cleanPrompt(composePromptFromState({ state, template: buildModePlanningTemplate }));
 
     const planningResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
-      prompt: cleanPrompt(composePromptFromState({ state, template: buildModePlanningTemplate })),
+      prompt: planningPrompt,
     });
 
     runtime.character.system = originalSystemPrompt;
 
     const plan = parsePlanningResponse(planningResponse);
     const selectedAction = parsePlannedItems(plan?.actions)[0] || "BUILDER_CHAT";
-
-    logger.info(`[${modeLabel}] Planning thought: ${plan?.thought?.substring(0, 100)}...`);
-    logger.info(`[${modeLabel}] Executing action: ${selectedAction}`);
+    
+    logger.debug(`[${modeLabel}] Executing action: ${selectedAction}`);
 
     // Create action response with thought and mode context
     const actionResponse: Memory = {
@@ -151,7 +194,7 @@ export async function handleMessage({
       status: "completed",
       endTime: Date.now(),
       duration: Date.now() - startTime,
-      source: "buildModeWorkflow",
+      source: "build-mode",
       selectedAction,
       mode: modeLabel,
     });
@@ -168,7 +211,7 @@ export async function handleMessage({
       endTime: Date.now(),
       duration: Date.now() - startTime,
       error: error instanceof Error ? error.message : String(error),
-      source: "buildModeWorkflow",
+      source: "build-mode",
     });
     throw error;
   }

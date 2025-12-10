@@ -10,7 +10,7 @@
  * @param props.character - Character being edited (required for build mode)
  * @param props.onCharacterUpdate - Callback when character is updated
  * @param props.onCharacterRefresh - Optional callback to refresh character from database
- * @param props.onCharacterCreated - Callback when a new character is created (creator mode)
+ * @param props.onRoomIdChange - Optional callback when room ID changes (for parent to track)
  * @param props.userId - User ID for conversation management
  * @param props.isCreatorMode - Whether this is blank state creator (chat with Eliza) or editing existing character
  */
@@ -19,7 +19,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2, Copy, Check } from "lucide-react";
+import { Send, Loader2, Copy, Check, MessageSquare, Lock } from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -34,6 +34,7 @@ import {
 } from "@/app/actions/conversations";
 import { ElizaAvatar } from "./eliza-avatar";
 import { DEFAULT_AVATAR } from "@/lib/utils/default-avatar";
+import Link from "next/link";
 
 // Default Eliza configuration for creator mode
 const DEFAULT_ELIZA = {
@@ -45,7 +46,7 @@ interface BuildModeAssistantProps {
   character?: ElizaCharacter;
   onCharacterUpdate: (updates: Partial<ElizaCharacter>) => void;
   onCharacterRefresh?: () => Promise<void>;
-  onCharacterCreated?: (characterId: string) => void;
+  onRoomIdChange?: (roomId: string) => void;
   userId: string;
   isCreatorMode?: boolean;
 }
@@ -57,60 +58,83 @@ interface Message {
   timestamp: number;
 }
 
+interface LockedRoomInfo {
+  characterId: string;
+  characterName: string;
+}
+
 export function BuildModeAssistant({
   character,
   onCharacterUpdate,
   onCharacterRefresh,
-  onCharacterCreated,
+  onRoomIdChange,
   userId,
   isCreatorMode = false,
 }: BuildModeAssistantProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const roomInitKeyRef = useRef<string | null>(null); // Track which room key we've initialized
+  const messagesLoadedRef = useRef<string | null>(null); // Track which room we've loaded messages for
   const [inputText, setInputText] = useState("");
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true); // Loading state for initial welcome
   const [builderRoomId, setBuilderRoomId] = useState<string>("");
+  const [lockedRoom, setLockedRoom] = useState<LockedRoomInfo | null>(null); // Track if room is locked after character creation
 
   // Determine display info based on mode
-  const displayName = isCreatorMode ? DEFAULT_ELIZA.name : (character?.name || "Build Assistant");
-  const displayAvatar = isCreatorMode ? DEFAULT_ELIZA.avatarUrl : (character?.avatarUrl || character?.avatar_url);
+  // Show Eliza until character is actually saved (has source from database)
+  const isCharacterSaved = !isCreatorMode && character?.id && (character as { source?: string })?.source;
+  const displayName = isCharacterSaved ? (character?.name || "Build Assistant") : DEFAULT_ELIZA.name;
+  const displayAvatar = isCharacterSaved ? (character?.avatarUrl || character?.avatar_url) : DEFAULT_ELIZA.avatarUrl;
 
   // Create builder room ID
-  // - Creator mode: single room for creating new characters
+  // - Creator mode: single room for creating new characters (fresh start each time)
   // - Build mode: room per character for editing
   useEffect(() => {
+    if (!userId) return;
+
+    // Create a unique key for this room configuration
+    const roomKey = isCreatorMode ? "creator" : `build-${character?.id}`;
+
+    // Skip if we've already initialized this room
+    if (roomInitKeyRef.current === roomKey) return;
+    roomInitKeyRef.current = roomKey;
+
     const initializeBuilderRoom = async () => {
-      if (!userId) return;
-
-      // Clear messages when mode changes or character changes
+      // Clear messages and locked state when switching rooms
       setMessages([]);
+      setLockedRoom(null);
+      messagesLoadedRef.current = null;
 
-      // Room title based on mode
+      // Room title based on mode - for creator mode, always create fresh
+      const timestamp = isCreatorMode ? Date.now() : "";
       const builderTitle = isCreatorMode
-        ? `[CREATOR] New Character Builder`
+        ? `[CREATOR] New Character Builder ${timestamp}`
         : `[BUILD] ${character?.name || "Character"} (${character?.id})`;
 
-      // Try to find existing room
-      const { success, conversations } = await listUserConversationsAction();
+      // For build mode, try to find existing room
+      if (!isCreatorMode) {
+        const { success, conversations } = await listUserConversationsAction();
 
-      if (success && conversations) {
-        const existingRoom = isCreatorMode
-          ? conversations.find((conv) => conv.title === builderTitle)
-          : conversations.find(
-              (conv) =>
-                conv.title === builderTitle ||
-                (conv.title.includes(`[BUILD]`) && character?.id && conv.title.includes(`(${character.id})`)),
-            );
+        if (success && conversations) {
+          const existingRoom = conversations.find(
+            (conv) =>
+              conv.title.startsWith(`[BUILD] ${character?.name || "Character"}`) &&
+              character?.id &&
+              conv.title.includes(`(${character.id})`),
+          );
 
-        if (existingRoom) {
-          setBuilderRoomId(existingRoom.id);
-          return;
+          if (existingRoom) {
+            setBuilderRoomId(existingRoom.id);
+            onRoomIdChange?.(existingRoom.id);
+            return;
+          }
         }
       }
 
-      // Create new builder room
+      // Create new builder room (always fresh for creator mode)
       const { success: createSuccess, conversation } =
         await createConversationAction({
           title: builderTitle,
@@ -119,24 +143,44 @@ export function BuildModeAssistant({
 
       if (createSuccess && conversation) {
         setBuilderRoomId(conversation.id);
+        onRoomIdChange?.(conversation.id);
       } else {
         toast.error("Failed to create builder room");
       }
     };
 
     initializeBuilderRoom();
-  }, [isCreatorMode, character?.id, character?.name, userId]);
+  }, [isCreatorMode, character?.id, character?.name, userId, onRoomIdChange]);
 
   // Load persisted messages when room is initialized
   useEffect(() => {
+    if (!builderRoomId) return;
+
+    // Prevent duplicate loads for the same room
+    if (messagesLoadedRef.current === builderRoomId) return;
+    messagesLoadedRef.current = builderRoomId;
+
     const loadMessages = async () => {
-      if (!builderRoomId) return;
+      setIsInitializing(true);
 
       const response = await fetch(`/api/eliza/rooms/${builderRoomId}`);
 
       if (response.ok) {
         const data = await response.json();
         const loadedMessages = data.messages || [];
+        const metadata = data.metadata as {
+          locked?: boolean;
+          createdCharacterId?: string;
+          createdCharacterName?: string;
+        } | undefined;
+
+        // Check if room is locked (character was created)
+        if (metadata?.locked && metadata.createdCharacterId) {
+          setLockedRoom({
+            characterId: metadata.createdCharacterId,
+            characterName: metadata.createdCharacterName || "your agent",
+          });
+        }
 
         // Convert Eliza messages to our Message format
         const convertedMessages: Message[] = loadedMessages
@@ -157,9 +201,7 @@ export function BuildModeAssistant({
               }
 
               // Skip action result messages
-              if (msg.content?.metadata?.type === "action_result") {
-                return null;
-              }
+              if (msg.content?.metadata?.type === "action_result") return null;
 
               const source = msg.content?.source;
               const isAgentMessage =
@@ -179,10 +221,10 @@ export function BuildModeAssistant({
           )
           .filter((msg: Message | null): msg is Message => msg !== null);
 
-        if (convertedMessages.length > 0) {
-          setMessages(convertedMessages);
-        }
+        setMessages(convertedMessages);
       }
+
+      setIsInitializing(false);
     };
 
     loadMessages();
@@ -276,11 +318,12 @@ export function BuildModeAssistant({
                       detectedCharacterCreated = true;
                       createdCharacterId = data.content.metadata.characterId;
                     }
+                    // Check for SAVE_CHANGES action
                     if (
                       data.content?.actions &&
                       Array.isArray(data.content.actions)
                     ) {
-                      if (data.content.actions.includes("APPLY_CHARACTER_CHANGES")) {
+                      if (data.content.actions.includes("SAVE_CHANGES")) {
                         detectedApplyAction = true;
                       }
                     }
@@ -290,28 +333,31 @@ export function BuildModeAssistant({
                   assistantMessage = data.content.text;
                   assistantMessageId = data.id;
 
-                  // Check for APPLY_CHARACTER_CHANGES action
+                  // Check for SAVE_CHANGES action
                   if (
                     data.content?.actions &&
                     Array.isArray(data.content.actions)
                   ) {
-                    if (data.content.actions.includes("APPLY_CHARACTER_CHANGES")) {
+                    if (data.content.actions.includes("SAVE_CHANGES")) {
                       detectedApplyAction = true;
                     }
                   }
 
-                  // Check for character creation metadata
-                  if (data.content?.metadata?.characterCreated) {
+                  // Check for CREATE_CHARACTER metadata
+                  if (
+                    data.content?.metadata?.action === "CREATE_CHARACTER" &&
+                    data.content?.metadata?.characterCreated
+                  ) {
                     detectedCharacterCreated = true;
                     createdCharacterId = data.content.metadata.characterId || null;
                   }
 
-                  // Check for PROPOSE_CHARACTER_CHANGES
+                  // Check for SUGGEST_CHANGES with partial field updates
                   if (
-                    data.content?.metadata?.action === "PROPOSE_CHARACTER_CHANGES" &&
-                    data.content?.metadata?.updatedCharacter
+                    data.content?.metadata?.action === "SUGGEST_CHANGES" &&
+                    data.content?.metadata?.changes
                   ) {
-                    proposedCharacterUpdate = data.content.metadata.updatedCharacter;
+                    proposedCharacterUpdate = data.content.metadata.changes;
                   }
                 }
               } catch {
@@ -336,10 +382,14 @@ export function BuildModeAssistant({
                   toast.success("Character preview updated!", { duration: 4000 });
                 }
 
-                // Handle character creation - redirect to build mode
-                if (detectedCharacterCreated && createdCharacterId && onCharacterCreated) {
-                  toast.success("Character created! Redirecting to build mode...", { duration: 3000 });
-                  onCharacterCreated(createdCharacterId);
+                // Handle character creation in creator mode - lock the room
+                if (isCreatorMode && detectedCharacterCreated && createdCharacterId) {
+                  // Lock the room and show link to chat with the created agent
+                  setLockedRoom({
+                    characterId: createdCharacterId,
+                    characterName: proposedCharacterUpdate?.name as string || "your agent",
+                  });
+                  toast.success("Character created! You can now chat with your agent.", { duration: 4000 });
                 }
 
                 // Refresh character data after apply action
@@ -457,6 +507,53 @@ export function BuildModeAssistant({
     await sendElizaMessage(userMessage);
   };
 
+  // Pre-prompts for quick start - different for creator vs build mode
+  const quickPrompts = isCreatorMode
+    ? [
+        {
+          label: "Build a companion",
+          prompt: "Help me build a companion with personality",
+        },
+        {
+          label: "Build an assistant",
+          prompt: "Help me create a personal AI assistant",
+        },
+        {
+          label: "I have an idea",
+          prompt: "I have an idea for an agent, let me tell you about it",
+        },
+        {
+          label: "What can I build?",
+          prompt: "What types of agents can I create here?",
+        },
+      ]
+    : [
+        {
+          label: "Make it funnier",
+          prompt: "Make my character's personality more witty and humorous",
+        },
+        {
+          label: "Improve the bio",
+          prompt: "Help me write a better bio for this character",
+        },
+        {
+          label: "Add knowledge",
+          prompt: "How can I add knowledge to this character?",
+        },
+        {
+          label: "Test a response",
+          prompt: "Show me how this character would respond to a greeting",
+        },
+      ];
+
+  const handleQuickPrompt = async (prompt: string) => {
+    if (isLoading) return;
+    await sendElizaMessage(prompt);
+  };
+
+  // Show empty state with quick prompts when no messages
+  const showEmptyState = messages.length === 0 && !isLoading && !isInitializing;
+
   const formatTimestamp = (timestamp: number): string => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -482,25 +579,41 @@ export function BuildModeAssistant({
       <div className="flex-1 min-h-0 overflow-hidden">
         <ScrollArea className="h-full py-6 px-2" ref={scrollAreaRef}>
           <div className="space-y-6 max-w-3xl mx-auto px-4 sm:px-6">
-            {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                <ElizaAvatar
-                  avatarUrl={displayAvatar}
-                  name={displayName}
-                  className="h-16 w-16 mb-4"
-                  iconClassName="h-8 w-8"
-                  fallbackClassName="bg-muted"
-                />
-                <h3 className="text-lg font-semibold mb-2">
-                  {isCreatorMode
-                    ? "What kind of character would you like to create?"
-                    : `How would you like to improve ${displayName}?`}
-                </h3>
-                <p className="text-sm text-muted-foreground max-w-md">
-                  {isCreatorMode
-                    ? "Describe your character idea and I'll help bring it to life"
-                    : "Tell me what changes you'd like to make"}
-                </p>
+            {/* Empty State with Quick Prompts */}
+            {showEmptyState && (
+              <div className="flex flex-col items-center justify-center h-full min-h-[400px] animate-in fade-in duration-500">
+                <div className="flex flex-col items-center gap-6 max-w-md text-center">
+                  <ElizaAvatar
+                    avatarUrl={displayAvatar}
+                    name={displayName}
+                    className="w-16 h-16"
+                    iconClassName="h-8 w-8"
+                    fallbackClassName="bg-[#FF5800]"
+                  />
+                  <div className="space-y-2">
+                    <h2 className="text-xl font-semibold text-white">
+                      {isCreatorMode ? "Create your agent" : `Edit ${character?.name || "character"}`}
+                    </h2>
+                    <p className="text-sm text-white/50">
+                      {isCreatorMode
+                        ? "I'll help you build a companion, assistant, or both."
+                        : "Chat with me to refine personality, knowledge, or capabilities."}
+                    </p>
+                  </div>
+
+                  {/* Quick Prompts Grid */}
+                  <div className="grid grid-cols-2 gap-2 w-full mt-2">
+                    {quickPrompts.map((item) => (
+                      <button
+                        key={item.label}
+                        onClick={() => handleQuickPrompt(item.prompt)}
+                        className="px-4 py-3 text-left text-sm text-white/80 bg-white/[0.03] border border-white/[0.08] rounded-lg hover:bg-white/[0.06] hover:border-white/[0.12] transition-colors"
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -717,144 +830,114 @@ export function BuildModeAssistant({
         </ScrollArea>
       </div>
 
-      {/* Quick Prompts - Show when no messages or only 1 message */}
-      {messages.length <= 1 && (
-        <div className="flex-shrink-0 px-4 pb-3">
-          <div className="max-w-3xl mx-auto flex flex-wrap gap-2 px-4 sm:px-6">
-            {isCreatorMode ? (
-              <>
-                <button
-                  onClick={() => setInputText("Create a friendly AI assistant")}
-                  className="px-3 py-1.5 text-xs rounded-lg bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border border-white/10 transition-colors"
-                >
-                  AI Assistant
-                </button>
-                <button
-                  onClick={() => setInputText("Create a creative writing partner")}
-                  className="px-3 py-1.5 text-xs rounded-lg bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border border-white/10 transition-colors"
-                >
-                  Writing Partner
-                </button>
-                <button
-                  onClick={() => setInputText("Create a coding mentor")}
-                  className="px-3 py-1.5 text-xs rounded-lg bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border border-white/10 transition-colors"
-                >
-                  Coding Mentor
-                </button>
-                <button
-                  onClick={() => setInputText("Create a game character")}
-                  className="px-3 py-1.5 text-xs rounded-lg bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border border-white/10 transition-colors"
-                >
-                  Game Character
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={() => setInputText("Add more personality traits")}
-                  className="px-3 py-1.5 text-xs rounded-lg bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border border-white/10 transition-colors"
-                >
-                  Add personality traits
-                </button>
-                <button
-                  onClick={() => setInputText("Improve the bio description")}
-                  className="px-3 py-1.5 text-xs rounded-lg bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border border-white/10 transition-colors"
-                >
-                  Improve bio
-                </button>
-                <button
-                  onClick={() => setInputText("Add conversation examples")}
-                  className="px-3 py-1.5 text-xs rounded-lg bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border border-white/10 transition-colors"
-                >
-                  Add examples
-                </button>
-                <button
-                  onClick={() => setInputText("Refine the writing style")}
-                  className="px-3 py-1.5 text-xs rounded-lg bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border border-white/10 transition-colors"
-                >
-                  Refine style
-                </button>
-              </>
-            )}
+
+      {/* Locked Room Banner - Shows when character was created */}
+      {lockedRoom && (
+        <div className="border-t border-white/[0.06] p-4">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-white/[0.02] border border-white/[0.08] rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-green-500/10 border border-green-500/20">
+                  <Lock className="w-5 h-5 text-green-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-white">
+                    Build session complete
+                  </p>
+                  <p className="text-xs text-white/50">
+                    {lockedRoom.characterName} has been created successfully
+                  </p>
+                </div>
+              </div>
+              <Link
+                href={`/dashboard/chat?characterId=${lockedRoom.characterId}`}
+                className="flex items-center gap-2 px-4 py-2 bg-[#FF5800] hover:bg-[#FF5800]/90 text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                <MessageSquare className="w-4 h-4" />
+                Chat with {lockedRoom.characterName}
+              </Link>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Input Area - Matching main chat style */}
-      <form
-        onSubmit={handleSubmit}
-        className="border-t border-white/[0.06] p-4"
-      >
-        <div className="max-w-3xl mx-auto space-y-3 px-4 sm:px-6">
-          {/* Text Input Box - Prominent standalone */}
-          <div className="relative rounded-lg border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
-            {/* Robot Eye Visor Scanner - Animated line on top edge with randomness - Only show when waiting for agent */}
-            {isLoading && (
-              <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
-                {/* Primary scanner */}
-                <div
-                  className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
-                  style={{
-                    animation:
-                      "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-                    boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
-                    filter: "blur(0.5px)",
-                  }}
-                />
-                {/* Secondary scanner for organic feel */}
-                <div
-                  className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
-                  style={{
-                    animation:
-                      "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
-                    boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
-                    filter: "blur(1px)",
-                  }}
-                />
-              </div>
-            )}
-            <textarea
-              rows={1}
-              value={inputText}
-              onChange={(e) => setInputText(e.currentTarget.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSubmit(e);
-                }
-              }}
-              onInput={(e) => {
-                const target = e.currentTarget;
-                target.style.height = "44px";
-                target.style.height = Math.min(target.scrollHeight, 140) + "px";
-              }}
-              placeholder="Describe your character or ask for help..."
-              disabled={isLoading}
-              className="w-full bg-transparent px-4 py-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
-              style={{
-                minHeight: "44px",
-                maxHeight: "140px",
-              }}
-            />
-          </div>
-
-          {/* Bottom Row: Send Button */}
-          <div className="flex items-center justify-end">
-            <Button
-              type="submit"
-              disabled={isLoading || !inputText.trim()}
-              size="icon"
-              className="h-9 w-9 rounded-lg bg-[#FF5800]/20 border border-[#FF5800]/30 hover:bg-[#FF5800]/30 disabled:opacity-40 transition-colors"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
-              ) : (
-                <Send className="h-4 w-4 text-[#FF5800]" />
+      {/* Input Area - Hidden when room is locked */}
+      {!lockedRoom && (
+        <form
+          onSubmit={handleSubmit}
+          className="border-t border-white/[0.06] p-4"
+        >
+          <div className="max-w-3xl mx-auto space-y-3 px-4 sm:px-6">
+            {/* Text Input Box - Prominent standalone */}
+            <div className="relative rounded-lg border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
+              {/* Robot Eye Visor Scanner - Animated line on top edge with randomness - Only show when waiting for agent */}
+              {isLoading && (
+                <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
+                  {/* Primary scanner */}
+                  <div
+                    className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
+                    style={{
+                      animation:
+                        "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                      boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
+                      filter: "blur(0.5px)",
+                    }}
+                  />
+                  {/* Secondary scanner for organic feel */}
+                  <div
+                    className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
+                    style={{
+                      animation:
+                        "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
+                      boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
+                      filter: "blur(1px)",
+                    }}
+                  />
+                </div>
               )}
-            </Button>
+              <textarea
+                rows={1}
+                value={inputText}
+                onChange={(e) => setInputText(e.currentTarget.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit(e);
+                  }
+                }}
+                onInput={(e) => {
+                  const target = e.currentTarget;
+                  target.style.height = "44px";
+                  target.style.height = Math.min(target.scrollHeight, 140) + "px";
+                }}
+                placeholder="Describe your character or ask for help..."
+                disabled={isLoading}
+                className="w-full bg-transparent px-4 py-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
+                style={{
+                  minHeight: "44px",
+                  maxHeight: "140px",
+                }}
+              />
+            </div>
+
+            {/* Bottom Row: Send Button */}
+            <div className="flex items-center justify-end">
+              <Button
+                type="submit"
+                disabled={isLoading || !inputText.trim()}
+                size="icon"
+                className="h-9 w-9 rounded-lg bg-[#FF5800]/20 border border-[#FF5800]/30 hover:bg-[#FF5800]/30 disabled:opacity-40 transition-colors"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
+                ) : (
+                  <Send className="h-4 w-4 text-[#FF5800]" />
+                )}
+              </Button>
+            </div>
           </div>
-        </div>
-      </form>
+        </form>
+      )}
     </div>
   );
 }

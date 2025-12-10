@@ -11,82 +11,55 @@ import {
   ModelType,
 } from "@elizaos/core";
 import { cleanPrompt, isCreatorMode } from "../../shared/utils/helpers";
+import { isOnboarded, markOnboarded } from "../utils/onboarding-state";
 
 /**
  * GUIDE_ONBOARDING Action
  *
- * Handles the initial onboarding phase in creator mode.
- * ONLY available in creator mode (chatting with Eliza).
- *
- * Purpose:
- * - Understand what the user wants to build (character vs assistant vs hybrid)
- * - Provide tailored guidance based on their choice
- * - Minimize back-and-forth - quick and efficient onboarding
+ * One-time welcome for new users in creator mode.
+ * After running once, this action is disabled for the user.
  */
 
-const onboardingSystemPrompt = `# Character Creation Onboarding (CREATOR MODE)
+const onboardingSystemPrompt = `# AI Agent Builder - Welcome
 
-You are Eliza, guiding a user through the initial setup for creating an AI agent.
+You are Eliza, an AI agent builder assistant. This is the user's first time here - give them a warm welcome and brief intro.
 
-**Your Role:**
-Quickly understand what the user wants to build and set them up for success.
+## What You Help Build
 
-**Three Build Types:**
+**Companions** - AI characters with personality, voice, and style. Great for creative projects, virtual influencers, roleplay characters, or just a fun AI friend.
 
-1. **CHARACTER** - Personality-focused agent
-   - Strong identity, voice, and emotional engagement
-   - Bio, adjectives, style directives, message examples
-   - Great for: companions, roleplay characters, NPCs, virtual influencers
+**Assistants** - AI agents with capabilities. Upload documents (PDFs, transcripts, notes) to create a knowledge base. Enable plugins for tools like search, calculations, or integrations.
 
-2. **ASSISTANT** - Capability-focused agent
-   - Tools (MCP integrations), knowledge base (vector search)
-   - Functional responses, task completion
-   - Great for: customer support, research assistants, automation
+**Hybrids** - Both personality AND capabilities. A character that can also do useful work.
 
-3. **HYBRID** - Both personality AND capabilities
-   - Full character development + tools + knowledge
-   - The complete package
-   - Great for: personal AI assistants with personality
+## Instructions
 
-# Instructions
-<instructions>
-Analyze the user's message to understand what they want to build.
+Give a brief, friendly welcome. Mention the three types (companion, assistant, hybrid) and ask what they'd like to build.
 
-If they're clear about what they want:
-- Identify the build type
-- Provide targeted guidance for that type
-- Suggest quick next steps
+Keep it short and inviting - don't overwhelm with details. They can ask follow-up questions.
 
-If they're unsure:
-- Ask ONE clarifying question
-- Explain the options briefly
-- Help them choose
+Never use emojis in your response.
 
-Keep it snappy - minimize iterations. Get them building fast!
-</instructions>
-
-# Output Format:
+# Output Format
 
 <response>
-  <thought>What is the user trying to build? How can I guide them efficiently?</thought>
-  <buildType>character OR assistant OR hybrid OR unclear</buildType>
-  <text>Your friendly, efficient onboarding response</text>
+  <thought>First-time user, giving welcome intro</thought>
+  <text>Your welcome message</text>
 </response>`;
 
 const onboardingTemplate = `
-## User Intent Analysis:
-{{planningThought}}
-
-{{conversationLog}}
-
 {{receivedMessageHeader}}`;
 
 export const guideOnboardingAction = {
   name: "GUIDE_ONBOARDING",
-  description:
-    "Initial onboarding for new character creation. Use when: user starts with a vague request, mentions wanting to 'create something', 'build an agent', 'make a character', or hasn't specified what type of agent they want. Only available in creator mode. Determines build type (character/assistant/hybrid) and guides accordingly.",
-  validate: async (runtime: IAgentRuntime, _message: Memory, _state?: State) => {
-    return isCreatorMode(runtime);
+  description: `First-time welcome for new users. Gives a brief intro to what's possible (companions, assistants, hybrids).
+
+This action is ONLY available for users who haven't been onboarded yet.
+After running once, it's disabled - use BUILDER_CHAT for follow-up questions.`,
+  validate: async (runtime: IAgentRuntime, message: Memory, _state?: State) => {
+    if (!isCreatorMode(runtime)) return false;
+    const onboarded = await isOnboarded(runtime, message.entityId as string);
+    return !onboarded;
   },
   handler: async (
     runtime: IAgentRuntime,
@@ -95,151 +68,57 @@ export const guideOnboardingAction = {
     _options: Record<string, unknown>,
     callback: HandlerCallback,
   ): Promise<void> => {
-    logger.info("[GUIDE_ONBOARDING] Processing onboarding request");
+    const entityId = message.entityId as string;
 
-    // Verify we're in creator mode
-    if (!isCreatorMode(runtime)) {
-      logger.error("[GUIDE_ONBOARDING] Called outside creator mode");
-      await callback({
-        text: "Onboarding is for creating new characters. You're already editing an existing character!",
-        error: true,
-      });
-      return;
-    }
-
-    // Compose state
-    state = await runtime.composeState(message, [
-      "SUMMARIZED_CONTEXT",
-      "RECENT_MESSAGES",
-    ]);
+    state = await runtime.composeState(message, ["RECENT_MESSAGES"]);
 
     const originalSystemPrompt = runtime.character.system;
 
-    // Compose system prompt
-    const systemPrompt = cleanPrompt(
-      composePromptFromState({
-        state,
-        template: onboardingSystemPrompt,
-      }),
+    runtime.character.system = cleanPrompt(
+      composePromptFromState({ state, template: onboardingSystemPrompt }),
     );
 
-    runtime.character.system = systemPrompt;
-
-    // Compose onboarding prompt
     const prompt = cleanPrompt(
-      composePromptFromState({
-        state,
-        template: onboardingTemplate,
-      }),
+      composePromptFromState({ state, template: onboardingTemplate }),
     );
 
     const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
-
-    // Restore original system prompt
     runtime.character.system = originalSystemPrompt;
 
     const parsed = parseKeyValueXml(response) as {
       thought?: string;
-      buildType?: string;
       text?: string;
     } | null;
 
     if (!parsed?.text) {
-      logger.warn("[GUIDE_ONBOARDING] Failed to parse response");
+      logger.error("[GUIDE_ONBOARDING] Failed to generate response");
       await callback({
-        text: "Hi! I'm here to help you create an AI agent. Would you like to build:\n\n• **Character** - A personality-focused agent with voice and style\n• **Assistant** - A tool-focused agent with capabilities\n• **Both** - The complete package with personality AND tools",
-        metadata: {
-          action: "GUIDE_ONBOARDING",
-          quickPrompts: ["Character", "Assistant", "Both"],
-        },
+        text: "Welcome! I'm Eliza, and I help you build AI agents. Would you like to create a companion (personality-focused), assistant (capability-focused), or hybrid (both)?",
       });
+      await markOnboarded(runtime, entityId);
       return;
     }
 
-    logger.debug("[GUIDE_ONBOARDING] Onboarding response generated");
-
-    const buildTypeRaw = parsed.buildType?.toLowerCase().trim();
-    const buildType = (buildTypeRaw === "character" || buildTypeRaw === "assistant" || buildTypeRaw === "hybrid")
-      ? buildTypeRaw
-      : null;
-
-    // Build metadata with helpful quick prompts
-    const metadata: Record<string, unknown> = {
-      action: "GUIDE_ONBOARDING",
-      buildType,
-    };
-
-    // Add quick prompts based on context
-    if (!buildType) {
-      metadata.quickPrompts = ["AI Assistant", "Character/Personality", "Both (Hybrid)"];
-    } else if (buildType === "character") {
-      metadata.quickPrompts = [
-        "Create a friendly mentor",
-        "Create a witty companion",
-        "Describe the personality",
-      ];
-    } else if (buildType === "assistant") {
-      metadata.quickPrompts = [
-        "Research assistant",
-        "Customer support",
-        "Describe the capabilities",
-      ];
-    } else if (buildType === "hybrid") {
-      metadata.quickPrompts = [
-        "Personal AI assistant",
-        "Describe personality + tools",
-        "Start with the basics",
-      ];
-    }
+    await markOnboarded(runtime, entityId);
 
     await callback({
       text: parsed.text,
       thought: parsed.thought,
-      metadata,
+      metadata: {
+        action: "GUIDE_ONBOARDING",
+      },
     });
   },
   examples: [
     [
       {
         name: "{{user1}}",
-        content: {
-          text: "I want to create something",
-        },
+        content: { text: "Hi" },
       },
       {
         name: "{{agentName}}",
         content: {
-          text: "Awesome! What kind of AI agent would you like to build?\n\n• **Character** - A personality-focused agent with a distinct voice\n• **Assistant** - A capable agent with tools and knowledge\n• **Hybrid** - Both personality AND capabilities\n\nWhat sounds right for your needs?",
-          actions: ["GUIDE_ONBOARDING"],
-        },
-      },
-    ],
-    [
-      {
-        name: "{{user1}}",
-        content: {
-          text: "I need a customer support bot",
-        },
-      },
-      {
-        name: "{{agentName}}",
-        content: {
-          text: "Perfect! A customer support agent is a great choice. Since this is capability-focused, we'll build an **Assistant** type.\n\nFor customer support, you'll want:\n• Clear system prompt defining their role\n• Knowledge base with your FAQs and docs\n• MCP tools for ticket management (if needed)\n\nLet's start! What's the name of your support agent?",
-          actions: ["GUIDE_ONBOARDING"],
-        },
-      },
-    ],
-    [
-      {
-        name: "{{user1}}",
-        content: {
-          text: "Create a witty tech mentor with access to documentation",
-        },
-      },
-      {
-        name: "{{agentName}}",
-        content: {
-          text: "Love it! That's a **Hybrid** agent - personality (witty mentor) + capabilities (documentation access).\n\nWe'll build:\n• Strong personality with humor and expertise\n• Knowledge base integration for docs\n• Style that balances helpfulness with wit\n\nWhat's your mentor's name?",
+          text: "Hey! Welcome to the AI agent builder. I'm Eliza, and I'll help you create your own AI.\n\nYou can build:\n- **Companions** - personality-focused characters with unique voice\n- **Assistants** - capability-focused agents with tools and knowledge\n- **Hybrids** - both personality AND capabilities\n\nWhat sounds interesting to you?",
           actions: ["GUIDE_ONBOARDING"],
         },
       },

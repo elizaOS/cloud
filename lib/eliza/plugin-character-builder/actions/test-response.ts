@@ -25,23 +25,11 @@ import { cleanPrompt, isCreatorMode } from "../../shared/utils/helpers";
  */
 
 const testResponseSystemPrompt = `# Character Response Simulation (TEST MODE)
-
-You are simulating a response AS the character being built.
-
-**Your Character Identity:**
-{{system}}
-
-**Bio:**
 {{bio}}
-
-**Personality Traits:**
-{{adjectiveSentence}}
-
-**Interests:**
-{{topicSentence}}
-
-**Style Guidelines:**
+{{system}}
 {{messageDirections}}
+{{adjectiveSentence}}
+{{topicSentence}}
 
 # Instructions
 <instructions>

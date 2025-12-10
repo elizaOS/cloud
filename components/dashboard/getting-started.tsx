@@ -61,7 +61,7 @@ export function GettingStarted({
       description: "Build an agent",
       tooltip: "Customize personality and knowledge",
       icon: <Bot className="h-5 w-5" />,
-      href: "/dashboard/character-creator",
+      href: "/dashboard/build",
       buttonText: "Create",
       completed: hasAgents,
     },
