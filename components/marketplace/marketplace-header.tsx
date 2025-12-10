@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, LayoutGrid, List, Plus, PanelLeftClose } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { LockOnButton } from "../brand";
 
 interface MyAgentsHeaderProps {
   searchQuery: string;
@@ -62,7 +63,7 @@ export function MyAgentsHeader({
 
       {/* Right: View Toggle + Create Button */}
       <div className="flex items-center gap-2">
-        <div className="flex gap-1 border rounded-md p-1">
+        <div className="flex gap-1 border mr-4 rounded-none p-1">
           <Button
             variant={view === "grid" ? "secondary" : "ghost"}
             size="sm"
@@ -80,15 +81,14 @@ export function MyAgentsHeader({
             <List className="h-4 w-4" />
           </Button>
         </div>
-
-        <Button
+        <LockOnButton
+          size="md"
           onClick={() => router.push("/dashboard/character-creator")}
-          size="sm"
-          className="hidden sm:flex"
+          icon={<Plus className="h-4 w-4" />}
+          className="h-[35px]"
         >
-          <Plus className="h-4 w-4 mr-2" />
           New Agent
-        </Button>
+        </LockOnButton>
         <Button
           onClick={() => router.push("/dashboard/character-creator")}
           size="sm"
