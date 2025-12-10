@@ -465,7 +465,7 @@ test.describe("Dashboard Protected Routes", () => {
     { path: "/dashboard", name: "Dashboard Home" },
     { path: "/dashboard/chat", name: "Chat" },
     { path: "/dashboard/my-agents", name: "My Agents" },
-    { path: "/dashboard/character-creator", name: "Character Creator" },
+    { path: "/dashboard/build", name: "Build" },
     { path: "/dashboard/image", name: "Image Generation" },
     { path: "/dashboard/video", name: "Video Generation" },
     { path: "/dashboard/voices", name: "Voices" },
