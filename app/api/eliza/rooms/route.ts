@@ -188,6 +188,7 @@ export async function POST(request: NextRequest) {
     entityId: userId, // User's ID (from auth) - not used in ElizaOS schema but useful for our queries
     source: "web",
     type: "DM",
+    name: "New Chat",
     metadata: {
       createdAt,
       creatorUserId: userId, // Store creator for access control

@@ -81,6 +81,7 @@ export function cleanPrompt(prompt: string): string {
 interface Attachment {
   url?: string;
   id?: string;
+  title?: string;
   contentType?: string;
   [key: string]: unknown;
 }

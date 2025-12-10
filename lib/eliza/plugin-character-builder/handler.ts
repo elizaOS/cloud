@@ -28,50 +28,11 @@ import {
   DEFAULT_ELIZA_ID,
 } from "../shared/utils/helpers";
 import type { MessageReceivedHandlerParams } from "../shared/types";
-import { roomTitleTemplate } from "../shared/evaluators/room-title";
 
 function parsePlanningResponse(response: string): { thought: string; actions: string } | null {
   const parsed = parseKeyValueXml(response) as { thought?: string; actions?: string } | null;
   if (!parsed?.actions) return null;
   return { thought: parsed.thought || "", actions: parsed.actions };
-}
-
-/**
- * Temp: Generate room title on first message since evaluators don't run in this flow
- */
-async function maybeGenerateRoomTitle(runtime: IAgentRuntime, message: Memory): Promise<void> {
-  const existingMessages = await runtime.getMemories({
-    tableName: "messages",
-    roomId: message.roomId,
-    count: 1,
-    unique: false,
-  });
-  if (existingMessages.length > 0) return;
-
-  const room = await runtime.getRoom(message.roomId);
-  if (!room || (room.name && room.name !== "New Chat")) return;
-
-  const state = await runtime.composeState(message, ["RECENT_MESSAGES"]);
-  const prompt = composePromptFromState({ state, template: roomTitleTemplate });
-
-  const response = await runtime.useModel(ModelType.TEXT_SMALL, { prompt });
-  if (!response) return;
-
-  const parsed = parseKeyValueXml(response) as { title?: string } | null;
-  if (!parsed?.title) return;
-
-  let title = parsed.title
-    .trim()
-    .replace(/^["']|["']$/g, "")
-    .split(" ")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
-
-  if (title.length > 60) title = title.substring(0, 57) + "...";
-
-  await runtime.updateRoom({ ...room, name: title });
-  await runtime.setCache<boolean>(`room-title-generated-${message.roomId}`, true);
-  logger.info(`[BuildMode] Generated room title: "${title}"`);
 }
 
 /**
@@ -114,7 +75,6 @@ export async function handleMessage({
   });
 
   try {
-    await maybeGenerateRoomTitle(runtime, message);
     await runtime.createMemory(message, "messages");
 
     // Compose state with all providers including actions
