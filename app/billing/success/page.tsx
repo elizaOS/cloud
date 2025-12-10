@@ -223,7 +223,7 @@ export default async function BillingSuccessPage({
               session ID.
             </p>
             {sessionId && (
-              <p className="text-xs text-muted-foreground font-mono bg-muted p-2 rounded">
+              <p className="text-xs text-muted-foreground bg-muted p-2 rounded">
                 Session: {sessionId.substring(0, 20)}...
               </p>
             )}
