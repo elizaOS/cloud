@@ -9,9 +9,7 @@ import {
   getPendingReferralCode,
 } from "@/components/referral-capture";
 import { applyReferralCode } from "@/lib/cloud-api";
-
-const CLOUD_URL =
-  process.env.NEXT_PUBLIC_ELIZA_CLOUD_URL || "http://localhost:3000";
+import { getCloudUrl } from "@/lib/cloud-url";
 
 function AuthCallbackContent() {
   const searchParams = useSearchParams();
@@ -46,9 +44,11 @@ function AuthCallbackContent() {
       }
 
       try {
+        const cloudUrl = getCloudUrl();
+
         // Poll the Cloud API for the auth token
         const response = await fetch(
-          `${CLOUD_URL}/api/auth/miniapp-session/${sessionId}`,
+          `${cloudUrl}/api/auth/miniapp-session/${sessionId}`,
         );
 
         if (!response.ok) {

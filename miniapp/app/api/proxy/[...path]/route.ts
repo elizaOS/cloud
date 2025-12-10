@@ -16,9 +16,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { siteConfig } from "@/app/config";
-
-const ELIZA_CLOUD_URL =
-  process.env.NEXT_PUBLIC_ELIZA_CLOUD_URL || "http://localhost:3000";
+import { getCloudUrl } from "@/lib/cloud-url";
 const ELIZA_CLOUD_API_KEY = process.env.ELIZA_CLOUD_API_KEY;
 // Optional: App ID for monetization tracking (if your app has monetization enabled)
 const ELIZA_APP_ID = process.env.ELIZA_APP_ID;
@@ -29,7 +27,7 @@ const ELIZA_APP_ID = process.env.ELIZA_APP_ID;
 async function forwardRequest(
   request: NextRequest,
   path: string[],
-  method: string
+  method: string,
 ): Promise<Response> {
   // Build the target URL
   let targetPath: string;
@@ -43,7 +41,8 @@ async function forwardRequest(
     targetPath = `/api/v1/miniapp/${path.join("/")}`;
   }
 
-  const targetUrl = new URL(targetPath, ELIZA_CLOUD_URL);
+  const cloudUrl = getCloudUrl();
+  const targetUrl = new URL(targetPath, cloudUrl);
 
   // Preserve query parameters
   const url = new URL(request.url);
@@ -87,11 +86,11 @@ async function forwardRequest(
   const authHeader = request.headers.get("authorization");
   if (authHeader) {
     const token = authHeader.replace("Bearer ", "");
-    
+
     // API keys start with "eliza_" - pass as Authorization header
     if (token.startsWith("eliza_")) {
       headers.set("Authorization", `Bearer ${token}`);
-    } 
+    }
     // Miniapp tokens start with "miniapp_" - pass as X-Miniapp-Token
     else if (token.startsWith("miniapp_")) {
       headers.set("X-Miniapp-Token", token);
@@ -101,7 +100,7 @@ async function forwardRequest(
       headers.set("Authorization", authHeader);
     }
   }
-  
+
   // Also forward X-Miniapp-Token if explicitly set
   const miniappToken = request.headers.get("x-miniapp-token");
   if (miniappToken) {
@@ -112,7 +111,7 @@ async function forwardRequest(
   let body: string | null = null;
   if (method !== "GET" && method !== "HEAD") {
     body = await request.text();
-    
+
     // For stream requests, inject the miniapp's prompt config
     if (path[0] === "stream" && path[1] && body && siteConfig.prompts) {
       const parsedBody = JSON.parse(body) as Record<string, unknown>;
@@ -188,7 +187,7 @@ async function forwardRequest(
         headers: {
           "Access-Control-Allow-Origin": "*",
         },
-      }
+      },
     );
   }
 }
@@ -212,7 +211,7 @@ export async function OPTIONS() {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
+  { params }: { params: Promise<{ path: string[] }> },
 ) {
   const { path } = await params;
   return forwardRequest(request, path, "GET");
@@ -220,7 +219,7 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
+  { params }: { params: Promise<{ path: string[] }> },
 ) {
   const { path } = await params;
   return forwardRequest(request, path, "POST");
@@ -228,7 +227,7 @@ export async function POST(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
+  { params }: { params: Promise<{ path: string[] }> },
 ) {
   const { path } = await params;
   return forwardRequest(request, path, "PUT");
@@ -236,7 +235,7 @@ export async function PUT(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
+  { params }: { params: Promise<{ path: string[] }> },
 ) {
   const { path } = await params;
   return forwardRequest(request, path, "PATCH");
@@ -244,7 +243,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
+  { params }: { params: Promise<{ path: string[] }> },
 ) {
   const { path } = await params;
   return forwardRequest(request, path, "DELETE");
