@@ -142,13 +142,6 @@ export function CharacterGrid({
               )}
             </div>
           )}
-
-          {/* End of Results */}
-          {!hasMore && characters.length > 0 && (
-            <div className="flex justify-center py-8 text-sm text-muted-foreground">
-              You&apos;ve reached the end
-            </div>
-          )}
         </div>
       </ScrollArea>
     </div>
