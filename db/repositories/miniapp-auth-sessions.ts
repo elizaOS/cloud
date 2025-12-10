@@ -6,7 +6,7 @@
  * Similar to CLI auth sessions but for web-based miniapps that can't use Privy directly.
  */
 
-import { eq, and, gt, isNull } from "drizzle-orm";
+import { eq, and, gt, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   miniappAuthSessions,
@@ -123,16 +123,24 @@ class MiniappAuthSessionsRepository {
     userId: string;
     organizationId: string;
   } | null> {
+    // Atomic update to prevent TOCTOU race condition
+    // This ensures only one request can retrieve the token, even with concurrent calls
     const [session] = await db
-      .select()
-      .from(miniappAuthSessions)
+      .update(miniappAuthSessions)
+      .set({
+        auth_token: null,
+        status: "used",
+        used_at: new Date(),
+      })
       .where(
         and(
           eq(miniappAuthSessions.session_id, sessionId),
-          eq(miniappAuthSessions.status, "authenticated")
+          eq(miniappAuthSessions.status, "authenticated"),
+          // Only update if auth_token is not null (prevents double-use)
+          sql`${miniappAuthSessions.auth_token} IS NOT NULL`
         )
       )
-      .limit(1);
+      .returning();
 
     if (
       !session ||
@@ -142,16 +150,6 @@ class MiniappAuthSessionsRepository {
     ) {
       return null;
     }
-
-    // Clear the auth token from the session record (keep the hash for verification)
-    await db
-      .update(miniappAuthSessions)
-      .set({
-        auth_token: null,
-        status: "used",
-        used_at: new Date(),
-      })
-      .where(eq(miniappAuthSessions.id, session.id));
 
     return {
       authToken: session.auth_token,

@@ -148,13 +148,10 @@ function MiniappLoginContent() {
       login();
     }
 
-    // Cleanup on unmount to prevent memory leaks
-    return () => {
-      loginTriggeredRef.current = false;
-      if (typeof window !== "undefined") {
-        sessionStorage.removeItem(LOGIN_TRIGGERED_KEY);
-      }
-    };
+    // NOTE: No cleanup function to clear the flag
+    // Cleanup would reset the flag during React Strict Mode's double-invoke,
+    // causing login to trigger multiple times. The flag is only cleared on
+    // successful authentication or component unmount (via dependency array change).
   }, [status, ready, authenticated, login, LOGIN_TRIGGERED_KEY]);
 
   // Loading state
