@@ -35,6 +35,63 @@ const urlOrBase64 = z.string().refine(
   { message: "Must be a valid URL or base64 data URL" },
 );
 
+// Schema for image generation settings
+const ImageGenerationSettingsSchema = z.object({
+  enabled: z.boolean(),
+  autoGenerate: z.boolean(),
+  referenceImages: z.array(z.string()).default([]),
+  vibe: z.enum([
+    "flirty", "shy", "bold", "spicy", "romantic", "playful", "mysterious", "intellectual"
+  ]).optional(),
+  appearanceDescription: z.string().optional(),
+});
+
+/**
+ * Convert imageSettings to affiliateData format for storage
+ */
+function imageSettingsToAffiliateData(
+  imageSettings: z.infer<typeof ImageGenerationSettingsSchema> | undefined
+): Record<string, unknown> | undefined {
+  if (!imageSettings) return undefined;
+
+  // If disabled, return undefined to clear affiliateData
+  if (!imageSettings.enabled) {
+    return undefined;
+  }
+
+  return {
+    source: "miniapp",
+    vibe: imageSettings.vibe || "playful",
+    imageUrls: imageSettings.referenceImages || [],
+    appearanceDescription: imageSettings.appearanceDescription,
+    autoImage: imageSettings.autoGenerate,
+  };
+}
+
+/**
+ * Convert affiliateData back to imageSettings format for API response
+ */
+function affiliateDataToImageSettings(
+  settings: Record<string, unknown> | undefined
+): {
+  enabled: boolean;
+  autoGenerate: boolean;
+  referenceImages: string[];
+  vibe?: string;
+  appearanceDescription?: string;
+} | undefined {
+  const affiliateData = settings?.affiliateData as Record<string, unknown> | undefined;
+  if (!affiliateData) return undefined;
+
+  return {
+    enabled: true,
+    autoGenerate: affiliateData.autoImage === true,
+    referenceImages: (affiliateData.imageUrls as string[]) || [],
+    vibe: affiliateData.vibe as string | undefined,
+    appearanceDescription: affiliateData.appearanceDescription as string | undefined,
+  };
+}
+
 /**
  * OPTIONS /api/v1/miniapp/agents/[id]
  * CORS preflight handler for miniapp agent management endpoint.
@@ -135,6 +192,7 @@ export async function GET(
         createdAt: character.created_at,
         updatedAt: character.updated_at,
         characterData: character.character_data,
+        imageSettings: affiliateDataToImageSettings(character.settings as Record<string, unknown>),
       },
     });
 
@@ -191,6 +249,7 @@ const UpdateAgentSchema = z.object({
   plugins: z.array(z.string()).optional(),
   isPublic: z.boolean().optional(),
   characterData: z.record(z.string(), z.unknown()).optional(),
+  imageSettings: ImageGenerationSettingsSchema.optional(),
 });
 
 /**
@@ -326,6 +385,28 @@ async function updateAgent(
     if (data.characterData !== undefined)
       updateData.character_data = data.characterData;
 
+    // Handle imageSettings - convert to affiliateData and merge with existing settings
+    if (data.imageSettings !== undefined) {
+      const currentSettings = (character.settings || {}) as Record<string, unknown>;
+      const affiliateData = imageSettingsToAffiliateData(data.imageSettings);
+
+      if (affiliateData) {
+        // Enable image generation - set affiliateData
+        updateData.settings = {
+          ...currentSettings,
+          ...(updateData.settings as Record<string, unknown> || {}),
+          affiliateData,
+        };
+      } else {
+        // Disable image generation - remove affiliateData
+        const { affiliateData: _, ...settingsWithoutAffiliate } = currentSettings;
+        updateData.settings = {
+          ...settingsWithoutAffiliate,
+          ...(updateData.settings as Record<string, unknown> || {}),
+        };
+      }
+    }
+
     const updated = await charactersService.update(id, updateData);
 
     if (!updated) {
@@ -354,6 +435,7 @@ async function updateAgent(
         settings: updated.settings,
         isPublic: updated.is_public,
         updatedAt: updated.updated_at,
+        imageSettings: affiliateDataToImageSettings(updated.settings as Record<string, unknown>),
       },
     });
 

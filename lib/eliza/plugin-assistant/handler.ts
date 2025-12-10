@@ -82,15 +82,20 @@ export async function handleMessage({
       | {
           vibe?: string;
           affiliateId?: string;
+          autoImage?: boolean;
+          imageUrls?: string[];
           [key: string]: unknown;
         }
       | undefined;
     const isAffiliateChat = !!(
       affiliateData && Object.keys(affiliateData).length > 0
     );
+    // Auto-generate images on every response if autoImage is enabled
+    // Reference images are optional - without them, images are generated based on character bio
+    const shouldAutoGenerateImages = affiliateData?.autoImage === true;
 
     logger.info(
-      `[Assistant] Processing for ${runtime.character.name}, affiliate: ${isAffiliateChat}`
+      `[Assistant] Processing for ${runtime.character.name}, affiliate: ${isAffiliateChat}, autoImage: ${shouldAutoGenerateImages}`
     );
 
     const providers = isAffiliateChat
@@ -133,12 +138,12 @@ export async function handleMessage({
     let plan = parseKeyValueXml(planningResponse) as ParsedPlan | null;
     let shouldRespondNow = canRespondImmediately(plan);
 
-    // Affiliate chats always generate images
-    if (isAffiliateChat) {
+    // Auto-generate images when autoImage is enabled (requires reference images)
+    if (shouldAutoGenerateImages) {
       shouldRespondNow = false;
       if (!plan) {
         plan = {
-          thought: "Generating image",
+          thought: "Generating image with character appearance",
           canRespondNow: "NO",
           actions: "GENERATE_IMAGE",
         };

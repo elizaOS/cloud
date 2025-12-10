@@ -703,75 +703,123 @@ function ChatPage() {
               </div>
             )}
 
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex gap-3 ${
-                  message.role === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
-                {message.role === "assistant" && (
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand/20">
-                    {agent?.avatarUrl ? (
-                      agent.avatarUrl.startsWith("data:") ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={agent.avatarUrl}
-                          alt={agent.name}
-                          className="h-8 w-8 rounded-lg object-cover"
-                        />
-                      ) : (
-                        <Image
-                          src={agent.avatarUrl}
-                          alt={agent.name}
-                          width={32}
-                          height={32}
-                          className="h-8 w-8 rounded-lg object-cover"
-                        />
-                      )
-                    ) : (
-                      <Bot className="h-4 w-4 text-brand-400" />
-                    )}
-                  </div>
-                )}
+            {messages.map((message) => {
+              const hasAttachments = message.attachments && message.attachments.length > 0;
+              const hasText = message.content && message.content !== "[Image]";
+              const isAgentWithImage = message.role === "assistant" && hasAttachments;
+
+              return (
                 <div
-                  className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                    message.role === "user"
-                      ? "bg-brand text-white"
-                      : "bg-white/10 text-white"
+                  key={message.id}
+                  className={`flex gap-3 ${
+                    message.role === "user" ? "justify-end" : "justify-start"
                   }`}
                 >
-                  {/* Display attachments (images) */}
-                  {message.attachments && message.attachments.length > 0 && (
-                    <div className="mb-2 flex flex-wrap gap-2">
-                      {message.attachments.map((attachment) => (
-                        <button
-                          key={attachment.id}
-                          onClick={() => openImageModal(attachment.url)}
-                          className="relative overflow-hidden rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {message.role === "assistant" && (
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand/20">
+                      {agent?.avatarUrl ? (
+                        agent.avatarUrl.startsWith("data:") ? (
+                          // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={attachment.url}
-                            alt={attachment.title || "Image"}
-                            className="max-h-48 max-w-full rounded-lg object-cover hover:opacity-90 transition-opacity"
+                            src={agent.avatarUrl}
+                            alt={agent.name}
+                            className="h-8 w-8 rounded-lg object-cover"
                           />
-                        </button>
-                      ))}
+                        ) : (
+                          <Image
+                            src={agent.avatarUrl}
+                            alt={agent.name}
+                            width={32}
+                            height={32}
+                            className="h-8 w-8 rounded-lg object-cover"
+                          />
+                        )
+                      ) : (
+                        <Bot className="h-4 w-4 text-brand-400" />
+                      )}
                     </div>
                   )}
-                  {/* Display text content */}
-                  {message.content && message.content !== "[Image]" && (
-                  <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                  <div
+                    className={`${
+                      isAgentWithImage
+                        ? "max-w-xs sm:max-w-sm"
+                        : "max-w-[80%]"
+                    } ${
+                      message.role === "user"
+                        ? "rounded-2xl rounded-br-md bg-brand px-4 py-2.5 text-white"
+                        : isAgentWithImage
+                        ? "overflow-hidden rounded-2xl rounded-bl-md bg-white/[0.08] backdrop-blur-sm"
+                        : "rounded-2xl rounded-bl-md bg-white/10 px-4 py-2.5 text-white"
+                    }`}
+                  >
+                    {/* Agent message with image - card layout */}
+                    {isAgentWithImage ? (
+                      <>
+                        <div className="relative">
+                          {message.attachments!.map((attachment, idx) => (
+                            <button
+                              key={attachment.id}
+                              onClick={() => openImageModal(attachment.url)}
+                              className={`block w-full focus:outline-none focus:ring-2 focus:ring-brand focus:ring-inset ${
+                                idx > 0 ? "mt-1" : ""
+                              }`}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={attachment.url}
+                                alt={attachment.title || "Image"}
+                                className="w-full object-cover hover:opacity-95 transition-opacity"
+                                style={{ maxHeight: "280px" }}
+                              />
+                            </button>
+                          ))}
+                        </div>
+                        {hasText && (
+                          <div className="px-3.5 py-2.5">
+                            <p className="whitespace-pre-wrap text-sm text-white leading-relaxed">
+                              {message.content}
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {/* User message with image */}
+                        {hasAttachments && (
+                          <div className="mb-2 flex flex-wrap gap-1.5">
+                            {message.attachments!.map((attachment) => (
+                              <button
+                                key={attachment.id}
+                                onClick={() => openImageModal(attachment.url)}
+                                className="relative overflow-hidden rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={attachment.url}
+                                  alt={attachment.title || "Image"}
+                                  className="h-32 w-32 rounded-lg object-cover hover:opacity-90 transition-opacity"
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {/* Display text content */}
+                        {hasText && (
+                          <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                            {message.content}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  {message.role === "user" && (
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white/10">
+                      <User className="h-4 w-4 text-white/60" />
+                    </div>
                   )}
                 </div>
-                {message.role === "user" && (
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white/10">
-                    <User className="h-4 w-4 text-white/60" />
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
 
             {/* Thinking indicator - shown when waiting for response */}
             {isThinking && !streamingContent && (

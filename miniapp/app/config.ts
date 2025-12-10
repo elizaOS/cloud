@@ -1,5 +1,24 @@
 export type FlirtinessLevel = "low" | "medium" | "high";
 
+export type ImageGenerationVibe =
+  | "flirty"
+  | "shy"
+  | "bold"
+  | "spicy"
+  | "romantic"
+  | "playful"
+  | "mysterious"
+  | "intellectual";
+
+export interface ImageGenerationConfig {
+  /** Enable image generation for characters */
+  enabled: boolean;
+  /** Automatically generate images on each agent response */
+  autoGenerate: boolean;
+  /** Default vibe for generated images */
+  defaultVibe?: ImageGenerationVibe;
+}
+
 export interface PromptConfig {
   /** Injected before character system prompt */
   systemPrefix?: string;
@@ -11,6 +30,8 @@ export interface PromptConfig {
   flirtiness?: FlirtinessLevel;
   /** Enable romantic/relationship mode */
   romanticMode?: boolean;
+  /** Image generation configuration */
+  imageGeneration?: ImageGenerationConfig;
 }
 
 export interface SiteConfig {

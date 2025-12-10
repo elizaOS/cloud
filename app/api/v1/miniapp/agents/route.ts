@@ -99,6 +99,7 @@ export async function GET(request: NextRequest) {
         createdAt: char.createdAt,
         updatedAt: char.updatedAt,
         stats: char.stats,
+        imageSettings: affiliateDataToImageSettings(char.settings as Record<string, unknown> | undefined),
       })),
       pagination: {
         page: result.pagination.page,
@@ -130,6 +131,17 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// Schema for image generation settings
+const ImageGenerationSettingsSchema = z.object({
+  enabled: z.boolean(),
+  autoGenerate: z.boolean(),
+  referenceImages: z.array(z.string()).default([]),
+  vibe: z.enum([
+    "flirty", "shy", "bold", "spicy", "romantic", "playful", "mysterious", "intellectual"
+  ]).optional(),
+  appearanceDescription: z.string().optional(),
+});
+
 // Schema for creating an agent
 const CreateAgentSchema = z.object({
   name: z.string().min(1).max(100),
@@ -156,7 +168,49 @@ const CreateAgentSchema = z.object({
     )
     .optional(),
   isPublic: z.boolean().optional(),
+  imageSettings: ImageGenerationSettingsSchema.optional(),
 });
+
+/**
+ * Convert imageSettings to affiliateData format for storage
+ */
+function imageSettingsToAffiliateData(
+  imageSettings: z.infer<typeof ImageGenerationSettingsSchema> | undefined
+): Record<string, unknown> | undefined {
+  if (!imageSettings || !imageSettings.enabled) return undefined;
+
+  return {
+    source: "miniapp",
+    vibe: imageSettings.vibe || "playful",
+    imageUrls: imageSettings.referenceImages || [],
+    appearanceDescription: imageSettings.appearanceDescription,
+    autoImage: imageSettings.autoGenerate,
+  };
+}
+
+/**
+ * Convert affiliateData back to imageSettings format for API response
+ */
+function affiliateDataToImageSettings(
+  settings: Record<string, unknown> | undefined
+): {
+  enabled: boolean;
+  autoGenerate: boolean;
+  referenceImages: string[];
+  vibe?: string;
+  appearanceDescription?: string;
+} | undefined {
+  const affiliateData = settings?.affiliateData as Record<string, unknown> | undefined;
+  if (!affiliateData) return undefined;
+
+  return {
+    enabled: true,
+    autoGenerate: affiliateData.autoImage === true,
+    referenceImages: (affiliateData.imageUrls as string[]) || [],
+    vibe: affiliateData.vibe as string | undefined,
+    appearanceDescription: affiliateData.appearanceDescription as string | undefined,
+  };
+}
 
 /**
  * POST /api/v1/miniapp/agents
@@ -211,6 +265,16 @@ export async function POST(request: NextRequest) {
 
     const data = validationResult.data;
 
+    // Build settings with affiliateData if image generation is enabled
+    const baseSettings = (data.settings || {}) as Record<
+      string,
+      string | number | boolean | Record<string, unknown>
+    >;
+    const affiliateData = imageSettingsToAffiliateData(data.imageSettings);
+    const finalSettings = affiliateData
+      ? { ...baseSettings, affiliateData }
+      : baseSettings;
+
     const character = await charactersService.create({
       organization_id: user.organization_id,
       user_id: user.id,
@@ -220,10 +284,7 @@ export async function POST(request: NextRequest) {
       topics: data.topics || [],
       adjectives: data.adjectives || [],
       style: data.style || {},
-      settings: (data.settings || {}) as Record<
-        string,
-        string | number | boolean | Record<string, unknown>
-      >,
+      settings: finalSettings,
       secrets: {},
       knowledge: [],
       plugins: [],
@@ -251,6 +312,7 @@ export async function POST(request: NextRequest) {
           avatarUrl: character.avatar_url,
           isPublic: character.is_public,
           createdAt: character.created_at,
+          imageSettings: affiliateDataToImageSettings(character.settings as Record<string, unknown>),
         },
       },
       { status: 201 },
