@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback, Suspense, useMemo, useRef } from "react";
+import {
+  useEffect,
+  useState,
+  useCallback,
+  Suspense,
+  useMemo,
+  useRef,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import {
@@ -28,7 +35,10 @@ function MiniappLoginContent() {
   // Compute initial status from props to avoid setState in effect
   const initialStatus = useMemo(() => {
     if (!sessionId) {
-      return { status: "error" as const, errorMessage: "Invalid authentication link. Missing session ID." };
+      return {
+        status: "error" as const,
+        errorMessage: "Invalid authentication link. Missing session ID.",
+      };
     }
     if (!authenticated) {
       return { status: "waiting_auth" as const, errorMessage: "" };
@@ -57,15 +67,13 @@ function MiniappLoginContent() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-        },
+        }
       );
 
       if (!response.ok) {
         const errorData = await response.json();
         setStatus("error");
-        setErrorMessage(
-          errorData.error || "Failed to complete authentication",
-        );
+        setErrorMessage(errorData.error || "Failed to complete authentication");
         return;
       }
 
@@ -81,17 +89,16 @@ function MiniappLoginContent() {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Failed to complete authentication",
+          : "Failed to complete authentication"
       );
     }
-
   }, [sessionId]);
 
   // Update status when props change (avoiding synchronous setState)
   useEffect(() => {
     const nextStatus = initialStatus.status;
     const nextErrorMessage = initialStatus.errorMessage;
-    
+
     // Only update if status changed to avoid unnecessary renders
     if (status !== nextStatus || errorMessage !== nextErrorMessage) {
       // Use setTimeout to avoid synchronous setState in effect
@@ -117,14 +124,22 @@ function MiniappLoginContent() {
   // Auto-trigger login when ready and waiting for auth
   // Use ref to ensure login is only called once to prevent infinite loop
   useEffect(() => {
-    if (status === "waiting_auth" && ready && !authenticated && !loginTriggeredRef.current) {
+    // Reset flag when authenticated (early return prevents race condition)
+    if (authenticated) {
+      loginTriggeredRef.current = false;
+      return;
+    }
+
+    // Trigger login when conditions are met
+    if (status === "waiting_auth" && ready && !loginTriggeredRef.current) {
       loginTriggeredRef.current = true;
       login();
     }
-    // Reset the flag if user becomes authenticated (for re-auth scenarios)
-    if (authenticated) {
+
+    // Cleanup on unmount to prevent memory leaks
+    return () => {
       loginTriggeredRef.current = false;
-    }
+    };
   }, [status, ready, authenticated, login]);
 
   // Loading state

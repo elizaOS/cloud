@@ -21,6 +21,7 @@ import { contentModerationService } from "@/lib/services/content-moderation";
 import { organizationsService } from "@/lib/services/organizations";
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
+import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -65,6 +66,68 @@ export async function POST(
         JSON.stringify({ error: "Missing required fields" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
+    }
+
+    // Validate appPromptConfig if provided
+    if (appPromptConfig) {
+      // Sanitization helper to prevent prompt injection
+      const sanitizePromptString = (val: string) => {
+        const dangerousPatterns = [
+          "</system>",
+          "<|im_end|>",
+          "<|endoftext|>",
+          "[INST]",
+          "[/INST]",
+          "### Instruction:",
+          "### Response:",
+          "<|assistant|>",
+          "<|user|>",
+        ];
+
+        for (const pattern of dangerousPatterns) {
+          if (val.toLowerCase().includes(pattern.toLowerCase())) {
+            return false;
+          }
+        }
+        return true;
+      };
+
+      const AppPromptConfigSchema = z
+        .object({
+          systemPrefix: z
+            .string()
+            .max(2000)
+            .refine(sanitizePromptString, {
+              message: "Invalid characters or patterns in systemPrefix",
+            })
+            .optional(),
+          systemSuffix: z
+            .string()
+            .max(2000)
+            .refine(sanitizePromptString, {
+              message: "Invalid characters or patterns in systemSuffix",
+            })
+            .optional(),
+          responseStyle: z
+            .string()
+            .max(1000)
+            .refine(sanitizePromptString, {
+              message: "Invalid characters or patterns in responseStyle",
+            })
+            .optional(),
+        })
+        .strict();
+
+      const validated = AppPromptConfigSchema.safeParse(appPromptConfig);
+      if (!validated.success) {
+        return new Response(
+          JSON.stringify({
+            error: "Invalid appPromptConfig format",
+            details: validated.error.errors,
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Validate agentMode if provided, default to CHAT

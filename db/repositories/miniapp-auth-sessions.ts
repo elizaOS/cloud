@@ -74,6 +74,22 @@ class MiniappAuthSessionsRepository {
     authTokenHash: string,
     tokenExpiresAt: Date
   ): Promise<MiniappAuthSession | null> {
+    // Validate expiry date - maximum 30 days from now
+    const MAX_TOKEN_EXPIRY_DAYS = 30;
+    const maxExpiry = new Date(
+      Date.now() + MAX_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+    );
+
+    // If provided expiry is beyond max, cap it
+    const validatedExpiry =
+      tokenExpiresAt > maxExpiry ? maxExpiry : tokenExpiresAt;
+
+    // Also ensure expiry is not in the past
+    const now = new Date();
+    if (validatedExpiry < now) {
+      throw new Error("Token expiry date cannot be in the past");
+    }
+
     const [session] = await db
       .update(miniappAuthSessions)
       .set({
@@ -83,7 +99,7 @@ class MiniappAuthSessionsRepository {
         auth_token: authToken,
         auth_token_hash: authTokenHash,
         authenticated_at: new Date(),
-        expires_at: tokenExpiresAt,
+        expires_at: validatedExpiry,
       })
       .where(
         and(
