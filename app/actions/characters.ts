@@ -105,7 +105,7 @@ export async function createCharacter(elizaCharacter: ElizaCharacter) {
       logger.error("[CharacterCreate] Failed to log to Discord:", error);
     });
 
-  revalidatePath("/dashboard/character-creator");
+  revalidatePath("/dashboard/build");
   return charactersService.toElizaCharacter(character);
 }
 
@@ -161,7 +161,7 @@ export async function updateCharacter(
     throw new Error("Character not found or access denied");
   }
 
-  revalidatePath("/dashboard/character-creator");
+  revalidatePath("/dashboard/build");
   return charactersService.toElizaCharacter(character);
 }
 
@@ -181,7 +181,7 @@ export async function deleteCharacter(characterId: string) {
     throw new Error("Character not found or access denied");
   }
 
-  revalidatePath("/dashboard/character-creator");
+  revalidatePath("/dashboard/build");
   return { success: true };
 }
 

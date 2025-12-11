@@ -152,7 +152,7 @@ export function AvatarGenerator({
         <p className="text-sm text-white/60">
           Or choose from built-in avatars:
         </p>
-        <div className="grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-5 gap-2 max-w-[360px]">
           {availableAvatars.map((avatar) => {
             const isSelected = currentAvatarUrl === avatar.url;
             return (
@@ -160,7 +160,7 @@ export function AvatarGenerator({
                 key={avatar.id}
                 onClick={() => handleSelectAvatar(avatar.url)}
                 className={cn(
-                  "relative w-full aspect-square rounded-lg overflow-hidden border-2 transition-all",
+                  "relative w-full max-w-16 max-h-16 aspect-square rounded-lg overflow-hidden border-2 transition-all",
                   isSelected
                     ? "border-[#FF5800] ring-2 ring-[#FF5800]/30"
                     : "border-white/10 hover:border-white/30"

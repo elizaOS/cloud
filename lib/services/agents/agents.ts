@@ -272,6 +272,7 @@ class AgentsService {
       entityId,
       source: "chat",
       type: "DM",
+      name: "New Chat",
     });
 
     logger.info(

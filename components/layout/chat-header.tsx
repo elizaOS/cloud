@@ -223,14 +223,14 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             }}
           >
             <MessageSquare className="h-4 w-4" />
-            <span className="hidden md:inline">Chat Mode</span>
+            <span className="hidden md:inline">Chat</span>
           </button>
           <button
             onClick={() => handleModeChange("build")}
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
               mode === "build"
-                ? "bg-[#220725] text-[#E500FF]"
+                ? "bg-[#2D1505] text-[#FF5800]"
                 : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
             )}
             style={{
@@ -241,7 +241,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             }}
           >
             <Wrench className="h-4 w-4" />
-            <span className="hidden md:inline">Build Mode</span>
+            <span className="hidden md:inline">Build</span>
           </button>
         </div>
       </div>

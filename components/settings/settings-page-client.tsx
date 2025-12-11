@@ -48,7 +48,6 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
 
   useEffect(() => {
     if (tabFromUrl && tabFromUrl !== activeTab) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing URL state to local state on navigation
       setActiveTab(tabFromUrl);
     }
   }, [tabFromUrl, activeTab]);

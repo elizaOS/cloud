@@ -127,7 +127,7 @@ export class MessageHandler {
 
     await this.ensureWorldExists(worldId, serverId);
     await this.ensureAgentEntity();
-    await this.ensureRoomExistsWithFields(roomUuid, worldId, serverId, displayName);
+    await this.ensureRoomExistsWithFields(roomUuid, worldId, serverId);
     await this.ensureUserEntity(entityUuid, names, displayName);
     await this.ensureParticipants(roomUuid, entityUuid);
 
@@ -145,16 +145,18 @@ export class MessageHandler {
     }
   }
 
-  private async ensureRoomExistsWithFields(roomId: UUID, worldId: UUID, serverId: UUID, displayName: string): Promise<void> {
+  private async ensureRoomExistsWithFields(roomId: UUID, worldId: UUID, serverId: UUID): Promise<void> {
     const existingRoom = await this.runtime.getRoom(roomId);
     
     if (existingRoom) {
       if (!existingRoom.worldId || !existingRoom.serverId) {
-        await this.runtime.updateRoom({ ...existingRoom, worldId, serverId, name: displayName || existingRoom.name });
+        // DO NOT UPDATE ROOM NAME. SHOULD BE DONE BY AGENT.
+        await this.runtime.updateRoom({ ...existingRoom, worldId, serverId });
       }
     } else {
+      // We set the name to "New Chat" to and leave that for the agent to update.
       await this.runtime.ensureRoomExists({
-        id: roomId, name: displayName, type: ChannelType.DM, channelId: roomId,
+        id: roomId, name: "New Chat", type: ChannelType.DM, channelId: roomId,
         worldId, serverId, agentId: this.runtime.agentId, source: "web",
       });
     }

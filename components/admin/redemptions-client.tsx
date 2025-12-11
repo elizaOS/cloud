@@ -406,7 +406,7 @@ export function AdminRedemptionsClient() {
                   <TableCell>
                     <button
                       onClick={() => copyToClipboard(r.user_id)}
-                      className="text-white/80 font-mono text-xs hover:text-[#FF5800] flex items-center gap-1"
+                      className="text-white/80 text-xs hover:text-[#FF5800] flex items-center gap-1"
                     >
                       {truncateAddress(r.user_id)}
                       <Copy className="h-3 w-3 opacity-50" />
@@ -428,7 +428,7 @@ export function AdminRedemptionsClient() {
                   <TableCell>
                     <button
                       onClick={() => copyToClipboard(r.payout_address)}
-                      className="text-white/80 font-mono text-xs hover:text-[#FF5800] flex items-center gap-1"
+                      className="text-white/80 text-xs hover:text-[#FF5800] flex items-center gap-1"
                     >
                       {truncateAddress(r.payout_address)}
                       <Copy className="h-3 w-3 opacity-50" />
@@ -557,7 +557,7 @@ export function AdminRedemptionsClient() {
               </div>
               <div>
                 <p className="text-xs text-white/40 mb-1">Payout Address</p>
-                <p className="text-sm text-white font-mono break-all">
+                <p className="text-sm text-white break-all">
                   {selectedRedemption.payout_address}
                 </p>
               </div>
