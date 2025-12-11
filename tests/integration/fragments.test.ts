@@ -124,9 +124,11 @@ afterAll(async () => {
 // ============================================================================
 
 describe("Fragments Chat API", () => {
-  test.skip(() => !serverAvailable, "Server not available");
-
   test("POST /api/fragments/chat - generates fragment with real LLM", async () => {
+    if (!serverAvailable) {
+      console.log("⚠️ Skipping - Server not available");
+      return;
+    }
     if (!apiKeyValid) {
       console.log("⚠️ Skipping - API key not valid");
       return;
@@ -221,10 +223,11 @@ describe("Fragments Chat API", () => {
 // ============================================================================
 
 describe("Fragments Sandbox API", () => {
-  test.skip(() => !serverAvailable, "Server not available");
-
   test("POST /api/fragments/sandbox - executes web app fragment", async () => {
-    if (!apiKeyValid) return;
+    if (!serverAvailable || !apiKeyValid) {
+      console.log("⚠️ Skipping - Server or API key not available");
+      return;
+    }
 
     const fragment = {
       code: `import React from 'react';
@@ -309,10 +312,11 @@ export default function Counter() {
 // ============================================================================
 
 describe("Fragments A2A Integration", () => {
-  test.skip(() => !serverAvailable, "Server not available");
-
   test("A2A generate_fragment skill works", async () => {
-    if (!apiKeyValid) return;
+    if (!serverAvailable || !apiKeyValid) {
+      console.log("⚠️ Skipping - Server or API key not available");
+      return;
+    }
 
     const response = await fetchWithAuth("/api/a2a", "POST", {
       jsonrpc: "2.0",
@@ -387,10 +391,11 @@ describe("Fragments A2A Integration", () => {
 // ============================================================================
 
 describe("Fragments MCP Integration", () => {
-  test.skip(() => !serverAvailable, "Server not available");
-
   test("MCP fragments_generate tool works", async () => {
-    if (!apiKeyValid) return;
+    if (!serverAvailable || !apiKeyValid) {
+      console.log("⚠️ Skipping - Server or API key not available");
+      return;
+    }
 
     const response = await fetchWithAuth("/api/mcp", "POST", {
       jsonrpc: "2.0",
@@ -452,9 +457,11 @@ st.write("Hello, Streamlit!")`,
 // ============================================================================
 
 describe("Fragments E2E Flow", () => {
-  test.skip(() => !serverAvailable || !apiKeyValid, "Server or API key not available");
-
   test("Complete flow: generate → execute → preview", async () => {
+    if (!serverAvailable || !apiKeyValid) {
+      console.log("⚠️ Skipping - Server or API key not available");
+      return;
+    }
     // Step 1: Generate fragment
     const generateResponse = await fetchWithAuth("/api/fragments/chat", "POST", {
       messages: [

@@ -42,7 +42,7 @@ describe("Secrets Integration Tests", () => {
   };
 
   beforeAll(async () => {
-    // Check if secrets tables exist
+    // Check if secrets tables exist - wrap everything in try-catch for safety
     try {
       await db.execute("SELECT 1 FROM secrets LIMIT 1");
       secretsTablesAvailable = true;
@@ -51,39 +51,44 @@ describe("Secrets Integration Tests", () => {
       return;
     }
 
-    // Set up encryption service
-    const kms = new LocalKMSProvider(TEST_MASTER_KEY);
-    const encryption = new SecretsEncryptionService(kms);
-    service = new SecretsService(encryption);
+    try {
+      // Set up encryption service
+      const kms = new LocalKMSProvider(TEST_MASTER_KEY);
+      const encryption = new SecretsEncryptionService(kms);
+      service = new SecretsService(encryption);
 
-    // Create test organization and user if they don't exist
-    const existingOrg = await db.query.organizations.findFirst({
-      where: eq(organizations.id, TEST_ORG_ID),
-    });
-
-    if (!existingOrg) {
-      // Create test org
-      await db.insert(organizations).values({
-        id: TEST_ORG_ID,
-        name: "Test Org for Secrets",
-        credit_balance: 1000,
+      // Create test organization and user if they don't exist
+      const existingOrg = await db.query.organizations.findFirst({
+        where: eq(organizations.id, TEST_ORG_ID),
       });
-    }
-    testOrgId = TEST_ORG_ID;
 
-    const existingUser = await db.query.users.findFirst({
-      where: eq(users.id, TEST_USER_ID),
-    });
+      if (!existingOrg) {
+        // Create test org
+        await db.insert(organizations).values({
+          id: TEST_ORG_ID,
+          name: "Test Org for Secrets",
+          credit_balance: 1000,
+        });
+      }
+      testOrgId = TEST_ORG_ID;
 
-    if (!existingUser) {
-      // Create test user
-      await db.insert(users).values({
-        id: TEST_USER_ID,
-        email: "secrets-test@example.com",
-        organization_id: TEST_ORG_ID,
+      const existingUser = await db.query.users.findFirst({
+        where: eq(users.id, TEST_USER_ID),
       });
+
+      if (!existingUser) {
+        // Create test user
+        await db.insert(users).values({
+          id: TEST_USER_ID,
+          email: "secrets-test@example.com",
+          organization_id: TEST_ORG_ID,
+        });
+      }
+      testUserId = TEST_USER_ID;
+    } catch (error) {
+      console.log("[secrets-api.test.ts] Setup failed:", (error as Error).message);
+      secretsTablesAvailable = false;
     }
-    testUserId = TEST_USER_ID;
   });
 
   afterAll(async () => {

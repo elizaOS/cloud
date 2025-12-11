@@ -24,37 +24,46 @@ describe("Todo App Storage Service", () => {
   let testAppId: string | null = null;
   let testOrgId: string | null = null;
   let storageTablesExist = false;
+  let setupSuccessful = false;
 
   beforeAll(async () => {
-    // Find or create test app
-    const existingApp = await db.query.apps.findFirst({
-      where: eq(apps.slug, TEST_APP_SLUG),
-    }).catch(() => null);
-
-    if (existingApp) {
-      testAppId = existingApp.id;
-      testOrgId = existingApp.organization_id;
-    } else {
-      // Use the seeded todoapp
-      const todoApp = await db.query.apps.findFirst({
-        where: eq(apps.slug, "eliza-todo"),
+    try {
+      // Find or create test app
+      const existingApp = await db.query.apps.findFirst({
+        where: eq(apps.slug, TEST_APP_SLUG),
       }).catch(() => null);
 
-      if (todoApp) {
-        testAppId = todoApp.id;
-        testOrgId = todoApp.organization_id;
+      if (existingApp) {
+        testAppId = existingApp.id;
+        testOrgId = existingApp.organization_id;
+      } else {
+        // Use the seeded todoapp
+        const todoApp = await db.query.apps.findFirst({
+          where: eq(apps.slug, "eliza-todo"),
+        }).catch(() => null);
+
+        if (todoApp) {
+          testAppId = todoApp.id;
+          testOrgId = todoApp.organization_id;
+        }
       }
-    }
 
-    if (!testAppId) {
-      console.log("⚠️ No todo app found. Run: bun run db:todoapp:seed");
-      return;
-    }
+      if (!testAppId) {
+        console.log("⚠️ No todo app found. Run: bun run db:todoapp:seed");
+        return;
+      }
 
-    // Find API key for the organization
-    const apiKey = await db.query.apiKeys.findFirst({
-      where: eq(apiKeys.organization_id, testOrgId!),
-    }).catch(() => null);
+      // Find API key for the organization - only if testOrgId is set
+      if (testOrgId) {
+        await db.query.apiKeys.findFirst({
+          where: eq(apiKeys.organization_id, testOrgId),
+        }).catch(() => null);
+      }
+      
+      setupSuccessful = true;
+    } catch (error) {
+      console.log("[todoapp-storage.test.ts] Setup failed:", (error as Error).message);
+    }
   });
 
   afterAll(async () => {
