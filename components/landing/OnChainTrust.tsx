@@ -64,7 +64,6 @@ export default function OnChainTrust() {
             <p
               className="font-normal text-sm md:text-base"
               style={{
-                fontFamily: "var(--font-geist-mono)",
                 lineHeight: "1.5",
                 letterSpacing: "-0.003em",
                 color: "#858585",

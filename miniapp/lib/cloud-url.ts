@@ -6,9 +6,13 @@
  */
 export function getCloudUrl(): string {
   const envUrl = process.env.NEXT_PUBLIC_ELIZA_CLOUD_URL;
-  
+
   // Use environment variable if set AND it's not the marketing site
-  if (envUrl && envUrl !== "https://elizaos.ai" && !envUrl.includes("elizaos.ai")) {
+  if (
+    envUrl &&
+    envUrl !== "https://elizaos.ai" &&
+    !envUrl.includes("elizaos.ai")
+  ) {
     return envUrl;
   }
 

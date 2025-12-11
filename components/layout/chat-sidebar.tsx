@@ -326,7 +326,7 @@ export function ChatSidebar({
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-1.5 mb-0.5">
                               <span className="text-[11px] font-medium text-white/90 truncate">
-                                {room.lastText}
+                                {room.title || "New Chat"}
                               </span>
                               {room.lastTime && !isLoading && (
                                 <span className="text-[10px] text-white/30 shrink-0">

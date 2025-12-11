@@ -4153,12 +4153,13 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
           const room = await roomsService.createRoom({
-            userId: user.id,
-            characterId: characterId || "b850bc30-45f8-0041-a00a-83df46d8555d",
+            entityId: user.id,
+            agentId: characterId || "b850bc30-45f8-0041-a00a-83df46d8555d",
+            name: "New Chat",
           });
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ success: true, roomId: room.id, characterId: room.character_id }, null, 2) }],
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, roomId: room.id, characterId: room.agentId }, null, 2) }],
           };
         } catch (error) {
           return {

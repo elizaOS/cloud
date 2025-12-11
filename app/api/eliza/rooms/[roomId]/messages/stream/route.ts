@@ -307,6 +307,20 @@ export async function POST(
     const room = await roomsRepository.findById(roomId);
     let characterId: string | undefined = room?.agentId || undefined;
 
+    // Step 4.1: Check if room is locked (character was created/saved)
+    // Locked rooms should not accept new messages
+    const roomMetadata = room?.metadata as { locked?: boolean } | undefined;
+    if (roomMetadata?.locked) {
+      logger.info("[Stream] Room is locked - rejecting message", { roomId });
+      return new Response(
+        JSON.stringify({
+          error: "This conversation has ended. Please start a new chat.",
+          roomLocked: true,
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     // Step 4.5: Check if this is an affiliate character and switch to ASSISTANT mode
     // Affiliate characters need ASSISTANT mode for image generation capability
     // Check both character_data.affiliate (legacy) and settings.affiliateData (miniapp)

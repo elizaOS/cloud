@@ -4,10 +4,9 @@ import {
   type MessagePayload,
   type Plugin,
 } from "@elizaos/core";
-import { characterProvider } from "./providers/character";
+import { characterProvider, recentMessagesProvider, appConfigProvider } from "../shared/providers";
 import { handleMessage } from "./handler";
 import { roomTitleEvaluator } from "../shared/evaluators";
-import { recentMessagesProvider, appConfigProvider } from "../shared/providers";
 
 export const chatPlaygroundPlugin: Plugin = {
   name: "eliza-chat-playground",
