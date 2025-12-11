@@ -47,7 +47,7 @@ export default function Installation() {
 
         {/* Hero heading */}
         <h2
-          className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-medium text-center mb-8 md:mb-12 uppercase max-w-5xl mx-auto px-4"
+          className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-medium text-center mb-8 md:mb-12 uppercase max-w-7xl mx-auto px-4"
           style={{
             fontFamily: "var(--font-geist-sans)",
             lineHeight: "1.3",

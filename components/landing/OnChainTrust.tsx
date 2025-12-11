@@ -56,7 +56,7 @@ export default function OnChainTrust() {
                 color: "#FFFFFF",
               }}
             >
-              WALLETS. IDENTITY. REPUTATION.
+              Wallets, identity, and reputation.
             </h2>
 
             <p
