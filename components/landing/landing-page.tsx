@@ -1,6 +1,6 @@
 /**
  * Main landing page component.
- * 
+ *
  * Web: Shows landing page for anonymous users, redirects authenticated to dashboard.
  * Mobile (Tauri): Skips landing page entirely.
  *   - Not authenticated → /login
@@ -11,7 +11,6 @@
 
 import LandingHeader from "@/components/layout/landing-header";
 import TopHero from "@/components/landing/TopHero";
-import RouterSection from "@/components/landing/RouterSection";
 import OnChainTrust from "@/components/landing/OnChainTrust";
 import Installation from "@/components/landing/Installation";
 import Footer from "@/components/landing/Footer";
@@ -20,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { usePlatform } from "@/lib/hooks/use-platform";
+
 
 export function LandingPage() {
   const { ready, authenticated } = usePrivy();
@@ -76,7 +76,6 @@ export function LandingPage() {
     <div className="flex min-h-screen flex-col">
       <LandingHeader />
       <TopHero />
-      <RouterSection />
       <OnChainTrust />
       <Installation />
       <Footer />
