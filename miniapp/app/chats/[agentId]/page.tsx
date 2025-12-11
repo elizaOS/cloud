@@ -2,7 +2,7 @@
 
 import { Loader2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { createChat, listChats } from "@/lib/cloud-api";
 import { useAuth } from "@/lib/use-auth";
@@ -17,6 +17,7 @@ export default function AgentChatsPage() {
   const agentId = params.agentId as string;
   const { ready, authenticated } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const isCreatingRef = useRef(false);
 
   // Redirect to home if not authenticated
   useEffect(() => {
@@ -28,18 +29,26 @@ export default function AgentChatsPage() {
   // Find or create a chat and redirect
   useEffect(() => {
     if (!authenticated || !agentId) return;
+    if (isCreatingRef.current) return;
 
     async function findOrCreateChat() {
-      // Try to get existing chats
-      const { chats } = await listChats(agentId, { limit: 1 });
-      
-      if (chats.length > 0) {
-        // Redirect to most recent chat
-        router.replace(`/chats/${agentId}/${chats[0].id}`);
-      } else {
-        // Create a new chat
-        const newChat = await createChat(agentId);
-        router.replace(`/chats/${agentId}/${newChat.id}`);
+      isCreatingRef.current = true;
+
+      try {
+        // Try to get existing chats
+        const { chats } = await listChats(agentId, { limit: 1 });
+
+        if (chats.length > 0) {
+          // Redirect to most recent chat
+          router.replace(`/chats/${agentId}/${chats[0].id}`);
+        } else {
+          // Create a new chat
+          const newChat = await createChat(agentId);
+          router.replace(`/chats/${agentId}/${newChat.id}`);
+        }
+      } catch (err) {
+        isCreatingRef.current = false;
+        throw err;
       }
     }
 
