@@ -46,10 +46,43 @@ function AuthCallbackContent() {
       try {
         const cloudUrl = getCloudUrl();
 
+        console.log("[Auth Callback] Fetching session from:", `${cloudUrl}/api/auth/miniapp-session/${sessionId}`);
+
         // Poll the Cloud API for the auth token
+        // Include ngrok-skip-browser-warning header to bypass ngrok's interstitial page
         const response = await fetch(
           `${cloudUrl}/api/auth/miniapp-session/${sessionId}`,
+          {
+            headers: {
+              "ngrok-skip-browser-warning": "true",
+            },
+          },
         );
+
+        // Check content type before parsing
+        const contentType = response.headers.get("content-type") || "";
+
+        if (!contentType.includes("application/json")) {
+          // Got HTML or other non-JSON response - likely an error page
+          const text = await response.text();
+          console.error("[Auth Callback] Non-JSON response:", {
+            status: response.status,
+            contentType,
+            bodyPreview: text.slice(0, 200),
+          });
+
+          // Check for common issues
+          if (text.includes("ngrok") || text.includes("Tunnel")) {
+            throw new Error("ngrok tunnel may have expired or is not accessible. Please check your ngrok connection.");
+          }
+          if (response.status === 404) {
+            throw new Error("Auth endpoint not found. Is the Cloud server running?");
+          }
+          if (response.status >= 500) {
+            throw new Error(`Cloud server error (${response.status}). Please try again.`);
+          }
+          throw new Error(`Unexpected response from server (${response.status}). Check Cloud URL configuration.`);
+        }
 
         if (!response.ok) {
           const errorData = await response.json();
