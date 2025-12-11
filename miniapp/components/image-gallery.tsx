@@ -124,25 +124,24 @@ export function ImageGallery({
   maxImages = 10,
   disabled = false,
 }: ImageGalleryProps) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [rawSelectedId, setRawSelectedId] = useState<string | null>(null);
 
   const primaryImage = useMemo(
     () => images.find((img) => img.isPrimary) || images[0],
     [images],
   );
 
+  // Derive effective selectedId - automatically clears when image is removed
+  const selectedId = useMemo(
+    () => (rawSelectedId && images.find((img) => img.id === rawSelectedId) ? rawSelectedId : null),
+    [rawSelectedId, images],
+  );
+
   const canAddMore = images.length < maxImages;
 
   const handleSelect = useCallback((id: string) => {
-    setSelectedId((prev) => (prev === id ? null : id));
+    setRawSelectedId((prev) => (prev === id ? null : id));
   }, []);
-
-  // Clear selection when images change
-  useEffect(() => {
-    if (selectedId && !images.find((img) => img.id === selectedId)) {
-      setSelectedId(null);
-    }
-  }, [images, selectedId]);
 
   if (images.length === 0) {
     return (
@@ -231,7 +230,7 @@ export function ImageGallery({
           <span className="text-white/70">1 image selected</span>
           <button
             type="button"
-            onClick={() => setSelectedId(null)}
+            onClick={() => setRawSelectedId(null)}
             className="text-white/50 hover:text-white"
           >
             <X className="h-4 w-4" />

@@ -25,7 +25,12 @@ import {
 } from "@/lib/middleware/miniapp-rate-limit";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
-import { IMAGE_GENERATION_VIBES, DEFAULT_VIBE } from "@/lib/constants/image-generation";
+import {
+  IMAGE_GENERATION_VIBES,
+  DEFAULT_VIBE,
+  MAX_AVATAR_SIZE_MB,
+  MAX_AVATAR_SIZE_BYTES,
+} from "@/lib/constants/image-generation";
 
 // Custom validator for URL or base64 data URL
 const urlOrBase64 = z.string().refine(
@@ -370,14 +375,15 @@ async function updateAgent(
         }
 
         const base64Content = base64Match[2];
-        const estimatedSize = Math.ceil((base64Content.length * 3) / 4);
-        const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB for avatars
+        // Account for base64 padding characters when calculating size
+        const paddingCount = (base64Content.match(/=/g) || []).length;
+        const estimatedSize = Math.ceil((base64Content.length * 3) / 4) - paddingCount;
 
-        if (estimatedSize > MAX_AVATAR_SIZE) {
+        if (estimatedSize > MAX_AVATAR_SIZE_BYTES) {
           const response = NextResponse.json(
             {
               success: false,
-              error: `Avatar too large (max 5MB). Got ${(estimatedSize / 1024 / 1024).toFixed(2)}MB`,
+              error: `Avatar too large (max ${MAX_AVATAR_SIZE_MB}MB). Got ${(estimatedSize / 1024 / 1024).toFixed(2)}MB`,
             },
             { status: 400 }
           );
@@ -390,10 +396,10 @@ async function updateAgent(
             data.avatarUrl,
             {
               filename: `avatar-${id}-${Date.now()}.jpg`,
-              folder: "avatars",
-              userId: user.id,
-            },
-            5 // 5MB max for avatars (more restrictive than general 10MB limit)
+            folder: "avatars",
+            userId: user.id,
+          },
+          MAX_AVATAR_SIZE_MB
           );
           finalAvatarUrl = blobResult.url;
           logger.info("[Miniapp API] Uploaded avatar to blob storage", {

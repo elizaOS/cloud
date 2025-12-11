@@ -59,7 +59,9 @@ export function CharacterEditor({
   useEffect(() => {
     const tab = searchParams.get("tab") as MainTab | null;
     if (tab && ["character", "plugins", "knowledge"].includes(tab)) {
-      setActiveTab(tab);
+      // Schedule state update to avoid synchronous setState in effect
+      const rafId = requestAnimationFrame(() => setActiveTab(tab));
+      return () => cancelAnimationFrame(rafId);
     }
   }, [searchParams]);
 
