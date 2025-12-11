@@ -194,10 +194,12 @@ export function useAuth(): AuthState {
     console.log("[useAuth] Login - using Cloud URL:", cloudUrl);
 
     // Create a session on Cloud
+    // Include ngrok-skip-browser-warning header to bypass ngrok's interstitial page
     const response = await fetch(`${cloudUrl}/api/auth/miniapp-session`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
       },
       body: JSON.stringify({
         callbackUrl,
