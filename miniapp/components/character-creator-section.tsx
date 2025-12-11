@@ -460,7 +460,6 @@ function CharacterCreatorSection() {
 
     let avatarBase64: string | undefined;
     let imageUrls: string[] = [];
-    let imageBase64s: string[] = [];
 
     // Use cropped photo if available, then fall back to original photo, then generated image
     let imageToUpload: File | Blob | null = croppedPhotoBlob || photo;
@@ -535,9 +534,6 @@ function CharacterCreatorSection() {
       if (uploadResult.images && uploadResult.images.length > 0) {
         avatarBase64 = uploadResult.images[0].base64;
         imageUrls = uploadResult.images.map((img: { url: string }) => img.url);
-        imageBase64s = uploadResult.images
-          .map((img: { base64?: string }) => img.base64)
-          .filter((b: string | undefined): b is string => !!b);
       } else {
         imageUrls = uploadResult.urls || [];
         avatarBase64 = imageUrls[0];
@@ -549,6 +545,11 @@ function CharacterCreatorSection() {
     // Get auth token if user is logged in
     const authToken = getAuthToken();
 
+    // Only send URLs if images were uploaded to blob storage, not base64 data
+    // This prevents 413 Content Too Large errors
+    const hasUploadedUrls =
+      imageUrls.length > 0 && imageUrls[0].startsWith("http");
+
     const response = await fetch("/api/create-character", {
       method: "POST",
       headers: {
@@ -558,10 +559,8 @@ function CharacterCreatorSection() {
         name: name.trim(),
         backstory: backstory.trim() || undefined,
         personality: personality.trim() || undefined,
-        avatarUrl: avatarBase64,
-        avatarBase64: avatarBase64,
-        imageUrls: imageUrls,
-        imageBase64s: imageBase64s.length > 0 ? imageBase64s : undefined,
+        avatarUrl: hasUploadedUrls ? imageUrls[0] : avatarBase64,
+        imageUrls: hasUploadedUrls ? imageUrls : undefined,
         authToken: authToken || undefined,
       }),
     });
