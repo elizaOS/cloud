@@ -4,7 +4,11 @@ import {
   type MessagePayload,
   type Plugin,
 } from "@elizaos/core";
-import { characterProvider, recentMessagesProvider, appConfigProvider } from "../shared/providers";
+import {
+  characterProvider,
+  recentMessagesProvider,
+  appConfigProvider,
+} from "../shared/providers";
 import { handleMessage } from "./handler";
 import { roomTitleEvaluator } from "../shared/evaluators";
 
@@ -15,7 +19,9 @@ export const chatPlaygroundPlugin: Plugin = {
     [EventType.MESSAGE_RECEIVED]: [
       async (payload: MessagePayload) => {
         if (!payload.callback) return;
-        logger.info(`[Playground] Message received in room ${payload.message.roomId}`);
+        logger.info(
+          `[Playground] Message received in room ${payload.message.roomId}`
+        );
         await handleMessage({
           runtime: payload.runtime,
           message: payload.message,
