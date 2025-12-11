@@ -6,13 +6,16 @@ import {
 } from "@elizaos/core";
 import { providersProvider } from "./providers/providers";
 import { actionsProvider } from "./providers/actions";
-import { characterProvider } from "./providers/character";
+import {
+  characterProvider,
+  recentMessagesProvider,
+  appConfigProvider,
+} from "../shared/providers";
 import { generateImageAction } from "./actions/image-generation";
 import { affiliateContextProvider } from "./providers/affiliate-context";
 import { currentRunContextProvider } from "./providers/current-run-context";
 import { handleMessage } from "./handler";
 import { roomTitleEvaluator } from "../shared/evaluators";
-import { recentMessagesProvider, appConfigProvider } from "../shared/providers";
 
 export const assistantPlugin: Plugin = {
   name: "eliza-assistant",
@@ -21,7 +24,9 @@ export const assistantPlugin: Plugin = {
     [EventType.MESSAGE_RECEIVED]: [
       async (payload: MessagePayload) => {
         if (!payload.callback) return;
-        logger.info(`[Assistant] Message received in room ${payload.message.roomId}`);
+        logger.info(
+          `[Assistant] Message received in room ${payload.message.roomId}`
+        );
         await handleMessage({
           runtime: payload.runtime,
           message: payload.message,

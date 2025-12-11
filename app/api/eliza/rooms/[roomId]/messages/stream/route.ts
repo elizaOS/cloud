@@ -25,6 +25,8 @@ import { z } from "zod";
 import {
   IMAGE_GENERATION_VIBES,
   DEFAULT_VIBE,
+  MAX_PROMPT_LENGTH,
+  MAX_RESPONSE_STYLE_LENGTH,
 } from "@/lib/constants/image-generation";
 
 export const dynamic = "force-dynamic";
@@ -63,7 +65,20 @@ export async function POST(
     } = body;
 
     // App ID can come from body OR X-App-Id header (miniapp proxy uses header)
-    const appId = bodyAppId || request.headers.get("X-App-Id");
+    const rawAppId = bodyAppId || request.headers.get("X-App-Id");
+
+    // Validate appId format if provided (must be UUID)
+    let appId: string | undefined;
+    if (rawAppId) {
+      const appIdValidation = z.string().uuid().safeParse(rawAppId);
+      if (!appIdValidation.success) {
+        return new Response(
+          JSON.stringify({ error: "Invalid appId format - must be a valid UUID" }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      appId = appIdValidation.data;
+    }
 
     if (!roomId || !text?.trim()) {
       return new Response(
@@ -76,8 +91,21 @@ export async function POST(
     if (appPromptConfig) {
       // Sanitization helper to prevent prompt injection
       const sanitizePromptString = (val: string) => {
+        // Normalize Unicode before any checks to prevent bypass via different encodings
+        val = val.normalize("NFC");
+
         // Check length - reject suspiciously long prompts
-        if (val.length > 2000) {
+        if (val.length > MAX_PROMPT_LENGTH) {
+          return false;
+        }
+
+        // Block RTL override and bidirectional control characters (can hide malicious content)
+        if (/[\u202A-\u202E\u2066-\u2069\u200E\u200F]/.test(val)) {
+          return false;
+        }
+
+        // Block zero-width characters that can hide content
+        if (/[\u200B-\u200D\uFEFF]/.test(val)) {
           return false;
         }
 
@@ -129,21 +157,21 @@ export async function POST(
         .object({
           systemPrefix: z
             .string()
-            .max(2000)
+            .max(MAX_PROMPT_LENGTH)
             .refine(sanitizePromptString, {
               message: "Invalid characters or patterns in systemPrefix",
             })
             .optional(),
           systemSuffix: z
             .string()
-            .max(2000)
+            .max(MAX_PROMPT_LENGTH)
             .refine(sanitizePromptString, {
               message: "Invalid characters or patterns in systemSuffix",
             })
             .optional(),
           responseStyle: z
             .string()
-            .max(1000)
+            .max(MAX_RESPONSE_STYLE_LENGTH)
             .refine(sanitizePromptString, {
               message: "Invalid characters or patterns in responseStyle",
             })
@@ -326,6 +354,20 @@ export async function POST(
     // Step 4: Get character assignment for room from agentId (single source of truth)
     const room = await roomsRepository.findById(roomId);
     let characterId: string | undefined = room?.agentId || undefined;
+
+    // Step 4.1: Check if room is locked (character was created/saved)
+    // Locked rooms should not accept new messages
+    const roomMetadata = room?.metadata as { locked?: boolean } | undefined;
+    if (roomMetadata?.locked) {
+      logger.info("[Stream] Room is locked - rejecting message", { roomId });
+      return new Response(
+        JSON.stringify({
+          error: "This conversation has ended. Please start a new chat.",
+          roomLocked: true,
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     // Step 4.5: Check if this is an affiliate character and switch to ASSISTANT mode
     // Affiliate characters need ASSISTANT mode for image generation capability

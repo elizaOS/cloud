@@ -151,11 +151,9 @@ export function SidebarChatRooms() {
                       {getCharacterName(room)}
                     </p>
                   </div>
-                  {room.lastText && (
-                    <p className="text-xs text-white/40 line-clamp-1 mb-1">
-                      {room.lastText}
-                    </p>
-                  )}
+                  <p className="text-xs text-white/40 line-clamp-1 mb-1">
+                    {room.title || "New Chat"}
+                  </p>
                   {room.lastTime && (
                     <p className="text-xs text-white/30">
                       {formatTimestamp(room.lastTime)}

@@ -36,8 +36,8 @@ export function getElizaCloudApiUrl(): string {
  */
 export function getDefaultModels() {
   return {
-    small: process.env.ELIZAOS_CLOUD_SMALL_MODEL || "openai/gpt-oss-120b",
-    large: process.env.ELIZAOS_CLOUD_LARGE_MODEL || "openai/gpt-oss-120b",
+    small: process.env.ELIZAOS_CLOUD_SMALL_MODEL || "moonshotai/kimi-k2-0905",
+    large: process.env.ELIZAOS_CLOUD_LARGE_MODEL || "moonshotai/kimi-k2-0905",
     embedding:
       process.env.ELIZAOS_CLOUD_EMBEDDING_MODEL || "text-embedding-3-small",
   };
@@ -48,13 +48,12 @@ export function getDefaultModels() {
  * These are the curated models we want to offer to users
  */
 export const ALLOWED_CHAT_MODELS = [
-  // OpenAI Models
-  "openai/gpt-oss-120b",
-  "openai/gpt-5",
-  "openai/gpt-5-mini",
   // Moonshot AI Models
   "moonshotai/kimi-k2-0905",
   "moonshotai/kimi-k2-turbo",
+  // OpenAI Models
+  "openai/gpt-5",
+  "openai/gpt-5-mini",
   // Anthropic Claude Models
   "anthropic/claude-haiku-4.5",
   "anthropic/claude-sonnet-4.5",

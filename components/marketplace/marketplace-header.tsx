@@ -82,7 +82,7 @@ export function MyAgentsHeader({
         </div>
 
         <Button
-          onClick={() => router.push("/dashboard/character-creator")}
+          onClick={() => router.push("/dashboard/build")}
           size="sm"
           className="hidden sm:flex"
         >
@@ -90,7 +90,7 @@ export function MyAgentsHeader({
           New Agent
         </Button>
         <Button
-          onClick={() => router.push("/dashboard/character-creator")}
+          onClick={() => router.push("/dashboard/build")}
           size="sm"
           className="sm:hidden h-8 w-8 p-0"
         >

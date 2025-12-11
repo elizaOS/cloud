@@ -111,25 +111,32 @@ export function useAuth(): AuthState {
   // - During SSR, window is undefined so getStoredValue returns null
   // - During hydration, React reuses the SSR state instead of re-initializing
   // - This effect reads the actual localStorage values after mount
+  // Using requestAnimationFrame to avoid synchronous setState in effect
   useEffect(() => {
-    // Read fresh values from localStorage on mount
-    const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
-    const storedUserId = localStorage.getItem(USER_ID_KEY);
-    const storedOrgId = localStorage.getItem(ORG_ID_KEY);
+    const syncFromStorage = () => {
+      // Read fresh values from localStorage on mount
+      const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
+      const storedUserId = localStorage.getItem(USER_ID_KEY);
+      const storedOrgId = localStorage.getItem(ORG_ID_KEY);
 
-    console.log("[useAuth] Mount sync:", {
-      hasToken: !!storedToken,
-      tokenPrefix: storedToken?.slice(0, 15),
-      userId: storedUserId,
-    });
+      console.log("[useAuth] Mount sync:", {
+        hasToken: !!storedToken,
+        tokenPrefix: storedToken?.slice(0, 15),
+        userId: storedUserId,
+      });
 
-    if (storedToken) {
-      setAuthToken(storedToken);
-      setUserId(storedUserId);
-      setOrganizationId(storedOrgId);
-    }
+      if (storedToken) {
+        setAuthToken(storedToken);
+        setUserId(storedUserId);
+        setOrganizationId(storedOrgId);
+      }
 
-    setReady(true);
+      setReady(true);
+    };
+
+    // Schedule state sync to avoid synchronous setState warning
+    const rafId = requestAnimationFrame(syncFromStorage);
+    return () => cancelAnimationFrame(rafId);
   }, []);
 
   // Fetch user info whenever authToken changes
@@ -140,7 +147,11 @@ export function useAuth(): AuthState {
       ready,
     });
     if (authToken && ready) {
-      fetchUserInfo(authToken);
+      // Schedule fetch to avoid synchronous setState warning
+      const rafId = requestAnimationFrame(() => {
+        void fetchUserInfo(authToken);
+      });
+      return () => cancelAnimationFrame(rafId);
     }
   }, [authToken, ready, fetchUserInfo]);
 

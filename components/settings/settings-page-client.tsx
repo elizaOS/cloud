@@ -46,9 +46,9 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
 
   useEffect(() => {
     if (tabFromUrl) {
-      queueMicrotask(() => {
-        setActiveTab(tabFromUrl);
-      });
+      // Schedule state update to avoid synchronous setState in effect
+      const rafId = requestAnimationFrame(() => setActiveTab(tabFromUrl));
+      return () => cancelAnimationFrame(rafId);
     }
   }, [tabFromUrl]);
 

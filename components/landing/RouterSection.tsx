@@ -119,7 +119,7 @@ const CustomNode = ({ data, sourcePosition, targetPosition }: CustomNodeProps) =
           {data.label && (
             <div
               className="text-sm font-bold text-center whitespace-nowrap tracking-wider capitalize"
-              style={{ color: "#316AFF", fontFamily: "var(--font-geist-mono)" }}
+              style={{ color: "#316AFF"}}
             >
               {data.label}
             </div>
@@ -445,7 +445,6 @@ const RouterSection = () => {
           <p
             className="max-w-2xl font-normal text-sm md:text-base"
             style={{
-              fontFamily: "var(--font-geist-mono)",
               lineHeight: "1.5",
               letterSpacing: "-0.003em",
               color: "#858585",

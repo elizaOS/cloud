@@ -161,7 +161,7 @@ test.describe("Dashboard Pages (Auth Protected)", () => {
     { path: "/dashboard/api-explorer", name: "API Explorer" },
     { path: "/dashboard/api-keys", name: "API Keys" },
     { path: "/dashboard/billing", name: "Billing" },
-    { path: "/dashboard/character-creator", name: "Character Creator" },
+    { path: "/dashboard/build", name: "Build" },
     { path: "/dashboard/containers", name: "Containers" },
     { path: "/dashboard/gallery", name: "Gallery" },
     { path: "/dashboard/image", name: "Image Generation" },
