@@ -367,7 +367,7 @@ async function handleToolCall(
     }
 
     case "get_platform_status": {
-      const connections = await orgPlatformsService.getConnections(organizationId);
+      const connections = await botsService.getConnections(organizationId);
       return {
         content: [{
           type: "text",

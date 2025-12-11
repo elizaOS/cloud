@@ -79,7 +79,7 @@
     "test:playwright:api": "playwright test --config=tests/playwright.config.ts --project=api",
     "test:playwright:pages": "playwright test all-pages --config=tests/playwright.config.ts --project=chromium",
     "test:playwright:app": "playwright test app --config=tests/playwright.config.ts --project=app",
-    "test:playwright:todoapp": "playwright test todoapp --config=tests/playwright.config.ts --project=todoapp",
+    "test:playwright:todoapp:project": "playwright test todoapp --config=tests/playwright.config.ts --project=todoapp",
     "test:playwright:report": "playwright show-report tests/playwright/test-reports/html",
     "admin:promote": "bun run scripts/promote-admin.ts",
     "admin:list": "bun run scripts/promote-admin.ts --list",
