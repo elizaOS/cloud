@@ -72,21 +72,16 @@ const TopHero = () => {
             style={{ textShadow: "0 2px 10px rgba(0,0,0,0.5)" }}
           >
             <span className="inline-flex items-center justify-center gap-3 md:gap-4">
-              <span
-                className="inline-block w-2 h-2 md:w-2.5 md:h-2.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: "#FF5800" }}
-              />
               <span>
                 Ship <span className="font-bold">agents</span>,
               </span>
             </span>
-            <br />
-            <span className="text-white/60">not infrastructure</span>
+            <span className="text-white/60"> not infrastructure</span>
           </h1>
 
           {/* Subhead */}
           <p
-            className="mb-10 md:mb-12 text-base sm:text-lg md:text-xl lg:text-2xl text-white/70 mx-auto relative z-10 px-4 max-w-3xl"
+            className="mb-10 md:mb-12 text-base sm:text-lg md:text-xl lg:text-2xl text-white/70 mx-auto relative z-10 px-4 max-w-4xl"
             style={{ textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}
           >
             Create and deploy an agent in one command. Open source. Zero
