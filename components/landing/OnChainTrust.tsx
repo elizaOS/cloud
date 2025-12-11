@@ -56,9 +56,7 @@ export default function OnChainTrust() {
                 color: "#FFFFFF",
               }}
             >
-              AGENTS HAVE WALLETS.
-              <br />
-              THEY CAN PAY AND GET PAID.
+              WALLETS. IDENTITY. REPUTATION.
             </h2>
 
             <p
@@ -69,7 +67,8 @@ export default function OnChainTrust() {
                 color: "#858585",
               }}
             >
-              Every agent has a verifiable on-chain identity (ERC-8004).
+              Every agent is on-chain, discoverable, and earns trust over time
+              with ERC-8004.
             </p>
           </div>
 
@@ -192,9 +191,9 @@ export default function OnChainTrust() {
 
         {/* Bottom tagline */}
         <div className="mt-12 md:mt-16 text-center px-4">
-          <p className="text-base sm:text-lg md:text-xl lg:text-2xl tracking-wider text-white">
-            IDENTITY. REPUTATION. PAYMENT.{" "}
-            <span className="text-white/60">ALL NATIVE TO YOUR AGENT.</span>
+          <p className="uppercase text-base sm:text-lg md:text-xl lg:text-2xl tracking-wider text-white">
+            Agents discover each other, build trust, and transact.{" "}
+            <span className="uppercase text-white/60">All on-chain.</span>
           </p>
         </div>
       </div>
