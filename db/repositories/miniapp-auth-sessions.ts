@@ -6,7 +6,7 @@
  * Similar to CLI auth sessions but for web-based miniapps that can't use Privy directly.
  */
 
-import { eq, and, gt, isNull, sql } from "drizzle-orm";
+import { eq, and, gt, lt, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   miniappAuthSessions,
@@ -221,7 +221,7 @@ class MiniappAuthSessionsRepository {
       .delete(miniappAuthSessions)
       .where(
         and(
-          gt(new Date(), miniappAuthSessions.expires_at),
+          lt(miniappAuthSessions.expires_at, new Date()),
           isNull(miniappAuthSessions.user_id)
         )
       );
