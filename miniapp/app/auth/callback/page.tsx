@@ -49,14 +49,8 @@ function AuthCallbackContent() {
         console.log("[Auth Callback] Fetching session from:", `${cloudUrl}/api/auth/miniapp-session/${sessionId}`);
 
         // Poll the Cloud API for the auth token
-        // Include ngrok-skip-browser-warning header to bypass ngrok's interstitial page
         const response = await fetch(
           `${cloudUrl}/api/auth/miniapp-session/${sessionId}`,
-          {
-            headers: {
-              "ngrok-skip-browser-warning": "true",
-            },
-          },
         );
 
         // Check content type before parsing
@@ -72,9 +66,6 @@ function AuthCallbackContent() {
           });
 
           // Check for common issues
-          if (text.includes("ngrok") || text.includes("Tunnel")) {
-            throw new Error("ngrok tunnel may have expired or is not accessible. Please check your ngrok connection.");
-          }
           if (response.status === 404) {
             throw new Error("Auth endpoint not found. Is the Cloud server running?");
           }
