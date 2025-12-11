@@ -15,7 +15,6 @@ import {
   Shield,
   Wallet,
   Coins,
-  MessageCircle,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import type { FeatureFlag } from "@/lib/config/feature-flags";
@@ -52,13 +51,6 @@ export const sidebarSections: SidebarSection[] = [
   {
     title: "Agents",
     items: [
-      {
-        id: "chat",
-        label: "Chat",
-        href: "/dashboard/chat",
-        icon: MessageCircle,
-        freeAllowed: true, // Free tier can access Chat
-      },
       {
         id: "my-agents",
         label: "My Agents",
