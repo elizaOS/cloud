@@ -85,19 +85,21 @@ describe.skipIf(!secretsTablesAvailable)("Secrets Integration Tests", () => {
   });
 
   afterAll(async () => {
-    // Clean up test data
+    // Clean up test data - skip if tables don't exist
+    if (!secretsTablesAvailable) return;
     try {
       await db.delete(secretAuditLog).where(eq(secretAuditLog.organization_id, TEST_ORG_ID));
       await db.delete(oauthSessions).where(eq(oauthSessions.organization_id, TEST_ORG_ID));
       await db.delete(secrets).where(eq(secrets.organization_id, TEST_ORG_ID));
       // Don't delete org/user as they might be used by other tests
-    } catch (error) {
-      console.warn("Cleanup error:", error);
+    } catch {
+      // Silently ignore cleanup errors
     }
   });
 
   beforeEach(async () => {
-    // Clean up secrets before each test
+    // Clean up secrets before each test - skip if tables don't exist
+    if (!secretsTablesAvailable) return;
     try {
       await db.delete(secretAuditLog).where(eq(secretAuditLog.organization_id, TEST_ORG_ID));
       await db.delete(secrets).where(eq(secrets.organization_id, TEST_ORG_ID));

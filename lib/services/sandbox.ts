@@ -11,12 +11,12 @@ import crypto from "crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { secretsService } from "@/lib/services/secrets";
 
-// Types for Vercel Sandbox
+// Types for Vercel Sandbox - these match the @vercel/sandbox Sandbox type
 interface SandboxInstance {
   id?: string;
-  status: "creating" | "running" | "stopped" | "error";
+  status: string;
   domain: (port: number) => string;
-  runCommand: (options: RunCommandOptions) => Promise<CommandResult>;
+  runCommand: (params: RunCommandOptions) => Promise<CommandResult>;
   stop: () => Promise<void>;
   extendTimeout: (durationMs: number) => Promise<void>;
 }
@@ -37,15 +37,22 @@ interface CommandResult {
   stderr: () => Promise<string>;
 }
 
+export type SandboxProgress = 
+  | { step: "creating"; message: string }
+  | { step: "installing"; message: string }
+  | { step: "starting"; message: string }
+  | { step: "ready"; message: string }
+  | { step: "error"; message: string };
+
 export interface SandboxConfig {
   templateUrl?: string;
   timeout?: number;
   vcpus?: number;
   ports?: number[];
   env?: Record<string, string>;
-  // For loading secrets from the vault
   organizationId?: string;
   projectId?: string;
+  onProgress?: (progress: SandboxProgress) => void;
 }
 
 export interface SandboxSessionData {
@@ -56,7 +63,7 @@ export interface SandboxSessionData {
   startedAt?: Date;
 }
 
-const DEFAULT_TEMPLATE_URL = "https://github.com/vercel/sandbox-example-next.git";
+const DEFAULT_TEMPLATE_URL = "https://github.com/elizaOS/sandbox-template-cloud.git";
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
 
 // Global storage for sandbox instances (persists across hot reloads in dev)
@@ -81,12 +88,8 @@ function getSandboxCredentials() {
 }
 
 function extractSandboxIdFromUrl(url: string): string {
-  try {
-    const hostname = new URL(url).hostname;
-    return hostname.split('.')[0] || `sandbox-${crypto.randomUUID().slice(0, 8)}`;
-  } catch {
-    return `sandbox-${crypto.randomUUID().slice(0, 8)}`;
-  }
+  const hostname = new URL(url).hostname;
+  return hostname.split('.')[0] || `sandbox-${crypto.randomUUID().slice(0, 8)}`;
 }
 
 // Tool definitions for Claude
@@ -360,10 +363,8 @@ async function installPackages(sandbox: SandboxInstance, packages: string[]): Pr
     result = await sandbox.runCommand({ cmd: "npm", args: ["install", ...packages] });
   }
 
-  const stdout = await result.stdout();
-  const stderr = await result.stderr();
-
   if (result.exitCode !== 0) {
+    const stderr = await result.stderr();
     return `❌ Install failed: ${stderr}`;
   }
 
@@ -456,6 +457,7 @@ export class SandboxService {
       env = {},
       organizationId,
       projectId,
+      onProgress,
     } = config;
 
     // Load encrypted secrets from vault if organizationId is provided
@@ -482,78 +484,78 @@ export class SandboxService {
       );
     }
 
-    try {
-      const { Sandbox } = await import("@vercel/sandbox");
+    const { Sandbox } = await import("@vercel/sandbox");
 
-      logger.info("Creating sandbox", { templateUrl, vcpus });
+    logger.info("Creating sandbox", { templateUrl, vcpus });
+    onProgress?.({ step: "creating", message: "Creating sandbox instance..." });
 
-      const createOptions: Record<string, unknown> = {
-        source: { url: templateUrl, type: "git" },
-        resources: { vcpus },
-        timeout,
-        ports,
-        runtime: "node22",
-      };
+    const createOptions: Record<string, unknown> = {
+      source: { url: templateUrl, type: "git" },
+      resources: { vcpus },
+      timeout,
+      ports,
+      runtime: "node22",
+    };
 
-      if (creds.hasAccessToken) {
-        createOptions.teamId = creds.teamId;
-        createOptions.projectId = creds.projectId;
-        createOptions.token = creds.token;
-      }
-
-      const sandbox = await Sandbox.create(createOptions);
-      const devServerUrl = sandbox.domain(3000);
-      const sandboxId = sandbox.id || extractSandboxIdFromUrl(devServerUrl);
-
-      logger.info("Sandbox created", { sandboxId, devServerUrl });
-      getActiveSandboxes().set(sandboxId, sandbox);
-
-      // Install dependencies
-      logger.info("Installing dependencies", { sandboxId });
-      let install = await sandbox.runCommand({ cmd: "pnpm", args: ["install"] });
-      if (install.exitCode !== 0) {
-        install = await sandbox.runCommand({ cmd: "npm", args: ["install"] });
-        if (install.exitCode !== 0) {
-          throw new Error(`Install failed: ${await install.stderr()}`);
-        }
-      }
-
-      // Start dev server with logging and secrets injected
-      logger.info("Starting dev server", { sandboxId, envVarCount: Object.keys(mergedEnv).length });
-      await sandbox.runCommand({
-        cmd: "sh",
-        args: ["-c", "pnpm dev 2>&1 | tee /tmp/next-dev.log &"],
-        detached: true,
-        env: mergedEnv,
-      });
-
-      await this.waitForDevServer(sandbox, 3000);
-
-      logger.info("Sandbox ready", { sandboxId, devServerUrl });
-
-      return {
-        sandboxId,
-        sandboxUrl: devServerUrl,
-        status: "ready",
-        devServerUrl,
-        startedAt: new Date(),
-      };
-    } catch (error) {
-      logger.error("Failed to create sandbox", { error });
-      throw error;
+    if (creds.hasAccessToken) {
+      createOptions.teamId = creds.teamId;
+      createOptions.projectId = creds.projectId;
+      createOptions.token = creds.token;
     }
+
+    const sandbox = await Sandbox.create(createOptions) as SandboxInstance;
+    const devServerUrl = sandbox.domain(3000);
+    const sandboxId = sandbox.id ?? extractSandboxIdFromUrl(devServerUrl);
+
+    logger.info("Sandbox created", { sandboxId, devServerUrl });
+    getActiveSandboxes().set(sandboxId, sandbox);
+    onProgress?.({ step: "creating", message: "Sandbox instance created" });
+
+    // Install dependencies
+    logger.info("Installing dependencies", { sandboxId });
+    onProgress?.({ step: "installing", message: "Installing dependencies..." });
+    let install = await sandbox.runCommand({ cmd: "pnpm", args: ["install"] });
+    if (install.exitCode !== 0) {
+      install = await sandbox.runCommand({ cmd: "npm", args: ["install"] });
+      if (install.exitCode !== 0) {
+        throw new Error(`Install failed: ${await install.stderr()}`);
+      }
+    }
+
+    onProgress?.({ step: "installing", message: "Dependencies installed" });
+
+    // Start dev server with logging and secrets injected
+    logger.info("Starting dev server", { sandboxId, envVarCount: Object.keys(mergedEnv).length });
+    onProgress?.({ step: "starting", message: "Starting dev server..." });
+    await sandbox.runCommand({
+      cmd: "sh",
+      args: ["-c", "pnpm dev 2>&1 | tee /tmp/next-dev.log &"],
+      detached: true,
+      env: mergedEnv,
+    });
+
+    await this.waitForDevServer(sandbox, 3000);
+
+    logger.info("Sandbox ready", { sandboxId, devServerUrl });
+    onProgress?.({ step: "ready", message: "Sandbox is ready!" });
+
+    return {
+      sandboxId,
+      sandboxUrl: devServerUrl,
+      status: "ready",
+      devServerUrl,
+      startedAt: new Date(),
+    };
   }
 
   private async waitForDevServer(sandbox: SandboxInstance, port: number, maxAttempts = 45): Promise<void> {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      try {
-        const result = await sandbox.runCommand({
-          cmd: "curl",
-          args: ["-s", "-o", "/dev/null", "-w", "%{http_code}", `http://localhost:${port}`],
-        });
-        const statusCode = await result.stdout();
-        if (statusCode === "200" || statusCode === "304") return;
-      } catch { /* not ready */ }
+      const result = await sandbox.runCommand({
+        cmd: "curl",
+        args: ["-s", "-o", "/dev/null", "-w", "%{http_code}", `http://localhost:${port}`],
+      });
+      const statusCode = await result.stdout();
+      if (statusCode === "200" || statusCode === "304") return;
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
     throw new Error(`Dev server did not start within ${maxAttempts}s`);
@@ -562,23 +564,22 @@ export class SandboxService {
   async executeClaudeCode(
     sandboxId: string,
     prompt: string,
-    options: { systemPrompt?: string } = {}
+    options: { systemPrompt?: string; onToolUse?: (tool: string, input: unknown, result: string) => void; onThinking?: (text: string) => void } = {}
   ): Promise<{ output: string; filesAffected: string[]; success: boolean }> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
 
-    try {
-      logger.info("Starting Claude execution", { sandboxId, promptLength: prompt.length });
+    logger.info("Starting Claude execution", { sandboxId, promptLength: prompt.length });
 
-      const anthropic = this.getAnthropicClient();
-      const filesAffected: string[] = [];
-      let outputText = "";
+    const anthropic = this.getAnthropicClient();
+    const filesAffected: string[] = [];
+    let outputText = "";
 
-      // Read current files for context
-      const pageContent = await readFileViaSh(sandbox, "src/app/page.tsx");
-      const globalsCss = await readFileViaSh(sandbox, "src/app/globals.css");
-      
-      let contextPrompt = `CURRENT FILES:
+    // Read current files for context
+    const pageContent = await readFileViaSh(sandbox, "src/app/page.tsx");
+    const globalsCss = await readFileViaSh(sandbox, "src/app/globals.css");
+    
+    let contextPrompt = `CURRENT FILES:
 
 === src/app/page.tsx ===
 ${pageContent || '(file not found)'}
@@ -595,107 +596,107 @@ REMEMBER:
 3. Use check_build after changes to verify
 4. Fix any errors before finishing`;
 
-      const messages: Anthropic.MessageParam[] = [{ role: "user", content: contextPrompt }];
-      let continueLoop = true;
-      let iteration = 0;
+    const messages: Anthropic.MessageParam[] = [{ role: "user", content: contextPrompt }];
+    let continueLoop = true;
+    let iteration = 0;
 
-      // Allow up to 50 iterations for complex multi-file apps
-      const MAX_ITERATIONS = 50;
-      while (continueLoop && iteration < MAX_ITERATIONS) {
-        iteration++;
-        
-        const response = await anthropic.messages.create({
-          model: "claude-sonnet-4-5-20250929",
-          max_tokens: 8192,
-          system: options.systemPrompt || SYSTEM_PROMPT,
-          tools: TOOLS,
-          messages,
-        });
+    // Allow up to 50 iterations for complex multi-file apps
+    const MAX_ITERATIONS = 50;
+    while (continueLoop && iteration < MAX_ITERATIONS) {
+      iteration++;
+      
+      const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-5-20250929",
+        max_tokens: 8192,
+        system: options.systemPrompt || SYSTEM_PROMPT,
+        tools: TOOLS,
+        messages,
+      });
 
-        logger.info("Claude response", { sandboxId, stopReason: response.stop_reason, iteration });
+      logger.info("Claude response", { sandboxId, stopReason: response.stop_reason, iteration });
 
-        const toolResults: Anthropic.ToolResultBlockParam[] = [];
-        
-        for (const block of response.content) {
-          if (block.type === "text") {
-            outputText += block.text + "\n";
-          } else if (block.type === "tool_use") {
-            logger.info("Tool use", { sandboxId, tool: block.name, iteration });
-            
-            let result: string;
-            try {
-              if (block.name === "install_packages") {
-                const { packages } = block.input as { packages: string[] };
-                result = await installPackages(sandbox, packages);
-              } else if (block.name === "write_file") {
-                const { path, content } = block.input as { path: string; content: string };
-                await writeFileViaSh(sandbox, path, content);
-                filesAffected.push(path);
-                
-                // Auto-check build after writing
-                await new Promise(r => setTimeout(r, 1500));
-                const buildStatus = await checkBuild(sandbox);
-                result = `✅ Wrote ${path}\n\nBuild Status: ${buildStatus}`;
-                
-                if (buildStatus.includes('❌')) {
-                  result += `\n\n⚠️ Please fix the errors above!`;
-                }
-                
-                logger.info("File written", { sandboxId, path, buildOk: !buildStatus.includes('❌') });
-              } else if (block.name === "read_file") {
-                const { path } = block.input as { path: string };
-                const content = await readFileViaSh(sandbox, path);
-                result = content || `File not found: ${path}`;
-              } else if (block.name === "check_build") {
-                result = await checkBuild(sandbox);
-                logger.info("Build check", { sandboxId, ok: result.includes('✅') });
-              } else if (block.name === "list_files") {
-                const { path } = block.input as { path: string };
-                const files = await listFilesViaSh(sandbox, path);
-                result = files.join('\n') || `Empty: ${path}`;
-              } else if (block.name === "run_command") {
-                const { command } = block.input as { command: string };
-                const r = await sandbox.runCommand({ cmd: "sh", args: ["-c", command] });
-                result = `Exit ${r.exitCode}: ${await r.stdout()} ${await r.stderr()}`.trim();
-              } else {
-                result = `Unknown tool: ${block.name}`;
-              }
-            } catch (err) {
-              result = `Error: ${err}`;
-              logger.error("Tool error", { sandboxId, tool: block.name, error: err });
-            }
-
-            toolResults.push({ type: "tool_result", tool_use_id: block.id, content: result });
+      const toolResults: Anthropic.ToolResultBlockParam[] = [];
+      
+      for (const block of response.content) {
+        if (block.type === "text") {
+          // Stream thinking text
+          if (options.onThinking && block.text.trim()) {
+            options.onThinking(block.text);
           }
-        }
+          outputText += block.text + "\n";
+        } else if (block.type === "tool_use") {
+          logger.info("Tool use", { sandboxId, tool: block.name, iteration });
+          
+          let result: string;
+          if (block.name === "install_packages") {
+            const { packages } = block.input as { packages: string[] };
+            result = await installPackages(sandbox, packages);
+          } else if (block.name === "write_file") {
+            const { path, content } = block.input as { path: string; content: string };
+            await writeFileViaSh(sandbox, path, content);
+            filesAffected.push(path);
+            
+            // Auto-check build after writing
+            await new Promise(r => setTimeout(r, 1500));
+            const buildStatus = await checkBuild(sandbox);
+            result = `✅ Wrote ${path}\n\nBuild Status: ${buildStatus}`;
+            
+            if (buildStatus.includes('❌')) {
+              result += `\n\n⚠️ Please fix the errors above!`;
+            }
+            
+            logger.info("File written", { sandboxId, path, buildOk: !buildStatus.includes('❌') });
+          } else if (block.name === "read_file") {
+            const { path } = block.input as { path: string };
+            const content = await readFileViaSh(sandbox, path);
+            result = content || `File not found: ${path}`;
+          } else if (block.name === "check_build") {
+            result = await checkBuild(sandbox);
+            logger.info("Build check", { sandboxId, ok: result.includes('✅') });
+          } else if (block.name === "list_files") {
+            const { path } = block.input as { path: string };
+            const files = await listFilesViaSh(sandbox, path);
+            result = files.join('\n') || `Empty: ${path}`;
+          } else if (block.name === "run_command") {
+            const { command } = block.input as { command: string };
+            const r = await sandbox.runCommand({ cmd: "sh", args: ["-c", command] });
+            result = `Exit ${r.exitCode}: ${await r.stdout()} ${await r.stderr()}`.trim();
+          } else {
+            result = `Unknown tool: ${block.name}`;
+          }
 
-        if (toolResults.length > 0) {
-          messages.push({ role: "assistant", content: response.content });
-          messages.push({ role: "user", content: toolResults });
-        }
+          // Call the onToolUse callback if provided
+          if (options.onToolUse) {
+            options.onToolUse(block.name, block.input, result);
+          }
 
-        if (response.stop_reason === "end_turn" || toolResults.length === 0) {
-          continueLoop = false;
+          toolResults.push({ type: "tool_result", tool_use_id: block.id, content: result });
         }
       }
 
-      // Final build check
-      const finalBuild = await checkBuild(sandbox);
-      if (finalBuild.includes('❌')) {
-        outputText += `\n\n⚠️ Note: There may still be build errors. ${finalBuild}`;
+      if (toolResults.length > 0) {
+        messages.push({ role: "assistant", content: response.content });
+        messages.push({ role: "user", content: toolResults });
       }
 
-      logger.info("Claude complete", { sandboxId, filesAffected: filesAffected.length, iteration });
-
-      return {
-        output: outputText || "Changes applied!",
-        filesAffected: [...new Set(filesAffected)],
-        success: true,
-      };
-    } catch (error) {
-      logger.error("Claude error", { sandboxId, error });
-      throw error;
+      if (response.stop_reason === "end_turn" || toolResults.length === 0) {
+        continueLoop = false;
+      }
     }
+
+    // Final build check
+    const finalBuild = await checkBuild(sandbox);
+    if (finalBuild.includes('❌')) {
+      outputText += `\n\n⚠️ Note: There may still be build errors. ${finalBuild}`;
+    }
+
+    logger.info("Claude complete", { sandboxId, filesAffected: filesAffected.length, iteration });
+
+    return {
+      output: outputText || "Changes applied!",
+      filesAffected: [...new Set(filesAffected)],
+      success: true,
+    };
   }
 
   async readFile(sandboxId: string, path: string): Promise<string> {
@@ -736,16 +737,25 @@ REMEMBER:
     await sandbox.extendTimeout(durationMs);
   }
 
+
+  async getLogs(sandboxId: string, tail: number = 50): Promise<string[]> {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+    if (!sandbox) return [];
+    // Get dev server logs
+    const logsResult = await sandbox.runCommand({
+      cmd: "sh",
+      args: ["-c", `tail -${tail} /tmp/next-dev.log 2>/dev/null || echo ""`],
+    });
+    const stdout = await logsResult.stdout();
+    const lines = stdout.split("\n").filter((l: string) => l.trim());
+    return lines;
+  }
   async stop(sandboxId: string): Promise<void> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) return;
-    try {
-      await sandbox.stop();
-      getActiveSandboxes().delete(sandboxId);
-      logger.info("Sandbox stopped", { sandboxId });
-    } catch (error) {
-      logger.error("Stop failed", { sandboxId, error });
-    }
+    await sandbox.stop();
+    getActiveSandboxes().delete(sandboxId);
+    logger.info("Sandbox stopped", { sandboxId });
   }
 
   getStatus(sandboxId: string): "running" | "stopped" | "unknown" {

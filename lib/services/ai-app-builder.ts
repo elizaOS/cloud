@@ -1,16 +1,5 @@
-/**
- * AI App Builder Service
- *
- * Orchestrates the AI-powered app building process using
- * Vercel Sandbox and Claude Code CLI.
- */
-
-import { sandboxService, type SandboxSessionData } from "./sandbox";
-import { 
-  buildFullAppPrompt, 
-  getExamplePrompts,
-  type FullAppTemplateType 
-} from "@/lib/fragments/prompt";
+import { sandboxService, type SandboxProgress } from "./sandbox";
+import { buildFullAppPrompt, getExamplePrompts, type FullAppTemplateType } from "@/lib/fragments/prompt";
 import { logger } from "@/lib/utils/logger";
 import { db } from "@/db/client";
 import {
@@ -19,12 +8,10 @@ import {
   appTemplates,
   type AppSandboxSession,
   type NewAppSandboxSession,
-  type AppBuilderPrompt,
   type NewAppBuilderPrompt,
 } from "@/db/schemas/app-sandboxes";
 import { eq, desc } from "drizzle-orm";
 
-// Re-export EXAMPLE_PROMPTS for backward compatibility
 const EXAMPLE_PROMPTS = {
   chat: getExamplePrompts("chat"),
   "agent-dashboard": getExamplePrompts("agent-dashboard"),
@@ -36,14 +23,17 @@ const EXAMPLE_PROMPTS = {
 export interface BuilderSessionConfig {
   userId: string;
   organizationId: string;
-  appId?: string; // For editing existing apps
+  appId?: string;
   appName?: string;
   appDescription?: string;
   initialPrompt?: string;
   templateType?: "chat" | "agent-dashboard" | "landing-page" | "analytics" | "blank";
   includeMonetization?: boolean;
   includeAnalytics?: boolean;
+  onProgress?: (progress: SandboxProgress) => void;
 }
+
+export type { SandboxProgress };
 
 export interface BuilderSession {
   id: string;
@@ -65,32 +55,18 @@ export interface PromptResult {
   error?: string;
 }
 
-/**
- * AI App Builder service for managing app building sessions
- */
 export class AIAppBuilderService {
-  /**
-   * Verify session ownership - throws if user doesn't own the session
-   */
   private async verifyOwnership(sessionId: string, userId: string): Promise<AppSandboxSession> {
     const session = await db.query.appSandboxSessions.findFirst({
       where: eq(appSandboxSessions.id, sessionId),
     });
 
-    if (!session) {
-      throw new Error("Session not found");
-    }
-
-    if (session.user_id !== userId) {
-      throw new Error("Access denied: You don't own this session");
-    }
+    if (!session) throw new Error("Session not found");
+    if (session.user_id !== userId) throw new Error("Access denied: You don't own this session");
 
     return session;
   }
 
-  /**
-   * Start a new builder session
-   */
   async startSession(config: BuilderSessionConfig): Promise<BuilderSession> {
     const {
       userId,
@@ -102,244 +78,172 @@ export class AIAppBuilderService {
       templateType = "blank",
       includeMonetization = false,
       includeAnalytics = true,
+      onProgress,
     } = config;
 
-    logger.info("Starting AI App Builder session", {
-      userId,
-      templateType,
-      appName,
+    logger.info("Starting AI App Builder session", { userId, templateType, appName });
+
+    let templateUrl: string | undefined;
+    if (templateType !== "blank") {
+      const template = await db.query.appTemplates.findFirst({
+        where: eq(appTemplates.slug, templateType),
+      });
+      templateUrl = template?.git_repo_url;
+    }
+
+    const sandboxData = await sandboxService.create({
+      templateUrl,
+      timeout: 30 * 60 * 1000,
+      vcpus: 4,
+      organizationId,
+      projectId: appId,
+      onProgress,
     });
 
-    try {
-      // Get template URL if using a template
-      let templateUrl: string | undefined;
-      if (templateType !== "blank") {
-        const template = await db.query.appTemplates.findFirst({
-          where: eq(appTemplates.slug, templateType),
-        });
-        templateUrl = template?.git_repo_url;
-      }
+    const systemPrompt = buildFullAppPrompt({
+      templateType: templateType as FullAppTemplateType,
+      includeMonetization,
+      includeAnalytics,
+    });
 
-      // Create the sandbox with organization secrets
-      // NOTE: API keys for AI calls go through our backend, but other secrets
-      // (e.g., third-party APIs) are loaded from the secrets vault
-      const sandboxData = await sandboxService.create({
-        templateUrl,
-        timeout: 30 * 60 * 1000, // 30 minutes
-        vcpus: 4,
-        organizationId,
-        projectId: appId,
-      });
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
-      // Build the system prompt
-      const systemPrompt = buildFullAppPrompt({
-        templateType: templateType as FullAppTemplateType,
-        includeMonetization,
-        includeAnalytics,
-      });
+    const [session] = await db
+      .insert(appSandboxSessions)
+      .values({
+        user_id: userId,
+        organization_id: organizationId,
+        app_id: appId,
+        sandbox_id: sandboxData.sandboxId,
+        sandbox_url: sandboxData.sandboxUrl,
+        status: "ready",
+        app_name: appName,
+        app_description: appDescription,
+        initial_prompt: initialPrompt,
+        template_type: templateType,
+        build_config: { features: [], includeMonetization, includeAnalytics },
+        claude_messages: [],
+        started_at: new Date(),
+        expires_at: expiresAt,
+      } satisfies NewAppSandboxSession)
+      .returning();
 
-      // Calculate expiration time
-      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+    await db.insert(appBuilderPrompts).values({
+      sandbox_session_id: session.id,
+      role: "system",
+      content: systemPrompt,
+      status: "completed",
+      completed_at: new Date(),
+    } satisfies NewAppBuilderPrompt);
 
-      // Create the session record
-      const [session] = await db
-        .insert(appSandboxSessions)
-        .values({
-          user_id: userId,
-          organization_id: organizationId,
-          app_id: appId,
-          sandbox_id: sandboxData.sandboxId,
-          sandbox_url: sandboxData.sandboxUrl,
-          status: "ready",
-          app_name: appName,
-          app_description: appDescription,
-          initial_prompt: initialPrompt,
-          template_type: templateType,
-          build_config: {
-            features: [],
-            includeMonetization,
-            includeAnalytics,
-          },
-          claude_messages: [],
-          started_at: new Date(),
-          expires_at: expiresAt,
-        } satisfies NewAppSandboxSession)
-        .returning();
+    const examplePrompts = EXAMPLE_PROMPTS[templateType] || EXAMPLE_PROMPTS.blank;
 
-      // Store the system prompt as the first message
-      await db.insert(appBuilderPrompts).values({
-        sandbox_session_id: session.id,
-        role: "system",
-        content: systemPrompt,
-        status: "completed",
-        completed_at: new Date(),
-      } satisfies NewAppBuilderPrompt);
+    logger.info("AI App Builder session started", {
+      sessionId: session.id,
+      sandboxId: sandboxData.sandboxId,
+      sandboxUrl: sandboxData.sandboxUrl,
+    });
 
-      // Get example prompts for this template
-      const examplePrompts = EXAMPLE_PROMPTS[templateType] || EXAMPLE_PROMPTS.blank;
-
-      logger.info("AI App Builder session started", {
-        sessionId: session.id,
-        sandboxId: sandboxData.sandboxId,
-        sandboxUrl: sandboxData.sandboxUrl,
-      });
-
-      return {
-        id: session.id,
-        sandboxId: sandboxData.sandboxId,
-        sandboxUrl: sandboxData.sandboxUrl,
-        status: session.status as BuilderSession["status"],
-        messages: [],
-        examplePrompts,
-      };
-    } catch (error) {
-      logger.error("Failed to start AI App Builder session", { error });
-      throw error;
-    }
+    return {
+      id: session.id,
+      sandboxId: sandboxData.sandboxId,
+      sandboxUrl: sandboxData.sandboxUrl,
+      status: session.status as BuilderSession["status"],
+      messages: [],
+      examplePrompts,
+    };
   }
 
-  /**
-   * Send a prompt to Claude Code in the sandbox
-   */
-  async sendPrompt(sessionId: string, prompt: string, userId: string): Promise<PromptResult> {
-    logger.info("Sending prompt to AI App Builder", {
-      sessionId,
-      promptLength: prompt.length,
-    });
+  async sendPrompt(
+    sessionId: string,
+    prompt: string,
+    userId: string,
+    options: { onToolUse?: (tool: string, input: unknown, result: string) => void; onThinking?: (text: string) => void } = {}
+  ): Promise<PromptResult> {
+    logger.info("Sending prompt to AI App Builder", { sessionId, promptLength: prompt.length });
 
-    // Verify ownership and get session
     const session = await this.verifyOwnership(sessionId, userId);
 
-    if (!session.sandbox_id) {
-      throw new Error("Sandbox not available");
-    }
+    if (!session.sandbox_id) throw new Error("Sandbox not available");
+    if (session.status !== "ready") throw new Error(`Session is not ready. Current status: ${session.status}`);
 
-    if (session.status !== "ready") {
-      throw new Error(`Session is not ready. Current status: ${session.status}`);
-    }
+    await db
+      .update(appSandboxSessions)
+      .set({ status: "generating", updated_at: new Date() })
+      .where(eq(appSandboxSessions.id, sessionId));
 
-    try {
-      // Update session status to generating
-      await db
-        .update(appSandboxSessions)
-        .set({
-          status: "generating",
-          updated_at: new Date(),
-        })
-        .where(eq(appSandboxSessions.id, sessionId));
-
-      // Create the prompt record
-      const [promptRecord] = await db
-        .insert(appBuilderPrompts)
-        .values({
-          sandbox_session_id: sessionId,
-          role: "user",
-          content: prompt,
-          status: "processing",
-        } satisfies NewAppBuilderPrompt)
-        .returning();
-
-      // Get the system prompt
-      const systemPromptRecord = await db.query.appBuilderPrompts.findFirst({
-        where: eq(appBuilderPrompts.sandbox_session_id, sessionId),
-        orderBy: [desc(appBuilderPrompts.created_at)],
-      });
-
-      // Execute Claude Code
-      const startTime = Date.now();
-      const result = await sandboxService.executeClaudeCode(
-        session.sandbox_id,
-        prompt,
-        {
-          systemPrompt: systemPromptRecord?.content,
-        }
-      );
-
-      const durationMs = Date.now() - startTime;
-
-      // Update the prompt record with the result
-      await db
-        .update(appBuilderPrompts)
-        .set({
-          status: result.success ? "completed" : "error",
-          files_affected: result.filesAffected,
-          error_message: result.success ? null : result.output,
-          completed_at: new Date(),
-          duration_ms: durationMs,
-        })
-        .where(eq(appBuilderPrompts.id, promptRecord.id));
-
-      // Add assistant response
-      await db.insert(appBuilderPrompts).values({
+    const [promptRecord] = await db
+      .insert(appBuilderPrompts)
+      .values({
         sandbox_session_id: sessionId,
-        role: "assistant",
-        content: result.output,
+        role: "user",
+        content: prompt,
+        status: "processing",
+      } satisfies NewAppBuilderPrompt)
+      .returning();
+
+    const systemPromptRecord = await db.query.appBuilderPrompts.findFirst({
+      where: eq(appBuilderPrompts.sandbox_session_id, sessionId),
+      orderBy: [desc(appBuilderPrompts.created_at)],
+    });
+
+    const startTime = Date.now();
+    const result = await sandboxService.executeClaudeCode(session.sandbox_id, prompt, {
+      systemPrompt: systemPromptRecord?.content,
+      onToolUse: options.onToolUse,
+      onThinking: options.onThinking,
+    });
+    const durationMs = Date.now() - startTime;
+
+    await db
+      .update(appBuilderPrompts)
+      .set({
+        status: result.success ? "completed" : "error",
         files_affected: result.filesAffected,
-        status: "completed",
+        error_message: result.success ? null : result.output,
         completed_at: new Date(),
-      } satisfies NewAppBuilderPrompt);
+        duration_ms: durationMs,
+      })
+      .where(eq(appBuilderPrompts.id, promptRecord.id));
 
-      // Update session
-      const messages = (session.claude_messages as BuilderSession["messages"]) || [];
-      messages.push(
-        { role: "user", content: prompt, timestamp: new Date().toISOString() },
-        {
-          role: "assistant",
-          content: result.output,
-          timestamp: new Date().toISOString(),
-        }
-      );
+    await db.insert(appBuilderPrompts).values({
+      sandbox_session_id: sessionId,
+      role: "assistant",
+      content: result.output,
+      files_affected: result.filesAffected,
+      status: "completed",
+      completed_at: new Date(),
+    } satisfies NewAppBuilderPrompt);
 
-      await db
-        .update(appSandboxSessions)
-        .set({
-          status: "ready",
-          claude_messages: messages,
-          generated_files: [
-            ...(session.generated_files as Array<{
-              path: string;
-              type: string;
-              timestamp: string;
-            }>) || [],
-            ...result.filesAffected.map((path) => ({
-              path,
-              type: "modified" as const,
-              timestamp: new Date().toISOString(),
-            })),
-          ],
-          updated_at: new Date(),
-        })
-        .where(eq(appSandboxSessions.id, sessionId));
+    const messages = (session.claude_messages as BuilderSession["messages"]) || [];
+    messages.push(
+      { role: "user", content: prompt, timestamp: new Date().toISOString() },
+      { role: "assistant", content: result.output, timestamp: new Date().toISOString() }
+    );
 
-      logger.info("Prompt completed", {
-        sessionId,
-        success: result.success,
-        filesAffected: result.filesAffected.length,
-        durationMs,
-      });
+    await db
+      .update(appSandboxSessions)
+      .set({
+        status: "ready",
+        claude_messages: messages,
+        generated_files: [
+          ...(session.generated_files as Array<{ path: string; type: "created" | "modified" | "deleted"; timestamp: string }>) || [],
+          ...result.filesAffected.map((path) => ({ path, type: "modified" as const, timestamp: new Date().toISOString() })),
+        ],
+        updated_at: new Date(),
+      })
+      .where(eq(appSandboxSessions.id, sessionId));
 
-      return result;
-    } catch (error) {
-      // Update session status to error
-      await db
-        .update(appSandboxSessions)
-        .set({
-          status: "error",
-          status_message: error instanceof Error ? error.message : "Unknown error",
-          updated_at: new Date(),
-        })
-        .where(eq(appSandboxSessions.id, sessionId));
+    logger.info("Prompt completed", { sessionId, success: result.success, filesAffected: result.filesAffected.length, durationMs });
 
-      logger.error("Prompt execution failed", { sessionId, error });
-      throw error;
-    }
+    return result;
   }
 
-  /**
-   * Get session details
-   */
+  async verifySessionOwnership(sessionId: string, userId: string): Promise<AppSandboxSession> {
+    return this.verifyOwnership(sessionId, userId);
+  }
+
   async getSession(sessionId: string, userId: string): Promise<BuilderSession | null> {
-    // Verify ownership
     const session = await this.verifyOwnership(sessionId, userId);
 
     const prompts = await db.query.appBuilderPrompts.findMany({
@@ -369,16 +273,8 @@ export class AIAppBuilderService {
     };
   }
 
-  /**
-   * List sessions for a user
-   */
-  async listSessions(
-    userId: string,
-    options: { limit?: number; includeInactive?: boolean } = {}
-  ): Promise<AppSandboxSession[]> {
+  async listSessions(userId: string, options: { limit?: number; includeInactive?: boolean } = {}): Promise<AppSandboxSession[]> {
     const { limit = 10, includeInactive = false } = options;
-
-    const conditions = [eq(appSandboxSessions.user_id, userId)];
 
     const sessions = await db.query.appSandboxSessions.findMany({
       where: eq(appSandboxSessions.user_id, userId),
@@ -387,44 +283,35 @@ export class AIAppBuilderService {
     });
 
     if (!includeInactive) {
-      return sessions.filter(
-        (s) => s.status !== "stopped" && s.status !== "timeout"
-      );
+      return sessions.filter((s) => s.status !== "stopped" && s.status !== "timeout");
     }
 
     return sessions;
   }
 
-  /**
-   * Extend session timeout
-   */
   async extendSession(sessionId: string, userId: string, durationMs: number = 15 * 60 * 1000): Promise<void> {
-    // Verify ownership
     const session = await this.verifyOwnership(sessionId, userId);
 
-    if (!session.sandbox_id) {
-      throw new Error("Sandbox not available");
-    }
+    if (!session.sandbox_id) throw new Error("Sandbox not available");
 
     await sandboxService.extendTimeout(session.sandbox_id, durationMs);
 
     const newExpiresAt = new Date(Date.now() + durationMs);
     await db
       .update(appSandboxSessions)
-      .set({
-        expires_at: newExpiresAt,
-        updated_at: new Date(),
-      })
+      .set({ expires_at: newExpiresAt, updated_at: new Date() })
       .where(eq(appSandboxSessions.id, sessionId));
 
     logger.info("Extended session timeout", { sessionId, newExpiresAt });
   }
 
-  /**
-   * Stop a session and cleanup the sandbox
-   */
+  async getLogs(sessionId: string, userId: string, tail: number = 50): Promise<string[]> {
+    const session = await this.verifyOwnership(sessionId, userId);
+    if (!session.sandbox_id) return [];
+    return sandboxService.getLogs(session.sandbox_id, tail);
+  }
+
   async stopSession(sessionId: string, userId: string): Promise<void> {
-    // Verify ownership
     const session = await this.verifyOwnership(sessionId, userId);
 
     if (session.sandbox_id) {
@@ -433,41 +320,20 @@ export class AIAppBuilderService {
 
     await db
       .update(appSandboxSessions)
-      .set({
-        status: "stopped",
-        stopped_at: new Date(),
-        updated_at: new Date(),
-      })
+      .set({ status: "stopped", stopped_at: new Date(), updated_at: new Date() })
       .where(eq(appSandboxSessions.id, sessionId));
 
     logger.info("Session stopped", { sessionId });
   }
 
-  /**
-   * Deploy the app from sandbox to production
-   * Creates a new App record and deploys to Vercel
-   */
   async deploySession(
     sessionId: string,
-    config: {
-      appName: string;
-      appDescription?: string;
-      appUrl?: string;
-    }
+    userId: string,
+    config: { appName: string; appDescription?: string; appUrl?: string }
   ): Promise<{ appId: string; deploymentUrl: string }> {
-    const session = await db.query.appSandboxSessions.findFirst({
-      where: eq(appSandboxSessions.id, sessionId),
-    });
+    const session = await this.verifyOwnership(sessionId, userId);
 
-    if (!session || !session.sandbox_id) {
-      throw new Error("Session not found or sandbox not available");
-    }
-
-    // TODO: Implement deployment logic
-    // 1. Export files from sandbox
-    // 2. Create Git repository
-    // 3. Deploy to Vercel
-    // 4. Create App record in database
+    if (!session.sandbox_id) throw new Error("Sandbox not available");
 
     logger.info("Deploying session", { sessionId, appName: config.appName });
 
@@ -475,5 +341,4 @@ export class AIAppBuilderService {
   }
 }
 
-// Export singleton instance
 export const aiAppBuilderService = new AIAppBuilderService();

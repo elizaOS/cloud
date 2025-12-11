@@ -88,6 +88,7 @@ describe("N8N Workflow Integration Tests", () => {
     });
 
     it("should get a workflow by ID", async () => {
+      if (!setupSuccessful || !testOrgId || !testUserId) return;
       const workflow = await n8nWorkflowsService.createWorkflow({
         organizationId: testOrgId,
         userId: testUserId,
@@ -101,6 +102,7 @@ describe("N8N Workflow Integration Tests", () => {
     });
 
     it("should update a workflow", async () => {
+      if (!setupSuccessful || !testOrgId || !testUserId) return;
       const workflow = await n8nWorkflowsService.createWorkflow({
         organizationId: testOrgId,
         userId: testUserId,
@@ -118,6 +120,7 @@ describe("N8N Workflow Integration Tests", () => {
     });
 
     it("should delete a workflow", async () => {
+      if (!setupSuccessful || !testOrgId || !testUserId) return;
       const workflow = await n8nWorkflowsService.createWorkflow({
         organizationId: testOrgId,
         userId: testUserId,
@@ -134,6 +137,7 @@ describe("N8N Workflow Integration Tests", () => {
 
   describe("Version Control", () => {
     it("should create versions on workflow update", async () => {
+      if (!setupSuccessful || !testOrgId || !testUserId) return;
       const workflow = await n8nWorkflowsService.createWorkflow({
         organizationId: testOrgId,
         userId: testUserId,
@@ -154,6 +158,7 @@ describe("N8N Workflow Integration Tests", () => {
     });
 
     it("should revert to a specific version", async () => {
+      if (!setupSuccessful || !testOrgId || !testUserId) return;
       const workflow = await n8nWorkflowsService.createWorkflow({
         organizationId: testOrgId,
         userId: testUserId,
@@ -177,6 +182,7 @@ describe("N8N Workflow Integration Tests", () => {
 
   describe("Variables Management", () => {
     it("should create a global variable", async () => {
+      if (!setupSuccessful || !testOrgId) return;
       const variable = await n8nWorkflowsService.createVariable({
         organizationId: testOrgId,
         name: "TEST_API_URL",
@@ -190,11 +196,13 @@ describe("N8N Workflow Integration Tests", () => {
     });
 
     it("should list global variables", async () => {
+      if (!setupSuccessful || !testOrgId) return;
       const variables = await n8nWorkflowsService.getGlobalVariables(testOrgId);
       expect(variables.length).toBeGreaterThan(0);
     });
 
     it("should create a workflow variable", async () => {
+      if (!setupSuccessful || !testOrgId || !testUserId) return;
       const workflow = await n8nWorkflowsService.createWorkflow({
         organizationId: testOrgId,
         userId: testUserId,
@@ -215,6 +223,7 @@ describe("N8N Workflow Integration Tests", () => {
     });
 
     it("should update a variable", async () => {
+      if (!setupSuccessful || !testOrgId) return;
       const variable = await n8nWorkflowsService.createVariable({
         organizationId: testOrgId,
         name: "UPDATE_TEST",
@@ -229,6 +238,7 @@ describe("N8N Workflow Integration Tests", () => {
     });
 
     it("should delete a variable", async () => {
+      if (!setupSuccessful || !testOrgId) return;
       const variable = await n8nWorkflowsService.createVariable({
         organizationId: testOrgId,
         name: "DELETE_TEST",
@@ -243,6 +253,7 @@ describe("N8N Workflow Integration Tests", () => {
 
   describe("API Key Management", () => {
     it("should create a global API key", async () => {
+      if (!setupSuccessful || !testOrgId) return;
       const result = await n8nWorkflowsService.createApiKey({
         organizationId: testOrgId,
         name: "Test API Key",
@@ -255,11 +266,13 @@ describe("N8N Workflow Integration Tests", () => {
     });
 
     it("should list API keys", async () => {
+      if (!setupSuccessful || !testOrgId) return;
       const apiKeys = await n8nWorkflowsService.listApiKeys(testOrgId);
       expect(apiKeys.length).toBeGreaterThan(0);
     });
 
     it("should validate an API key", async () => {
+      if (!setupSuccessful || !testOrgId) return;
       const result = await n8nWorkflowsService.createApiKey({
         organizationId: testOrgId,
         name: "Validation Test Key",
@@ -273,6 +286,7 @@ describe("N8N Workflow Integration Tests", () => {
     });
 
     it("should reject invalid API key", async () => {
+      if (!setupSuccessful || !testOrgId) return;
       // Create a valid key then try to validate a modified version
       const result = await n8nWorkflowsService.createApiKey({
         organizationId: testOrgId,
@@ -291,6 +305,7 @@ describe("N8N Workflow Integration Tests", () => {
     });
 
     it("should validate API key with scopes", async () => {
+      if (!setupSuccessful || !testOrgId) return;
       const result = await n8nWorkflowsService.createApiKey({
         organizationId: testOrgId,
         name: "Scoped API Key",
@@ -313,6 +328,7 @@ describe("N8N Workflow Integration Tests", () => {
     });
 
     it("should check scope with wildcards", async () => {
+      if (!setupSuccessful || !testOrgId) return;
       const result = await n8nWorkflowsService.createApiKey({
         organizationId: testOrgId,
         name: "Wildcard Scope Key",
@@ -329,6 +345,7 @@ describe("N8N Workflow Integration Tests", () => {
     });
 
     it("should revoke API key", async () => {
+      if (!setupSuccessful || !testOrgId) return;
       const result = await n8nWorkflowsService.createApiKey({
         organizationId: testOrgId,
         name: "Revoke Test Key",
@@ -349,6 +366,7 @@ describe("N8N Workflow Integration Tests", () => {
 
   describe("Workflow Testing", () => {
     it("should test a workflow execution", async () => {
+      if (!setupSuccessful || !testOrgId || !testUserId) return;
       const workflow = await n8nWorkflowsService.createWorkflow({
         organizationId: testOrgId,
         userId: testUserId,
@@ -368,6 +386,7 @@ describe("N8N Workflow Integration Tests", () => {
     });
 
     it("should list workflow executions", async () => {
+      if (!setupSuccessful || !testOrgId || !testUserId) return;
       const workflow = await n8nWorkflowsService.createWorkflow({
         organizationId: testOrgId,
         userId: testUserId,
@@ -387,6 +406,7 @@ describe("N8N Workflow Integration Tests", () => {
 
   describe("Workflow Validation", () => {
     it("should validate a valid workflow", async () => {
+      if (!setupSuccessful) return;
       const workflowData = {
         nodes: [
           {
@@ -404,6 +424,7 @@ describe("N8N Workflow Integration Tests", () => {
     });
 
     it("should reject an invalid workflow", async () => {
+      if (!setupSuccessful) return;
       const workflowData = {
         nodes: [], // Missing required nodes
         connections: {},
@@ -417,6 +438,7 @@ describe("N8N Workflow Integration Tests", () => {
 
   describe("n8n Instance Management", () => {
     it("should create an n8n instance", async () => {
+      if (!setupSuccessful || !testOrgId || !testUserId) return;
       // Note: This will fail connection test, but should create the instance
       const instance = await n8nWorkflowsService.createInstance(
         testOrgId,

@@ -42,12 +42,28 @@ const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as Address;
 const env = readEnvFile();
 
 // Jeju Chain Definitions
+// Try to read Kurtosis ports for localnet
+function getLocalnetRpcUrl(): string {
+  const portsPath = new URL("../../../packages/deployment/.kurtosis/ports.json", import.meta.url);
+  try {
+    const portsFile = require("fs").readFileSync(portsPath, "utf-8");
+    const ports = JSON.parse(portsFile);
+    if (ports.l2Rpc) {
+      console.log(`📂 Using Kurtosis RPC: ${ports.l2Rpc}`);
+      return ports.l2Rpc;
+    }
+  } catch {
+    // Fall through to default
+  }
+  return env.JEJU_LOCALNET_RPC_URL || "http://127.0.0.1:9545";
+}
+
 const jejuLocalnet = defineChain({
   id: 1337,
   name: "Jeju Localnet",
   nativeCurrency: { decimals: 18, name: "Ether", symbol: "ETH" },
   rpcUrls: {
-    default: { http: [env.JEJU_LOCALNET_RPC_URL || "http://127.0.0.1:9545"] },
+    default: { http: [getLocalnetRpcUrl()] },
   },
   blockExplorers: {
     default: { name: "Jeju Explorer", url: "http://localhost:4000" },
@@ -95,7 +111,7 @@ const JEJU_NETWORKS: Record<JejuNetwork, NetworkConfig> = {
   "jeju-localnet": {
     name: "Jeju Localnet",
     chainId: 1337,
-    rpcUrl: env.JEJU_LOCALNET_RPC_URL || "http://127.0.0.1:9545",
+    rpcUrl: getLocalnetRpcUrl(),
     chain: jejuLocalnet,
     envPrefix: "JEJU_LOCALNET",
   },
