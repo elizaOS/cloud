@@ -103,7 +103,7 @@ export default function Installation() {
                 aria-hidden="true"
               />
               <p
-                className="font-normal uppercase tracking-wide text-sm md:text-base"
+                className="font-normal uppercase tracking-wide text-sm md:text-[15px]"
                 style={{
                   lineHeight: "1.5",
                   letterSpacing: "-0.003em",
@@ -112,11 +112,6 @@ export default function Installation() {
               >
                 HIGH-PERFORMANCE INFRASTRUCTURE. BUILT-IN LOGS + METRICS.
               </p>
-              <span
-                className="hidden sm:inline-block w-2 h-2 rounded-full shrink-0"
-                style={{ backgroundColor: "#FF5800" }}
-                aria-hidden="true"
-              />
             </div>
 
             {/* Right: Terminal mockup */}
