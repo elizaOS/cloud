@@ -376,13 +376,45 @@ export async function generateResponseWithRetry(
   runtime: IAgentRuntime,
   prompt: string,
 ): Promise<{ text: string; thought: string }> {
+  let lastRawResponse = "";
+  let lastError: Error | null = null;
+
   for (let i = 0; i < MAX_RESPONSE_RETRIES; i++) {
-    const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
-    const parsed = parseKeyValueXml(response) as ParsedResponse | null;
-    if (parsed?.text) {
-      return { text: parsed.text, thought: parsed.thought || "" };
+    try {
+      const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
+
+      if (!response || (typeof response === "string" && response.trim() === "")) {
+        logger.warn(`[generateResponseWithRetry] Attempt ${i + 1}: Empty response from model`);
+        continue;
+      }
+
+      lastRawResponse = typeof response === "string" ? response : JSON.stringify(response);
+      const parsed = parseKeyValueXml(response) as ParsedResponse | null;
+
+      if (parsed?.text) {
+        return { text: parsed.text, thought: parsed.thought || "" };
+      }
+
+      logger.warn(`[generateResponseWithRetry] Attempt ${i + 1}: Failed to parse XML, raw: "${lastRawResponse.substring(0, 100)}..."`);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      logger.error(`[generateResponseWithRetry] Attempt ${i + 1} failed:`, lastError.message);
     }
   }
+
+  if (lastRawResponse && lastRawResponse.length > 10) {
+    const cleanedResponse = lastRawResponse
+      .replace(/<[^>]+>/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (cleanedResponse.length > 20) {
+      logger.info(`[generateResponseWithRetry] Using cleaned raw response as fallback`);
+      return { text: cleanedResponse, thought: "" };
+    }
+  }
+
+  logger.error(`[generateResponseWithRetry] All ${MAX_RESPONSE_RETRIES} attempts failed. Last error: ${lastError?.message || "Unknown"}`);
   return { text: "", thought: "" };
 }
 

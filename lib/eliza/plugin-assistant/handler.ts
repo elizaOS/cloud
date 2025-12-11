@@ -338,6 +338,14 @@ export async function handleMessage({
         ...(att.contentType && { mimeType: att.contentType }),
       }));
 
+    // Ensure we have a response - if generation failed, provide a fallback
+    if (!responseContent || responseContent.trim() === "") {
+      logger.warn("[Assistant] Response generation failed - using fallback response");
+      responseContent = mediaAttachments.length > 0
+        ? "Here you go! 😊"
+        : "I'm having trouble thinking right now. Could you try asking that again?";
+    }
+
     // Post-process response to remove AI-speak and track openings
     const processedResponse = postProcessResponse(
       responseContent,
