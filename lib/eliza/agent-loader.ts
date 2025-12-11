@@ -14,7 +14,7 @@ import defaultAgent from "./agent";
 import { getElizaCloudApiUrl } from "./config";
 import { AgentMode, AGENT_MODE_PLUGINS } from "./agent-mode-types";
 import { secretsService } from "@/lib/services/secrets";
-import { isOrgCharacter, getOrgCharacter, type orgCharacters } from "./characters/org";
+import { isOrgCharacter, getOrgCharacter, orgCharacters } from "./characters/org";
 import { orgAgentLifecycleService } from "@/lib/services/agent-lifecycle";
 
 /**

@@ -328,6 +328,10 @@ describe("Fragment Sandbox & Preview", () => {
   }, TIMEOUT);
 
   test("GET /api/fragments/preview/:invalidId - returns 404 for unknown container", async () => {
+    if (!serverAvailable) {
+      console.log("⚠️ Skipping - server not available");
+      return;
+    }
     const response = await fetch(
       `${SERVER_URL}/api/fragments/preview/nonexistent-container-id`,
       { signal: AbortSignal.timeout(TIMEOUT) }
@@ -469,6 +473,10 @@ describe("Fragment Validation", () => {
   }, TIMEOUT);
 
   test("POST /api/v1/fragments/projects - requires authentication", async () => {
+    if (!serverAvailable) {
+      console.log("⚠️ Skipping - server not available");
+      return;
+    }
     const response = await fetch(`${SERVER_URL}/api/v1/fragments/projects`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

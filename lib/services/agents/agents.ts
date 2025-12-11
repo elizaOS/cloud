@@ -29,7 +29,6 @@ import {
   type RoomContext,
 } from "@/lib/cache/agent-state-cache";
 import { cache as cacheClient } from "@/lib/cache/client";
-import { CacheTTL } from "@/lib/cache/keys";
 import { distributedLocks } from "@/lib/cache/distributed-locks";
 import { agentEventEmitter } from "@/lib/events/agent-events";
 import { roomsService } from "./rooms";
@@ -56,10 +55,15 @@ export interface SendMessageInput {
  * Message attachment structure.
  */
 export interface Attachment {
+  id?: string;
   type: "image" | "file";
   url: string;
   filename?: string;
   mimeType?: string;
+  title?: string;
+  source?: string;
+  description?: string;
+  text?: string;
 }
 
 /**
@@ -104,7 +108,7 @@ class AgentsService {
     
     // Cache for 5 minutes
     if (agent) {
-      await cacheClient.set(cacheKey, agent, CacheTTL.MEDIUM);
+      await cacheClient.set(cacheKey, agent, 300);
     }
     
     return agent;
@@ -114,7 +118,7 @@ class AgentsService {
    * Invalidate agent cache after updates
    */
   async invalidateCache(agentId: string): Promise<void> {
-    await cacheClient.delete(agentInfoCacheKey(agentId));
+    await cacheClient.del(agentInfoCacheKey(agentId));
   }
 
   /**
@@ -309,7 +313,14 @@ class AgentsService {
       const { message: agentMessage, usage: messageUsage } =
         await agentRuntime.handleMessage(roomId, {
           text: message,
-          attachments: attachments || [],
+          attachments: attachments?.map((a, i) => ({
+            id: a.id || `attachment-${i}`,
+            url: a.url,
+            title: a.filename || a.title || "",
+            source: a.source || "upload",
+            description: a.description || "",
+            text: a.text || "",
+          })) || [],
         });
 
       await agentEventEmitter.emitResponseComplete(

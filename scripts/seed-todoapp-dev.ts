@@ -14,11 +14,12 @@
 
 import { db } from "@/db";
 import { organizations } from "@/db/schemas/organizations";
-import { users, userOrganizations } from "@/db/schemas/users";
+import { users } from "@/db/schemas/users";
 import { apps, type NewApp } from "@/db/schemas/apps";
 import { apiKeys, type NewApiKey } from "@/db/schemas/api-keys";
 import { userCharacters, type NewUserCharacter } from "@/db/schemas/user-characters";
-import { appCollections, type CollectionSchema, type CollectionIndex } from "@/db/schemas/app-storage";
+// Note: app_collections requires running migrations first
+// import { appCollections, type CollectionSchema, type CollectionIndex } from "@/db/schemas/app-storage";
 import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
@@ -74,19 +75,12 @@ async function seedTodoAppDev() {
         email: "todoapp-dev@eliza.ai",
         name: "Todo App Developer",
         nickname: "tododev",
-        privy_did: `did:privy:todoapp-dev-${Date.now()}`,
+        privy_user_id: `did:privy:todoapp-dev-${Date.now()}`,
+        organization_id: org.id,
+        role: "owner",
       })
       .returning();
     user = newUser;
-
-    // Link user to org
-    if (user) {
-      await db.insert(userOrganizations).values({
-        user_id: user.id,
-        organization_id: org.id,
-        role: "owner",
-      });
-    }
     logger.info(`[Seed Todo App] Created user: ${user?.id}`);
   } else {
     logger.info(`[Seed Todo App] Using existing user: ${user.id}`);
@@ -107,12 +101,12 @@ async function seedTodoAppDev() {
     logger.info("[Seed Todo App] Creating todo app registration...");
     const appData: NewApp = {
       organization_id: org.id,
+      created_by_user_id: user.id,
       name: TODO_APP_NAME,
       slug: TODO_APP_SLUG,
       description: "Intelligent task management powered by AI",
-      app_type: "app",
-      is_public: false,
-      enabled: true,
+      app_url: "http://localhost:3002",
+      allowed_origins: ["http://localhost:3002"],
     };
     const [newApp] = await db.insert(apps).values(appData).returning();
     app = newApp;
@@ -129,7 +123,7 @@ async function seedTodoAppDev() {
   // 4. Create or get API key
   // ============================================
   let apiKey = await db.query.apiKeys.findFirst({
-    where: eq(apiKeys.app_id, app.id),
+    where: eq(apiKeys.organization_id, org.id),
   });
 
   let rawKey: string | undefined;
@@ -138,14 +132,15 @@ async function seedTodoAppDev() {
     logger.info("[Seed Todo App] Creating API key...");
     rawKey = `eliza_${crypto.randomBytes(32).toString("hex")}`;
     const keyHash = crypto.createHash("sha256").update(rawKey).digest("hex");
+    const keyPrefix = rawKey.slice(0, 12);
 
     const keyData: NewApiKey = {
       organization_id: org.id,
+      user_id: user.id,
       name: `${TODO_APP_NAME} Development Key`,
+      key: rawKey,
       key_hash: keyHash,
-      last_four: rawKey.slice(-4),
-      app_id: app.id,
-      scope: "app",
+      key_prefix: keyPrefix,
     };
 
     const [newKey] = await db.insert(apiKeys).values(keyData).returning();
@@ -265,70 +260,9 @@ Be encouraging and celebrate completions! Use the gamification system to motivat
   }
 
   // ============================================
-  // 6. Create storage collections
+  // 6. Storage collections (skipped - created on-demand by storage API)
   // ============================================
-  const tasksCollection = await db.query.appCollections.findFirst({
-    where: eq(appCollections.name, "tasks"),
-  });
-
-  if (!tasksCollection) {
-    logger.info("[Seed Todo App] Creating tasks collection...");
-    const tasksSchema: CollectionSchema = {
-      type: "object",
-      properties: {
-        name: { type: "string", description: "Task name" },
-        type: { type: "string", description: "Task type: daily, one-off, aspirational" },
-        priority: { type: "integer", description: "Priority 1-4" },
-        urgent: { type: "boolean", description: "Is urgent" },
-        completed: { type: "boolean", description: "Is completed" },
-        recurring: { type: "string", description: "Recurring pattern" },
-        metadata: { type: "object", description: "Task metadata" },
-      },
-      required: ["name", "type", "completed"],
-    };
-
-    const tasksIndexes: CollectionIndex[] = [
-      { field: "type", type: "string" },
-      { field: "completed", type: "boolean" },
-    ];
-
-    await db.insert(appCollections).values({
-      app_id: app.id,
-      name: "tasks",
-      description: "Todo tasks storage",
-      schema: tasksSchema,
-      indexes: tasksIndexes,
-    });
-    logger.info("[Seed Todo App] Created tasks collection");
-  }
-
-  const pointsCollection = await db.query.appCollections.findFirst({
-    where: eq(appCollections.name, "user_points"),
-  });
-
-  if (!pointsCollection) {
-    logger.info("[Seed Todo App] Creating user_points collection...");
-    const pointsSchema: CollectionSchema = {
-      type: "object",
-      properties: {
-        currentPoints: { type: "integer", description: "Current points" },
-        totalEarned: { type: "integer", description: "Total points earned" },
-        streak: { type: "integer", description: "Current streak" },
-        lastCompletionDate: { type: "string", description: "Last task completion date" },
-        history: { type: "array", description: "Points history" },
-      },
-      required: ["currentPoints", "totalEarned"],
-    };
-
-    await db.insert(appCollections).values({
-      app_id: app.id,
-      name: "user_points",
-      description: "User points and gamification data",
-      schema: pointsSchema,
-      indexes: [],
-    });
-    logger.info("[Seed Todo App] Created user_points collection");
-  }
+  logger.info("[Seed Todo App] Note: Collections will be created on-demand via storage API");
 
   // ============================================
   // 7. Write .env.local file

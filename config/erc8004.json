@@ -41,8 +41,8 @@
     "jeju-testnet": {
       "name": "Jeju Testnet",
       "chainId": 420690,
-      "rpcUrl": "https://testnet-rpc.jeju.network",
-      "blockExplorer": "https://testnet-explorer.jeju.network",
+      "rpcUrl": "https://testnet-rpc.jejunetwork.org",
+      "blockExplorer": "https://testnet-explorer.jejunetwork.org",
       "isTestnet": true,
       "contracts": {
         "identity": "0x0000000000000000000000000000000000000000",
@@ -119,8 +119,8 @@
   },
 
   "multiRegistry": {
-    "_comment": "Multi-registry config: requires JEJU_DEPLOYED=true. Set enabled: true when Jeju contracts deployed.",
-    "enabled": false,
+    "_comment": "Multi-registry config: Set enabled=true when Jeju contracts are deployed. Will register to both Jeju AND Base.",
+    "enabled": true,
     "primaryEcosystem": "jeju",
     "secondaryEcosystem": "base",
     "syncStrategy": "parallel",
@@ -183,9 +183,9 @@
   },
 
   "defaults": {
-    "_comment": "Defaults to Base until Jeju ERC-8004 contracts are deployed. Set JEJU_DEPLOYED=true when ready.",
-    "network": "base-sepolia",
-    "productionNetwork": "base",
+    "_comment": "Jeju is primary (when JEJU_DEPLOYED=true), Base is fallback. Multi-registry deploys to both.",
+    "network": "jeju-testnet",
+    "productionNetwork": "jeju",
     "localnetNetwork": "jeju-localnet",
     "jejuNetwork": "jeju-testnet",
     "jejuProductionNetwork": "jeju",
