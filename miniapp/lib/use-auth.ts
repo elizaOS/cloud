@@ -1,13 +1,13 @@
 /**
  * Auth Hook for Miniapp
- * 
+ *
  * Uses token-based authentication via pass-through to Eliza Cloud.
  * The auth flow:
  * 1. User clicks login → redirect to Cloud
  * 2. User logs in via Privy on Cloud
  * 3. Cloud generates auth token and redirects back
  * 4. Miniapp stores token and uses it for API calls
- * 
+ *
  * IMPORTANT: This file imports types from ./types.ts to ensure complete
  * separation from the main app. Never import types from the parent app.
  */
@@ -16,9 +16,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import type { AuthState,AuthUser } from "./types";
+import { getCloudUrl } from "./cloud-url";
+import type { AuthState, AuthUser } from "./types";
 
-const CLOUD_URL = process.env.NEXT_PUBLIC_ELIZA_CLOUD_URL || "http://localhost:3000";
 const AUTH_TOKEN_KEY = "miniapp_auth_token";
 const USER_ID_KEY = "miniapp_user_id";
 const ORG_ID_KEY = "miniapp_org_id";
@@ -37,9 +37,15 @@ function getStoredValue(key: string): string | null {
 export function useAuth(): AuthState {
   // Use lazy initialization to avoid calling setState in effect
   const [ready, setReady] = useState(false);
-  const [authToken, setAuthToken] = useState<string | null>(() => getStoredValue(AUTH_TOKEN_KEY));
-  const [userId, setUserId] = useState<string | null>(() => getStoredValue(USER_ID_KEY));
-  const [organizationId, setOrganizationId] = useState<string | null>(() => getStoredValue(ORG_ID_KEY));
+  const [authToken, setAuthToken] = useState<string | null>(() =>
+    getStoredValue(AUTH_TOKEN_KEY),
+  );
+  const [userId, setUserId] = useState<string | null>(() =>
+    getStoredValue(USER_ID_KEY),
+  );
+  const [organizationId, setOrganizationId] = useState<string | null>(() =>
+    getStoredValue(ORG_ID_KEY),
+  );
   const [user, setUser] = useState<AuthUser | null>(null);
 
   // Clear auth state - defined first since it's used by other callbacks
@@ -54,42 +60,100 @@ export function useAuth(): AuthState {
   }, []);
 
   // Fetch user info from Cloud API - defined before the useEffect that uses it
-  const fetchUserInfo = useCallback(async (token: string) => {
-    try {
-      const response = await fetch("/api/proxy/user", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+  const fetchUserInfo = useCallback(
+    async (token: string) => {
+      console.log(
+        "[useAuth] Fetching user info with token:",
+        token.slice(0, 20) + "...",
+      );
+      try {
+        const response = await fetch("/api/proxy/user", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        console.log("[useAuth] User info response:", {
+          ok: response.ok,
+          status: response.status,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log("[useAuth] User info received:", {
+            email: data.user?.email,
+            name: data.user?.name,
+          });
+          setUser({
+            id: data.user.id,
+            email: data.user.email,
+            name: data.user.name,
+            avatar: data.user.avatar,
+          });
+        } else if (response.status === 401) {
+          console.warn("[useAuth] Token invalid (401), clearing auth");
+          const errorData = await response.json().catch(() => ({}));
+          console.log("[useAuth] 401 error details:", errorData);
+          clearAuth();
+        } else {
+          console.warn("[useAuth] Unexpected status:", response.status);
+        }
+      } catch (error) {
+        // Network error - don't clear auth, just skip user info fetch
+        console.warn("[useAuth] Failed to fetch user info:", error);
+      }
+    },
+    [clearAuth],
+  );
+
+  // Sync localStorage to state on mount (handles SSR hydration mismatch)
+  // This is necessary because lazy initialization doesn't work correctly with SSR:
+  // - During SSR, window is undefined so getStoredValue returns null
+  // - During hydration, React reuses the SSR state instead of re-initializing
+  // - This effect reads the actual localStorage values after mount
+  // Using requestAnimationFrame to avoid synchronous setState in effect
+  useEffect(() => {
+    const syncFromStorage = () => {
+      // Read fresh values from localStorage on mount
+      const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
+      const storedUserId = localStorage.getItem(USER_ID_KEY);
+      const storedOrgId = localStorage.getItem(ORG_ID_KEY);
+
+      console.log("[useAuth] Mount sync:", {
+        hasToken: !!storedToken,
+        tokenPrefix: storedToken?.slice(0, 15),
+        userId: storedUserId,
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setUser({
-          id: data.user.id,
-          email: data.user.email,
-          name: data.user.name,
-          avatar: data.user.avatar,
-        });
-      } else if (response.status === 401) {
-        clearAuth();
+      if (storedToken) {
+        setAuthToken(storedToken);
+        setUserId(storedUserId);
+        setOrganizationId(storedOrgId);
       }
-    } catch {
-      // Network error - don't clear auth, just skip user info fetch
-      console.warn("[useAuth] Failed to fetch user info");
-    }
-  }, [clearAuth]);
 
-  // Fetch user info on mount if we have a token (from lazy initialization)
-  useEffect(() => {
-    // State is already initialized from localStorage via lazy init (lines 40-42)
-    // Defer all state updates to avoid synchronous setState in effect
-    queueMicrotask(() => {
-      if (authToken) {
-        fetchUserInfo(authToken);
-      }
       setReady(true);
+    };
+
+    // Schedule state sync to avoid synchronous setState warning
+    const rafId = requestAnimationFrame(syncFromStorage);
+    return () => cancelAnimationFrame(rafId);
+  }, []);
+
+  // Fetch user info whenever authToken changes
+  useEffect(() => {
+    console.log("[useAuth] Token or ready changed:", {
+      hasToken: !!authToken,
+      tokenPrefix: authToken?.slice(0, 15),
+      ready,
     });
-  }, [authToken, fetchUserInfo]);
+    if (authToken && ready) {
+      // Schedule fetch to avoid synchronous setState warning
+      const rafId = requestAnimationFrame(() => {
+        void fetchUserInfo(authToken);
+      });
+      return () => cancelAnimationFrame(rafId);
+    }
+  }, [authToken, ready, fetchUserInfo]);
 
   // Listen for storage changes (e.g., from auth callback in another tab)
   useEffect(() => {
@@ -136,12 +200,17 @@ export function useAuth(): AuthState {
   const login = useCallback(async () => {
     // Get the callback URL for this miniapp
     const callbackUrl = `${window.location.origin}/auth/callback`;
+    const cloudUrl = getCloudUrl();
+
+    console.log("[useAuth] Login - using Cloud URL:", cloudUrl);
 
     // Create a session on Cloud
-    const response = await fetch(`${CLOUD_URL}/api/auth/miniapp-session`, {
+    // Include ngrok-skip-browser-warning header to bypass ngrok's interstitial page
+    const response = await fetch(`${cloudUrl}/api/auth/miniapp-session`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
       },
       body: JSON.stringify({
         callbackUrl,
@@ -157,9 +226,9 @@ export function useAuth(): AuthState {
 
     // Redirect to Cloud for authentication
     // The loginUrl might be relative - ensure it's absolute
-    const absoluteLoginUrl = loginUrl.startsWith("http") 
-      ? loginUrl 
-      : `${CLOUD_URL}${loginUrl}`;
+    const absoluteLoginUrl = loginUrl.startsWith("http")
+      ? loginUrl
+      : `${cloudUrl}${loginUrl}`;
     window.location.href = absoluteLoginUrl;
   }, []);
 

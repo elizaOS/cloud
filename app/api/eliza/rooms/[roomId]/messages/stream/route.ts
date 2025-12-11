@@ -1,10 +1,17 @@
 import { roomsRepository } from "@/db/repositories";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { checkAnonymousLimit, getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
+import {
+  checkAnonymousLimit,
+  getAnonymousUser,
+  getOrCreateAnonymousUser,
+} from "@/lib/auth-anonymous";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { usersService } from "@/lib/services/users";
 import type { AgentModeConfig } from "@/lib/eliza/agent-mode-types";
-import { AgentMode, isValidAgentModeConfig } from "@/lib/eliza/agent-mode-types";
+import {
+  AgentMode,
+  isValidAgentModeConfig,
+} from "@/lib/eliza/agent-mode-types";
 import { createMessageHandler } from "@/lib/eliza/message-handler";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { userContextService } from "@/lib/eliza/user-context";
@@ -14,6 +21,13 @@ import { contentModerationService } from "@/lib/services/content-moderation";
 import { organizationsService } from "@/lib/services/organizations";
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
+import { z } from "zod";
+import {
+  IMAGE_GENERATION_VIBES,
+  DEFAULT_VIBE,
+  MAX_PROMPT_LENGTH,
+  MAX_RESPONSE_STYLE_LENGTH,
+} from "@/lib/constants/image-generation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -47,16 +61,154 @@ export async function POST(
       sessionToken,
       attachments,
       appId: bodyAppId,
+      appPromptConfig,
     } = body;
 
     // App ID can come from body OR X-App-Id header (miniapp proxy uses header)
-    const appId = bodyAppId || request.headers.get("X-App-Id");
+    const rawAppId = bodyAppId || request.headers.get("X-App-Id");
+
+    // Validate appId format if provided (must be UUID)
+    let appId: string | undefined;
+    if (rawAppId) {
+      const appIdValidation = z.string().uuid().safeParse(rawAppId);
+      if (!appIdValidation.success) {
+        return new Response(
+          JSON.stringify({ error: "Invalid appId format - must be a valid UUID" }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      appId = appIdValidation.data;
+    }
 
     if (!roomId || !text?.trim()) {
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
+    }
+
+    // Validate appPromptConfig if provided
+    if (appPromptConfig) {
+      // Sanitization helper to prevent prompt injection
+      const sanitizePromptString = (val: string) => {
+        // Normalize Unicode before any checks to prevent bypass via different encodings
+        val = val.normalize("NFC");
+
+        // Check length - reject suspiciously long prompts
+        if (val.length > MAX_PROMPT_LENGTH) {
+          return false;
+        }
+
+        // Block RTL override and bidirectional control characters (can hide malicious content)
+        if (/[\u202A-\u202E\u2066-\u2069\u200E\u200F]/.test(val)) {
+          return false;
+        }
+
+        // Block zero-width characters that can hide content
+        if (/[\u200B-\u200D\uFEFF]/.test(val)) {
+          return false;
+        }
+
+        // Dangerous literal patterns (case-insensitive)
+        const dangerousPatterns = [
+          "</system>",
+          "<|im_end|>",
+          "<|endoftext|>",
+          "[INST]",
+          "[/INST]",
+          "### Instruction:",
+          "### Response:",
+          "<|assistant|>",
+          "<|user|>",
+          "\\n\\nHuman:",
+          "\\n\\nAssistant:",
+        ];
+
+        const lowerVal = val.toLowerCase();
+        for (const pattern of dangerousPatterns) {
+          if (lowerVal.includes(pattern.toLowerCase())) {
+            return false;
+          }
+        }
+
+        // Check for encoded versions that could bypass literal checks
+        const encodedPatterns = [
+          /%3C%7C/i, // <|
+          /%5D%5D/i, // ]]
+          /\\u003c/i, // unicode <
+          /\\x3c/i, // hex <
+        ];
+
+        for (const pattern of encodedPatterns) {
+          if (pattern.test(val)) {
+            return false;
+          }
+        }
+
+        // Reject excessive whitespace or control characters
+        if (/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/.test(val)) {
+          return false;
+        }
+
+        return true;
+      };
+
+      const AppPromptConfigSchema = z
+        .object({
+          systemPrefix: z
+            .string()
+            .max(MAX_PROMPT_LENGTH)
+            .refine(sanitizePromptString, {
+              message: "Invalid characters or patterns in systemPrefix",
+            })
+            .optional(),
+          systemSuffix: z
+            .string()
+            .max(MAX_PROMPT_LENGTH)
+            .refine(sanitizePromptString, {
+              message: "Invalid characters or patterns in systemSuffix",
+            })
+            .optional(),
+          responseStyle: z
+            .string()
+            .max(MAX_RESPONSE_STYLE_LENGTH)
+            .refine(sanitizePromptString, {
+              message: "Invalid characters or patterns in responseStyle",
+            })
+            .optional(),
+          flirtiness: z.enum(["low", "medium", "high"]).optional(),
+          romanticMode: z.boolean().optional(),
+          imageGeneration: z
+            .object({
+              enabled: z.boolean(),
+              autoGenerate: z.boolean(),
+              defaultVibe: z
+                .enum([
+                  "flirty",
+                  "shy",
+                  "bold",
+                  "spicy",
+                  "romantic",
+                  "playful",
+                  "mysterious",
+                  "intellectual",
+                ])
+                .optional(),
+            })
+            .optional(),
+        })
+        .strict();
+
+      const validated = AppPromptConfigSchema.safeParse(appPromptConfig);
+      if (!validated.success) {
+        return new Response(
+          JSON.stringify({
+            error: "Invalid appPromptConfig format",
+            details: validated.error.issues,
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Validate agentMode if provided, default to CHAT
@@ -87,7 +239,7 @@ export async function POST(
     const userContext = await authenticateAndBuildContext(
       request,
       agentModeConfig.mode,
-      { sessionToken, appId }
+      { sessionToken, appId, appPromptConfig }
     );
 
     logger.info("[Stream] 📊 UserContext after auth:", {
@@ -104,9 +256,10 @@ export async function POST(
       });
       return new Response(
         JSON.stringify({
-          error: "Your account has been suspended due to policy violations. Please contact support.",
+          error:
+            "Your account has been suspended due to policy violations. Please contact support.",
         }),
-        { status: 403, headers: { "Content-Type": "application/json" } },
+        { status: 403, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -218,22 +371,37 @@ export async function POST(
 
     // Step 4.5: Check if this is an affiliate character and switch to ASSISTANT mode
     // Affiliate characters need ASSISTANT mode for image generation capability
-    // The image generation action's validate function ensures images are only generated
-    // when explicitly requested (e.g., "send me a pic", "generate an image")
+    // Check both character_data.affiliate (legacy) and settings.affiliateData (miniapp)
     if (characterId && agentModeConfig.mode === AgentMode.CHAT) {
       try {
         const character = await charactersService.getById(characterId);
         if (character) {
+          // Check legacy location: character_data.affiliate
           const characterData = character.character_data as
             | Record<string, unknown>
             | undefined;
-          const affiliateData = characterData?.affiliate as
+          const legacyAffiliateData = characterData?.affiliate as
             | Record<string, unknown>
             | undefined;
 
+          // Check new location: settings.affiliateData (used by miniapp)
+          const settings = character.settings as
+            | Record<string, unknown>
+            | undefined;
+          const settingsAffiliateData = settings?.affiliateData as
+            | Record<string, unknown>
+            | undefined;
+
+          // Use whichever has data
+          const affiliateData = settingsAffiliateData || legacyAffiliateData;
+
           if (affiliateData && Object.keys(affiliateData).length > 0) {
             logger.info(
-              "[Stream] 🎭 Detected affiliate character - switching to ASSISTANT mode for image generation"
+              "[Stream] 🎭 Detected affiliate character - switching to ASSISTANT mode for image generation",
+              {
+                hasAutoImage: affiliateData.autoImage,
+                hasImageUrls: !!(affiliateData.imageUrls as unknown[])?.length,
+              }
             );
             agentModeConfig = { mode: AgentMode.ASSISTANT };
             // CRITICAL: Also update userContext so runtime loads correct plugins
@@ -319,7 +487,7 @@ export async function POST(
             error: "Your message was blocked due to content policy violations.",
             details: error.message,
           }),
-          { status: 403, headers: { "Content-Type": "application/json" } },
+          { status: 403, headers: { "Content-Type": "application/json" } }
         );
       }
       throw error;
@@ -477,7 +645,11 @@ export async function POST(
 async function authenticateAndBuildContext(
   request: NextRequest,
   agentMode: AgentMode,
-  body?: { sessionToken?: string; appId?: string }
+  body?: {
+    sessionToken?: string;
+    appId?: string;
+    appPromptConfig?: Record<string, unknown>;
+  }
 ) {
   const headerToken = request.headers.get("X-Anonymous-Session");
   const bodyToken = body?.sessionToken;
@@ -516,6 +688,7 @@ async function authenticateAndBuildContext(
       isAnonymous: false,
       agentMode,
       appId: body?.appId,
+      appPromptConfig: body?.appPromptConfig,
     });
   } catch (error) {
     logger.info(
@@ -581,6 +754,7 @@ async function authenticateAndBuildContext(
             isAnonymous: true,
             agentMode,
             appId: body?.appId,
+            appPromptConfig: body?.appPromptConfig,
           });
         }
 
@@ -632,6 +806,7 @@ async function authenticateAndBuildContext(
     isAnonymous: true,
     agentMode,
     appId: body?.appId,
+    appPromptConfig: body?.appPromptConfig,
   });
 }
 

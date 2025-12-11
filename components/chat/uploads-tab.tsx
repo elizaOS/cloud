@@ -43,7 +43,11 @@ export function UploadsTab({ characterId }: UploadsTabProps) {
 
   useEffect(() => {
     if (characterId) {
-      fetchDocuments();
+      // Schedule fetch to avoid synchronous setState in effect
+      const rafId = requestAnimationFrame(() => {
+        void fetchDocuments();
+      });
+      return () => cancelAnimationFrame(rafId);
     }
   }, [characterId, fetchDocuments]);
 

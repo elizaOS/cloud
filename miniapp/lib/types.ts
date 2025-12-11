@@ -6,6 +6,28 @@
  */
 
 // ============================================
+// Image Generation Types
+// ============================================
+
+export type ImageGenerationVibe =
+  | "flirty"
+  | "shy"
+  | "bold"
+  | "spicy"
+  | "romantic"
+  | "playful"
+  | "mysterious"
+  | "intellectual";
+
+export interface ImageGenerationSettings {
+  enabled: boolean;
+  autoGenerate: boolean;
+  referenceImages: string[];
+  vibe?: ImageGenerationVibe;
+  appearanceDescription?: string;
+}
+
+// ============================================
 // Agent Types
 // ============================================
 
@@ -22,6 +44,7 @@ export interface Agent {
     chats: number;
     messages: number;
   };
+  imageSettings?: ImageGenerationSettings;
 }
 
 /**
@@ -55,6 +78,7 @@ export interface AgentDetails extends Agent {
   plugins: string[];
   isTemplate: boolean;
   characterData: Record<string, string | number | boolean | string[] | Record<string, string | number | boolean>>;
+  imageSettings?: ImageGenerationSettings;
 }
 
 // ============================================

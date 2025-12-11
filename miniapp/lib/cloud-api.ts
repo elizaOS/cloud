@@ -15,6 +15,7 @@ import type {
   Billing,
   Chat,
   CreditPack,
+  ImageGenerationSettings,
   Message,
   MessageAttachment,
   MessageExampleConversation,
@@ -156,6 +157,7 @@ export async function createAgent(data: {
   };
   settings?: Record<string, string | number | boolean | Record<string, string | number | boolean>>;
   isPublic?: boolean;
+  imageSettings?: ImageGenerationSettings;
 }): Promise<Agent> {
   const response = await fetchApi<{
     success: boolean;
@@ -188,6 +190,7 @@ export async function updateAgent(
     plugins: string[];
     isPublic: boolean;
     characterData: Record<string, string | number | boolean | string[] | Record<string, string | number | boolean>>;
+    imageSettings: ImageGenerationSettings;
   }>
 ): Promise<Agent> {
   const response = await fetchApi<{
@@ -513,6 +516,8 @@ export type {
   Billing,
   Chat,
   CreditPack,
+  ImageGenerationSettings,
+  ImageGenerationVibe,
   Message,
   MessageAttachment,
   Organization,
