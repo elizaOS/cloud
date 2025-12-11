@@ -30,7 +30,7 @@ import {
   BrandTabsResponsive,
   type TabItem,
 } from "@/components/brand/brand-tabs-responsive";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 interface CharacterEditorProps {
   character: ElizaCharacter;
@@ -57,7 +57,7 @@ export function CharacterEditor({
 
   // Sync tab from URL when searchParams change
   const urlTab = searchParams.get("tab") as MainTab | null;
-  const validUrlTab = urlTab && ["character", "plugins", "stats", "knowledge"].includes(urlTab) ? urlTab : null;
+  const validUrlTab = urlTab && ["character", "plugins", "knowledge"].includes(urlTab) ? urlTab : null;
   
   useEffect(() => {
     if (validUrlTab && validUrlTab !== activeTab) {
@@ -102,9 +102,6 @@ export function CharacterEditor({
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
-  const pathname = usePathname();
-  const mode = pathname.includes("/build") ? "build" : "chat";
-
   return (
     <div className="flex h-full flex-col bg-black/40">
       {/* Header */}

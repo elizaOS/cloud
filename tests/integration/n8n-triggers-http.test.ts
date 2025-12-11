@@ -485,7 +485,16 @@ describe("MCP Trigger Tools", () => {
       body: JSON.stringify(body),
     });
     if (!response) return null;
-    return { status: response.status, data: await response.json() };
+    // Handle non-JSON responses (e.g., HTML error pages)
+    const text = await response.text();
+    let data: Record<string, unknown> = {};
+    try {
+      data = JSON.parse(text);
+    } catch {
+      // Server returned non-JSON (likely HTML error page)
+      return { status: 500, data: { error: "Non-JSON response" } };
+    }
+    return { status: response.status, data };
   }
 
   function mcpToolCall(toolName: string, args: Record<string, unknown>) {

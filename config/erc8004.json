@@ -30,11 +30,12 @@
       "isTestnet": true,
       "isLocalnet": true,
       "contracts": {
-        "identity": "0x0000000000000000000000000000000000000000",
+        "identity": "0x355281d1974BfB64F9d475d01936E5dB37396DA3",
         "reputation": "0x0000000000000000000000000000000000000000",
         "validation": "0x0000000000000000000000000000000000000000"
       },
-      "agentId": null,
+      "agentId": 1,
+      "_agentNote": "Eliza Cloud registered as Agent ID 1 on Jeju Localnet - 2025-12-11",
       "subgraphUrl": null,
       "ecosystem": "jeju"
     },

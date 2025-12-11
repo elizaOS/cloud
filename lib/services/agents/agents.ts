@@ -1,47 +1,18 @@
-/**
- * Agent Runtime Service
- *
- * This service deals ONLY with runtime agents (agents table - ElizaOS framework).
- *
- * Domain: Agents (agents table - DO NOT MODIFY, ElizaOS framework)
- * - Runtime agent information
- * - Room/message operations
- * - Agent-to-room communication
- *
- * What this service DOES NOT do:
- * - Character management (use charactersService)
- * - Deployment operations (use deploymentsService)
- * - Character discovery (use characterDeploymentDiscoveryService)
- *
- * Key Distinction:
- * - Agent = Running instance from ElizaOS (agents table)
- * - Character = User-created definition (user_characters table)
- * - When you deploy a character, it becomes an agent
- */
-
 import { agentsRepository, type AgentInfo } from "@/db/repositories/agents";
 import { participantsRepository, memoriesRepository } from "@/db/repositories";
 import { charactersService } from "@/lib/services/characters/characters";
 import { logger } from "@/lib/utils/logger";
 import { agentRuntime } from "@/lib/eliza/agent-runtime";
-import {
-  agentStateCache,
-  type RoomContext,
-} from "@/lib/cache/agent-state-cache";
+import { agentStateCache, type RoomContext } from "@/lib/cache/agent-state-cache";
 import { cache as cacheClient } from "@/lib/cache/client";
 import { distributedLocks } from "@/lib/cache/distributed-locks";
 import { agentEventEmitter } from "@/lib/events/agent-events";
 import { roomsService } from "./rooms";
 
-// Cache key helper for agent info
 const agentInfoCacheKey = (agentId: string) => `agent:info:${agentId}`;
 
-// Re-export AgentInfo type
 export type { AgentInfo };
 
-/**
- * Input for sending a message to an agent.
- */
 export interface SendMessageInput {
   roomId: string;
   entityId: string;
@@ -51,9 +22,6 @@ export interface SendMessageInput {
   attachments?: Attachment[];
 }
 
-/**
- * Message attachment structure.
- */
 export interface Attachment {
   id?: string;
   type: "image" | "file";
@@ -66,9 +34,6 @@ export interface Attachment {
   text?: string;
 }
 
-/**
- * Response from an agent.
- */
 export interface AgentResponse {
   messageId: string;
   content: string;
@@ -85,76 +50,46 @@ export interface AgentResponse {
 }
 
 class AgentsService {
-  // ============================================
-  // Agent Info Operations (Pure DB, no runtime)
-  // ============================================
-
-  /**
-   * Get agent by ID
-   * Returns agent info without spinning up runtime
-   * Cached for 5 minutes to reduce database load
-   */
   async getById(agentId: string): Promise<AgentInfo | null> {
     const cacheKey = agentInfoCacheKey(agentId);
-    
-    // Try cache first
+
     const cached = await cacheClient.get<AgentInfo>(cacheKey);
-    if (cached) {
-      return cached;
-    }
-    
-    // Fetch from database
+    if (cached) return cached;
+
     const agent = await agentsRepository.findById(agentId);
-    
-    // Cache for 5 minutes
+
     if (agent) {
       await cacheClient.set(cacheKey, agent, 300);
     }
-    
+
     return agent;
   }
-  
-  /**
-   * Invalidate agent cache after updates
-   */
+
   async invalidateCache(agentId: string): Promise<void> {
     await cacheClient.del(agentInfoCacheKey(agentId));
   }
 
-  /**
-   * Get multiple agents by IDs
-   */
   async getByIds(agentIds: string[]): Promise<AgentInfo[]> {
     if (agentIds.length === 0) return [];
     return await agentsRepository.findByIds(agentIds);
   }
 
-  /**
-   * Check if agent exists
-   */
   async exists(agentId: string): Promise<boolean> {
     return await agentsRepository.exists(agentId);
   }
 
-  /**
-   * Ensure the default Eliza agent exists in the database.
-   * This is the built-in Eliza character that's always available.
-   */
   async ensureDefaultAgentExists(): Promise<void> {
     const DEFAULT_AGENT_ID = "b850bc30-45f8-0041-a00a-83df46d8555d";
-    
-    // Check if default agent already exists
+
     const exists = await agentsRepository.exists(DEFAULT_AGENT_ID);
     if (exists) {
       logger.debug(`[Agents Service] Default Eliza agent already exists`);
       return;
     }
 
-    // Import default character from agent-loader
     const defaultAgent = await import("@/lib/eliza/agent");
     const character = defaultAgent.default.character;
 
-    // Create default agent in database
     const avatarUrl = character.settings?.avatarUrl as string | undefined;
     const created = await agentsRepository.create({
       id: DEFAULT_AGENT_ID as `${string}-${string}-${string}-${string}-${string}`,
@@ -172,31 +107,18 @@ class AgentsService {
     }
   }
 
-  /**
-   * Ensure agent exists in database, creating from character if needed.
-   * 
-   * @param characterId - Character ID to ensure exists as an agent
-   * @returns The agent ID that was ensured to exist
-   */
   async ensureAgentExists(characterId: string): Promise<string> {
-    // Check if agent already exists
     const exists = await agentsRepository.exists(characterId);
     if (exists) {
       logger.debug(`[Agents Service] Agent ${characterId} already exists`);
       return characterId;
     }
 
-    // Load character data to create agent
     const character = await charactersService.getById(characterId);
-    
-    if (!character) {
-      throw new Error(`Character ${characterId} not found`);
-    }
+    if (!character) throw new Error(`Character ${characterId} not found`);
 
-    // Extract character data
     const characterData = character.character_data as Record<string, unknown> | undefined;
-    
-    // Create agent from character
+
     const created = await agentsRepository.create({
       id: characterId as `${string}-${string}-${string}-${string}-${string}`,
       name: character.name,
@@ -209,7 +131,6 @@ class AgentsService {
     });
 
     if (!created) {
-      // Agent was created by another process (race condition), that's fine
       logger.debug(`[Agents Service] Agent ${characterId} already exists (race condition)`);
     } else {
       logger.info(`[Agents Service] Created agent ${characterId} from character ${character.name}`);
@@ -218,52 +139,24 @@ class AgentsService {
     return characterId;
   }
 
-  /**
-   * Get agent display info (id, name, avatarUrl)
-   * Useful for UI without loading full agent data
-   */
-  async getDisplayInfo(agentId: string): Promise<{
-    id: string;
-    name: string;
-    avatarUrl?: string;
-  } | null> {
+  async getDisplayInfo(agentId: string): Promise<{ id: string; name: string; avatarUrl?: string } | null> {
     return await agentsRepository.getDisplayInfo(agentId);
   }
 
-  /**
-   * Get agent name
-   */
   async getName(agentId: string): Promise<string | null> {
     const agent = await this.getById(agentId);
     return agent?.name || null;
   }
 
-  /**
-   * Get agent avatar URL
-   */
   async getAvatarUrl(agentId: string): Promise<string | undefined> {
     return await agentsRepository.getAvatarUrl(agentId);
   }
 
-  // ============================================
-  // Room/Message Operations (Uses runtime - for MCP)
-  // ============================================
-
-  /**
-   * Get or create a room for user-agent conversation
-   * @param entityId - User entity ID
-   * @param agentId - Agent ID (optional, uses org default)
-   * @returns Room ID
-   */
   async getOrCreateRoom(entityId: string, agentId: string): Promise<string> {
-    // Use repository to check for existing rooms
-    const existingRoomIds =
-      await participantsRepository.findRoomsByEntityId(entityId);
+    const existingRoomIds = await participantsRepository.findRoomsByEntityId(entityId);
 
     if (existingRoomIds && existingRoomIds.length > 0) {
-      logger.debug(
-        `[Agents Service] Found existing room ${existingRoomIds[0]} for entity ${entityId}`,
-      );
+      logger.debug(`[Agents Service] Found existing room ${existingRoomIds[0]} for entity ${entityId}`);
       return existingRoomIds[0];
     }
 
@@ -275,35 +168,21 @@ class AgentsService {
       name: "New Chat",
     });
 
-    logger.info(
-      `[Agents Service] Created new room ${room.id} for entity ${entityId}`,
-    );
+    logger.info(`[Agents Service] Created new room ${room.id} for entity ${entityId}`);
     return room.id;
   }
 
-  /**
-   * Send a message to agent and get response
-   * NOTE: This uses runtime - only for MCP tool compatibility
-   * For web chat, use the streaming endpoint directly
-   */
   async sendMessage(input: SendMessageInput): Promise<AgentResponse> {
     const { roomId, message, streaming, attachments } = input;
 
-    // Acquire distributed lock with retry
-    const lock = await distributedLocks.acquireRoomLockWithRetry(
-      roomId,
-      60000,
-      {
-        maxRetries: 10,
-        initialDelayMs: 100,
-        maxDelayMs: 2000,
-      },
-    );
+    const lock = await distributedLocks.acquireRoomLockWithRetry(roomId, 60000, {
+      maxRetries: 10,
+      initialDelayMs: 100,
+      maxDelayMs: 2000,
+    });
 
     if (!lock) {
-      throw new Error(
-        "Room is currently processing another message. Maximum wait time exceeded.",
-      );
+      throw new Error("Room is currently processing another message. Maximum wait time exceeded.");
     }
 
     try {
@@ -311,10 +190,10 @@ class AgentsService {
 
       await agentEventEmitter.emitResponseStarted(roomId, runtime.agentId);
 
-      const { message: agentMessage, usage: messageUsage } =
-        await agentRuntime.handleMessage(roomId, {
-          text: message,
-          attachments: attachments?.map((a, i) => ({
+      const { message: agentMessage, usage: messageUsage } = await agentRuntime.handleMessage(roomId, {
+        text: message,
+        attachments:
+          attachments?.map((a, i) => ({
             id: a.id || `attachment-${i}`,
             url: a.url,
             title: a.filename || a.title || "",
@@ -322,19 +201,13 @@ class AgentsService {
             description: a.description || "",
             text: a.text || "",
           })) || [],
-        });
+      });
 
-      await agentEventEmitter.emitResponseComplete(
-        roomId,
-        agentMessage,
-        messageUsage || {
-          inputTokens: Math.ceil(message.length / 4),
-          outputTokens: Math.ceil(
-            ((agentMessage.content.text as string) || "").length / 4,
-          ),
-          model: "eliza-agent",
-        },
-      );
+      await agentEventEmitter.emitResponseComplete(roomId, agentMessage, messageUsage || {
+        inputTokens: Math.ceil(message.length / 4),
+        outputTokens: Math.ceil(((agentMessage.content.text as string) || "").length / 4),
+        model: "eliza-agent",
+      });
 
       await agentStateCache.invalidateRoomContext(roomId);
 
@@ -345,15 +218,11 @@ class AgentsService {
         timestamp: new Date(agentMessage.createdAt || Date.now()),
         usage: {
           inputTokens: Math.ceil(message.length / 4),
-          outputTokens: Math.ceil(
-            ((agentMessage.content.text as string) || "").length / 4,
-          ),
+          outputTokens: Math.ceil(((agentMessage.content.text as string) || "").length / 4),
           model: "eliza-agent",
         },
         ...(streaming && {
-          streaming: {
-            sseUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/mcp/stream?eventType=agent&resourceId=${roomId}`,
-          },
+          streaming: { sseUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/mcp/stream?eventType=agent&resourceId=${roomId}` },
         }),
       };
     } finally {
@@ -361,9 +230,6 @@ class AgentsService {
     }
   }
 
-  /**
-   * Get cached room context or fetch from database
-   */
   async getRoomContext(roomId: string): Promise<RoomContext> {
     const cached = await agentStateCache.getRoomContext(roomId);
     if (cached) {
@@ -371,15 +237,10 @@ class AgentsService {
       return cached;
     }
 
-    logger.debug(
-      `[Agents Service] Cache miss for room ${roomId}, fetching from DB`,
-    );
+    logger.debug(`[Agents Service] Cache miss for room ${roomId}, fetching from DB`);
 
-    const messages = await memoriesRepository.findMessages(roomId, {
-      limit: 20,
-    });
-    const participantIds =
-      await participantsRepository.getEntityIdsByRoomId(roomId);
+    const messages = await memoriesRepository.findMessages(roomId, { limit: 20 });
+    const participantIds = await participantsRepository.getEntityIdsByRoomId(roomId);
 
     const context: RoomContext = {
       roomId,
@@ -390,13 +251,9 @@ class AgentsService {
     };
 
     await agentStateCache.setRoomContext(roomId, context);
-
     return context;
   }
 }
 
-// Export singleton instance
 export const agentsService = new AgentsService();
-
-// Also export as agentService for backward compatibility with MCP route
 export const agentService = agentsService;

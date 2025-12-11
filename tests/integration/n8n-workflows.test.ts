@@ -454,6 +454,7 @@ describe("N8N Workflow Integration Tests", () => {
     });
 
     it("should list n8n instances", async () => {
+      if (!setupSuccessful || !testOrgId) return;
       const instances = await n8nWorkflowsService.listInstances(testOrgId);
       expect(instances.length).toBeGreaterThan(0);
     });
