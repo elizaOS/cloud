@@ -61,6 +61,7 @@ export function CharacterEditor({
   
   useEffect(() => {
     if (validUrlTab && validUrlTab !== activeTab) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing URL state to local state
       setActiveTab(validUrlTab);
     }
   }, [validUrlTab, activeTab]);
