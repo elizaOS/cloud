@@ -116,6 +116,21 @@ const SKILL_REGISTRY: Record<string, SkillEntry> = {
   telegram_send_message: { handler: skills.executeSkillTelegramSendMessage, description: "Send a Telegram message", aliases: ["send_telegram", "telegram_message"] },
   telegram_list_chats: { handler: (_, data, ctx) => skills.executeSkillTelegramListChats(data, ctx), description: "List Telegram chats", aliases: ["list_telegram_chats"] },
   telegram_list_bots: { handler: (_, __, ctx) => skills.executeSkillTelegramListBots(ctx), description: "List connected Telegram bots", aliases: ["list_telegram_bots"] },
+  // Org tools skills - Task management
+  create_task: { handler: skills.executeSkillCreateTask, description: "Create a new task", aliases: ["create_todo", "add_task"] },
+  list_tasks: { handler: (_, data, ctx) => skills.executeSkillListTasks(data, ctx), description: "List tasks with optional filters", aliases: ["list_todos", "get_tasks"] },
+  update_task: { handler: skills.executeSkillUpdateTask, description: "Update an existing task", aliases: ["update_todo", "modify_task"] },
+  complete_task: { handler: skills.executeSkillCompleteTask, description: "Mark a task as completed", aliases: ["complete_todo", "finish_task"] },
+  get_task_stats: { handler: (_, __, ctx) => skills.executeSkillGetTaskStats(ctx), description: "Get task statistics", aliases: ["task_stats", "todo_stats"] },
+  // Org tools skills - Check-in management
+  create_checkin_schedule: { handler: skills.executeSkillCreateCheckinSchedule, description: "Create a team check-in schedule", aliases: ["create_checkin", "schedule_standup"] },
+  list_checkin_schedules: { handler: (_, data, ctx) => skills.executeSkillListCheckinSchedules(data, ctx), description: "List check-in schedules", aliases: ["list_checkins", "get_schedules"] },
+  record_checkin_response: { handler: skills.executeSkillRecordCheckinResponse, description: "Record a check-in response", aliases: ["record_checkin", "submit_checkin"] },
+  generate_checkin_report: { handler: skills.executeSkillGenerateCheckinReport, description: "Generate a check-in report", aliases: ["checkin_report", "standup_report"] },
+  // Org tools skills - Team management
+  add_team_member: { handler: skills.executeSkillAddTeamMember, description: "Add a team member to a server", aliases: ["add_member", "register_member"] },
+  list_team_members: { handler: (_, data, ctx) => skills.executeSkillListTeamMembers(data, ctx), description: "List team members", aliases: ["get_team", "list_members"] },
+  get_platform_status: { handler: (_, __, ctx) => skills.executeSkillGetPlatformStatus(ctx), description: "Get platform connection status", aliases: ["platform_status", "bot_status"] },
 };
 
 // Build alias lookup

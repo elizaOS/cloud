@@ -2435,3 +2435,451 @@ export async function executeSkillTelegramListBots(
   };
 }
 
+// =============================================================================
+// ORG TOOLS SKILLS - Task and Check-in Management
+// =============================================================================
+
+/**
+ * Create a task
+ */
+export async function executeSkillCreateTask(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  success: boolean;
+  task: {
+    id: string;
+    title: string;
+    status: string;
+    priority: string;
+  };
+}> {
+  const { tasksService } = await import("@/lib/services/tasks");
+
+  const title = (dataContent.title as string) || textContent;
+  if (!title) throw new Error("title is required");
+
+  const task = await tasksService.create({
+    organizationId: ctx.user.organization_id,
+    title,
+    description: dataContent.description as string | undefined,
+    priority: dataContent.priority as "low" | "medium" | "high" | "urgent" | undefined,
+    dueDate: dataContent.dueDate ? new Date(dataContent.dueDate as string) : undefined,
+    assigneePlatformId: dataContent.assigneePlatformId as string | undefined,
+    assigneePlatform: dataContent.assigneePlatform as "discord" | "telegram" | undefined,
+    assigneeName: dataContent.assigneeName as string | undefined,
+    tags: dataContent.tags as string[] | undefined,
+    createdByUserId: ctx.user.id,
+    sourcePlatform: "web",
+  });
+
+  return {
+    success: true,
+    task: {
+      id: task.id,
+      title: task.title,
+      status: task.status,
+      priority: task.priority,
+    },
+  };
+}
+
+/**
+ * List tasks
+ */
+export async function executeSkillListTasks(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  tasks: Array<{
+    id: string;
+    title: string;
+    status: string;
+    priority: string;
+    dueDate: string | null;
+  }>;
+  total: number;
+}> {
+  const { tasksService } = await import("@/lib/services/tasks");
+
+  const result = await tasksService.list(ctx.user.organization_id, {
+    status: dataContent.status as "pending" | "in_progress" | "completed" | "cancelled" | undefined,
+    priority: dataContent.priority as "low" | "medium" | "high" | "urgent" | undefined,
+    limit: (dataContent.limit as number) || 20,
+  });
+
+  return {
+    tasks: result.items.map(t => ({
+      id: t.id,
+      title: t.title,
+      status: t.status,
+      priority: t.priority,
+      dueDate: t.due_date?.toISOString() || null,
+    })),
+    total: result.total,
+  };
+}
+
+/**
+ * Update a task
+ */
+export async function executeSkillUpdateTask(
+  _textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  success: boolean;
+  task: {
+    id: string;
+    title: string;
+    status: string;
+  };
+}> {
+  const { tasksService } = await import("@/lib/services/tasks");
+
+  const taskId = dataContent.taskId as string;
+  if (!taskId) throw new Error("taskId is required");
+
+  const task = await tasksService.update(taskId, ctx.user.organization_id, {
+    title: dataContent.title as string | undefined,
+    description: dataContent.description as string | undefined,
+    status: dataContent.status as "pending" | "in_progress" | "completed" | "cancelled" | undefined,
+    priority: dataContent.priority as "low" | "medium" | "high" | "urgent" | undefined,
+  });
+
+  if (!task) throw new Error("Task not found");
+
+  return {
+    success: true,
+    task: {
+      id: task.id,
+      title: task.title,
+      status: task.status,
+    },
+  };
+}
+
+/**
+ * Complete a task
+ */
+export async function executeSkillCompleteTask(
+  _textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  success: boolean;
+  task: { id: string; status: string };
+}> {
+  const { tasksService } = await import("@/lib/services/tasks");
+
+  const taskId = dataContent.taskId as string;
+  if (!taskId) throw new Error("taskId is required");
+
+  const task = await tasksService.update(taskId, ctx.user.organization_id, {
+    status: "completed",
+  });
+
+  if (!task) throw new Error("Task not found");
+
+  return {
+    success: true,
+    task: { id: task.id, status: task.status },
+  };
+}
+
+/**
+ * Get task statistics
+ */
+export async function executeSkillGetTaskStats(
+  ctx: A2AContext
+): Promise<{
+  total: number;
+  pending: number;
+  inProgress: number;
+  completed: number;
+  overdue: number;
+}> {
+  const { tasksService } = await import("@/lib/services/tasks");
+
+  const stats = await tasksService.getStats(ctx.user.organization_id);
+  return {
+    total: stats.total,
+    pending: stats.pending,
+    inProgress: stats.inProgress,
+    completed: stats.completed,
+    overdue: stats.overdue,
+  };
+}
+
+/**
+ * Create a check-in schedule
+ */
+export async function executeSkillCreateCheckinSchedule(
+  _textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  success: boolean;
+  schedule: {
+    id: string;
+    name: string;
+    frequency: string;
+    timeUtc: string;
+  };
+}> {
+  const { checkinsService } = await import("@/lib/services/checkins");
+
+  const serverId = dataContent.serverId as string;
+  const name = dataContent.name as string;
+  const timeUtc = dataContent.timeUtc as string;
+  const checkinChannelId = dataContent.checkinChannelId as string;
+
+  if (!serverId) throw new Error("serverId is required");
+  if (!name) throw new Error("name is required");
+  if (!timeUtc) throw new Error("timeUtc is required (HH:MM format)");
+  if (!checkinChannelId) throw new Error("checkinChannelId is required");
+
+  const schedule = await checkinsService.createSchedule({
+    organizationId: ctx.user.organization_id,
+    serverId,
+    name,
+    checkinType: dataContent.checkinType as "standup" | "sprint" | "mental_health" | "project_status" | "retrospective" | undefined,
+    frequency: dataContent.frequency as "daily" | "weekdays" | "weekly" | "bi_weekly" | "monthly" | undefined,
+    timeUtc,
+    checkinChannelId,
+    questions: dataContent.questions as string[] | undefined,
+    createdBy: ctx.user.id,
+  });
+
+  return {
+    success: true,
+    schedule: {
+      id: schedule.id,
+      name: schedule.name,
+      frequency: schedule.frequency,
+      timeUtc: schedule.time_utc,
+    },
+  };
+}
+
+/**
+ * List check-in schedules
+ */
+export async function executeSkillListCheckinSchedules(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  schedules: Array<{
+    id: string;
+    name: string;
+    frequency: string;
+    timeUtc: string;
+    enabled: boolean;
+  }>;
+  count: number;
+}> {
+  const { checkinsService } = await import("@/lib/services/checkins");
+
+  const serverId = dataContent.serverId as string | undefined;
+  
+  const schedules = serverId
+    ? await checkinsService.listServerSchedules(serverId)
+    : await checkinsService.listSchedules(ctx.user.organization_id);
+
+  return {
+    schedules: schedules.map(s => ({
+      id: s.id,
+      name: s.name,
+      frequency: s.frequency,
+      timeUtc: s.time_utc,
+      enabled: s.enabled,
+    })),
+    count: schedules.length,
+  };
+}
+
+/**
+ * Record a check-in response
+ */
+export async function executeSkillRecordCheckinResponse(
+  _textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  success: boolean;
+  responseId: string;
+}> {
+  const { checkinsService } = await import("@/lib/services/checkins");
+
+  const scheduleId = dataContent.scheduleId as string;
+  const responderPlatformId = dataContent.responderPlatformId as string;
+  const responderPlatform = dataContent.responderPlatform as "discord" | "telegram";
+  const answers = dataContent.answers as Record<string, string>;
+
+  if (!scheduleId) throw new Error("scheduleId is required");
+  if (!responderPlatformId) throw new Error("responderPlatformId is required");
+  if (!responderPlatform) throw new Error("responderPlatform is required");
+  if (!answers) throw new Error("answers is required");
+
+  const response = await checkinsService.recordResponse({
+    scheduleId,
+    organizationId: ctx.user.organization_id,
+    responderPlatformId,
+    responderPlatform,
+    responderName: dataContent.responderName as string | undefined,
+    answers,
+  });
+
+  return {
+    success: true,
+    responseId: response.id,
+  };
+}
+
+/**
+ * Generate a check-in report
+ */
+export async function executeSkillGenerateCheckinReport(
+  _textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  report: {
+    scheduleId: string;
+    scheduleName: string;
+    dateRange: { start: string; end: string };
+    totalResponses: number;
+    participationRate: number;
+    summary: string;
+  };
+}> {
+  const { checkinsService } = await import("@/lib/services/checkins");
+
+  const scheduleId = dataContent.scheduleId as string;
+  const startDate = dataContent.startDate as string;
+  const endDate = dataContent.endDate as string;
+
+  if (!scheduleId) throw new Error("scheduleId is required");
+  if (!startDate) throw new Error("startDate is required");
+  if (!endDate) throw new Error("endDate is required");
+
+  const report = await checkinsService.generateReport(
+    scheduleId,
+    ctx.user.organization_id,
+    {
+      start: new Date(startDate),
+      end: new Date(endDate),
+    }
+  );
+
+  return { report };
+}
+
+/**
+ * Add a team member
+ */
+export async function executeSkillAddTeamMember(
+  _textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  success: boolean;
+  member: {
+    id: string;
+    displayName: string | null;
+    platform: string;
+  };
+}> {
+  const { checkinsService } = await import("@/lib/services/checkins");
+
+  const serverId = dataContent.serverId as string;
+  const platformUserId = dataContent.platformUserId as string;
+  const platform = dataContent.platform as "discord" | "telegram";
+
+  if (!serverId) throw new Error("serverId is required");
+  if (!platformUserId) throw new Error("platformUserId is required");
+  if (!platform) throw new Error("platform is required");
+
+  const member = await checkinsService.upsertTeamMember({
+    organizationId: ctx.user.organization_id,
+    serverId,
+    platformUserId,
+    platform,
+    displayName: dataContent.displayName as string | undefined,
+    role: dataContent.role as string | undefined,
+    isAdmin: dataContent.isAdmin as boolean | undefined,
+  });
+
+  return {
+    success: true,
+    member: {
+      id: member.id,
+      displayName: member.display_name,
+      platform: member.platform,
+    },
+  };
+}
+
+/**
+ * List team members
+ */
+export async function executeSkillListTeamMembers(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  members: Array<{
+    id: string;
+    platformUserId: string;
+    displayName: string | null;
+    platform: string;
+    role: string | null;
+  }>;
+  count: number;
+}> {
+  const { checkinsService } = await import("@/lib/services/checkins");
+
+  const serverId = dataContent.serverId as string;
+  if (!serverId) throw new Error("serverId is required");
+
+  const members = await checkinsService.getTeamMembers(serverId);
+
+  return {
+    members: members.map(m => ({
+      id: m.id,
+      platformUserId: m.platform_user_id,
+      displayName: m.display_name,
+      platform: m.platform,
+      role: m.role,
+    })),
+    count: members.length,
+  };
+}
+
+/**
+ * Get platform connection status
+ */
+export async function executeSkillGetPlatformStatus(
+  ctx: A2AContext
+): Promise<{
+  platforms: Array<{
+    platform: string;
+    status: string;
+    botUsername: string | null;
+    serverCount: number;
+  }>;
+}> {
+  const { botsService } = await import("@/lib/services/bots");
+
+  const connections = await botsService.getConnections(ctx.user.organization_id);
+
+  return {
+    platforms: connections.map(c => ({
+      platform: c.platform,
+      status: c.status,
+      botUsername: c.platform_bot_username,
+      serverCount: ((c.profile_data as Record<string, unknown>)?.servers as unknown[] || []).length,
+    })),
+  };
+}
+

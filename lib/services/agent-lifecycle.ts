@@ -25,7 +25,7 @@ import {
   ORG_CHARACTER_IDS,
   getOrgCharacter,
   isOrgCharacter,
-  type orgCharacters,
+  orgCharacters,
 } from "@/lib/eliza/characters/org";
 import type { Character } from "@elizaos/core";
 

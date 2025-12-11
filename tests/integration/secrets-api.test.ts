@@ -20,12 +20,22 @@ import { SecretsService } from "@/lib/services/secrets/secrets";
 import { LocalKMSProvider, SecretsEncryptionService } from "@/lib/services/secrets/encryption";
 import type { AuditContext } from "@/lib/services/secrets";
 
-// Test fixtures
-const TEST_ORG_ID = "test-org-secrets-integration";
-const TEST_USER_ID = "test-user-secrets-integration";
+// Test fixtures - using valid UUIDs
+const TEST_ORG_ID = "00000000-0000-0000-0000-000000000001";
+const TEST_USER_ID = "00000000-0000-0000-0000-000000000002";
 const TEST_MASTER_KEY = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
 
-describe("Secrets Integration Tests", () => {
+// Check if secrets tables exist
+let secretsTablesAvailable = false;
+try {
+  // This will fail if tables don't exist
+  await db.execute("SELECT 1 FROM secrets LIMIT 1");
+  secretsTablesAvailable = true;
+} catch {
+  console.log("[secrets-api.test.ts] Skipping - secrets tables not available");
+}
+
+describe.skipIf(!secretsTablesAvailable)("Secrets Integration Tests", () => {
   let service: SecretsService;
   let testOrgId: string;
   let testUserId: string;
@@ -39,14 +49,6 @@ describe("Secrets Integration Tests", () => {
   };
 
   beforeAll(async () => {
-    // Skip if no database connection
-    try {
-      await db.execute("SELECT 1");
-    } catch {
-      console.log("Skipping integration tests - no database connection");
-      return;
-    }
-
     // Set up encryption service
     const kms = new LocalKMSProvider(TEST_MASTER_KEY);
     const encryption = new SecretsEncryptionService(kms);

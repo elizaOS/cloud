@@ -9,6 +9,7 @@ import { db } from "@/db/client";
 import { agentTable } from "@/db/schemas/eliza";
 import { eq, inArray } from "drizzle-orm";
 import type { Agent } from "@elizaos/core";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Agent information returned from database.
@@ -105,9 +106,7 @@ export class AgentsRepository {
         .limit(1);
 
       if (existing.length > 0) {
-        console.warn(
-          `Attempted to create an agent with a duplicate ID. ID: ${agent.id}`,
-        );
+        logger.warn(`[AgentsRepository] Duplicate agent ID: ${agent.id}`);
         return false;
       }
     }
@@ -120,7 +119,7 @@ export class AgentsRepository {
       });
     });
 
-    console.debug(`Agent created successfully: ${agent.id}`);
+    logger.debug(`[AgentsRepository] Created agent: ${agent.id}`);
     return true;
   }
 
