@@ -10,11 +10,12 @@
 
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import type { UserWithOrganization } from "@/lib/types";
-import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle, CreditCard, Wallet } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
+import { CryptoPaymentModal } from "@/components/settings/crypto-payment-modal";
 
 interface BillingTabProps {
   user: UserWithOrganization;
@@ -40,12 +41,39 @@ const AMOUNT_LIMITS = {
   MAX: 1000,
 } as const;
 
+type PaymentMethod = "card" | "crypto";
+
+interface CryptoStatus {
+  enabled: boolean;
+  defaultNetwork: string;
+  networks: Array<{
+    id: string;
+    name: string;
+    chainId: number;
+    usdcAddress: string;
+    isTestnet: boolean;
+  }>;
+}
+
+interface CryptoPaymentData {
+  paymentId: string;
+  paymentAddress: string;
+  expectedAmount: string;
+  network: string;
+  tokenAddress: string;
+  expiresAt: string;
+}
+
 export function BillingTab({ user }: BillingTabProps) {
   const router = useRouter();
   const [invoices, setInvoices] = useState<InvoiceDisplay[]>([]);
   const [loadingInvoices, setLoadingInvoices] = useState(true);
   const [purchaseAmount, setPurchaseAmount] = useState("");
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
+  const [cryptoStatus, setCryptoStatus] = useState<CryptoStatus | null>(null);
+  const [cryptoPayment, setCryptoPayment] = useState<CryptoPaymentData | null>(null);
+  const [selectedNetwork, setSelectedNetwork] = useState<string>("");
 
   const [balance, setBalance] = useState(
     Number(user.organization?.credit_balance || 0),
@@ -71,13 +99,28 @@ export function BillingTab({ user }: BillingTabProps) {
     setLoadingInvoices(false);
   }, []);
 
+  const fetchCryptoStatus = useCallback(async () => {
+    try {
+      const response = await fetch("/api/crypto/status");
+      if (response.ok) {
+        const data = await response.json();
+        setCryptoStatus(data);
+        if (data.defaultNetwork) {
+          setSelectedNetwork(data.defaultNetwork);
+        }
+      }
+    } catch {
+      // Crypto not available
+    }
+  }, []);
+
   useEffect(() => {
-    // Use queueMicrotask to defer execution and avoid synchronous setState
     queueMicrotask(() => {
       fetchInvoices();
       fetchBalance();
+      fetchCryptoStatus();
     });
-  }, [fetchInvoices, fetchBalance]);
+  }, [fetchInvoices, fetchBalance, fetchCryptoStatus]);
 
   const handleBuyCredits = async () => {
     const amount = parseFloat(purchaseAmount);
@@ -93,6 +136,41 @@ export function BillingTab({ user }: BillingTabProps) {
     }
 
     setIsProcessingCheckout(true);
+
+    if (paymentMethod === "crypto") {
+      try {
+        const response = await fetch("/api/crypto/payments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount,
+            network: selectedNetwork || cryptoStatus?.defaultNetwork,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          toast.error(errorData.error || "Failed to create payment");
+          setIsProcessingCheckout(false);
+          return;
+        }
+
+        const data = await response.json();
+        setCryptoPayment({
+          paymentId: data.paymentId,
+          paymentAddress: data.paymentAddress,
+          expectedAmount: data.expectedAmount,
+          network: data.network,
+          tokenAddress: data.tokenAddress,
+          expiresAt: data.expiresAt,
+        });
+        setIsProcessingCheckout(false);
+      } catch {
+        toast.error("Failed to create crypto payment");
+        setIsProcessingCheckout(false);
+      }
+      return;
+    }
 
     const response = await fetch("/api/stripe/create-checkout-session", {
       method: "POST",
@@ -120,6 +198,13 @@ export function BillingTab({ user }: BillingTabProps) {
     }
 
     window.location.href = url;
+  };
+
+  const handleCryptoPaymentSuccess = () => {
+    setCryptoPayment(null);
+    setPurchaseAmount("");
+    fetchBalance();
+    fetchInvoices();
   };
 
   const handleViewInvoice = (invoice: InvoiceDisplay) => {
@@ -172,6 +257,59 @@ export function BillingTab({ user }: BillingTabProps) {
                   Max: ${AMOUNT_LIMITS.MAX}
                 </p>
 
+                {cryptoStatus?.enabled && (
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("card")}
+                      className={`flex items-center gap-2 px-4 py-2 font-mono text-sm border transition-colors ${
+                        paymentMethod === "card"
+                          ? "bg-[#FF5800] border-[#FF5800] text-white"
+                          : "bg-transparent border-[rgba(255,255,255,0.2)] text-white/60 hover:border-[rgba(255,255,255,0.4)]"
+                      }`}
+                    >
+                      <CreditCard className="h-4 w-4" />
+                      Card
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("crypto")}
+                      className={`flex items-center gap-2 px-4 py-2 font-mono text-sm border transition-colors ${
+                        paymentMethod === "crypto"
+                          ? "bg-[#FF5800] border-[#FF5800] text-white"
+                          : "bg-transparent border-[rgba(255,255,255,0.2)] text-white/60 hover:border-[rgba(255,255,255,0.4)]"
+                      }`}
+                    >
+                      <Wallet className="h-4 w-4" />
+                      USDC
+                    </button>
+                  </div>
+                )}
+
+                {paymentMethod === "crypto" && cryptoStatus?.networks && (
+                  <div className="flex flex-wrap gap-2">
+                    {cryptoStatus.networks.map((network) => (
+                      <button
+                        key={network.id}
+                        type="button"
+                        onClick={() => setSelectedNetwork(network.id)}
+                        className={`px-3 py-1.5 font-mono text-xs border transition-colors ${
+                          selectedNetwork === network.id
+                            ? "bg-white/10 border-white/40 text-white"
+                            : "bg-transparent border-[rgba(255,255,255,0.15)] text-white/50 hover:border-[rgba(255,255,255,0.3)]"
+                        }`}
+                      >
+                        {network.name}
+                        {network.isTestnet && (
+                          <span className="ml-1 text-[10px] text-yellow-400">
+                            TEST
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 {/* Amount Input and Buy Button */}
                 <div className="flex flex-col sm:flex-row items-stretch gap-4">
                   {/* Amount Input */}
@@ -211,12 +349,12 @@ export function BillingTab({ user }: BillingTabProps) {
                       <>
                         <Loader2 className="h-4 w-4 animate-spin text-black relative z-10" />
                         <span className="relative z-10 text-black font-mono font-medium text-base whitespace-nowrap">
-                          Redirecting...
+                          {paymentMethod === "crypto" ? "Creating..." : "Redirecting..."}
                         </span>
                       </>
                     ) : (
                       <span className="relative z-10 text-black font-mono font-medium text-base whitespace-nowrap">
-                        Buy credits
+                        {paymentMethod === "crypto" ? "Pay with USDC" : "Buy credits"}
                       </span>
                     )}
                   </button>
@@ -338,6 +476,19 @@ export function BillingTab({ user }: BillingTabProps) {
           </div>
         </div>
       </BrandCard>
+
+      {cryptoPayment && (
+        <CryptoPaymentModal
+          paymentId={cryptoPayment.paymentId}
+          paymentAddress={cryptoPayment.paymentAddress}
+          expectedAmount={cryptoPayment.expectedAmount}
+          network={cryptoPayment.network}
+          tokenAddress={cryptoPayment.tokenAddress}
+          expiresAt={cryptoPayment.expiresAt}
+          onClose={() => setCryptoPayment(null)}
+          onSuccess={handleCryptoPaymentSuccess}
+        />
+      )}
     </div>
   );
 }
