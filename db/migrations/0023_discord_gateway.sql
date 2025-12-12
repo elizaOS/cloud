@@ -209,3 +209,4 @@ COMMENT ON COLUMN discord_bot_connections.intents IS 'Discord gateway intents bi
 COMMENT ON COLUMN discord_bot_connections.sequence_number IS 'Last event sequence number for gateway resume after disconnect';
 COMMENT ON COLUMN discord_event_routes.mention_only IS 'When true, only routes messages that @mention the bot';
 COMMENT ON COLUMN discord_event_routes.priority IS 'Route matching priority. Higher values checked first. Default 100';
+

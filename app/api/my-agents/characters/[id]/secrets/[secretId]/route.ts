@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { secretsService, type AuditContext } from "@/lib/services/secrets";
+import { secretsService, isSecretsConfigured, type AuditContext } from "@/lib/services/secrets";
 import { secretsRepository } from "@/db/repositories/secrets";
 import { charactersService } from "@/lib/services/characters";
 
@@ -58,7 +58,7 @@ export async function GET(
     );
   }
 
-  if (!secretsService.isConfigured) {
+  if (!isSecretsConfigured()) {
     return NextResponse.json(
       { success: false, error: "Secrets service is not configured" },
       { status: 503 }
@@ -127,7 +127,7 @@ export async function PATCH(
     );
   }
 
-  if (!secretsService.isConfigured) {
+  if (!isSecretsConfigured()) {
     return NextResponse.json(
       { success: false, error: "Secrets service is not configured" },
       { status: 503 }
@@ -201,7 +201,7 @@ export async function DELETE(
     );
   }
 
-  if (!secretsService.isConfigured) {
+  if (!isSecretsConfigured()) {
     return NextResponse.json(
       { success: false, error: "Secrets service is not configured" },
       { status: 503 }

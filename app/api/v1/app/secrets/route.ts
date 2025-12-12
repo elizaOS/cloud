@@ -1,8 +1,5 @@
 /**
  * App Secrets API - Access secrets for the current app
- *
- * GET  /api/v1/app/secrets - List approved secrets for this app
- * POST /api/v1/app/secrets - Create a secret (app-scoped)
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -12,28 +9,33 @@ import { secretsService, type AuditContext } from "@/lib/services/secrets";
 import { appsService } from "@/lib/services/apps";
 import { logger } from "@/lib/utils/logger";
 
+async function getAppContext(request: NextRequest) {
+  const { user } = await requireAuthOrApiKeyWithOrg(request);
+  const appId = request.headers.get("X-App-Id");
+  if (!appId) throw new Error("X-App-Id header required");
+  const app = await appsService.getById(user.organization_id, appId);
+  if (!app) throw new Error("App not found");
+  return { app, user, audit: { actorType: "user", actorId: user.id, source: "app-secrets-api" } as AuditContext };
+}
+
+function handleError(error: unknown, operation: string) {
+  const message = error instanceof Error ? error.message : `Failed to ${operation}`;
+  logger.error(`[App Secrets] ${operation} failed`, { error: message });
+  if (message.includes("header required")) return NextResponse.json({ error: message }, { status: 400 });
+  if (message.includes("not found")) return NextResponse.json({ error: message }, { status: 404 });
+  if (message.includes("already exists")) return NextResponse.json({ error: message }, { status: 409 });
+  return NextResponse.json({ error: message }, { status: 500 });
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const appId = request.headers.get("X-App-Id");
-    if (!appId) {
-      return NextResponse.json({ error: "X-App-Id header required" }, { status: 400 });
-    }
-
-    const app = await appsService.getById(user.organization_id, appId);
-    if (!app) {
-      return NextResponse.json({ error: "App not found" }, { status: 404 });
-    }
-
-    const audit: AuditContext = { actorType: "user", actorId: user.id, source: "app-secrets-api" };
+    const { app, audit } = await getAppContext(request);
     const secrets = await secretsService.getAppSecrets(app.id, app.organization_id, audit);
-
     return NextResponse.json({
       secrets: Object.entries(secrets).map(([name, value]) => ({ name, value })),
     });
   } catch (error) {
-    logger.error("[App Secrets] GET failed", { error: error instanceof Error ? error.message : error });
-    return NextResponse.json({ error: "Failed to get secrets" }, { status: 500 });
+    return handleError(error, "GET");
   }
 }
 
@@ -45,21 +47,8 @@ const CreateSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const appId = request.headers.get("X-App-Id");
-    if (!appId) {
-      return NextResponse.json({ error: "X-App-Id header required" }, { status: 400 });
-    }
-
-    const app = await appsService.getById(user.organization_id, appId);
-    if (!app) {
-      return NextResponse.json({ error: "App not found" }, { status: 404 });
-    }
-
-    const body = await request.json();
-    const audit: AuditContext = { actorType: "user", actorId: user.id, source: "app-secrets-api" };
-
-    const parsed = CreateSchema.safeParse(body);
+    const { app, user, audit } = await getAppContext(request);
+    const parsed = CreateSchema.safeParse(await request.json());
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid request", details: parsed.error.format() }, { status: 400 });
     }
@@ -75,15 +64,10 @@ export async function POST(request: NextRequest) {
       createdBy: user.id,
     }, audit);
 
-    logger.info("[App Secrets] Created", { name: parsed.data.name, appId: app.id, userId: user.id });
+    logger.info("[App Secrets] Created", { name: parsed.data.name, appId: app.id });
     return NextResponse.json({ id: secret.id, name: secret.name }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to create secret";
-    logger.error("[App Secrets] POST failed", { error: message });
-    if (message.includes("already exists")) {
-      return NextResponse.json({ error: message }, { status: 409 });
-    }
-    return NextResponse.json({ error: message }, { status: 500 });
+    return handleError(error, "POST");
   }
 }
 

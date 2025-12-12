@@ -1,32 +1,20 @@
-/**
- * Secrets API - Encrypted key-value storage
- *
- * Works via session, API key, or app token auth.
- *
- * GET  /api/v1/secrets - List secrets with optional filters
- * GET  /api/v1/secrets?name=X - Get specific secret value
- * POST /api/v1/secrets - Create secret or bulk create
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { secretsService, type AuditContext } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
-import type { SecretProvider, SecretProjectType, SecretEnvironment } from "@/db/schemas/secrets";
+import {
+  secretProviderEnum,
+  secretProjectTypeEnum,
+  secretEnvironmentEnum,
+  type SecretProvider,
+  type SecretProjectType,
+  type SecretEnvironment,
+} from "@/db/schemas/secrets";
 
-const VALID_PROVIDERS: SecretProvider[] = [
-  "openai", "anthropic", "google", "elevenlabs", "fal", "stripe",
-  "discord", "telegram", "twitter", "github", "slack", "aws", "vercel", "custom"
-];
-
-const VALID_PROJECT_TYPES: SecretProjectType[] = [
-  "character", "app", "workflow", "container", "mcp"
-];
-
-const VALID_ENVIRONMENTS: SecretEnvironment[] = [
-  "development", "preview", "production"
-];
+const PROVIDERS = secretProviderEnum.enumValues;
+const PROJECT_TYPES = secretProjectTypeEnum.enumValues;
+const ENVIRONMENTS = secretEnvironmentEnum.enumValues;
 
 export async function GET(request: NextRequest) {
   try {
@@ -47,14 +35,14 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get("limit") || "100"), 500);
     const offset = parseInt(searchParams.get("offset") || "0");
 
-    if (provider && !VALID_PROVIDERS.includes(provider)) {
-      return NextResponse.json({ error: `Invalid provider` }, { status: 400 });
+    if (provider && !PROVIDERS.includes(provider)) {
+      return NextResponse.json({ error: "Invalid provider" }, { status: 400 });
     }
-    if (projectType && !VALID_PROJECT_TYPES.includes(projectType)) {
-      return NextResponse.json({ error: `Invalid projectType` }, { status: 400 });
+    if (projectType && !PROJECT_TYPES.includes(projectType)) {
+      return NextResponse.json({ error: "Invalid projectType" }, { status: 400 });
     }
-    if (environment && !VALID_ENVIRONMENTS.includes(environment)) {
-      return NextResponse.json({ error: `Invalid environment` }, { status: 400 });
+    if (environment && !ENVIRONMENTS.includes(environment)) {
+      return NextResponse.json({ error: "Invalid environment" }, { status: 400 });
     }
 
     const result = await secretsService.listFiltered({
@@ -97,10 +85,10 @@ const CreateSchema = z.object({
   name: z.string().min(1).max(255),
   value: z.string().min(1),
   description: z.string().optional(),
-  provider: z.enum(VALID_PROVIDERS as [SecretProvider, ...SecretProvider[]]).optional(),
+  provider: z.enum(PROVIDERS).optional(),
   projectId: z.string().uuid().optional(),
-  projectType: z.enum(VALID_PROJECT_TYPES as [SecretProjectType, ...SecretProjectType[]]).optional(),
-  environment: z.enum(VALID_ENVIRONMENTS as [SecretEnvironment, ...SecretEnvironment[]]).optional(),
+  projectType: z.enum(PROJECT_TYPES).optional(),
+  environment: z.enum(ENVIRONMENTS).optional(),
 });
 
 const BulkCreateSchema = z.object({
@@ -108,7 +96,7 @@ const BulkCreateSchema = z.object({
     name: z.string().min(1).max(255),
     value: z.string().min(1),
     description: z.string().optional(),
-    provider: z.enum(VALID_PROVIDERS as [SecretProvider, ...SecretProvider[]]).optional(),
+    provider: z.enum(PROVIDERS).optional(),
   })).min(1).max(100),
 });
 

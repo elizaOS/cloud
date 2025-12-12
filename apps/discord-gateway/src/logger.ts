@@ -36,3 +36,4 @@ export const logger = {
     if (shouldLog("error")) console.error(formatMessage("error", message, meta));
   },
 };
+

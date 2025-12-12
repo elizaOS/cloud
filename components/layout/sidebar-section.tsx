@@ -132,6 +132,8 @@ export function SidebarNavigationSection({
     switch (section.title.toLowerCase()) {
       case "agents":
         return "#0B35F1"; // Blue - AI/Agents
+      case "apps":
+        return "#06B6D4"; // Cyan - Apps/Services
       case "generation studio":
         return "#FF5800"; // Orange - Creative/Generation
       case "infrastructure":

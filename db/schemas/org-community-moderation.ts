@@ -484,3 +484,4 @@ export type TokenGateChain = (typeof tokenGateChainEnum.enumValues)[number];
 export type TokenGateType = (typeof tokenGateTypeEnum.enumValues)[number];
 export type VerificationMethod = (typeof verificationMethodEnum.enumValues)[number];
 
+

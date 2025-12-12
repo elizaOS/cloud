@@ -9,22 +9,21 @@ import { BaseHttpClient } from "../base-client";
 const COINGECKO_FREE_URL = "https://api.coingecko.com/api/v3";
 const COINGECKO_PRO_URL = "https://pro-api.coingecko.com/api/v3";
 
-/**
- * CoinGecko-specific HTTP client
- */
 export class CoinGeckoClient extends BaseHttpClient {
-  private readonly isPro: boolean;
+  private readonly tier: "free" | "demo" | "pro";
 
   constructor(config: { apiKey?: string; timeout?: number }) {
-    const isPro = Boolean(config.apiKey);
+    // Determine tier based on API key format
+    // Demo keys start with "CG-", Pro keys don't have this prefix
+    const tier = !config.apiKey ? "free" : config.apiKey.startsWith("CG-") ? "demo" : "pro";
+    const baseUrl = tier === "pro" ? COINGECKO_PRO_URL : COINGECKO_FREE_URL;
+    const headerKey = tier === "pro" ? "x-cg-pro-api-key" : tier === "demo" ? "x-cg-demo-api-key" : "";
 
     super(
       {
-        baseUrl: isPro ? COINGECKO_PRO_URL : COINGECKO_FREE_URL,
+        baseUrl,
         apiKey: config.apiKey ?? "",
-        headers: config.apiKey
-          ? { "x-cg-pro-api-key": config.apiKey }
-          : {},
+        headers: headerKey ? { [headerKey]: config.apiKey! } : {},
         timeout: config.timeout,
         maxRetries: 3,
         retryDelay: 1000,
@@ -32,14 +31,15 @@ export class CoinGeckoClient extends BaseHttpClient {
       "CoinGecko"
     );
 
-    this.isPro = isPro;
+    this.tier = tier;
   }
 
-  /**
-   * Check if using Pro API
-   */
   isProTier(): boolean {
-    return this.isPro;
+    return this.tier === "pro";
+  }
+
+  getTier(): "free" | "demo" | "pro" {
+    return this.tier;
   }
 
   /**

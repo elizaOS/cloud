@@ -113,3 +113,4 @@ export const ListCampaignsSchema = z.object({
 });
 
 export const GetAnalyticsSchema = CampaignIdSchema.merge(DateRangeSchema);
+

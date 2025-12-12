@@ -4,14 +4,25 @@ import { requireAuth } from "@/lib/middleware/app-auth";
 import { platformCredentialsService, MANUAL_AUTH_PLATFORMS, SOCIAL_PLATFORMS } from "@/lib/services/platform-credentials";
 import { logger } from "@/lib/utils/logger";
 
-const ManualCredentialsSchema = z.object({
-  platform: z.enum(["bluesky", "telegram"]),
+const BlueskyCredentialsSchema = z.object({
+  platform: z.literal("bluesky"),
   credentials: z.object({
-    handle: z.string().optional(),
-    appPassword: z.string().optional(),
-    botToken: z.string().optional(),
+    handle: z.string().min(1, "Handle is required"),
+    appPassword: z.string().min(1, "App password is required"),
   }),
 });
+
+const TelegramCredentialsSchema = z.object({
+  platform: z.literal("telegram"),
+  credentials: z.object({
+    botToken: z.string().min(1, "Bot token is required").regex(/^\d+:[A-Za-z0-9_-]+$/, "Invalid bot token format"),
+  }),
+});
+
+const ManualCredentialsSchema = z.discriminatedUnion("platform", [
+  BlueskyCredentialsSchema,
+  TelegramCredentialsSchema,
+]);
 
 export async function GET(request: NextRequest) {
   const authResult = await requireAuth(request);
@@ -32,12 +43,15 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const parsed = ManualCredentialsSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ success: false, error: "Invalid request", details: parsed.error.issues }, { status: 400 });
+    return NextResponse.json({ 
+      success: false, 
+      error: parsed.error.issues[0]?.message || "Invalid request",
+    }, { status: 400 });
   }
 
   const { platform, credentials } = parsed.data;
 
-  if (!MANUAL_AUTH_PLATFORMS.includes(platform as typeof MANUAL_AUTH_PLATFORMS[number])) {
+  if (!MANUAL_AUTH_PLATFORMS.includes(platform)) {
     return NextResponse.json({ 
       success: false, 
       error: `Platform ${platform} requires OAuth. Use /api/v1/social-connections/connect/${platform} instead.` 
@@ -47,14 +61,14 @@ export async function POST(request: NextRequest) {
   const credential = await platformCredentialsService.storeManualCredentials({
     organizationId: user.organization_id,
     userId: user.id,
-    platform: platform as "bluesky" | "telegram",
+    platform,
     credentials,
   });
 
   logger.info("[SocialConnections] Manual credentials stored", { 
     platform, 
     userId: user.id,
-    credentialId: credential.id 
+    credentialId: credential.id,
   });
 
   return NextResponse.json({
@@ -70,3 +84,4 @@ export async function POST(request: NextRequest) {
     },
   });
 }
+

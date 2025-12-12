@@ -429,3 +429,4 @@ export class DiscordStateManager {
 
 // Export singleton instance
 export const discordStateManager = DiscordStateManager.getInstance();
+

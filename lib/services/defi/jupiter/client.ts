@@ -6,9 +6,10 @@
 
 import { BaseHttpClient } from "../base-client";
 
-const JUPITER_QUOTE_API_URL = "https://quote-api.jup.ag/v6";
-const JUPITER_PRICE_API_URL = "https://price.jup.ag/v6";
-const JUPITER_TOKEN_API_URL = "https://token.jup.ag";
+// Jupiter migrated to new API domains in 2024
+const JUPITER_API_URL = "https://public.jupiterapi.com";
+const JUPITER_PRICE_API_URL = "https://api.jup.ag/price/v2";
+const JUPITER_TOKEN_API_URL = "https://cache.jup.ag";
 
 /**
  * Jupiter-specific HTTP client
@@ -20,11 +21,9 @@ export class JupiterClient extends BaseHttpClient {
   constructor(config: { apiKey?: string; timeout?: number }) {
     super(
       {
-        baseUrl: JUPITER_QUOTE_API_URL,
+        baseUrl: JUPITER_API_URL,
         apiKey: config.apiKey ?? "",
-        headers: config.apiKey
-          ? { Authorization: `Bearer ${config.apiKey}` }
-          : {},
+        headers: config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {},
         timeout: config.timeout,
       },
       "Jupiter"

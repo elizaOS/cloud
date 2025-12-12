@@ -19,6 +19,7 @@ import {
 import { fragmentProjects } from "@/db/schemas/fragment-projects";
 import { containers } from "@/db/schemas/containers";
 import { userMcps } from "@/db/schemas/user-mcps";
+import { codeAgentSessions } from "@/db/schemas/code-agent-sessions";
 import { organizations } from "@/db/schemas/organizations";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { randomBytes } from "crypto";
@@ -29,7 +30,7 @@ import { generateWebhookSecret } from "@/lib/utils/webhook-signature";
 // TYPES
 // =============================================================================
 
-type TargetType = "fragment_project" | "container" | "user_mcp";
+type TargetType = "fragment_project" | "container" | "user_mcp" | "code_agent_session";
 type TriggerType = "cron" | "webhook" | "event";
 
 interface CreateTriggerParams {
@@ -455,6 +456,19 @@ class ApplicationTriggersService {
             and(
               eq(userMcps.id, targetId),
               eq(userMcps.organization_id, organizationId)
+            )
+          )
+          .limit(1);
+        break;
+
+      case "code_agent_session":
+        [target] = await db
+          .select()
+          .from(codeAgentSessions)
+          .where(
+            and(
+              eq(codeAgentSessions.id, targetId),
+              eq(codeAgentSessions.organization_id, organizationId)
             )
           )
           .limit(1);

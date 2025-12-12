@@ -55,17 +55,20 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T) => voi
 import { toAISDKMessages, toMessageImage, type Message as MessageType } from "@/lib/fragments/messages";
 
 export default function FragmentsPage() {
+  const searchParams = useSearchParams();
+  const initialPromptUsedRef = useRef(false);
+
   // Builder mode state
   const [builderMode, setBuilderMode] = useLocalStorage<BuilderMode>("fragments-builder-mode", "quick");
   const [showFullAppDialog, setShowFullAppDialog] = useState(false);
   const [showServiceDialog, setShowServiceDialog] = useState(false);
 
-  const searchParams = useSearchParams();
-  const initialPromptUsedRef = useRef(false);
-
+  // Chat state
   const [chatInput, setChatInput] = useLocalStorage("fragments-chat", "");
+  const [files, setFiles] = useState<File[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("auto");
 
-  // Handle initial prompt from URL
+  // Handle initial prompt from URL - apply once on mount
   useEffect(() => {
     const promptParam = searchParams.get("prompt");
     if (promptParam && !initialPromptUsedRef.current) {
@@ -73,8 +76,6 @@ export default function FragmentsPage() {
       initialPromptUsedRef.current = true;
     }
   }, [searchParams, setChatInput]);
-  const [files, setFiles] = useState<File[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("auto");
   const [languageModel, setLanguageModel] = useLocalStorage<LLMModelConfig>(
     "fragments-languageModel",
     {

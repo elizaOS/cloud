@@ -5,6 +5,7 @@
  */
 
 import { logger } from "@/lib/utils/logger";
+import { DISCORD_API_BASE, discordBotHeaders } from "@/lib/utils/discord-api";
 import { discordGatewayService } from "./gateway-service";
 import { discordStateManager } from "./state-manager";
 import type {
@@ -13,8 +14,6 @@ import type {
   DiscordMessage,
   DiscordEmbed,
 } from "./types";
-
-const DISCORD_API_BASE = "https://discord.com/api/v10";
 
 /**
  * Discord Message Sender Service
@@ -90,10 +89,7 @@ export class DiscordMessageSender {
       `${DISCORD_API_BASE}/channels/${request.channelId}/messages`,
       {
         method: "POST",
-        headers: {
-          Authorization: `Bot ${token}`,
-          "Content-Type": "application/json",
-        },
+        headers: discordBotHeaders(token),
         body: JSON.stringify(payload),
       }
     );
@@ -147,10 +143,7 @@ export class DiscordMessageSender {
       `${DISCORD_API_BASE}/channels/${channelId}/messages/${messageId}`,
       {
         method: "PATCH",
-        headers: {
-          Authorization: `Bot ${token}`,
-          "Content-Type": "application/json",
-        },
+        headers: discordBotHeaders(token),
         body: JSON.stringify(payload),
       }
     );
@@ -178,9 +171,7 @@ export class DiscordMessageSender {
       `${DISCORD_API_BASE}/channels/${channelId}/messages/${messageId}`,
       {
         method: "DELETE",
-        headers: {
-          Authorization: `Bot ${token}`,
-        },
+        headers: discordBotHeaders(token),
       }
     );
 
@@ -206,9 +197,7 @@ export class DiscordMessageSender {
       `${DISCORD_API_BASE}/channels/${channelId}/messages/${messageId}/reactions/${encodedEmoji}/@me`,
       {
         method: "PUT",
-        headers: {
-          Authorization: `Bot ${token}`,
-        },
+        headers: discordBotHeaders(token),
       }
     );
 
@@ -235,9 +224,7 @@ export class DiscordMessageSender {
       `${DISCORD_API_BASE}/channels/${channelId}/messages/${messageId}/reactions/${encodedEmoji}/${target}`,
       {
         method: "DELETE",
-        headers: {
-          Authorization: `Bot ${token}`,
-        },
+        headers: discordBotHeaders(token),
       }
     );
 
@@ -283,10 +270,7 @@ export class DiscordMessageSender {
       `${DISCORD_API_BASE}/channels/${channelId}/messages/${messageId}/threads`,
       {
         method: "POST",
-        headers: {
-          Authorization: `Bot ${token}`,
-          "Content-Type": "application/json",
-        },
+        headers: discordBotHeaders(token),
         body: JSON.stringify({
           name: name.slice(0, 100), // Thread name limit
           auto_archive_duration: autoArchiveDuration ?? 1440,
@@ -313,9 +297,7 @@ export class DiscordMessageSender {
     if (!token) return null;
 
     const response = await fetch(`${DISCORD_API_BASE}/channels/${channelId}`, {
-      headers: {
-        Authorization: `Bot ${token}`,
-      },
+      headers: discordBotHeaders(token),
     });
 
     if (!response.ok) return null;
@@ -348,9 +330,7 @@ export class DiscordMessageSender {
     const url = `${DISCORD_API_BASE}/channels/${channelId}/messages?${params}`;
 
     const response = await fetch(url, {
-      headers: {
-        Authorization: `Bot ${token}`,
-      },
+      headers: discordBotHeaders(token),
     });
 
     if (!response.ok) return [];
@@ -372,9 +352,7 @@ export class DiscordMessageSender {
     const response = await fetch(
       `${DISCORD_API_BASE}/channels/${channelId}/messages/${messageId}`,
       {
-        headers: {
-          Authorization: `Bot ${token}`,
-        },
+        headers: discordBotHeaders(token),
       }
     );
 
@@ -401,9 +379,7 @@ export class DiscordMessageSender {
     const response = await fetch(
       `${DISCORD_API_BASE}/guilds/${guildId}/members/${userId}`,
       {
-        headers: {
-          Authorization: `Bot ${token}`,
-        },
+        headers: discordBotHeaders(token),
       }
     );
 
@@ -431,10 +407,7 @@ export class DiscordMessageSender {
       return { success: false, error: "Bot token not found" };
     }
 
-    const headers: Record<string, string> = {
-      Authorization: `Bot ${token}`,
-    };
-    if (reason) {
+    const headers = discordBotHeaders(token, reason ? { "X-Audit-Log-Reason": reason } : undefined);
       headers["X-Audit-Log-Reason"] = encodeURIComponent(reason.slice(0, 512));
     }
 
@@ -471,12 +444,10 @@ export class DiscordMessageSender {
       return { success: false, error: "Bot token not found" };
     }
 
-    const headers: Record<string, string> = {
-      Authorization: `Bot ${token}`,
-    };
-    if (reason) {
-      headers["X-Audit-Log-Reason"] = encodeURIComponent(reason.slice(0, 512));
-    }
+    const headers = discordBotHeaders(
+      token,
+      reason ? { "X-Audit-Log-Reason": encodeURIComponent(reason.slice(0, 512)) } : undefined
+    );
 
     const response = await fetch(
       `${DISCORD_API_BASE}/guilds/${guildId}/members/${userId}/roles/${roleId}`,
@@ -507,9 +478,7 @@ export class DiscordMessageSender {
     if (!token) return [];
 
     const response = await fetch(`${DISCORD_API_BASE}/guilds/${guildId}/roles`, {
-      headers: {
-        Authorization: `Bot ${token}`,
-      },
+      headers: discordBotHeaders(token),
     });
 
     if (!response.ok) return [];
@@ -538,13 +507,10 @@ export class DiscordMessageSender {
     const actualDuration = Math.min(durationSeconds, maxDuration);
     const timeoutUntil = new Date(Date.now() + actualDuration * 1000).toISOString();
 
-    const headers: Record<string, string> = {
-      Authorization: `Bot ${token}`,
-      "Content-Type": "application/json",
-    };
-    if (reason) {
-      headers["X-Audit-Log-Reason"] = encodeURIComponent(reason.slice(0, 512));
-    }
+    const headers = discordBotHeaders(
+      token,
+      reason ? { "X-Audit-Log-Reason": encodeURIComponent(reason.slice(0, 512)) } : undefined
+    );
 
     const response = await fetch(
       `${DISCORD_API_BASE}/guilds/${guildId}/members/${userId}`,
@@ -581,13 +547,10 @@ export class DiscordMessageSender {
       return { success: false, error: "Bot token not found" };
     }
 
-    const headers: Record<string, string> = {
-      Authorization: `Bot ${token}`,
-      "Content-Type": "application/json",
-    };
-    if (reason) {
-      headers["X-Audit-Log-Reason"] = encodeURIComponent(reason.slice(0, 512));
-    }
+    const headers = discordBotHeaders(
+      token,
+      reason ? { "X-Audit-Log-Reason": encodeURIComponent(reason.slice(0, 512)) } : undefined
+    );
 
     const response = await fetch(
       `${DISCORD_API_BASE}/guilds/${guildId}/members/${userId}`,
@@ -624,10 +587,7 @@ export class DiscordMessageSender {
       return { success: false, error: "Bot token not found" };
     }
 
-    const headers: Record<string, string> = {
-      Authorization: `Bot ${token}`,
-    };
-    if (reason) {
+    const headers = discordBotHeaders(token, reason ? { "X-Audit-Log-Reason": reason } : undefined);
       headers["X-Audit-Log-Reason"] = encodeURIComponent(reason.slice(0, 512));
     }
 
@@ -665,13 +625,10 @@ export class DiscordMessageSender {
       return { success: false, error: "Bot token not found" };
     }
 
-    const headers: Record<string, string> = {
-      Authorization: `Bot ${token}`,
-      "Content-Type": "application/json",
-    };
-    if (reason) {
-      headers["X-Audit-Log-Reason"] = encodeURIComponent(reason.slice(0, 512));
-    }
+    const headers = discordBotHeaders(
+      token,
+      reason ? { "X-Audit-Log-Reason": encodeURIComponent(reason.slice(0, 512)) } : undefined
+    );
 
     const body: Record<string, number> = {};
     if (deleteMessageSeconds !== undefined) {
@@ -711,12 +668,10 @@ export class DiscordMessageSender {
       return { success: false, error: "Bot token not found" };
     }
 
-    const headers: Record<string, string> = {
-      Authorization: `Bot ${token}`,
-    };
-    if (reason) {
-      headers["X-Audit-Log-Reason"] = encodeURIComponent(reason.slice(0, 512));
-    }
+    const headers = discordBotHeaders(
+      token,
+      reason ? { "X-Audit-Log-Reason": encodeURIComponent(reason.slice(0, 512)) } : undefined
+    );
 
     const response = await fetch(
       `${DISCORD_API_BASE}/guilds/${guildId}/bans/${userId}`,
@@ -754,10 +709,7 @@ export class DiscordMessageSender {
     // Create DM channel
     const dmResponse = await fetch(`${DISCORD_API_BASE}/users/@me/channels`, {
       method: "POST",
-      headers: {
-        Authorization: `Bot ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers: discordBotHeaders(token),
       body: JSON.stringify({ recipient_id: userId }),
     });
 
@@ -780,4 +732,5 @@ export class DiscordMessageSender {
 
 // Export singleton instance
 export const discordMessageSender = DiscordMessageSender.getInstance();
+
 

@@ -3,7 +3,13 @@ import { tasksService, TodoPriority, TodoStatus } from "@/lib/services/tasks";
 import { checkinsService, CheckinType, CheckinFrequency } from "@/lib/services/checkins";
 import { botsService } from "@/lib/services/bots";
 import { seoService } from "@/lib/services/seo";
-import { advertisingService, type AdPlatform } from "@/lib/services/advertising";
+import {
+  advertisingService,
+  type AdPlatform,
+  AdPlatformSchema,
+  CampaignIdSchema,
+  GetAnalyticsSchema as AdGetAnalyticsSchema,
+} from "@/lib/services/advertising";
 import { analyticsService } from "@/lib/services/analytics";
 import { secretsService } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
@@ -1188,24 +1194,22 @@ async function handleGetSeoRequest(
   };
 }
 
-// ADVERTISING TOOLS
+// ADVERTISING TOOLS (uses shared schemas from @/lib/services/advertising/schemas)
 
-const AdPlatformSchema = z.enum(["meta", "google", "tiktok"]);
-
-const ListAdAccountsSchema = z.object({
+const OrgListAdAccountsSchema = z.object({
   platform: AdPlatformSchema.optional().describe("Filter by platform"),
 });
 
-const ListCampaignsSchema = z.object({
+const OrgListCampaignsSchema = z.object({
   adAccountId: z.string().uuid().optional().describe("Filter by ad account"),
   platform: AdPlatformSchema.optional().describe("Filter by platform"),
   status: z.enum(["pending", "active", "paused", "ended", "archived"]).optional(),
 });
 
-const CreateCampaignSchema = z.object({
+const OrgCreateCampaignSchema = z.object({
   adAccountId: z.string().uuid().describe("Ad account to create campaign in"),
   name: z.string().min(1).max(200).describe("Campaign name"),
-  objective: z.enum(["awareness", "traffic", "engagement", "leads", "sales", "app_installs"]).describe("Campaign objective"),
+  objective: z.enum(["awareness", "traffic", "engagement", "leads", "sales", "app_promotion", "conversions"]).describe("Campaign objective"),
   budgetType: z.enum(["daily", "lifetime"]).describe("Budget type"),
   budgetAmount: z.number().positive().describe("Budget amount in USD"),
   startDate: z.string().datetime().optional().describe("Campaign start date"),
@@ -1213,17 +1217,11 @@ const CreateCampaignSchema = z.object({
   targeting: z.record(z.unknown()).optional().describe("Targeting settings"),
 });
 
-const CampaignActionSchema = z.object({
-  campaignId: z.string().uuid().describe("Campaign ID"),
-});
+const OrgCampaignActionSchema = CampaignIdSchema;
 
-const GetCampaignAnalyticsSchema = z.object({
-  campaignId: z.string().uuid().describe("Campaign ID"),
-  startDate: z.string().datetime().optional().describe("Analytics start date"),
-  endDate: z.string().datetime().optional().describe("Analytics end date"),
-});
+const OrgGetCampaignAnalyticsSchema = AdGetAnalyticsSchema;
 
-const CreateCreativeSchema = z.object({
+const OrgCreateCreativeSchema = z.object({
   campaignId: z.string().uuid().describe("Campaign to add creative to"),
   name: z.string().describe("Creative name"),
   type: z.enum(["image", "video", "carousel"]).describe("Creative type"),
@@ -1236,7 +1234,7 @@ const CreateCreativeSchema = z.object({
 });
 
 async function handleListAdAccounts(
-  params: z.infer<typeof ListAdAccountsSchema>,
+  params: z.infer<typeof OrgListAdAccountsSchema>,
   context: MCPContext
 ) {
   const accounts = await advertisingService.listAccounts(
@@ -1258,7 +1256,7 @@ async function handleListAdAccounts(
 }
 
 async function handleListCampaigns(
-  params: z.infer<typeof ListCampaignsSchema>,
+  params: z.infer<typeof OrgListCampaignsSchema>,
   context: MCPContext
 ) {
   const campaigns = await advertisingService.listCampaigns(
@@ -1292,7 +1290,7 @@ async function handleListCampaigns(
 }
 
 async function handleCreateCampaign(
-  params: z.infer<typeof CreateCampaignSchema>,
+  params: z.infer<typeof OrgCreateCampaignSchema>,
   context: MCPContext
 ) {
   const campaign = await advertisingService.createCampaign({
@@ -1320,7 +1318,7 @@ async function handleCreateCampaign(
 }
 
 async function handleStartCampaign(
-  params: z.infer<typeof CampaignActionSchema>,
+  params: z.infer<typeof OrgCampaignActionSchema>,
   context: MCPContext
 ) {
   const campaign = await advertisingService.startCampaign(
@@ -1339,7 +1337,7 @@ async function handleStartCampaign(
 }
 
 async function handlePauseCampaign(
-  params: z.infer<typeof CampaignActionSchema>,
+  params: z.infer<typeof OrgCampaignActionSchema>,
   context: MCPContext
 ) {
   const campaign = await advertisingService.pauseCampaign(
@@ -1358,7 +1356,7 @@ async function handlePauseCampaign(
 }
 
 async function handleDeleteCampaign(
-  params: z.infer<typeof CampaignActionSchema>,
+  params: z.infer<typeof OrgCampaignActionSchema>,
   context: MCPContext
 ) {
   await advertisingService.deleteCampaign(
@@ -1370,7 +1368,7 @@ async function handleDeleteCampaign(
 }
 
 async function handleGetCampaignAnalytics(
-  params: z.infer<typeof GetCampaignAnalyticsSchema>,
+  params: z.infer<typeof OrgGetCampaignAnalyticsSchema>,
   context: MCPContext
 ) {
   const metrics = await advertisingService.getCampaignMetrics(
@@ -1421,7 +1419,7 @@ async function handleGetAdStats(
 }
 
 async function handleCreateCreative(
-  params: z.infer<typeof CreateCreativeSchema>,
+  params: z.infer<typeof OrgCreateCreativeSchema>,
   context: MCPContext
 ) {
   const creative = await advertisingService.createCreative(
@@ -1885,43 +1883,43 @@ export const orgMcpServer: MCPServerDefinition = {
     {
       name: "list_ad_accounts",
       description: "List connected advertising accounts (Meta, Google, TikTok).",
-      inputSchema: ListAdAccountsSchema,
+      inputSchema: OrgListAdAccountsSchema,
       handler: handleListAdAccounts as MCPToolDefinition["handler"],
     },
     {
       name: "list_campaigns",
       description: "List advertising campaigns with optional filters.",
-      inputSchema: ListCampaignsSchema,
+      inputSchema: OrgListCampaignsSchema,
       handler: handleListCampaigns as MCPToolDefinition["handler"],
     },
     {
       name: "create_campaign",
       description: "Create a new advertising campaign. Requires an ad account and allocates budget from credits.",
-      inputSchema: CreateCampaignSchema,
+      inputSchema: OrgCreateCampaignSchema,
       handler: handleCreateCampaign as MCPToolDefinition["handler"],
     },
     {
       name: "start_campaign",
       description: "Start/activate a paused or pending advertising campaign.",
-      inputSchema: CampaignActionSchema,
+      inputSchema: OrgCampaignActionSchema,
       handler: handleStartCampaign as MCPToolDefinition["handler"],
     },
     {
       name: "pause_campaign",
       description: "Pause an active advertising campaign.",
-      inputSchema: CampaignActionSchema,
+      inputSchema: OrgCampaignActionSchema,
       handler: handlePauseCampaign as MCPToolDefinition["handler"],
     },
     {
       name: "delete_campaign",
       description: "Delete an advertising campaign. Unused budget is refunded to credits.",
-      inputSchema: CampaignActionSchema,
+      inputSchema: OrgCampaignActionSchema,
       handler: handleDeleteCampaign as MCPToolDefinition["handler"],
     },
     {
       name: "get_campaign_analytics",
       description: "Get performance metrics for an advertising campaign (spend, impressions, clicks, conversions).",
-      inputSchema: GetCampaignAnalyticsSchema,
+      inputSchema: OrgGetCampaignAnalyticsSchema,
       handler: handleGetCampaignAnalytics as MCPToolDefinition["handler"],
     },
     {
@@ -1933,7 +1931,7 @@ export const orgMcpServer: MCPServerDefinition = {
     {
       name: "create_creative",
       description: "Create an ad creative (image, video, carousel) for a campaign.",
-      inputSchema: CreateCreativeSchema,
+      inputSchema: OrgCreateCreativeSchema,
       handler: handleCreateCreative as MCPToolDefinition["handler"],
     },
     // Analytics Tools

@@ -287,3 +287,4 @@ COMMENT ON TABLE org_moderation_events IS 'Moderation action log for audit and e
 COMMENT ON TABLE org_spam_tracking IS 'Per-user spam detection and rate limiting state';
 COMMENT ON TABLE org_blocked_patterns IS 'Configurable patterns for scam/spam/phishing detection';
 
+

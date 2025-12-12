@@ -1,10 +1,14 @@
 import { managedDomainsRepository, type ManagedDomain, type NewManagedDomain, type DnsRecord } from "@/db/repositories/managed-domains";
 import { logger } from "@/lib/utils/logger";
 import { domainModerationService } from "./domain-moderation";
+import { normalizeDomain as normalizeD, isApexDomain, extractErrorMessage } from "@/lib/types/domains";
 
 const VERCEL_API_BASE = "https://api.vercel.com";
 const VERCEL_TOKEN = process.env.VERCEL_TOKEN;
 const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID;
+
+// Re-export normalizeDomain for backward compatibility
+export const normalizeDomain = normalizeD;
 
 export interface DomainSearchResult {
   domain: string;
@@ -113,11 +117,6 @@ async function vercelFetch<T>(
   return response.json();
 }
 
-function normalizeDomain(domain: string): string {
-  return domain.toLowerCase().trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
-}
-
-const isApexDomain = (domain: string) => domain.split(".").length === 2;
 
 class DomainManagementService {
   async checkAvailability(domain: string): Promise<DomainSearchResult> {
@@ -501,137 +500,47 @@ class DomainManagementService {
     }
   }
 
-  async assignToApp(
+  async assignToResource(
     domainId: string,
-    appId: string,
+    resourceType: "app" | "container" | "agent" | "mcp",
+    resourceId: string,
     organizationId: string
   ): Promise<ManagedDomain | null> {
-    const domain = await managedDomainsRepository.findByIdAndOrg(
-      domainId,
-      organizationId
-    );
+    const domain = await managedDomainsRepository.findByIdAndOrg(domainId, organizationId);
     if (!domain) return null;
+    if (!domain.verified && domain.registrar === "external") return null;
 
-    if (!domain.verified && domain.registrar === "external") {
-      logger.warn("[DomainManagement] Cannot assign unverified external domain");
-      return null;
-    }
+    const assignFn = {
+      app: () => managedDomainsRepository.assignToApp(domainId, resourceId),
+      container: () => managedDomainsRepository.assignToContainer(domainId, resourceId),
+      agent: () => managedDomainsRepository.assignToAgent(domainId, resourceId),
+      mcp: () => managedDomainsRepository.assignToMcp(domainId, resourceId),
+    }[resourceType];
 
-    const updated = await managedDomainsRepository.assignToApp(domainId, appId);
-
+    const updated = await assignFn();
     if (updated) {
       await managedDomainsRepository.createEvent({
         domainId,
         eventType: "assignment_change",
         severity: "info",
-        description: `Domain assigned to app: ${appId}`,
+        description: `Domain assigned to ${resourceType}: ${resourceId}`,
         detectedBy: "system",
         previousStatus: domain.resourceType || "unassigned",
-        newStatus: "app",
+        newStatus: resourceType,
       });
     }
-
     return updated || null;
   }
 
-  async assignToContainer(
-    domainId: string,
-    containerId: string,
-    organizationId: string
-  ): Promise<ManagedDomain | null> {
-    const domain = await managedDomainsRepository.findByIdAndOrg(
-      domainId,
-      organizationId
-    );
-    if (!domain) return null;
-
-    if (!domain.verified && domain.registrar === "external") {
-      return null;
-    }
-
-    const updated = await managedDomainsRepository.assignToContainer(
-      domainId,
-      containerId
-    );
-
-    if (updated) {
-      await managedDomainsRepository.createEvent({
-        domainId,
-        eventType: "assignment_change",
-        severity: "info",
-        description: `Domain assigned to container: ${containerId}`,
-        detectedBy: "system",
-        previousStatus: domain.resourceType || "unassigned",
-        newStatus: "container",
-      });
-    }
-
-    return updated || null;
-  }
-
-  async assignToAgent(
-    domainId: string,
-    agentId: string,
-    organizationId: string
-  ): Promise<ManagedDomain | null> {
-    const domain = await managedDomainsRepository.findByIdAndOrg(
-      domainId,
-      organizationId
-    );
-    if (!domain) return null;
-
-    if (!domain.verified && domain.registrar === "external") {
-      return null;
-    }
-
-    const updated = await managedDomainsRepository.assignToAgent(domainId, agentId);
-
-    if (updated) {
-      await managedDomainsRepository.createEvent({
-        domainId,
-        eventType: "assignment_change",
-        severity: "info",
-        description: `Domain assigned to agent: ${agentId}`,
-        detectedBy: "system",
-        previousStatus: domain.resourceType || "unassigned",
-        newStatus: "agent",
-      });
-    }
-
-    return updated || null;
-  }
-
-  async assignToMcp(
-    domainId: string,
-    mcpId: string,
-    organizationId: string
-  ): Promise<ManagedDomain | null> {
-    const domain = await managedDomainsRepository.findByIdAndOrg(
-      domainId,
-      organizationId
-    );
-    if (!domain) return null;
-
-    if (!domain.verified && domain.registrar === "external") {
-      return null;
-    }
-
-    const updated = await managedDomainsRepository.assignToMcp(domainId, mcpId);
-
-    if (updated) {
-      await managedDomainsRepository.createEvent({
-        domainId,
-        eventType: "assignment_change",
-        severity: "info",
-        description: `Domain assigned to MCP: ${mcpId}`,
-        detectedBy: "system",
-        previousStatus: domain.resourceType || "unassigned",
-        newStatus: "mcp",
-      });
-    }
-
-    return updated || null;
-  }
+  // Convenience methods for backward compatibility
+  assignToApp = (domainId: string, appId: string, orgId: string) =>
+    this.assignToResource(domainId, "app", appId, orgId);
+  assignToContainer = (domainId: string, containerId: string, orgId: string) =>
+    this.assignToResource(domainId, "container", containerId, orgId);
+  assignToAgent = (domainId: string, agentId: string, orgId: string) =>
+    this.assignToResource(domainId, "agent", agentId, orgId);
+  assignToMcp = (domainId: string, mcpId: string, orgId: string) =>
+    this.assignToResource(domainId, "mcp", mcpId, orgId);
 
   async unassignDomain(
     domainId: string,

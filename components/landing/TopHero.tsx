@@ -1,9 +1,3 @@
-/**
- * Top hero section for the landing page.
- * Features "What do you want to build?" chat interface with edgy prompt suggestions.
- * Branding emphasizes: Create → Deploy → Monetize → Publicize
- */
-
 "use client";
 
 import { useState } from "react";
@@ -21,98 +15,29 @@ import {
   ArrowUp,
   ArrowRight,
   Terminal,
-  Rocket,
-  DollarSign,
-  Megaphone,
 } from "lucide-react";
+import { TAB_CONFIG, JOURNEY_STEPS, ALL_TABS, type TabValue } from "@/lib/config/landing-hero";
 
-type TabValue = "agent" | "app" | "image" | "video";
+const TAB_TRIGGER_CLASS = "inline-flex items-center gap-1 md:gap-2 rounded-none px-3 md:px-6 py-3 text-xs md:text-sm font-medium transition-all border-b-2 border-transparent data-[state=active]:border-[#FF5800] [&[data-state=active]]:bg-[#252527] whitespace-nowrap";
 
-interface PromptExample {
-  text: string;
-  tab: TabValue;
-}
-
-const AGENT_PROMPTS: PromptExample[] = [
-  { text: "An agent based on my dead father who gives life advice", tab: "agent" },
-  { text: "A support buddy for people trying to stay sober", tab: "agent" },
-  { text: "A brutally honest fitness coach that roasts my excuses", tab: "agent" },
-  { text: "A crypto degen that explains my portfolio losses", tab: "agent" },
-  { text: "An AI therapist for 3am existential crises", tab: "agent" },
-  { text: "A sarcastic sous chef for my questionable cooking", tab: "agent" },
-];
-
-const APP_PROMPTS: PromptExample[] = [
-  { text: "A landing page for my AI dating app for plants", tab: "app" },
-  { text: "A dashboard to track my caffeine addiction", tab: "app" },
-  { text: "An MCP service that connects to my smart fridge", tab: "app" },
-  { text: "A workflow that tweets every time I commit code", tab: "app" },
-  { text: "An A2A service that argues with other agents", tab: "app" },
-  { text: "A subscription app where my agent charges $5/month", tab: "app" },
-];
-
-const IMAGE_PROMPTS: PromptExample[] = [
-  { text: "My cat as a Renaissance oil painting", tab: "image" },
-  { text: "A photorealistic founder doing absolutely nothing", tab: "image" },
-  { text: "Corporate Memphis art but it's honest about capitalism", tab: "image" },
-];
-
-const VIDEO_PROMPTS: PromptExample[] = [
-  { text: "An explainer video for my unnecessarily complex startup", tab: "video" },
-  { text: "A promo reel that makes my app look funded", tab: "video" },
-  { text: "A demo video where everything actually works", tab: "video" },
-];
-
-function getPromptsForTab(tab: TabValue): PromptExample[] {
-  switch (tab) {
-    case "agent": return AGENT_PROMPTS.slice(0, 3);
-    case "app": return APP_PROMPTS.slice(0, 3);
-    case "image": return IMAGE_PROMPTS;
-    case "video": return VIDEO_PROMPTS;
-  }
-}
-
-function getPlaceholderForTab(tab: TabValue): string {
-  switch (tab) {
-    case "agent": return "What kind of agent do you want to build?";
-    case "app": return "Describe the app or service you want to create...";
-    case "image": return "Describe the image you want to generate...";
-    case "video": return "Describe the video you want to create...";
-  }
-}
-
-function getDestinationForTab(tab: TabValue): string {
-  switch (tab) {
-    case "agent": return "/dashboard/build";
-    case "app": return "/dashboard/fragments";
-    case "image": return "/dashboard/image";
-    case "video": return "/dashboard/video";
-  }
-}
-
-const TopHero = () => {
+export default function TopHero() {
   const { authenticated, ready } = usePrivy();
   const { login } = useLogin();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabValue>("agent");
   const [inputValue, setInputValue] = useState("");
 
+  const config = TAB_CONFIG[activeTab];
+
   const handleSubmit = () => {
     if (!ready) return;
-
-    const destination = getDestinationForTab(activeTab);
     const promptParam = inputValue ? `?prompt=${encodeURIComponent(inputValue)}` : "";
-
     if (authenticated) {
-      router.push(`${destination}${promptParam}`);
+      router.push(`${config.destination}${promptParam}`);
     } else {
       sessionStorage.setItem("pendingPrompt", JSON.stringify({ tab: activeTab, prompt: inputValue }));
       login();
     }
-  };
-
-  const handlePromptClick = (prompt: string) => {
-    setInputValue(prompt);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -122,20 +47,10 @@ const TopHero = () => {
     }
   };
 
-  const steps = [
-    { icon: <Terminal className="h-4 w-4" />, label: "Create", color: "#FF5800" },
-    { icon: <Rocket className="h-4 w-4" />, label: "Deploy", color: "#8B5CF6" },
-    { icon: <DollarSign className="h-4 w-4" />, label: "Monetize", color: "#10B981" },
-    { icon: <Megaphone className="h-4 w-4" />, label: "Publicize", color: "#F59E0B" },
-  ];
-
   return (
-    <section
-      className="w-full py-16 md:py-24 lg:py-32 relative overflow-hidden"
-      style={{ backgroundColor: "#0A0A0A" }}
-    >
+    <section className="w-full py-16 md:py-24 lg:py-32 relative overflow-hidden bg-[#0A0A0A]">
       {/* Background effects */}
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#FF5800]/5 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-600/5 rounded-full blur-3xl" />
       </div>
@@ -143,15 +58,9 @@ const TopHero = () => {
       <div className="container mx-auto px-4 md:px-6 relative z-10">
         <div className="mx-auto max-w-5xl text-center">
           {/* Headline */}
-          <h1
-            className="mb-4 text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-normal tracking-tight"
-            style={{ textShadow: "0 2px 10px rgba(0,0,0,0.5)" }}
-          >
+          <h1 className="mb-4 text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-normal tracking-tight drop-shadow-lg">
             <span className="inline-flex items-center justify-center gap-3">
-              <span
-                className="inline-block w-2 h-2 md:w-2.5 md:h-2.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: "#FF5800" }}
-              />
+              <span className="inline-block w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-[#FF5800] flex-shrink-0" />
               <span className="text-white">
                 What do you want to <span className="font-bold">build</span>?
               </span>
@@ -160,20 +69,20 @@ const TopHero = () => {
 
           {/* Journey Steps */}
           <div className="flex items-center justify-center gap-2 md:gap-4 mb-10">
-            {steps.map((step, index) => (
+            {JOURNEY_STEPS.map((step, index) => (
               <div key={step.label} className="flex items-center gap-2 md:gap-4">
                 <div className="flex items-center gap-1.5 md:gap-2">
                   <div
                     className="p-1.5 md:p-2 rounded-md"
                     style={{ backgroundColor: `${step.color}20`, border: `1px solid ${step.color}40` }}
                   >
-                    <div style={{ color: step.color }}>{step.icon}</div>
+                    <step.icon className="h-4 w-4" style={{ color: step.color }} />
                   </div>
                   <span className="text-xs md:text-sm text-white/70 font-medium hidden sm:inline">
                     {step.label}
                   </span>
                 </div>
-                {index < steps.length - 1 && (
+                {index < JOURNEY_STEPS.length - 1 && (
                   <ArrowRight className="h-3 w-3 md:h-4 md:w-4 text-white/20" />
                 )}
               </div>
@@ -183,59 +92,33 @@ const TopHero = () => {
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="relative z-10">
             <TabsList className="inline-flex h-12 items-center justify-center rounded-none bg-black/50 border border-white/10 p-0 backdrop-blur-sm">
-              <TabsTrigger
-                value="agent"
-                className="inline-flex items-center gap-1 md:gap-2 rounded-none px-3 md:px-6 py-3 text-xs md:text-sm font-medium transition-all border-b-2 border-transparent data-[state=active]:border-[#FF5800] [&[data-state=active]]:bg-[#252527] whitespace-nowrap"
-              >
+              <TabsTrigger value="agent" className={TAB_TRIGGER_CLASS}>
                 <Bot className="h-4 w-4" />
                 <span className="hidden sm:inline">Agent</span>
               </TabsTrigger>
-              <TabsTrigger
-                value="app"
-                className="inline-flex items-center gap-1 md:gap-2 rounded-none px-3 md:px-6 py-3 text-xs md:text-sm font-medium transition-all border-b-2 border-transparent data-[state=active]:border-[#FF5800] [&[data-state=active]]:bg-[#252527] whitespace-nowrap"
-              >
+              <TabsTrigger value="app" className={TAB_TRIGGER_CLASS}>
                 <Terminal className="h-4 w-4" />
                 <span className="hidden sm:inline">App</span>
               </TabsTrigger>
-              <TabsTrigger
-                value="image"
-                className="inline-flex items-center gap-1 md:gap-2 rounded-none px-3 md:px-6 py-3 text-xs md:text-sm font-medium transition-all border-b-2 border-transparent data-[state=active]:border-[#FF5800] [&[data-state=active]]:bg-[#252527] whitespace-nowrap"
-              >
+              <TabsTrigger value="image" className={TAB_TRIGGER_CLASS}>
                 <ImageIcon className="h-4 w-4" />
                 <span className="hidden sm:inline">Image</span>
               </TabsTrigger>
-              <TabsTrigger
-                value="video"
-                className="inline-flex items-center gap-1 md:gap-2 rounded-none px-3 md:px-6 py-3 text-xs md:text-sm font-medium transition-all border-b-2 border-transparent data-[state=active]:border-[#FF5800] [&[data-state=active]]:bg-[#252527] whitespace-nowrap"
-              >
+              <TabsTrigger value="video" className={TAB_TRIGGER_CLASS}>
                 <Video className="h-4 w-4" />
                 <span className="hidden sm:inline">Video</span>
               </TabsTrigger>
-              <TabsTrigger
-                value="pro-studio"
-                disabled
-                className="inline-flex items-center gap-1 md:gap-2 rounded-none px-3 md:px-6 py-3 text-xs md:text-sm font-medium transition-all disabled:opacity-60 whitespace-nowrap"
-              >
+              <TabsTrigger value="pro-studio" disabled className={`${TAB_TRIGGER_CLASS} disabled:opacity-60`}>
                 <Sparkles className="h-4 w-4" />
-                <span
-                  className="hidden sm:inline"
-                  style={{
-                    background: "linear-gradient(90deg, #EC594F 0%, #7E6BF0 100%)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                    backgroundClip: "text",
-                  }}
-                >
+                <span className="hidden sm:inline bg-gradient-to-r from-[#EC594F] to-[#7E6BF0] bg-clip-text text-transparent">
                   Pro
                 </span>
-                <Badge variant="outline" className="ml-1 text-[9px] border-white/20 px-1">
-                  Soon
-                </Badge>
+                <Badge variant="outline" className="ml-1 text-[9px] border-white/20 px-1">Soon</Badge>
               </TabsTrigger>
             </TabsList>
 
-            {/* Tab Content - Shared input box */}
-            {(["agent", "app", "image", "video"] as TabValue[]).map((tab) => (
+            {/* Tab Content - Shared input structure */}
+            {ALL_TABS.map((tab) => (
               <TabsContent key={tab} value={tab} className="mt-8">
                 <div className="relative mx-auto max-w-4xl">
                   {/* HUD-style input container */}
@@ -250,17 +133,15 @@ const TopHero = () => {
                       value={inputValue}
                       onChange={(e) => setInputValue(e.target.value)}
                       onKeyDown={handleKeyDown}
-                      placeholder={getPlaceholderForTab(tab)}
+                      placeholder={TAB_CONFIG[tab].placeholder}
                       className="min-h-[120px] md:min-h-[150px] bg-transparent border-0 resize-none focus-visible:ring-0 text-white placeholder:text-white/40 p-4 pr-20 w-full text-base"
                     />
 
-                    {/* Submit button */}
                     <div className="absolute bottom-4 right-4">
                       <Button
                         onClick={handleSubmit}
                         size="icon"
-                        className="h-10 w-10 rounded-none border-0 hover:brightness-125 active:brightness-150 transition-all"
-                        style={{ backgroundColor: "#FF5800" }}
+                        className="h-10 w-10 rounded-none border-0 bg-[#FF5800] hover:brightness-125 active:brightness-150 transition-all"
                       >
                         <ArrowUp className="h-5 w-5 text-white" />
                       </Button>
@@ -269,14 +150,14 @@ const TopHero = () => {
 
                   {/* Prompt examples */}
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-0">
-                    {getPromptsForTab(tab).map((prompt, index) => (
+                    {TAB_CONFIG[tab].prompts.map((prompt, index) => (
                       <button
                         key={index}
-                        onClick={() => handlePromptClick(prompt.text)}
+                        onClick={() => setInputValue(prompt)}
                         className="group relative bg-black/30 border border-white/10 p-4 md:p-5 text-left hover:border-[#FF5800]/50 hover:bg-black/50 transition-all"
                       >
                         <p className="text-sm text-white/60 group-hover:text-white/90 pr-8 leading-relaxed">
-                          {prompt.text}
+                          {prompt}
                         </p>
                         <ArrowUp className="absolute bottom-4 right-4 h-4 w-4 text-white/30 group-hover:text-[#FF5800] transition-colors" />
                       </button>
@@ -321,6 +202,4 @@ const TopHero = () => {
       </div>
     </section>
   );
-};
-
-export default TopHero;
+}

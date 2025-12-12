@@ -152,7 +152,7 @@ describe("Bindings Endpoints", () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toContain("Either projectId or secretId");
+      expect(data.error).toContain("projectId or secretId");
     });
 
     it("validates projectType enum", async () => {

@@ -1,9 +1,3 @@
-/**
- * Code Agent Types
- *
- * Type definitions for the code agent system.
- */
-
 import type {
   CodeAgentSessionStatus,
   CodeAgentRuntimeType,
@@ -12,10 +6,6 @@ import type {
   FileEntry,
   SessionCapabilities,
 } from "@/db/schemas/code-agent-sessions";
-
-// =============================================================================
-// SESSION TYPES
-// =============================================================================
 
 export interface CreateSessionParams {
   organizationId: string;
@@ -28,6 +18,8 @@ export interface CreateSessionParams {
   loadOrgSecrets?: boolean;
   capabilities?: Partial<SessionCapabilities>;
   expiresInSeconds?: number;
+  webhookUrl?: string;
+  webhookEvents?: string[];
 }
 
 export interface SessionInfo {
@@ -59,10 +51,6 @@ export interface SessionUsage {
   estimatedCostCents: number;
 }
 
-// =============================================================================
-// COMMAND TYPES
-// =============================================================================
-
 export interface CommandOptions {
   workingDirectory?: string;
   timeout?: number;
@@ -91,10 +79,6 @@ export interface RunCommandParams {
   args?: string[];
   options?: CommandOptions;
 }
-
-// =============================================================================
-// FILE OPERATIONS
-// =============================================================================
 
 export interface ReadFileParams {
   sessionId: string;
@@ -142,10 +126,6 @@ export interface ReadFileResult {
   error?: string;
 }
 
-// =============================================================================
-// GIT OPERATIONS
-// =============================================================================
-
 export interface GitCloneParams {
   sessionId: string;
   url: string;
@@ -180,10 +160,6 @@ export interface GitOperationResult {
   error?: string;
 }
 
-// =============================================================================
-// PACKAGE OPERATIONS
-// =============================================================================
-
 export interface InstallPackagesParams {
   sessionId: string;
   packages: string[];
@@ -198,10 +174,6 @@ export interface PackageOperationResult {
   output: string;
   error?: string;
 }
-
-// =============================================================================
-// SNAPSHOT OPERATIONS
-// =============================================================================
 
 export interface CreateSnapshotParams {
   sessionId: string;
@@ -233,10 +205,6 @@ export interface SnapshotResult {
   error?: string;
 }
 
-// =============================================================================
-// INTERPRETER TYPES
-// =============================================================================
-
 export interface InterpreterParams {
   organizationId: string;
   userId: string;
@@ -257,23 +225,11 @@ export interface InterpreterResult {
   costCents: number;
 }
 
-// =============================================================================
-// RUNTIME INTERFACE
-// =============================================================================
-
-/**
- * Abstract runtime interface.
- * Implementations: VercelSandboxRuntime, CloudflareContainerRuntime
- */
 export interface CodeAgentRuntime {
   readonly type: CodeAgentRuntimeType;
-
-  // Lifecycle
   create(params: RuntimeCreateParams): Promise<RuntimeInstance>;
   connect(runtimeId: string): Promise<RuntimeInstance>;
   terminate(runtimeId: string): Promise<void>;
-
-  // Health
   isHealthy(runtimeId: string): Promise<boolean>;
   extendTimeout(runtimeId: string, durationMs: number): Promise<void>;
 }
@@ -292,31 +248,15 @@ export interface RuntimeInstance {
   type: CodeAgentRuntimeType;
   url: string | null;
   status: "running" | "stopped" | "error";
-
-  // File operations
   readFile(path: string): Promise<string | null>;
   writeFile(path: string, content: string): Promise<void>;
   listFiles(path: string): Promise<FileEntry[]>;
   deleteFile(path: string): Promise<void>;
-
-  // Command execution
-  runCommand(
-    cmd: string,
-    args?: string[],
-    options?: { env?: Record<string, string>; cwd?: string; timeout?: number }
-  ): Promise<{ exitCode: number; stdout: string; stderr: string }>;
-
-  // Archive operations (for snapshots)
+  runCommand(cmd: string, args?: string[], options?: { env?: Record<string, string>; cwd?: string; timeout?: number }): Promise<{ exitCode: number; stdout: string; stderr: string }>;
   createArchive(paths: string[]): Promise<Buffer>;
   extractArchive(archive: Buffer, targetPath: string): Promise<void>;
-
-  // Lifecycle
   stop(): Promise<void>;
 }
-
-// =============================================================================
-// EVENT TYPES
-// =============================================================================
 
 export type CodeAgentEvent =
   | { type: "session_created"; sessionId: string }

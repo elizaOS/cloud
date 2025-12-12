@@ -1,25 +1,14 @@
-/**
- * Secret Test/Validate API - Test API key connectivity
- *
- * POST /api/v1/secrets/test - Test an API key against its provider
- *
- * Rate limited to prevent abuse (10 tests per minute)
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { logger } from "@/lib/utils/logger";
-import type { SecretProvider } from "@/db/schemas/secrets";
+import { secretProviderEnum, type SecretProvider } from "@/db/schemas/secrets";
 
-const VALID_PROVIDERS: SecretProvider[] = [
-  "openai", "anthropic", "google", "elevenlabs", "fal", "stripe",
-  "discord", "telegram", "twitter", "github", "slack", "aws", "vercel", "custom"
-];
+const PROVIDERS = secretProviderEnum.enumValues;
 
 const TestSchema = z.object({
-  provider: z.enum(VALID_PROVIDERS as [SecretProvider, ...SecretProvider[]]),
+  provider: z.enum(PROVIDERS),
   value: z.string().min(1),
   customTestUrl: z.string().url().optional(),
 });

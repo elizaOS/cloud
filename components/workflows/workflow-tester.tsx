@@ -34,6 +34,8 @@ interface TestResult {
   duration?: number;
   output?: Record<string, unknown>;
   error?: string;
+  executionMode?: "real" | "simulated";
+  n8nExecutionId?: string;
 }
 
 interface WorkflowTesterProps {
@@ -117,7 +119,6 @@ export function WorkflowTester({ workflow, onBack }: WorkflowTesterProps) {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Input Panel */}
         <BrandCard>
           <CornerBrackets size="sm" className="opacity-20" />
           <div className="relative z-10 p-6 space-y-4">
@@ -167,7 +168,6 @@ export function WorkflowTester({ workflow, onBack }: WorkflowTesterProps) {
           </div>
         </BrandCard>
 
-        {/* Output Panel */}
         <BrandCard>
           <CornerBrackets size="sm" className="opacity-20" />
           <div className="relative z-10 p-6 space-y-4">
@@ -230,6 +230,19 @@ export function WorkflowTester({ workflow, onBack }: WorkflowTesterProps) {
                     </span>
                   </div>
 
+                  <div className="flex items-center gap-2">
+                    <span className="text-white/40">Mode:</span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-xs ${
+                        testResult.executionMode === "real"
+                          ? "bg-blue-500/20 text-blue-400"
+                          : "bg-amber-500/20 text-amber-400"
+                      }`}
+                    >
+                      {testResult.executionMode === "real" ? "n8n" : "Simulated"}
+                    </span>
+                  </div>
+
                   {testResult.duration && (
                     <div className="flex items-center gap-2">
                       <span className="text-white/40">Duration:</span>
@@ -244,6 +257,22 @@ export function WorkflowTester({ workflow, onBack }: WorkflowTesterProps) {
                     </span>
                   </div>
                 </div>
+
+                {testResult.executionMode === "simulated" && (
+                  <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                    <p className="text-sm text-amber-400">
+                      <strong>Simulated execution:</strong> This workflow is not deployed to an n8n instance. 
+                      Deploy to n8n for real execution with actual node processing.
+                    </p>
+                  </div>
+                )}
+
+                {testResult.n8nExecutionId && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-white/40">n8n Execution ID:</span>
+                    <code className="text-blue-400 font-mono">{testResult.n8nExecutionId}</code>
+                  </div>
+                )}
 
                 {testResult.error && (
                   <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">

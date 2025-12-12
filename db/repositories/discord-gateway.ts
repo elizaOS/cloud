@@ -547,3 +547,4 @@ export class DiscordEventQueueRepository {
 export const discordBotConnectionsRepository = new DiscordBotConnectionsRepository();
 export const discordEventRoutesRepository = new DiscordEventRoutesRepository();
 export const discordEventQueueRepository = new DiscordEventQueueRepository();
+

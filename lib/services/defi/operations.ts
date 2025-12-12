@@ -221,14 +221,20 @@ export async function fetchOHLCV(source: OHLCVSource, identifier: string, option
   };
 }
 
+// Wrap service getter + healthCheck in single async to catch missing env var errors
+const safeHealthCheck = async (getter: () => { healthCheck: () => Promise<{ healthy: boolean; latencyMs: number }> }) => {
+  const service = getter();
+  return service.healthCheck();
+};
+
 const SERVICE_HEALTH_CHECKS = [
-  { name: "birdeye", fn: () => getBirdeyeService().healthCheck() },
-  { name: "jupiter", fn: () => getJupiterService().healthCheck() },
-  { name: "coingecko", fn: () => getCoinGeckoService().healthCheck() },
-  { name: "helius", fn: () => getHeliusService().healthCheck() },
-  { name: "coinmarketcap", fn: () => getCoinMarketCapService().healthCheck() },
-  { name: "zeroex", fn: () => getZeroExService().healthCheck() },
-  { name: "defined", fn: () => getDefinedService().healthCheck() },
+  { name: "birdeye", fn: () => safeHealthCheck(getBirdeyeService) },
+  { name: "jupiter", fn: () => safeHealthCheck(getJupiterService) },
+  { name: "coingecko", fn: () => safeHealthCheck(getCoinGeckoService) },
+  { name: "helius", fn: () => safeHealthCheck(getHeliusService) },
+  { name: "coinmarketcap", fn: () => safeHealthCheck(getCoinMarketCapService) },
+  { name: "zeroex", fn: () => safeHealthCheck(getZeroExService) },
+  { name: "defined", fn: () => safeHealthCheck(getDefinedService) },
 ] as const;
 
 export async function checkServicesHealth(serviceNames?: string[]) {

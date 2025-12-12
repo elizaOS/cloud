@@ -34,33 +34,36 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run lint
 
-  # Unit tests split into isolated groups to prevent mock.module contamination
-  unit-tests-secrets:
-    name: Unit Tests - Secrets
+  lockfile-check:
+    name: Lockfile Integrity
     runs-on: ubuntu-latest
-    needs: lint
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ env.BUN_VERSION }}
-      - uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ hashFiles('bun.lockb') }}
-          restore-keys: bun-
-      - run: bun install --frozen-lockfile
-      - run: bun run test:unit:secrets
-        env:
-          NODE_ENV: test
-          SECRETS_MASTER_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+      - name: Verify lockfile matches package.json
+        run: bun install --frozen-lockfile
 
-  unit-tests-domain:
-    name: Unit Tests - Domain
+  unit-tests:
+    name: Unit - ${{ matrix.suite }}
     runs-on: ubuntu-latest
-    needs: lint
+    needs: [lint, lockfile-check]
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [secrets, domain, services, misc]
+        include:
+          - suite: secrets
+            env_vars: SECRETS_MASTER_KEY=0000000000000000000000000000000000000000000000000000000000000000
+          - suite: domain
+            env_vars: ""
+          - suite: services
+            env_vars: ""
+          - suite: misc
+            env_vars: ""
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -72,47 +75,7 @@ jobs:
           key: bun-${{ hashFiles('bun.lockb') }}
           restore-keys: bun-
       - run: bun install --frozen-lockfile
-      - run: bun run test:unit:domain
-        env:
-          NODE_ENV: test
-
-  unit-tests-services:
-    name: Unit Tests - Services
-    runs-on: ubuntu-latest
-    needs: lint
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-      - uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ hashFiles('bun.lockb') }}
-          restore-keys: bun-
-      - run: bun install --frozen-lockfile
-      - run: bun run test:unit:services
-        env:
-          NODE_ENV: test
-
-  unit-tests-misc:
-    name: Unit Tests - Misc
-    runs-on: ubuntu-latest
-    needs: lint
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-      - uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ hashFiles('bun.lockb') }}
-          restore-keys: bun-
-      - run: bun install --frozen-lockfile
-      - run: bun run test:unit:misc
+      - run: ${{ matrix.env_vars }} bun run test:unit:${{ matrix.suite }}
         env:
           NODE_ENV: test
 
@@ -185,13 +148,25 @@ jobs:
           name: nextjs-build
           path: .next
           retention-days: 1
-          if-no-files-found: error
 
-  e2e-ui:
-    name: E2E UI
+  e2e:
+    name: E2E - ${{ matrix.suite }}
     runs-on: ubuntu-latest
     needs: build
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [ui, api, pages, miniapp]
+        include:
+          - suite: ui
+            script: test:playwright:ui
+          - suite: api
+            script: test:playwright:api
+          - suite: pages
+            script: test:playwright:pages
+          - suite: miniapp
+            script: test:playwright:miniapp
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -213,7 +188,7 @@ jobs:
           key: playwright-${{ hashFiles('bun.lockb') }}
           restore-keys: playwright-
       - run: bunx playwright install chromium --with-deps
-      - run: bun run test:playwright:ui
+      - run: bun run ${{ matrix.script }}
         env:
           CI: "true"
           NODE_ENV: production
@@ -221,132 +196,25 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: e2e-ui-results
-          path: tests/playwright/test-results/
-          retention-days: 7
-
-  e2e-api:
-    name: E2E API
-    runs-on: ubuntu-latest
-    needs: build
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-      - uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ hashFiles('bun.lockb') }}
-          restore-keys: bun-
-      - run: bun install --frozen-lockfile
-      - uses: actions/download-artifact@v4
-        with:
-          name: nextjs-build
-          path: .next
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ hashFiles('bun.lockb') }}
-          restore-keys: playwright-
-      - run: bunx playwright install chromium --with-deps
-      - run: bun run test:playwright:api
-        env:
-          CI: "true"
-          NODE_ENV: production
-          TEST_API_KEY: ${{ secrets.TEST_API_KEY }}
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: e2e-api-results
-          path: tests/playwright/test-results/
-          retention-days: 7
-
-  e2e-pages:
-    name: E2E Pages
-    runs-on: ubuntu-latest
-    needs: build
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-      - uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ hashFiles('bun.lockb') }}
-          restore-keys: bun-
-      - run: bun install --frozen-lockfile
-      - uses: actions/download-artifact@v4
-        with:
-          name: nextjs-build
-          path: .next
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ hashFiles('bun.lockb') }}
-          restore-keys: playwright-
-      - run: bunx playwright install chromium --with-deps
-      - run: bun run test:playwright:pages
-        env:
-          CI: "true"
-          NODE_ENV: production
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: e2e-pages-results
-          path: tests/playwright/test-results/
-          retention-days: 7
-
-  e2e-miniapp:
-    name: E2E Miniapp
-    runs-on: ubuntu-latest
-    needs: build
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-      - uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ hashFiles('bun.lockb') }}
-          restore-keys: bun-
-      - run: bun install --frozen-lockfile
-      - uses: actions/download-artifact@v4
-        with:
-          name: nextjs-build
-          path: .next
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ hashFiles('bun.lockb') }}
-          restore-keys: playwright-
-      - run: bunx playwright install chromium --with-deps
-      - run: bun run test:playwright:miniapp
-        env:
-          CI: "true"
-          NODE_ENV: production
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: e2e-miniapp-results
+          name: e2e-${{ matrix.suite }}-results
           path: tests/playwright/test-results/
           retention-days: 7
 
   ci-ok:
     name: CI OK
     runs-on: ubuntu-latest
-    needs: [lint, unit-tests-secrets, unit-tests-domain, unit-tests-services, unit-tests-misc, security-tests, integration-tests, build, e2e-ui, e2e-api, e2e-pages, e2e-miniapp]
+    needs: [lint, lockfile-check, unit-tests, security-tests, integration-tests, build, e2e]
     if: always()
     steps:
       - run: |
-          results="${{ needs.lint.result }},${{ needs.unit-tests-secrets.result }},${{ needs.unit-tests-domain.result }},${{ needs.unit-tests-services.result }},${{ needs.unit-tests-misc.result }},${{ needs.security-tests.result }},${{ needs.integration-tests.result }},${{ needs.build.result }},${{ needs.e2e-ui.result }},${{ needs.e2e-api.result }},${{ needs.e2e-pages.result }},${{ needs.e2e-miniapp.result }}"
-          if echo "$results" | grep -qvE '^(success,)*success$'; then
-            echo "❌ CI failed: $results"
+          if [[ "${{ needs.lint.result }}" != "success" ]] || \
+             [[ "${{ needs.lockfile-check.result }}" != "success" ]] || \
+             [[ "${{ needs.unit-tests.result }}" != "success" ]] || \
+             [[ "${{ needs.security-tests.result }}" != "success" ]] || \
+             [[ "${{ needs.integration-tests.result }}" != "success" ]] || \
+             [[ "${{ needs.build.result }}" != "success" ]] || \
+             [[ "${{ needs.e2e.result }}" != "success" ]]; then
+            echo "❌ CI failed"
             exit 1
           fi
           echo "✅ CI passed"

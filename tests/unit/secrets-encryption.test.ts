@@ -1,10 +1,3 @@
-/**
- * Unit Tests: Secrets Encryption Service
- *
- * Tests the encryption/decryption functionality using AES-256-GCM
- * with envelope encryption (DEK + KEK pattern).
- */
-
 import { describe, it, expect, beforeEach } from "bun:test";
 import {
   SecretsEncryptionService,

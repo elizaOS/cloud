@@ -71,6 +71,7 @@ export interface GetSecretsParams {
   provider?: SecretProvider;
   names?: string[];
   includeBindings?: boolean;
+  scope?: SecretScope;
 }
 
 export interface ListSecretsParams {
@@ -221,38 +222,16 @@ class SecretsService {
 
     if (!secret) return null;
 
-    const value = await this.encryption.decrypt({
-      encryptedValue: secret.encrypted_value,
-      encryptedDek: secret.encrypted_dek,
-      nonce: secret.nonce,
-      authTag: secret.auth_tag,
-    });
-
+    const value = await this.decryptSecret(secret);
     await secretsRepository.recordAccess(secret.id);
-    if (audit) {
-      await this.logAudit(secret.id, organizationId, "read", name, audit);
-    }
-
+    if (audit) await this.logAudit(secret.id, organizationId, "read", name, audit);
     return value;
   }
 
-  async getDecryptedValue(
-    secretId: string,
-    organizationId: string,
-    audit?: AuditContext
-  ): Promise<string> {
+  async getDecryptedValue(secretId: string, organizationId: string, audit?: AuditContext): Promise<string> {
     const secret = await secretsRepository.findById(secretId);
-
-    if (!secret || secret.organization_id !== organizationId) {
-      throw new Error("Secret not found");
-    }
-
-    const value = await this.encryption.decrypt({
-      encryptedValue: secret.encrypted_value,
-      encryptedDek: secret.encrypted_dek,
-      nonce: secret.nonce,
-      authTag: secret.auth_tag,
-    });
+    if (!secret || secret.organization_id !== organizationId) throw new Error("Secret not found");
+    const value = await this.decryptSecret(secret);
 
     await secretsRepository.recordAccess(secretId);
 
@@ -275,26 +254,15 @@ class SecretsService {
       provider: params.provider,
       names: params.names,
       includeBindings: params.includeBindings,
+      scope: params.scope,
     });
 
     const result: Record<string, string> = {};
-
     for (const secret of secrets) {
-      const value = await this.encryption.decrypt({
-        encryptedValue: secret.encrypted_value,
-        encryptedDek: secret.encrypted_dek,
-        nonce: secret.nonce,
-        authTag: secret.auth_tag,
-      });
-
-      result[secret.name] = value;
+      result[secret.name] = await this.decryptSecret(secret);
       await secretsRepository.recordAccess(secret.id);
-
-      if (audit) {
-        await this.logAudit(secret.id, params.organizationId, "read", secret.name, audit);
-      }
+      if (audit) await this.logAudit(secret.id, params.organizationId, "read", secret.name, audit);
     }
-
     return result;
   }
 
@@ -875,21 +843,25 @@ class SecretsService {
     organizationId: string,
     audit?: AuditContext
   ): Promise<Record<string, string>> {
-    const approvedNames = await this.getApprovedAppSecrets(appId);
-    if (approvedNames.length === 0) {
-      return {};
-    }
-
-    return this.getDecrypted(
-      {
-        organizationId,
-        names: approvedNames,
-        includeBindings: true,
-        projectId: appId,
-        projectType: "app",
-      },
+    // 1. Get app's own project-scoped secrets (always accessible)
+    const appSecrets = await this.getDecrypted(
+      { organizationId, projectId: appId, projectType: "app", scope: "project" },
       audit
     );
+
+    // 2. Get approved org-level secrets bound to this app
+    const approvedNames = await this.getApprovedAppSecrets(appId);
+    if (approvedNames.length === 0) {
+      return appSecrets;
+    }
+
+    const approvedOrgSecrets = await this.getDecrypted(
+      { organizationId, names: approvedNames, scope: "organization" },
+      audit
+    );
+
+    // App's own secrets take precedence over org secrets with same name
+    return { ...approvedOrgSecrets, ...appSecrets };
   }
 
   private async logAudit(
@@ -912,6 +884,15 @@ class SecretsService {
       source: context.source,
       request_id: context.requestId,
       endpoint: context.endpoint,
+    });
+  }
+
+  private decryptSecret(secret: Secret) {
+    return this.encryption.decrypt({
+      encryptedValue: secret.encrypted_value,
+      encryptedDek: secret.encrypted_dek,
+      nonce: secret.nonce,
+      authTag: secret.auth_tag,
     });
   }
 
@@ -939,17 +920,14 @@ class SecretsService {
 
 let instance: SecretsService | null = null;
 
-export function getSecretsService(): SecretsService {
-  if (!instance) instance = new SecretsService();
-  return instance;
-}
+export const getSecretsService = () => instance || (instance = new SecretsService());
 
-export const secretsService = new Proxy({} as SecretsService, {
+export const secretsService = new Proxy({} as SecretsService & { isConfigured: boolean }, {
   get(_, prop: keyof SecretsService | "isConfigured") {
     const svc = getSecretsService();
     if (prop === "isConfigured") return svc.isConfigured();
-    const value = svc[prop];
-    return typeof value === "function" ? value.bind(svc) : value;
+    const val = svc[prop];
+    return typeof val === "function" ? val.bind(svc) : val;
   },
 });
 

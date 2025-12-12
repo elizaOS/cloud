@@ -211,11 +211,28 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   logger.info("[OAuth] Processing", { platform, sessionId: session.session_id.slice(0, 8) });
 
-  // Get instance URL for Mastodon from session context
   const instanceUrl = (session.callback_context as Record<string, unknown>)?.instanceUrl as string | undefined;
 
-  const tokens = await exchangeCode(platform, code, state, instanceUrl);
-  const profile = await fetchProfile(platform, tokens.accessToken, instanceUrl);
+  let tokens;
+  let profile;
+  
+  try {
+    tokens = await exchangeCode(platform, code, state, instanceUrl);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Token exchange failed";
+    logger.error("[OAuth] Token exchange error", { platform, error: msg });
+    await platformCredentialsService.failSession(state, "token_exchange_failed", msg);
+    return NextResponse.redirect(`${CLOUD_URL}/auth/platform-link/error?error=token_exchange_failed`);
+  }
+
+  try {
+    profile = await fetchProfile(platform, tokens.accessToken, instanceUrl);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Profile fetch failed";
+    logger.error("[OAuth] Profile fetch error", { platform, error: msg });
+    await platformCredentialsService.failSession(state, "profile_fetch_failed", msg);
+    return NextResponse.redirect(`${CLOUD_URL}/auth/platform-link/error?error=profile_fetch_failed`);
+  }
 
   const credential = await platformCredentialsService.completeOAuth({
     oauthState: state,

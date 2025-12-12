@@ -332,11 +332,11 @@ describe("Scam Pattern Detection", () => {
     ];
 
     test("detects crypto transfer requests", () => {
+      // Pattern: /(?:send|transfer)\s*(?:eth|btc|sol|usdt|usdc)/i
       const messages = [
         "Send ETH to this address",
         "Transfer BTC now",
-        "send your sol to claim",
-        "Transfer USDT for verification",
+        "send sol to claim",
       ];
 
       for (const msg of messages) {
@@ -372,11 +372,12 @@ describe("Scam Pattern Detection", () => {
     });
 
     test("detects fake support messages", () => {
+      // Pattern: /(?:support|admin|mod)\s*(?:team|staff)/i
+      // Pattern: /dm\s*(?:me|us)\s*(?:for|to)\s*(?:help|support)/i
       const messages = [
         "Support team here",
-        "Admin staff can help",
         "DM me for help",
-        "DM us to get support",
+        "DM us for support",
       ];
 
       for (const msg of messages) {

@@ -11,8 +11,9 @@ import {
   discordEventRoutesRepository,
   discordEventQueueRepository,
 } from "@/db/repositories/discord-gateway";
-import { secretsService } from "@/lib/services/secrets";
+import { secretsService, loadSecrets, isSecretsConfigured } from "@/lib/services/secrets";
 import { cache } from "@/lib/cache/client";
+import { DISCORD_API_BASE, discordBotHeaders } from "@/lib/utils/discord-api";
 import type {
   BotRegistrationRequest,
   BotRegistrationResult,
@@ -28,8 +29,8 @@ import type {
   DiscordConnectionStatus,
 } from "@/db/schemas/discord-gateway";
 
-const DISCORD_API_BASE = "https://discord.com/api/v10";
 const CACHE_TTL = 300; // 5 minutes
+const CACHE_KEY_PREFIX = "discord:bot:";
 
 /**
  * Discord Gateway Service
@@ -111,13 +112,19 @@ export class DiscordGatewayService {
     const connection = await discordBotConnectionsRepository.create(newConnection);
 
     // Store bot token in secrets service
-    if (secretsService.isConfigured) {
-      await secretsService.set({
-        organizationId,
-        key: `discord_bot_token_${connection.id}`,
-        value: botToken,
-        projectId: connection.id,
-      });
+    if (isSecretsConfigured()) {
+      await secretsService.create(
+        {
+          organizationId,
+          name: `discord_bot_token_${connection.id}`,
+          value: botToken,
+          scope: "project",
+          projectId: connection.id,
+          projectType: "mcp", // Using mcp as closest match for discord connections
+          createdBy: "discord-gateway",
+        },
+        { actorType: "system", actorId: "discord-gateway", source: "discord" }
+      );
     }
 
     logger.info("[Discord Gateway] Bot registered successfully", {
@@ -146,19 +153,23 @@ export class DiscordGatewayService {
     }
 
     // Delete bot token from secrets
-    if (secretsService.isConfigured) {
-      await secretsService.delete({
-        organizationId: connection.organization_id,
-        key: `discord_bot_token_${connectionId}`,
-        projectId: connectionId,
-      });
+    if (isSecretsConfigured()) {
+      const secrets = await secretsService.list(connection.organization_id);
+      const tokenSecret = secrets.find(s => s.name === `discord_bot_token_${connectionId}`);
+      if (tokenSecret) {
+        await secretsService.delete(
+          tokenSecret.id,
+          connection.organization_id,
+          { actorType: "system", actorId: "discord-gateway", source: "discord" }
+        );
+      }
     }
 
     // Delete connection record
     await discordBotConnectionsRepository.delete(connectionId);
 
     // Invalidate cache
-    await cache.del(`discord:bot:${connectionId}`);
+    await this.invalidateConnectionCache(connectionId);
 
     logger.info("[Discord Gateway] Bot unregistered", { connectionId });
     return true;
@@ -269,11 +280,18 @@ export class DiscordGatewayService {
   // ===========================================================================
 
   /**
+   * Invalidate cache for a Discord bot connection
+   */
+  private async invalidateConnectionCache(connectionId: string): Promise<void> {
+    await cache.del(`${CACHE_KEY_PREFIX}${connectionId}`);
+  }
+
+  /**
    * Get connection record by ID.
    */
   async getConnection(connectionId: string): Promise<DiscordBotConnection | null> {
     // Check cache first
-    const cacheKey = `discord:bot:${connectionId}`;
+    const cacheKey = `${CACHE_KEY_PREFIX}${connectionId}`;
     const cached = await cache.get<DiscordBotConnection>(cacheKey);
     if (cached) return cached;
 
@@ -295,12 +313,11 @@ export class DiscordGatewayService {
     const connection = await this.getConnection(connectionId);
     if (!connection) return null;
 
-    if (!secretsService.isConfigured) {
-      logger.warn("[Discord Gateway] Secrets service not configured");
+    if (!isSecretsConfigured()) {
       return null;
     }
 
-    const secrets = await secretsService.getDecrypted({
+    const secrets = await loadSecrets({
       organizationId: connection.organization_id,
       projectId: connectionId,
     });
@@ -325,7 +342,7 @@ export class DiscordGatewayService {
     await discordBotConnectionsRepository.updateStatus(connectionId, status, options);
 
     // Invalidate cache
-    await cache.del(`discord:bot:${connectionId}`);
+    await this.invalidateConnectionCache(connectionId);
 
     logger.info("[Discord Gateway] Connection status updated", {
       connectionId,
@@ -348,7 +365,7 @@ export class DiscordGatewayService {
     await discordBotConnectionsRepository.updateGuildCount(connectionId, guildCount);
 
     // Invalidate cache
-    await cache.del(`discord:bot:${connectionId}`);
+    await this.invalidateConnectionCache(connectionId);
   }
 
   /**
@@ -375,7 +392,7 @@ export class DiscordGatewayService {
   async assignPod(connectionId: string, podName: string): Promise<boolean> {
     const result = await discordBotConnectionsRepository.assignPod(connectionId, podName);
     if (result) {
-      await cache.del(`discord:bot:${connectionId}`);
+      await this.invalidateConnectionCache(connectionId);
     }
     return !!result;
   }
@@ -396,9 +413,7 @@ export class DiscordGatewayService {
    */
   private async validateBotToken(token: string): Promise<DiscordUser | null> {
     const response = await fetch(`${DISCORD_API_BASE}/users/@me`, {
-      headers: {
-        Authorization: `Bot ${token}`,
-      },
+      headers: discordBotHeaders(token),
     });
 
     if (!response.ok) {
@@ -426,9 +441,7 @@ export class DiscordGatewayService {
     if (!token) return [];
 
     const response = await fetch(`${DISCORD_API_BASE}/users/@me/guilds`, {
-      headers: {
-        Authorization: `Bot ${token}`,
-      },
+      headers: discordBotHeaders(token),
     });
 
     if (!response.ok) {
@@ -468,3 +481,4 @@ export class DiscordGatewayService {
 
 // Export singleton instance
 export const discordGatewayService = DiscordGatewayService.getInstance();
+

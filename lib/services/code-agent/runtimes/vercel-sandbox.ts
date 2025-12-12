@@ -1,21 +1,5 @@
-/**
- * Vercel Sandbox Runtime
- *
- * Implementation of CodeAgentRuntime using Vercel Sandbox.
- * This is the primary runtime for code agent sessions.
- */
-
 import { logger } from "@/lib/utils/logger";
-import type {
-  CodeAgentRuntime,
-  RuntimeCreateParams,
-  RuntimeInstance,
-  FileEntry,
-} from "../types";
-
-// =============================================================================
-// TYPES
-// =============================================================================
+import type { CodeAgentRuntime, RuntimeCreateParams, RuntimeInstance, FileEntry } from "../types";
 
 interface SandboxHandle {
   id?: string;
@@ -42,10 +26,6 @@ interface CommandResultHandle {
   stderr: () => Promise<string>;
 }
 
-// =============================================================================
-// GLOBAL SANDBOX REGISTRY
-// =============================================================================
-
 declare global {
   var __codeAgentSandboxes: Map<string, SandboxHandle> | undefined;
 }
@@ -56,10 +36,6 @@ function getSandboxRegistry(): Map<string, SandboxHandle> {
   }
   return global.__codeAgentSandboxes;
 }
-
-// =============================================================================
-// VERCEL SANDBOX RUNTIME INSTANCE
-// =============================================================================
 
 class VercelSandboxInstance implements RuntimeInstance {
   readonly type = "vercel" as const;
@@ -116,50 +92,51 @@ class VercelSandboxInstance implements RuntimeInstance {
       cmd: "sh",
       args: [
         "-c",
-        `find ${path} -maxdepth 3 -type f -o -type d 2>/dev/null | head -200`,
+        `find ${path} -maxdepth 3 \\( -type f -o -type d \\) -exec stat -c '%n|%F|%s|%Y' {} \\; 2>/dev/null | head -200`,
       ],
     });
 
     if (result.exitCode !== 0) {
-      return [];
+      const fallback = await this.sandbox.runCommand({
+        cmd: "sh",
+        args: [
+          "-c",
+          `find ${path} -maxdepth 3 \\( -type f -o -type d \\) -exec stat -f '%N|%HT|%z|%m' {} \\; 2>/dev/null | head -200`,
+        ],
+      });
+
+      if (fallback.exitCode !== 0) return [];
+
+      const stdout = await fallback.stdout();
+      return stdout
+        .split("\n")
+        .filter(Boolean)
+        .map((line) => {
+          const [filePath, fileType, size, mtime] = line.split("|");
+          const isDir = fileType?.toLowerCase().includes("directory");
+          return {
+            path: filePath,
+            type: isDir ? "directory" : "file",
+            size: isDir ? undefined : parseInt(size || "0", 10),
+            modifiedAt: mtime ? new Date(parseInt(mtime, 10) * 1000).toISOString() : undefined,
+          } as FileEntry;
+        });
     }
 
     const stdout = await result.stdout();
-    const lines = stdout.split("\n").filter(Boolean);
-
-    const entries: FileEntry[] = [];
-    for (const line of lines) {
-      const statResult = await this.sandbox.runCommand({
-        cmd: "sh",
-        args: ["-c", `stat -f '%z %m' "${line}" 2>/dev/null || stat -c '%s %Y' "${line}" 2>/dev/null`],
+    return stdout
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => {
+        const [filePath, fileType, size, mtime] = line.split("|");
+        const isDir = fileType === "directory";
+        return {
+          path: filePath,
+          type: isDir ? "directory" : "file",
+          size: isDir ? undefined : parseInt(size || "0", 10),
+          modifiedAt: mtime ? new Date(parseInt(mtime, 10) * 1000).toISOString() : undefined,
+        } as FileEntry;
       });
-
-      let size = 0;
-      let modifiedAt: string | undefined;
-
-      if (statResult.exitCode === 0) {
-        const statOutput = await statResult.stdout();
-        const parts = statOutput.trim().split(" ");
-        size = parseInt(parts[0] || "0", 10);
-        if (parts[1]) {
-          modifiedAt = new Date(parseInt(parts[1], 10) * 1000).toISOString();
-        }
-      }
-
-      const typeResult = await this.sandbox.runCommand({
-        cmd: "test",
-        args: ["-d", line],
-      });
-
-      entries.push({
-        path: line,
-        type: typeResult.exitCode === 0 ? "directory" : "file",
-        size: typeResult.exitCode === 0 ? undefined : size,
-        modifiedAt,
-      });
-    }
-
-    return entries;
   }
 
   async deleteFile(path: string): Promise<void> {
@@ -270,10 +247,6 @@ class VercelSandboxInstance implements RuntimeInstance {
   }
 }
 
-// =============================================================================
-// VERCEL SANDBOX RUNTIME
-// =============================================================================
-
 const DEFAULT_TEMPLATE_URL = "https://github.com/elizaOS/sandbox-template-cloud.git";
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
 
@@ -299,14 +272,27 @@ export class VercelSandboxRuntime implements CodeAgentRuntime {
     return creds.hasOIDC || creds.hasAccessToken;
   }
 
-  async create(params: RuntimeCreateParams): Promise<RuntimeInstance> {
+  static validateCredentials(): { valid: boolean; missing: string[] } {
     const creds = getCredentials();
+    if (creds.hasOIDC) return { valid: true, missing: [] };
+    
+    const missing: string[] = [];
+    if (!process.env.VERCEL_TOKEN) missing.push("VERCEL_TOKEN");
+    if (!process.env.VERCEL_TEAM_ID) missing.push("VERCEL_TEAM_ID");
+    if (!process.env.VERCEL_PROJECT_ID) missing.push("VERCEL_PROJECT_ID");
+    
+    return { valid: missing.length === 0, missing };
+  }
 
-    if (!creds.hasOIDC && !creds.hasAccessToken) {
+  async create(params: RuntimeCreateParams): Promise<RuntimeInstance> {
+    const validation = VercelSandboxRuntime.validateCredentials();
+    if (!validation.valid) {
       throw new Error(
-        "Vercel Sandbox credentials not configured. Set VERCEL_TOKEN, VERCEL_TEAM_ID, and VERCEL_PROJECT_ID."
+        `Vercel Sandbox not configured. Missing: ${validation.missing.join(", ")}`
       );
     }
+
+    const creds = getCredentials();
 
     const { Sandbox } = await import("@vercel/sandbox");
 
@@ -339,55 +325,57 @@ export class VercelSandboxRuntime implements CodeAgentRuntime {
     const url = sandbox.domain(3000);
     const sandboxId = sandbox.id ?? extractIdFromUrl(url);
 
-    logger.info("[VercelSandboxRuntime] Sandbox created", { sandboxId, url });
     getSandboxRegistry().set(sandboxId, sandbox);
 
-    // Install dependencies
-    logger.info("[VercelSandboxRuntime] Installing dependencies", { sandboxId });
     let install = await sandbox.runCommand({ cmd: "pnpm", args: ["install"] });
     if (install.exitCode !== 0) {
       install = await sandbox.runCommand({ cmd: "npm", args: ["install"] });
-      if (install.exitCode !== 0) {
-        throw new Error(`Dependency installation failed: ${await install.stderr()}`);
-      }
+      if (install.exitCode !== 0) throw new Error(`Install failed: ${await install.stderr()}`);
     }
 
-    // Set environment variables if provided
     if (params.env && Object.keys(params.env).length > 0) {
-      const envContent = Object.entries(params.env)
-        .map(([k, v]) => `${k}=${v}`)
-        .join("\n");
-
-      const envBase64 = Buffer.from(envContent).toString("base64");
-      await sandbox.runCommand({
-        cmd: "sh",
-        args: ["-c", `echo "${envBase64}" | base64 -d >> .env.local`],
-      });
+      const envBase64 = Buffer.from(Object.entries(params.env).map(([k, v]) => `${k}=${v}`).join("\n")).toString("base64");
+      await sandbox.runCommand({ cmd: "sh", args: ["-c", `echo "${envBase64}" | base64 -d >> .env.local`] });
     }
 
-    // Start dev server in background
-    logger.info("[VercelSandboxRuntime] Starting dev server", { sandboxId });
-    await sandbox.runCommand({
-      cmd: "sh",
-      args: ["-c", "pnpm dev 2>&1 | tee /tmp/next-dev.log &"],
-      detached: true,
-      env: params.env,
-    });
-
-    // Wait for dev server
+    await sandbox.runCommand({ cmd: "sh", args: ["-c", "pnpm dev 2>&1 | tee /tmp/next-dev.log &"], detached: true, env: params.env });
     await this.waitForDevServer(sandbox, 3000);
-
-    logger.info("[VercelSandboxRuntime] Sandbox ready", { sandboxId, url });
+    logger.info("[VercelSandboxRuntime] Ready", { sandboxId, url });
 
     return new VercelSandboxInstance(sandboxId, url, sandbox);
   }
 
   async connect(runtimeId: string): Promise<RuntimeInstance> {
-    const sandbox = getSandboxRegistry().get(runtimeId);
-    if (!sandbox) {
-      throw new Error(`Sandbox ${runtimeId} not found or not connected`);
+    // Check in-memory cache first
+    const cached = getSandboxRegistry().get(runtimeId);
+    if (cached) {
+      const url = cached.domain(3000);
+      return new VercelSandboxInstance(runtimeId, url, cached);
     }
 
+    // Reconnect to existing sandbox (survives serverless cold starts)
+    const validation = VercelSandboxRuntime.validateCredentials();
+    if (!validation.valid) {
+      throw new Error(`Cannot reconnect: ${validation.missing.join(", ")} not configured`);
+    }
+
+    const { Sandbox } = await import("@vercel/sandbox");
+    const creds = getCredentials();
+    
+    const getParams: { sandboxId: string; token?: string; teamId?: string; projectId?: string } = {
+      sandboxId: runtimeId,
+    };
+    
+    if (!creds.hasOIDC && creds.hasAccessToken) {
+      getParams.token = creds.token!;
+      getParams.teamId = creds.teamId!;
+      getParams.projectId = creds.projectId!;
+    }
+
+    const sandbox = await Sandbox.get(getParams) as SandboxHandle;
+    getSandboxRegistry().set(runtimeId, sandbox);
+    
+    logger.info("[VercelSandboxRuntime] Reconnected to sandbox", { runtimeId });
     const url = sandbox.domain(3000);
     return new VercelSandboxInstance(runtimeId, url, sandbox);
   }

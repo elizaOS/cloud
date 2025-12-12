@@ -7,7 +7,6 @@ import {
   Server,
   Video,
   UserCog,
-  Bot,
   Code,
   Mic,
   Store,
@@ -19,6 +18,7 @@ import {
   FolderOpen,
   Workflow,
   Megaphone,
+  Sparkles,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import type { FeatureFlag } from "@/lib/config/feature-flags";
@@ -137,14 +137,29 @@ export const sidebarSections: SidebarSection[] = [
     ],
   },
   {
-    title: "Infrastructure",
+    title: "Apps",
     items: [
       {
-        id: "apps",
-        label: "Apps",
+        id: "app-creator",
+        label: "App Creator",
+        href: "/dashboard/apps/create",
+        icon: Sparkles,
+        freeAllowed: false,
+      },
+      {
+        id: "my-apps",
+        label: "My Apps",
         href: "/dashboard/apps",
         icon: Grid3x3,
-        freeAllowed: false, // Requires signup
+        freeAllowed: false,
+      },
+      {
+        id: "services",
+        label: "Services",
+        href: "/dashboard/services",
+        icon: Puzzle,
+        freeAllowed: false,
+        isNew: true,
       },
       {
         id: "workflows",
@@ -152,8 +167,12 @@ export const sidebarSections: SidebarSection[] = [
         href: "/dashboard/workflows",
         icon: Workflow,
         freeAllowed: false,
-        isNew: true,
       },
+    ],
+  },
+  {
+    title: "Infrastructure",
+    items: [
       {
         id: "containers",
         label: "Containers",
@@ -161,14 +180,6 @@ export const sidebarSections: SidebarSection[] = [
         icon: Server,
         freeAllowed: false,
         featureFlag: "containers",
-      },
-      {
-        id: "mcps",
-        label: "MCPs",
-        href: "/dashboard/mcps",
-        icon: Puzzle,
-        freeAllowed: false,
-        featureFlag: "mcp",
       },
     ],
   },

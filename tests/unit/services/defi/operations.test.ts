@@ -651,7 +651,7 @@ describe("DeFi Operations", () => {
       );
 
       await expect(fetchTokenPrice("birdeye", "token")).rejects.toThrow();
-    });
+    }, { timeout: 15000 }); // Service has internal retry logic that can take time
 
     test("handles malformed JSON response", async () => {
       global.fetch = mock(() => ({

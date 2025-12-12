@@ -85,3 +85,4 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     message: "Bot connection removed",
   });
 }
+

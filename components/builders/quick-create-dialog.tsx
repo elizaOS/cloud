@@ -25,10 +25,15 @@ import {
   ChevronRight,
   Globe,
   Zap,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { generateNameForType } from "@/lib/utils/random-names";
 import { cn } from "@/lib/utils";
+import {
+  PostCreationAppPrompt,
+  type EntityType,
+} from "./post-creation-app-prompt";
 
 export type QuickCreateType = "miniapp" | "workflow" | "service" | "agent";
 
@@ -111,6 +116,7 @@ export function QuickCreateDialog({
     a2a: true,
     rest: true,
   });
+  const [showAppPrompt, setShowAppPrompt] = useState(false);
 
   const generateName = (type: QuickCreateType): string => generateNameForType(type);
 
@@ -256,57 +262,114 @@ export function QuickCreateDialog({
     }
   };
 
+  // Determine if this entity type can have an app created for it
+  const canCreateApp = (type: QuickCreateType): type is "agent" | "workflow" | "service" => {
+    return type === "agent" || type === "workflow" || type === "service";
+  };
+
+  // Map QuickCreateType to EntityType for PostCreationAppPrompt
+  const getEntityType = (type: QuickCreateType): EntityType | null => {
+    if (type === "agent") return "agent";
+    if (type === "workflow") return "workflow";
+    if (type === "service") return "service";
+    return null;
+  };
+
+  const handleCreateApp = () => {
+    if (createdResult && canCreateApp(createdResult.type)) {
+      setShowAppPrompt(true);
+    }
+  };
+
   if (step === "success" && createdResult) {
     const typeConfig = TYPE_OPTIONS.find((t) => t.type === createdResult.type);
     const TypeIcon = typeConfig?.icon ?? Smartphone;
+    const entityType = getEntityType(createdResult.type);
 
     return (
-      <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Check className="h-5 w-5 text-green-500" />
-              Created Successfully
-            </DialogTitle>
-            <DialogDescription>
-              {createdResult.apiKey
-                ? "Copy your API key now — you won't see it again."
-                : "Your project is ready to configure."}
-            </DialogDescription>
-          </DialogHeader>
+      <>
+        <Dialog open={open && !showAppPrompt} onOpenChange={handleClose}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Check className="h-5 w-5 text-green-500" />
+                Created Successfully
+              </DialogTitle>
+              <DialogDescription>
+                {createdResult.apiKey
+                  ? "Copy your API key now — you won't see it again."
+                  : "Your project is ready to configure."}
+              </DialogDescription>
+            </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div className="flex items-center gap-3">
-              <div className={cn("p-3 rounded-lg bg-gradient-to-r", typeConfig?.color)}>
-                <TypeIcon className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <div className="text-lg font-medium text-white">{createdResult.name}</div>
-                <div className="text-sm text-white/60">{typeConfig?.label}</div>
-              </div>
-            </div>
-
-            {createdResult.apiKey && (
-              <div>
-                <Label className="text-xs text-white/60">API Key</Label>
-                <div className="flex gap-2 mt-1">
-                  <Input value={createdResult.apiKey} readOnly className="font-mono text-sm" />
-                  <Button type="button" variant="outline" onClick={copyApiKey} className="shrink-0">
-                    {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                  </Button>
+            <div className="space-y-4 py-4">
+              <div className="flex items-center gap-3">
+                <div className={cn("p-3 rounded-lg bg-gradient-to-r", typeConfig?.color)}>
+                  <TypeIcon className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <div className="text-lg font-medium text-white">{createdResult.name}</div>
+                  <div className="text-sm text-white/60">{typeConfig?.label}</div>
                 </div>
               </div>
-            )}
-          </div>
 
-          <DialogFooter>
-            <Button onClick={handleClose} className="bg-gradient-to-r from-[#FF5800] to-purple-600">
-              <ChevronRight className="h-4 w-4 mr-2" />
-              Configure &amp; Deploy
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              {createdResult.apiKey && (
+                <div>
+                  <Label className="text-xs text-white/60">API Key</Label>
+                  <div className="flex gap-2 mt-1">
+                    <Input value={createdResult.apiKey} readOnly className="font-mono text-sm" />
+                    <Button type="button" variant="outline" onClick={copyApiKey} className="shrink-0">
+                      {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Create App option for agents, workflows, and services */}
+              {canCreateApp(createdResult.type) && (
+                <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Sparkles className="h-4 w-4 text-cyan-400" />
+                    <span className="text-sm font-medium text-cyan-300">Create an App</span>
+                  </div>
+                  <p className="text-xs text-white/60">
+                    Build a custom app or interface for your {createdResult.type}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              {canCreateApp(createdResult.type) && (
+                <Button
+                  onClick={handleCreateApp}
+                  variant="outline"
+                  className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Create App
+                </Button>
+              )}
+              <Button onClick={handleClose} className="bg-gradient-to-r from-[#FF5800] to-purple-600">
+                <ChevronRight className="h-4 w-4 mr-2" />
+                Configure &amp; Deploy
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Post-creation app prompt */}
+        {entityType && (
+          <PostCreationAppPrompt
+            open={showAppPrompt}
+            onOpenChange={setShowAppPrompt}
+            entityType={entityType}
+            entityId={createdResult.id}
+            entityName={createdResult.name}
+            onSkip={handleClose}
+          />
+        )}
+      </>
     );
   }
 

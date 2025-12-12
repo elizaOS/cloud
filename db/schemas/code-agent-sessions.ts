@@ -1,14 +1,5 @@
 /**
- * Code Agent Sessions Schema
- *
- * Tracks code agent sessions with full state persistence.
- * Supports multiple runtime backends (Vercel Sandbox, Cloudflare Containers, AWS ECS).
- *
- * Features:
- * - Session lifecycle management
- * - File snapshots for state restoration
- * - Git state tracking
- * - Usage metering for billing
+ * Code Agent Sessions Schema - Tracks code agent sessions with full state persistence
  */
 
 import {
@@ -25,10 +16,6 @@ import { organizations } from "./organizations";
 import { users } from "./users";
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
-// =============================================================================
-// TYPES
-// =============================================================================
-
 export type CodeAgentSessionStatus =
   | "creating"
   | "ready"
@@ -38,7 +25,8 @@ export type CodeAgentSessionStatus =
   | "terminated"
   | "error";
 
-export type CodeAgentRuntimeType = "vercel" | "cloudflare" | "aws";
+// NOTE: Only "vercel" is currently implemented. Others are reserved for future use.
+export type CodeAgentRuntimeType = "vercel";
 
 export type CodeAgentLanguage =
   | "python"
@@ -72,10 +60,6 @@ export interface SessionCapabilities {
   maxDiskMb: number;
   networkAccess: boolean;
 }
-
-// =============================================================================
-// CODE AGENT SESSIONS TABLE
-// =============================================================================
 
 export const codeAgentSessions = pgTable(
   "code_agent_sessions",
@@ -167,6 +151,13 @@ export const codeAgentSessions = pgTable(
     suspended_at: timestamp("suspended_at"),
     terminated_at: timestamp("terminated_at"),
 
+    // Webhook configuration
+    webhook_url: text("webhook_url"),
+    webhook_secret: text("webhook_secret"),
+    webhook_events: jsonb("webhook_events")
+      .$type<string[]>()
+      .default(["session_ready", "session_error", "session_terminated"]),
+
     // Metadata
     metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
   },
@@ -183,10 +174,6 @@ export const codeAgentSessions = pgTable(
     ),
   })
 );
-
-// =============================================================================
-// CODE AGENT SNAPSHOTS TABLE
-// =============================================================================
 
 export const codeAgentSnapshots = pgTable(
   "code_agent_snapshots",
@@ -244,10 +231,6 @@ export const codeAgentSnapshots = pgTable(
     ),
   })
 );
-
-// =============================================================================
-// CODE AGENT COMMANDS TABLE
-// =============================================================================
 
 export const codeAgentCommands = pgTable(
   "code_agent_commands",
@@ -313,10 +296,6 @@ export const codeAgentCommands = pgTable(
   })
 );
 
-// =============================================================================
-// INTERPRETER EXECUTIONS TABLE (for quick stateless executions)
-// =============================================================================
-
 export const interpreterExecutions = pgTable(
   "interpreter_executions",
   {
@@ -367,10 +346,6 @@ export const interpreterExecutions = pgTable(
     ),
   })
 );
-
-// =============================================================================
-// TYPE EXPORTS
-// =============================================================================
 
 export type CodeAgentSession = InferSelectModel<typeof codeAgentSessions>;
 export type NewCodeAgentSession = InferInsertModel<typeof codeAgentSessions>;

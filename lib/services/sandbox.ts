@@ -1,7 +1,7 @@
 import { logger } from "@/lib/utils/logger";
 import crypto from "crypto";
 import Anthropic from "@anthropic-ai/sdk";
-import { secretsService } from "@/lib/services/secrets";
+import { loadSandboxSecrets, isSecretsConfigured } from "@/lib/services/secrets";
 
 interface SandboxInstance {
   id?: string;
@@ -410,16 +410,9 @@ export class SandboxService {
       onProgress,
     } = config;
 
-    let encryptedSecrets: Record<string, string> = {};
-    if (organizationId && secretsService.isConfigured) {
-      const orgSecrets = await secretsService.getDecrypted({ organizationId });
-      Object.assign(encryptedSecrets, orgSecrets);
-
-      if (projectId) {
-        const projectSecrets = await secretsService.getDecrypted({ organizationId, projectId });
-        Object.assign(encryptedSecrets, projectSecrets);
-      }
-    }
+    const encryptedSecrets = organizationId && isSecretsConfigured()
+      ? await loadSandboxSecrets({ organizationId, appId: projectId })
+      : {};
 
     const mergedEnv = { ...encryptedSecrets, ...env };
     const creds = getSandboxCredentials();

@@ -179,36 +179,56 @@ export class HeliusService {
     return this.client.get<HeliusBalance>(`/addresses/${address}/balances`);
   }
 
-  async getWalletPortfolio(address: string): Promise<WalletPortfolio> {
+  async getWalletPortfolio(address: string, options: { includePrices?: boolean } = {}): Promise<WalletPortfolio> {
     const balances = await this.getBalances(address);
     const tokenMints = balances.tokens.map((t) => t.mint);
     const metadata = tokenMints.length > 0 ? await this.getTokenMetadata(tokenMints) : [];
     const metadataMap = new Map(metadata.map((m) => [m.mint, m]));
 
-    return {
-      address,
-      totalValueUsd: balances.nativeBalance / 1e9, // SOL balance only, USD value not available
-      holdings: balances.tokens.map((token) => {
-        const meta = metadataMap.get(token.mint);
-        const onChain = meta?.onChainMetadata?.metadata?.data;
-        const legacy = meta?.legacyMetadata;
+    // Optionally fetch prices from Birdeye
+    let priceMap = new Map<string, number>();
+    if (options.includePrices && tokenMints.length > 0) {
+      try {
+        const { getBirdeyeService } = await import("../birdeye");
+        const birdeye = getBirdeyeService();
+        const prices = await birdeye.getMultiPrice(tokenMints);
+        priceMap = new Map([...prices.entries()].map(([k, v]) => [k, v.priceUsd]));
+      } catch {
+        // Birdeye unavailable, continue without prices
+      }
+    }
 
-        return {
-          token: {
-            address: token.mint,
-            symbol: onChain?.symbol ?? legacy?.symbol ?? "UNKNOWN",
-            name: onChain?.name ?? legacy?.name ?? "Unknown Token",
-            decimals: token.decimals,
-            chainId: "solana" as const,
-            logoUri: legacy?.logoURI,
-          },
-          balance: String(token.amount / Math.pow(10, token.decimals)),
-          balanceUsd: 0, // USD value not available from Helius
-          percentage: 0,
-        };
-      }),
-      lastUpdated: new Date(),
-    };
+    const holdings = balances.tokens.map((token) => {
+      const meta = metadataMap.get(token.mint);
+      const onChain = meta?.onChainMetadata?.metadata?.data;
+      const legacy = meta?.legacyMetadata;
+      const balance = token.amount / Math.pow(10, token.decimals);
+      const priceUsd = priceMap.get(token.mint) ?? 0;
+      const balanceUsd = balance * priceUsd;
+
+      return {
+        token: {
+          address: token.mint,
+          symbol: onChain?.symbol ?? legacy?.symbol ?? "UNKNOWN",
+          name: onChain?.name ?? legacy?.name ?? "Unknown Token",
+          decimals: token.decimals,
+          chainId: "solana" as const,
+          logoUri: legacy?.logoURI,
+        },
+        balance: String(balance),
+        balanceUsd,
+        percentage: 0, // Calculated below
+      };
+    });
+
+    const totalValueUsd = holdings.reduce((sum, h) => sum + h.balanceUsd, 0) + (balances.nativeBalance / 1e9 * (priceMap.get("So11111111111111111111111111111111111111112") ?? 0));
+
+    // Calculate percentages
+    holdings.forEach((h) => {
+      h.percentage = totalValueUsd > 0 ? (h.balanceUsd / totalValueUsd) * 100 : 0;
+    });
+
+    return { address, totalValueUsd, holdings, lastUpdated: new Date() };
   }
 
   async getPriorityFee(accountKeys?: string[], options?: { recommended?: boolean }): Promise<HeliusPriorityFeeResponse> {

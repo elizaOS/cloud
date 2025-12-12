@@ -15,7 +15,9 @@ import {
   Code,
   Activity,
   Zap,
+  Sparkles,
 } from "lucide-react";
+import { WorkflowChatEditor } from "./workflow-chat-editor";
 import { WorkflowTriggers } from "./workflow-triggers";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -60,6 +62,7 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
+  const [showChatEditor, setShowChatEditor] = useState(false);
 
   useEffect(() => {
     async function fetchWorkflow() {
@@ -85,9 +88,7 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
         const data = await response.json();
         setVersions(data.versions || []);
       }
-    } catch {
-      // Silently fail
-    }
+    } catch {}
   }, [workflowId]);
 
   const fetchExecutions = useCallback(async () => {
@@ -97,9 +98,7 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
         const data = await response.json();
         setExecutions(data.executions || []);
       }
-    } catch {
-      // Silently fail
-    }
+    } catch {}
   }, [workflowId]);
 
   useEffect(() => {
@@ -132,6 +131,23 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
         <Button variant="ghost" onClick={onBack} className="mt-4">
           Go Back
         </Button>
+      </div>
+    );
+  }
+
+  function handleWorkflowUpdated(updatedWorkflow: Workflow) {
+    setWorkflow(updatedWorkflow);
+    fetchVersions();
+  }
+
+  if (showChatEditor) {
+    return (
+      <div className="h-[calc(100vh-200px)]">
+        <WorkflowChatEditor
+          workflow={workflow}
+          onWorkflowUpdated={handleWorkflowUpdated}
+          onBack={() => setShowChatEditor(false)}
+        />
       </div>
     );
   }
@@ -172,10 +188,16 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
           </div>
         </div>
 
-        <BrandButton variant="primary" onClick={() => onTest(workflow)}>
-          <Play className="h-4 w-4 mr-2" />
-          Test Workflow
-        </BrandButton>
+        <div className="flex items-center gap-2">
+          <BrandButton variant="secondary" onClick={() => setShowChatEditor(true)}>
+            <Sparkles className="h-4 w-4 mr-2" />
+            Edit with AI
+          </BrandButton>
+          <BrandButton variant="primary" onClick={() => onTest(workflow)}>
+            <Play className="h-4 w-4 mr-2" />
+            Test Workflow
+          </BrandButton>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>

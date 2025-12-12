@@ -36,6 +36,8 @@ import { managedDomains } from "./managed-domains";
 import { domainModerationEvents } from "./domain-moderation-events";
 import { containers } from "./containers";
 import { userMcps } from "./user-mcps";
+import { n8nWorkflows } from "./n8n-workflows";
+import { appAgents, appWorkflows, appServices } from "./app-integrations";
 
 /**
  * Organizations table relations.
@@ -91,7 +93,7 @@ export const conversationMessagesRelations = relations(
 /**
  * User characters table relations.
  */
-export const userCharactersRelations = relations(userCharacters, ({ one }) => ({
+export const userCharactersRelations = relations(userCharacters, ({ one, many }) => ({
   user: one(users, {
     fields: [userCharacters.user_id],
     references: [users.id],
@@ -100,6 +102,8 @@ export const userCharactersRelations = relations(userCharacters, ({ one }) => ({
     fields: [userCharacters.organization_id],
     references: [organizations.id],
   }),
+  // Apps that use this agent
+  appAgents: many(appAgents),
 }));
 
 /**
@@ -145,6 +149,10 @@ export const appsRelations = relations(apps, ({ one, many }) => ({
   earningsTransactions: many(appEarningsTransactions),
   domains: many(appDomains),
   bundles: many(appBundles),
+  // App integrations (junction tables)
+  agents: many(appAgents),
+  workflows: many(appWorkflows),
+  services: many(appServices),
 }));
 
 /**
@@ -504,3 +512,85 @@ export const domainModerationEventsRelations = relations(
     }),
   })
 );
+
+// ============================================
+// App Integration Junction Table Relations
+// ============================================
+
+/**
+ * App agents junction table relations.
+ */
+export const appAgentsRelations = relations(appAgents, ({ one }) => ({
+  app: one(apps, {
+    fields: [appAgents.app_id],
+    references: [apps.id],
+  }),
+  agent: one(userCharacters, {
+    fields: [appAgents.agent_id],
+    references: [userCharacters.id],
+  }),
+}));
+
+/**
+ * App workflows junction table relations.
+ */
+export const appWorkflowsRelations = relations(appWorkflows, ({ one }) => ({
+  app: one(apps, {
+    fields: [appWorkflows.app_id],
+    references: [apps.id],
+  }),
+  workflow: one(n8nWorkflows, {
+    fields: [appWorkflows.workflow_id],
+    references: [n8nWorkflows.id],
+  }),
+}));
+
+/**
+ * App services junction table relations.
+ */
+export const appServicesRelations = relations(appServices, ({ one }) => ({
+  app: one(apps, {
+    fields: [appServices.app_id],
+    references: [apps.id],
+  }),
+  service: one(userMcps, {
+    fields: [appServices.service_id],
+    references: [userMcps.id],
+  }),
+}));
+
+/**
+ * N8N workflows table relations.
+ */
+export const n8nWorkflowsRelations = relations(n8nWorkflows, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [n8nWorkflows.organization_id],
+    references: [organizations.id],
+  }),
+  user: one(users, {
+    fields: [n8nWorkflows.user_id],
+    references: [users.id],
+  }),
+  // Apps that use this workflow
+  appWorkflows: many(appWorkflows),
+}));
+
+/**
+ * User MCPs (services) table relations.
+ */
+export const userMcpsRelations = relations(userMcps, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [userMcps.organization_id],
+    references: [organizations.id],
+  }),
+  createdBy: one(users, {
+    fields: [userMcps.created_by_user_id],
+    references: [users.id],
+  }),
+  container: one(containers, {
+    fields: [userMcps.container_id],
+    references: [containers.id],
+  }),
+  // Apps that use this service
+  appServices: many(appServices),
+}));

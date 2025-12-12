@@ -4,6 +4,7 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { domainManagementService } from "@/lib/services/domain-management";
 import { domainModerationService } from "@/lib/services/domain-moderation";
 import { creditsService } from "@/lib/services/credits";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { logger } from "@/lib/utils/logger";
 
 const PurchaseDomainSchema = z.object({
@@ -26,7 +27,7 @@ const PurchaseDomainSchema = z.object({
   autoRenew: z.boolean().default(true),
 });
 
-export async function POST(request: NextRequest) {
+async function handlePurchase(request: NextRequest): Promise<Response> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const organizationId = user.organization_id;
 
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
   const priceInDollars = priceInCents / 100;
 
   // Step 3: Process payment (credits only)
-  const deduction = await creditsService.deduct({
+  const deduction = await creditsService.deductCredits({
     organizationId,
     amount: priceInCents,
     description: `Domain purchase: ${domain}`,
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
 
   if (!result.success) {
     // Refund credits
-    await creditsService.addCredits({
+    await creditsService.refundCredits({
       organizationId,
       amount: priceInCents,
       description: `Refund: Domain purchase failed for ${domain}`,
@@ -146,6 +147,9 @@ export async function POST(request: NextRequest) {
     message: "Domain purchased successfully",
   });
 }
+
+// Rate limit: 5 purchases per 5 minutes per user (uses CRITICAL preset)
+export const POST = withRateLimit(handlePurchase, RateLimitPresets.CRITICAL);
 
 export async function GET(request: NextRequest) {
   await requireAuthOrApiKeyWithOrg(request);

@@ -3,6 +3,7 @@
  */
 
 import { logger } from "@/lib/utils/logger";
+import { DISCORD_API_BASE, discordBotHeaders } from "@/lib/utils/discord-api";
 import { withRetry } from "../rate-limit";
 import type {
   SocialMediaProvider,
@@ -12,8 +13,6 @@ import type {
   PlatformPostOptions,
   MediaAttachment,
 } from "@/lib/types/social-media";
-
-const DISCORD_API_BASE = "https://discord.com/api/v10";
 
 interface DiscordMessage {
   id: string;
@@ -47,8 +46,7 @@ async function discordApiRequest<T>(endpoint: string, botToken: string, options:
     () => fetch(`${DISCORD_API_BASE}${endpoint}`, {
       ...options,
       headers: {
-        Authorization: `Bot ${botToken}`,
-        "Content-Type": "application/json",
+        ...discordBotHeaders(botToken),
         ...options.headers,
       },
     }),

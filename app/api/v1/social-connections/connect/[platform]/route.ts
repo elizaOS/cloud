@@ -127,3 +127,4 @@ export async function GET(
     scopes: config.scopes,
   });
 }
+

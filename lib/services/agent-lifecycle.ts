@@ -19,7 +19,7 @@ import {
   type OrgAgentConfig,
   type NewOrgAgentConfig,
 } from "@/db/schemas/org-agents";
-import { secretsService } from "@/lib/services/secrets";
+import { secretsService, loadSecrets, isSecretsConfigured } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
 import {
   ORG_CHARACTER_IDS,
@@ -494,8 +494,7 @@ class AgentLifecycleService {
     instanceId: string,
     platformConfigs: CreateOrgAgentParams["platformConfigs"]
   ): Promise<void> {
-    if (!secretsService.isConfigured) {
-      logger.warn("[OrgAgentLifecycle] Secrets service not configured, skipping");
+    if (!isSecretsConfigured()) {
       return;
     }
 
@@ -536,14 +535,10 @@ class AgentLifecycleService {
     organizationId: string,
     instanceId: string
   ): Promise<Record<string, string>> {
-    if (!secretsService.isConfigured) {
+    if (!isSecretsConfigured()) {
       return {};
     }
-
-    return secretsService.getDecrypted({
-      organizationId,
-      projectId: instanceId,
-    });
+    return loadSecrets({ organizationId, projectId: instanceId });
   }
 
   /**
@@ -553,7 +548,7 @@ class AgentLifecycleService {
     organizationId: string,
     instanceId: string
   ): Promise<void> {
-    if (!secretsService.isConfigured) {
+    if (!isSecretsConfigured()) {
       return;
     }
 

@@ -100,14 +100,22 @@ export interface ZeroExSourcesResponse {
 }
 
 class ZeroExClient extends BaseHttpClient {
+  private readonly chainId: number;
+
   constructor(config: { apiKey: string; timeout?: number }, chain: ZeroExChain) {
     super({ baseUrl: API_URLS[chain], apiKey: config.apiKey, headers: { "0x-api-key": config.apiKey }, timeout: config.timeout }, "0x");
+    this.chainId = CHAIN_IDS[chain];
+  }
+
+  getChainId(): number {
+    return this.chainId;
   }
 
   async healthCheck(): Promise<{ healthy: boolean; latencyMs: number }> {
     const start = Date.now();
     try {
-      await this.get("/swap/v1/sources");
+      // Use permit2 sources endpoint (v1 is deprecated)
+      await this.get("/swap/permit2/sources", { chainId: this.chainId });
       return { healthy: true, latencyMs: Date.now() - start };
     } catch {
       return { healthy: false, latencyMs: Date.now() - start };
@@ -161,19 +169,17 @@ export class ZeroExService {
 
     logger.info(`[0x] Getting quote on ${effectiveChain}: ${params.sellToken} -> ${params.buyToken}`);
 
-    const response = await client.get<ZeroExQuoteResponse>("/swap/v1/quote", {
+    const response = await client.get<ZeroExQuoteResponse>("/swap/permit2/quote", {
+      chainId: CHAIN_IDS[effectiveChain],
       sellToken: params.sellToken,
       buyToken: params.buyToken,
       sellAmount: params.sellAmount,
       buyAmount: params.buyAmount,
-      takerAddress: params.takerAddress,
-      slippagePercentage: params.slippagePercentage ?? 0.01,
+      taker: params.takerAddress,
+      slippageBps: Math.round((params.slippagePercentage ?? 0.01) * 10000),
       excludedSources: params.excludedSources?.join(","),
       includedSources: params.includedSources?.join(","),
       skipValidation: params.skipValidation,
-      feeRecipient: params.feeRecipient,
-      buyTokenPercentageFee: params.buyTokenPercentageFee,
-      enableSlippageProtection: params.enableSlippageProtection,
     });
 
     const routes: SwapRoute[] = response.sources
@@ -197,15 +203,17 @@ export class ZeroExService {
     chain?: ZeroExChain
   ): Promise<ZeroExQuoteResponse> {
     const client = this.getClient(chain);
-    logger.info(`[0x] Getting raw quote on ${chain ?? this.config.defaultChain}: ${params.sellToken} -> ${params.buyToken}`);
+    const effectiveChain = chain ?? this.config.defaultChain ?? "ethereum";
+    logger.info(`[0x] Getting raw quote on ${effectiveChain}: ${params.sellToken} -> ${params.buyToken}`);
 
-    return client.get<ZeroExQuoteResponse>("/swap/v1/quote", {
+    return client.get<ZeroExQuoteResponse>("/swap/permit2/quote", {
+      chainId: CHAIN_IDS[effectiveChain],
       sellToken: params.sellToken,
       buyToken: params.buyToken,
       sellAmount: params.sellAmount,
       buyAmount: params.buyAmount,
-      takerAddress: params.takerAddress,
-      slippagePercentage: params.slippagePercentage ?? 0.01,
+      taker: params.takerAddress,
+      slippageBps: Math.round((params.slippagePercentage ?? 0.01) * 10000),
     });
   }
 
@@ -214,9 +222,11 @@ export class ZeroExService {
     chain?: ZeroExChain
   ): Promise<ZeroExPriceResponse> {
     const client = this.getClient(chain);
-    logger.info(`[0x] Getting price on ${chain ?? this.config.defaultChain}: ${params.sellToken} -> ${params.buyToken}`);
+    const effectiveChain = chain ?? this.config.defaultChain ?? "ethereum";
+    logger.info(`[0x] Getting price on ${effectiveChain}: ${params.sellToken} -> ${params.buyToken}`);
 
-    return client.get<ZeroExPriceResponse>("/swap/v1/price", {
+    return client.get<ZeroExPriceResponse>("/swap/permit2/price", {
+      chainId: CHAIN_IDS[effectiveChain],
       sellToken: params.sellToken,
       buyToken: params.buyToken,
       sellAmount: params.sellAmount,
@@ -230,8 +240,9 @@ export class ZeroExService {
 
   async getSources(chain?: ZeroExChain): Promise<string[]> {
     const client = this.getClient(chain);
+    const effectiveChain = chain ?? this.config.defaultChain ?? "ethereum";
     logger.info("[0x] Getting available sources");
-    const response = await client.get<ZeroExSourcesResponse>("/swap/v1/sources");
+    const response = await client.get<ZeroExSourcesResponse>("/swap/permit2/sources", { chainId: CHAIN_IDS[effectiveChain] });
     return response.records.map((r) => r.name);
   }
 

@@ -4,7 +4,7 @@
  * Tests domain search, purchase, registration, assignment, and DNS operations.
  */
 
-import { describe, it, expect, beforeEach, mock } from "bun:test";
+import { describe, it, expect, beforeEach, afterAll, mock } from "bun:test";
 
 // Set environment variables before any imports
 process.env.VERCEL_TOKEN = "test-token";

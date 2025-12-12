@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
-import { Loader2, Workflow, Sparkles } from "lucide-react";
+import { Loader2, Workflow, Sparkles, Search } from "lucide-react";
 import { BrandButton } from "@/components/brand";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -11,6 +11,7 @@ import {
   WorkflowViewer,
   WorkflowTester,
 } from "@/components/workflows";
+import { EndpointDiscovery } from "@/components/workflows/endpoint-discovery";
 
 type View = "list" | "view" | "test";
 
@@ -136,6 +137,13 @@ export default function WorkflowsPage() {
             <Workflow className="h-4 w-4" />
             My Workflows
           </TabsTrigger>
+          <TabsTrigger
+            value="discover"
+            className="data-[state=active]:bg-[#FF5800] flex items-center gap-2"
+          >
+            <Search className="h-4 w-4" />
+            Discover
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="generate" className="mt-6">
@@ -148,6 +156,10 @@ export default function WorkflowsPage() {
             onSelect={handleSelectWorkflow}
             onTest={handleTestWorkflow}
           />
+        </TabsContent>
+
+        <TabsContent value="discover" className="mt-6">
+          <EndpointDiscovery />
         </TabsContent>
       </Tabs>
     </div>

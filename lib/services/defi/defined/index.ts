@@ -124,15 +124,16 @@ export class DefinedService {
   async searchTokens(query: string, options: { networkIds?: DefinedNetworkId[]; limit?: number } = {}): Promise<DefinedToken[]> {
     logger.info(`[Defined] Searching tokens: "${query}"`);
 
-    const result = await this.query<{ searchTokens: { tokens: DefinedToken[] } }>(`
-      query SearchTokens($search: String!, $networkFilter: [Int!], $limit: Int) {
-        searchTokens(search: $search, networkFilter: $networkFilter, limit: $limit) {
-          tokens { address decimals name networkId symbol info { imageSmallUrl } }
+    // Use filterTokens with phrase filter - searchTokens query doesn't exist
+    const result = await this.query<{ filterTokens: { results: Array<{ token: DefinedToken }> } }>(`
+      query FilterTokens($phrase: String, $network: [Int!], $limit: Int) {
+        filterTokens(filters: { network: $network }, phrase: $phrase, limit: $limit) {
+          results { token { address decimals name networkId symbol info { imageSmallUrl } } }
         }
       }
-    `, { search: query, networkFilter: options.networkIds, limit: options.limit ?? 20 });
+    `, { phrase: query, network: options.networkIds ?? [1], limit: options.limit ?? 20 });
 
-    return result.searchTokens.tokens;
+    return result.filterTokens.results.map((r) => r.token);
   }
 
   async getTokenInfo(address: string, networkId: DefinedNetworkId): Promise<TokenInfo | null> {

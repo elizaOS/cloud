@@ -45,6 +45,7 @@ export const applicationTriggerTargetEnum = pgEnum("application_trigger_target",
   "fragment_project",
   "container",
   "user_mcp",
+  "code_agent_session",
 ]);
 
 // =============================================================================

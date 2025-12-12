@@ -1,10 +1,3 @@
-/**
- * Code Agent Sessions API
- *
- * POST /api/v1/code-agent/sessions - Create a new code agent session
- * GET /api/v1/code-agent/sessions - List sessions for the organization
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
@@ -12,14 +5,10 @@ import { codeAgentService } from "@/lib/services/code-agent";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit-redis";
 import { logger } from "@/lib/utils/logger";
 
-// =============================================================================
-// SCHEMAS
-// =============================================================================
-
 const createSessionSchema = z.object({
   name: z.string().max(200).optional(),
   description: z.string().max(1000).optional(),
-  runtimeType: z.enum(["vercel", "cloudflare", "aws"]).default("vercel"),
+  runtimeType: z.literal("vercel").default("vercel"), // Only Vercel is currently implemented
   templateUrl: z.string().url().optional(),
   environmentVariables: z.record(z.string()).optional(),
   loadOrgSecrets: z.boolean().default(true),
@@ -37,6 +26,10 @@ const createSessionSchema = z.object({
     })
     .optional(),
   expiresInSeconds: z.number().min(60).max(86400).default(1800), // 30 min default, 24h max
+  webhookUrl: z.string().url().optional(),
+  webhookEvents: z
+    .array(z.enum(["session_ready", "session_error", "session_terminated", "snapshot_created"]))
+    .optional(),
 });
 
 const listSessionsSchema = z.object({
@@ -53,10 +46,6 @@ const listSessionsSchema = z.object({
     .optional(),
   limit: z.coerce.number().min(1).max(100).default(50),
 });
-
-// =============================================================================
-// HANDLERS
-// =============================================================================
 
 async function handlePOST(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
@@ -81,6 +70,8 @@ async function handlePOST(request: NextRequest) {
     loadOrgSecrets: validated.loadOrgSecrets,
     capabilities: validated.capabilities,
     expiresInSeconds: validated.expiresInSeconds,
+    webhookUrl: validated.webhookUrl,
+    webhookEvents: validated.webhookEvents,
   });
 
   return NextResponse.json({ session }, { status: 201 });
@@ -103,10 +94,5 @@ async function handleGET(request: NextRequest) {
   return NextResponse.json({ sessions });
 }
 
-// =============================================================================
-// EXPORTS
-// =============================================================================
-
 export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);
 export const GET = withRateLimit(handleGET, RateLimitPresets.RELAXED);
-

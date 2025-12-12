@@ -1,6 +1,7 @@
 import { hasBadWords, minimalBadWordsArray } from "expletives";
 import { managedDomainsRepository, type DomainModerationFlag } from "@/db/repositories/managed-domains";
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/types/domains";
 
 export interface DomainModerationResult {
   allowed: boolean;
@@ -19,8 +20,10 @@ export interface DomainHealthCheckResult {
 }
 
 export interface ContentScanResult {
+  status: "clean" | "flagged" | "failed" | "skipped";
   clean: boolean;
   flags: DomainModerationFlag[];
+  error?: string;
 }
 
 const RESTRICTED_TERMS = new Set([
@@ -217,7 +220,7 @@ class DomainModerationService {
 
   async scanDomainContent(domainId: string): Promise<ContentScanResult> {
     const domain = await managedDomainsRepository.findById(domainId);
-    if (!domain) return { clean: true, flags: [] };
+    if (!domain) return { status: "skipped", clean: false, flags: [], error: "Domain not found" };
 
     const now = new Date().toISOString();
     const flags: DomainModerationFlag[] = [];
@@ -228,7 +231,9 @@ class DomainModerationService {
       const response = await fetch(`https://${domain.domain}`, { signal: controller.signal });
       clearTimeout(timeout);
 
-      if (!response.ok) return { clean: true, flags: [] };
+      if (!response.ok) {
+        return { status: "failed", clean: false, flags: [], error: `HTTP ${response.status}` };
+      }
 
       const html = await response.text();
       const text = html
@@ -258,12 +263,14 @@ class DomainModerationService {
           detectedBy: "automated_scan",
           evidence: { contentSample: text.slice(0, 200) },
         });
+        return { status: "flagged", clean: false, flags };
       }
 
-      return { clean: flags.length === 0, flags };
+      return { status: "clean", clean: true, flags: [] };
     } catch (error) {
-      logger.warn("[DomainModeration] Content scan failed", { domain: domain.domain, error });
-      return { clean: true, flags: [] };
+      const errorMsg = extractErrorMessage(error);
+      logger.warn("[DomainModeration] Content scan failed", { domain: domain.domain, error: errorMsg });
+      return { status: "failed", clean: false, flags: [], error: errorMsg };
     }
   }
 

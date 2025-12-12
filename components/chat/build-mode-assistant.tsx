@@ -75,24 +75,16 @@ export function BuildModeAssistant({
 }: BuildModeAssistantProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const roomInitKeyRef = useRef<string | null>(null); // Track which room key we've initialized
-  const messagesLoadedRef = useRef<string | null>(null); // Track which room we've loaded messages for
-  const initialPromptUsedRef = useRef(false); // Track if initial prompt has been applied
+  const roomInitKeyRef = useRef<string | null>(null);
+  const messagesLoadedRef = useRef<string | null>(null);
+  const initialPromptSentRef = useRef(false);
   const [inputText, setInputText] = useState(initialPrompt || "");
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true); // Loading state for initial welcome
+  const [isInitializing, setIsInitializing] = useState(true);
   const [builderRoomId, setBuilderRoomId] = useState<string>("");
-  const [lockedRoom, setLockedRoom] = useState<LockedRoomInfo | null>(null); // Track if room is locked after character creation
-
-  // Handle initial prompt from URL - only apply once
-  useEffect(() => {
-    if (initialPrompt && !initialPromptUsedRef.current) {
-      setInputText(initialPrompt);
-      initialPromptUsedRef.current = true;
-    }
-  }, [initialPrompt]);
+  const [lockedRoom, setLockedRoom] = useState<LockedRoomInfo | null>(null);
 
   // Determine display info based on mode
   // Show Eliza until character is actually saved (has source from database)
@@ -241,8 +233,29 @@ export function BuildModeAssistant({
     loadMessages();
   }, [builderRoomId]);
 
+  const sendElizaMessageRef = useRef<((text: string) => Promise<void>) | null>(null);
+
+  // Auto-submit initial prompt after room is initialized
+  useEffect(() => {
+    if (
+      !isInitializing &&
+      builderRoomId &&
+      initialPrompt &&
+      !initialPromptSentRef.current &&
+      messages.length === 0 &&
+      !isLoading &&
+      sendElizaMessageRef.current
+    ) {
+      initialPromptSentRef.current = true;
+      setInputText("");
+      
+      const sendFn = sendElizaMessageRef.current;
+      queueMicrotask(() => sendFn(initialPrompt));
+    }
+  }, [isInitializing, builderRoomId, initialPrompt, messages.length, isLoading]);
+
   // Send message to ElizaOS stream endpoint with BUILD workflow
-  const sendElizaMessage = async (text: string) => {
+  const sendElizaMessage = useCallback(async (text: string) => {
     if (!text.trim() || !builderRoomId) return;
 
     setIsLoading(true);
@@ -423,7 +436,11 @@ export function BuildModeAssistant({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [builderRoomId, isCreatorMode, character?.id, onCharacterUpdate, onCharacterRefresh]);
+
+  useEffect(() => {
+    sendElizaMessageRef.current = sendElizaMessage;
+  }, [sendElizaMessage]);
 
   // Robust scroll to bottom function
   const scrollToBottom = useCallback((smooth = false) => {

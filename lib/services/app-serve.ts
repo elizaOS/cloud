@@ -102,11 +102,12 @@ window.__ELIZA_CLOUD__={
   async getPlatformToken(p){const c=await this.getCredential(p);if(!c)throw new Error(p+" not connected");const r=await fetch(this.apiUrl+"/credentials/"+c.id+"/token",{credentials:"include"});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||"Failed");return r.json()},
   async _checkSession(id){const r=await fetch(this.apiUrl+"/credentials/session/"+id,{credentials:"include"});return r.ok?r.json():{status:"error"}},
   
-  // Secrets (encrypted key-value storage)
-  async getSecret(name){const r=await fetch(this.apiUrl+"/secrets/"+encodeURIComponent(name),{credentials:"include"});return r.ok?(await r.json()).value:null},
-  async setSecret(name,value,desc){const r=await fetch(this.apiUrl+"/secrets",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,value,description:desc})});return r.ok},
-  async deleteSecret(name){return(await fetch(this.apiUrl+"/secrets/"+encodeURIComponent(name),{method:"DELETE",credentials:"include"})).ok},
-  async listSecrets(){const r=await fetch(this.apiUrl+"/secrets",{credentials:"include"});return r.ok?(await r.json()).secrets||[]:[]},
+  // Secrets (uses /app/secrets with X-App-Id for approval-gated access)
+  _secretHeaders(){return{"X-App-Id":this.appId}},
+  async getSecret(name){const r=await fetch(this.apiUrl+"/app/secrets/"+encodeURIComponent(name),{credentials:"include",headers:this._secretHeaders()});return r.ok?(await r.json()).value:null},
+  async setSecret(name,value,desc){const r=await fetch(this.apiUrl+"/app/secrets",{method:"POST",credentials:"include",headers:{...this._secretHeaders(),"Content-Type":"application/json"},body:JSON.stringify({name,value,description:desc})});return r.ok},
+  async deleteSecret(name){return(await fetch(this.apiUrl+"/app/secrets/"+encodeURIComponent(name),{method:"DELETE",credentials:"include",headers:this._secretHeaders()})).ok},
+  async listSecrets(){const r=await fetch(this.apiUrl+"/app/secrets",{credentials:"include",headers:this._secretHeaders()});return r.ok?(await r.json()).secrets||[]:[]},
   
   // Storage (unencrypted key-value)
   async getStorage(k){const r=await fetch(this.apiUrl+"/storage/"+encodeURIComponent(k),{credentials:"include"});return r.ok?r.json():null},

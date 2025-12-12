@@ -69,3 +69,4 @@ gatewayManager.start().catch((err) => {
   logger.error("Failed to start gateway manager", { error: err });
   process.exit(1);
 });
+

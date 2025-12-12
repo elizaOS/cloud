@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { secretsService, type AuditContext } from "@/lib/services/secrets";
+import { secretsService, isSecretsConfigured, type AuditContext } from "@/lib/services/secrets";
 import { charactersService } from "@/lib/services/characters";
 
 export const dynamic = "force-dynamic";
@@ -92,7 +92,7 @@ export async function POST(
     );
   }
 
-  if (!secretsService.isConfigured) {
+  if (!isSecretsConfigured()) {
     return NextResponse.json(
       { success: false, error: "Secrets service is not configured" },
       { status: 503 }

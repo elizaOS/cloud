@@ -183,14 +183,16 @@ export class CoinMarketCapService {
   async getQuotesBySymbol(symbols: string[], convert: string = "USD"): Promise<Map<string, CMCCryptocurrency>> {
     logger.info(`[CoinMarketCap] Getting quotes for symbols: ${symbols.join(",")}`);
 
-    const response = await this.client.get<{ data: Record<string, CMCCryptocurrency[]> }>("/cryptocurrency/quotes/latest", {
+    const response = await this.client.get<{ data: Record<string, CMCCryptocurrency | CMCCryptocurrency[]> }>("/cryptocurrency/quotes/latest", {
       symbol: symbols.join(","),
       convert,
     });
 
     const result = new Map<string, CMCCryptocurrency>();
-    for (const [symbol, dataArray] of Object.entries(response.data)) {
-      if (dataArray.length > 0) result.set(symbol, dataArray[0]);
+    for (const [symbol, data] of Object.entries(response.data)) {
+      // CMC returns array for multiple matches, single object otherwise
+      const coin = Array.isArray(data) ? data[0] : data;
+      if (coin) result.set(symbol, coin);
     }
     return result;
   }

@@ -1,23 +1,12 @@
-/**
- * N8N Workflow Test API
- *
- * POST /api/v1/n8n/workflows/:id/test - Test workflow execution
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { n8nWorkflowsService } from "@/lib/services/n8n-workflows";
-import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
 const TestWorkflowSchema = z.object({
   inputData: z.record(z.unknown()).optional(),
 });
 
-/**
- * POST /api/v1/n8n/workflows/:id/test
- * Tests a workflow execution.
- */
 export async function POST(
   request: NextRequest,
   ctx: { params: Promise<{ id: string }> }
@@ -51,17 +40,22 @@ export async function POST(
     userId: user.id,
   });
 
+  const isRealExecution = execution.n8n_execution_id !== null;
+  const outputData = execution.output_data as Record<string, unknown> | null;
+  const wasSimulated = outputData?.note?.toString().includes("simulated") || 
+                       outputData?.note?.toString().includes("Simulated");
+
   return NextResponse.json({
-    success: true,
-    execution: {
-      id: execution.id,
-      status: execution.status,
-      outputData: execution.output_data,
-      errorMessage: execution.error_message,
-      durationMs: execution.duration_ms,
-      startedAt: execution.started_at,
-      finishedAt: execution.finished_at,
-    },
+    success: execution.status === "success",
+    executionId: execution.id,
+    status: execution.status === "success" ? "completed" : execution.status === "error" ? "failed" : execution.status,
+    startTime: execution.started_at,
+    endTime: execution.finished_at,
+    duration: execution.duration_ms,
+    output: execution.output_data,
+    error: execution.error_message,
+    executionMode: isRealExecution ? "real" : "simulated",
+    n8nExecutionId: execution.n8n_execution_id,
   });
 }
 

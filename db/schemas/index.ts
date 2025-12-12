@@ -73,3 +73,6 @@ export * from "./domain-moderation-events";
 
 // Code Agent & Interpreter
 export * from "./code-agent-sessions";
+
+// App Integrations (junction tables)
+export * from "./app-integrations";

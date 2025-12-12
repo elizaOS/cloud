@@ -173,7 +173,7 @@ export class JupiterService {
     }
 
     logger.info("[Jupiter] Fetching token list");
-    const tokens = await this.client.tokenRequest<JupiterTokenInfo[]>("/all");
+    const tokens = await this.client.tokenRequest<JupiterTokenInfo[]>("/tokens");
     this.tokenListCache = tokens;
     this.tokenListCacheTime = Date.now();
     return tokens;
@@ -181,7 +181,9 @@ export class JupiterService {
 
   async getStrictTokenList(): Promise<JupiterTokenInfo[]> {
     logger.info("[Jupiter] Fetching strict token list");
-    return this.client.tokenRequest<JupiterTokenInfo[]>("/strict");
+    const allTokens = await this.getTokenList();
+    // Filter to verified tokens only (those with "verified" or "community" tags, excluding "unknown")
+    return allTokens.filter((t) => t.tags?.includes("verified") || t.tags?.includes("community"));
   }
 
   async getTokenInfo(address: string): Promise<TokenInfo | null> {

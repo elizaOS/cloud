@@ -19,7 +19,7 @@ import {
 import { isFeatureConfigured } from "@/lib/config/env-validator";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
-import { secretsService } from "@/lib/services/secrets";
+import { loadContainerSecrets, isSecretsConfigured } from "@/lib/services/secrets";
 
 export const dynamic = "force-dynamic";
 // Set max duration to handle CloudFormation deployments
@@ -608,18 +608,10 @@ async function initiateCloudFormationStack(
     deploymentLog: `Creating CloudFormation stack (1x ${instanceType} ${architecture === "arm64" ? "ARM" : "x86_64"} instance)...`,
   });
 
-  // Load encrypted secrets from secrets service
-  let encryptedSecrets: Record<string, string> = {};
-  if (secretsService.isConfigured) {
-    const orgSecrets = await secretsService.getDecrypted({ organizationId });
-    Object.assign(encryptedSecrets, orgSecrets);
-
-    const containerSecrets = await secretsService.getDecrypted({
-      organizationId,
-      projectId: containerId,
-    });
-    Object.assign(encryptedSecrets, containerSecrets);
-  }
+  // Load encrypted secrets (org + container-scoped)
+  const encryptedSecrets = isSecretsConfigured()
+    ? await loadContainerSecrets({ organizationId, containerId })
+    : {};
 
   // Priority: secrets (highest) > user env vars > platform defaults
   const environmentVars: Record<string, string> = {

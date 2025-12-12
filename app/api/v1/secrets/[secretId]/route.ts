@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { secretsService, type AuditContext } from "@/lib/services/secrets";
+import { secretsService, isSecretsConfigured, type AuditContext } from "@/lib/services/secrets";
 import { secretsRepository } from "@/db/repositories/secrets";
 
 export const maxDuration = 30;
@@ -48,7 +48,7 @@ export async function GET(
   const authResult = await requireAuthOrApiKeyWithOrg(request);
   const { secretId } = await ctx.params;
 
-  if (!secretsService.isConfigured) {
+  if (!isSecretsConfigured()) {
     return NextResponse.json(
       { error: "Secrets service is not configured" },
       { status: 503 }
@@ -101,7 +101,7 @@ export async function PATCH(
   const authResult = await requireAuthOrApiKeyWithOrg(request);
   const { secretId } = await ctx.params;
 
-  if (!secretsService.isConfigured) {
+  if (!isSecretsConfigured()) {
     return NextResponse.json(
       { error: "Secrets service is not configured" },
       { status: 503 }
@@ -155,7 +155,7 @@ export async function DELETE(
   const authResult = await requireAuthOrApiKeyWithOrg(request);
   const { secretId } = await ctx.params;
 
-  if (!secretsService.isConfigured) {
+  if (!isSecretsConfigured()) {
     return NextResponse.json(
       { error: "Secrets service is not configured" },
       { status: 503 }

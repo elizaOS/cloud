@@ -377,7 +377,7 @@ class N8nWorkflowsService {
     let storedValue = value;
 
     // For secrets, store encrypted value in secrets vault and use placeholder in variable
-    if (isSecret && secretsService.isConfigured) {
+    if (isSecret && isSecretsConfigured()) {
       const secretName = `N8N_VAR_${name.toUpperCase()}`;
       
       await secretsService.create(
@@ -466,7 +466,7 @@ class N8nWorkflowsService {
     // If it's a secret with encrypted placeholder, decrypt from vault
     if (variable.is_secret && variable.value.startsWith("[ENCRYPTED:")) {
       const secretName = variable.value.match(/\[ENCRYPTED:(.+?)\]/)?.[1];
-      if (secretName && secretsService.isConfigured) {
+      if (secretName && isSecretsConfigured()) {
         const decryptedValue = await secretsService.get(
           organizationId,
           secretName,
@@ -503,7 +503,7 @@ class N8nWorkflowsService {
 
     // Handle value update for secrets
     if (params.value !== undefined) {
-      if (existing.is_secret && existing.value.startsWith("[ENCRYPTED:") && secretsService.isConfigured) {
+      if (existing.is_secret && existing.value.startsWith("[ENCRYPTED:") && isSecretsConfigured()) {
         // Update the secret in the vault
         const secretName = existing.value.match(/\[ENCRYPTED:(.+?)\]/)?.[1];
         if (secretName && organizationId) {
@@ -542,7 +542,7 @@ class N8nWorkflowsService {
     const existing = await n8nWorkflowVariablesRepository.findById(variableId);
     
     // If it's a secret with encrypted placeholder, delete from vault
-    if (existing?.is_secret && existing.value.startsWith("[ENCRYPTED:") && organizationId && secretsService.isConfigured) {
+    if (existing?.is_secret && existing.value.startsWith("[ENCRYPTED:") && organizationId && isSecretsConfigured()) {
       const secretName = existing.value.match(/\[ENCRYPTED:(.+?)\]/)?.[1];
       if (secretName) {
         const secrets = await secretsService.list(organizationId);

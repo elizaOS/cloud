@@ -1,13 +1,3 @@
-/**
- * Comprehensive Secrets Tests
- *
- * Thorough testing covering:
- * 1. Boundary conditions and edge cases
- * 2. Error handling and invalid inputs
- * 3. Concurrent/async behavior
- * 4. Real encryption/decryption paths
- */
-
 import { describe, it, expect, beforeEach, mock } from "bun:test";
 import { SecretsService, type AuditContext } from "@/lib/services/secrets/secrets";
 import {

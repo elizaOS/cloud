@@ -491,13 +491,20 @@ class PlatformCredentialsService {
   }): Promise<PlatformCredential> {
     const { organizationId, userId, appId, platform, credentials } = params;
 
-    const validated = platform === "bluesky"
-      ? await this.validateBluesky(credentials.handle!, credentials.appPassword!)
-      : platform === "telegram"
-        ? await this.validateTelegram(credentials.botToken!)
-        : null;
-
-    if (!validated) throw new Error(`Manual credentials not supported for: ${platform}`);
+    let validated;
+    if (platform === "bluesky") {
+      if (!credentials.handle || !credentials.appPassword) {
+        throw new Error("Bluesky requires handle and appPassword");
+      }
+      validated = await this.validateBluesky(credentials.handle, credentials.appPassword);
+    } else if (platform === "telegram") {
+      if (!credentials.botToken) {
+        throw new Error("Telegram requires botToken");
+      }
+      validated = await this.validateTelegram(credentials.botToken);
+    } else {
+      throw new Error(`Manual credentials not supported for: ${platform}`);
+    }
 
     const secret = await secretsService.create({
       organizationId,

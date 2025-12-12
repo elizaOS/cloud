@@ -18,6 +18,7 @@ import {
 } from "@/db/schemas/org-platforms";
 import { secretsService, type AuditContext } from "./secrets";
 import { logger } from "@/lib/utils/logger";
+import { DISCORD_API_BASE, discordBearerApiRequest, discordBotApiRequest } from "@/lib/utils/discord-api";
 
 // Default audit context for system operations
 const SYSTEM_AUDIT: AuditContext = {
@@ -91,56 +92,6 @@ export interface ServerWithConnection extends OrgPlatformServer {
 // =============================================================================
 // DISCORD API HELPERS
 // =============================================================================
-
-const DISCORD_API_BASE = "https://discord.com/api/v10";
-
-async function discordApiRequest<T>(
-  endpoint: string,
-  accessToken: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const response = await fetch(`${DISCORD_API_BASE}${endpoint}`, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      `Discord API error: ${response.status} - ${error.message || "Unknown error"}`
-    );
-  }
-
-  return response.json();
-}
-
-async function discordBotApiRequest<T>(
-  endpoint: string,
-  botToken: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const response = await fetch(`${DISCORD_API_BASE}${endpoint}`, {
-    ...options,
-    headers: {
-      Authorization: `Bot ${botToken}`,
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      `Discord Bot API error: ${response.status} - ${error.message || "Unknown error"}`
-    );
-  }
-
-  return response.json();
-}
 
 // =============================================================================
 // TELEGRAM API HELPERS
