@@ -166,6 +166,7 @@ export function getRefreshGuidance(platform: SocialPlatform): string {
     bluesky: "Update your Bluesky app password at /settings/connections/bluesky",
     discord: "Check your Discord bot token at /settings/connections/discord",
     telegram: "Verify your Telegram bot token at /settings/connections/telegram",
+    slack: "Re-install your Slack app or update bot token at /settings/connections/slack",
     reddit: "Check your Reddit app credentials at /settings/connections/reddit",
     facebook: "Re-authenticate your Facebook page at /settings/connections/facebook",
     instagram: "Re-authenticate your Instagram account at /settings/connections/instagram",
@@ -175,3 +176,4 @@ export function getRefreshGuidance(platform: SocialPlatform): string {
   };
   return guides[platform];
 }
+
