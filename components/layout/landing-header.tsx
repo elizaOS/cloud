@@ -12,6 +12,7 @@ import { LockOnButton } from "@/components/brand";
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import UserMenu from "@/components/layout/user-menu";
+import { motion } from "framer-motion";
 
 export default function LandingHeader() {
   const { ready, authenticated } = usePrivy();
@@ -24,7 +25,16 @@ export default function LandingHeader() {
   };
 
   return (
-    <header className="fixed top-0 left-0 z-[100] w-full pointer-events-auto">
+    <motion.header
+      className="fixed top-0 left-0 z-[100] w-full pointer-events-auto"
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: 1,
+        ease: [0.25, 0.1, 0.25, 1],
+        delay: 0.2,
+      }}
+    >
       <div className="flex h-16 items-center justify-between w-full px-4">
         <Link href="/" className="flex items-center gap-3">
           <div className="flex items-center gap-2">
@@ -73,6 +83,6 @@ export default function LandingHeader() {
           )}
         </div>
       </div>
-    </header>
+    </motion.header>
   );
 }

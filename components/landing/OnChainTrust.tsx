@@ -11,8 +11,66 @@ import { CornerBrackets, SectionLabel, BrandCard } from "@/components/brand";
 import MicropaymentNetwork from "./MicropaymentNetwork";
 import Image from "next/image";
 import { ReactFlowProvider } from "@xyflow/react";
+import { motion } from "framer-motion";
+
 
 export default function OnChainTrust() {
+  const mockCardData = [
+    {
+      name: "Sage",
+      description: "Your default AI companion",
+      address: "0xA9E3...C14",
+      image: "/avatars/amara.png",
+    },
+    {
+      name: "Nova",
+      description: "Creative writing assistant",
+      address: "0xB2F4...A27",
+      image: "/avatars/codementor.png",
+    },
+    {
+      name: "Atlas",
+      description: "Data analysis expert",
+      address: "0xC8D1...F93",
+      image: "/avatars/comedybot.png",
+    },
+    {
+      name: "echo",
+      description: "Voice interaction specialist",
+      address: "0xD4E2...B61",
+      image: "/avatars/creativespark.png",
+    },
+    {
+      name: "Eliza",
+      description: "Knowledge base curator",
+      address: "0xE7A5...D48",
+      image: "/agent-wallet.png",
+    },
+    {
+      name: "Pixel",
+      description: "Image generation AI",
+      address: "0xF1B8...E52",
+      image: "/avatars/prof_ada.png",
+    },
+    {
+      name: "Cipher",
+      description: "Code optimization tool",
+      address: "0xA3C9...F17",
+      image: "/avatars/gamemaster.png",
+    },
+    {
+      name: "Muse",
+      description: "Music composition helper",
+      address: "0xB6D2...C83",
+      image: "/avatars/luna.png",
+    },
+    {
+      name: "Scout",
+      description: "Research aggregator",
+      address: "0xC9E4...A94",
+      image: "/avatars/voiceai.png",
+    },
+  ];
   return (
     <section className="relative bg-[#0A0A0A] py-12 md:py-16 lg:py-24 overflow-hidden">
       {/* Background skew image */}
@@ -44,11 +102,29 @@ export default function OnChainTrust() {
         {/* Header */}
         <div className="mb-8 md:mb-12 flex flex-col md:flex-row items-start md:justify-between gap-6">
           <div className="max-w-4xl">
-            <div className="mb-4 md:mb-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{
+                duration: 1,
+                ease: [0.25, 0.1, 0.25, 1],
+                delay: 0.2,
+              }}
+              className="mb-4 md:mb-6"
+            >
               <SectionLabel>ON-CHAIN TRUST & ECONOMY</SectionLabel>
-            </div>
+            </motion.div>
 
-            <h2
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{
+                duration: 1,
+                ease: [0.25, 0.1, 0.25, 1],
+                delay: 0.2,
+              }}
               className="mb-4 md:mb-6 text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-medium uppercase"
               style={{
                 fontFamily: "var(--font-geist-sans)",
@@ -56,43 +132,61 @@ export default function OnChainTrust() {
                 color: "#FFFFFF",
               }}
             >
-              AGENTS HAVE WALLETS.
-              <br />
-              THEY CAN PAY AND GET PAID.
-            </h2>
+              Wallets, identity, and reputation.
+            </motion.h2>
 
-            <p
+            <motion.p
               className="font-normal text-sm md:text-base"
               style={{
                 lineHeight: "1.5",
                 letterSpacing: "-0.003em",
                 color: "#858585",
               }}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{
+                duration: 1,
+                ease: [0.25, 0.1, 0.25, 1],
+                delay: 0.2,
+              }}
             >
-              Every agent has a verifiable on-chain identity (ERC-8004).
-            </p>
+              Every agent is on-chain, discoverable, and earns trust over time
+              with ERC-8004.
+            </motion.p>
           </div>
 
-          <Button
-            variant="outline"
-            className="hidden lg:flex shrink-0 gap-2 rounded-none transition-all duration-200 hover:scale-105 hover:shadow-[0_0_20px_rgba(225,225,225,0.4)] active:scale-95"
-            style={{
-              backgroundColor: "#E1E1E1",
-              borderColor: "#E1E1E1",
-              color: "#000000",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "#FFFFFF";
-              e.currentTarget.style.borderColor = "#FFFFFF";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "#E1E1E1";
-              e.currentTarget.style.borderColor = "#E1E1E1";
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{
+              duration: 1,
+              ease: [0.25, 0.1, 0.25, 1],
+              delay: 0.2,
             }}
           >
-            Learn more
-            <ArrowUpRight className="h-4 w-4" />
-          </Button>
+            <Button
+              variant="outline"
+              className="hidden lg:flex shrink-0 gap-2 rounded-none transition-all duration-200 hover:scale-105 hover:shadow-[0_0_20px_rgba(225,225,225,0.4)] active:scale-95"
+              style={{
+                backgroundColor: "#E1E1E1",
+                borderColor: "#E1E1E1",
+                color: "#000000",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "#FFFFFF";
+                e.currentTarget.style.borderColor = "#FFFFFF";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "#E1E1E1";
+                e.currentTarget.style.borderColor = "#E1E1E1";
+              }}
+            >
+              Learn more
+              <ArrowUpRight className="h-4 w-4" />
+            </Button>
+          </motion.div>
         </div>
 
         {/* Two column layout */}
@@ -109,7 +203,7 @@ export default function OnChainTrust() {
                   "radial-gradient(circle at center, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 25%, rgba(0,0,0,0.6) 50%, rgba(0,0,0,0.2) 75%, transparent 100%)",
               }}
             >
-              {[...Array(9)].map((_, index) => {
+              {mockCardData.map((agent, index) => {
                 return (
                   <div
                     key={index}
@@ -130,26 +224,29 @@ export default function OnChainTrust() {
                       <div className="flex items-center gap-2">
                         <div className="h-10 w-10 rounded-sm flex-shrink-0 relative overflow-hidden">
                           <Image
-                            src="/agent-wallet.png"
+                            src={agent.image}
                             alt="Agent"
                             fill
-                            className="object-cover"
+                            className="object-cover select-none"
+                            draggable={false}
                           />
                         </div>
-                        <h3 className="text-xs font-semibold text-white">
-                          Eliza
+                        <h3 className="select-none text-xs font-semibold text-white">
+                          {agent.name}
                         </h3>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[10px] text-white/60 mb-1.5 line-clamp-1">
-                          Your default AI Companion
+                        <p className="text-[10px] select-none text-white/60 mb-1.5 line-clamp-1">
+                          {agent.description}
                         </p>
                         <div
                           className="flex items-center gap-1 mb-1"
                           style={{ color: "#FF5800" }}
                         >
                           <Check className="h-2.5 w-2.5" />
-                          <span className="text-[10px]">ERC-8004 Verified</span>
+                          <span className="text-[10px] select-none">
+                            ERC-8004 Verified
+                          </span>
                         </div>
                         <div className="flex items-center gap-1 text-white/40">
                           <svg
@@ -165,8 +262,8 @@ export default function OnChainTrust() {
                               d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1721 9z"
                             />
                           </svg>
-                          <span className="text-[10px] font-mono">
-                            0xA9E3...C14
+                          <span className="text-[10px] font-mono select-none">
+                            {agent.address}
                           </span>
                         </div>
                       </div>
@@ -191,12 +288,22 @@ export default function OnChainTrust() {
         </div>
 
         {/* Bottom tagline */}
-        <div className="mt-12 md:mt-16 text-center px-4">
-          <p className="text-base sm:text-lg md:text-xl lg:text-2xl tracking-wider text-white">
-            IDENTITY. REPUTATION. PAYMENT.{" "}
-            <span className="text-white/60">ALL NATIVE TO YOUR AGENT.</span>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{
+            duration: 1,
+            ease: [0.25, 0.1, 0.25, 1],
+            delay: 0.2,
+          }}
+          className="mt-12 md:mt-16 text-center px-4"
+        >
+          <p className="uppercase text-base sm:text-lg md:text-xl lg:text-2xl tracking-wider text-white">
+            Agents discover each other, build trust, and transact.{" "}
+            <span className="uppercase text-white/60">All on-chain.</span>
           </p>
-        </div>
+        </motion.div>
       </div>
     </section>
   );
