@@ -67,9 +67,7 @@ async function graphApiRequest<T>(endpoint: string, accessToken: string, options
   return data;
 }
 
-// =============================================================================
 // FACEBOOK METHODS
-// =============================================================================
 
 async function createFacebookPost(
   credentials: SocialCredentials,
@@ -177,9 +175,7 @@ async function createFacebookPost(
   }
 }
 
-// =============================================================================
 // INSTAGRAM METHODS
-// =============================================================================
 
 async function createInstagramPost(
   credentials: SocialCredentials,
@@ -322,9 +318,6 @@ async function createInstagramPost(
   }
 }
 
-// =============================================================================
-// PROVIDER
-// =============================================================================
 
 export const metaProvider: SocialMediaProvider = {
   platform: "facebook",

@@ -1,7 +1,3 @@
-/**
- * Social Media Types - Cross-platform posting and analytics
- */
-
 export type SocialPlatform =
   | "twitter"
   | "bluesky"
@@ -354,14 +350,6 @@ export function aggregateResults(results: PostResult[]): MultiPlatformPostResult
     successCount: successful.length,
     failureCount: failed.length,
   };
-}
-
-export function isValidPostAnalytics(data: Record<string, unknown>): boolean {
-  return typeof data.postId === "string" && typeof data.platform === "string" && data.fetchedAt instanceof Date;
-}
-
-export function isValidAccountAnalytics(data: Record<string, unknown>): boolean {
-  return typeof data.platform === "string" && data.fetchedAt instanceof Date;
 }
 
 export function calculatePostCredits(platforms: SocialPlatform[], content: Partial<PostContent>): number {

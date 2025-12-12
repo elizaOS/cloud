@@ -70,9 +70,6 @@ async function sendMediaGroup(
   });
 }
 
-// =============================================================================
-// PROVIDER
-// =============================================================================
 
 export const telegramProvider: SocialMediaProvider = {
   platform: "telegram",

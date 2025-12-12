@@ -278,8 +278,6 @@ describe("Platform-Specific Options", () => {
 
 describe("Analytics Types", () => {
   it("should define post analytics structure", async () => {
-    const { isValidPostAnalytics } = await import("@/lib/types/social-media");
-
     const analytics = {
       postId: "123",
       platform: "twitter",
@@ -290,12 +288,12 @@ describe("Analytics Types", () => {
       fetchedAt: new Date(),
     };
 
-    expect(isValidPostAnalytics(analytics)).toBe(true);
+    expect(analytics.postId).toBe("123");
+    expect(analytics.platform).toBe("twitter");
+    expect(analytics.fetchedAt).toBeInstanceOf(Date);
   });
 
   it("should define account analytics structure", async () => {
-    const { isValidAccountAnalytics } = await import("@/lib/types/social-media");
-
     const analytics = {
       platform: "twitter",
       followers: 5000,
@@ -304,7 +302,9 @@ describe("Analytics Types", () => {
       fetchedAt: new Date(),
     };
 
-    expect(isValidAccountAnalytics(analytics)).toBe(true);
+    expect(analytics.platform).toBe("twitter");
+    expect(analytics.followers).toBe(5000);
+    expect(analytics.fetchedAt).toBeInstanceOf(Date);
   });
 });
 
@@ -613,43 +613,6 @@ describe("Edge Cases", () => {
 // ANALYTICS VALIDATION EDGE CASES
 // =============================================================================
 
-describe("Analytics Validation Edge Cases", () => {
-  it("should reject post analytics without postId", async () => {
-    const { isValidPostAnalytics } = await import("@/lib/types/social-media");
-
-    expect(isValidPostAnalytics({ platform: "twitter", fetchedAt: new Date() })).toBe(false);
-  });
-
-  it("should reject post analytics without platform", async () => {
-    const { isValidPostAnalytics } = await import("@/lib/types/social-media");
-
-    expect(isValidPostAnalytics({ postId: "123", fetchedAt: new Date() })).toBe(false);
-  });
-
-  it("should reject post analytics without fetchedAt date", async () => {
-    const { isValidPostAnalytics } = await import("@/lib/types/social-media");
-
-    expect(isValidPostAnalytics({ postId: "123", platform: "twitter" })).toBe(false);
-  });
-
-  it("should reject post analytics with string fetchedAt", async () => {
-    const { isValidPostAnalytics } = await import("@/lib/types/social-media");
-
-    expect(isValidPostAnalytics({ postId: "123", platform: "twitter", fetchedAt: "2024-01-01" })).toBe(false);
-  });
-
-  it("should reject account analytics without platform", async () => {
-    const { isValidAccountAnalytics } = await import("@/lib/types/social-media");
-
-    expect(isValidAccountAnalytics({ fetchedAt: new Date() })).toBe(false);
-  });
-
-  it("should reject account analytics with numeric platform", async () => {
-    const { isValidAccountAnalytics } = await import("@/lib/types/social-media");
-
-    expect(isValidAccountAnalytics({ platform: 123, fetchedAt: new Date() })).toBe(false);
-  });
-});
 
 // =============================================================================
 // PROVIDER COMPLETENESS TESTS

@@ -74,9 +74,6 @@ async function getPersonUrn(accessToken: string): Promise<string> {
   return `urn:li:person:${profile.id}`;
 }
 
-// =============================================================================
-// PROVIDER
-// =============================================================================
 
 export const linkedinProvider: SocialMediaProvider = {
   platform: "linkedin",

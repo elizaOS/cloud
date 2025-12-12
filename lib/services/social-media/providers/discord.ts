@@ -80,9 +80,6 @@ async function webhookRequest<T>(webhookUrl: string, payload: Record<string, unk
   return data;
 }
 
-// =============================================================================
-// PROVIDER
-// =============================================================================
 
 export const discordProvider: SocialMediaProvider = {
   platform: "discord",

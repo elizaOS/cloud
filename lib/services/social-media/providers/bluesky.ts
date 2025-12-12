@@ -139,9 +139,6 @@ function detectFacets(text: string): BskyFacet[] {
   return facets;
 }
 
-// =============================================================================
-// PROVIDER
-// =============================================================================
 
 export const blueskyProvider: SocialMediaProvider = {
   platform: "bluesky",

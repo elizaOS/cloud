@@ -95,9 +95,6 @@ async function waitForPublish(
   throw new Error("Publish timeout");
 }
 
-// =============================================================================
-// PROVIDER
-// =============================================================================
 
 export const tiktokProvider: SocialMediaProvider = {
   platform: "tiktok",

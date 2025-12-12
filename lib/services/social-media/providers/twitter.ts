@@ -211,10 +211,6 @@ async function waitForProcessing(
   throw new Error("Media processing timeout");
 }
 
-// =============================================================================
-// PROVIDER
-// =============================================================================
-
 export const twitterProvider: SocialMediaProvider = {
   platform: "twitter",
 

@@ -119,9 +119,6 @@ async function redditApiRequestLegacy<T>(endpoint: string, accessToken: string, 
   return response.json();
 }
 
-// =============================================================================
-// PROVIDER
-// =============================================================================
 
 export const redditProvider: SocialMediaProvider = {
   platform: "reddit",
