@@ -108,8 +108,9 @@ class SocialMediaService {
 
       if (refreshed) {
         credentials = { ...credentials, accessToken: refreshed.accessToken, refreshToken: refreshed.refreshToken };
-        // Update stored credentials in background
-        this.updateStoredToken(organizationId, credential.id, refreshed).catch(() => {});
+        this.updateStoredToken(organizationId, credential.id, refreshed).catch(err => {
+          logger.error(`[SocialMedia] Failed to persist refreshed token: ${err.message}`);
+        });
         logger.info(`[SocialMedia] Token refreshed for ${platform}`);
       } else {
         throw new Error(`Token expired. ${getRefreshGuidance(platform)}`);
@@ -259,12 +260,13 @@ class SocialMediaService {
         metadata: { userId, failedPlatforms: failed.map(f => f.platform) },
       });
 
-      // Alert on failures (fire-and-forget)
       alertOnPostFailure(
         organizationId,
         failed.map(f => f.platform),
         failed.map(f => f.error || "Unknown error")
-      ).catch(() => {});
+      ).catch(err => {
+        logger.error(`[SocialMedia] Failed to send alert: ${err.message}`);
+      });
     }
 
     logger.info("[SocialMedia] Post complete", { organizationId, successCount: successful.length, failureCount: failed.length });
