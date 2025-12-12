@@ -6,16 +6,17 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, Check } from "lucide-react";
+import { ArrowUpRight, Check, Framer } from "lucide-react";
 import { CornerBrackets, SectionLabel, BrandCard } from "@/components/brand";
 import MicropaymentNetwork from "./MicropaymentNetwork";
 import Image from "next/image";
 import { ReactFlowProvider } from "@xyflow/react";
+import { motion } from "framer-motion";
 
 export default function OnChainTrust() {
   const mockCardData = [
     {
-      name: "Eliza",
+      name: "Sage",
       description: "Your default AI companion",
       address: "0xA9E3...C14",
     },
@@ -35,7 +36,7 @@ export default function OnChainTrust() {
       address: "0xD4E2...B61",
     },
     {
-      name: "Sage",
+      name: "Eliza",
       description: "Knowledge base curator",
       address: "0xE7A5...D48",
     },
@@ -91,11 +92,29 @@ export default function OnChainTrust() {
         {/* Header */}
         <div className="mb-8 md:mb-12 flex flex-col md:flex-row items-start md:justify-between gap-6">
           <div className="max-w-4xl">
-            <div className="mb-4 md:mb-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{
+                duration: 1,
+                ease: [0.25, 0.1, 0.25, 1],
+                delay: 0.2,
+              }}
+              className="mb-4 md:mb-6"
+            >
               <SectionLabel>ON-CHAIN TRUST & ECONOMY</SectionLabel>
-            </div>
+            </motion.div>
 
-            <h2
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{
+                duration: 1,
+                ease: [0.25, 0.1, 0.25, 1],
+                delay: 0.2,
+              }}
               className="mb-4 md:mb-6 text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-medium uppercase"
               style={{
                 fontFamily: "var(--font-geist-sans)",
@@ -104,41 +123,60 @@ export default function OnChainTrust() {
               }}
             >
               Wallets, identity, and reputation.
-            </h2>
+            </motion.h2>
 
-            <p
+            <motion.p
               className="font-normal text-sm md:text-base"
               style={{
                 lineHeight: "1.5",
                 letterSpacing: "-0.003em",
                 color: "#858585",
               }}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{
+                duration: 1,
+                ease: [0.25, 0.1, 0.25, 1],
+                delay: 0.2,
+              }}
             >
               Every agent is on-chain, discoverable, and earns trust over time
               with ERC-8004.
-            </p>
+            </motion.p>
           </div>
 
-          <Button
-            variant="outline"
-            className="hidden lg:flex shrink-0 gap-2 rounded-none transition-all duration-200 hover:scale-105 hover:shadow-[0_0_20px_rgba(225,225,225,0.4)] active:scale-95"
-            style={{
-              backgroundColor: "#E1E1E1",
-              borderColor: "#E1E1E1",
-              color: "#000000",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "#FFFFFF";
-              e.currentTarget.style.borderColor = "#FFFFFF";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "#E1E1E1";
-              e.currentTarget.style.borderColor = "#E1E1E1";
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{
+              duration: 1,
+              ease: [0.25, 0.1, 0.25, 1],
+              delay: 0.2,
             }}
           >
-            Learn more
-            <ArrowUpRight className="h-4 w-4" />
-          </Button>
+            <Button
+              variant="outline"
+              className="hidden lg:flex shrink-0 gap-2 rounded-none transition-all duration-200 hover:scale-105 hover:shadow-[0_0_20px_rgba(225,225,225,0.4)] active:scale-95"
+              style={{
+                backgroundColor: "#E1E1E1",
+                borderColor: "#E1E1E1",
+                color: "#000000",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "#FFFFFF";
+                e.currentTarget.style.borderColor = "#FFFFFF";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "#E1E1E1";
+                e.currentTarget.style.borderColor = "#E1E1E1";
+              }}
+            >
+              Learn more
+              <ArrowUpRight className="h-4 w-4" />
+            </Button>
+          </motion.div>
         </div>
 
         {/* Two column layout */}
@@ -240,12 +278,22 @@ export default function OnChainTrust() {
         </div>
 
         {/* Bottom tagline */}
-        <div className="mt-12 md:mt-16 text-center px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{
+            duration: 1,
+            ease: [0.25, 0.1, 0.25, 1],
+            delay: 0.2,
+          }}
+          className="mt-12 md:mt-16 text-center px-4"
+        >
           <p className="uppercase text-base sm:text-lg md:text-xl lg:text-2xl tracking-wider text-white">
             Agents discover each other, build trust, and transact.{" "}
             <span className="uppercase text-white/60">All on-chain.</span>
           </p>
-        </div>
+        </motion.div>
       </div>
     </section>
   );

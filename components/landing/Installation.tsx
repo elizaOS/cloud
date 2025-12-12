@@ -9,6 +9,7 @@ import { useState } from "react";
 import { Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SectionLabel } from "@/components/brand";
+import { motion } from "framer-motion";
 
 export default function Installation() {
   const [activeTab, setActiveTab] = useState<"macos" | "windows">("macos");
@@ -41,12 +42,30 @@ export default function Installation() {
 
       <div className="relative container mx-auto px-4 md:px-6 py-12 md:py-20 lg:py-32">
         {/* Top badge */}
-        <div className="flex justify-center mb-8 md:mb-12">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{
+            duration: 1,
+            ease: [0.25, 0.1, 0.25, 1],
+            delay: 0.2,
+          }}
+          className="flex justify-center mb-8 md:mb-12"
+        >
           <SectionLabel>INSTALL IN SECONDS</SectionLabel>
-        </div>
+        </motion.div>
 
         {/* Hero heading */}
-        <h2
+        <motion.h2
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{
+            duration: 1,
+            ease: [0.25, 0.1, 0.25, 1],
+            delay: 0.2,
+          }}
           className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-medium text-center mb-8 md:mb-12 uppercase max-w-7xl mx-auto px-4"
           style={{
             fontFamily: "var(--font-geist-sans)",
@@ -55,7 +74,7 @@ export default function Installation() {
           }}
         >
           FROM YOUR TERMINAL TO THE CLOUD — IN ONE LINE.
-        </h2>
+        </motion.h2>
 
         {/* Terminal command section */}
         <div className="max-w-4xl mx-auto mb-4 px-4">
@@ -83,20 +102,40 @@ export default function Installation() {
         </div>
 
         {/* View Docs link */}
-        <div className="text-center mb-12 md:mb-16">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{
+            duration: 1,
+            ease: [0.25, 0.1, 0.25, 1],
+            delay: 0.2,
+          }}
+          className="text-center mb-12 md:mb-16"
+        >
           <a
             href="#"
             className="text-white/70 hover:text-white transition-colors text-sm"
           >
             View Docs →
           </a>
-        </div>
+        </motion.div>
 
         {/* Bottom section with features and terminal */}
         <div className="border-t border-white/10 pt-12 md:pt-16">
           <div className="grid lg:grid-cols-2 gap-8 md:gap-12 items-center max-w-6xl mx-auto px-4">
             {/* Left: Feature text */}
-            <div className="flex items-center gap-4 md:gap-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{
+                duration: 1,
+                ease: [0.25, 0.1, 0.25, 1],
+                delay: 0.2,
+              }}
+              className="flex items-center gap-4 md:gap-6"
+            >
               <span
                 className="hidden sm:inline-block w-2 h-2 rounded-full shrink-0"
                 style={{ backgroundColor: "#FF5800" }}
@@ -112,7 +151,7 @@ export default function Installation() {
               >
                 HIGH-PERFORMANCE INFRASTRUCTURE. BUILT-IN LOGS + METRICS.
               </p>
-            </div>
+            </motion.div>
 
             {/* Right: Terminal mockup */}
             <div className="bg-black border border-white/20 rounded-sm overflow-hidden">

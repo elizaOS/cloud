@@ -7,6 +7,7 @@
 
 import { Github } from "lucide-react";
 import Image from "next/image";
+import { motion } from "framer-motion";
 
 export default function Footer() {
   return (
@@ -37,7 +38,16 @@ export default function Footer() {
             <p className="text-sm text-white/60">© 2025 Eliza AI · USA</p>
           </div>
 
-          <div className="hidden md:flex justify-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: 1,
+              ease: [0.25, 0.1, 0.25, 1],
+              delay: 0.2,
+            }}
+            className="hidden md:flex justify-center"
+          >
             <Image
               src="/eliza-footer.png"
               alt="Footer Decorative Image"
@@ -46,7 +56,7 @@ export default function Footer() {
               className="w-48 h-auto"
               draggable={false}
             />
-          </div>
+          </motion.div>
 
           {/* 3. Right section (Navigation/Social Icons) */}
           <div className="flex flex-col items-start gap-4 md:items-end">
