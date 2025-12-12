@@ -1,0 +1,281 @@
+---
+title: Apps
+description: Create and manage applications on elizaOS Cloud. Build integrations with your agents and APIs.
+---
+
+import { Callout, Steps, Tabs, Cards } from 'nextra/components'
+
+# Apps
+
+Apps let you build integrations and manage access to your elizaOS Cloud resources.
+
+<div className="status-badge status-stable">Stable</div>
+
+## Overview
+
+An App in elizaOS Cloud provides:
+
+- **API Keys**: Unique keys for programmatic access
+- **Usage Tracking**: Monitor API calls and costs
+- **User Management**: Track app users
+- **Analytics**: Insights into app performance
+- **Monetization**: Earn from app usage
+
+## Quick Start
+
+### Dashboard
+
+Navigate to [Dashboard → Apps](/dashboard/apps) to create and manage apps.
+
+### API
+
+```bash
+# Create a new app
+curl -X POST "https://cloud.eliza.ai/api/v1/apps" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My Integration",
+    "description": "Custom integration for my product"
+  }'
+```
+
+## Creating an App
+
+<Steps>
+### Navigate to Apps
+Go to [Dashboard → Apps](/dashboard/apps) and click "Create App".
+
+### Configure App
+- **Name**: Display name for your app
+- **Description**: What your app does
+- **Website**: (Optional) Your app's website
+
+### Get API Key
+Your app receives a unique API key for authentication.
+
+### Integrate
+Use the API key to make requests on behalf of your app.
+</Steps>
+
+### Response
+
+```json
+{
+  "id": "app_abc123",
+  "name": "My Integration",
+  "apiKey": "ak_live_xxxxxxxxxxxx",
+  "createdAt": "2024-01-15T10:30:00Z"
+}
+```
+
+<Callout type="warning">
+Save your API key securely. It will only be shown once.
+</Callout>
+
+## App Configuration
+
+### Basic Settings
+
+| Field | Description |
+|-------|-------------|
+| `name` | Display name for your app |
+| `description` | Brief description of functionality |
+| `website` | Public website URL |
+| `logo` | App icon/logo image |
+
+### API Settings
+
+| Field | Description |
+|-------|-------------|
+| `rateLimit` | Requests per minute |
+| `allowedEndpoints` | Which APIs the app can access |
+| `webhookUrl` | URL for event notifications |
+
+## Usage Tracking
+
+Monitor your app's API usage:
+
+```bash
+curl -X GET "https://cloud.eliza.ai/api/v1/apps/{appId}/analytics" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Response
+
+```json
+{
+  "appId": "app_abc123",
+  "period": "2024-01",
+  "usage": {
+    "totalRequests": 15000,
+    "chatCompletions": 12000,
+    "embeddings": 2500,
+    "images": 500
+  },
+  "costs": {
+    "total": 125.50,
+    "byEndpoint": {
+      "chat": 100.00,
+      "embeddings": 15.00,
+      "images": 10.50
+    }
+  },
+  "uniqueUsers": 234
+}
+```
+
+## User Management
+
+Track users of your app:
+
+```bash
+curl -X GET "https://cloud.eliza.ai/api/v1/apps/{appId}/users" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Response
+
+```json
+{
+  "users": [
+    {
+      "id": "user_123",
+      "firstSeen": "2024-01-10T08:00:00Z",
+      "lastSeen": "2024-01-15T12:30:00Z",
+      "requestCount": 150
+    }
+  ],
+  "total": 234,
+  "page": 1
+}
+```
+
+## Monetization
+
+<div className="status-badge status-new">New</div>
+
+Earn from your app's usage:
+
+```bash
+curl -X POST "https://cloud.eliza.ai/api/v1/apps/{appId}/monetization" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "enabled": true,
+    "pricing": {
+      "perRequest": 0.001,
+      "perToken": 0.00001
+    }
+  }'
+```
+
+### Earnings
+
+```bash
+curl -X GET "https://cloud.eliza.ai/api/v1/apps/{appId}/earnings" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+```json
+{
+  "total": 1250.00,
+  "pending": 150.00,
+  "available": 1100.00,
+  "history": [
+    {
+      "date": "2024-01-15",
+      "amount": 45.00,
+      "requests": 45000
+    }
+  ]
+}
+```
+
+## Webhooks
+
+Receive real-time notifications:
+
+```json
+{
+  "webhookUrl": "https://your-server.com/webhook",
+  "events": [
+    "user.created",
+    "usage.threshold",
+    "error.occurred"
+  ]
+}
+```
+
+### Webhook Payload
+
+```json
+{
+  "event": "usage.threshold",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "data": {
+    "appId": "app_abc123",
+    "threshold": "1000",
+    "currentUsage": 1050
+  }
+}
+```
+
+## API Key Management
+
+### Regenerate Key
+
+```bash
+curl -X POST "https://cloud.eliza.ai/api/v1/apps/{appId}/regenerate-api-key" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+<Callout type="warning">
+Regenerating invalidates the old key immediately. Update your integrations promptly.
+</Callout>
+
+### Key Permissions
+
+Restrict what your app key can access:
+
+```json
+{
+  "permissions": [
+    "chat:read",
+    "chat:write",
+    "embeddings:read",
+    "agents:read"
+  ]
+}
+```
+
+## Best Practices
+
+<Cards>
+  <Cards.Card title="Secure Keys">
+    Never expose API keys in client-side code
+  </Cards.Card>
+  <Cards.Card title="Monitor Usage">
+    Set up alerts for unusual activity
+  </Cards.Card>
+  <Cards.Card title="Rate Limiting">
+    Implement client-side rate limiting
+  </Cards.Card>
+  <Cards.Card title="Error Handling">
+    Handle API errors gracefully
+  </Cards.Card>
+</Cards>
+
+## Next Steps
+
+<Cards>
+  <Cards.Card title="Containers" href="/docs/containers">
+    Deploy custom containers
+  </Cards.Card>
+  <Cards.Card title="API Reference" href="/docs/api">
+    Complete API documentation
+  </Cards.Card>
+  <Cards.Card title="Earnings" href="/docs/earnings">
+    Set up monetization
+  </Cards.Card>
+</Cards>

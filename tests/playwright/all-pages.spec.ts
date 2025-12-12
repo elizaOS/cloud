@@ -127,7 +127,7 @@ test.describe("Public Pages", () => {
   });
 
   test("Auth error page loads", async ({ page }) => {
-    await page.goto(`${BASE_URL}/auth-error`);
+    await page.goto(`${BASE_URL}/authentication-error`);
     await page.waitForLoadState("domcontentloaded");
 
     const hasContent = await page.locator("body").textContent();

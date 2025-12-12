@@ -1,0 +1,175 @@
+---
+title: Voice & TTS
+description: Text-to-speech and voice cloning on elizaOS Cloud.
+---
+
+import { Callout, Tabs } from 'nextra/components'
+
+# Voice & TTS
+
+<div className="status-badge status-stable">Stable</div>
+
+Text-to-speech generation and voice cloning capabilities.
+
+## Text to Speech
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-post">POST</span>
+  <span className="path">/api/elevenlabs/tts</span>
+</div>
+
+Convert text to speech audio.
+
+### Request
+
+```json
+{
+  "text": "Hello, this is a test of the text to speech system.",
+  "voiceId": "voice_abc123",
+  "modelId": "eleven_multilingual_v2"
+}
+```
+
+### Response
+
+Returns audio data as `audio/mpeg` stream.
+
+---
+
+## Speech to Text
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-post">POST</span>
+  <span className="path">/api/elevenlabs/stt</span>
+</div>
+
+Transcribe audio to text.
+
+### Request
+
+Upload audio as `multipart/form-data`:
+
+```bash
+curl -X POST "https://cloud.eliza.ai/api/elevenlabs/stt" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "audio=@recording.mp3"
+```
+
+### Response
+
+```json
+{
+  "text": "Hello, this is a transcription test.",
+  "language": "en",
+  "confidence": 0.95
+}
+```
+
+---
+
+## List Voices
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-get">GET</span>
+  <span className="path">/api/elevenlabs/voices</span>
+</div>
+
+Get available voices.
+
+### Response
+
+```json
+{
+  "voices": [
+    {
+      "id": "voice_abc123",
+      "name": "Rachel",
+      "category": "premade",
+      "labels": {
+        "accent": "american",
+        "gender": "female"
+      }
+    }
+  ]
+}
+```
+
+---
+
+## Get User Voices
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-get">GET</span>
+  <span className="path">/api/elevenlabs/voices/user</span>
+</div>
+
+Get your cloned voices.
+
+---
+
+## Clone Voice
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-post">POST</span>
+  <span className="path">/api/elevenlabs/voices/clone</span>
+</div>
+
+Create a voice clone from audio samples.
+
+### Request
+
+Upload audio samples as `multipart/form-data`:
+
+```bash
+curl -X POST "https://cloud.eliza.ai/api/elevenlabs/voices/clone" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "name=My Voice" \
+  -F "files=@sample1.mp3" \
+  -F "files=@sample2.mp3"
+```
+
+### Response
+
+```json
+{
+  "id": "voice_xyz789",
+  "name": "My Voice",
+  "status": "processing"
+}
+```
+
+<Callout type="info">
+Voice cloning requires 1-5 minutes of clear audio samples for best results.
+</Callout>
+
+---
+
+## Delete Voice
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-delete">DELETE</span>
+  <span className="path">/api/elevenlabs/voices/{id}</span>
+</div>
+
+Delete a cloned voice.
+
+---
+
+## Verify Voice
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-get">GET</span>
+  <span className="path">/api/elevenlabs/voices/verify/{id}</span>
+</div>
+
+Check voice cloning status.
+
+### Response
+
+```json
+{
+  "id": "voice_xyz789",
+  "status": "ready",
+  "quality": 0.92
+}
+```

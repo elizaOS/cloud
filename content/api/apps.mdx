@@ -1,0 +1,156 @@
+---
+title: Apps
+description: Create and manage applications on elizaOS Cloud.
+---
+
+import { Callout, Tabs } from 'nextra/components'
+
+# Apps
+
+<div className="status-badge status-stable">Stable</div>
+
+Create and manage applications that use your AI agents.
+
+## List Apps
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-get">GET</span>
+  <span className="path">/api/v1/apps</span>
+</div>
+
+Get all your applications.
+
+### Response
+
+```json
+{
+  "apps": [
+    {
+      "id": "app_abc123",
+      "name": "Customer Portal",
+      "description": "AI-powered customer support",
+      "agentId": "char_xyz789",
+      "apiKey": "ak_...",
+      "createdAt": "2024-01-15T10:30:00Z"
+    }
+  ]
+}
+```
+
+---
+
+## Create App
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-post">POST</span>
+  <span className="path">/api/v1/apps</span>
+</div>
+
+Create a new application.
+
+### Request
+
+```json
+{
+  "name": "My App",
+  "description": "Customer support chatbot",
+  "agentId": "char_abc123",
+  "settings": {
+    "allowAnonymous": true,
+    "rateLimit": 100
+  }
+}
+```
+
+### Response
+
+```json
+{
+  "id": "app_abc123",
+  "name": "My App",
+  "apiKey": "ak_live_xxx...",
+  "createdAt": "2024-01-15T10:30:00Z"
+}
+```
+
+---
+
+## Get App
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-get">GET</span>
+  <span className="path">/api/v1/apps/{id}</span>
+</div>
+
+Get application details.
+
+---
+
+## Update App
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-put">PUT</span>
+  <span className="path">/api/v1/apps/{id}</span>
+</div>
+
+Update an application.
+
+---
+
+## Delete App
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-delete">DELETE</span>
+  <span className="path">/api/v1/apps/{id}</span>
+</div>
+
+Delete an application.
+
+---
+
+## App Analytics
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-get">GET</span>
+  <span className="path">/api/v1/apps/{id}/analytics</span>
+</div>
+
+Get usage analytics for an app.
+
+### Response
+
+```json
+{
+  "requests": 15000,
+  "uniqueUsers": 500,
+  "tokensUsed": 1250000,
+  "costUsd": 12.50,
+  "period": "30d"
+}
+```
+
+---
+
+## Regenerate API Key
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-post">POST</span>
+  <span className="path">/api/v1/apps/{id}/regenerate-api-key</span>
+</div>
+
+Generate a new API key for the app.
+
+<Callout type="warning">
+This invalidates the previous API key immediately.
+</Callout>
+
+---
+
+## App Monetization
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-get">GET</span>
+  <span className="path">/api/v1/apps/{id}/monetization</span>
+</div>
+
+Get monetization settings and earnings.

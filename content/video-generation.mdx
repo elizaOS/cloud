@@ -1,0 +1,282 @@
+---
+title: Video Generation
+description: Generate AI videos from text prompts on elizaOS Cloud using MiniMax and other cutting-edge video models.
+---
+
+import { Callout, Tabs, Cards } from 'nextra/components'
+
+# Video Generation
+
+Create AI-generated videos from text prompts or input images.
+
+<div className="status-badge status-beta">Beta</div>
+
+## Overview
+
+elizaOS Cloud provides video generation through multiple providers:
+
+- **MiniMax Video-01**: High-quality, realistic videos
+- **Runway Gen-3**: Creative and artistic styles
+- **Kling**: Fast generation, good for iterations
+
+## Quick Start
+
+### Dashboard
+
+Navigate to [Dashboard → Videos](/dashboard/video) for the visual interface.
+
+### API
+
+<Tabs items={['cURL', 'JavaScript', 'Python']}>
+  <Tabs.Tab>
+```bash
+curl -X POST "https://cloud.eliza.ai/api/v1/generate-video" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "A butterfly emerging from a cocoon in slow motion",
+    "model": "minimax/video-01"
+  }'
+```
+  </Tabs.Tab>
+  <Tabs.Tab>
+```javascript
+const response = await fetch('https://cloud.eliza.ai/api/v1/generate-video', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_API_KEY',
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    prompt: 'A butterfly emerging from a cocoon in slow motion',
+    model: 'minimax/video-01',
+  }),
+});
+
+const result = await response.json();
+console.log(result.video.url);
+```
+  </Tabs.Tab>
+  <Tabs.Tab>
+```python
+import requests
+
+response = requests.post(
+    'https://cloud.eliza.ai/api/v1/generate-video',
+    headers={
+        'Authorization': 'Bearer YOUR_API_KEY',
+        'Content-Type': 'application/json',
+    },
+    json={
+        'prompt': 'A butterfly emerging from a cocoon in slow motion',
+        'model': 'minimax/video-01',
+    },
+)
+
+result = response.json()
+print(result['video']['url'])
+```
+  </Tabs.Tab>
+</Tabs>
+
+### Response
+
+```json
+{
+  "video": {
+    "url": "https://storage.eliza.ai/videos/abc123.mp4",
+    "duration": 5,
+    "width": 1280,
+    "height": 720
+  },
+  "cost": 0.50,
+  "model": "minimax/video-01"
+}
+```
+
+## Available Models
+
+| Model | Duration | Quality | Best For |
+|-------|----------|---------|----------|
+| `minimax/video-01` | 5-10s | High | Realistic scenes, product videos |
+| `fal-ai/runway-gen3` | 5s | High | Creative, artistic content |
+| `fal-ai/kling-video` | 5s | Medium | Fast iterations |
+
+## Request Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `prompt` | string | ✓ | Text description of the video |
+| `model` | string | | Model to use (default: `minimax/video-01`) |
+| `image_url` | string | | Source image for image-to-video |
+| `duration` | integer | | Video length in seconds |
+| `aspect_ratio` | string | | Output aspect ratio |
+| `seed` | integer | | Random seed for reproducibility |
+
+### Aspect Ratios
+
+| Ratio | Dimensions | Use Case |
+|-------|------------|----------|
+| `16:9` | 1280x720 | Standard video, YouTube |
+| `9:16` | 720x1280 | Vertical video, TikTok |
+| `1:1` | 1024x1024 | Square video, Instagram |
+| `4:3` | 1024x768 | Classic aspect |
+
+## Image-to-Video
+
+Generate videos from a source image:
+
+```json
+{
+  "prompt": "The woman slowly turns her head and smiles",
+  "image_url": "https://example.com/portrait.jpg",
+  "model": "minimax/video-01"
+}
+```
+
+<Callout type="info">
+Image-to-video maintains consistency with the source image while adding motion.
+</Callout>
+
+## Prompt Engineering
+
+### Effective Video Prompts
+
+**Be specific about motion:**
+```
+A golden retriever running through autumn leaves, 
+slow motion, leaves flying in the air
+```
+
+**Describe camera movement:**
+```
+Drone shot flying over a tropical beach, 
+golden hour lighting, waves crashing on shore
+```
+
+**Include temporal progression:**
+```
+Time lapse of a flower blooming, from bud to full bloom, 
+soft natural lighting
+```
+
+### Example Prompts
+
+| Category | Example |
+|----------|---------|
+| **Nature** | A waterfall cascading into a crystal clear pool, mist rising |
+| **Product** | A luxury watch rotating on a dark surface, dramatic lighting |
+| **Abstract** | Colorful paint swirling in water, macro shot, slow motion |
+| **Character** | A knight drawing a sword, dramatic pose, cinematic lighting |
+
+## Gallery
+
+Generated videos are saved to your [Gallery](/dashboard/gallery) for management:
+
+- **Preview**: Watch videos in the browser
+- **Download**: Export as MP4
+- **Share**: Generate shareable links
+- **Organize**: Add to collections
+
+## Pricing
+
+| Model | Cost per Video |
+|-------|---------------|
+| MiniMax Video-01 | 0.50 credits |
+| Runway Gen-3 | 0.75 credits |
+| Kling Video | 0.30 credits |
+
+<Callout type="warning">
+Video generation costs more than images due to computational requirements. Monitor your usage in the [billing dashboard](/dashboard/billing).
+</Callout>
+
+## Generation Time
+
+Video generation takes longer than images:
+
+| Model | Typical Time |
+|-------|--------------|
+| MiniMax Video-01 | 2-5 minutes |
+| Runway Gen-3 | 1-3 minutes |
+| Kling Video | 1-2 minutes |
+
+<Callout type="info">
+Use webhooks or polling to check generation status for longer operations.
+</Callout>
+
+## Polling for Status
+
+For longer generations, poll the status endpoint:
+
+```javascript
+async function generateVideo(prompt) {
+  // Start generation
+  const startResponse = await fetch('https://cloud.eliza.ai/api/v1/generate-video', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer YOUR_API_KEY',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ prompt }),
+  });
+  
+  const { jobId } = await startResponse.json();
+  
+  // Poll for completion
+  while (true) {
+    const statusResponse = await fetch(
+      `https://cloud.eliza.ai/api/v1/generate-video/${jobId}`,
+      { headers: { 'Authorization': 'Bearer YOUR_API_KEY' } }
+    );
+    
+    const { status, video } = await statusResponse.json();
+    
+    if (status === 'completed') return video;
+    if (status === 'failed') throw new Error('Generation failed');
+    
+    await new Promise(r => setTimeout(r, 5000)); // Wait 5s
+  }
+}
+```
+
+## Error Handling
+
+### Common Errors
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `CONTENT_POLICY` | Prompt violates policy | Modify prompt content |
+| `GENERATION_FAILED` | Model failed to generate | Retry with different prompt |
+| `TIMEOUT` | Generation took too long | Use a faster model |
+| `INSUFFICIENT_CREDITS` | Not enough credits | Top up account |
+
+## Best Practices
+
+<Cards>
+  <Cards.Card title="Describe Motion">
+    Be explicit about movement and camera work
+  </Cards.Card>
+  <Cards.Card title="Keep it Simple">
+    Focus on one main action per video
+  </Cards.Card>
+  <Cards.Card title="Use Image-to-Video">
+    Start from an image for better consistency
+  </Cards.Card>
+  <Cards.Card title="Iterate">
+    Generate multiple versions and refine
+  </Cards.Card>
+</Cards>
+
+## Next Steps
+
+<Cards>
+  <Cards.Card title="Image Generation" href="/docs/image-generation">
+    Create source images for video
+  </Cards.Card>
+  <Cards.Card title="Voice Cloning" href="/docs/voice-cloning">
+    Add voiceovers to your videos
+  </Cards.Card>
+  <Cards.Card title="Gallery" href="/docs/gallery">
+    Manage your generated content
+  </Cards.Card>
+</Cards>

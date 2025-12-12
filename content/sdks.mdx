@@ -1,0 +1,254 @@
+---
+title: SDKs & Libraries
+description: Official and community SDKs for integrating with elizaOS Cloud in your preferred language.
+---
+
+import { Callout, Tabs, Cards } from 'nextra/components'
+
+# SDKs & Libraries
+
+Integrate elizaOS Cloud with official SDKs and community libraries.
+
+## Official SDKs
+
+### JavaScript/TypeScript
+
+The official TypeScript SDK for elizaOS Cloud:
+
+```bash
+npm install @elizaos/cloud
+```
+
+```typescript
+import { ElizaCloud } from '@elizaos/cloud';
+
+const client = new ElizaCloud({
+  apiKey: process.env.ELIZA_API_KEY,
+});
+
+// Chat completion
+const response = await client.chat.completions.create({
+  model: 'gpt-4o',
+  messages: [
+    { role: 'user', content: 'Hello!' }
+  ],
+});
+
+console.log(response.choices[0].message.content);
+```
+
+#### Features
+
+- Full TypeScript support
+- Automatic retries
+- Streaming support
+- Rate limit handling
+- All API endpoints
+
+#### Examples
+
+```typescript
+// Streaming
+const stream = await client.chat.completions.create({
+  model: 'gpt-4o',
+  messages: [{ role: 'user', content: 'Tell me a story' }],
+  stream: true,
+});
+
+for await (const chunk of stream) {
+  process.stdout.write(chunk.choices[0]?.delta?.content || '');
+}
+
+// Image generation
+const image = await client.images.generate({
+  prompt: 'A sunset over mountains',
+  model: 'fal-ai/flux/schnell',
+});
+
+console.log(image.images[0].url);
+
+// Embeddings
+const embedding = await client.embeddings.create({
+  input: 'Hello world',
+  model: 'text-embedding-3-small',
+});
+```
+
+### Python
+
+Coming soon! The Python SDK is in development.
+
+```python
+# Coming soon
+from elizaos import ElizaCloud
+
+client = ElizaCloud(api_key="ek_xxx")
+
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+```
+
+## OpenAI Compatibility
+
+elizaOS Cloud is OpenAI-compatible. Use existing OpenAI SDKs:
+
+### JavaScript
+
+```typescript
+import OpenAI from 'openai';
+
+const client = new OpenAI({
+  apiKey: process.env.ELIZA_API_KEY,
+  baseURL: 'https://cloud.eliza.ai/api/v1',
+});
+
+const response = await client.chat.completions.create({
+  model: 'gpt-4o',
+  messages: [{ role: 'user', content: 'Hello!' }],
+});
+```
+
+### Python
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="ek_xxx",
+    base_url="https://cloud.eliza.ai/api/v1"
+)
+
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+```
+
+### cURL
+
+```bash
+curl -X POST "https://cloud.eliza.ai/api/v1/chat/completions" \
+  -H "Authorization: Bearer $ELIZA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4o",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
+
+## Framework Integrations
+
+### LangChain
+
+```typescript
+import { ChatOpenAI } from '@langchain/openai';
+
+const model = new ChatOpenAI({
+  openAIApiKey: process.env.ELIZA_API_KEY,
+  configuration: {
+    baseURL: 'https://cloud.eliza.ai/api/v1',
+  },
+  modelName: 'gpt-4o',
+});
+
+const response = await model.invoke('Hello!');
+```
+
+### Vercel AI SDK
+
+```typescript
+import { generateText } from 'ai';
+import { createOpenAI } from '@ai-sdk/openai';
+
+const openai = createOpenAI({
+  apiKey: process.env.ELIZA_API_KEY,
+  baseURL: 'https://cloud.eliza.ai/api/v1',
+});
+
+const { text } = await generateText({
+  model: openai('gpt-4o'),
+  prompt: 'Hello!',
+});
+```
+
+### LlamaIndex
+
+```python
+from llama_index.llms.openai import OpenAI
+
+llm = OpenAI(
+    api_key="ek_xxx",
+    api_base="https://cloud.eliza.ai/api/v1",
+    model="gpt-4o"
+)
+
+response = llm.complete("Hello!")
+```
+
+## MCP Client
+
+Connect to elizaOS Cloud MCP endpoint:
+
+```typescript
+import { Client } from '@modelcontextprotocol/sdk';
+
+const client = new Client({
+  url: 'https://cloud.eliza.ai/api/mcp',
+  headers: {
+    'Authorization': `Bearer ${process.env.ELIZA_API_KEY}`,
+  },
+});
+
+await client.initialize();
+
+const tools = await client.listTools();
+const result = await client.callTool('generate_image', {
+  prompt: 'A sunset',
+});
+```
+
+## Community Libraries
+
+| Library | Language | Description |
+|---------|----------|-------------|
+| `eliza-go` | Go | Go client for elizaOS Cloud |
+| `eliza-rs` | Rust | Rust SDK |
+| `eliza-rb` | Ruby | Ruby gem |
+
+<Callout type="info">
+Community libraries are not officially supported. Use at your own discretion.
+</Callout>
+
+## SDK Features
+
+| Feature | JS/TS | Python | Go |
+|---------|-------|--------|-----|
+| Chat Completions | ✅ | 🔜 | 🔜 |
+| Streaming | ✅ | 🔜 | 🔜 |
+| Embeddings | ✅ | 🔜 | 🔜 |
+| Images | ✅ | 🔜 | 🔜 |
+| Videos | ✅ | 🔜 | 🔜 |
+| Knowledge | ✅ | 🔜 | 🔜 |
+| MCP | ✅ | 🔜 | 🔜 |
+| Auto-retry | ✅ | 🔜 | 🔜 |
+| TypeScript | ✅ | N/A | N/A |
+
+## Contributing
+
+We welcome SDK contributions! See our [GitHub](https://github.com/elizaOS/eliza) for guidelines.
+
+## Next Steps
+
+<Cards>
+  <Cards.Card title="API Reference" href="/docs/api">
+    Complete API documentation
+  </Cards.Card>
+  <Cards.Card title="Quickstart" href="/docs/quickstart">
+    Get started quickly
+  </Cards.Card>
+  <Cards.Card title="Examples" href="https://github.com/elizaOS/eliza/tree/main/examples">
+    Code examples
+  </Cards.Card>
+</Cards>

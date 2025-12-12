@@ -1,0 +1,154 @@
+---
+title: Image Generation
+description: Generate images from text prompts using elizaOS Cloud.
+---
+
+import { Callout, Tabs } from 'nextra/components'
+
+# Image Generation
+
+<div className="status-badge status-stable">Stable</div>
+
+Generate high-quality images from text prompts using state-of-the-art AI models.
+
+## Generate Image
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-post">POST</span>
+  <span className="path">/api/v1/generate-image</span>
+</div>
+
+Create images from text descriptions.
+
+### Request
+
+<Tabs items={['cURL', 'JavaScript', 'Python']}>
+  <Tabs.Tab>
+```bash
+curl -X POST "https://cloud.eliza.ai/api/v1/generate-image" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "A serene mountain landscape at sunset",
+    "model": "fal-ai/flux/schnell",
+    "size": "square_hd",
+    "num_images": 1
+  }'
+```
+  </Tabs.Tab>
+  <Tabs.Tab>
+```javascript
+const response = await fetch('https://cloud.eliza.ai/api/v1/generate-image', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_API_KEY',
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    prompt: 'A serene mountain landscape at sunset',
+    model: 'fal-ai/flux/schnell',
+    size: 'square_hd',
+    num_images: 1,
+  }),
+});
+
+const data = await response.json();
+console.log(data.images[0].url);
+```
+  </Tabs.Tab>
+  <Tabs.Tab>
+```python
+import requests
+
+response = requests.post(
+    'https://cloud.eliza.ai/api/v1/generate-image',
+    headers={
+        'Authorization': 'Bearer YOUR_API_KEY',
+        'Content-Type': 'application/json',
+    },
+    json={
+        'prompt': 'A serene mountain landscape at sunset',
+        'model': 'fal-ai/flux/schnell',
+        'size': 'square_hd',
+        'num_images': 1,
+    }
+)
+
+data = response.json()
+print(data['images'][0]['url'])
+```
+  </Tabs.Tab>
+</Tabs>
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `prompt` | string | ✓ | Description of the image to generate |
+| `model` | string | | Model to use. Default: `fal-ai/flux/schnell` |
+| `size` | string | | Output size |
+| `num_images` | integer | | Number of images (1-4). Default: 1 |
+| `negative_prompt` | string | | What to avoid in the image |
+| `seed` | integer | | Random seed for reproducibility |
+| `guidance_scale` | number | | Prompt adherence (1-20) |
+
+### Available Sizes
+
+| Size | Dimensions |
+|------|------------|
+| `square` | 512×512 |
+| `square_hd` | 1024×1024 |
+| `portrait_4_3` | 768×1024 |
+| `portrait_16_9` | 576×1024 |
+| `landscape_4_3` | 1024×768 |
+| `landscape_16_9` | 1024×576 |
+
+### Response
+
+```json
+{
+  "images": [
+    {
+      "url": "https://storage.eliza.ai/images/abc123.png",
+      "width": 1024,
+      "height": 1024,
+      "content_type": "image/png"
+    }
+  ],
+  "cost": 0.02,
+  "model": "fal-ai/flux/schnell",
+  "seed": 12345
+}
+```
+
+---
+
+## Available Models
+
+| Model | Quality | Speed | Best For |
+|-------|---------|-------|----------|
+| `fal-ai/flux/schnell` | High | Fast | General use |
+| `fal-ai/flux/dev` | Higher | Medium | Detailed images |
+| `fal-ai/flux-pro` | Highest | Slower | Professional |
+
+---
+
+## Prompt Tips
+
+### Be Specific
+
+```json
+{
+  "prompt": "A golden retriever puppy playing in autumn leaves, 
+             golden hour lighting, shallow depth of field"
+}
+```
+
+### Use Negative Prompts
+
+```json
+{
+  "prompt": "Portrait of a woman, natural lighting",
+  "negative_prompt": "blurry, distorted, low quality"
+}
+```
