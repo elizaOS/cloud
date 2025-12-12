@@ -73,6 +73,7 @@ class SocialMediaService {
     const conditions = [
       eq(platformCredentials.organization_id, organizationId),
       eq(platformCredentials.status, "active"),
+      eq(platformCredentials.platform, platform),
     ];
     if (credentialId) conditions.push(eq(platformCredentials.id, credentialId));
 
@@ -84,6 +85,29 @@ class SocialMediaService {
 
     if (!credential) return this.getCredentialsFromSecrets(organizationId, platform);
 
+    // Handle manual credentials (Bluesky app password, Telegram bot token)
+    if (credential.api_key_secret_id) {
+      const apiKey = await secretsService.getDecryptedValue(credential.api_key_secret_id, organizationId);
+      if (!apiKey) return this.getCredentialsFromSecrets(organizationId, platform);
+
+      if (platform === "bluesky") {
+        return {
+          platform,
+          handle: credential.platform_username ?? undefined,
+          appPassword: apiKey,
+          accountId: credential.platform_user_id,
+        };
+      }
+      if (platform === "telegram") {
+        return {
+          platform,
+          botToken: apiKey,
+          accountId: credential.platform_user_id,
+        };
+      }
+    }
+
+    // Handle OAuth credentials
     const [accessToken, storedRefreshToken] = await Promise.all([
       credential.access_token_secret_id
         ? secretsService.getDecryptedValue(credential.access_token_secret_id, organizationId)
@@ -93,6 +117,8 @@ class SocialMediaService {
         : undefined,
     ]);
 
+    if (!accessToken) return this.getCredentialsFromSecrets(organizationId, platform);
+
     let credentials: SocialCredentials = {
       platform,
       accessToken,
@@ -101,6 +127,12 @@ class SocialMediaService {
       username: credential.platform_username ?? undefined,
       accountId: credential.platform_user_id,
     };
+
+    // For Mastodon, include instance URL from callback context
+    if (platform === "mastodon") {
+      const context = credential.source_context as { instanceUrl?: string } | null;
+      credentials.instanceUrl = context?.instanceUrl;
+    }
 
     // Auto-refresh if token is expired
     if (needsRefresh(credentials)) {
@@ -214,6 +246,22 @@ class SocialMediaService {
         ]);
         if (!accessToken) return null;
         return { platform, accessToken, pageId: pageId ?? undefined, accountId: accountId ?? undefined };
+      }
+      case "mastodon": {
+        const [accessToken, instanceUrl] = await Promise.all([
+          secretsService.get(organizationId, `${prefix}_ACCESS_TOKEN`),
+          secretsService.get(organizationId, `${prefix}_INSTANCE_URL`),
+        ]);
+        if (!accessToken) return null;
+        return { platform, accessToken, instanceUrl: instanceUrl ?? undefined };
+      }
+      case "slack": {
+        const [botToken, webhookUrl] = await Promise.all([
+          secretsService.get(organizationId, `${prefix}_BOT_TOKEN`),
+          secretsService.get(organizationId, `${prefix}_WEBHOOK_URL`),
+        ]);
+        if (!botToken && !webhookUrl) return null;
+        return { platform, botToken: botToken ?? undefined, webhookUrl: webhookUrl ?? undefined };
       }
       default:
         return null;
