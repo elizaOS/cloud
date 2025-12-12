@@ -25,7 +25,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     if (!session) {
       return NextResponse.json(
         { success: false, error: "Session not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -35,14 +35,19 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     logger.error("Failed to get app builder session", { error });
-    const message = error instanceof Error ? error.message : "Failed to get session";
-    const status = message.includes("Unauthorized") ? 403 : message.includes("not found") ? 404 : 500;
+    const message =
+      error instanceof Error ? error.message : "Failed to get session";
+    const status = message.includes("Unauthorized")
+      ? 403
+      : message.includes("not found")
+        ? 404
+        : 500;
     return NextResponse.json(
       {
         success: false,
         error: message,
       },
-      { status }
+      { status },
     );
   }
 }
@@ -73,13 +78,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           error: "Invalid request data",
           details: validationResult.error.format(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     await aiAppBuilderService.extendSession(
       sessionId,
-      validationResult.data.durationMs
+      validationResult.data.durationMs,
     );
 
     return NextResponse.json({
@@ -88,14 +93,19 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     logger.error("Failed to extend app builder session", { error });
-    const message = error instanceof Error ? error.message : "Failed to extend session";
-    const status = message.includes("Unauthorized") ? 403 : message.includes("not found") ? 404 : 500;
+    const message =
+      error instanceof Error ? error.message : "Failed to extend session";
+    const status = message.includes("Unauthorized")
+      ? 403
+      : message.includes("not found")
+        ? 404
+        : 500;
     return NextResponse.json(
       {
         success: false,
         error: message,
       },
-      { status }
+      { status },
     );
   }
 }
@@ -120,14 +130,19 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     logger.error("Failed to stop app builder session", { error });
-    const message = error instanceof Error ? error.message : "Failed to stop session";
-    const status = message.includes("Unauthorized") ? 403 : message.includes("not found") ? 404 : 500;
+    const message =
+      error instanceof Error ? error.message : "Failed to stop session";
+    const status = message.includes("Unauthorized")
+      ? 403
+      : message.includes("not found")
+        ? 404
+        : 500;
     return NextResponse.json(
       {
         success: false,
         error: message,
       },
-      { status }
+      { status },
     );
   }
 }

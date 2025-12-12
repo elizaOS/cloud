@@ -1,6 +1,6 @@
 /**
  * Anonymous Session Creator Service
- * 
+ *
  * Shared logic for creating anonymous users and sessions.
  * Used by both the API route and lib/auth-anonymous.ts to avoid code duplication.
  */
@@ -25,14 +25,15 @@ export interface CreateAnonymousUserAndSessionResult {
 
 /**
  * Creates a new anonymous user and associated session.
- * 
+ *
  * @param params - Session creation parameters
  * @returns The created user and session
  */
 export async function createAnonymousUserAndSession(
-  params: CreateAnonymousUserAndSessionParams
+  params: CreateAnonymousUserAndSessionParams,
 ): Promise<CreateAnonymousUserAndSessionResult> {
-  const { sessionToken, expiresAt, ipAddress, userAgent, messagesLimit } = params;
+  const { sessionToken, expiresAt, ipAddress, userAgent, messagesLimit } =
+    params;
 
   const [newUser] = await db
     .insert(users)
@@ -55,12 +56,14 @@ export async function createAnonymousUserAndSession(
     messages_limit: messagesLimit,
   });
 
-  logger.info("[anonymous-session-creator] Created new anonymous user and session", {
-    userId: newUser.id,
-    sessionId: newSession.id,
-    expiresAt,
-  });
+  logger.info(
+    "[anonymous-session-creator] Created new anonymous user and session",
+    {
+      userId: newUser.id,
+      sessionId: newSession.id,
+      expiresAt,
+    },
+  );
 
   return { newUser, newSession };
 }
-

@@ -1,9 +1,9 @@
 /**
  * Token Redemption API Routes
- * 
+ *
  * POST /api/v1/redemptions - Create a new redemption request
  * GET /api/v1/redemptions - List user's redemption history
- * 
+ *
  * SECURITY MEASURES:
  * 1. Rate limited (CRITICAL preset - 5 req/min for POST, STRICT for GET)
  * 2. Authenticated users only
@@ -11,7 +11,7 @@
  * 4. Idempotency key support
  * 5. Full audit logging
  * 6. TWAP pricing with anti-arbitrage protection
- * 
+ *
  * @see lib/services/token-redemption-secure.ts for security implementation
  */
 
@@ -26,7 +26,7 @@ import { SUPPLY_SHOCK_PROTECTION } from "@/lib/config/redemption-security";
 
 /**
  * Request validation schema with strict bounds.
- * 
+ *
  * IMPORTANT: Only EARNED points from miniapps, agents, and MCPs can be redeemed.
  * Purchased credits are NOT redeemable.
  */
@@ -52,7 +52,7 @@ const createRateLimitConfig = {
 /**
  * POST /api/v1/redemptions
  * Create a new token redemption request using the secure service.
- * 
+ *
  * Features:
  * - TWAP pricing (not spot)
  * - Idempotency key support
@@ -60,17 +60,20 @@ const createRateLimitConfig = {
  * - Rate limiting
  * - Full audit trail
  */
-async function createRedemptionHandler(request: NextRequest): Promise<Response> {
+async function createRedemptionHandler(
+  request: NextRequest,
+): Promise<Response> {
   // Check emergency pause
   if (process.env.REDEMPTION_EMERGENCY_PAUSE === "true") {
     logger.warn("[Redemption API] Emergency pause active - rejecting request");
     return NextResponse.json(
-      { 
-        success: false, 
-        error: "Redemptions are temporarily paused for maintenance. Please try again later.",
+      {
+        success: false,
+        error:
+          "Redemptions are temporarily paused for maintenance. Please try again later.",
         paused: true,
       },
-      { status: 503 }
+      { status: 503 },
     );
   }
 
@@ -82,7 +85,7 @@ async function createRedemptionHandler(request: NextRequest): Promise<Response> 
   } catch {
     return NextResponse.json(
       { success: false, error: "Invalid JSON body" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -90,27 +93,35 @@ async function createRedemptionHandler(request: NextRequest): Promise<Response> 
 
   if (!validation.success) {
     return NextResponse.json(
-      { 
-        success: false, 
-        error: "Invalid request", 
-        details: validation.error.errors.map(e => ({
+      {
+        success: false,
+        error: "Invalid request",
+        details: validation.error.errors.map((e) => ({
           field: e.path.join("."),
           message: e.message,
         })),
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
-  const { appId, pointsAmount, network, payoutAddress, signature, idempotencyKey } = validation.data;
+  const {
+    appId,
+    pointsAmount,
+    network,
+    payoutAddress,
+    signature,
+    idempotencyKey,
+  } = validation.data;
 
   // Check if payout system is available for this network
-  const networkAvailability = await payoutStatusService.isNetworkAvailable(network);
+  const networkAvailability =
+    await payoutStatusService.isNetworkAvailable(network);
   if (!networkAvailability.available) {
     const status = await payoutStatusService.getStatus();
     const availableNetworks = status.networks
-      .filter(n => n.status === "operational" || n.status === "low_balance")
-      .map(n => n.network);
+      .filter((n) => n.status === "operational" || n.status === "low_balance")
+      .map((n) => n.network);
 
     logger.warn("[Redemption API] Network unavailable", {
       network,
@@ -119,25 +130,32 @@ async function createRedemptionHandler(request: NextRequest): Promise<Response> 
       userId: user.id.slice(0, 8) + "...",
     });
 
-    return NextResponse.json({
-      success: false,
-      error: networkAvailability.message,
-      availableNetworks,
-      suggestion: availableNetworks.length > 0
-        ? `Try one of these networks instead: ${availableNetworks.join(", ")}`
-        : "Token redemption is temporarily unavailable. Please check back later.",
-    }, { status: 503 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: networkAvailability.message,
+        availableNetworks,
+        suggestion:
+          availableNetworks.length > 0
+            ? `Try one of these networks instead: ${availableNetworks.join(", ")}`
+            : "Token redemption is temporarily unavailable. Please check back later.",
+      },
+      { status: 503 },
+    );
   }
 
   // Get client metadata for audit
   const userAgent = request.headers.get("user-agent") ?? undefined;
-  const ipAddress = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? 
-                    request.headers.get("x-real-ip") ?? undefined;
+  const ipAddress =
+    request.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+    request.headers.get("x-real-ip") ??
+    undefined;
 
   // Mask address for logging (security)
-  const maskedAddress = payoutAddress.length > 20
-    ? `${payoutAddress.slice(0, 6)}...${payoutAddress.slice(-4)}`
-    : "***";
+  const maskedAddress =
+    payoutAddress.length > 20
+      ? `${payoutAddress.slice(0, 6)}...${payoutAddress.slice(-4)}`
+      : "***";
 
   logger.info("[Redemption API] Creating secure redemption request", {
     userId: user.id.slice(0, 8) + "...",
@@ -172,7 +190,7 @@ async function createRedemptionHandler(request: NextRequest): Promise<Response> 
 
     return NextResponse.json(
       { success: false, error: result.error },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -205,11 +223,14 @@ async function listRedemptionsHandler(request: NextRequest): Promise<Response> {
   const limitParam = request.nextUrl.searchParams.get("limit");
   const limit = limitParam ? Math.min(parseInt(limitParam, 10), 100) : 20;
 
-  const redemptions = await secureTokenRedemptionService.listUserRedemptions(user.id, limit);
+  const redemptions = await secureTokenRedemptionService.listUserRedemptions(
+    user.id,
+    limit,
+  );
 
   return NextResponse.json({
     success: true,
-    redemptions: redemptions.map(r => ({
+    redemptions: redemptions.map((r) => ({
       id: r.id,
       pointsAmount: Number(r.points_amount),
       usdValue: Number(r.usd_value),
@@ -232,8 +253,14 @@ async function listRedemptionsHandler(request: NextRequest): Promise<Response> {
 // Export rate-limited handlers
 // POST: CRITICAL rate limit (5 req/min) for financial operations
 // GET: STRICT rate limit (10 req/min) for read operations
-export const POST = withRateLimit(createRedemptionHandler, createRateLimitConfig);
-export const GET = withRateLimit(listRedemptionsHandler, RateLimitPresets.STRICT);
+export const POST = withRateLimit(
+  createRedemptionHandler,
+  createRateLimitConfig,
+);
+export const GET = withRateLimit(
+  listRedemptionsHandler,
+  RateLimitPresets.STRICT,
+);
 
 /**
  * OPTIONS - CORS preflight
@@ -248,4 +275,3 @@ export async function OPTIONS() {
     },
   });
 }
-

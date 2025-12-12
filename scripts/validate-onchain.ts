@@ -6,9 +6,20 @@
  * Run: bun run scripts/validate-onchain.ts
  */
 
-import { createPublicClient, http, parseAbi, formatUnits, type Address } from "viem";
+import {
+  createPublicClient,
+  http,
+  parseAbi,
+  formatUnits,
+  type Address,
+} from "viem";
 import { baseSepolia, base } from "viem/chains";
-import { USDC_ADDRESSES, CHAIN_IDS, X402_RECIPIENT_ADDRESS, isX402Configured } from "@/lib/config/x402";
+import {
+  USDC_ADDRESSES,
+  CHAIN_IDS,
+  X402_RECIPIENT_ADDRESS,
+  isX402Configured,
+} from "@/lib/config/x402";
 
 const USDC_ABI = parseAbi([
   "function name() view returns (string)",
@@ -55,7 +66,9 @@ async function validateNetwork(networkName: "base-sepolia" | "base") {
   if (chainId === config.chainId) {
     console.log(`   ✅ Chain ID: ${chainId}`);
   } else {
-    console.log(`   ❌ Chain ID mismatch: expected ${config.chainId}, got ${chainId}`);
+    console.log(
+      `   ❌ Chain ID mismatch: expected ${config.chainId}, got ${chainId}`,
+    );
   }
 
   // 3. Verify USDC Contract
@@ -63,10 +76,26 @@ async function validateNetwork(networkName: "base-sepolia" | "base") {
   console.log(`   Address: ${config.usdc}`);
 
   const [name, symbol, decimals, totalSupply] = await Promise.all([
-    client.readContract({ address: config.usdc, abi: USDC_ABI, functionName: "name" }),
-    client.readContract({ address: config.usdc, abi: USDC_ABI, functionName: "symbol" }),
-    client.readContract({ address: config.usdc, abi: USDC_ABI, functionName: "decimals" }),
-    client.readContract({ address: config.usdc, abi: USDC_ABI, functionName: "totalSupply" }),
+    client.readContract({
+      address: config.usdc,
+      abi: USDC_ABI,
+      functionName: "name",
+    }),
+    client.readContract({
+      address: config.usdc,
+      abi: USDC_ABI,
+      functionName: "symbol",
+    }),
+    client.readContract({
+      address: config.usdc,
+      abi: USDC_ABI,
+      functionName: "decimals",
+    }),
+    client.readContract({
+      address: config.usdc,
+      abi: USDC_ABI,
+      functionName: "totalSupply",
+    }),
   ]);
 
   if (symbol === "USDC") {
@@ -84,7 +113,10 @@ async function validateNetwork(networkName: "base-sepolia" | "base") {
   console.log(`   ✅ Total Supply: ${formatUnits(totalSupply, 6)} USDC`);
 
   // 4. Verify Recipient Wallet
-  if (X402_RECIPIENT_ADDRESS && X402_RECIPIENT_ADDRESS !== "0x0000000000000000000000000000000000000000") {
+  if (
+    X402_RECIPIENT_ADDRESS &&
+    X402_RECIPIENT_ADDRESS !== "0x0000000000000000000000000000000000000000"
+  ) {
     console.log("\n👛 Recipient Wallet:");
     console.log(`   Address: ${X402_RECIPIENT_ADDRESS}`);
 
@@ -102,7 +134,9 @@ async function validateNetwork(networkName: "base-sepolia" | "base") {
     console.log(`   ✅ USDC Balance: ${formatUnits(usdcBalance, 6)} USDC`);
 
     if (usdcBalance === 0n && networkName === "base-sepolia") {
-      console.log(`   ⚠️  No USDC - Get test USDC from https://faucet.circle.com/`);
+      console.log(
+        `   ⚠️  No USDC - Get test USDC from https://faucet.circle.com/`,
+      );
     }
   }
 
@@ -115,14 +149,20 @@ async function main() {
 
   // Check configuration
   console.log("\n📋 Configuration:");
-  console.log(`   X402 Enabled: ${process.env.ENABLE_X402_PAYMENTS === "true" ? "✅ Yes" : "❌ No"}`);
+  console.log(
+    `   X402 Enabled: ${process.env.ENABLE_X402_PAYMENTS === "true" ? "✅ Yes" : "❌ No"}`,
+  );
   console.log(`   X402 Configured: ${isX402Configured() ? "✅ Yes" : "❌ No"}`);
   console.log(`   Recipient: ${X402_RECIPIENT_ADDRESS}`);
-  console.log(`   Network: ${process.env.X402_NETWORK || "base-sepolia (default)"}`);
+  console.log(
+    `   Network: ${process.env.X402_NETWORK || "base-sepolia (default)"}`,
+  );
 
   if (!isX402Configured()) {
     console.log("\n❌ x402 is not properly configured!");
-    console.log("   Set ENABLE_X402_PAYMENTS=true and X402_RECIPIENT_ADDRESS in .env.local");
+    console.log(
+      "   Set ENABLE_X402_PAYMENTS=true and X402_RECIPIENT_ADDRESS in .env.local",
+    );
     process.exit(1);
   }
 
@@ -143,4 +183,3 @@ async function main() {
 }
 
 main().catch(console.error);
-

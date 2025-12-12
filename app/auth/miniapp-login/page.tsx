@@ -55,7 +55,7 @@ function MiniappLoginContent() {
   const loginTriggeredRef = useRef(
     typeof window !== "undefined"
       ? sessionStorage.getItem(LOGIN_TRIGGERED_KEY) === "true"
-      : false
+      : false,
   );
 
   const completeLogin = useCallback(async () => {
@@ -73,7 +73,7 @@ function MiniappLoginContent() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -95,7 +95,7 @@ function MiniappLoginContent() {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Failed to complete authentication"
+          : "Failed to complete authentication",
       );
     }
   }, [sessionId]);

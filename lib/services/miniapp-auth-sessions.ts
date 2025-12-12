@@ -60,7 +60,7 @@ class MiniappAuthSessionsService {
   async completeAuthentication(
     sessionId: string,
     userId: string,
-    organizationId: string
+    organizationId: string,
   ) {
     // Generate a secure auth token
     const authToken = `miniapp_${randomBytes(32).toString("hex")}`;
@@ -68,7 +68,7 @@ class MiniappAuthSessionsService {
 
     // Token expiry is 30 days from now
     const tokenExpiresAt = new Date(
-      Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+      Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
     );
 
     logger.info("[Miniapp Auth] Completing authentication", {
@@ -83,7 +83,7 @@ class MiniappAuthSessionsService {
       organizationId,
       authToken,
       authTokenHash,
-      tokenExpiresAt
+      tokenExpiresAt,
     );
 
     if (!session) {

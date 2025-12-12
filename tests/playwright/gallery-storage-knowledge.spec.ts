@@ -2,12 +2,12 @@ import { test, expect } from "@playwright/test";
 
 /**
  * Gallery, Storage & Knowledge Base E2E Tests
- * 
+ *
  * Tests UI and functionality for:
  * - Gallery: Image viewing, download, delete
  * - Storage: File browsing, upload, download
  * - Knowledge Base: File upload, document management, RAG configuration
- * 
+ *
  * Prerequisites:
  * - TEST_API_KEY environment variable required for API tests
  * - Cloud running on port 3000
@@ -42,7 +42,7 @@ test.describe("Gallery Page", () => {
     // Accept any of: redirect to login, redirect to home, or stay on gallery page
     expect(redirectedToLogin || redirectedToHome || onGalleryPage).toBe(true);
     console.log(
-      `✅ Gallery page auth check: ${redirectedToLogin ? "redirects to login" : redirectedToHome ? "redirects to home" : "shows gallery"}`
+      `✅ Gallery page auth check: ${redirectedToLogin ? "redirects to login" : redirectedToHome ? "redirects to home" : "shows gallery"}`,
     );
   });
 
@@ -68,7 +68,9 @@ test.describe("Gallery Page", () => {
   });
 
   test("gallery page has upload button", async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}/dashboard/gallery`).catch(() => null);
+    const response = await page
+      .goto(`${BASE_URL}/dashboard/gallery`)
+      .catch(() => null);
     if (!response) {
       console.log("ℹ️ Page navigation failed - skipping");
       return;
@@ -84,7 +86,7 @@ test.describe("Gallery Page", () => {
     }
 
     const uploadButton = page.locator(
-      'button:has-text("Upload"), button:has-text("Add Image"), input[type="file"]'
+      'button:has-text("Upload"), button:has-text("Add Image"), input[type="file"]',
     );
     const hasUploadButton = await uploadButton.isVisible().catch(() => false);
 
@@ -120,9 +122,12 @@ test.describe("Gallery Image Operations", () => {
   });
 
   test("gallery images support pagination", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/v1/gallery?limit=10&offset=0`, {
-      headers: authHeaders(),
-    });
+    const response = await request.get(
+      `${CLOUD_URL}/api/v1/gallery?limit=10&offset=0`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     if (response.status() === 200) {
       const data = await response.json();
@@ -151,12 +156,14 @@ test.describe("Storage Page", () => {
     // Accept any of: redirect to login, redirect to home, or stay on storage page
     expect(redirectedToLogin || redirectedToHome || onStoragePage).toBe(true);
     console.log(
-      `✅ Storage page auth check: ${redirectedToLogin ? "redirects to login" : redirectedToHome ? "redirects to home" : "shows storage"}`
+      `✅ Storage page auth check: ${redirectedToLogin ? "redirects to login" : redirectedToHome ? "redirects to home" : "shows storage"}`,
     );
   });
 
   test("storage page has file browser", async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}/dashboard/storage`).catch(() => null);
+    const response = await page
+      .goto(`${BASE_URL}/dashboard/storage`)
+      .catch(() => null);
     if (!response) {
       console.log("ℹ️ Page navigation failed - skipping");
       return;
@@ -170,7 +177,9 @@ test.describe("Storage Page", () => {
       return;
     }
 
-    const fileBrowser = page.locator('[class*="file"], [class*="browser"], table');
+    const fileBrowser = page.locator(
+      '[class*="file"], [class*="browser"], table',
+    );
     const hasFileBrowser = await fileBrowser.isVisible().catch(() => false);
 
     if (hasFileBrowser) {
@@ -181,7 +190,9 @@ test.describe("Storage Page", () => {
   });
 
   test("storage page has upload button", async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}/dashboard/storage`).catch(() => null);
+    const response = await page
+      .goto(`${BASE_URL}/dashboard/storage`)
+      .catch(() => null);
     if (!response) {
       console.log("ℹ️ Page navigation failed - skipping");
       return;
@@ -196,7 +207,7 @@ test.describe("Storage Page", () => {
     }
 
     const uploadButton = page.locator(
-      'button:has-text("Upload"), button:has-text("Add File"), input[type="file"]'
+      'button:has-text("Upload"), button:has-text("Add File"), input[type="file"]',
     );
     const hasUploadButton = await uploadButton.isVisible().catch(() => false);
 
@@ -258,7 +269,7 @@ test.describe("Knowledge Base Page", () => {
     // Accept any of: redirect to login, redirect to home, or stay on knowledge page
     expect(redirectedToLogin || redirectedToHome || onKnowledgePage).toBe(true);
     console.log(
-      `✅ Knowledge page auth check: ${redirectedToLogin ? "redirects to login" : redirectedToHome ? "redirects to home" : "shows knowledge"}`
+      `✅ Knowledge page auth check: ${redirectedToLogin ? "redirects to login" : redirectedToHome ? "redirects to home" : "shows knowledge"}`,
     );
   });
 
@@ -268,7 +279,7 @@ test.describe("Knowledge Base Page", () => {
     await page.waitForTimeout(2000);
 
     const documentList = page.locator(
-      '[class*="document"], [class*="file"], table, [role="list"]'
+      '[class*="document"], [class*="file"], table, [role="list"]',
     );
     const hasDocumentList = await documentList.isVisible().catch(() => false);
 
@@ -290,7 +301,7 @@ test.describe("Knowledge Base Page", () => {
     await page.waitForTimeout(2000);
 
     const uploadButton = page.locator(
-      'button:has-text("Upload"), button:has-text("Add Document"), input[type="file"]'
+      'button:has-text("Upload"), button:has-text("Add Document"), input[type="file"]',
     );
     const hasUploadButton = await uploadButton.isVisible().catch(() => false);
 
@@ -339,7 +350,9 @@ test.describe("Knowledge Base API", () => {
 
   test("knowledge documents can be uploaded", async ({ request }) => {
     // Create a test file
-    const testFile = new Blob(["Test document content"], { type: "text/plain" });
+    const testFile = new Blob(["Test document content"], {
+      type: "text/plain",
+    });
     const formData = new FormData();
     formData.append("file", testFile, "test.txt");
 
@@ -373,15 +386,20 @@ test.describe("Knowledge Base API", () => {
     }
 
     if (!found) {
-      console.log("ℹ️ Knowledge upload endpoint not found or requires different format");
+      console.log(
+        "ℹ️ Knowledge upload endpoint not found or requires different format",
+      );
     }
   });
 
   test("knowledge documents can be deleted", async ({ request }) => {
     // First list documents
-    const listResponse = await request.get(`${CLOUD_URL}/api/v1/knowledge/documents`, {
-      headers: authHeaders(),
-    });
+    const listResponse = await request.get(
+      `${CLOUD_URL}/api/v1/knowledge/documents`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     if (listResponse.status() !== 200) {
       return;
@@ -400,7 +418,7 @@ test.describe("Knowledge Base API", () => {
       `${CLOUD_URL}/api/v1/knowledge/documents/${documentId}`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect([200, 204, 404]).toContain(deleteResponse.status());

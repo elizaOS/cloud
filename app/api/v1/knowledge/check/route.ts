@@ -1,6 +1,6 @@
 /**
  * GET /api/v1/knowledge/check
- * 
+ *
  * Lightweight endpoint to check if an agent has knowledge documents.
  * Does not spin up a full runtime - uses direct database query.
  */
@@ -12,7 +12,7 @@ import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 async function handleGET(req: NextRequest) {
   const authResult = await requireAuthOrApiKey(req);
-  
+
   const characterId = req.nextUrl.searchParams.get("characterId");
   if (!characterId) {
     return NextResponse.json(

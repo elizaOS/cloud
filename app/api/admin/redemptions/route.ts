@@ -34,7 +34,7 @@ const AdminActionSchema = z.object({
  * List redemptions pending admin review.
  */
 async function listPendingRedemptionsHandler(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<Response> {
   const { user: adminUser } = await requireAdmin(request);
 
@@ -158,7 +158,7 @@ async function adminActionHandler(request: NextRequest): Promise<Response> {
         error: "Invalid request",
         details: validation.error.errors,
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -174,13 +174,13 @@ async function adminActionHandler(request: NextRequest): Promise<Response> {
     const result = await secureTokenRedemptionService.approveRedemption(
       redemptionId,
       adminUser.id,
-      notes
+      notes,
     );
 
     if (!result.success) {
       return NextResponse.json(
         { success: false, error: result.error },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -198,13 +198,13 @@ async function adminActionHandler(request: NextRequest): Promise<Response> {
     const result = await secureTokenRedemptionService.rejectRedemption(
       redemptionId,
       adminUser.id,
-      notes || "Rejected by admin"
+      notes || "Rejected by admin",
     );
 
     if (!result.success) {
       return NextResponse.json(
         { success: false, error: result.error },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -223,7 +223,7 @@ async function adminActionHandler(request: NextRequest): Promise<Response> {
 
 export const GET = withRateLimit(
   listPendingRedemptionsHandler,
-  RateLimitPresets.STANDARD
+  RateLimitPresets.STANDARD,
 );
 export const POST = withRateLimit(adminActionHandler, RateLimitPresets.STRICT);
 
@@ -240,4 +240,3 @@ export async function OPTIONS() {
     },
   });
 }
-

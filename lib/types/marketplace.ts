@@ -32,7 +32,6 @@ export interface MarketplaceSearchResult {
   cached: boolean;
 }
 
-
 /**
  * State for marketplace UI component.
  */
@@ -48,4 +47,3 @@ export interface MarketplaceState {
   isLoading: boolean;
   isLoadingStats: boolean;
 }
-

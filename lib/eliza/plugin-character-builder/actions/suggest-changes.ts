@@ -121,7 +121,11 @@ export const suggestChangesAction = {
   name: "SUGGEST_CHANGES",
   description:
     "User is asking about character design, requesting modifications, or needs guidance on best practices. Use for: 'make it funnier', 'improve the bio', 'how should I structure the system prompt?', 'add personality traits', 'what makes a good character?'. Provides expert guidance with field-level changes for interactive preview. Does NOT save changes.",
-  validate: async (_runtime: IAgentRuntime, _message: Memory, _state?: State) => {
+  validate: async (
+    _runtime: IAgentRuntime,
+    _message: Memory,
+    _state?: State,
+  ) => {
     return true;
   },
   handler: async (
@@ -178,7 +182,9 @@ export const suggestChangesAction = {
     runtime.character.system = originalSystemPrompt;
 
     if (!parsedResponse?.explanation) {
-      logger.warn("[SUGGEST_CHANGES] Failed to parse response - missing explanation");
+      logger.warn(
+        "[SUGGEST_CHANGES] Failed to parse response - missing explanation",
+      );
       await callback({
         text: "I had trouble formulating my response. Could you rephrase your request?",
         error: true,
@@ -186,7 +192,11 @@ export const suggestChangesAction = {
       return;
     }
 
-    const fieldsToChange = parsedResponse.fieldsToChange?.split(",").map((f) => f.trim()).filter(Boolean) || [];
+    const fieldsToChange =
+      parsedResponse.fieldsToChange
+        ?.split(",")
+        .map((f) => f.trim())
+        .filter(Boolean) || [];
 
     // Parse changes JSON
     let changes: Record<string, unknown> | null = null;
@@ -197,9 +207,13 @@ export const suggestChangesAction = {
         if (Object.keys(parsed).length > 0) {
           changes = parsed;
         }
-        logger.info(`[SUGGEST_CHANGES] Parsed changes for fields: ${Object.keys(parsed).join(", ")}`);
+        logger.info(
+          `[SUGGEST_CHANGES] Parsed changes for fields: ${Object.keys(parsed).join(", ")}`,
+        );
       } catch (parseError) {
-        logger.warn("[SUGGEST_CHANGES] Failed to parse changes JSON, sending guidance only");
+        logger.warn(
+          "[SUGGEST_CHANGES] Failed to parse changes JSON, sending guidance only",
+        );
         changes = null;
       }
     }

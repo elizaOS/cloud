@@ -46,7 +46,10 @@ function AuthCallbackContent() {
       try {
         const cloudUrl = getCloudUrl();
 
-        console.log("[Auth Callback] Fetching session from:", `${cloudUrl}/api/auth/miniapp-session/${sessionId}`);
+        console.log(
+          "[Auth Callback] Fetching session from:",
+          `${cloudUrl}/api/auth/miniapp-session/${sessionId}`,
+        );
 
         // Poll the Cloud API for the auth token
         const response = await fetch(
@@ -67,12 +70,18 @@ function AuthCallbackContent() {
 
           // Check for common issues
           if (response.status === 404) {
-            throw new Error("Auth endpoint not found. Is the Cloud server running?");
+            throw new Error(
+              "Auth endpoint not found. Is the Cloud server running?",
+            );
           }
           if (response.status >= 500) {
-            throw new Error(`Cloud server error (${response.status}). Please try again.`);
+            throw new Error(
+              `Cloud server error (${response.status}). Please try again.`,
+            );
           }
-          throw new Error(`Unexpected response from server (${response.status}). Check Cloud URL configuration.`);
+          throw new Error(
+            `Unexpected response from server (${response.status}). Check Cloud URL configuration.`,
+          );
         }
 
         if (!response.ok) {

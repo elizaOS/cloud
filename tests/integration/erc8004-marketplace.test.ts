@@ -15,7 +15,10 @@ describe("parseAgentId", () => {
   test("parses valid agentId", () => {
     expect(parseAgentId("8453:123")).toEqual({ chainId: 8453, tokenId: 123 });
     expect(parseAgentId("1:0")).toEqual({ chainId: 1, tokenId: 0 });
-    expect(parseAgentId("31337:999999")).toEqual({ chainId: 31337, tokenId: 999999 });
+    expect(parseAgentId("31337:999999")).toEqual({
+      chainId: 31337,
+      tokenId: 999999,
+    });
   });
 
   test("rejects invalid formats", () => {
@@ -46,7 +49,11 @@ describe("agent0ToDiscoveredService", () => {
   };
 
   test("converts agent with both endpoints", () => {
-    const agent = { ...baseAgent, a2aEndpoint: "https://x.com/a2a", mcpEndpoint: "https://x.com/mcp" };
+    const agent = {
+      ...baseAgent,
+      a2aEndpoint: "https://x.com/a2a",
+      mcpEndpoint: "https://x.com/mcp",
+    };
     const result = agent0ToDiscoveredService(agent, "base", 8453);
 
     expect(result.type).toBe("agent");
@@ -98,19 +105,31 @@ describe("CHAIN_IDS", () => {
 describe("deduplication logic", () => {
   test("prefers local over ERC-8004", () => {
     const local: DiscoveredService = {
-      id: "local-1", name: "Agent", description: "", type: "agent",
-      source: "local", tags: [], active: true, x402Support: false,
+      id: "local-1",
+      name: "Agent",
+      description: "",
+      type: "agent",
+      source: "local",
+      tags: [],
+      active: true,
+      x402Support: false,
     };
     const external: DiscoveredService = {
-      id: "8453:1", name: "Agent", description: "", type: "agent",
-      source: "erc8004", tags: [], active: true, x402Support: false,
+      id: "8453:1",
+      name: "Agent",
+      description: "",
+      type: "agent",
+      source: "erc8004",
+      tags: [],
+      active: true,
+      x402Support: false,
     };
 
     const seen = new Map<string, DiscoveredService>();
-    for (const s of [external, local].filter(s => s.source === "local")) {
+    for (const s of [external, local].filter((s) => s.source === "local")) {
       seen.set(`${s.name.toLowerCase()}:${s.type}`, s);
     }
-    for (const s of [external, local].filter(s => s.source === "erc8004")) {
+    for (const s of [external, local].filter((s) => s.source === "erc8004")) {
       const key = `${s.name.toLowerCase()}:${s.type}`;
       if (!seen.has(key)) seen.set(key, s);
     }
@@ -121,8 +140,13 @@ describe("deduplication logic", () => {
 });
 
 describe("URL validation", () => {
-  const BLOCKED = [/^https?:\/\/localhost/i, /^https?:\/\/127\./, /^https?:\/\/192\.168\./, /^file:/i];
-  const isBlocked = (url: string) => BLOCKED.some(p => p.test(url));
+  const BLOCKED = [
+    /^https?:\/\/localhost/i,
+    /^https?:\/\/127\./,
+    /^https?:\/\/192\.168\./,
+    /^file:/i,
+  ];
+  const isBlocked = (url: string) => BLOCKED.some((p) => p.test(url));
 
   test("blocks internal URLs", () => {
     expect(isBlocked("http://localhost:3000")).toBe(true);

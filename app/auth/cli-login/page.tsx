@@ -21,7 +21,10 @@ function CliLoginContent() {
   // Compute initial status from props to avoid setState in effect
   const initialStatus = useMemo(() => {
     if (!sessionId) {
-      return { status: "error" as const, errorMessage: "Invalid authentication link. Missing session ID." };
+      return {
+        status: "error" as const,
+        errorMessage: "Invalid authentication link. Missing session ID.",
+      };
     }
     if (!authenticated) {
       return { status: "waiting_auth" as const, errorMessage: "" };
@@ -32,7 +35,9 @@ function CliLoginContent() {
   const [status, setStatus] = useState<
     "loading" | "waiting_auth" | "completing" | "success" | "error"
   >(initialStatus.status);
-  const [errorMessage, setErrorMessage] = useState<string>(initialStatus.errorMessage);
+  const [errorMessage, setErrorMessage] = useState<string>(
+    initialStatus.errorMessage,
+  );
   const [apiKeyPrefix, setApiKeyPrefix] = useState<string>("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
@@ -72,7 +77,7 @@ function CliLoginContent() {
   useEffect(() => {
     const nextStatus = initialStatus.status;
     const nextErrorMessage = initialStatus.errorMessage;
-    
+
     // Only update if status changed to avoid unnecessary renders
     if (status !== nextStatus || errorMessage !== nextErrorMessage) {
       // Use setTimeout to avoid synchronous setState in effect

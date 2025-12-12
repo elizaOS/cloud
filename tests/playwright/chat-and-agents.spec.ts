@@ -12,7 +12,9 @@ const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
 test.describe("Chat Interface", () => {
   test.beforeEach(async ({ page }) => {
     await page.context().clearCookies();
-    const response = await page.goto(`${BASE_URL}/dashboard/chat`).catch(() => null);
+    const response = await page
+      .goto(`${BASE_URL}/dashboard/chat`)
+      .catch(() => null);
     if (!response) {
       return; // Connection failed - individual tests will handle
     }
@@ -26,15 +28,19 @@ test.describe("Chat Interface", () => {
       console.log("ℹ️ Page navigation failed - skipping");
       return;
     }
-    
+
     // Look for chat input (textarea)
     const chatInput = page.locator("textarea").first();
-    const isVisible = await chatInput.isVisible({ timeout: 15000 }).catch(() => false);
-    
+    const isVisible = await chatInput
+      .isVisible({ timeout: 15000 })
+      .catch(() => false);
+
     if (isVisible) {
       console.log("✅ Chat interface loaded with input area");
     } else {
-      console.log("ℹ️ Chat input not visible - may require auth or page not loaded");
+      console.log(
+        "ℹ️ Chat input not visible - may require auth or page not loaded",
+      );
     }
   });
 
@@ -46,7 +52,9 @@ test.describe("Chat Interface", () => {
     }
 
     const chatInput = page.locator("textarea").first();
-    const isVisible = await chatInput.isVisible({ timeout: 15000 }).catch(() => false);
+    const isVisible = await chatInput
+      .isVisible({ timeout: 15000 })
+      .catch(() => false);
 
     if (!isVisible) {
       console.log("ℹ️ Chat input not visible - skipping");
@@ -70,7 +78,9 @@ test.describe("Chat Interface", () => {
 
     // Wait for chat to initialize
     const chatInput = page.locator("textarea").first();
-    const isVisible = await chatInput.isVisible({ timeout: 15000 }).catch(() => false);
+    const isVisible = await chatInput
+      .isVisible({ timeout: 15000 })
+      .catch(() => false);
 
     if (!isVisible) {
       console.log("ℹ️ Chat input not visible - skipping");
@@ -105,7 +115,9 @@ test.describe("Chat Interface", () => {
     }
 
     const chatInput = page.locator("textarea").first();
-    const isVisible = await chatInput.isVisible({ timeout: 15000 }).catch(() => false);
+    const isVisible = await chatInput
+      .isVisible({ timeout: 15000 })
+      .catch(() => false);
 
     if (!isVisible) {
       console.log("ℹ️ Chat input not visible - skipping");
@@ -161,7 +173,9 @@ test.describe("Chat Interface", () => {
 
 test.describe("Agent Gallery/Marketplace", () => {
   test.beforeEach(async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}/marketplace`).catch(() => null);
+    const response = await page
+      .goto(`${BASE_URL}/marketplace`)
+      .catch(() => null);
     if (response) {
       await page.waitForLoadState("networkidle").catch(() => {});
       await page.waitForTimeout(2000);

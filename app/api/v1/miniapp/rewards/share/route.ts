@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { socialRewardsService } from "@/lib/services/referrals";
-import { addCorsHeaders, validateOrigin, createPreflightResponse } from "@/lib/middleware/cors-apps";
+import {
+  addCorsHeaders,
+  validateOrigin,
+  createPreflightResponse,
+} from "@/lib/middleware/cors-apps";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
@@ -48,8 +52,12 @@ export async function POST(request: NextRequest) {
 
     if (!validationResult.success) {
       const response = NextResponse.json(
-        { success: false, error: "Invalid request data", details: validationResult.error.format() },
-        { status: 400 }
+        {
+          success: false,
+          error: "Invalid request data",
+          details: validationResult.error.format(),
+        },
+        { status: 400 },
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -65,13 +73,17 @@ export async function POST(request: NextRequest) {
       platform,
       shareType,
       shareUrl,
-      appId ? { appId } : undefined
+      appId ? { appId } : undefined,
     );
 
     if (!result.success) {
       const response = NextResponse.json(
-        { success: false, error: result.message, alreadyAwarded: result.alreadyAwarded },
-        { status: 400 }
+        {
+          success: false,
+          error: result.message,
+          alreadyAwarded: result.alreadyAwarded,
+        },
+        { status: 400 },
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -95,13 +107,21 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logger.error("[Miniapp Rewards] Error claiming share reward", { error });
 
-    const status = error instanceof Error && error.message.includes("Unauthorized") ? 401 : 500;
+    const status =
+      error instanceof Error && error.message.includes("Unauthorized")
+        ? 401
+        : 500;
     const response = NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Failed to claim share reward" },
-      { status }
+      {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to claim share reward",
+      },
+      { status },
     );
 
     return addCorsHeaders(response, corsResult.origin);
   }
 }
-

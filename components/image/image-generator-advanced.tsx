@@ -132,7 +132,10 @@ export function ImageGeneratorAdvanced() {
       const data = await response.json();
 
       if (!response.ok) {
-        setRequestState({ isLoading: false, error: data.error || "Failed to generate image" });
+        setRequestState({
+          isLoading: false,
+          error: data.error || "Failed to generate image",
+        });
         return;
       }
 

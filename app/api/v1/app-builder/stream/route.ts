@@ -1,6 +1,9 @@
 import { NextRequest } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { aiAppBuilderService, type SandboxProgress } from "@/lib/services/ai-app-builder";
+import {
+  aiAppBuilderService,
+  type SandboxProgress,
+} from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
@@ -34,7 +37,7 @@ export async function POST(request: NextRequest) {
           error: "Invalid request data",
           details: validationResult.error.format(),
         }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: { "Content-Type": "application/json" } },
       );
     }
 
@@ -86,10 +89,13 @@ export async function POST(request: NextRequest) {
           },
         });
       } catch (error) {
-        logger.error("Failed to create app builder session via stream", { error });
+        logger.error("Failed to create app builder session via stream", {
+          error,
+        });
         await sendEvent("error", {
           success: false,
-          error: error instanceof Error ? error.message : "Failed to create session",
+          error:
+            error instanceof Error ? error.message : "Failed to create session",
         });
       } finally {
         await writer.close();
@@ -110,7 +116,7 @@ export async function POST(request: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : "Authentication failed",
       }),
-      { status: 401, headers: { "Content-Type": "application/json" } }
+      { status: 401, headers: { "Content-Type": "application/json" } },
     );
   }
 }

@@ -40,9 +40,7 @@ export const appConfigProvider: Provider = {
       buildAppSystemContext(mergedConfig);
 
     return {
-      text: appSystemPrefix
-        ? `# App Configuration\n${appSystemPrefix}`
-        : "",
+      text: appSystemPrefix ? `# App Configuration\n${appSystemPrefix}` : "",
       values: {
         appSystemPrefix,
         appSystemSuffix,
@@ -56,4 +54,3 @@ export const appConfigProvider: Provider = {
     };
   },
 };
-

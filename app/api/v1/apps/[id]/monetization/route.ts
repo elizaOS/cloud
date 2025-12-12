@@ -22,7 +22,7 @@ const UpdateMonetizationSchema = z.object({
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
@@ -33,14 +33,14 @@ export async function GET(
     if (!app) {
       return NextResponse.json(
         { success: false, error: "App not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (app.organization_id !== user.organization_id) {
       return NextResponse.json(
         { success: false, error: "Access denied" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -52,9 +52,12 @@ export async function GET(
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to get monetization settings",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to get monetization settings",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -75,7 +78,7 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
@@ -86,14 +89,14 @@ export async function PUT(
     if (!app) {
       return NextResponse.json(
         { success: false, error: "App not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (app.organization_id !== user.organization_id) {
       return NextResponse.json(
         { success: false, error: "Access denied" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -102,12 +105,19 @@ export async function PUT(
 
     if (!validationResult.success) {
       return NextResponse.json(
-        { success: false, error: "Invalid request data", details: validationResult.error.format() },
-        { status: 400 }
+        {
+          success: false,
+          error: "Invalid request data",
+          details: validationResult.error.format(),
+        },
+        { status: 400 },
       );
     }
 
-    await appCreditsService.updateMonetizationSettings(id, validationResult.data);
+    await appCreditsService.updateMonetizationSettings(
+      id,
+      validationResult.data,
+    );
     const updatedSettings = await appCreditsService.getMonetizationSettings(id);
 
     logger.info(`Updated monetization settings for app: ${id}`, {
@@ -122,10 +132,12 @@ export async function PUT(
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to update monetization settings",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to update monetization settings",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

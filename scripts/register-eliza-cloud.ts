@@ -29,7 +29,10 @@ import {
   type ERC8004Network,
 } from "@/lib/config/erc8004";
 import { X402_ENABLED } from "@/lib/config/x402";
-import { readEnvFile, updateEnvFile as updateEnvFileBase } from "./lib/env-utils";
+import {
+  readEnvFile,
+  updateEnvFile as updateEnvFileBase,
+} from "./lib/env-utils";
 
 // Wrapper to add logging
 function updateEnvFile(key: string, value: string): void {
@@ -39,9 +42,10 @@ function updateEnvFile(key: string, value: string): void {
 
 function parseArgs(): { network: ERC8004Network; update: boolean } {
   const args = process.argv.slice(2);
-  const networkArg = args.find((a) => a.startsWith("--network="))?.split("=")[1]
-    || args[args.indexOf("--network") + 1]
-    || "base-sepolia";
+  const networkArg =
+    args.find((a) => a.startsWith("--network="))?.split("=")[1] ||
+    args[args.indexOf("--network") + 1] ||
+    "base-sepolia";
 
   if (!["base-sepolia", "base"].includes(networkArg)) {
     throw new Error(`Unknown network: ${networkArg}. Use base-sepolia or base`);
@@ -67,17 +71,25 @@ async function main() {
   console.log(`   Mode: ${update ? "Update" : "New"}`);
 
   // Get private key
-  const privateKey = (env.AGENT0_PRIVATE_KEY || env.DEPLOYER_PRIVATE_KEY) as `0x${string}`;
+  const privateKey = (env.AGENT0_PRIVATE_KEY ||
+    env.DEPLOYER_PRIVATE_KEY) as `0x${string}`;
   if (!privateKey) {
-    throw new Error("AGENT0_PRIVATE_KEY or DEPLOYER_PRIVATE_KEY required in .env.local");
+    throw new Error(
+      "AGENT0_PRIVATE_KEY or DEPLOYER_PRIVATE_KEY required in .env.local",
+    );
   }
 
   // Check existing registration
-  const envKey = network === "base-sepolia" ? "ELIZA_CLOUD_AGENT_ID_SEPOLIA" : "ELIZA_CLOUD_AGENT_ID_MAINNET";
+  const envKey =
+    network === "base-sepolia"
+      ? "ELIZA_CLOUD_AGENT_ID_SEPOLIA"
+      : "ELIZA_CLOUD_AGENT_ID_MAINNET";
   const existingId = env[envKey] || ELIZA_CLOUD_AGENT_ID[network];
 
   if (existingId && !update) {
-    console.log(`\n   ℹ️  Already registered: ${CHAIN_IDS[network]}:${existingId}`);
+    console.log(
+      `\n   ℹ️  Already registered: ${CHAIN_IDS[network]}:${existingId}`,
+    );
     console.log(`   Use --update to modify the registration`);
     return;
   }
@@ -100,7 +112,7 @@ async function main() {
   if (identityAddress === ZERO_ADDRESS) {
     throw new Error(
       `No Identity Registry deployed on ${network}. ` +
-      `Deploy contracts first: cd docs/docs/erc-8004-contracts && npm run deploy:upgradeable:${network}`
+        `Deploy contracts first: cd docs/docs/erc-8004-contracts && npm run deploy:upgradeable:${network}`,
     );
   }
 
@@ -136,7 +148,7 @@ async function main() {
       "Eliza Cloud",
       "AI agent infrastructure: inference, agents, memory, billing. " +
         "Supports REST, MCP, A2A protocols with x402 or API key authentication.",
-      `${baseUrl}/logo.png`
+      `${baseUrl}/logo.png`,
     );
   }
 
@@ -147,7 +159,10 @@ async function main() {
 
   // Configure wallet
   const walletAddress = env.X402_RECIPIENT_ADDRESS || SERVICE_WALLET_ADDRESS;
-  if (walletAddress && walletAddress !== "0x0000000000000000000000000000000000000000") {
+  if (
+    walletAddress &&
+    walletAddress !== "0x0000000000000000000000000000000000000000"
+  ) {
     agent.setAgentWallet(walletAddress as `0x${string}`, CHAIN_IDS[network]);
   }
 
@@ -179,7 +194,10 @@ async function main() {
   } else {
     const registrationUrl = `${baseUrl}/.well-known/erc8004-registration.json`;
     await agent.registerHTTP(registrationUrl);
-    agentId = update && existingId ? `${CHAIN_IDS[network]}:${existingId}` : `${CHAIN_IDS[network]}:?`;
+    agentId =
+      update && existingId
+        ? `${CHAIN_IDS[network]}:${existingId}`
+        : `${CHAIN_IDS[network]}:?`;
     agentURI = registrationUrl;
   }
 

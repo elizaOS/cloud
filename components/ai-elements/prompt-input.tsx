@@ -730,13 +730,12 @@ export const PromptInput = ({
 
       // Handle both sync and async onSubmit
       if (result instanceof Promise) {
-        result
-          .then(() => {
-            clear();
-            if (usingProvider) {
-              controller.textInput.clear();
-            }
-          })
+        result.then(() => {
+          clear();
+          if (usingProvider) {
+            controller.textInput.clear();
+          }
+        });
       } else {
         // Sync function completed without throwing, clear attachments
         clear();

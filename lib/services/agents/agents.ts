@@ -92,24 +92,24 @@ class AgentsService {
    */
   async getById(agentId: string): Promise<AgentInfo | null> {
     const cacheKey = agentInfoCacheKey(agentId);
-    
+
     // Try cache first
     const cached = await cacheClient.get<AgentInfo>(cacheKey);
     if (cached) {
       return cached;
     }
-    
+
     // Fetch from database
     const agent = await agentsRepository.findById(agentId);
-    
+
     // Cache for 5 minutes
     if (agent) {
       await cacheClient.set(cacheKey, agent, CacheTTL.MEDIUM);
     }
-    
+
     return agent;
   }
-  
+
   /**
    * Invalidate agent cache after updates
    */
@@ -138,7 +138,7 @@ class AgentsService {
    */
   async ensureDefaultAgentExists(): Promise<void> {
     const DEFAULT_AGENT_ID = "b850bc30-45f8-0041-a00a-83df46d8555d";
-    
+
     // Check if default agent already exists
     const exists = await agentsRepository.exists(DEFAULT_AGENT_ID);
     if (exists) {
@@ -162,15 +162,19 @@ class AgentsService {
     });
 
     if (created) {
-      logger.info(`[Agents Service] Created default Eliza agent ${DEFAULT_AGENT_ID}`);
+      logger.info(
+        `[Agents Service] Created default Eliza agent ${DEFAULT_AGENT_ID}`,
+      );
     } else {
-      logger.debug(`[Agents Service] Default Eliza agent already exists (race condition)`);
+      logger.debug(
+        `[Agents Service] Default Eliza agent already exists (race condition)`,
+      );
     }
   }
 
   /**
    * Ensure agent exists in database, creating from character if needed.
-   * 
+   *
    * @param characterId - Character ID to ensure exists as an agent
    * @returns The agent ID that was ensured to exist
    */
@@ -184,14 +188,16 @@ class AgentsService {
 
     // Load character data to create agent
     const character = await charactersService.getById(characterId);
-    
+
     if (!character) {
       throw new Error(`Character ${characterId} not found`);
     }
 
     // Extract character data
-    const characterData = character.character_data as Record<string, unknown> | undefined;
-    
+    const characterData = character.character_data as
+      | Record<string, unknown>
+      | undefined;
+
     // Create agent from character
     const created = await agentsRepository.create({
       id: characterId as `${string}-${string}-${string}-${string}-${string}`,
@@ -206,9 +212,13 @@ class AgentsService {
 
     if (!created) {
       // Agent was created by another process (race condition), that's fine
-      logger.debug(`[Agents Service] Agent ${characterId} already exists (race condition)`);
+      logger.debug(
+        `[Agents Service] Agent ${characterId} already exists (race condition)`,
+      );
     } else {
-      logger.info(`[Agents Service] Created agent ${characterId} from character ${character.name}`);
+      logger.info(
+        `[Agents Service] Created agent ${characterId} from character ${character.name}`,
+      );
     }
 
     return characterId;

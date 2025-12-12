@@ -86,7 +86,7 @@ export class OrganizationsRepository {
 
   /**
    * Updates organization credit balance atomically.
-   * 
+   *
    * @throws Error if organization not found or balance would go negative.
    */
   async updateCreditBalance(
@@ -132,9 +132,9 @@ export class OrganizationsRepository {
 
   /**
    * Deducts credits from organization balance and creates a transaction record.
-   * 
+   *
    * Performs both operations atomically in a transaction.
-   * 
+   *
    * @throws Error if organization not found or insufficient balance.
    */
   async deductCreditsWithTransaction(

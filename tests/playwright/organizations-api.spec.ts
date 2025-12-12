@@ -32,17 +32,25 @@ test.describe("Organization Invites API", () => {
 
   test.afterEach(async ({ request }) => {
     if (testInviteId) {
-      await request.delete(`${CLOUD_URL}/api/organizations/invites/${testInviteId}`, {
-        headers: authHeaders(),
-      });
+      await request.delete(
+        `${CLOUD_URL}/api/organizations/invites/${testInviteId}`,
+        {
+          headers: authHeaders(),
+        },
+      );
       testInviteId = null;
     }
   });
 
-  test("GET /api/organizations/invites lists pending invites", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/organizations/invites`, {
-      headers: authHeaders(),
-    });
+  test("GET /api/organizations/invites lists pending invites", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      `${CLOUD_URL}/api/organizations/invites`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 404, 500, 501]).toContain(response.status());
 
@@ -56,14 +64,19 @@ test.describe("Organization Invites API", () => {
     }
   });
 
-  test("POST /api/organizations/invites creates new invite", async ({ request }) => {
-    const response = await request.post(`${CLOUD_URL}/api/organizations/invites`, {
-      headers: authHeaders(),
-      data: {
-        email: "e2e-test-invite@example.com",
-        role: "member",
+  test("POST /api/organizations/invites creates new invite", async ({
+    request,
+  }) => {
+    const response = await request.post(
+      `${CLOUD_URL}/api/organizations/invites`,
+      {
+        headers: authHeaders(),
+        data: {
+          email: "e2e-test-invite@example.com",
+          role: "member",
+        },
       },
-    });
+    );
 
     expect([200, 201, 400, 404, 409, 500, 501]).toContain(response.status());
 
@@ -80,15 +93,20 @@ test.describe("Organization Invites API", () => {
     }
   });
 
-  test("DELETE /api/organizations/invites/:id deletes invite", async ({ request }) => {
+  test("DELETE /api/organizations/invites/:id deletes invite", async ({
+    request,
+  }) => {
     // First create an invite
-    const createResponse = await request.post(`${CLOUD_URL}/api/organizations/invites`, {
-      headers: authHeaders(),
-      data: {
-        email: "e2e-delete-test@example.com",
-        role: "member",
+    const createResponse = await request.post(
+      `${CLOUD_URL}/api/organizations/invites`,
+      {
+        headers: authHeaders(),
+        data: {
+          email: "e2e-delete-test@example.com",
+          role: "member",
+        },
       },
-    });
+    );
 
     if (createResponse.status() !== 200 && createResponse.status() !== 201) {
       return;
@@ -103,7 +121,7 @@ test.describe("Organization Invites API", () => {
       `${CLOUD_URL}/api/organizations/invites/${inviteId}`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect([200, 204, 404]).toContain(deleteResponse.status());
@@ -121,13 +139,16 @@ test.describe("Organization Invites API", () => {
     const roles = ["member", "admin", "viewer"];
 
     for (const role of roles) {
-      const response = await request.post(`${CLOUD_URL}/api/organizations/invites`, {
-        headers: authHeaders(),
-        data: {
-          email: `e2e-${role}-test@example.com`,
-          role,
+      const response = await request.post(
+        `${CLOUD_URL}/api/organizations/invites`,
+        {
+          headers: authHeaders(),
+          data: {
+            email: `e2e-${role}-test@example.com`,
+            role,
+          },
         },
-      });
+      );
 
       expect([200, 201, 400, 404, 409, 500, 501]).toContain(response.status());
 
@@ -138,9 +159,12 @@ test.describe("Organization Invites API", () => {
 
         // Cleanup
         if (invite.id) {
-          await request.delete(`${CLOUD_URL}/api/organizations/invites/${invite.id}`, {
-            headers: authHeaders(),
-          });
+          await request.delete(
+            `${CLOUD_URL}/api/organizations/invites/${invite.id}`,
+            {
+              headers: authHeaders(),
+            },
+          );
         }
       }
     }
@@ -151,9 +175,12 @@ test.describe("Organization Members API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
   test("GET /api/organizations/members lists members", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/organizations/members`, {
-      headers: authHeaders(),
-    });
+    const response = await request.get(
+      `${CLOUD_URL}/api/organizations/members`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 404, 500, 501]).toContain(response.status());
 
@@ -175,9 +202,12 @@ test.describe("Organization Members API", () => {
   });
 
   test("members list includes roles", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/organizations/members`, {
-      headers: authHeaders(),
-    });
+    const response = await request.get(
+      `${CLOUD_URL}/api/organizations/members`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     if (response.status() !== 200) {
       return;
@@ -189,18 +219,23 @@ test.describe("Organization Members API", () => {
     if (members.length > 0) {
       const validRoles = ["owner", "admin", "member", "viewer"];
       const allHaveValidRoles = members.every(
-        (m: { role: string }) => validRoles.includes(m.role) || m.role
+        (m: { role: string }) => validRoles.includes(m.role) || m.role,
       );
       expect(allHaveValidRoles).toBe(true);
       console.log("✅ All members have valid roles");
     }
   });
 
-  test("PATCH /api/organizations/members/:userId updates member role", async ({ request }) => {
+  test("PATCH /api/organizations/members/:userId updates member role", async ({
+    request,
+  }) => {
     // First get members list
-    const listResponse = await request.get(`${CLOUD_URL}/api/organizations/members`, {
-      headers: authHeaders(),
-    });
+    const listResponse = await request.get(
+      `${CLOUD_URL}/api/organizations/members`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     if (listResponse.status() !== 200) {
       return;
@@ -210,7 +245,9 @@ test.describe("Organization Members API", () => {
     const members = listData.members || listData.data || listData;
 
     // Find a non-owner member to update (skip owner to avoid issues)
-    const targetMember = members.find((m: { role: string }) => m.role !== "owner");
+    const targetMember = members.find(
+      (m: { role: string }) => m.role !== "owner",
+    );
 
     if (!targetMember) {
       console.log("ℹ️ No non-owner members to test role update");
@@ -228,21 +265,26 @@ test.describe("Organization Members API", () => {
         data: {
           role: newRole,
         },
-      }
+      },
     );
 
     expect([200, 400, 403, 404, 500, 501]).toContain(response.status());
 
     if (response.status() === 200) {
-      console.log(`✅ Member role updated from '${originalRole}' to '${newRole}'`);
+      console.log(
+        `✅ Member role updated from '${originalRole}' to '${newRole}'`,
+      );
 
       // Restore original role
-      await request.patch(`${CLOUD_URL}/api/organizations/members/${targetMember.id}`, {
-        headers: authHeaders(),
-        data: {
-          role: originalRole,
+      await request.patch(
+        `${CLOUD_URL}/api/organizations/members/${targetMember.id}`,
+        {
+          headers: authHeaders(),
+          data: {
+            role: originalRole,
+          },
         },
-      });
+      );
     } else if (response.status() === 403) {
       console.log("ℹ️ Insufficient permissions to update member role");
     } else {
@@ -250,17 +292,24 @@ test.describe("Organization Members API", () => {
     }
   });
 
-  test("DELETE /api/organizations/members/:userId removes member", async ({ request }) => {
+  test("DELETE /api/organizations/members/:userId removes member", async ({
+    request,
+  }) => {
     // This test is destructive - only run if explicitly enabled
     // We'll just test the endpoint exists
-    const response = await request.delete(`${CLOUD_URL}/api/organizations/members/test-user-id`, {
-      headers: authHeaders(),
-    });
+    const response = await request.delete(
+      `${CLOUD_URL}/api/organizations/members/test-user-id`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 204, 400, 403, 404, 500, 501]).toContain(response.status());
 
     if (response.status() === 404) {
-      console.log("✅ Member removal endpoint exists (404 for non-existent user)");
+      console.log(
+        "✅ Member removal endpoint exists (404 for non-existent user)",
+      );
     } else if (response.status() === 403) {
       console.log("✅ Member removal properly restricts permissions");
     } else {
@@ -272,10 +321,15 @@ test.describe("Organization Members API", () => {
 test.describe("Invite Validation API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /api/invites/validate validates invite code", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/invites/validate?code=test-invite-code`, {
-      headers: authHeaders(),
-    });
+  test("GET /api/invites/validate validates invite code", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      `${CLOUD_URL}/api/invites/validate?code=test-invite-code`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 400, 404, 500, 501]).toContain(response.status());
 
@@ -292,13 +346,16 @@ test.describe("Invite Validation API", () => {
 
   test("POST /api/invites/accept accepts invite", async ({ request }) => {
     // First create an invite
-    const createResponse = await request.post(`${CLOUD_URL}/api/organizations/invites`, {
-      headers: authHeaders(),
-      data: {
-        email: "e2e-accept-test@example.com",
-        role: "member",
+    const createResponse = await request.post(
+      `${CLOUD_URL}/api/organizations/invites`,
+      {
+        headers: authHeaders(),
+        data: {
+          email: "e2e-accept-test@example.com",
+          role: "member",
+        },
       },
-    });
+    );
 
     if (createResponse.status() !== 200 && createResponse.status() !== 201) {
       return;
@@ -316,7 +373,9 @@ test.describe("Invite Validation API", () => {
       },
     });
 
-    expect([200, 201, 400, 403, 404, 409, 500, 501]).toContain(response.status());
+    expect([200, 201, 400, 403, 404, 409, 500, 501]).toContain(
+      response.status(),
+    );
 
     if (response.status() === 200 || response.status() === 201) {
       console.log("✅ Invite acceptance works");
@@ -330,9 +389,12 @@ test.describe("Invite Validation API", () => {
 
     // Cleanup
     if (invite.id) {
-      await request.delete(`${CLOUD_URL}/api/organizations/invites/${invite.id}`, {
-        headers: authHeaders(),
-      });
+      await request.delete(
+        `${CLOUD_URL}/api/organizations/invites/${invite.id}`,
+        {
+          headers: authHeaders(),
+        },
+      );
     }
   });
 });
@@ -352,7 +414,7 @@ test.describe("Organization Settings UI", () => {
 
     // Look for organization section
     const orgSection = page.locator(
-      'text=/organization|team|members/i, [class*="organization"], [class*="team"]'
+      'text=/organization|team|members/i, [class*="organization"], [class*="team"]',
     );
     const hasOrg = await orgSection.isVisible().catch(() => false);
 
@@ -372,7 +434,7 @@ test.describe("Organization Settings UI", () => {
 
     // Look for invite button
     const inviteButton = page.locator(
-      'button:has-text("Invite"), button:has-text("Add Member"), a:has-text("Invite")'
+      'button:has-text("Invite"), button:has-text("Add Member"), a:has-text("Invite")',
     );
     const hasInvite = await inviteButton.isVisible().catch(() => false);
 
@@ -392,7 +454,7 @@ test.describe("Organization Settings UI", () => {
 
     // Look for members table or list
     const membersList = page.locator(
-      'table, [class*="member"], [role="list"], [class*="Member"]'
+      'table, [class*="member"], [role="list"], [class*="Member"]',
     );
     const hasList = await membersList.isVisible().catch(() => false);
 
@@ -412,7 +474,7 @@ test.describe("Organization Settings UI", () => {
 
     // Look for role dropdown/select
     const roleSelector = page.locator(
-      'select, [role="combobox"], button:has-text("Admin"), button:has-text("Member")'
+      'select, [role="combobox"], button:has-text("Admin"), button:has-text("Member")',
     );
     const selectorCount = await roleSelector.count();
 
@@ -448,5 +510,3 @@ test.describe("Invite Accept Page", () => {
     console.log(`✅ Invalid invite code shows error: ${hasError}`);
   });
 });
-
-

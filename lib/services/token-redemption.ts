@@ -1,8 +1,8 @@
 /**
  * Token Redemption Service
- * 
+ *
  * Handles secure conversion of points/credits to elizaOS tokens with multi-chain payout.
- * 
+ *
  * FLOW:
  * 1. User earns credits from apps (sharing, referrals, agent usage)
  * 2. User requests redemption with destination address
@@ -16,34 +16,34 @@
  *    - Send elizaOS tokens to user's wallet
  *    - Record transaction in DB
  * 5. If we don't have tokens: "Sorry, can't redeem yet"
- * 
+ *
  * SECURITY ARCHITECTURE:
- * 
+ *
  * 1. RATE LIMITING
  *    - Per-user daily limits (configurable)
  *    - Minimum redemption amount to prevent dust spam
  *    - Cooldown between redemption requests
- * 
+ *
  * 2. PRICE MANIPULATION RESISTANCE
  *    - Multi-source price validation
  *    - Short quote validity window (5 min)
  *    - Price deviation checks between sources
- * 
+ *
  * 3. DOUBLE-SPEND PREVENTION
  *    - Atomic balance deduction with row-level locking
  *    - Unique pending request constraint per user
  *    - Idempotent processing with status checks
- * 
+ *
  * 4. HOT WALLET SECURITY
  *    - Private keys NEVER in application memory
  *    - Uses external signer service (KMS/HSM)
  *    - Multi-sig approval for large amounts
- * 
+ *
  * 5. ADDRESS VALIDATION
  *    - Format validation (EVM checksum, Solana base58)
  *    - Contract detection (rejects smart contracts on EVM)
  *    - Sanctions/blacklist checking (OFAC compliance)
- * 
+ *
  * 6. AUDIT TRAIL
  *    - All state transitions logged
  *    - Transaction hashes stored
@@ -51,16 +51,27 @@
  */
 
 import { db } from "@/db/client";
-import { 
-  tokenRedemptions, 
+import {
+  tokenRedemptions,
   redemptionLimits,
   type TokenRedemption,
 } from "@/db/schemas/token-redemptions";
 import { appCreditBalances } from "@/db/schemas/app-credit-balances";
 import { eq, and, sql, gte } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
-import { elizaTokenPriceService, ELIZA_TOKEN_ADDRESSES, type SupportedNetwork } from "./eliza-token-price";
-import { isAddress, getAddress, createPublicClient, http, parseAbi, type Address } from "viem";
+import {
+  elizaTokenPriceService,
+  ELIZA_TOKEN_ADDRESSES,
+  type SupportedNetwork,
+} from "./eliza-token-price";
+import {
+  isAddress,
+  getAddress,
+  createPublicClient,
+  http,
+  parseAbi,
+  type Address,
+} from "viem";
 import { mainnet, base, bsc } from "viem/chains";
 import { PublicKey, Connection } from "@solana/web3.js";
 import { getAssociatedTokenAddress, getAccount } from "@solana/spl-token";
@@ -69,25 +80,25 @@ import { getAssociatedTokenAddress, getAccount } from "@solana/spl-token";
 const CONFIG = {
   // Minimum redemption: $1 worth of points (100 points)
   MIN_REDEMPTION_POINTS: 100,
-  
+
   // Maximum single redemption: $1000 (100000 points)
   MAX_REDEMPTION_POINTS: 100000,
-  
+
   // Daily limit per user: $5000 (500000 points)
   DAILY_LIMIT_POINTS: 500000,
-  
+
   // Maximum redemptions per day
   MAX_DAILY_REDEMPTIONS: 10,
-  
+
   // Amount requiring admin approval: $500 (50000 points)
   ADMIN_APPROVAL_THRESHOLD_POINTS: 50000,
-  
+
   // Cooldown between requests (5 minutes)
   COOLDOWN_MS: 5 * 60 * 1000,
-  
+
   // Quote validity (5 minutes)
   QUOTE_VALIDITY_MS: 5 * 60 * 1000,
-  
+
   // Maximum retry attempts for failed payouts
   MAX_RETRY_ATTEMPTS: 3,
 };
@@ -160,29 +171,45 @@ export class TokenRedemptionService {
    */
   async checkTokenAvailability(
     network: SupportedNetwork,
-    requiredAmount: number
+    requiredAmount: number,
   ): Promise<{ available: boolean; balance: number; error?: string }> {
     // Get hot wallet address from env
-    const hotWalletAddress = process.env.EVM_PAYOUT_WALLET_ADDRESS || 
-      ((process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY)
-        ? this.deriveEvmAddress(process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY!)
+    const hotWalletAddress =
+      process.env.EVM_PAYOUT_WALLET_ADDRESS ||
+      (process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY
+        ? this.deriveEvmAddress(
+            process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY!,
+          )
         : null);
-    
-    const solanaWalletAddress = process.env.SOLANA_PAYOUT_WALLET_ADDRESS ||
+
+    const solanaWalletAddress =
+      process.env.SOLANA_PAYOUT_WALLET_ADDRESS ||
       (process.env.SOLANA_PAYOUT_PRIVATE_KEY
         ? this.deriveSolanaAddress(process.env.SOLANA_PAYOUT_PRIVATE_KEY)
         : null);
 
     if (network === "solana") {
       if (!solanaWalletAddress) {
-        return { available: false, balance: 0, error: "Solana payouts not configured" };
+        return {
+          available: false,
+          balance: 0,
+          error: "Solana payouts not configured",
+        };
       }
       return await this.checkSolanaBalance(solanaWalletAddress, requiredAmount);
     } else {
       if (!hotWalletAddress) {
-        return { available: false, balance: 0, error: "EVM payouts not configured" };
+        return {
+          available: false,
+          balance: 0,
+          error: "EVM payouts not configured",
+        };
       }
-      return await this.checkEvmBalance(network, hotWalletAddress, requiredAmount);
+      return await this.checkEvmBalance(
+        network,
+        hotWalletAddress,
+        requiredAmount,
+      );
     }
   }
 
@@ -208,11 +235,15 @@ export class TokenRedemptionService {
   private async checkEvmBalance(
     network: SupportedNetwork,
     walletAddress: string,
-    requiredAmount: number
+    requiredAmount: number,
   ): Promise<{ available: boolean; balance: number; error?: string }> {
     const chain = EVM_CHAINS[network as keyof typeof EVM_CHAINS];
     if (!chain) {
-      return { available: false, balance: 0, error: `Unsupported EVM network: ${network}` };
+      return {
+        available: false,
+        balance: 0,
+        error: `Unsupported EVM network: ${network}`,
+      };
     }
 
     const tokenAddress = ELIZA_TOKEN_ADDRESSES[network] as Address;
@@ -249,22 +280,28 @@ export class TokenRedemptionService {
    */
   private async checkSolanaBalance(
     walletAddress: string,
-    requiredAmount: number
+    requiredAmount: number,
   ): Promise<{ available: boolean; balance: number; error?: string }> {
-    const solanaRpc = process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
+    const solanaRpc =
+      process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
     const connection = new Connection(solanaRpc, "confirmed");
     const mintAddress = new PublicKey(ELIZA_TOKEN_ADDRESSES.solana);
     const walletPubkey = new PublicKey(walletAddress);
-    
+
     const ata = await getAssociatedTokenAddress(mintAddress, walletPubkey);
-    
+
     const account = await getAccount(connection, ata).catch(() => null);
-    
+
     if (!account) {
-      return { available: false, balance: 0, error: "Hot wallet token account not found" };
+      return {
+        available: false,
+        balance: 0,
+        error: "Hot wallet token account not found",
+      };
     }
-    
-    const balance = Number(account.amount) / Math.pow(10, ELIZA_DECIMALS.solana);
+
+    const balance =
+      Number(account.amount) / Math.pow(10, ELIZA_DECIMALS.solana);
     const available = balance >= requiredAmount;
 
     logger.debug("[TokenRedemption] Solana balance check", {
@@ -281,8 +318,18 @@ export class TokenRedemptionService {
    * Create a redemption request with price quote.
    * Validates everything including token availability BEFORE deducting user balance.
    */
-  async createRedemption(request: RedemptionRequest): Promise<RedemptionResult> {
-    const { userId, appId, pointsAmount, network, payoutAddress, addressSignature, metadata } = request;
+  async createRedemption(
+    request: RedemptionRequest,
+  ): Promise<RedemptionResult> {
+    const {
+      userId,
+      appId,
+      pointsAmount,
+      network,
+      payoutAddress,
+      addressSignature,
+      metadata,
+    } = request;
 
     // Validate network
     if (!ELIZA_TOKEN_ADDRESSES[network]) {
@@ -297,16 +344,16 @@ export class TokenRedemptionService {
 
     // Validate amount
     if (pointsAmount < CONFIG.MIN_REDEMPTION_POINTS) {
-      return { 
-        success: false, 
-        error: `Minimum redemption is ${CONFIG.MIN_REDEMPTION_POINTS} points ($${(CONFIG.MIN_REDEMPTION_POINTS / 100).toFixed(2)})` 
+      return {
+        success: false,
+        error: `Minimum redemption is ${CONFIG.MIN_REDEMPTION_POINTS} points ($${(CONFIG.MIN_REDEMPTION_POINTS / 100).toFixed(2)})`,
       };
     }
 
     if (pointsAmount > CONFIG.MAX_REDEMPTION_POINTS) {
-      return { 
-        success: false, 
-        error: `Maximum redemption is ${CONFIG.MAX_REDEMPTION_POINTS} points ($${(CONFIG.MAX_REDEMPTION_POINTS / 100).toFixed(2)})` 
+      return {
+        success: false,
+        error: `Maximum redemption is ${CONFIG.MAX_REDEMPTION_POINTS} points ($${(CONFIG.MAX_REDEMPTION_POINTS / 100).toFixed(2)})`,
       };
     }
 
@@ -319,11 +366,16 @@ export class TokenRedemptionService {
     // Check for existing pending redemption
     const existingPending = await this.hasPendingRedemption(userId);
     if (existingPending) {
-      return { success: false, error: "You already have a pending redemption. Please wait for it to complete." };
+      return {
+        success: false,
+        error:
+          "You already have a pending redemption. Please wait for it to complete.",
+      };
     }
 
     // Get price quote first to know how many tokens we need
-    const { quote, usdValue, elizaAmount } = await elizaTokenPriceService.getQuote(network, pointsAmount);
+    const { quote, usdValue, elizaAmount } =
+      await elizaTokenPriceService.getQuote(network, pointsAmount);
 
     // 🚨 CRITICAL: Check if we have enough tokens BEFORE deducting user balance
     const tokenCheck = await this.checkTokenAvailability(network, elizaAmount);
@@ -334,37 +386,41 @@ export class TokenRedemptionService {
         availableTokens: tokenCheck.balance,
         error: tokenCheck.error,
       });
-      
+
       return {
         success: false,
-        error: tokenCheck.error || 
+        error:
+          tokenCheck.error ||
           `Sorry, we can't process your redemption right now. We don't have enough elizaOS tokens available on ${network}. Please try again later or choose a different network.`,
       };
     }
 
     // Determine if admin review is required
-    const requiresReview = pointsAmount >= CONFIG.ADMIN_APPROVAL_THRESHOLD_POINTS;
+    const requiresReview =
+      pointsAmount >= CONFIG.ADMIN_APPROVAL_THRESHOLD_POINTS;
 
     // Atomic transaction: deduct balance and create redemption request
     const result = await db.transaction(async (tx) => {
       // Lock and check user's balance
       let balance: number;
-      
+
       if (appId) {
         // App-specific balance
         const [balanceRecord] = await tx
           .select({ credit_balance: appCreditBalances.credit_balance })
           .from(appCreditBalances)
-          .where(and(
-            eq(appCreditBalances.app_id, appId),
-            eq(appCreditBalances.user_id, userId)
-          ))
+          .where(
+            and(
+              eq(appCreditBalances.app_id, appId),
+              eq(appCreditBalances.user_id, userId),
+            ),
+          )
           .for("update");
-        
+
         if (!balanceRecord) {
           throw new Error("No credit balance found for this app");
         }
-        
+
         balance = Number(balanceRecord.credit_balance);
       } else {
         // This would need to check organization credits or user credits
@@ -374,14 +430,16 @@ export class TokenRedemptionService {
 
       // Points are in cents, balance is in dollars
       const balanceInPoints = balance * 100;
-      
+
       if (balanceInPoints < pointsAmount) {
-        throw new Error(`Insufficient balance. Available: ${balanceInPoints} points, Required: ${pointsAmount} points`);
+        throw new Error(
+          `Insufficient balance. Available: ${balanceInPoints} points, Required: ${pointsAmount} points`,
+        );
       }
 
       // Deduct balance (convert points to dollars)
       const deductionAmount = pointsAmount / 100;
-      
+
       if (appId) {
         await tx
           .update(appCreditBalances)
@@ -390,10 +448,12 @@ export class TokenRedemptionService {
             total_spent: sql`${appCreditBalances.total_spent} + ${deductionAmount}`,
             updated_at: new Date(),
           })
-          .where(and(
-            eq(appCreditBalances.app_id, appId),
-            eq(appCreditBalances.user_id, userId)
-          ));
+          .where(
+            and(
+              eq(appCreditBalances.app_id, appId),
+              eq(appCreditBalances.user_id, userId),
+            ),
+          );
       }
 
       // Create redemption request
@@ -458,7 +518,10 @@ export class TokenRedemptionService {
   /**
    * Validate payout address format.
    */
-  private validateAddress(address: string, network: SupportedNetwork): ValidationResult {
+  private validateAddress(
+    address: string,
+    network: SupportedNetwork,
+  ): ValidationResult {
     if (network === "solana") {
       // Solana address validation
       try {
@@ -472,17 +535,21 @@ export class TokenRedemptionService {
       if (!isAddress(address)) {
         return { valid: false, error: "Invalid EVM address format" };
       }
-      
+
       // Convert to checksum address
       try {
         const checksumAddress = getAddress(address);
         if (checksumAddress !== address && address !== address.toLowerCase()) {
-          return { valid: false, error: "Invalid address checksum. Please use the correct checksum format." };
+          return {
+            valid: false,
+            error:
+              "Invalid address checksum. Please use the correct checksum format.",
+          };
         }
       } catch {
         return { valid: false, error: "Invalid EVM address" };
       }
-      
+
       return { valid: true };
     }
   }
@@ -490,14 +557,17 @@ export class TokenRedemptionService {
   /**
    * Check daily redemption limits.
    */
-  private async checkDailyLimits(userId: string, pointsAmount: number): Promise<ValidationResult> {
+  private async checkDailyLimits(
+    userId: string,
+    pointsAmount: number,
+  ): Promise<ValidationResult> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const limits = await db.query.redemptionLimits.findFirst({
       where: and(
         eq(redemptionLimits.user_id, userId),
-        gte(redemptionLimits.date, today)
+        gte(redemptionLimits.date, today),
       ),
     });
 
@@ -506,17 +576,17 @@ export class TokenRedemptionService {
       const currentCount = Number(limits.redemption_count);
 
       if (currentCount >= CONFIG.MAX_DAILY_REDEMPTIONS) {
-        return { 
-          valid: false, 
-          error: `Daily limit reached. Maximum ${CONFIG.MAX_DAILY_REDEMPTIONS} redemptions per day.` 
+        return {
+          valid: false,
+          error: `Daily limit reached. Maximum ${CONFIG.MAX_DAILY_REDEMPTIONS} redemptions per day.`,
         };
       }
 
       if (currentTotal + pointsAmount > CONFIG.DAILY_LIMIT_POINTS) {
         const remaining = CONFIG.DAILY_LIMIT_POINTS - currentTotal;
-        return { 
-          valid: false, 
-          error: `Daily limit exceeded. Remaining today: ${remaining} points ($${(remaining / 100).toFixed(2)})` 
+        return {
+          valid: false,
+          error: `Daily limit exceeded. Remaining today: ${remaining} points ($${(remaining / 100).toFixed(2)})`,
         };
       }
     }
@@ -528,9 +598,9 @@ export class TokenRedemptionService {
    * Update daily limits after a redemption.
    */
   private async updateDailyLimits(
-    tx: Parameters<Parameters<typeof db.transaction>[0]>[0], 
-    userId: string, 
-    pointsAmount: number
+    tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+    userId: string,
+    pointsAmount: number,
   ): Promise<void> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -561,7 +631,7 @@ export class TokenRedemptionService {
     const pending = await db.query.tokenRedemptions.findFirst({
       where: and(
         eq(tokenRedemptions.user_id, userId),
-        eq(tokenRedemptions.status, "pending")
+        eq(tokenRedemptions.status, "pending"),
       ),
     });
 
@@ -571,7 +641,10 @@ export class TokenRedemptionService {
   /**
    * Get redemption by ID.
    */
-  async getRedemption(redemptionId: string, userId?: string): Promise<TokenRedemption | null> {
+  async getRedemption(
+    redemptionId: string,
+    userId?: string,
+  ): Promise<TokenRedemption | null> {
     const conditions = [eq(tokenRedemptions.id, redemptionId)];
     if (userId) {
       conditions.push(eq(tokenRedemptions.user_id, userId));
@@ -587,7 +660,10 @@ export class TokenRedemptionService {
   /**
    * List user's redemptions.
    */
-  async listUserRedemptions(userId: string, limit = 20): Promise<TokenRedemption[]> {
+  async listUserRedemptions(
+    userId: string,
+    limit = 20,
+  ): Promise<TokenRedemption[]> {
     return await db.query.tokenRedemptions.findMany({
       where: eq(tokenRedemptions.user_id, userId),
       orderBy: (redemptions, { desc }) => [desc(redemptions.created_at)],
@@ -599,9 +675,9 @@ export class TokenRedemptionService {
    * Admin: Approve a pending redemption.
    */
   async approveRedemption(
-    redemptionId: string, 
-    adminUserId: string, 
-    notes?: string
+    redemptionId: string,
+    adminUserId: string,
+    notes?: string,
   ): Promise<{ success: boolean; error?: string }> {
     const [updated] = await db
       .update(tokenRedemptions)
@@ -612,10 +688,12 @@ export class TokenRedemptionService {
         review_notes: notes,
         updated_at: new Date(),
       })
-      .where(and(
-        eq(tokenRedemptions.id, redemptionId),
-        eq(tokenRedemptions.status, "pending")
-      ))
+      .where(
+        and(
+          eq(tokenRedemptions.id, redemptionId),
+          eq(tokenRedemptions.status, "pending"),
+        ),
+      )
       .returning();
 
     if (!updated) {
@@ -635,19 +713,21 @@ export class TokenRedemptionService {
    * NOTE: This should also refund the user's balance!
    */
   async rejectRedemption(
-    redemptionId: string, 
-    adminUserId: string, 
-    reason: string
+    redemptionId: string,
+    adminUserId: string,
+    reason: string,
   ): Promise<{ success: boolean; error?: string }> {
     const result = await db.transaction(async (tx) => {
       // Get the redemption
       const [redemption] = await tx
         .select()
         .from(tokenRedemptions)
-        .where(and(
-          eq(tokenRedemptions.id, redemptionId),
-          eq(tokenRedemptions.status, "pending")
-        ))
+        .where(
+          and(
+            eq(tokenRedemptions.id, redemptionId),
+            eq(tokenRedemptions.status, "pending"),
+          ),
+        )
         .for("update");
 
       if (!redemption) {
@@ -656,7 +736,7 @@ export class TokenRedemptionService {
 
       // Refund the balance
       const refundAmount = Number(redemption.usd_value);
-      
+
       if (redemption.app_id) {
         await tx
           .update(appCreditBalances)
@@ -665,10 +745,12 @@ export class TokenRedemptionService {
             total_spent: sql`${appCreditBalances.total_spent} - ${refundAmount}`,
             updated_at: new Date(),
           })
-          .where(and(
-            eq(appCreditBalances.app_id, redemption.app_id),
-            eq(appCreditBalances.user_id, redemption.user_id)
-          ));
+          .where(
+            and(
+              eq(appCreditBalances.app_id, redemption.app_id),
+              eq(appCreditBalances.user_id, redemption.user_id),
+            ),
+          );
       }
 
       // Update redemption status
@@ -700,4 +782,3 @@ export class TokenRedemptionService {
 
 // Export singleton instance
 export const tokenRedemptionService = new TokenRedemptionService();
-

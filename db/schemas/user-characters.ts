@@ -140,32 +140,32 @@ export const userCharacters = pgTable(
   },
   (table) => ({
     organization_idx: index("user_characters_organization_idx").on(
-      table.organization_id
+      table.organization_id,
     ),
     user_idx: index("user_characters_user_idx").on(table.user_id),
     name_idx: index("user_characters_name_idx").on(table.name),
     category_idx: index("user_characters_category_idx").on(table.category),
     featured_idx: index("user_characters_featured_idx").on(table.featured),
     template_idx: index("user_characters_is_template_idx").on(
-      table.is_template
+      table.is_template,
     ),
     public_idx: index("user_characters_is_public_idx").on(table.is_public),
     popularity_idx: index("user_characters_popularity_idx").on(
-      table.popularity_score
+      table.popularity_score,
     ),
     source_idx: index("user_characters_source_idx").on(table.source),
     // New indexes for ERC-8004 and monetization
     erc8004_idx: index("user_characters_erc8004_idx").on(
-      table.erc8004_registered
+      table.erc8004_registered,
     ),
     erc8004_agent_idx: index("user_characters_erc8004_agent_idx").on(
       table.erc8004_network,
-      table.erc8004_agent_id
+      table.erc8004_agent_id,
     ),
     monetization_idx: index("user_characters_monetization_idx").on(
-      table.monetization_enabled
+      table.monetization_enabled,
     ),
-  })
+  }),
 );
 
 // Type inference

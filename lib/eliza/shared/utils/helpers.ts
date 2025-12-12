@@ -72,7 +72,7 @@ const REPETITIVE_GREETINGS = [
  * Check if response contains AI-speak patterns
  */
 export function containsAISpeak(text: string): boolean {
-  return AI_SPEAK_PATTERNS.some(pattern => pattern.test(text));
+  return AI_SPEAK_PATTERNS.some((pattern) => pattern.test(text));
 }
 
 /**
@@ -81,17 +81,17 @@ export function containsAISpeak(text: string): boolean {
  */
 export function removeAISpeak(text: string): string {
   let cleaned = text;
-  
+
   // Remove sentences containing AI-speak
-  AI_SPEAK_PATTERNS.forEach(pattern => {
+  AI_SPEAK_PATTERNS.forEach((pattern) => {
     // Find and remove sentences containing the pattern
     const sentencePattern = new RegExp(
       `[^.!?]*${pattern.source}[^.!?]*[.!?]?\\s*`,
-      pattern.flags
+      pattern.flags,
     );
     cleaned = cleaned.replace(sentencePattern, "");
   });
-  
+
   return cleaned.trim();
 }
 
@@ -101,9 +101,9 @@ export function removeAISpeak(text: string): string {
 export function isRepetitiveGreeting(text: string): boolean {
   const firstLine = text.split("\n")[0].trim();
   const firstSentence = text.split(/[.!?]/)[0].trim();
-  
+
   return REPETITIVE_GREETINGS.some(
-    pattern => pattern.test(firstLine) || pattern.test(firstSentence)
+    (pattern) => pattern.test(firstLine) || pattern.test(firstSentence),
   );
 }
 
@@ -136,13 +136,13 @@ export function isRepeatedOpening(roomId: string, text: string): boolean {
 export function trackOpening(roomId: string, text: string): void {
   const opening = getResponseOpening(text);
   const recent = recentOpenings.get(roomId) || [];
-  
+
   // Add new opening and keep only recent ones
   recent.push(opening);
   if (recent.length > MAX_TRACKED_OPENINGS) {
     recent.shift();
   }
-  
+
   recentOpenings.set(roomId, recent);
 }
 
@@ -169,12 +169,12 @@ export interface ProcessedResponse {
 
 export function postProcessResponse(
   text: string,
-  roomId?: string
+  roomId?: string,
 ): ProcessedResponse {
   const warnings: string[] = [];
   let processed = text;
   let wasModified = false;
-  
+
   // Check for AI-speak
   const hadAISpeak = containsAISpeak(text);
   if (hadAISpeak) {
@@ -183,21 +183,22 @@ export function postProcessResponse(
     warnings.push("Removed AI-speak patterns");
     logger.warn("[Response Post-Process] Removed AI-speak from response");
   }
-  
+
   // Check for repetitive greeting
-  const isRepetitive = isRepetitiveGreeting(processed) || 
+  const isRepetitive =
+    isRepetitiveGreeting(processed) ||
     (roomId ? isRepeatedOpening(roomId, processed) : false);
-  
+
   if (isRepetitive) {
     warnings.push("Response starts with repetitive greeting");
     logger.warn("[Response Post-Process] Detected repetitive opening");
   }
-  
+
   // Track this opening if room provided
   if (roomId && processed.trim()) {
     trackOpening(roomId, processed);
   }
-  
+
   return {
     text: processed,
     wasModified,
@@ -216,7 +217,7 @@ export function getAlternativeOpenings(context: {
   isFollowUp?: boolean;
 }): string[] {
   const { isFlirty, hasSharedContent, isFollowUp } = context;
-  
+
   if (isFlirty) {
     return [
       "okay but...",
@@ -228,7 +229,7 @@ export function getAlternativeOpenings(context: {
       "be honest with me...",
     ];
   }
-  
+
   if (hasSharedContent) {
     return [
       "Check this out!",
@@ -238,7 +239,7 @@ export function getAlternativeOpenings(context: {
       "I think you'll like this",
     ];
   }
-  
+
   if (isFollowUp) {
     return [
       "Oh, that reminds me...",
@@ -248,7 +249,7 @@ export function getAlternativeOpenings(context: {
       "Interesting you say that...",
     ];
   }
-  
+
   return [
     "So...",
     "Okay so",
@@ -285,7 +286,9 @@ function isBase64DataUrl(url: string): boolean {
   return url.startsWith("data:");
 }
 
-export function getAndClearCachedAttachments(roomId: string): CachedAttachment[] {
+export function getAndClearCachedAttachments(
+  roomId: string,
+): CachedAttachment[] {
   const attachments = actionAttachmentCache.get(roomId) || [];
   actionAttachmentCache.delete(roomId);
   return attachments;
@@ -317,13 +320,20 @@ interface ActionResult {
   data?: { attachments?: Attachment[] };
 }
 
-export function extractAttachments(actionResults: ActionResult[]): Attachment[] {
+export function extractAttachments(
+  actionResults: ActionResult[],
+): Attachment[] {
   return actionResults
     .flatMap((result) => result.data?.attachments ?? [])
     .filter((att): att is Attachment => {
       if (!att?.url) return false;
       if (isBase64DataUrl(att.url)) return false;
-      if (att.url.startsWith("[") || att.url === "" || !att.url.startsWith("http")) return false;
+      if (
+        att.url.startsWith("[") ||
+        att.url === "" ||
+        !att.url.startsWith("http")
+      )
+        return false;
       return true;
     });
 }
@@ -336,7 +346,10 @@ export async function executeProviders(
 ): Promise<State> {
   if (plannedProviders.length === 0) return currentState;
 
-  const providerState = await runtime.composeState(message, [...plannedProviders, "CHARACTER"]);
+  const providerState = await runtime.composeState(message, [
+    ...plannedProviders,
+    "CHARACTER",
+  ]);
   return { ...currentState, ...providerState };
 }
 
@@ -356,7 +369,11 @@ export async function executeActions(
     agentId: runtime.agentId,
     roomId: message.roomId,
     worldId: message.worldId,
-    content: { text: plan?.thought || "Executing actions", actions: plannedActions, source: "agent" },
+    content: {
+      text: plan?.thought || "Executing actions",
+      actions: plannedActions,
+      source: "agent",
+    },
   };
 
   actionAttachmentCache.set(message.roomId as string, []);
@@ -368,11 +385,17 @@ export async function executeActions(
     }
 
     if (content.attachments?.length) {
-      const existing = actionAttachmentCache.get(message.roomId as string) || [];
+      const existing =
+        actionAttachmentCache.get(message.roomId as string) || [];
       for (const att of content.attachments) {
         const a = att as Attachment;
         if (a.url?.startsWith("http")) {
-          existing.push({ id: a.id, url: a.url, title: a.title, contentType: a.contentType });
+          existing.push({
+            id: a.id,
+            url: a.url,
+            title: a.title,
+            contentType: a.contentType,
+          });
         }
       }
       actionAttachmentCache.set(message.roomId as string, existing);
@@ -381,8 +404,15 @@ export async function executeActions(
     return callback ? callback(content) : [];
   };
 
-  await runtime.processActions(message, [actionResponse], currentState, wrappedCallback);
-  const actionState = await runtime.composeState(message, ["CURRENT_RUN_CONTEXT"]);
+  await runtime.processActions(
+    message,
+    [actionResponse],
+    currentState,
+    wrappedCallback,
+  );
+  const actionState = await runtime.composeState(message, [
+    "CURRENT_RUN_CONTEXT",
+  ]);
   return { ...currentState, ...actionState };
 }
 
@@ -397,22 +427,33 @@ export async function generateResponseWithRetry(
     try {
       const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
 
-      if (!response || (typeof response === "string" && response.trim() === "")) {
-        logger.warn(`[generateResponseWithRetry] Attempt ${i + 1}: Empty response from model`);
+      if (
+        !response ||
+        (typeof response === "string" && response.trim() === "")
+      ) {
+        logger.warn(
+          `[generateResponseWithRetry] Attempt ${i + 1}: Empty response from model`,
+        );
         continue;
       }
 
-      lastRawResponse = typeof response === "string" ? response : JSON.stringify(response);
+      lastRawResponse =
+        typeof response === "string" ? response : JSON.stringify(response);
       const parsed = parseKeyValueXml(response) as ParsedResponse | null;
 
       if (parsed?.text) {
         return { text: parsed.text, thought: parsed.thought || "" };
       }
 
-      logger.warn(`[generateResponseWithRetry] Attempt ${i + 1}: Failed to parse XML, raw: "${lastRawResponse.substring(0, 100)}..."`);
+      logger.warn(
+        `[generateResponseWithRetry] Attempt ${i + 1}: Failed to parse XML, raw: "${lastRawResponse.substring(0, 100)}..."`,
+      );
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      logger.error(`[generateResponseWithRetry] Attempt ${i + 1} failed:`, lastError.message);
+      logger.error(
+        `[generateResponseWithRetry] Attempt ${i + 1} failed:`,
+        lastError.message,
+      );
     }
   }
 
@@ -423,12 +464,16 @@ export async function generateResponseWithRetry(
       .trim();
 
     if (cleanedResponse.length > 20) {
-      logger.info(`[generateResponseWithRetry] Using cleaned raw response as fallback`);
+      logger.info(
+        `[generateResponseWithRetry] Using cleaned raw response as fallback`,
+      );
       return { text: cleanedResponse, thought: "" };
     }
   }
 
-  logger.error(`[generateResponseWithRetry] All ${MAX_RESPONSE_RETRIES} attempts failed. Last error: ${lastError?.message || "Unknown"}`);
+  logger.error(
+    `[generateResponseWithRetry] All ${MAX_RESPONSE_RETRIES} attempts failed. Last error: ${lastError?.message || "Unknown"}`,
+  );
   return { text: "", thought: "" };
 }
 
@@ -442,10 +487,21 @@ export async function runEvaluatorsWithTimeout(
   if (typeof runtime.evaluate !== "function") return;
 
   await Promise.race([
-    runtime.evaluate(message, { ...state }, true, async (content) => {
-      const result = await callback?.(content);
-      return result ?? [];
-    }, [responseMemory]),
-    new Promise<void>((_, reject) => setTimeout(() => reject(new Error("Evaluators timeout")), EVALUATOR_TIMEOUT_MS)),
+    runtime.evaluate(
+      message,
+      { ...state },
+      true,
+      async (content) => {
+        const result = await callback?.(content);
+        return result ?? [];
+      },
+      [responseMemory],
+    ),
+    new Promise<void>((_, reject) =>
+      setTimeout(
+        () => reject(new Error("Evaluators timeout")),
+        EVALUATOR_TIMEOUT_MS,
+      ),
+    ),
   ]);
 }

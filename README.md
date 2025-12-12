@@ -1761,6 +1761,7 @@ The mobile app uses a **webview approach**:
 ### Mobile Prerequisites
 
 **macOS (for iOS development)**:
+
 ```bash
 # Install Xcode CLI tools
 xcode-select --install
@@ -1773,9 +1774,11 @@ cargo install tauri-cli --version "^2.0" --locked
 ```
 
 **Android development**:
+
 1. Install [Android Studio](https://developer.android.com/studio)
 2. Install SDK via SDK Manager (API 24+)
 3. Set environment:
+
 ```bash
 export ANDROID_HOME=~/Library/Android/sdk
 export PATH=$PATH:$ANDROID_HOME/platform-tools
@@ -1783,16 +1786,16 @@ export PATH=$PATH:$ANDROID_HOME/platform-tools
 
 ### Mobile Development Commands
 
-| Command | Description |
-|---------|-------------|
-| `bun run tauri:ios` | iOS simulator dev with hot reload |
-| `bun run tauri:ios:build` | iOS release build |
-| `bun run tauri:ios:init` | Initialize iOS project |
-| `bun run tauri:android` | Android emulator dev |
-| `bun run tauri:android:build` | Android release build |
-| `bun run tauri:android:init` | Initialize Android project |
-| `bun run tauri:dev` | Desktop dev (for testing) |
-| `bun run tauri:build` | Desktop release build |
+| Command                       | Description                       |
+| ----------------------------- | --------------------------------- |
+| `bun run tauri:ios`           | iOS simulator dev with hot reload |
+| `bun run tauri:ios:build`     | iOS release build                 |
+| `bun run tauri:ios:init`      | Initialize iOS project            |
+| `bun run tauri:android`       | Android emulator dev              |
+| `bun run tauri:android:build` | Android release build             |
+| `bun run tauri:android:init`  | Initialize Android project        |
+| `bun run tauri:dev`           | Desktop dev (for testing)         |
+| `bun run tauri:build`         | Desktop release build             |
 
 ### Quick Start (iOS Simulator)
 
@@ -1807,6 +1810,7 @@ cargo tauri ios dev "iPhone 16 Pro"
 ### Native Features
 
 **Platform Detection**:
+
 ```typescript
 import { invoke } from "@tauri-apps/api/core";
 
@@ -1818,12 +1822,13 @@ const isMobile = await invoke("is_mobile_app");
 ```
 
 **In-App Purchases**:
+
 ```typescript
 import { invoke } from "@tauri-apps/api/core";
 
 // Get products
 const products = await invoke("get_products", {
-  productIds: ["credits_100", "credits_500", "credits_1000"]
+  productIds: ["credits_100", "credits_500", "credits_1000"],
 });
 
 // Purchase
@@ -1834,6 +1839,7 @@ const restored = await invoke("restore_purchases");
 ```
 
 **Deep Links**:
+
 ```typescript
 import { listen } from "@tauri-apps/api/event";
 
@@ -1902,17 +1908,20 @@ bun run tauri:ios:build
 ### Mobile Troubleshooting
 
 **"Device is busy"**: Use simulator instead:
+
 ```bash
 cargo tauri ios dev "iPhone 16 Pro"
 ```
 
 **Clean rebuild**:
+
 ```bash
 rm -rf src-tauri/target src-tauri/gen/apple/build .next
 bun run tauri:ios
 ```
 
 **Tauri not found**:
+
 ```bash
 cargo install tauri-cli --version "^2.0" --locked
 ```

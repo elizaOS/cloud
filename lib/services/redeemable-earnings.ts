@@ -1,20 +1,20 @@
 /**
  * Redeemable Earnings Service
- * 
+ *
  * CRITICAL SECURITY COMPONENT
- * 
+ *
  * This service manages earnings that can be redeemed for elizaOS tokens.
  * It provides bulletproof double-redemption prevention through:
- * 
+ *
  * 1. Atomic database transactions with row-level locking
  * 2. Version-based optimistic locking
  * 3. Immutable ledger with audit trail
  * 4. Database CHECK constraints on balance
  * 5. Unique constraints on redeemed earnings
- * 
+ *
  * ONLY earnings from these sources are redeemable:
  * - Miniapp creator earnings
- * - Agent creator earnings  
+ * - Agent creator earnings
  * - MCP creator earnings
  */
 
@@ -124,14 +124,26 @@ class RedeemableEarningsService {
 
   /**
    * Add earnings from a valid source (miniapp, agent, or mcp)
-   * 
+   *
    * SECURITY: This is the ONLY way earnings can be added.
    */
   async addEarnings(params: AddEarningsParams): Promise<AddEarningsResult> {
-    const { userId, amount, source, sourceId, description, metadata = {} } = params;
+    const {
+      userId,
+      amount,
+      source,
+      sourceId,
+      description,
+      metadata = {},
+    } = params;
 
     if (amount <= 0) {
-      return { success: false, newBalance: 0, ledgerEntryId: "", error: "Amount must be positive" };
+      return {
+        success: false,
+        newBalance: 0,
+        ledgerEntryId: "",
+        error: "Amount must be positive",
+      };
     }
 
     // Use Decimal for precision
@@ -153,7 +165,8 @@ class RedeemableEarningsService {
             user_id: userId,
             total_earned: amountDecimal,
             available_balance: amountDecimal,
-            earned_from_miniapps: source === "miniapp" ? amountDecimal : "0.0000",
+            earned_from_miniapps:
+              source === "miniapp" ? amountDecimal : "0.0000",
             earned_from_agents: source === "agent" ? amountDecimal : "0.0000",
             earned_from_mcps: source === "mcp" ? amountDecimal : "0.0000",
             last_earning_at: new Date(),
@@ -161,10 +174,12 @@ class RedeemableEarningsService {
           .returning();
       } else {
         // Update existing record
-        const sourceColumn = 
-          source === "miniapp" ? redeemableEarnings.earned_from_miniapps :
-          source === "agent" ? redeemableEarnings.earned_from_agents :
-          redeemableEarnings.earned_from_mcps;
+        const sourceColumn =
+          source === "miniapp"
+            ? redeemableEarnings.earned_from_miniapps
+            : source === "agent"
+              ? redeemableEarnings.earned_from_agents
+              : redeemableEarnings.earned_from_mcps;
 
         [earnings] = await tx
           .update(redeemableEarnings)
@@ -218,15 +233,21 @@ class RedeemableEarningsService {
 
   /**
    * Lock earnings for a pending redemption
-   * 
+   *
    * CRITICAL: This moves earnings from available to pending.
    * The earnings are still owned by the user but cannot be redeemed again.
    */
-  async lockForRedemption(params: LockEarningsParams): Promise<LockEarningsResult> {
+  async lockForRedemption(
+    params: LockEarningsParams,
+  ): Promise<LockEarningsResult> {
     const { userId, amount, redemptionId, metadata = {} } = params;
 
     if (amount <= 0) {
-      return { success: false, lockedAmount: 0, error: "Amount must be positive" };
+      return {
+        success: false,
+        lockedAmount: 0,
+        error: "Amount must be positive",
+      };
     }
 
     const amountDecimal = new Decimal(amount).toFixed(4);
@@ -249,7 +270,7 @@ class RedeemableEarningsService {
       // Check sufficient balance
       if (available.lt(requested)) {
         throw new Error(
-          `Insufficient redeemable balance. Available: $${available.toFixed(2)}, Requested: $${requested.toFixed(2)}`
+          `Insufficient redeemable balance. Available: $${available.toFixed(2)}, Requested: $${requested.toFixed(2)}`,
         );
       }
 
@@ -258,7 +279,7 @@ class RedeemableEarningsService {
         where: and(
           eq(redeemableEarningsLedger.user_id, userId),
           eq(redeemableEarningsLedger.redemption_id, redemptionId),
-          eq(redeemableEarningsLedger.entry_type, "redemption")
+          eq(redeemableEarningsLedger.entry_type, "redemption"),
         ),
       });
 
@@ -285,8 +306,8 @@ class RedeemableEarningsService {
           and(
             eq(redeemableEarnings.user_id, userId),
             // CRITICAL: Only update if balance is still sufficient
-            sql`CAST(${redeemableEarnings.available_balance} AS DECIMAL) >= ${amount}`
-          )
+            sql`CAST(${redeemableEarnings.available_balance} AS DECIMAL) >= ${amount}`,
+          ),
         )
         .returning();
 
@@ -332,10 +353,12 @@ class RedeemableEarningsService {
 
   /**
    * Complete a redemption (move from pending to redeemed)
-   * 
+   *
    * Called after tokens have been successfully sent on-chain.
    */
-  async completeRedemption(params: CompleteRedemptionParams): Promise<{ success: boolean; error?: string }> {
+  async completeRedemption(
+    params: CompleteRedemptionParams,
+  ): Promise<{ success: boolean; error?: string }> {
     const { userId, redemptionId, amount } = params;
 
     const amountDecimal = new Decimal(amount).toFixed(4);
@@ -381,10 +404,12 @@ class RedeemableEarningsService {
 
   /**
    * Refund earnings from a failed/rejected redemption
-   * 
+   *
    * Moves funds from pending back to available.
    */
-  async refundRedemption(params: RefundEarningsParams): Promise<{ success: boolean; error?: string }> {
+  async refundRedemption(
+    params: RefundEarningsParams,
+  ): Promise<{ success: boolean; error?: string }> {
     const { userId, redemptionId, amount, reason } = params;
 
     const amountDecimal = new Decimal(amount).toFixed(4);
@@ -433,18 +458,20 @@ class RedeemableEarningsService {
    */
   async getLedgerHistory(
     userId: string,
-    limit: number = 50
-  ): Promise<Array<{
-    id: string;
-    type: string;
-    amount: number;
-    balanceAfter: number;
-    description: string;
-    source?: string;
-    sourceId?: string;
-    redemptionId?: string;
-    createdAt: Date;
-  }>> {
+    limit: number = 50,
+  ): Promise<
+    Array<{
+      id: string;
+      type: string;
+      amount: number;
+      balanceAfter: number;
+      description: string;
+      source?: string;
+      sourceId?: string;
+      redemptionId?: string;
+      createdAt: Date;
+    }>
+  > {
     const entries = await db.query.redeemableEarningsLedger.findMany({
       where: eq(redeemableEarningsLedger.user_id, userId),
       orderBy: (ledger, { desc }) => [desc(ledger.created_at)],
@@ -466,7 +493,7 @@ class RedeemableEarningsService {
 
   /**
    * Verify a user has never redeemed a specific earning before
-   * 
+   *
    * SECURITY: Additional layer of double-redemption protection
    */
   async hasBeenRedeemed(ledgerEntryId: string): Promise<boolean> {
@@ -480,4 +507,3 @@ class RedeemableEarningsService {
 
 // Export singleton
 export const redeemableEarningsService = new RedeemableEarningsService();
-

@@ -1,6 +1,6 @@
 /**
  * Repository for ElizaOS entities table.
- * 
+ *
  * Handles all database operations for entities without spinning up runtime.
  */
 
@@ -25,7 +25,7 @@ export interface CreateEntityInput {
 export class EntitiesRepository {
   /**
    * Gets an entity by ID.
-   * 
+   *
    * @param entityId - User's database ID (UUID).
    */
   async findById(entityId: string): Promise<Entity | null> {
@@ -80,7 +80,7 @@ export class EntitiesRepository {
 
   /**
    * Creates a new entity.
-   * 
+   *
    * Both entityId and agentId should be UUIDs from our database.
    * Returns existing entity if already present.
    */
@@ -136,7 +136,7 @@ export class EntitiesRepository {
 
   /**
    * Deletes an entity.
-   * 
+   *
    * @returns True if entity was deleted, false if not found.
    */
   async delete(entityId: string): Promise<boolean> {

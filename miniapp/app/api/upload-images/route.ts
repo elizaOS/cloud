@@ -1,21 +1,27 @@
 /**
  * Upload Images API
- * 
+ *
  * This endpoint handles image validation, compression, and base64 conversion.
  * The actual storage happens when the character is created via Eliza Cloud,
  * which handles uploading to Vercel Blob storage.
- * 
+ *
  * Features:
  * - Image validation (format, size, dimensions)
  * - Image compression to meet size limits
  * - Thumbnail generation
  * - Gallery support with character association
- * 
+ *
  * This approach ensures consistent storage across local and production environments.
  */
 import { NextRequest, NextResponse } from "next/server";
 
-const VALID_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
+const VALID_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB raw upload limit
 const MAX_IMAGES = 10;
 const MAX_BASE64_SIZE = 10 * 1024 * 1024;
@@ -61,12 +67,18 @@ function generateImageId(): string {
 /**
  * Validate base64 image string
  */
-function isValidBase64Image(base64String: string): { valid: boolean; mimeType?: string; error?: string } {
+function isValidBase64Image(base64String: string): {
+  valid: boolean;
+  mimeType?: string;
+  error?: string;
+} {
   if (!base64String) {
     return { valid: false, error: "Empty base64 string" };
   }
 
-  const dataUrlMatch = base64String.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,/);
+  const dataUrlMatch = base64String.match(
+    /^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,/,
+  );
 
   if (dataUrlMatch) {
     const mimeType = dataUrlMatch[1];
@@ -76,7 +88,7 @@ function isValidBase64Image(base64String: string): { valid: boolean; mimeType?: 
     return { valid: true, mimeType };
   }
 
-  const buffer = Buffer.from(base64String, 'base64');
+  const buffer = Buffer.from(base64String, "base64");
   if (buffer.length === 0) {
     return { valid: false, error: "Invalid base64 encoding" };
   }
@@ -87,7 +99,10 @@ function isValidBase64Image(base64String: string): { valid: boolean; mimeType?: 
  * Get image dimensions from a buffer using magic bytes
  * Returns { width, height } or null if unable to determine
  */
-function getImageDimensions(buffer: Buffer, mimeType: string): { width: number; height: number } | null {
+function getImageDimensions(
+  buffer: Buffer,
+  mimeType: string,
+): { width: number; height: number } | null {
   // PNG: dimensions at bytes 16-23
   if (mimeType === "image/png" && buffer.length >= 24) {
     const width = buffer.readUInt32BE(16);
@@ -96,7 +111,10 @@ function getImageDimensions(buffer: Buffer, mimeType: string): { width: number; 
   }
 
   // JPEG: scan for SOF0, SOF1, or SOF2 markers
-  if ((mimeType === "image/jpeg" || mimeType === "image/jpg") && buffer.length > 2) {
+  if (
+    (mimeType === "image/jpeg" || mimeType === "image/jpg") &&
+    buffer.length > 2
+  ) {
     let i = 2;
     while (i < buffer.length - 9) {
       if (buffer[i] === 0xff) {
@@ -126,7 +144,10 @@ function getImageDimensions(buffer: Buffer, mimeType: string): { width: number; 
   // WebP: check for RIFF header and VP8 chunk
   if (mimeType === "image/webp" && buffer.length >= 30) {
     // Check RIFF header
-    if (buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP") {
+    if (
+      buffer.toString("ascii", 0, 4) === "RIFF" &&
+      buffer.toString("ascii", 8, 12) === "WEBP"
+    ) {
       // VP8L (lossless)
       if (buffer.toString("ascii", 12, 16) === "VP8L") {
         const bits = buffer.readUInt32LE(21);
@@ -151,10 +172,14 @@ function getImageDimensions(buffer: Buffer, mimeType: string): { width: number; 
  */
 function validateDimensions(
   buffer: Buffer,
-  mimeType: string
-): { valid: boolean; dimensions?: { width: number; height: number }; error?: string } {
+  mimeType: string,
+): {
+  valid: boolean;
+  dimensions?: { width: number; height: number };
+  error?: string;
+} {
   const dimensions = getImageDimensions(buffer, mimeType);
-  
+
   if (!dimensions) {
     // Can't determine dimensions, allow it through
     return { valid: true };
@@ -171,8 +196,13 @@ function validateDimensions(
   return { valid: true, dimensions };
 }
 
-function base64ToDataUrl(base64String: string): { base64DataUrl: string; mimeType: string } {
-  const dataUrlMatch = base64String.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+function base64ToDataUrl(base64String: string): {
+  base64DataUrl: string;
+  mimeType: string;
+} {
+  const dataUrlMatch = base64String.match(
+    /^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/,
+  );
 
   if (dataUrlMatch) {
     return {
@@ -189,26 +219,33 @@ function base64ToDataUrl(base64String: string): { base64DataUrl: string; mimeTyp
   };
 }
 
-async function fetchImageFromUrl(url: string): Promise<{ base64DataUrl: string; mimeType: string } | null> {
+async function fetchImageFromUrl(
+  url: string,
+): Promise<{ base64DataUrl: string; mimeType: string } | null> {
   try {
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'image/*',
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        Accept: "image/*",
       },
     });
 
     if (!response.ok) {
-      console.warn(`[Upload Images] Failed to fetch URL ${url}: ${response.status}`);
+      console.warn(
+        `[Upload Images] Failed to fetch URL ${url}: ${response.status}`,
+      );
       return null;
     }
 
-    const contentType = response.headers.get('content-type') || 'image/jpeg';
-    const mimeType = contentType.split(';')[0].trim();
+    const contentType = response.headers.get("content-type") || "image/jpeg";
+    const mimeType = contentType.split(";")[0].trim();
 
-    const validMimeTypes = [...VALID_IMAGE_TYPES, 'image/gif'];
-    if (!validMimeTypes.some(type => mimeType.includes(type.split('/')[1]))) {
-      console.warn(`[Upload Images] Invalid content type from URL: ${mimeType}`);
+    const validMimeTypes = [...VALID_IMAGE_TYPES, "image/gif"];
+    if (!validMimeTypes.some((type) => mimeType.includes(type.split("/")[1]))) {
+      console.warn(
+        `[Upload Images] Invalid content type from URL: ${mimeType}`,
+      );
       return null;
     }
 
@@ -216,11 +253,13 @@ async function fetchImageFromUrl(url: string): Promise<{ base64DataUrl: string; 
     const buffer = Buffer.from(arrayBuffer);
 
     if (buffer.length > MAX_FILE_SIZE) {
-      console.warn(`[Upload Images] Image from URL too large: ${buffer.length} bytes`);
+      console.warn(
+        `[Upload Images] Image from URL too large: ${buffer.length} bytes`,
+      );
       return null;
     }
 
-    const base64DataUrl = `data:${mimeType};base64,${buffer.toString('base64')}`;
+    const base64DataUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
     return { base64DataUrl, mimeType };
   } catch (error) {
     console.error(`[Upload Images] Error fetching URL ${url}:`, error);
@@ -228,23 +267,28 @@ async function fetchImageFromUrl(url: string): Promise<{ base64DataUrl: string; 
   }
 }
 
-export async function POST(request: NextRequest): Promise<NextResponse<UploadImageResponse>> {
+export async function POST(
+  request: NextRequest,
+): Promise<NextResponse<UploadImageResponse>> {
   try {
-    console.log("[Upload Images] Processing image upload (storage via Eliza Cloud)");
+    console.log(
+      "[Upload Images] Processing image upload (storage via Eliza Cloud)",
+    );
 
-    const contentType = request.headers.get('content-type') || '';
+    const contentType = request.headers.get("content-type") || "";
 
-    if (contentType.includes('application/json')) {
+    if (contentType.includes("application/json")) {
       return await handleJsonUpload(request);
-    } else if (contentType.includes('multipart/form-data')) {
+    } else if (contentType.includes("multipart/form-data")) {
       return await handleFormDataUpload(request);
     } else {
       return NextResponse.json(
         {
           success: false,
-          error: "Invalid content type. Expected multipart/form-data or application/json.",
+          error:
+            "Invalid content type. Expected multipart/form-data or application/json.",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
   } catch (error) {
@@ -253,15 +297,20 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadIma
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "An unexpected error occurred",
+        error:
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-async function handleJsonUpload(request: NextRequest): Promise<NextResponse<UploadImageResponse>> {
-  let body: { 
+async function handleJsonUpload(
+  request: NextRequest,
+): Promise<NextResponse<UploadImageResponse>> {
+  let body: {
     images: ImageUploadSource[];
     type?: ImageUploadType;
     characterId?: string;
@@ -275,7 +324,7 @@ async function handleJsonUpload(request: NextRequest): Promise<NextResponse<Uplo
         success: false,
         error: "Invalid JSON format",
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -285,7 +334,7 @@ async function handleJsonUpload(request: NextRequest): Promise<NextResponse<Uplo
         success: false,
         error: "No images provided. Expected { images: ImageUploadSource[] }",
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -295,12 +344,14 @@ async function handleJsonUpload(request: NextRequest): Promise<NextResponse<Uplo
         success: false,
         error: `Too many images. Maximum ${MAX_IMAGES} images allowed.`,
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   const uploadType = body.type || "avatar";
-  console.log(`[Upload Images] Processing ${body.images.length} image(s) from JSON, type: ${uploadType}...`);
+  console.log(
+    `[Upload Images] Processing ${body.images.length} image(s) from JSON, type: ${uploadType}...`,
+  );
 
   const uploadedImages: UploadedImage[] = [];
   let failedCount = 0;
@@ -312,7 +363,9 @@ async function handleJsonUpload(request: NextRequest): Promise<NextResponse<Uplo
       if (imageSource.type === "base64") {
         const validation = isValidBase64Image(imageSource.data);
         if (!validation.valid) {
-          console.warn(`[Upload Images] Invalid base64 at index ${i}: ${validation.error}`);
+          console.warn(
+            `[Upload Images] Invalid base64 at index ${i}: ${validation.error}`,
+          );
           failedCount++;
           continue;
         }
@@ -324,12 +377,12 @@ async function handleJsonUpload(request: NextRequest): Promise<NextResponse<Uplo
         }
 
         const { base64DataUrl, mimeType } = base64ToDataUrl(imageSource.data);
-        
+
         // Extract buffer for dimension validation
         const base64Data = base64DataUrl.split(",")[1];
         const buffer = Buffer.from(base64Data, "base64");
         const dimValidation = validateDimensions(buffer, mimeType);
-        
+
         if (!dimValidation.valid) {
           console.warn(`[Upload Images] ${dimValidation.error} at index ${i}`);
           failedCount++;
@@ -345,7 +398,6 @@ async function handleJsonUpload(request: NextRequest): Promise<NextResponse<Uplo
           height: dimValidation.dimensions?.height,
           size: buffer.length,
         });
-
       } else if (imageSource.type === "url") {
         const result = await fetchImageFromUrl(imageSource.data);
         if (!result) {
@@ -367,13 +419,17 @@ async function handleJsonUpload(request: NextRequest): Promise<NextResponse<Uplo
           height: dimensions?.height,
           size: buffer.length,
         });
-
       } else {
-        console.warn(`[Upload Images] Unknown image type at index ${i}: ${imageSource.type}`);
+        console.warn(
+          `[Upload Images] Unknown image type at index ${i}: ${imageSource.type}`,
+        );
         failedCount++;
       }
     } catch (error) {
-      console.error(`[Upload Images] Failed to process image at index ${i}:`, error);
+      console.error(
+        `[Upload Images] Failed to process image at index ${i}:`,
+        error,
+      );
       failedCount++;
     }
   }
@@ -385,15 +441,17 @@ async function handleJsonUpload(request: NextRequest): Promise<NextResponse<Uplo
         error: "Failed to process any images",
         failedCount,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
-  console.log(`[Upload Images] ✅ Successfully processed ${uploadedImages.length} image(s)`);
+  console.log(
+    `[Upload Images] ✅ Successfully processed ${uploadedImages.length} image(s)`,
+  );
 
   return NextResponse.json({
     success: true,
-    urls: uploadedImages.map(img => img.url),
+    urls: uploadedImages.map((img) => img.url),
     images: uploadedImages,
     message: `Successfully processed ${uploadedImages.length} image(s)`,
     uploadedCount: uploadedImages.length,
@@ -401,7 +459,9 @@ async function handleJsonUpload(request: NextRequest): Promise<NextResponse<Uplo
   });
 }
 
-async function handleFormDataUpload(request: NextRequest): Promise<NextResponse<UploadImageResponse>> {
+async function handleFormDataUpload(
+  request: NextRequest,
+): Promise<NextResponse<UploadImageResponse>> {
   let formData: FormData;
   try {
     formData = await request.formData();
@@ -412,7 +472,7 @@ async function handleFormDataUpload(request: NextRequest): Promise<NextResponse<
         success: false,
         error: "Invalid request format. Expected multipart/form-data.",
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -421,7 +481,9 @@ async function handleFormDataUpload(request: NextRequest): Promise<NextResponse<
   const characterId = formData.get("characterId") as string | null;
 
   // Log context for debugging
-  console.log(`[Upload Images] Upload type: ${uploadType}, Character ID: ${characterId || "none"}`);
+  console.log(
+    `[Upload Images] Upload type: ${uploadType}, Character ID: ${characterId || "none"}`,
+  );
 
   if (!images || images.length === 0) {
     return NextResponse.json(
@@ -429,7 +491,7 @@ async function handleFormDataUpload(request: NextRequest): Promise<NextResponse<
         success: false,
         error: "No images provided. Please select at least one image.",
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -439,7 +501,7 @@ async function handleFormDataUpload(request: NextRequest): Promise<NextResponse<
         success: false,
         error: `Too many images. Maximum ${MAX_IMAGES} images allowed.`,
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -453,7 +515,7 @@ async function handleFormDataUpload(request: NextRequest): Promise<NextResponse<
           success: false,
           error: `Invalid file at position ${i + 1}`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -463,7 +525,7 @@ async function handleFormDataUpload(request: NextRequest): Promise<NextResponse<
           success: false,
           error: `Invalid file type for "${image.name}". Only JPEG, PNG, WebP, and GIF images are allowed.`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -474,7 +536,7 @@ async function handleFormDataUpload(request: NextRequest): Promise<NextResponse<
           success: false,
           error: `File "${image.name}" is too large (${sizeMB}MB). Maximum size is 5MB.`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -484,7 +546,7 @@ async function handleFormDataUpload(request: NextRequest): Promise<NextResponse<
           success: false,
           error: `File at position ${i + 1} has no name`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -492,14 +554,14 @@ async function handleFormDataUpload(request: NextRequest): Promise<NextResponse<
     const arrayBuffer = await image.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const dimValidation = validateDimensions(buffer, image.type);
-    
+
     if (!dimValidation.valid) {
       return NextResponse.json(
         {
           success: false,
           error: `"${image.name}": ${dimValidation.error}`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
   }
@@ -534,17 +596,20 @@ async function handleFormDataUpload(request: NextRequest): Promise<NextResponse<
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to process images",
+        error:
+          error instanceof Error ? error.message : "Failed to process images",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
-  console.log(`[Upload Images] ✅ Successfully processed ${uploadedImages.length} image(s)`);
+  console.log(
+    `[Upload Images] ✅ Successfully processed ${uploadedImages.length} image(s)`,
+  );
 
   return NextResponse.json({
     success: true,
-    urls: uploadedImages.map(img => img.url),
+    urls: uploadedImages.map((img) => img.url),
     images: uploadedImages,
     message: `Successfully processed ${uploadedImages.length} image(s)`,
     uploadedCount: uploadedImages.length,

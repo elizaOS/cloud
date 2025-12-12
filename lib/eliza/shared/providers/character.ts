@@ -163,7 +163,7 @@ export const characterProvider: Provider = {
       // Extract keywords from the current message for contextual matching
       const messageText = _message.content?.text?.toLowerCase() ?? "";
       const messageWords = new Set(
-        messageText.split(/\s+/).filter((w) => w.length > 3)
+        messageText.split(/\s+/).filter((w) => w.length > 3),
       );
 
       // Score each example by keyword overlap
@@ -172,8 +172,10 @@ export const characterProvider: Provider = {
           .map((msg) => msg.content?.text ?? "")
           .join(" ")
           .toLowerCase();
-        const exampleWords = exampleText.split(/\s+/).filter((w) => w.length > 3);
-        
+        const exampleWords = exampleText
+          .split(/\s+/)
+          .filter((w) => w.length > 3);
+
         // Count matching keywords
         let score = 0;
         for (const word of exampleWords) {
@@ -181,7 +183,7 @@ export const characterProvider: Provider = {
         }
         // Add small random factor to break ties and maintain variety
         score += Math.random() * 0.5;
-        
+
         return { example, score };
       });
 

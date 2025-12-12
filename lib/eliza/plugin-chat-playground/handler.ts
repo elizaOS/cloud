@@ -102,7 +102,7 @@ export async function handleMessage({
     }
 
     runtime.character.system = cleanPrompt(
-      composePromptFromState({ state, template: chatPlaygroundSystemPrompt })
+      composePromptFromState({ state, template: chatPlaygroundSystemPrompt }),
     );
 
     const prompt = cleanPrompt(
@@ -111,7 +111,7 @@ export async function handleMessage({
         template:
           runtime.character.templates?.chatPlaygroundTemplate ||
           chatPlaygroundTemplate,
-      })
+      }),
     );
 
     const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
@@ -129,7 +129,7 @@ export async function handleMessage({
     // Post-process response to remove AI-speak and track openings
     const processedResponse = postProcessResponse(
       parsedResponse.text,
-      message.roomId as string
+      message.roomId as string,
     );
     const finalText = processedResponse.text;
 
@@ -167,7 +167,7 @@ export async function handleMessage({
       message,
       state,
       responseMemory,
-      callback
+      callback,
     );
 
     await runtime.emitEvent(EventType.RUN_ENDED, {
@@ -208,7 +208,7 @@ async function checkAndRunMcpAction(
   runtime: IAgentRuntime,
   message: Memory,
   state: State,
-  callback?: HandlerCallback
+  callback?: HandlerCallback,
 ): Promise<boolean> {
   try {
     // Check if MCP data is available in state
@@ -223,25 +223,25 @@ async function checkAndRunMcpAction(
 
     if (!hasMcpServers) {
       logger.debug(
-        "[ChatPlayground] No MCP servers connected, skipping MCP action check"
+        "[ChatPlayground] No MCP servers connected, skipping MCP action check",
       );
       return false;
     }
 
     logger.info(
-      "[ChatPlayground] MCP servers available, checking for CALL_MCP_TOOL action"
+      "[ChatPlayground] MCP servers available, checking for CALL_MCP_TOOL action",
     );
 
     // Find the CALL_MCP_TOOL action from registered actions
     const mcpAction = runtime.actions?.find(
       (action: Action) =>
         action.name === "CALL_MCP_TOOL" ||
-        action.similes?.includes("CALL_MCP_TOOL")
+        action.similes?.includes("CALL_MCP_TOOL"),
     );
 
     if (!mcpAction) {
       logger.debug(
-        "[ChatPlayground] CALL_MCP_TOOL action not found in runtime"
+        "[ChatPlayground] CALL_MCP_TOOL action not found in runtime",
       );
       return false;
     }
@@ -250,7 +250,7 @@ async function checkAndRunMcpAction(
     const isValid = await mcpAction.validate(runtime, message, state);
     if (!isValid) {
       logger.debug(
-        "[ChatPlayground] CALL_MCP_TOOL action validation failed (no connected servers with tools)"
+        "[ChatPlayground] CALL_MCP_TOOL action validation failed (no connected servers with tools)",
       );
       return false;
     }
@@ -263,7 +263,7 @@ async function checkAndRunMcpAction(
       message,
       state,
       {},
-      callback
+      callback,
     );
 
     // Check result for success
@@ -272,19 +272,19 @@ async function checkAndRunMcpAction(
       | undefined;
     if (actionResult?.success) {
       logger.info(
-        `[ChatPlayground] MCP action executed successfully - tool: ${actionResult.data?.toolName ?? "unknown"}, server: ${actionResult.data?.serverName ?? "unknown"}`
+        `[ChatPlayground] MCP action executed successfully - tool: ${actionResult.data?.toolName ?? "unknown"}, server: ${actionResult.data?.serverName ?? "unknown"}`,
       );
       return true;
     }
 
     logger.debug(
-      "[ChatPlayground] MCP action did not succeed, falling back to regular response"
+      "[ChatPlayground] MCP action did not succeed, falling back to regular response",
     );
     return false;
   } catch (error) {
     logger.error(
       "[ChatPlayground] Error checking/running MCP action",
-      error instanceof Error ? error.message : String(error)
+      error instanceof Error ? error.message : String(error),
     );
     return false;
   }

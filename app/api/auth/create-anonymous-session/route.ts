@@ -14,12 +14,12 @@ const ANON_SESSION_COOKIE = "eliza-anon-session";
 function parsePositiveIntEnv(
   envValue: string | undefined,
   defaultValue: number,
-  envName: string
+  envName: string,
 ): number {
   const value = Number.parseInt(envValue || String(defaultValue), 10);
   if (Number.isNaN(value) || value <= 0) {
     logger.warn(
-      `[create-anonymous-session] Invalid ${envName}, using default: ${defaultValue}`
+      `[create-anonymous-session] Invalid ${envName}, using default: ${defaultValue}`,
     );
     return defaultValue;
   }
@@ -29,12 +29,12 @@ function parsePositiveIntEnv(
 const ANON_SESSION_EXPIRY_DAYS = parsePositiveIntEnv(
   process.env.ANON_SESSION_EXPIRY_DAYS,
   7,
-  "ANON_SESSION_EXPIRY_DAYS"
+  "ANON_SESSION_EXPIRY_DAYS",
 );
 const ANON_MESSAGE_LIMIT = parsePositiveIntEnv(
   process.env.ANON_MESSAGE_LIMIT,
   5,
-  "ANON_MESSAGE_LIMIT"
+  "ANON_MESSAGE_LIMIT",
 );
 
 async function getClientIp(): Promise<string | undefined> {
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
 
     const newSessionToken = nanoid(32);
     const expiresAt = new Date(
-      Date.now() + ANON_SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+      Date.now() + ANON_SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
     );
     const ipAddress = await getClientIp();
     const userAgent = await getUserAgent();
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
     if (process.env.NODE_ENV === "production") {
       if (!ipAddress) {
         logger.warn(
-          "[create-anonymous-session] Missing IP address in production - abuse detection bypassed"
+          "[create-anonymous-session] Missing IP address in production - abuse detection bypassed",
         );
       } else {
         const isAbuse = await anonymousSessionsService.checkIpAbuse(ipAddress);
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
             ipAddress: ipAddress.slice(0, 8) + "...",
           });
           return NextResponse.redirect(
-            new URL("/login?error=rate_limit", request.url)
+            new URL("/login?error=rate_limit", request.url),
           );
         }
       }
@@ -134,12 +134,12 @@ export async function GET(request: NextRequest) {
     // Handle specific error types with appropriate redirects
     if (error instanceof Error && error.name === "RateLimitError") {
       return NextResponse.redirect(
-        new URL("/login?error=rate_limit", request.url)
+        new URL("/login?error=rate_limit", request.url),
       );
     }
 
     return NextResponse.redirect(
-      new URL("/login?error=session_error", request.url)
+      new URL("/login?error=session_error", request.url),
     );
   }
 }

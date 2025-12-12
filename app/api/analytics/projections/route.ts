@@ -1,7 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
-import { getUsageTimeSeries, type TimeGranularity } from "@/lib/services/analytics";
+import {
+  getUsageTimeSeries,
+  type TimeGranularity,
+} from "@/lib/services/analytics";
 import {
   generateProjections,
   generateProjectionAlerts,

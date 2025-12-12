@@ -11,7 +11,7 @@ import { users } from "./users";
 
 /**
  * CLI auth sessions table schema.
- * 
+ *
  * Manages authentication sessions for CLI tool access with temporary API key storage.
  */
 export const cliAuthSessions = pgTable(

@@ -51,7 +51,7 @@ const PublishSchema = z.object({
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ agentId: string }> }
+  { params }: { params: Promise<{ agentId: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { agentId } = await params;
@@ -61,7 +61,7 @@ export async function POST(
   if (!agent) {
     return NextResponse.json(
       { success: false, error: "Agent not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -69,7 +69,7 @@ export async function POST(
   if (agent.user_id !== user.id) {
     return NextResponse.json(
       { success: false, error: "Not authorized to publish this agent" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -80,7 +80,7 @@ export async function POST(
     a2aEnabled: true,
     mcpEnabled: true,
   };
-  
+
   try {
     const rawBody = await request.json();
     const validation = PublishSchema.safeParse(rawBody);
@@ -228,7 +228,7 @@ export async function POST(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ agentId: string }> }
+  { params }: { params: Promise<{ agentId: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { agentId } = await params;
@@ -237,14 +237,14 @@ export async function DELETE(
   if (!agent) {
     return NextResponse.json(
       { success: false, error: "Agent not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
   if (agent.user_id !== user.id) {
     return NextResponse.json(
       { success: false, error: "Not authorized" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -278,4 +278,3 @@ export async function DELETE(
     },
   });
 }
-

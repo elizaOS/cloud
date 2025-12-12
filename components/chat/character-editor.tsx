@@ -17,14 +17,7 @@ import { PluginsTab } from "@/components/chat/plugins-tab";
 import { UploadsTab } from "@/components/chat/uploads-tab";
 import type { ElizaCharacter } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import {
-  Download,
-  Save,
-  Zap,
-  BookOpen,
-  Sparkles,
-  Puzzle,
-} from "lucide-react";
+import { Download, Save, Zap, BookOpen, Sparkles, Puzzle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   BrandTabsResponsive,
@@ -50,7 +43,7 @@ export function CharacterEditor({
   const [activeTab, setActiveTab] = useState<MainTab>(
     initialTab && ["character", "plugins", "knowledge"].includes(initialTab)
       ? initialTab
-      : "character"
+      : "character",
   );
   const [showJson, setShowJson] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -165,13 +158,13 @@ export function CharacterEditor({
               onClick={() => setShowJson(!showJson)}
               className={cn(
                 "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                showJson ? "bg-[#FF5800]" : "bg-white/20"
+                showJson ? "bg-[#FF5800]" : "bg-white/20",
               )}
             >
               <span
                 className={cn(
                   "inline-block h-3 w-3 transform rounded-full bg-white transition-transform",
-                  showJson ? "translate-x-5" : "translate-x-1"
+                  showJson ? "translate-x-5" : "translate-x-1",
                 )}
               />
             </button>

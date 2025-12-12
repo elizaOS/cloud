@@ -27,8 +27,8 @@ export function getCloudUrl(): string {
     // This prevents the proxy from silently trying to connect to localhost
     console.error(
       "[Cloud URL] NEXT_PUBLIC_ELIZA_CLOUD_URL is not set in production! " +
-      "The miniapp proxy cannot connect to Eliza Cloud. " +
-      "Please set this environment variable to your Eliza Cloud URL (e.g., https://eliza.elizaos.ai)"
+        "The miniapp proxy cannot connect to Eliza Cloud. " +
+        "Please set this environment variable to your Eliza Cloud URL (e.g., https://eliza.elizaos.ai)",
     );
     // Return a placeholder that will fail fast with a clear error
     return "https://cloud-url-not-configured.invalid";

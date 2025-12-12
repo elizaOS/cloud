@@ -264,7 +264,9 @@ export function AppSettings({ app }: AppSettingsProps) {
         <CornerBrackets className="opacity-20" />
         <div className="relative z-10 space-y-4">
           <div>
-            <h2 className="text-xl font-semibold text-white">Allowed Origins</h2>
+            <h2 className="text-xl font-semibold text-white">
+              Allowed Origins
+            </h2>
             <p className="text-sm text-white/60 mt-1">
               API requests are only accepted from these domains
             </p>

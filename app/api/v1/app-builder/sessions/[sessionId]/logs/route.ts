@@ -9,7 +9,7 @@ import { logger } from "@/lib/utils/logger";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ sessionId: string }> }
+  { params }: { params: Promise<{ sessionId: string }> },
 ) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
@@ -29,11 +29,13 @@ export async function GET(
     });
   } catch (error) {
     logger.error("Failed to get session logs", { error });
-    const message = error instanceof Error ? error.message : "Failed to get logs";
-    const status = message.includes("Unauthorized") ? 403 : message.includes("not found") ? 404 : 500;
-    return NextResponse.json(
-      { success: false, error: message },
-      { status }
-    );
+    const message =
+      error instanceof Error ? error.message : "Failed to get logs";
+    const status = message.includes("Unauthorized")
+      ? 403
+      : message.includes("not found")
+        ? 404
+        : 500;
+    return NextResponse.json({ success: false, error: message }, { status });
   }
 }

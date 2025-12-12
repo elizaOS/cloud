@@ -52,7 +52,9 @@ test.describe("Models API", () => {
     }
   });
 
-  test("GET /api/v1/models/:model returns model details", async ({ request }) => {
+  test("GET /api/v1/models/:model returns model details", async ({
+    request,
+  }) => {
     // First get list of models
     const listResponse = await request.get(`${CLOUD_URL}/api/v1/models`, {
       headers: authHeaders(),
@@ -73,9 +75,12 @@ test.describe("Models API", () => {
     const modelId = models[0].id || "gpt-4o-mini";
 
     // Get model details
-    const response = await request.get(`${CLOUD_URL}/api/v1/models/${modelId}`, {
-      headers: authHeaders(),
-    });
+    const response = await request.get(
+      `${CLOUD_URL}/api/v1/models/${modelId}`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 404]).toContain(response.status());
 
@@ -132,10 +137,14 @@ test.describe("Embeddings API", () => {
         const embedding = data.data[0];
         expect(embedding).toHaveProperty("embedding");
         expect(Array.isArray(embedding.embedding)).toBe(true);
-        console.log(`✅ Embeddings generated (dimension: ${embedding.embedding.length})`);
+        console.log(
+          `✅ Embeddings generated (dimension: ${embedding.embedding.length})`,
+        );
       } else if (data.embedding) {
         expect(Array.isArray(data.embedding)).toBe(true);
-        console.log(`✅ Embeddings generated (dimension: ${data.embedding.length})`);
+        console.log(
+          `✅ Embeddings generated (dimension: ${data.embedding.length})`,
+        );
       } else {
         console.log("✅ Embeddings endpoint works");
       }
@@ -190,7 +199,9 @@ test.describe("Embeddings API", () => {
 
     if (data.usage) {
       expect(data.usage).toHaveProperty("total_tokens");
-      console.log(`✅ Embeddings return usage info (${data.usage.total_tokens} tokens)`);
+      console.log(
+        `✅ Embeddings return usage info (${data.usage.total_tokens} tokens)`,
+      );
     } else {
       console.log("ℹ️ Embeddings don't return usage info");
     }
@@ -200,14 +211,19 @@ test.describe("Embeddings API", () => {
 test.describe("Prompt Generation API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("POST /api/v1/generate-prompts generates prompts", async ({ request }) => {
-    const response = await request.post(`${CLOUD_URL}/api/v1/generate-prompts`, {
-      headers: authHeaders(),
-      data: {
-        topic: "AI assistants",
-        count: 3,
+  test("POST /api/v1/generate-prompts generates prompts", async ({
+    request,
+  }) => {
+    const response = await request.post(
+      `${CLOUD_URL}/api/v1/generate-prompts`,
+      {
+        headers: authHeaders(),
+        data: {
+          topic: "AI assistants",
+          count: 3,
+        },
       },
-    });
+    );
 
     expect([200, 201, 400, 404, 500, 501]).toContain(response.status());
 
@@ -230,14 +246,17 @@ test.describe("Prompt Generation API", () => {
     const styles = ["creative", "professional", "casual", "technical"];
 
     for (const style of styles) {
-      const response = await request.post(`${CLOUD_URL}/api/v1/generate-prompts`, {
-        headers: authHeaders(),
-        data: {
-          topic: "technology",
-          style,
-          count: 1,
+      const response = await request.post(
+        `${CLOUD_URL}/api/v1/generate-prompts`,
+        {
+          headers: authHeaders(),
+          data: {
+            topic: "technology",
+            style,
+            count: 1,
+          },
         },
-      });
+      );
 
       expect([200, 201, 400, 404, 500, 501]).toContain(response.status());
 
@@ -251,7 +270,9 @@ test.describe("Prompt Generation API", () => {
 test.describe("Knowledge Query API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("POST /api/v1/knowledge/query performs RAG query", async ({ request }) => {
+  test("POST /api/v1/knowledge/query performs RAG query", async ({
+    request,
+  }) => {
     const response = await request.post(`${CLOUD_URL}/api/v1/knowledge/query`, {
       headers: authHeaders(),
       data: {
@@ -268,7 +289,9 @@ test.describe("Knowledge Query API", () => {
 
       if (data.results) {
         expect(Array.isArray(data.results)).toBe(true);
-        console.log(`✅ Knowledge query returned ${data.results.length} results`);
+        console.log(
+          `✅ Knowledge query returned ${data.results.length} results`,
+        );
       } else {
         console.log("✅ Knowledge query endpoint works");
       }
@@ -296,7 +319,9 @@ test.describe("Knowledge Query API", () => {
     if (response.status() === 200 || response.status() === 201) {
       console.log("✅ Knowledge query with filters works");
     } else {
-      console.log(`ℹ️ Knowledge query with filters returned ${response.status()}`);
+      console.log(
+        `ℹ️ Knowledge query with filters returned ${response.status()}`,
+      );
     }
   });
 });
@@ -405,7 +430,7 @@ test.describe("API Explorer UI", () => {
 
     // Look for endpoint cards or list
     const endpoints = page.locator(
-      '[class*="endpoint"], [class*="api"], [class*="route"], article, [class*="card"]'
+      '[class*="endpoint"], [class*="api"], [class*="route"], article, [class*="card"]',
     );
     const endpointCount = await endpoints.count();
 
@@ -425,12 +450,10 @@ test.describe("API Explorer UI", () => {
 
     // Look for try/test buttons
     const tryButtons = page.locator(
-      'button:has-text("Try"), button:has-text("Test"), button:has-text("Execute"), button:has-text("Send")'
+      'button:has-text("Try"), button:has-text("Test"), button:has-text("Execute"), button:has-text("Send")',
     );
     const buttonCount = await tryButtons.count();
 
     console.log(`✅ Found ${buttonCount} try/test buttons in API Explorer`);
   });
 });
-
-

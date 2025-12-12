@@ -100,7 +100,11 @@ export const createCharacterAction = {
   name: "CREATE_CHARACTER",
   description:
     "User wants to finalize and save their new character. Use when user says: 'create it', 'save this character', 'looks good, let's go', 'I'm ready to create'. Only available in creator mode when building a NEW character with Eliza. Creates character in database and redirects to build mode.",
-  validate: async (runtime: IAgentRuntime, _message: Memory, _state?: State) => {
+  validate: async (
+    runtime: IAgentRuntime,
+    _message: Memory,
+    _state?: State,
+  ) => {
     return isCreatorMode(runtime);
   },
   handler: async (
@@ -124,7 +128,8 @@ export const createCharacterAction = {
 
     // Get user context from runtime settings
     const userId = runtime.character.settings?.USER_ID as string;
-    const organizationId = runtime.character.settings?.ORGANIZATION_ID as string;
+    const organizationId = runtime.character.settings
+      ?.ORGANIZATION_ID as string;
 
     if (!userId) {
       logger.error("[CREATE_CHARACTER] No USER_ID in runtime settings");
@@ -178,7 +183,9 @@ export const createCharacterAction = {
     } | null;
 
     if (!parsed?.character || !parsed?.characterName) {
-      logger.error("[CREATE_CHARACTER] Failed to parse character from response");
+      logger.error(
+        "[CREATE_CHARACTER] Failed to parse character from response",
+      );
       await callback({
         text: "I had trouble creating the character definition. Could you provide more details about what you want?",
         error: true,
@@ -189,7 +196,9 @@ export const createCharacterAction = {
     // Parse character JSON
     const characterData: Record<string, unknown> = JSON.parse(parsed.character);
 
-    logger.info(`[CREATE_CHARACTER] Creating character: ${parsed.characterName}`);
+    logger.info(
+      `[CREATE_CHARACTER] Creating character: ${parsed.characterName}`,
+    );
 
     // Create the character in the database
     const savedCharacter = await charactersService.create({
@@ -201,13 +210,23 @@ export const createCharacterAction = {
       bio: (characterData.bio as string | string[]) || [],
       adjectives: (characterData.adjectives as string[]) || undefined,
       topics: (characterData.topics as string[]) || undefined,
-      style: (characterData.style as { all?: string[]; chat?: string[]; post?: string[] }) || undefined,
-      message_examples: (characterData.messageExamples as Record<string, unknown>[][]) || undefined,
+      style:
+        (characterData.style as {
+          all?: string[];
+          chat?: string[];
+          post?: string[];
+        }) || undefined,
+      message_examples:
+        (characterData.messageExamples as Record<string, unknown>[][]) ||
+        undefined,
       post_examples: (characterData.postExamples as string[]) || undefined,
       knowledge: (characterData.knowledge as string[]) || undefined,
       plugins: (characterData.plugins as string[]) || undefined,
-      settings: (characterData.settings as Record<string, unknown>) || undefined,
-      secrets: (characterData.secrets as Record<string, string | boolean | number>) || undefined,
+      settings:
+        (characterData.settings as Record<string, unknown>) || undefined,
+      secrets:
+        (characterData.secrets as Record<string, string | boolean | number>) ||
+        undefined,
       character_data: {},
       is_public: false,
       is_template: false,
@@ -224,7 +243,9 @@ export const createCharacterAction = {
       return;
     }
 
-    logger.info(`[CREATE_CHARACTER] Character created with ID: ${savedCharacter.id}`);
+    logger.info(
+      `[CREATE_CHARACTER] Character created with ID: ${savedCharacter.id}`,
+    );
 
     // Lock the room - this creator session is complete
     const roomId = message.roomId;
@@ -239,7 +260,9 @@ export const createCharacterAction = {
 
     // Callback with success and character ID for frontend redirect
     await callback({
-      text: parsed.confirmation || `I've created ${parsed.characterName}! You can now continue building and refining the character.`,
+      text:
+        parsed.confirmation ||
+        `I've created ${parsed.characterName}! You can now continue building and refining the character.`,
       thought: parsed.thought,
       metadata: {
         action: "CREATE_CHARACTER",

@@ -15,8 +15,8 @@ import { db } from "@/db/client";
 import { roomTable } from "@/db/schemas/eliza";
 import type { Memory } from "@elizaos/core";
 import { v4 as uuidv4 } from "uuid";
-import { 
-  parseMessageContent, 
+import {
+  parseMessageContent,
   isVisibleDialogueMessage,
 } from "@/lib/types/message-content";
 
@@ -64,7 +64,7 @@ export type { RoomWithPreview };
 export class RoomsService {
   /**
    * Get room by ID with messages
-   * 
+   *
    * Automatically filters out:
    * - Hidden messages (metadata.visibility === 'hidden')
    * - Action result messages (internal system messages)
@@ -92,22 +92,25 @@ export class RoomsService {
     const visibleMessages = messagesInOrder.filter((msg) => {
       const content = parseMessageContent(msg.content);
       const metadata = msg.metadata as Record<string, unknown> | undefined;
-      
+
       // Check if message should be visible using helper
       const isVisible = isVisibleDialogueMessage(metadata, content);
-      
+
       return isVisible;
     });
 
     // Deduplicate messages: Remove duplicate agent responses that might have been
     // stored twice (once by action callback, once by handler). Keep the one with
     // attachments or the first one if both/neither have attachments.
-    const seenTexts = new Map<string, { 
-      index: number; 
-      hasAttachments: boolean; 
-      isAgent: boolean;
-      message: Memory;
-    }>();
+    const seenTexts = new Map<
+      string,
+      {
+        index: number;
+        hasAttachments: boolean;
+        isAgent: boolean;
+        message: Memory;
+      }
+    >();
     const indicesToRemove = new Set<number>();
 
     visibleMessages.forEach((msg, index) => {
@@ -131,17 +134,28 @@ export class RoomsService {
         if (currentHasAttachments && !existing.hasAttachments) {
           // Current has attachments, existing doesn't - keep current
           indicesToRemove.add(existing.index);
-          seenTexts.set(key, { index, hasAttachments: currentHasAttachments, isAgent, message: msg });
+          seenTexts.set(key, {
+            index,
+            hasAttachments: currentHasAttachments,
+            isAgent,
+            message: msg,
+          });
         } else if (isAgent && !existing.isAgent) {
           // Current is from agent, existing isn't - keep current
           indicesToRemove.add(existing.index);
-          seenTexts.set(key, { index, hasAttachments: currentHasAttachments, isAgent, message: msg });
+          seenTexts.set(key, {
+            index,
+            hasAttachments: currentHasAttachments,
+            isAgent,
+            message: msg,
+          });
         } else {
           // Keep existing, remove current
           indicesToRemove.add(index);
         }
       } else {
-        const hasAttachments = Array.isArray(content?.attachments) && content.attachments.length > 0;
+        const hasAttachments =
+          Array.isArray(content?.attachments) && content.attachments.length > 0;
         const isAgentBySource = content?.source === "agent";
         const isAgentByEntityId = msg.entityId === msg.agentId;
         const isAgent = content?.source ? isAgentBySource : isAgentByEntityId;
@@ -149,7 +163,9 @@ export class RoomsService {
       }
     });
 
-    const cleanMessages = visibleMessages.filter((_, index) => !indicesToRemove.has(index));
+    const cleanMessages = visibleMessages.filter(
+      (_, index) => !indicesToRemove.has(index),
+    );
 
     return {
       room,
@@ -161,7 +177,7 @@ export class RoomsService {
   /**
    * Get rooms for an entity (user) with last message preview
    * Uses a single optimized query - no N+1 problem
-   * 
+   *
    * Filters out:
    * - Locked rooms (where a character was created/saved)
    * - BUILD and CREATOR rooms (character building sessions)
@@ -175,26 +191,32 @@ export class RoomsService {
       await roomsRepository.findRoomsWithPreviewForEntity(entityId);
 
     // Transform to API response format and filter out locked/builder rooms
-    return roomsWithPreview
-      .map((room) => {
-        const metadata = room.metadata as { locked?: boolean } | null;
-        const isLocked = metadata?.locked === true;
-        const isBuildRoom = room.name?.startsWith("[BUILD]") || room.name?.startsWith("[CREATOR]") || false;
-        
-        return {
-          id: room.id,
-          title: room.name || undefined,
-          characterId: room.characterId || undefined,
-          characterName: room.characterName || undefined,
-          characterAvatarUrl: room.characterAvatarUrl || undefined,
-          lastTime: room.lastMessageTime?.getTime() || room.createdAt?.getTime(),
-          lastText: room.lastMessageText?.substring(0, 100) || undefined,
-          isLocked,
-          isBuildRoom,
-        };
-      })
-      // Filter out locked rooms and builder rooms from the list
-      .filter((room) => !room.isLocked && !room.isBuildRoom);
+    return (
+      roomsWithPreview
+        .map((room) => {
+          const metadata = room.metadata as { locked?: boolean } | null;
+          const isLocked = metadata?.locked === true;
+          const isBuildRoom =
+            room.name?.startsWith("[BUILD]") ||
+            room.name?.startsWith("[CREATOR]") ||
+            false;
+
+          return {
+            id: room.id,
+            title: room.name || undefined,
+            characterId: room.characterId || undefined,
+            characterName: room.characterName || undefined,
+            characterAvatarUrl: room.characterAvatarUrl || undefined,
+            lastTime:
+              room.lastMessageTime?.getTime() || room.createdAt?.getTime(),
+            lastText: room.lastMessageText?.substring(0, 100) || undefined,
+            isLocked,
+            isBuildRoom,
+          };
+        })
+        // Filter out locked rooms and builder rooms from the list
+        .filter((room) => !room.isLocked && !room.isBuildRoom)
+    );
   }
 
   /**
@@ -296,7 +318,10 @@ export class RoomsService {
    */
   async hasAccess(roomId: string, entityId: string): Promise<boolean> {
     // First check if user is a participant
-    const isParticipant = await participantsRepository.isParticipant(roomId, entityId);
+    const isParticipant = await participantsRepository.isParticipant(
+      roomId,
+      entityId,
+    );
     if (isParticipant) {
       return true;
     }
@@ -338,7 +363,6 @@ export class RoomsService {
       entityId,
       agentId,
     });
-
   }
 
   /**

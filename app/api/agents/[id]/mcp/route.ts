@@ -21,7 +21,11 @@ import { creditsService } from "@/lib/services/credits";
 import { charactersService } from "@/lib/services/characters/characters";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
-import { calculateCost, getProviderFromModel, estimateRequestCost } from "@/lib/pricing";
+import {
+  calculateCost,
+  getProviderFromModel,
+  estimateRequestCost,
+} from "@/lib/pricing";
 import { X402_ENABLED, isX402Configured } from "@/lib/config/x402";
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
 import { logger } from "@/lib/utils/logger";
@@ -49,7 +53,7 @@ const MCPRequestSchema = z.object({
  */
 export async function GET(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const { id } = await ctx.params;
 
@@ -61,7 +65,7 @@ export async function GET(
   if (!character.is_public || !character.mcp_enabled) {
     return NextResponse.json(
       { error: "MCP not accessible for this agent" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -135,7 +139,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const { id } = await ctx.params;
 
@@ -147,7 +151,7 @@ export async function POST(
         error: { code: -32001, message: "Agent not found" },
         id: null,
       },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -158,7 +162,7 @@ export async function POST(
         error: { code: -32001, message: "MCP not accessible" },
         id: null,
       },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -172,7 +176,7 @@ export async function POST(
         error: { code: -32700, message: "Parse error" },
         id: null,
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -182,18 +186,27 @@ export async function POST(
   // NOTE: This endpoint uses credit-based auth. For x402 payments, clients should:
   // 1. Top up credits via /api/v1/credits/topup (x402 enabled)
   // 2. Then use their API key or session here
-  const authResult = await requireAuthOrApiKeyWithOrg(request).catch(() => null);
-  
+  const authResult = await requireAuthOrApiKeyWithOrg(request).catch(
+    () => null,
+  );
+
   if (!authResult) {
     // Return 402 with x402 topup info if enabled
     if (X402_ENABLED && isX402Configured()) {
-      const { getDefaultNetwork, X402_RECIPIENT_ADDRESS, USDC_ADDRESSES, TOPUP_PRICE, CREDITS_PER_DOLLAR } = await import("@/lib/config/x402");
+      const {
+        getDefaultNetwork,
+        X402_RECIPIENT_ADDRESS,
+        USDC_ADDRESSES,
+        TOPUP_PRICE,
+        CREDITS_PER_DOLLAR,
+      } = await import("@/lib/config/x402");
       return NextResponse.json(
         {
           jsonrpc: "2.0",
           error: {
             code: -32002,
-            message: "Authentication required. Top up credits via x402 at /api/v1/credits/topup",
+            message:
+              "Authentication required. Top up credits via x402 at /api/v1/credits/topup",
             data: {
               x402: {
                 topupEndpoint: "/api/v1/credits/topup",
@@ -207,7 +220,7 @@ export async function POST(
           },
           id: rpcId,
         },
-        { status: 402 }
+        { status: 402 },
       );
     }
     return NextResponse.json(
@@ -216,10 +229,10 @@ export async function POST(
         error: { code: -32002, message: "Authentication required" },
         id: rpcId,
       },
-      { status: 401 }
+      { status: 401 },
     );
   }
-  
+
   const paymentMethod = "credits" as const;
 
   // Handle MCP methods
@@ -271,7 +284,13 @@ export async function POST(
       });
 
     case "tools/call":
-      return handleToolCall(character, params ?? {}, rpcId, authResult, paymentMethod);
+      return handleToolCall(
+        character,
+        params ?? {},
+        rpcId,
+        authResult,
+        paymentMethod,
+      );
 
     case "ping":
       return NextResponse.json({
@@ -287,7 +306,7 @@ export async function POST(
           error: { code: -32601, message: "Method not found" },
           id: rpcId,
         },
-        { status: 400 }
+        { status: 400 },
       );
   }
 }
@@ -309,7 +328,7 @@ async function handleToolCall(
   params: Record<string, unknown>,
   rpcId: string | number,
   authResult: { user: { id: string; organization_id: string } } | null,
-  paymentMethod: "credits" | "x402"
+  paymentMethod: "credits" | "x402",
 ) {
   const { name, arguments: args } = params as {
     name: string;
@@ -419,7 +438,7 @@ async function handleToolCall(
       model,
       provider,
       usage?.inputTokens || 0,
-      usage?.outputTokens || 0
+      usage?.outputTokens || 0,
     );
     const actualCreatorMarkup = character.monetization_enabled
       ? actualBaseCost * (markupPct / 100)
@@ -440,11 +459,14 @@ async function handleToolCall(
         protocol: "mcp",
       });
 
-      logger.info("[Agent MCP] Creator earnings credited to redeemable balance", {
-        agentId: character.id,
-        ownerId: character.user_id,
-        earnings: actualCreatorMarkup,
-      });
+      logger.info(
+        "[Agent MCP] Creator earnings credited to redeemable balance",
+        {
+          agentId: character.id,
+          ownerId: character.user_id,
+          earnings: actualCreatorMarkup,
+        },
+      );
     }
 
     // Handle cost difference (refund or charge extra)
@@ -507,8 +529,8 @@ export async function OPTIONS() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-PAYMENT",
+      "Access-Control-Allow-Headers":
+        "Content-Type, Authorization, X-API-Key, X-PAYMENT",
     },
   });
 }
-

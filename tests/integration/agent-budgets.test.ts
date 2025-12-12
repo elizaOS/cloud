@@ -21,7 +21,9 @@ mock.module("@/db/client", () => ({
       agentBudgets: { findFirst: mock(), findMany: mock() },
       agentBudgetTransactions: { findMany: mock() },
     },
-    select: mock(() => ({ from: mock(() => ({ where: mock(() => ({ for: mock() })) })) })),
+    select: mock(() => ({
+      from: mock(() => ({ where: mock(() => ({ for: mock() })) })),
+    })),
     from: mock(() => ({ where: mock() })),
     where: mock(),
     for: mock(),
@@ -37,7 +39,9 @@ mock.module("@/db/client", () => ({
 // Mock credits service
 mock.module("@/lib/services/credits", () => ({
   creditsService: {
-    deductCredits: mock(() => Promise.resolve({ success: true, newBalance: 100 })),
+    deductCredits: mock(() =>
+      Promise.resolve({ success: true, newBalance: 100 }),
+    ),
     addCredits: mock(() => Promise.resolve({ success: true })),
     refundCredits: mock(() => Promise.resolve({ success: true })),
   },
@@ -117,7 +121,10 @@ describe("Agent Budget System", () => {
 
       const result = {
         success: orgBalance >= allocationAmount,
-        error: orgBalance < allocationAmount ? "Insufficient organization credits" : undefined,
+        error:
+          orgBalance < allocationAmount
+            ? "Insufficient organization credits"
+            : undefined,
       };
 
       expect(result.success).toBe(false);
@@ -407,4 +414,3 @@ AGENT BUDGET SYSTEM - PRODUCTION READY
     expect(summary).toContain("PRODUCTION READY");
   });
 });
-
