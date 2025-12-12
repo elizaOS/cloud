@@ -1,36 +1,16 @@
 /**
  * Social Connections API Integration Tests
- * 
- * Tests the OAuth connection flow and manual credential submission.
- * 
- * Required environment variables for full testing:
- * - BLUESKY_HANDLE, BLUESKY_APP_PASSWORD - for Bluesky tests
- * - TELEGRAM_BOT_TOKEN - for Telegram tests
+ * Requires running server. Set TEST_API_KEY for authenticated tests.
  */
 
 import { describe, test, expect, beforeAll } from "bun:test";
 
 const API_BASE = process.env.TEST_API_BASE || "http://localhost:3000";
-
-function skipWithWarning(testName: string, reason: string) {
-  console.log(`⚠️  SKIPPED: ${testName} - ${reason}`);
-}
-
-async function getTestApiKey(): Promise<string | null> {
-  const apiKey = process.env.TEST_API_KEY;
-  if (!apiKey) {
-    console.log("⚠️  TEST_API_KEY not set - skipping authenticated tests");
-    return null;
-  }
-  return apiKey;
-}
+const skip = (name: string, reason: string) => console.log(`⚠️  SKIP: ${name} - ${reason}`);
 
 describe("Social Connections API", () => {
-  let apiKey: string | null = null;
-
-  beforeAll(async () => {
-    apiKey = await getTestApiKey();
-  });
+  const apiKey = process.env.TEST_API_KEY ?? null;
+  if (!apiKey) console.log("⚠️  TEST_API_KEY not set - authenticated tests will skip");
 
   describe("GET /api/v1/social-connections", () => {
     test("should return 401 without authentication", async () => {
@@ -40,7 +20,7 @@ describe("Social Connections API", () => {
 
     test("should list available platforms when authenticated", async () => {
       if (!apiKey) {
-        skipWithWarning("List platforms", "TEST_API_KEY not set");
+        skip("List platforms", "TEST_API_KEY not set");
         return;
       }
 
@@ -66,7 +46,7 @@ describe("Social Connections API", () => {
   describe("GET /api/v1/social-connections/connect/[platform]", () => {
     test("should return 404 for unsupported platform", async () => {
       if (!apiKey) {
-        skipWithWarning("Unsupported platform", "TEST_API_KEY not set");
+        skip("Unsupported platform", "TEST_API_KEY not set");
         return;
       }
 
@@ -79,7 +59,7 @@ describe("Social Connections API", () => {
 
     test("should return auth requirements for Bluesky (manual)", async () => {
       if (!apiKey) {
-        skipWithWarning("Bluesky requirements", "TEST_API_KEY not set");
+        skip("Bluesky requirements", "TEST_API_KEY not set");
         return;
       }
 
@@ -97,7 +77,7 @@ describe("Social Connections API", () => {
 
     test("should return auth requirements for Telegram (manual)", async () => {
       if (!apiKey) {
-        skipWithWarning("Telegram requirements", "TEST_API_KEY not set");
+        skip("Telegram requirements", "TEST_API_KEY not set");
         return;
       }
 
@@ -114,7 +94,7 @@ describe("Social Connections API", () => {
 
     test("should return OAuth info for Twitter", async () => {
       if (!apiKey) {
-        skipWithWarning("Twitter OAuth info", "TEST_API_KEY not set");
+        skip("Twitter OAuth info", "TEST_API_KEY not set");
         return;
       }
 
@@ -133,7 +113,7 @@ describe("Social Connections API", () => {
   describe("POST /api/v1/social-connections/connect/[platform]", () => {
     test("should reject Bluesky OAuth request (must use manual flow)", async () => {
       if (!apiKey) {
-        skipWithWarning("Bluesky OAuth rejection", "TEST_API_KEY not set");
+        skip("Bluesky OAuth rejection", "TEST_API_KEY not set");
         return;
       }
 
@@ -153,7 +133,7 @@ describe("Social Connections API", () => {
 
     test("should require instanceUrl for Mastodon OAuth", async () => {
       if (!apiKey) {
-        skipWithWarning("Mastodon instance requirement", "TEST_API_KEY not set");
+        skip("Mastodon instance requirement", "TEST_API_KEY not set");
         return;
       }
 
@@ -175,7 +155,7 @@ describe("Social Connections API", () => {
   describe("POST /api/v1/social-connections (manual credentials)", () => {
     test("should reject invalid platform", async () => {
       if (!apiKey) {
-        skipWithWarning("Invalid platform rejection", "TEST_API_KEY not set");
+        skip("Invalid platform rejection", "TEST_API_KEY not set");
         return;
       }
 
@@ -196,7 +176,7 @@ describe("Social Connections API", () => {
 
     test("should require credentials for Bluesky", async () => {
       if (!apiKey) {
-        skipWithWarning("Bluesky credential requirement", "TEST_API_KEY not set");
+        skip("Bluesky credential requirement", "TEST_API_KEY not set");
         return;
       }
 
@@ -224,7 +204,7 @@ describe("Social Connections API", () => {
 
     test("should connect with valid credentials", async () => {
       if (!apiKey || !handle || !appPassword) {
-        skipWithWarning(
+        skip(
           "E2E Bluesky connection",
           "TEST_API_KEY, BLUESKY_TEST_HANDLE, or BLUESKY_TEST_APP_PASSWORD not set"
         );
@@ -265,7 +245,7 @@ describe("Social Connections API", () => {
 
     test("should connect with valid bot token", async () => {
       if (!apiKey || !botToken) {
-        skipWithWarning("E2E Telegram connection", "TEST_API_KEY or TELEGRAM_TEST_BOT_TOKEN not set");
+        skip("E2E Telegram connection", "TEST_API_KEY or TELEGRAM_TEST_BOT_TOKEN not set");
         return;
       }
 

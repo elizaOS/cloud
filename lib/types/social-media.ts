@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 /**
  * Supported social media platforms.
  *
@@ -394,3 +396,44 @@ export function calculatePostCredits(platforms: SocialPlatform[], content: Parti
     return total + Math.ceil(base * (MULTIPLIERS[platform] || 1.0));
   }, 0);
 }
+
+// =============================================================================
+// SHARED ZOD SCHEMAS
+// =============================================================================
+
+export const SocialPlatformSchema = z.enum([
+  "twitter", "bluesky", "discord", "telegram", "slack", "reddit",
+  "facebook", "instagram", "tiktok", "linkedin", "mastodon",
+]);
+
+export const NotificationPlatformSchema = z.enum(["discord", "telegram", "slack"]);
+
+export const MediaAttachmentSchema = z.object({
+  type: z.enum(["image", "video", "gif"]),
+  url: z.string().url().optional(),
+  base64: z.string().optional(),
+  mimeType: z.string(),
+  altText: z.string().optional(),
+});
+
+export const PostContentSchema = z.object({
+  text: z.string().max(5000),
+  media: z.array(MediaAttachmentSchema).max(4).optional(),
+  link: z.string().url().optional(),
+  linkTitle: z.string().optional(),
+  linkDescription: z.string().optional(),
+  hashtags: z.array(z.string()).optional(),
+  mentions: z.array(z.string()).optional(),
+  replyToId: z.string().optional(),
+  quoteId: z.string().optional(),
+});
+
+export const NotificationChannelSchema = z.object({
+  platform: NotificationPlatformSchema,
+  channelId: z.string(),
+  serverId: z.string().optional(),
+  connectionId: z.string().optional(),
+  threadId: z.string().optional(),
+});
+
+export type NotificationChannel = z.infer<typeof NotificationChannelSchema>;

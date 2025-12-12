@@ -1,9 +1,3 @@
-/**
- * Random Name Generator for Apps, Services, Workflows, and Projects
- * 
- * Generates friendly, memorable names using adjective + animal combinations.
- */
-
 const ADJECTIVES = [
   "swift", "cosmic", "bright", "nimble", "stellar", "vibrant", "elegant",
   "radiant", "dynamic", "agile", "clever", "mystic", "vivid", "bold",
@@ -32,70 +26,31 @@ const NOUNS = [
   "frost", "glow", "drift", "surge", "rush", "burst", "flash", "bolt",
 ] as const;
 
-/**
- * Generate a random adjective + animal name (e.g., "cosmic-falcon")
- */
+const SERVICE_SUFFIXES = ["api", "service", "hub", "connect", "sync", "flow", "bridge"] as const;
+
+const pick = <T>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)];
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
 export function generateRandomName(): string {
-  const adjective = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
-  const animal = ANIMALS[Math.floor(Math.random() * ANIMALS.length)];
-  return `${adjective}-${animal}`;
+  return `${pick(ADJECTIVES)}-${pick(ANIMALS)}`;
 }
 
-/**
- * Generate a random name with a suffix number for uniqueness
- */
-export function generateRandomNameWithSuffix(): string {
-  const base = generateRandomName();
-  const suffix = Math.floor(Math.random() * 1000);
-  return `${base}-${suffix}`;
-}
-
-/**
- * Generate a display-friendly name (Title Case, no hyphens)
- */
 export function generateDisplayName(): string {
-  const adjective = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
-  const animal = ANIMALS[Math.floor(Math.random() * ANIMALS.length)];
-  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-  return `${capitalize(adjective)} ${capitalize(animal)}`;
+  return `${capitalize(pick(ADJECTIVES))} ${capitalize(pick(ANIMALS))}`;
 }
 
-/**
- * Generate a workflow-style name (e.g., "cosmic-flux")
- */
 export function generateWorkflowName(): string {
-  const adjective = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
-  const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
-  return `${adjective}-${noun}`;
+  return `${pick(ADJECTIVES)}-${pick(NOUNS)}`;
 }
 
-/**
- * Generate a service-style name (e.g., "stellar-api")
- */
 export function generateServiceName(): string {
-  const adjective = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
-  const suffixes = ["api", "service", "hub", "connect", "sync", "flow", "bridge"];
-  const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
-  return `${adjective}-${suffix}`;
+  return `${pick(ADJECTIVES)}-${pick(SERVICE_SUFFIXES)}`;
 }
 
 export type EntityType = "app" | "agent" | "workflow" | "service" | "miniapp";
 
-/**
- * Generate an appropriate name for the given entity type
- */
 export function generateNameForType(type: EntityType): string {
-  switch (type) {
-    case "app":
-    case "miniapp":
-      return generateDisplayName();
-    case "agent":
-      return generateDisplayName();
-    case "workflow":
-      return generateWorkflowName();
-    case "service":
-      return generateServiceName();
-    default:
-      return generateRandomName();
-  }
+  if (type === "workflow") return generateWorkflowName();
+  if (type === "service") return generateServiceName();
+  return generateDisplayName();
 }

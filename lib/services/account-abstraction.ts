@@ -38,10 +38,6 @@ import {
 import { jeju, jejuTestnet, jejuLocalnet } from "@/lib/config/chains";
 import { base, baseSepolia, foundry } from "viem/chains";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 /** UserOperation for ERC-4337 */
 interface UserOperation {
   sender: Address;
@@ -85,9 +81,7 @@ interface BatchRegistrationResult {
   error?: string;
 }
 
-// ============================================================================
 // ABI Definitions
-// ============================================================================
 
 /** ERC-4337 EntryPoint ABI (partial) */
 const ENTRYPOINT_ABI = [

@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,11 +31,11 @@ const rentals = new Map<string, Rental>();
  * Get rental details
  */
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ rentalId: string }> }
 ) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
+  const user = await requireAuth().catch(() => null);
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -46,7 +46,7 @@ export async function GET(
     // Return simulated rental for demo
     return NextResponse.json({
       id: rentalId,
-      userId: session.user.id,
+      userId: user.id,
       gpuType: 'H200',
       status: 'running',
       sshHost: `gpu-${rentalId.slice(0, 8)}.compute.jeju.ai`,
@@ -57,7 +57,7 @@ export async function GET(
   }
 
   // Verify ownership
-  if (rental.userId !== session.user.id) {
+  if (rental.userId !== user.id) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
@@ -69,11 +69,11 @@ export async function GET(
  * Terminate a rental early
  */
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ rentalId: string }> }
 ) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
+  const user = await requireAuth().catch(() => null);
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -85,7 +85,7 @@ export async function DELETE(
     // Create a mock terminated rental
     rental = {
       id: rentalId,
-      userId: session.user.id,
+      userId: user.id,
       gpuType: 'H200',
       status: 'terminated',
       sshHost: `gpu-${rentalId.slice(0, 8)}.compute.jeju.ai`,
@@ -97,7 +97,7 @@ export async function DELETE(
     rentals.set(rentalId, rental);
   } else {
     // Verify ownership
-    if (rental.userId !== session.user.id) {
+    if (rental.userId !== user.id) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 

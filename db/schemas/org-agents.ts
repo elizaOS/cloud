@@ -37,6 +37,78 @@ export const orgAgentInstanceStatusEnum = pgEnum("org_agent_instance_status", [
 ]);
 
 // =============================================================================
+// COMMUNITY MODERATION SETTINGS TYPE
+// =============================================================================
+
+/**
+ * Comprehensive moderation settings for the community manager agent.
+ * Stored in org_agent_configs.community_settings JSONB column.
+ */
+export interface CommunityModerationSettings {
+  // Welcome & Greeting
+  greetNewMembers?: boolean;
+  greetingMessage?: string;
+  greetingChannelId?: string;
+  welcomeRoleId?: string;
+
+  // Anti-spam
+  antiSpamEnabled?: boolean;
+  maxMessagesPerMinute?: number;
+  duplicateMessageThreshold?: number;
+  spamAction?: "warn" | "delete" | "timeout";
+  spamTimeoutMinutes?: number;
+
+  // Anti-scam
+  antiScamEnabled?: boolean;
+  blockKnownScamLinks?: boolean;
+  blockSuspiciousDomains?: boolean;
+  scamAction?: "warn" | "delete" | "timeout" | "ban";
+
+  // Link checking
+  linkCheckingEnabled?: boolean;
+  allowedDomains?: string[];
+  blockedDomains?: string[];
+  checkLinksWithSafeBrowsing?: boolean;
+  linkAction?: "warn" | "delete";
+
+  // Word filtering
+  badWordFilterEnabled?: boolean;
+  banWords?: string[];
+  filterAction?: "delete" | "warn" | "timeout";
+
+  // Raid protection
+  raidProtectionEnabled?: boolean;
+  joinRateLimitPerMinute?: number;
+  autoLockdownThreshold?: number;
+  lockdownDurationMinutes?: number;
+
+  // Content moderation
+  contentModerationEnabled?: boolean;
+  moderateNsfw?: boolean;
+  moderateHarassment?: boolean;
+
+  // Moderation escalation
+  escalationEnabled?: boolean;
+  warnAfterViolations?: number;
+  timeoutAfterViolations?: number;
+  banAfterViolations?: number;
+  defaultTimeoutMinutes?: number;
+
+  // Token gating
+  tokenGatingEnabled?: boolean;
+  verificationChannelId?: string;
+  verifiedRoleId?: string;
+  unverifiedRoleId?: string;
+  verificationMessage?: string;
+
+  // Logging
+  logChannelId?: string;
+  logModerationActions?: boolean;
+  logMemberJoins?: boolean;
+  logMemberLeaves?: boolean;
+}
+
+// =============================================================================
 // ORG AGENT INSTANCES TABLE
 // =============================================================================
 
@@ -142,12 +214,7 @@ export const orgAgentConfigs = pgTable(
     }>(),
 
     // Community settings (for community manager)
-    community_settings: jsonb("community_settings").$type<{
-      greetNewMembers?: boolean;
-      greetingMessage?: string;
-      autoModeration?: boolean;
-      banWords?: string[];
-    }>(),
+    community_settings: jsonb("community_settings").$type<CommunityModerationSettings>(),
 
     // Timestamps
     created_at: timestamp("created_at").notNull().defaultNow(),

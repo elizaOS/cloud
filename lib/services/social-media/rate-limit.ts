@@ -22,6 +22,7 @@ const PLATFORM_RATE_LIMITS: Record<SocialPlatform, { requestsPerWindow: number; 
   bluesky: { requestsPerWindow: 3000, windowMs: 5 * 60 * 1000 },
   discord: { requestsPerWindow: 50, windowMs: 1000 },
   telegram: { requestsPerWindow: 30, windowMs: 1000 },
+  slack: { requestsPerWindow: 50, windowMs: 60 * 1000 }, // Tier 2: ~1 req/sec
   reddit: { requestsPerWindow: 60, windowMs: 60 * 1000 },
   facebook: { requestsPerWindow: 200, windowMs: 60 * 60 * 1000 },
   instagram: { requestsPerWindow: 200, windowMs: 60 * 60 * 1000 },
@@ -101,3 +102,4 @@ export async function withRetry<T>(
 export function getRateLimitConfig(platform: SocialPlatform) {
   return PLATFORM_RATE_LIMITS[platform];
 }
+

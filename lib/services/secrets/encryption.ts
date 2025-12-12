@@ -1,27 +1,11 @@
-/**
- * Secrets Encryption Service
- *
- * Implements envelope encryption for secrets:
- * 1. Generate a unique DEK (Data Encryption Key) via KMS
- * 2. Encrypt the secret with DEK using AES-256-GCM
- * 3. Encrypt DEK with KMS KEK (Key Encryption Key)
- * 4. Store encrypted secret + encrypted DEK + nonce
- *
- * On decryption:
- * 1. Decrypt DEK using KMS
- * 2. Decrypt secret using DEK
- * 3. Zero out DEK from memory
- */
-
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
-import { logger } from "@/lib/utils/logger";
 
 export interface EncryptionResult {
-  encryptedValue: string; // Base64 encoded ciphertext
-  encryptedDek: string; // Base64 encoded encrypted DEK
-  nonce: string; // Base64 encoded IV
-  authTag: string; // Base64 encoded GCM auth tag
-  keyId: string; // KMS key identifier
+  encryptedValue: string;
+  encryptedDek: string;
+  nonce: string;
+  authTag: string;
+  keyId: string;
 }
 
 export interface DecryptionParams {
@@ -32,94 +16,49 @@ export interface DecryptionParams {
 }
 
 export interface KMSProvider {
-  /**
-   * Generate a new data encryption key.
-   * Returns both plaintext (for immediate use) and ciphertext (for storage).
-   */
-  generateDataKey(): Promise<{
-    plaintext: Buffer;
-    ciphertext: string;
-    keyId: string;
-  }>;
-
-  /**
-   * Decrypt an encrypted data key.
-   */
+  generateDataKey(): Promise<{ plaintext: Buffer; ciphertext: string; keyId: string }>;
   decrypt(ciphertext: string): Promise<Buffer>;
-
-  /**
-   * Check if KMS is properly configured.
-   */
   isConfigured(): boolean;
 }
 
-/** Local KMS provider for development/testing. Use real KMS in production. */
 export class LocalKMSProvider implements KMSProvider {
   private masterKey: Buffer;
   private keyId: string;
 
   constructor(masterKeyHex?: string) {
-    // Use provided key or generate from env/random
-    const keySource =
-      masterKeyHex ||
-      process.env.SECRETS_MASTER_KEY ||
-      // Default dev key (32 bytes = 256 bits)
-      "0000000000000000000000000000000000000000000000000000000000000000";
-
-    if (keySource.length !== 64) {
+    const keySource = masterKeyHex || process.env.SECRETS_MASTER_KEY;
+    if (!keySource && process.env.NODE_ENV === "production") {
+      throw new Error("SECRETS_MASTER_KEY environment variable is required in production");
+    }
+    const key = keySource || "0000000000000000000000000000000000000000000000000000000000000000";
+    if (key.length !== 64) {
       throw new Error("Master key must be 64 hex characters (32 bytes)");
     }
-
-    this.masterKey = Buffer.from(keySource, "hex");
+    this.masterKey = Buffer.from(key, "hex");
     this.keyId = "local-kms-key";
-
-    if (!process.env.SECRETS_MASTER_KEY && process.env.NODE_ENV === "production") {
-      logger.warn(
-        "[LocalKMS] Using default master key in production! Set SECRETS_MASTER_KEY env var."
-      );
-    }
   }
 
-  async generateDataKey(): Promise<{
-    plaintext: Buffer;
-    ciphertext: string;
-    keyId: string;
-  }> {
-    // Generate random 256-bit DEK
+  async generateDataKey(): Promise<{ plaintext: Buffer; ciphertext: string; keyId: string }> {
     const plaintext = randomBytes(32);
-
-    // Encrypt DEK with master key using AES-256-GCM
     const nonce = randomBytes(12);
     const cipher = createCipheriv("aes-256-gcm", this.masterKey, nonce);
     const encrypted = Buffer.concat([cipher.update(plaintext), cipher.final()]);
-    const authTag = cipher.getAuthTag();
-
-    // Pack nonce + authTag + ciphertext
-    const ciphertext = Buffer.concat([nonce, authTag, encrypted]).toString("base64");
-
+    const ciphertext = Buffer.concat([nonce, cipher.getAuthTag(), encrypted]).toString("base64");
     return { plaintext, ciphertext, keyId: this.keyId };
   }
 
   async decrypt(ciphertext: string): Promise<Buffer> {
     const data = Buffer.from(ciphertext, "base64");
-
-    // Unpack nonce + authTag + ciphertext
-    const nonce = data.subarray(0, 12);
-    const authTag = data.subarray(12, 28);
-    const encrypted = data.subarray(28);
-
-    const decipher = createDecipheriv("aes-256-gcm", this.masterKey, nonce);
-    decipher.setAuthTag(authTag);
-
-    return Buffer.concat([decipher.update(encrypted), decipher.final()]);
+    const decipher = createDecipheriv("aes-256-gcm", this.masterKey, data.subarray(0, 12));
+    decipher.setAuthTag(data.subarray(12, 28));
+    return Buffer.concat([decipher.update(data.subarray(28)), decipher.final()]);
   }
 
   isConfigured(): boolean {
-    return true; // Always configured for local
+    return true;
   }
 }
 
-/** AWS KMS provider for production use. */
 export class AWSKMSProvider implements KMSProvider {
   private keyId: string;
   private region: string;
@@ -149,11 +88,7 @@ export class AWSKMSProvider implements KMSProvider {
     return this.client;
   }
 
-  async generateDataKey(): Promise<{
-    plaintext: Buffer;
-    ciphertext: string;
-    keyId: string;
-  }> {
+  async generateDataKey(): Promise<{ plaintext: Buffer; ciphertext: string; keyId: string }> {
     const { GenerateDataKeyCommand } = await import("@aws-sdk/client-kms");
     const client = await this.getClient();
 
@@ -206,15 +141,12 @@ export class SecretsEncryptionService {
   private kms: KMSProvider;
 
   constructor(kms?: KMSProvider) {
-    // Auto-select KMS provider based on configuration
     if (kms) {
       this.kms = kms;
     } else if (process.env.AWS_KMS_KEY_ID) {
       this.kms = new AWSKMSProvider();
-      logger.info("[SecretsEncryption] Using AWS KMS provider");
     } else {
       this.kms = new LocalKMSProvider();
-      logger.info("[SecretsEncryption] Using local KMS provider (development mode)");
     }
   }
 

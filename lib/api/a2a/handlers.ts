@@ -23,6 +23,7 @@ import {
   createMessage,
 } from "./types";
 import * as skills from "./skills";
+import * as defiSkills from "./skills/defi";
 
 type SkillHandler = (
   textContent: string,
@@ -163,6 +164,9 @@ const SKILL_REGISTRY: Record<string, SkillEntry> = {
   reject_reply: { handler: (_, data, ctx) => skills.executeSkillRejectReply(data, ctx), description: "Reject a pending reply", aliases: ["decline_reply", "cancel_reply"] },
   poll_feeds: { handler: (_, data, ctx) => skills.executeSkillPollFeeds(data, ctx), description: "Poll feeds for new engagements", aliases: ["social_poll", "check_feeds"] },
   process_notifications: { handler: (_, data, ctx) => skills.executeSkillProcessNotifications(data, ctx), description: "Process unnotified engagement events", aliases: ["send_notifications", "notify_engagements"] },
+  // SEO skills
+  seo_create_request: { handler: skills.executeSkillSeoCreateRequest, description: "Create SEO request (DataForSEO, SerpApi, Claude, IndexNow)" },
+  seo_get_request: { handler: (_, data, ctx) => skills.executeSkillSeoGetRequest(data, ctx), description: "Get SEO request status and artifacts", aliases: ["seo_status"] },
   // Social media posting skills - Cross-platform content publishing
   social_media_post: { handler: skills.executeSkillSocialMediaPost, description: "Post to multiple social platforms", aliases: ["post_social", "create_social_post"] },
   social_media_post_to_platform: { handler: skills.executeSkillSocialMediaPostToPlatform, description: "Post to a single platform", aliases: ["post_to_twitter", "post_to_bluesky"] },
@@ -175,6 +179,36 @@ const SKILL_REGISTRY: Record<string, SkillEntry> = {
   social_media_get_platforms: { handler: () => skills.executeSkillSocialMediaGetPlatforms(), description: "List supported platforms", aliases: ["list_social_platforms", "get_social_platforms"] },
   social_media_store_credentials: { handler: skills.executeSkillSocialMediaStoreCredentials, description: "Store credentials for a platform", aliases: ["save_social_credentials"] },
   social_media_validate_credentials: { handler: skills.executeSkillSocialMediaValidateCredentials, description: "Validate stored credentials", aliases: ["check_social_credentials"] },
+  // Secrets management skills
+  secrets_list: { handler: (_, data, ctx) => skills.executeSkillSecretsList(data, ctx), description: "List secrets (metadata only)", aliases: ["list_secrets", "get_secrets"] },
+  secrets_get: { handler: (_, data, ctx) => skills.executeSkillSecretsGet(data, ctx), description: "Get a secret value by name", aliases: ["get_secret"] },
+  secrets_get_bulk: { handler: (_, data, ctx) => skills.executeSkillSecretsGetBulk(data, ctx), description: "Get multiple secrets by names", aliases: ["get_secrets_bulk"] },
+  secrets_create: { handler: (_, data, ctx) => skills.executeSkillSecretsCreate(data, ctx), description: "Create a new secret", aliases: ["create_secret", "store_secret"] },
+  secrets_update: { handler: (_, data, ctx) => skills.executeSkillSecretsUpdate(data, ctx), description: "Update an existing secret", aliases: ["update_secret"] },
+  secrets_delete: { handler: (_, data, ctx) => skills.executeSkillSecretsDelete(data, ctx), description: "Delete a secret", aliases: ["delete_secret", "remove_secret"] },
+  secrets_bind: { handler: (_, data, ctx) => skills.executeSkillSecretsBind(data, ctx), description: "Bind a secret to a project", aliases: ["bind_secret", "attach_secret"] },
+  secrets_unbind: { handler: (_, data, ctx) => skills.executeSkillSecretsUnbind(data, ctx), description: "Unbind a secret from a project", aliases: ["unbind_secret", "detach_secret"] },
+  // Domain management skills
+  domains_search: { handler: (_, data, ctx) => skills.executeSkillDomainsSearch(data, ctx), description: "Search for available domains", aliases: ["search_domains", "find_domains"] },
+  domains_check: { handler: (_, data, ctx) => skills.executeSkillDomainsCheck(data, ctx), description: "Check domain availability and pricing", aliases: ["check_domain", "domain_availability"] },
+  domains_list: { handler: (_, data, ctx) => skills.executeSkillDomainsList(data, ctx), description: "List your domains", aliases: ["list_domains", "my_domains"] },
+  domains_register: { handler: (_, data, ctx) => skills.executeSkillDomainsRegister(data, ctx), description: "Register an external domain", aliases: ["register_domain", "add_domain"] },
+  domains_verify: { handler: (_, data, ctx) => skills.executeSkillDomainsVerify(data, ctx), description: "Verify domain ownership", aliases: ["verify_domain"] },
+  domains_assign: { handler: (_, data, ctx) => skills.executeSkillDomainsAssign(data, ctx), description: "Assign domain to resource", aliases: ["assign_domain"] },
+  domains_unassign: { handler: (_, data, ctx) => skills.executeSkillDomainsUnassign(data, ctx), description: "Unassign domain from resource", aliases: ["unassign_domain"] },
+  // DeFi skills - Token prices, swaps, analytics
+  defi_get_token_price: { handler: defiSkills.executeSkillGetTokenPrice, description: "Get token price from multiple sources", aliases: ["get_token_price", "token_price", "crypto_price"] },
+  defi_get_trending: { handler: defiSkills.executeSkillGetTrendingTokens, description: "Get trending tokens", aliases: ["trending_tokens", "hot_tokens"] },
+  defi_get_market_overview: { handler: defiSkills.executeSkillGetMarketOverview, description: "Get global market overview", aliases: ["market_overview", "crypto_market"] },
+  defi_solana_token_overview: { handler: defiSkills.executeSkillSolanaTokenOverview, description: "Get detailed Solana token overview", aliases: ["solana_token", "sol_token_info"] },
+  defi_solana_wallet_portfolio: { handler: defiSkills.executeSkillSolanaWalletPortfolio, description: "Get Solana wallet portfolio", aliases: ["solana_wallet", "sol_portfolio"] },
+  defi_jupiter_quote: { handler: defiSkills.executeSkillJupiterQuote, description: "Get Jupiter swap quote on Solana", aliases: ["jupiter_quote", "sol_swap_quote"] },
+  defi_helius_transactions: { handler: defiSkills.executeSkillHeliusTransactions, description: "Get Solana transaction history", aliases: ["solana_transactions", "sol_txs"] },
+  defi_0x_quote: { handler: defiSkills.executeSkillZeroExQuote, description: "Get 0x swap quote for EVM chains", aliases: ["zeroex_quote", "evm_swap_quote", "0x_quote"] },
+  defi_search_tokens: { handler: defiSkills.executeSkillSearchTokens, description: "Search tokens across chains", aliases: ["search_tokens", "find_token"] },
+  defi_get_token_holders: { handler: defiSkills.executeSkillGetTokenHolders, description: "Get token holders", aliases: ["token_holders", "holder_analysis"] },
+  defi_get_ohlcv: { handler: defiSkills.executeSkillGetOHLCV, description: "Get OHLCV candlestick data", aliases: ["get_ohlcv", "candles", "price_history"] },
+  defi_health_check: { handler: defiSkills.executeSkillDeFiHealthCheck, description: "Check DeFi service health", aliases: ["defi_health", "check_defi_services"] },
 };
 
 // Build alias lookup

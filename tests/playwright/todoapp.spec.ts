@@ -109,6 +109,20 @@ test.describe("Todo App Pages", () => {
     await expect(body).toBeVisible();
   });
 
+  test("settings page loads (redirects unauthenticated users)", async ({
+    page,
+  }) => {
+    if (!todoappAvailable) {
+      test.skip();
+      return;
+    }
+    await page.goto(`${TODOAPP_URL}/settings`);
+
+    await page.waitForLoadState("networkidle");
+    const body = page.locator("body");
+    await expect(body).toBeVisible();
+  });
+
   test("auth callback page handles missing token gracefully", async ({
     page,
   }) => {
@@ -262,6 +276,9 @@ test.describe("Todo MCP Endpoint", () => {
     expect(toolNames).toContain("list_tasks");
     expect(toolNames).toContain("complete_task");
     expect(toolNames).toContain("get_points");
+    expect(toolNames).toContain("send_sms_reminder");
+    expect(toolNames).toContain("add_to_calendar");
+    expect(toolNames).toContain("set_reminder");
   });
 
   test("POST /api/mcp/todoapp initialize method works", async ({ request }) => {
@@ -298,7 +315,7 @@ test.describe("Todo MCP Endpoint", () => {
     if (response.status() === 200) {
       const data = await response.json();
       expect(data.result.tools).toBeDefined();
-      expect(data.result.tools.length).toBe(6);
+      expect(data.result.tools.length).toBe(9); // 6 original + 3 new (sms, calendar, reminder)
     }
   });
 

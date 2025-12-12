@@ -21,13 +21,11 @@ import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { appStorageService } from "@/lib/services/app-storage";
 import { appsService } from "@/lib/services/apps";
+import { twilioService } from "@/lib/services/twilio";
+import { googleCalendarService } from "@/lib/services/google-calendar";
 import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 30;
-
-// ============================================
-// Constants
-// ============================================
 
 const TASKS_COLLECTION = "tasks";
 const POINTS_COLLECTION = "user_points";
@@ -44,10 +42,6 @@ const LEVELS = [
   { level: 9, name: "Immortal", threshold: 4000 },
   { level: 10, name: "Transcendent", threshold: 5500 },
 ];
-
-// ============================================
-// Types
-// ============================================
 
 interface Task {
   id: string;
@@ -94,18 +88,18 @@ function calculateLevel(points: number): { level: number; name: string } {
 }
 
 function calculatePoints(task: Task): number {
-  let points = 0;
-
   if (task.type === "daily") {
-    points = 10 + Math.min((task.metadata.streak ?? 0) * 5, 50);
-  } else if (task.type === "one-off") {
-    const priorityPoints = task.priority ? (5 - task.priority) * 10 : 10;
-    points = priorityPoints + (task.urgent ? 10 : 0);
-  } else if (task.type === "aspirational") {
-    points = 50;
+    const streak = Math.max(0, task.metadata.streak ?? 0);
+    return 10 + Math.min(streak * 5, 50);
   }
-
-  return points;
+  if (task.type === "one-off") {
+    const priorityPoints = task.priority ? (5 - task.priority) * 10 : 10;
+    return priorityPoints + (task.urgent ? 10 : 0);
+  }
+  if (task.type === "aspirational") {
+    return 50;
+  }
+  return 0;
 }
 
 interface StorageDocument {
@@ -153,10 +147,6 @@ function formatTaskList(tasks: Task[]): string {
     .join("\n");
 }
 
-// ============================================
-// CORS Headers
-// ============================================
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -166,10 +156,6 @@ const corsHeaders = {
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: corsHeaders });
 }
-
-// ============================================
-// GET - MCP Server Metadata
-// ============================================
 
 export async function GET() {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -271,6 +257,46 @@ export async function GET() {
           inputSchema: {
             type: "object",
             properties: {},
+          },
+        },
+        {
+          name: "send_sms_reminder",
+          description: "Send an SMS reminder for a task (requires Twilio setup)",
+          inputSchema: {
+            type: "object",
+            properties: {
+              taskId: { type: "string", description: "Task ID to remind about" },
+              phoneNumber: { type: "string", description: "Phone number in E.164 format (+1234567890)" },
+              message: { type: "string", description: "Custom message (optional)" },
+            },
+            required: ["taskId", "phoneNumber"],
+          },
+        },
+        {
+          name: "add_to_calendar",
+          description: "Add a task to Google Calendar (requires Google Calendar connection)",
+          inputSchema: {
+            type: "object",
+            properties: {
+              taskId: { type: "string", description: "Task ID to add to calendar" },
+              startTime: { type: "string", description: "Start time (ISO format)" },
+              durationMinutes: { type: "number", description: "Duration in minutes (default: 60)" },
+              reminderMinutes: { type: "number", description: "Reminder before event in minutes (default: 30)" },
+            },
+            required: ["taskId"],
+          },
+        },
+        {
+          name: "set_reminder",
+          description: "Set an in-app reminder for a task",
+          inputSchema: {
+            type: "object",
+            properties: {
+              taskId: { type: "string", description: "Task ID" },
+              reminderTime: { type: "string", description: "When to remind (ISO format)" },
+              repeatDaily: { type: "boolean", description: "Repeat reminder daily" },
+            },
+            required: ["taskId", "reminderTime"],
           },
         },
       ],
@@ -424,6 +450,46 @@ export async function POST(request: NextRequest) {
                 description: "Get points and level",
                 inputSchema: { type: "object", properties: {} },
               },
+              {
+                name: "send_sms_reminder",
+                description: "Send an SMS reminder for a task",
+                inputSchema: {
+                  type: "object",
+                  properties: {
+                    taskId: { type: "string" },
+                    phoneNumber: { type: "string" },
+                    message: { type: "string" },
+                  },
+                  required: ["taskId", "phoneNumber"],
+                },
+              },
+              {
+                name: "add_to_calendar",
+                description: "Add task to Google Calendar",
+                inputSchema: {
+                  type: "object",
+                  properties: {
+                    taskId: { type: "string" },
+                    startTime: { type: "string" },
+                    durationMinutes: { type: "number" },
+                    reminderMinutes: { type: "number" },
+                  },
+                  required: ["taskId"],
+                },
+              },
+              {
+                name: "set_reminder",
+                description: "Set an in-app reminder",
+                inputSchema: {
+                  type: "object",
+                  properties: {
+                    taskId: { type: "string" },
+                    reminderTime: { type: "string" },
+                    repeatDaily: { type: "boolean" },
+                  },
+                  required: ["taskId", "reminderTime"],
+                },
+              },
             ],
           },
           id: rpcId,
@@ -432,7 +498,7 @@ export async function POST(request: NextRequest) {
       );
 
     case "tools/call":
-      return handleToolCall(app.id, user.id, params ?? {}, rpcId);
+      return handleToolCall(app.id, user.id, user.organization_id, params ?? {}, rpcId);
 
     case "ping":
       return NextResponse.json(
@@ -459,6 +525,7 @@ export async function POST(request: NextRequest) {
 async function handleToolCall(
   appId: string,
   userId: string,
+  organizationId: string,
   params: Record<string, unknown>,
   rpcId: string | number
 ) {
@@ -771,6 +838,184 @@ async function handleToolCall(
               {
                 type: "text",
                 text: `Points: ${currentPoints}\nLevel: ${levelInfo.level} (${levelInfo.name})\nTotal Earned: ${totalEarned}\nStreak: ${streak} days`,
+              },
+            ],
+          },
+          id: rpcId,
+        },
+        { headers: corsHeaders }
+      );
+    }
+
+    case "send_sms_reminder": {
+      const { taskId, phoneNumber, message } = args as {
+        taskId: string;
+        phoneNumber: string;
+        message?: string;
+      };
+
+      const doc = await appStorageService.getDocument(appId, taskId);
+      if (!doc) {
+        return NextResponse.json(
+          {
+            jsonrpc: "2.0",
+            error: { code: -32001, message: `Task not found: ${taskId}` },
+            id: rpcId,
+          },
+          { status: 404, headers: corsHeaders }
+        );
+      }
+
+      const task = documentToTask(doc);
+      const smsBody = message ?? `Reminder: ${task.name}${task.metadata.dueDate ? ` (Due: ${new Date(task.metadata.dueDate).toLocaleDateString()})` : ""}`;
+
+      const result = await twilioService.sendSms({
+        to: phoneNumber,
+        body: smsBody,
+        organizationId,
+      });
+
+      if (!result.success) {
+        return NextResponse.json(
+          {
+            jsonrpc: "2.0",
+            error: { code: -32002, message: result.error ?? "Failed to send SMS" },
+            id: rpcId,
+          },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      logger.info("[Todo MCP] SMS reminder sent", { appId, taskId, phoneNumber });
+
+      return NextResponse.json(
+        {
+          jsonrpc: "2.0",
+          result: {
+            content: [{ type: "text", text: `SMS reminder sent for "${task.name}"` }],
+          },
+          id: rpcId,
+        },
+        { headers: corsHeaders }
+      );
+    }
+
+    case "add_to_calendar": {
+      const { taskId, startTime, durationMinutes = 60, reminderMinutes = 30 } = args as {
+        taskId: string;
+        startTime?: string;
+        durationMinutes?: number;
+        reminderMinutes?: number;
+      };
+
+      const doc = await appStorageService.getDocument(appId, taskId);
+      if (!doc) {
+        return NextResponse.json(
+          {
+            jsonrpc: "2.0",
+            error: { code: -32001, message: `Task not found: ${taskId}` },
+            id: rpcId,
+          },
+          { status: 404, headers: corsHeaders }
+        );
+      }
+
+      const task = documentToTask(doc);
+      const eventStart = startTime
+        ? new Date(startTime)
+        : task.metadata.dueDate
+          ? new Date(task.metadata.dueDate)
+          : new Date(Date.now() + 24 * 60 * 60 * 1000); // Tomorrow if no date
+
+      const result = await googleCalendarService.createEvent({
+        organizationId,
+        userId,
+        summary: task.name,
+        description: task.metadata.description,
+        startTime: eventStart,
+        endTime: new Date(eventStart.getTime() + durationMinutes * 60 * 1000),
+        reminders: [{ minutes: reminderMinutes }],
+      });
+
+      if (!result.success) {
+        return NextResponse.json(
+          {
+            jsonrpc: "2.0",
+            error: { code: -32002, message: result.error ?? "Failed to create calendar event" },
+            id: rpcId,
+          },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      logger.info("[Todo MCP] Calendar event created", { appId, taskId, eventId: result.event?.id });
+
+      return NextResponse.json(
+        {
+          jsonrpc: "2.0",
+          result: {
+            content: [
+              {
+                type: "text",
+                text: `Added "${task.name}" to Google Calendar on ${eventStart.toLocaleDateString()} at ${eventStart.toLocaleTimeString()}`,
+              },
+            ],
+          },
+          id: rpcId,
+        },
+        { headers: corsHeaders }
+      );
+    }
+
+    case "set_reminder": {
+      const { taskId, reminderTime, repeatDaily = false } = args as {
+        taskId: string;
+        reminderTime: string;
+        repeatDaily?: boolean;
+      };
+
+      const doc = await appStorageService.getDocument(appId, taskId);
+      if (!doc) {
+        return NextResponse.json(
+          {
+            jsonrpc: "2.0",
+            error: { code: -32001, message: `Task not found: ${taskId}` },
+            id: rpcId,
+          },
+          { status: 404, headers: corsHeaders }
+        );
+      }
+
+      const task = documentToTask(doc);
+      const reminder = new Date(reminderTime);
+
+      // Store reminder in task metadata
+      await appStorageService.updateDocument(
+        appId,
+        taskId,
+        {
+          metadata: {
+            ...task.metadata,
+            reminder: {
+              time: reminder.toISOString(),
+              repeatDaily,
+              enabled: true,
+            },
+          },
+        },
+        userId
+      );
+
+      logger.info("[Todo MCP] Reminder set", { appId, taskId, reminderTime });
+
+      return NextResponse.json(
+        {
+          jsonrpc: "2.0",
+          result: {
+            content: [
+              {
+                type: "text",
+                text: `Reminder set for "${task.name}" at ${reminder.toLocaleString()}${repeatDaily ? " (repeating daily)" : ""}`,
               },
             ],
           },

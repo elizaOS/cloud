@@ -440,6 +440,18 @@ class EndpointDiscoveryService {
       { path: "/api/v1/n8n/webhooks/:key", method: "POST", name: "Trigger Webhook", description: "Trigger workflow via webhook", category: "workflows", auth: "none" },
       { path: "/api/v1/credits/balance", method: "GET", name: "Get Balance", description: "Get credit balance", category: "billing", auth: "api_key" },
       { path: "/api/v1/credits/transactions", method: "GET", name: "List Transactions", description: "List credit transactions", category: "billing", auth: "api_key" },
+      // DeFi endpoints
+      { path: "/api/v1/defi/price", method: "GET", name: "Get Token Price", description: "Get token price from multiple sources (Birdeye, Jupiter, CoinGecko, CMC)", category: "defi", auth: "api_key" },
+      { path: "/api/v1/defi/trending", method: "GET", name: "Get Trending Tokens", description: "Get trending tokens from various sources", category: "defi", auth: "api_key" },
+      { path: "/api/v1/defi/market", method: "GET", name: "Market Overview", description: "Get global cryptocurrency market overview", category: "defi", auth: "api_key" },
+      { path: "/api/v1/defi/solana/token", method: "GET", name: "Solana Token Overview", description: "Get detailed Solana token overview from Birdeye", category: "defi", auth: "api_key" },
+      { path: "/api/v1/defi/solana/wallet", method: "GET", name: "Solana Wallet Portfolio", description: "Get Solana wallet portfolio from Birdeye", category: "defi", auth: "api_key" },
+      { path: "/api/v1/defi/jupiter/quote", method: "GET", name: "Jupiter Swap Quote", description: "Get Jupiter swap quote on Solana", category: "defi", auth: "api_key" },
+      { path: "/api/v1/defi/helius/transactions", method: "GET", name: "Helius Transactions", description: "Get Solana transaction history from Helius", category: "defi", auth: "api_key" },
+      { path: "/api/v1/defi/swap/quote", method: "GET", name: "0x Swap Quote", description: "Get 0x swap quote for EVM chains", category: "defi", auth: "api_key" },
+      { path: "/api/v1/defi/search", method: "GET", name: "Search Tokens", description: "Search tokens across chains", category: "defi", auth: "api_key" },
+      { path: "/api/v1/defi/ohlcv", method: "GET", name: "Get OHLCV", description: "Get OHLCV candlestick data", category: "defi", auth: "api_key" },
+      { path: "/api/v1/defi/health", method: "GET", name: "DeFi Health", description: "Check health status of DeFi services", category: "defi", auth: "none" },
     ];
 
     for (const endpoint of restEndpoints) {
@@ -482,6 +494,7 @@ class EndpointDiscoveryService {
     if (path.includes("/analytics") || path.includes("/dashboard") || path.includes("/stats")) return "analytics";
     if (path.includes("/webhooks") || path.includes("/triggers")) return "webhooks";
     if (path.includes("/cron")) return "cron";
+    if (path.includes("/defi") || path.includes("/jupiter") || path.includes("/helius") || path.includes("/swap")) return "defi";
     return "utilities";
   }
 
@@ -632,6 +645,7 @@ class EndpointDiscoveryService {
     if (skillId.includes("container")) return "infrastructure";
     if (skillId.includes("n8n") || skillId.includes("workflow")) return "workflows";
     if (skillId.includes("balance") || skillId.includes("usage")) return "billing";
+    if (skillId.includes("defi") || skillId.includes("token") || skillId.includes("swap") || skillId.includes("jupiter") || skillId.includes("solana") || skillId.includes("helius") || skillId.includes("0x") || skillId.includes("zeroex")) return "defi";
     return "utilities";
   }
 
@@ -644,7 +658,7 @@ class EndpointDiscoveryService {
     if (toolName.includes("storage")) return "storage";
     if (toolName.includes("container")) return "infrastructure";
     if (toolName.includes("credit") || toolName.includes("balance")) return "billing";
-    if (toolName.includes("crypto") || toolName.includes("price")) return "finance";
+    if (toolName.includes("crypto") || toolName.includes("price") || toolName.includes("defi") || toolName.includes("token") || toolName.includes("swap") || toolName.includes("jupiter") || toolName.includes("solana") || toolName.includes("helius") || toolName.includes("0x") || toolName.includes("trending") || toolName.includes("ohlcv")) return "defi";
     if (toolName.includes("weather")) return "data";
     if (toolName.includes("time")) return "utilities";
     return "utilities";

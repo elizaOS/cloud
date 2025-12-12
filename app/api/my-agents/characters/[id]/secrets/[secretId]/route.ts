@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod3";
+import { z } from "zod";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { secretsService, type AuditContext } from "@/lib/services/secrets";
 import { secretsRepository } from "@/db/repositories/secrets";

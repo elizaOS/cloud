@@ -14,9 +14,6 @@ import { eq, and } from "drizzle-orm";
 
 const TELEGRAM_API_BASE = "https://api.telegram.org/bot";
 
-// =============================================================================
-// TYPES
-// =============================================================================
 
 export interface TelegramUser {
   id: number;
@@ -137,21 +134,12 @@ async function telegramApiRequest<T>(
   return data.result as T;
 }
 
-// =============================================================================
-// SERVICE CLASS
-// =============================================================================
 
 class TelegramService {
-  /**
-   * Get bot info using a token
-   */
   async getMe(token: string): Promise<TelegramUser> {
     return telegramApiRequest<TelegramUser>(token, "getMe");
   }
 
-  /**
-   * Send a text message
-   */
   async sendMessage(
     token: string,
     params: SendMessageParams
@@ -159,9 +147,6 @@ class TelegramService {
     return telegramApiRequest<TelegramMessage>(token, "sendMessage", params);
   }
 
-  /**
-   * Send a message using a bot connection ID
-   */
   async sendMessageViaConnection(
     connectionId: string,
     organizationId: string,
@@ -178,9 +163,6 @@ class TelegramService {
     });
   }
 
-  /**
-   * Answer a callback query (button press)
-   */
   async answerCallbackQuery(
     token: string,
     callbackQueryId: string,
@@ -193,9 +175,6 @@ class TelegramService {
     });
   }
 
-  /**
-   * Edit a message text
-   */
   async editMessageText(
     token: string,
     chatId: number | string,
@@ -211,9 +190,6 @@ class TelegramService {
     });
   }
 
-  /**
-   * Edit a message using a bot connection ID
-   */
   async editMessageViaConnection(
     connectionId: string,
     organizationId: string,
@@ -226,23 +202,14 @@ class TelegramService {
     return this.editMessageText(token, chatId, messageId, text, options);
   }
 
-  /**
-   * Get chat information
-   */
   async getChat(token: string, chatId: number | string): Promise<TelegramChat> {
     return telegramApiRequest<TelegramChat>(token, "getChat", { chat_id: chatId });
   }
 
-  /**
-   * Get chat member count
-   */
   async getChatMemberCount(token: string, chatId: number | string): Promise<number> {
     return telegramApiRequest<number>(token, "getChatMemberCount", { chat_id: chatId });
   }
 
-  /**
-   * Get chat administrators
-   */
   async getChatAdministrators(
     token: string,
     chatId: number | string
@@ -250,16 +217,10 @@ class TelegramService {
     return telegramApiRequest(token, "getChatAdministrators", { chat_id: chatId });
   }
 
-  /**
-   * Leave a chat
-   */
   async leaveChat(token: string, chatId: number | string): Promise<boolean> {
     return telegramApiRequest<boolean>(token, "leaveChat", { chat_id: chatId });
   }
 
-  /**
-   * Set webhook for receiving updates
-   */
   async setWebhook(
     token: string,
     url: string,
@@ -275,18 +236,12 @@ class TelegramService {
     });
   }
 
-  /**
-   * Delete webhook
-   */
   async deleteWebhook(token: string, dropPendingUpdates = false): Promise<boolean> {
     return telegramApiRequest<boolean>(token, "deleteWebhook", {
       drop_pending_updates: dropPendingUpdates,
     });
   }
 
-  /**
-   * Get webhook info
-   */
   async getWebhookInfo(token: string): Promise<{
     url: string;
     has_custom_certificate: boolean;
@@ -297,13 +252,6 @@ class TelegramService {
     return telegramApiRequest(token, "getWebhookInfo");
   }
 
-  // ===========================================================================
-  // ORGANIZATION HELPERS
-  // ===========================================================================
-
-  /**
-   * Find bot connection by chat ID
-   */
   async findConnectionByChatId(chatId: string): Promise<{
     connection: typeof orgPlatformConnections.$inferSelect;
     server: typeof orgPlatformServers.$inferSelect;
@@ -333,21 +281,14 @@ class TelegramService {
     return { connection, server };
   }
 
-  /**
-   * Setup webhook for a Telegram bot connection
-   */
   async setupWebhookForConnection(
     connectionId: string,
     organizationId: string,
     baseUrl: string
   ): Promise<void> {
     const token = await botsService.getBotToken(connectionId, organizationId);
-    
-    // Get the bot info to use bot ID in webhook URL
     const botInfo = await this.getMe(token);
     const botId = String(botInfo.id);
-    
-    // Use dynamic route with bot ID for proper routing
     const webhookUrl = `${baseUrl}/api/webhooks/telegram/${botId}`;
     const secretToken = process.env.TELEGRAM_WEBHOOK_SECRET;
 
@@ -359,9 +300,6 @@ class TelegramService {
     logger.info("[Telegram] Webhook configured", { connectionId, botId, webhookUrl });
   }
 
-  /**
-   * List all chats/groups the bot is in (via servers table)
-   */
   async listChats(
     connectionId: string,
     organizationId: string
@@ -381,12 +319,7 @@ class TelegramService {
     }));
   }
 
-  /**
-   * Sync chats for a Telegram bot connection
-   */
   async syncChats(connectionId: string, organizationId: string): Promise<void> {
-    // For Telegram, we can't list all chats - bot receives updates when added
-    // This method is a placeholder for future implementation
     logger.info("[Telegram] Chat sync not fully implemented - chats are added via updates");
   }
 }

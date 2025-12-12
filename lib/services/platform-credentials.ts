@@ -160,6 +160,11 @@ export const OAUTH_CONFIGS: Record<string, {
 export const MANUAL_AUTH_PLATFORMS = ["bluesky", "telegram"] as const;
 export type ManualAuthPlatform = typeof MANUAL_AUTH_PLATFORMS[number];
 
+export const SOCIAL_PLATFORMS = [
+  "twitter", "bluesky", "discord", "telegram", "slack",
+  "reddit", "facebook", "instagram", "tiktok", "linkedin", "mastodon",
+] as const;
+
 export interface CreateLinkSessionParams {
   organizationId: string;
   platform: PlatformType;
@@ -385,6 +390,13 @@ class PlatformCredentialsService {
       (!options?.appId || c.app_id === options.appId) &&
       (!options?.status || c.status === options.status)
     );
+  }
+
+  async getCredential(credentialId: string, organizationId: string): Promise<PlatformCredential | null> {
+    const [credential] = await db.select().from(platformCredentials)
+      .where(and(eq(platformCredentials.id, credentialId), eq(platformCredentials.organization_id, organizationId)))
+      .limit(1);
+    return credential ?? null;
   }
 
   async revokeCredential(credentialId: string, organizationId: string) {

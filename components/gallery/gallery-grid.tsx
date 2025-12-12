@@ -1,10 +1,6 @@
 /**
  * Gallery grid component displaying media items in a responsive grid layout.
- * Supports image/video preview, deletion, and download functionality.
- *
- * @param props - Gallery grid configuration
- * @param props.items - Array of gallery items to display
- * @param props.onItemDeleted - Optional callback when item is deleted
+ * Supports image/video preview, deletion, download, and collection management.
  */
 
 "use client";
@@ -20,29 +16,50 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { DownloadIcon, TrashIcon, CalendarIcon } from "@radix-ui/react-icons";
-import { Eye, X } from "lucide-react";
+import { Eye, X, FolderPlus, Upload, Sparkles } from "lucide-react";
 import { DialogClose } from "@/components/ui/dialog";
-import type { GalleryItem } from "@/app/actions/gallery";
-import { deleteMedia } from "@/app/actions/gallery";
+import type { GalleryItem, CollectionSummary } from "@/app/actions/gallery";
+import { deleteMedia, addToCollection } from "@/app/actions/gallery";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { BrandCard, BrandButton } from "@/components/brand";
 
 interface GalleryGridProps {
   items: GalleryItem[];
+  collections?: CollectionSummary[];
   onItemDeleted?: () => void;
+  onAddToCollection?: (itemId: string, source: "generation" | "upload", collectionId: string) => void;
+  selectionMode?: boolean;
+  selectedItems?: Set<string>;
+  onSelectionChange?: (itemId: string, selected: boolean) => void;
 }
 
-export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
+export function GalleryGrid({
+  items,
+  collections = [],
+  onItemDeleted,
+  onAddToCollection,
+  selectionMode = false,
+  selectedItems = new Set(),
+  onSelectionChange,
+}: GalleryGridProps) {
   const [selectedItem, setSelectedItem] = useState<GalleryItem | null>(null);
   const [deleteConfirmItem, setDeleteConfirmItem] =
     useState<GalleryItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [addingToCollection, setAddingToCollection] = useState<string | null>(null);
 
   const handleDelete = async (item: GalleryItem) => {
     setIsDeleting(true);
-    await deleteMedia(item.id);
+    await deleteMedia(item.id, item.source);
     toast.success("Media deleted successfully");
     setDeleteConfirmItem(null);
     onItemDeleted?.();
@@ -55,12 +72,38 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${item.type}-${item.id}.${item.mimeType?.split("/")[1] || "file"}`;
+    const filename = item.filename || `${item.type}-${item.id}`;
+    a.download = `${filename}.${item.mimeType?.split("/")[1] || "file"}`;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
     toast.success("Download started");
+  };
+
+  const handleAddToCollection = async (item: GalleryItem, collectionId: string) => {
+    setAddingToCollection(item.id);
+    if (onAddToCollection) {
+      onAddToCollection(item.id, item.source, collectionId);
+    } else {
+      await addToCollection(collectionId, [{ id: item.id, source: item.source }]);
+      toast.success("Added to collection");
+    }
+    setAddingToCollection(null);
+  };
+
+  const getItemTitle = (item: GalleryItem) => {
+    if (item.source === "upload" && item.filename) {
+      return item.filename;
+    }
+    return item.prompt || "Untitled";
+  };
+
+  const getItemSubtitle = (item: GalleryItem) => {
+    if (item.source === "upload") {
+      return "Uploaded";
+    }
+    return item.model || "AI Generated";
   };
 
   if (items.length === 0) {
@@ -71,7 +114,7 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
         </div>
         <h3 className="text-xl font-semibold mb-2 text-white">No media yet</h3>
         <p className="text-white/60 max-w-md">
-          Generate some images or videos to see them appear in your gallery
+          Generate images/videos or upload files to see them in your gallery
         </p>
       </div>
     );
@@ -85,42 +128,101 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
             key={item.id}
             corners={false}
             hover
-            className="overflow-hidden group cursor-pointer p-0"
-            onClick={() => setSelectedItem(item)}
+            className={`overflow-hidden group cursor-pointer p-0 ${
+              selectionMode && selectedItems.has(item.id) ? "ring-2 ring-[#FF5800]" : ""
+            }`}
+            onClick={() => {
+              if (selectionMode && onSelectionChange) {
+                onSelectionChange(item.id, !selectedItems.has(item.id));
+              } else {
+                setSelectedItem(item);
+              }
+            }}
           >
             <div className="aspect-video relative bg-black/60">
               {item.type === "image" ? (
                 <Image
                   src={item.url}
-                  alt={item.prompt}
+                  alt={getItemTitle(item)}
                   fill
                   className="object-cover"
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                 />
-              ) : (
+              ) : item.type === "video" ? (
                 <video
                   src={item.url}
                   className="w-full h-full object-cover"
                   preload="metadata"
                 />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-black/80">
+                  <div className="text-center">
+                    <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-purple-500/20 flex items-center justify-center">
+                      <span className="text-2xl">🎵</span>
+                    </div>
+                    <span className="text-xs text-white/60">Audio</span>
+                  </div>
+                </div>
               )}
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
                 <Eye className="w-8 h-8 text-[#FF5800] opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
+              
+              {/* Badges */}
+              <div className="absolute top-2 left-2 flex gap-1">
+                <span className={`text-xs rounded-none px-2 py-0.5 font-bold uppercase tracking-wide ${
+                  item.source === "upload"
+                    ? "bg-blue-500/20 border border-blue-500/40 text-blue-400"
+                    : "bg-purple-500/20 border border-purple-500/40 text-purple-400"
+                }`}>
+                  {item.source === "upload" ? <Upload className="w-3 h-3 inline mr-1" /> : <Sparkles className="w-3 h-3 inline mr-1" />}
+                  {item.source === "upload" ? "Upload" : "AI"}
+                </span>
+              </div>
               <span className="absolute top-2 right-2 text-xs rounded-none bg-[#FF580020] border border-[#FF5800]/40 px-2 py-0.5 font-bold uppercase tracking-wide text-[#FF5800]">
                 {item.type}
               </span>
+
+              {/* Quick actions on hover */}
+              {collections.length > 0 && (
+                <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <button className="p-1.5 bg-black/60 border border-white/20 hover:border-[#FF5800]/40 hover:bg-[#FF580020] transition-colors">
+                        <FolderPlus className="w-4 h-4 text-white" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="min-w-[160px]">
+                      <div className="px-2 py-1.5 text-xs font-semibold text-white/50">Add to Collection</div>
+                      <DropdownMenuSeparator />
+                      {collections.map((collection) => (
+                        <DropdownMenuItem
+                          key={collection.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddToCollection(item, collection.id);
+                          }}
+                          disabled={addingToCollection === item.id}
+                        >
+                          {collection.name}
+                          <span className="ml-auto text-xs text-white/50">{collection.itemCount}</span>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
             </div>
             <div className="p-3">
               <p className="text-sm font-medium line-clamp-2 mb-2 text-white">
-                {item.prompt}
+                {getItemTitle(item)}
               </p>
               <div className="flex items-center justify-between text-xs text-white/60">
                 <span className="flex items-center gap-1">
                   <CalendarIcon className="w-3 h-3 text-[#FF5800]" />
                   {format(new Date(item.createdAt), "MMM d, yyyy")}
                 </span>
-                <span className="truncate max-w-[100px]">{item.model}</span>
+                <span className="truncate max-w-[100px]">{getItemSubtitle(item)}</span>
               </div>
             </div>
           </BrandCard>
@@ -143,7 +245,7 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
                 {selectedItem.type === "image" ? (
                   <Image
                     src={selectedItem.url}
-                    alt={selectedItem.prompt}
+                    alt={getItemTitle(selectedItem)}
                     width={3000}
                     height={3000}
                     className="object-contain max-w-full max-h-full w-auto h-auto"
@@ -166,21 +268,36 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
 
               {/* Info overlay at bottom */}
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 space-y-3">
-                {/* Prompt */}
+                {/* Title/Prompt */}
                 <p className="text-sm text-white/90 leading-relaxed max-w-4xl">
-                  {selectedItem.prompt}
+                  {getItemTitle(selectedItem)}
                 </p>
 
                 {/* Details - Inline compact layout */}
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
-                  <div className="flex items-baseline gap-2">
+                  <div className="flex items-center gap-2">
                     <span className="text-white/50 uppercase tracking-wide">
-                      Model:
+                      Source:
                     </span>
-                    <span className="text-white font-medium">
-                      {selectedItem.model}
+                    <span className={`rounded-none px-2 py-0.5 font-bold uppercase ${
+                      selectedItem.source === "upload"
+                        ? "bg-blue-500/20 border border-blue-500/40 text-blue-400"
+                        : "bg-purple-500/20 border border-purple-500/40 text-purple-400"
+                    }`}>
+                      {selectedItem.source === "upload" ? "Upload" : "AI Generated"}
                     </span>
                   </div>
+
+                  {selectedItem.model && (
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-white/50 uppercase tracking-wide">
+                        Model:
+                      </span>
+                      <span className="text-white font-medium">
+                        {selectedItem.model}
+                      </span>
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-2">
                     <span className="text-white/50 uppercase tracking-wide">
@@ -237,6 +354,28 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
                     <DownloadIcon className="w-4 h-4 mr-2" />
                     Download
                   </BrandButton>
+                  
+                  {collections.length > 0 && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <BrandButton variant="outline" size="sm">
+                          <FolderPlus className="w-4 h-4 mr-2" />
+                          Add to Collection
+                        </BrandButton>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        {collections.map((collection) => (
+                          <DropdownMenuItem
+                            key={collection.id}
+                            onClick={() => handleAddToCollection(selectedItem, collection.id)}
+                          >
+                            {collection.name}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+
                   <BrandButton
                     variant="outline"
                     size="sm"
@@ -273,7 +412,7 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
           {deleteConfirmItem && (
             <div className="py-4">
               <p className="text-sm text-white/70 line-clamp-3">
-                {deleteConfirmItem.prompt}
+                {getItemTitle(deleteConfirmItem)}
               </p>
             </div>
           )}

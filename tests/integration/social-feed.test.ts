@@ -8,7 +8,7 @@
  * - Error handling and boundary conditions
  */
 
-import { describe, test, expect, beforeEach, vi } from "vitest";
+import { describe, test, expect, beforeEach } from "bun:test";
 
 // =============================================================================
 // SLACK PROVIDER TESTS
@@ -348,8 +348,8 @@ describe("Feed Polling Service", () => {
 
   test("has pollers for supported platforms", async () => {
     // Test that the module loads without error and has expected structure
-    const module = await import("@/lib/services/social-feed/polling");
-    expect(module.feedPollingService).toBeDefined();
+    const pollingModule = await import("@/lib/services/social-feed/polling");
+    expect(pollingModule.feedPollingService).toBeDefined();
   });
 
   describe("engagement type mapping", () => {

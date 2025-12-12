@@ -1,51 +1,38 @@
 /**
  * Secret Audit Log API
  *
- * GET /api/v1/secrets/audit - Get audit log for organization secrets
+ * GET /api/v1/secrets/audit - Get audit log for organization
+ * GET /api/v1/secrets/audit?secretId=X - Get audit log for specific secret
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { secretsService } from "@/lib/services/secrets";
+import type { SecretAuditLog } from "@/db/schemas/secrets";
 
-export const maxDuration = 30;
+const formatEntry = (e: SecretAuditLog) => ({
+  id: e.id,
+  secretId: e.secret_id,
+  secretName: e.secret_name,
+  action: e.action,
+  actorType: e.actor_type,
+  actorId: e.actor_id,
+  actorEmail: e.actor_email,
+  source: e.source,
+  ipAddress: e.ip_address,
+  createdAt: e.created_at.toISOString(),
+});
 
-/**
- * GET /api/v1/secrets/audit
- * Get audit log for organization secrets
- */
 export async function GET(request: NextRequest) {
-  const authResult = await requireAuthOrApiKeyWithOrg(request);
-
-  const limit = Math.min(
-    parseInt(request.nextUrl.searchParams.get("limit") || "100", 10),
-    1000
-  );
+  const { user } = await requireAuthOrApiKeyWithOrg(request);
+  const { searchParams } = request.nextUrl;
   
-  const secretId = request.nextUrl.searchParams.get("secretId");
+  const secretId = searchParams.get("secretId");
+  const limit = Math.min(parseInt(searchParams.get("limit") || "100"), 1000);
 
-  const auditLog = secretId
+  const entries = secretId
     ? await secretsService.getSecretAuditLog(secretId, limit)
-    : await secretsService.getOrganizationAuditLog(authResult.user.organization_id, limit);
+    : await secretsService.getOrganizationAuditLog(user.organization_id, limit);
 
-  return NextResponse.json({
-    entries: auditLog.map((entry) => ({
-      id: entry.id,
-      secretId: entry.secret_id,
-      oauthSessionId: entry.oauth_session_id,
-      action: entry.action,
-      secretName: entry.secret_name,
-      actorType: entry.actor_type,
-      actorId: entry.actor_id,
-      actorEmail: entry.actor_email,
-      ipAddress: entry.ip_address,
-      source: entry.source,
-      endpoint: entry.endpoint,
-      requestId: entry.request_id,
-      metadata: entry.metadata,
-      createdAt: entry.created_at.toISOString(),
-    })),
-    total: auditLog.length,
-  });
+  return NextResponse.json({ entries: entries.map(formatEntry) });
 }
-

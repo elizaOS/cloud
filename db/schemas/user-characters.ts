@@ -135,6 +135,13 @@ export const userCharacters = pgTable(
     a2a_enabled: boolean("a2a_enabled").default(true).notNull(),
     mcp_enabled: boolean("mcp_enabled").default(true).notNull(),
 
+    // =========================================================================
+    // Custom Domain Support
+    // Agents can have their own custom domain for A2A/MCP endpoints
+    // =========================================================================
+    custom_domain: text("custom_domain"),
+    custom_domain_verified: boolean("custom_domain_verified").default(false),
+
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },

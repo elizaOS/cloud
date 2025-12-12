@@ -1,11 +1,3 @@
-/**
- * Service Builder Component
- * 
- * Full-featured builder for creating and configuring services.
- * Services expose MCP, A2A, and REST endpoints.
- * Integrates with workflows and n8n.
- */
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -13,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -23,7 +14,6 @@ import {
   Zap,
   Globe,
   Workflow,
-  Copy,
   Check,
   RefreshCw,
   Plus,
@@ -77,30 +67,20 @@ interface Workflow {
 
 export function ServiceBuilder({ appId, initialData, onSave }: ServiceBuilderProps) {
   const router = useRouter();
-
-  // Service config
   const [name, setName] = useState(initialData?.name ?? generateServiceName());
   const [description, setDescription] = useState(initialData?.description ?? "");
   const [endpoints, setEndpoints] = useState<ServiceEndpoints>(
     initialData?.endpoints ?? { mcp: true, a2a: true, rest: true }
   );
-
-  // Tools
   const [tools, setTools] = useState<ServiceTool[]>(initialData?.tools ?? []);
   const [newToolName, setNewToolName] = useState("");
   const [newToolDescription, setNewToolDescription] = useState("");
-
-  // Workflows
   const [availableWorkflows, setAvailableWorkflows] = useState<Workflow[]>([]);
   const [selectedWorkflows, setSelectedWorkflows] = useState<string[]>([]);
   const [isLoadingWorkflows, setIsLoadingWorkflows] = useState(false);
-
-  // UI state
   const [isSaving, setIsSaving] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<"endpoints" | "tools" | "workflows">("endpoints");
 
-  // Load available workflows
   useEffect(() => {
     async function loadWorkflows() {
       setIsLoadingWorkflows(true);
@@ -133,18 +113,9 @@ export function ServiceBuilder({ appId, initialData, onSave }: ServiceBuilderPro
   };
 
   const toggleWorkflow = (workflowId: string) => {
-    if (selectedWorkflows.includes(workflowId)) {
-      setSelectedWorkflows(selectedWorkflows.filter((id) => id !== workflowId));
-    } else {
-      setSelectedWorkflows([...selectedWorkflows, workflowId]);
-    }
-  };
-
-  const copyEndpoint = async (endpoint: string, type: string) => {
-    await navigator.clipboard.writeText(endpoint);
-    setCopied(type);
-    toast.success("Copied to clipboard");
-    setTimeout(() => setCopied(null), 2000);
+    setSelectedWorkflows((prev) =>
+      prev.includes(workflowId) ? prev.filter((id) => id !== workflowId) : [...prev, workflowId]
+    );
   };
 
   const handleSave = async () => {
@@ -166,7 +137,6 @@ export function ServiceBuilder({ appId, initialData, onSave }: ServiceBuilderPro
     if (onSave) {
       onSave(data);
     } else {
-      // Save to API
       const response = await fetch(appId ? `/api/v1/apps/${appId}` : "/api/v1/apps", {
         method: appId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
@@ -205,18 +175,8 @@ export function ServiceBuilder({ appId, initialData, onSave }: ServiceBuilderPro
     setIsSaving(false);
   };
 
-  // Generate endpoint URLs
-  const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://elizacloud.ai";
-  const serviceSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-  const endpointUrls = {
-    mcp: `${baseUrl}/api/services/${serviceSlug}/mcp`,
-    a2a: `${baseUrl}/api/services/${serviceSlug}/a2a`,
-    rest: `${baseUrl}/api/services/${serviceSlug}`,
-  };
-
   return (
     <div className="space-y-6">
-      {/* Header */}
       <BrandCard className="relative">
         <CornerBrackets size="sm" className="opacity-20" />
         <div className="relative z-10 p-6">
@@ -274,7 +234,6 @@ export function ServiceBuilder({ appId, initialData, onSave }: ServiceBuilderPro
         </div>
       </BrandCard>
 
-      {/* Section tabs */}
       <div className="flex gap-2">
         {[
           { key: "endpoints" as const, label: "Endpoints", icon: Globe },
@@ -297,7 +256,6 @@ export function ServiceBuilder({ appId, initialData, onSave }: ServiceBuilderPro
         ))}
       </div>
 
-      {/* Endpoints Section */}
       {activeSection === "endpoints" && (
         <BrandCard className="relative">
           <CornerBrackets size="sm" className="opacity-20" />
@@ -308,7 +266,7 @@ export function ServiceBuilder({ appId, initialData, onSave }: ServiceBuilderPro
             </div>
 
             <p className="text-sm text-white/60 mb-4">
-              Enable the protocols your service supports. All endpoints are automatically available to workflows and n8n.
+              Configure which protocols your service will support. These settings are stored for integration planning.
             </p>
 
             <div className="space-y-3">
@@ -361,35 +319,15 @@ export function ServiceBuilder({ appId, initialData, onSave }: ServiceBuilderPro
                       }
                     />
                   </div>
-
-                  {endpoints[key] && (
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 px-3 py-2 bg-black/30 rounded text-xs text-white/70 font-mono">
-                        {endpointUrls[key]}
-                      </code>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyEndpoint(endpointUrls[key], key)}
-                      >
-                        {copied === key ? (
-                          <Check className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
 
-            <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+            <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
               <div className="flex items-start gap-2">
-                <Settings className="h-4 w-4 text-blue-400 mt-0.5" />
-                <div className="text-sm text-blue-300">
-                  <strong>n8n Integration:</strong> All enabled endpoints are automatically available in n8n workflows. 
-                  You can trigger this service from any workflow node.
+                <Settings className="h-4 w-4 text-amber-400 mt-0.5" />
+                <div className="text-sm text-amber-300">
+                  <strong>Note:</strong> These settings configure service capabilities. Actual endpoint deployment requires additional setup via workflows or manual configuration.
                 </div>
               </div>
             </div>
@@ -397,7 +335,6 @@ export function ServiceBuilder({ appId, initialData, onSave }: ServiceBuilderPro
         </BrandCard>
       )}
 
-      {/* Tools Section */}
       {activeSection === "tools" && (
         <BrandCard className="relative">
           <CornerBrackets size="sm" className="opacity-20" />
@@ -411,7 +348,6 @@ export function ServiceBuilder({ appId, initialData, onSave }: ServiceBuilderPro
               Define the tools (functions) your service provides. These become callable via MCP and A2A.
             </p>
 
-            {/* Add tool form */}
             <div className="p-4 bg-white/5 rounded-lg border border-white/10 space-y-3">
               <div className="grid gap-3 md:grid-cols-2">
                 <div>
@@ -445,7 +381,6 @@ export function ServiceBuilder({ appId, initialData, onSave }: ServiceBuilderPro
               </Button>
             </div>
 
-            {/* Tool list */}
             {tools.length === 0 ? (
               <div className="text-center py-8 text-white/40">
                 <Terminal className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -480,7 +415,6 @@ export function ServiceBuilder({ appId, initialData, onSave }: ServiceBuilderPro
         </BrandCard>
       )}
 
-      {/* Workflows Section */}
       {activeSection === "workflows" && (
         <BrandCard className="relative">
           <CornerBrackets size="sm" className="opacity-20" />

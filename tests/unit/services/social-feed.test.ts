@@ -9,7 +9,7 @@
  * - Polling service
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "bun:test";
 
 describe("Social Feed Types", () => {
   it("should export all required types", async () => {

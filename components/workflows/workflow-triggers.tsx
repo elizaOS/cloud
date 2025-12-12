@@ -1,13 +1,6 @@
-/**
- * Workflow Triggers Panel
- * 
- * Displays and manages triggers for a workflow.
- * Supports cron, webhook, MCP, and A2A triggers.
- */
-
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,7 +34,6 @@ import {
   Trash2,
   RefreshCw,
   AlertCircle,
-  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -51,8 +43,8 @@ type TriggerType = "cron" | "webhook" | "mcp" | "a2a";
 
 interface Trigger {
   id: string;
-  trigger_type: TriggerType;
-  trigger_key: string;
+  triggerType: TriggerType;
+  triggerKey: string;
   config: {
     cronExpression?: string;
     webhookSecret?: string;
@@ -63,11 +55,12 @@ interface Trigger {
     maxExecutionsPerDay?: number;
     inputData?: Record<string, unknown>;
   };
-  is_active: boolean;
-  execution_count: number;
-  error_count: number;
-  last_executed_at: string | null;
-  created_at: string;
+  isActive: boolean;
+  executionCount: number;
+  errorCount: number;
+  lastExecutedAt: string | null;
+  createdAt: string;
+  webhookUrl?: string;
 }
 
 interface WorkflowTriggersProps {
@@ -75,12 +68,22 @@ interface WorkflowTriggersProps {
   workflowName: string;
 }
 
-const TRIGGER_TYPES = [
-  { value: "webhook", label: "Webhook", description: "HTTP endpoint trigger", icon: Globe },
-  { value: "cron", label: "Schedule", description: "Cron-based scheduling", icon: Clock },
-  { value: "mcp", label: "MCP Tool", description: "Model Context Protocol", icon: Bot },
-  { value: "a2a", label: "A2A Skill", description: "Agent-to-Agent", icon: Zap },
-] as const;
+const TRIGGER_CONFIG: Record<TriggerType, { 
+  label: string; 
+  description: string; 
+  icon: typeof Globe; 
+  color: string;
+}> = {
+  webhook: { label: "Webhook", description: "HTTP endpoint trigger", icon: Globe, color: "from-green-500 to-emerald-500" },
+  cron: { label: "Schedule", description: "Cron-based scheduling", icon: Clock, color: "from-blue-500 to-cyan-500" },
+  mcp: { label: "MCP Tool", description: "Model Context Protocol", icon: Bot, color: "from-purple-500 to-pink-500" },
+  a2a: { label: "A2A Skill", description: "Agent-to-Agent", icon: Zap, color: "from-orange-500 to-red-500" },
+};
+
+const TRIGGER_TYPES = Object.entries(TRIGGER_CONFIG).map(([value, config]) => ({ 
+  value: value as TriggerType, 
+  ...config 
+}));
 
 const CRON_PRESETS = [
   { label: "Every minute", value: "* * * * *" },
@@ -107,38 +110,31 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
   });
   const [isCreating, setIsCreating] = useState(false);
 
-  // Fetch triggers on mount and when workflowId changes
   useEffect(() => {
-    let isMounted = true;
-
-    async function loadTriggers() {
+    let cancelled = false;
+    async function load() {
       setIsRefreshing(true);
-      const response = await fetch(`/api/v1/n8n/triggers?workflow_id=${workflowId}`);
-      if (response.ok && isMounted) {
+      const response = await fetch(`/api/v1/n8n/triggers?workflowId=${workflowId}`);
+      if (response.ok && !cancelled) {
         const data = await response.json();
         setTriggers(data.triggers || []);
       }
-      if (isMounted) {
+      if (!cancelled) {
         setIsLoading(false);
         setIsRefreshing(false);
       }
     }
-
-    void loadTriggers();
-
-    return () => {
-      isMounted = false;
-    };
+    void load();
+    return () => { cancelled = true; };
   }, [workflowId]);
 
   const fetchTriggers = async () => {
     setIsRefreshing(true);
-    const response = await fetch(`/api/v1/n8n/triggers?workflow_id=${workflowId}`);
+    const response = await fetch(`/api/v1/n8n/triggers?workflowId=${workflowId}`);
     if (response.ok) {
       const data = await response.json();
       setTriggers(data.triggers || []);
     }
-    setIsLoading(false);
     setIsRefreshing(false);
   };
 
@@ -174,9 +170,9 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        workflow_id: workflowId,
-        trigger_type: createType,
-        trigger_key: triggerKey,
+        workflowId,
+        triggerType: createType,
+        triggerKey,
         config,
       }),
     });
@@ -198,7 +194,7 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
     const response = await fetch(`/api/v1/n8n/triggers/${trigger.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ is_active: active }),
+      body: JSON.stringify({ isActive: active }),
     });
 
     if (!response.ok) {
@@ -206,7 +202,7 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
       return;
     }
 
-    setTriggers(triggers.map((t) => (t.id === trigger.id ? { ...t, is_active: active } : t)));
+    setTriggers(triggers.map((t) => (t.id === trigger.id ? { ...t, isActive: active } : t)));
     toast.success(active ? "Trigger enabled" : "Trigger disabled");
   };
 
@@ -234,43 +230,15 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
   };
 
   const getEndpointUrl = (trigger: Trigger): string => {
+    if (trigger.webhookUrl) return trigger.webhookUrl;
     const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://elizacloud.ai";
-    switch (trigger.trigger_type) {
-      case "webhook":
-        return `${baseUrl}/api/v1/n8n/webhooks/${trigger.trigger_key}`;
-      case "mcp":
-        return `${baseUrl}/api/mcp/workflows/${workflowId}`;
-      case "a2a":
-        return `${baseUrl}/api/a2a/workflows/${workflowId}`;
-      default:
-        return "";
-    }
-  };
-
-  const getTriggerIcon = (type: TriggerType) => {
-    switch (type) {
-      case "cron":
-        return Clock;
-      case "webhook":
-        return Globe;
-      case "mcp":
-        return Bot;
-      case "a2a":
-        return Zap;
-    }
-  };
-
-  const getTriggerColor = (type: TriggerType) => {
-    switch (type) {
-      case "cron":
-        return "from-blue-500 to-cyan-500";
-      case "webhook":
-        return "from-green-500 to-emerald-500";
-      case "mcp":
-        return "from-purple-500 to-pink-500";
-      case "a2a":
-        return "from-orange-500 to-red-500";
-    }
+    const urls: Record<TriggerType, string> = {
+      webhook: `${baseUrl}/api/v1/n8n/webhooks/${trigger.triggerKey}`,
+      mcp: `${baseUrl}/api/mcp/workflows/${workflowId}`,
+      a2a: `${baseUrl}/api/a2a/workflows/${workflowId}`,
+      cron: "",
+    };
+    return urls[trigger.triggerType];
   };
 
   if (isLoading) {
@@ -322,8 +290,7 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
       ) : (
         <div className="space-y-3">
           {triggers.map((trigger) => {
-            const Icon = getTriggerIcon(trigger.trigger_type);
-            const color = getTriggerColor(trigger.trigger_type);
+            const config = TRIGGER_CONFIG[trigger.triggerType];
             const endpointUrl = getEndpointUrl(trigger);
 
             return (
@@ -332,57 +299,57 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
                 <div className="relative z-10 p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3">
-                      <div className={cn("p-2 rounded-lg bg-gradient-to-r", color)}>
-                        <Icon className="h-4 w-4 text-white" />
+                      <div className={cn("p-2 rounded-lg bg-gradient-to-r", config.color)}>
+                        <config.icon className="h-4 w-4 text-white" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-white capitalize">
-                            {trigger.trigger_type === "a2a"
+                            {trigger.triggerType === "a2a"
                               ? "A2A Skill"
-                              : trigger.trigger_type === "mcp"
+                              : trigger.triggerType === "mcp"
                               ? "MCP Tool"
-                              : trigger.trigger_type}
+                              : trigger.triggerType}
                           </span>
                           <Badge
                             variant="outline"
                             className={cn(
                               "text-xs",
-                              trigger.is_active
+                              trigger.isActive
                                 ? "bg-green-500/20 text-green-400 border-green-500/30"
                                 : "bg-gray-500/20 text-gray-400 border-gray-500/30"
                             )}
                           >
-                            {trigger.is_active ? "Active" : "Inactive"}
+                            {trigger.isActive ? "Active" : "Inactive"}
                           </Badge>
                         </div>
 
-                        {trigger.trigger_type === "cron" && (
+                        {trigger.triggerType === "cron" && (
                           <code className="text-xs text-white/50 font-mono">
                             {trigger.config.cronExpression}
                           </code>
                         )}
 
-                        {trigger.trigger_type === "mcp" && trigger.config.toolName && (
+                        {trigger.triggerType === "mcp" && trigger.config.toolName && (
                           <code className="text-xs text-[#FF5800] font-mono">
                             {trigger.config.toolName}
                           </code>
                         )}
 
-                        {trigger.trigger_type === "a2a" && trigger.config.skillId && (
+                        {trigger.triggerType === "a2a" && trigger.config.skillId && (
                           <code className="text-xs text-[#FF5800] font-mono">
                             {trigger.config.skillId}
                           </code>
                         )}
 
                         <div className="flex items-center gap-4 mt-2 text-xs text-white/40">
-                          <span>{trigger.execution_count} executions</span>
-                          {trigger.error_count > 0 && (
-                            <span className="text-red-400">{trigger.error_count} errors</span>
+                          <span>{trigger.executionCount} executions</span>
+                          {trigger.errorCount > 0 && (
+                            <span className="text-red-400">{trigger.errorCount} errors</span>
                           )}
-                          {trigger.last_executed_at && (
+                          {trigger.lastExecutedAt && (
                             <span>
-                              Last run {formatDistanceToNow(new Date(trigger.last_executed_at))} ago
+                              Last run {formatDistanceToNow(new Date(trigger.lastExecutedAt))} ago
                             </span>
                           )}
                         </div>
@@ -391,7 +358,7 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
 
                     <div className="flex items-center gap-2">
                       <Switch
-                        checked={trigger.is_active}
+                        checked={trigger.isActive}
                         onCheckedChange={(checked) => handleToggle(trigger, checked)}
                       />
                       <Button

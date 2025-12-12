@@ -1,14 +1,3 @@
-/**
- * Secrets Management Schema
- *
- * Production-grade secrets storage with:
- * - Envelope encryption (AES-256-GCM + KMS)
- * - Organization → Project → Environment scoping
- * - Audit logging for compliance
- * - Secret rotation support
- * - OAuth session storage
- */
-
 import {
   boolean,
   index,
@@ -24,10 +13,7 @@ import {
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { organizations } from "./organizations";
 import { users } from "./users";
-
-// =============================================================================
-// ENUMS
-// =============================================================================
+import { apps } from "./apps";
 
 export const secretScopeEnum = pgEnum("secret_scope", [
   "organization",
@@ -57,64 +43,67 @@ export const secretActorTypeEnum = pgEnum("secret_actor_type", [
   "workflow",
 ]);
 
-// =============================================================================
-// SECRETS TABLE
-// =============================================================================
+export const secretProviderEnum = pgEnum("secret_provider", [
+  "openai",
+  "anthropic",
+  "google",
+  "elevenlabs",
+  "fal",
+  "stripe",
+  "discord",
+  "telegram",
+  "twitter",
+  "github",
+  "slack",
+  "aws",
+  "vercel",
+  "custom",
+]);
 
-/**
- * Encrypted secrets storage using envelope encryption.
- *
- * Each secret is encrypted with a unique DEK (Data Encryption Key),
- * and the DEK is encrypted with a KEK (Key Encryption Key) from KMS.
- * Only the encrypted DEK is stored in the database.
- */
+export const secretProjectTypeEnum = pgEnum("secret_project_type", [
+  "character",
+  "app",
+  "workflow",
+  "container",
+  "mcp",
+]);
+
 export const secrets = pgTable(
   "secrets",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-
-    // Ownership
     organization_id: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-
-    // Scoping
     scope: secretScopeEnum("scope").notNull().default("organization"),
-    project_id: uuid("project_id"), // For project-scoped secrets (character, mcp, workflow, etc.)
-    project_type: text("project_type"), // "character" | "mcp" | "workflow" | "container" | "app"
-    environment: secretEnvironmentEnum("environment"), // For environment-scoped secrets
-
-    // Secret identity
-    name: text("name").notNull(), // e.g., "OPENAI_API_KEY"
+    project_id: uuid("project_id"),
+    project_type: text("project_type"),
+    environment: secretEnvironmentEnum("environment"),
+    name: text("name").notNull(),
     description: text("description"),
-
-    // Encrypted value (AES-256-GCM)
+    provider: secretProviderEnum("provider"),
+    provider_metadata: jsonb("provider_metadata").$type<{
+      pattern?: string;
+      testUrl?: string;
+      testMethod?: string;
+      validated?: boolean;
+      lastValidatedAt?: string;
+    }>(),
     encrypted_value: text("encrypted_value").notNull(),
-
-    // Key management
-    encryption_key_id: text("encryption_key_id").notNull(), // KMS key ID/ARN
-    encrypted_dek: text("encrypted_dek").notNull(), // Encrypted data encryption key
-    nonce: text("nonce").notNull(), // IV for AES-GCM (base64)
-    auth_tag: text("auth_tag").notNull(), // GCM auth tag (base64)
-
-    // Metadata
+    encryption_key_id: text("encryption_key_id").notNull(),
+    encrypted_dek: text("encrypted_dek").notNull(),
+    nonce: text("nonce").notNull(),
+    auth_tag: text("auth_tag").notNull(),
     version: integer("version").default(1).notNull(),
     last_rotated_at: timestamp("last_rotated_at"),
     expires_at: timestamp("expires_at"),
-
-    // Audit
-    created_by: uuid("created_by")
-      .notNull()
-      .references(() => users.id),
+    created_by: uuid("created_by").notNull().references(() => users.id),
     last_accessed_at: timestamp("last_accessed_at"),
     access_count: integer("access_count").default(0).notNull(),
-
-    // Timestamps
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => ({
-    // Unique constraint: one secret name per org/project/environment combo
     org_name_project_env_idx: uniqueIndex("secrets_org_name_project_env_idx").on(
       table.organization_id,
       table.name,
@@ -127,71 +116,103 @@ export const secrets = pgTable(
     env_idx: index("secrets_env_idx").on(table.environment),
     name_idx: index("secrets_name_idx").on(table.name),
     expires_idx: index("secrets_expires_idx").on(table.expires_at),
+    provider_idx: index("secrets_provider_idx").on(table.provider),
   })
 );
 
-// =============================================================================
-// OAUTH SESSIONS TABLE
-// =============================================================================
+/**
+ * Secret bindings - allows attaching org-level secrets to specific projects
+ * This enables reusing secrets across multiple projects without duplication
+ */
+export const secretBindings = pgTable(
+  "secret_bindings",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    secret_id: uuid("secret_id")
+      .notNull()
+      .references(() => secrets.id, { onDelete: "cascade" }),
+    project_id: uuid("project_id").notNull(),
+    project_type: secretProjectTypeEnum("project_type").notNull(),
+    created_by: uuid("created_by")
+      .notNull()
+      .references(() => users.id),
+    created_at: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    secret_project_idx: uniqueIndex("secret_bindings_secret_project_idx").on(
+      table.secret_id,
+      table.project_id,
+      table.project_type
+    ),
+    project_idx: index("secret_bindings_project_idx").on(
+      table.project_id,
+      table.project_type
+    ),
+    secret_idx: index("secret_bindings_secret_idx").on(table.secret_id),
+  })
+);
 
 /**
- * OAuth token storage for third-party integrations.
- *
- * Stores encrypted access and refresh tokens for services like
- * Google, GitHub, Notion, Slack, etc.
+ * App secret requirements - declares which secrets an app needs access to
+ * Requires admin approval before the app can access the secret
  */
+export const appSecretRequirements = pgTable(
+  "app_secret_requirements",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    app_id: uuid("app_id")
+      .notNull()
+      .references(() => apps.id, { onDelete: "cascade" }),
+    secret_name: text("secret_name").notNull(),
+    required: boolean("required").default(true).notNull(),
+    approved: boolean("approved").default(false).notNull(),
+    approved_by: uuid("approved_by").references(() => users.id),
+    approved_at: timestamp("approved_at"),
+    created_at: timestamp("created_at").notNull().defaultNow(),
+    updated_at: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    app_secret_idx: uniqueIndex("app_secret_requirements_app_secret_idx").on(
+      table.app_id,
+      table.secret_name
+    ),
+    app_idx: index("app_secret_requirements_app_idx").on(table.app_id),
+    approved_idx: index("app_secret_requirements_approved_idx").on(table.approved),
+  })
+);
+
 export const oauthSessions = pgTable(
   "oauth_sessions",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-
-    // Ownership
     organization_id: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     user_id: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
-
-    // Provider info
-    provider: text("provider").notNull(), // "google", "github", "notion", "slack", etc.
-    provider_account_id: text("provider_account_id"), // External account ID
-
-    // Tokens (encrypted)
+    provider: text("provider").notNull(),
+    provider_account_id: text("provider_account_id"),
     encrypted_access_token: text("encrypted_access_token").notNull(),
     encrypted_refresh_token: text("encrypted_refresh_token"),
     token_type: text("token_type").default("Bearer"),
-
-    // Encryption metadata for access token
     encryption_key_id: text("encryption_key_id").notNull(),
     encrypted_dek: text("encrypted_dek").notNull(),
     nonce: text("nonce").notNull(),
     auth_tag: text("auth_tag").notNull(),
-
-    // Encryption metadata for refresh token (separate DEK for security)
     refresh_encrypted_dek: text("refresh_encrypted_dek"),
     refresh_nonce: text("refresh_nonce"),
     refresh_auth_tag: text("refresh_auth_tag"),
-
-    // Token metadata
     scopes: jsonb("scopes").$type<string[]>().default([]).notNull(),
     access_token_expires_at: timestamp("access_token_expires_at"),
     refresh_token_expires_at: timestamp("refresh_token_expires_at"),
-
-    // Provider-specific data (encrypted JSON)
     encrypted_provider_data: text("encrypted_provider_data"),
     provider_data_nonce: text("provider_data_nonce"),
     provider_data_auth_tag: text("provider_data_auth_tag"),
-
-    // Usage tracking
     last_used_at: timestamp("last_used_at"),
     last_refreshed_at: timestamp("last_refreshed_at"),
     refresh_count: integer("refresh_count").default(0).notNull(),
-
-    // Status
     is_valid: boolean("is_valid").default(true).notNull(),
     revoked_at: timestamp("revoked_at"),
     revoke_reason: text("revoke_reason"),
-
-    // Timestamps
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -213,48 +234,24 @@ export const oauthSessions = pgTable(
   })
 );
 
-// =============================================================================
-// SECRET AUDIT LOG TABLE
-// =============================================================================
-
-/**
- * Immutable audit log for all secret operations.
- *
- * Required for SOC 2 compliance and security monitoring.
- * Records are never deleted, only appended.
- */
 export const secretAuditLog = pgTable(
   "secret_audit_log",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-
-    // Reference (don't FK - keep log even if secret deleted)
-    secret_id: uuid("secret_id"), // Null for OAuth operations
-    oauth_session_id: uuid("oauth_session_id"), // Null for secret operations
+    secret_id: uuid("secret_id"),
+    oauth_session_id: uuid("oauth_session_id"),
     organization_id: uuid("organization_id").notNull(),
-
-    // What happened
     action: secretAuditActionEnum("action").notNull(),
-    secret_name: text("secret_name"), // Denormalized for queries after deletion
-
-    // Who did it
+    secret_name: text("secret_name"),
     actor_type: secretActorTypeEnum("actor_type").notNull(),
-    actor_id: text("actor_id").notNull(), // User ID, API key ID, "system", deployment ID
-    actor_email: text("actor_email"), // Denormalized for display
-
-    // Context
+    actor_id: text("actor_id").notNull(),
+    actor_email: text("actor_email"),
     ip_address: text("ip_address"),
     user_agent: text("user_agent"),
-    source: text("source"), // "dashboard", "api", "cli", "deployment", "workflow"
-
-    // Request details
-    request_id: text("request_id"), // Correlation ID
-    endpoint: text("endpoint"), // API endpoint that triggered this
-
-    // Additional metadata
+    source: text("source"),
+    request_id: text("request_id"),
+    endpoint: text("endpoint"),
     metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
-
-    // Immutable timestamp
     created_at: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => ({
@@ -267,7 +264,6 @@ export const secretAuditLog = pgTable(
       table.actor_id
     ),
     created_at_idx: index("secret_audit_log_created_at_idx").on(table.created_at),
-    // Composite index for common query patterns
     org_action_time_idx: index("secret_audit_log_org_action_time_idx").on(
       table.organization_id,
       table.action,
@@ -275,10 +271,6 @@ export const secretAuditLog = pgTable(
     ),
   })
 );
-
-// =============================================================================
-// TYPE EXPORTS
-// =============================================================================
 
 export type Secret = InferSelectModel<typeof secrets>;
 export type NewSecret = InferInsertModel<typeof secrets>;
@@ -289,9 +281,16 @@ export type NewOAuthSession = InferInsertModel<typeof oauthSessions>;
 export type SecretAuditLog = InferSelectModel<typeof secretAuditLog>;
 export type NewSecretAuditLog = InferInsertModel<typeof secretAuditLog>;
 
-// Scope types
+export type SecretBinding = InferSelectModel<typeof secretBindings>;
+export type NewSecretBinding = InferInsertModel<typeof secretBindings>;
+
+export type AppSecretRequirement = InferSelectModel<typeof appSecretRequirements>;
+export type NewAppSecretRequirement = InferInsertModel<typeof appSecretRequirements>;
+
 export type SecretScope = "organization" | "project" | "environment";
 export type SecretEnvironment = "development" | "preview" | "production";
 export type SecretAuditAction = "created" | "read" | "updated" | "deleted" | "rotated";
 export type SecretActorType = "user" | "api_key" | "system" | "deployment" | "workflow";
+export type SecretProvider = "openai" | "anthropic" | "google" | "elevenlabs" | "fal" | "stripe" | "discord" | "telegram" | "twitter" | "github" | "slack" | "aws" | "vercel" | "custom";
+export type SecretProjectType = "character" | "app" | "workflow" | "container" | "mcp";
 

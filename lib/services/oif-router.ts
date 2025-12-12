@@ -1,21 +1,10 @@
 /**
  * OIF Cross-Chain Payment Router
- *
- * Handles cross-chain payment routing via the Open Intents Framework (OIF).
- * This enables:
- * - Accepting payments from any supported chain (Ethereum, Base, Jeju, etc.)
- * - Routing payouts to user's preferred chain
- * - Optimal routing for cost/speed via intent aggregation
- *
- * @see /apps/intents for OIF implementation
+ * 
+ * Routes payments and payouts across chains via the Open Intents Framework.
  */
 
-import {
-  createPublicClient,
-  http,
-  formatUnits,
-  type Address,
-} from "viem";
+import { createPublicClient, http, formatUnits, type Address } from "viem";
 import {
   getOIFAggregatorUrl,
   isCrossChainEnabled,
@@ -32,35 +21,19 @@ import { jeju, jejuTestnet, jejuLocalnet } from "@/lib/config/chains";
 import { base, baseSepolia } from "viem/chains";
 import { logger } from "@/lib/utils/logger";
 
-// ============================================================================
-// Types
-// ============================================================================
-
-/** Intent creation request */
 export interface CreateIntentRequest {
-  /** Source chain ID */
   sourceChainId: number;
-  /** Destination chain ID */
   destinationChainId: number;
-  /** Input token address on source chain */
   inputToken: Address;
-  /** Output token address on destination chain */
   outputToken: Address;
-  /** Amount of input token (in wei/smallest unit) */
   inputAmount: string;
-  /** Minimum acceptable output amount */
   minOutputAmount: string;
-  /** Sender address */
   sender: Address;
-  /** Recipient address */
   recipient: Address;
-  /** Deadline timestamp (unix seconds) */
   deadline: number;
-  /** Optional: specific solver to use */
   solver?: Address;
 }
 
-/** Intent with ID and status */
 export interface Intent extends CreateIntentRequest {
   id: string;
   status: "pending" | "matched" | "filling" | "filled" | "expired" | "cancelled";
@@ -71,7 +44,6 @@ export interface Intent extends CreateIntentRequest {
   outputAmount?: string;
 }
 
-/** Route quote from aggregator */
 export interface RouteQuote {
   routes: Array<{
     sourceChain: number;
@@ -90,21 +62,14 @@ export interface RouteQuote {
   totalTime: number;
 }
 
-/** Payout routing request */
 export interface PayoutRoutingRequest {
-  /** Amount in USD to pay out */
   amountUsd: number;
-  /** Token to pay out (e.g., "elizaOS") */
   token: string;
-  /** Recipient address */
   recipient: Address;
-  /** Preferred destination chain */
   preferredChain?: X402Network;
-  /** Allow fallback to other chains if preferred unavailable */
   allowFallback?: boolean;
 }
 
-/** Payout routing result */
 export interface PayoutRoutingResult {
   success: boolean;
   route?: {
@@ -118,11 +83,22 @@ export interface PayoutRoutingResult {
   error?: string;
 }
 
-// ============================================================================
-// Chain and Token Helpers
-// ============================================================================
+const CHAIN_IDS: Record<X402Network, number> = {
+  "jeju-localnet": 1337,
+  "jeju-testnet": 420690,
+  "jeju": 420691,
+  "base-sepolia": 84532,
+  "base": 8453,
+};
 
-/** ERC20 balanceOf ABI */
+const CHAIN_CONFIRM_TIMES: Record<X402Network, number> = {
+  "jeju-localnet": 2,
+  "jeju-testnet": 6,
+  "jeju": 6,
+  "base-sepolia": 4,
+  "base": 4,
+};
+
 const ERC20_BALANCE_ABI = [
   {
     name: "balanceOf",
@@ -133,65 +109,51 @@ const ERC20_BALANCE_ABI = [
   },
 ] as const;
 
-/**
- * Get viem chain for a network
- */
-function getViemChain(network: X402Network) {
-  switch (network) {
-    case "jeju-localnet": return jejuLocalnet;
-    case "jeju-testnet": return jejuTestnet;
-    case "jeju": return jeju;
-    case "base-sepolia": return baseSepolia;
-    case "base": return base;
-  }
-}
+const VIEM_CHAINS: Record<X402Network, typeof jeju> = {
+  "jeju-localnet": jejuLocalnet,
+  "jeju-testnet": jejuTestnet,
+  "jeju": jeju,
+  "base-sepolia": baseSepolia,
+  "base": base,
+};
 
-/**
- * Get hot wallet address for payouts
- */
 function getHotWalletAddress(): Address | null {
   const address = process.env.EVM_PAYOUT_WALLET_ADDRESS || process.env.X402_RECIPIENT_ADDRESS;
-  if (!address || address === "0x0000000000000000000000000000000000000000") {
-    return null;
-  }
+  if (!address || address === "0x0000000000000000000000000000000000000000") return null;
   return address as Address;
 }
 
-// ============================================================================
-// OIF Router Service
-// ============================================================================
+function getTokenAddress(chain: X402Network, token: string): Address | null {
+  if (token.toLowerCase() === "usdc") return USDC_ADDRESSES[chain];
+  
+  if (token.toLowerCase() === "elizaos" || token.toLowerCase() === "eliza") {
+    const evmTokens = ELIZA_TOKEN_ADDRESSES.evm;
+    const tokenKey = chain === "jeju" ? "jeju" 
+      : chain === "jeju-testnet" ? "jeju-testnet"
+      : chain === "base" ? "base"
+      : chain === "base-sepolia" ? "base"
+      : null;
+    if (tokenKey && evmTokens[tokenKey]) return evmTokens[tokenKey] as Address;
+  }
+  
+  return null;
+}
 
 class OIFRouterService {
-  private aggregatorUrl: string;
+  private aggregatorUrl = getOIFAggregatorUrl();
 
-  constructor() {
-    this.aggregatorUrl = getOIFAggregatorUrl();
-  }
-
-  /**
-   * Check if OIF cross-chain routing is available
-   */
   isAvailable(): boolean {
     return isCrossChainEnabled();
   }
 
-  /**
-   * Get supported source chains for payments
-   */
   getSupportedChains(): number[] {
     return getSupportedSourceChains();
   }
 
-  /**
-   * Check if a chain can be used as payment source
-   */
   canAcceptFromChain(chainId: number): boolean {
     return isSourceChainSupported(chainId);
   }
 
-  /**
-   * Get quote for cross-chain route
-   */
   async getQuote(
     sourceChainId: number,
     destinationChainId: number,
@@ -225,9 +187,6 @@ class OIFRouterService {
     return response.json();
   }
 
-  /**
-   * Create an intent for cross-chain transfer
-   */
   async createIntent(request: CreateIntentRequest): Promise<Intent | null> {
     if (!this.isAvailable()) {
       logger.warn("[OIF] Cross-chain routing not available");
@@ -256,9 +215,6 @@ class OIFRouterService {
     return intent;
   }
 
-  /**
-   * Get intent status
-   */
   async getIntent(intentId: string): Promise<Intent | null> {
     const response = await fetch(`${this.aggregatorUrl}/api/intents/${intentId}`);
 
@@ -269,9 +225,6 @@ class OIFRouterService {
     return response.json();
   }
 
-  /**
-   * Wait for intent to be filled (with timeout)
-   */
   async waitForFill(intentId: string, timeoutMs = 300000): Promise<Intent | null> {
     const startTime = Date.now();
     const pollInterval = 2000;
@@ -303,16 +256,6 @@ class OIFRouterService {
     return null;
   }
 
-  /**
-   * Get optimal payout routing for a user
-   *
-   * This determines the best chain to use for paying out tokens,
-   * considering:
-   * - User's preferred chain
-   * - Token availability
-   * - Gas costs
-   * - Speed
-   */
   async getPayoutRoute(request: PayoutRoutingRequest): Promise<PayoutRoutingResult> {
     const { preferredChain, allowFallback = true } = request;
 
@@ -323,7 +266,7 @@ class OIFRouterService {
         success: true,
         route: {
           chain,
-          chainId: this.getChainId(chain),
+          chainId: CHAIN_IDS[chain],
           token: "0x0000000000000000000000000000000000000000" as Address,
           amount: "0",
           estimatedGas: "0",
@@ -362,25 +305,15 @@ class OIFRouterService {
     };
   }
 
-  /**
-   * Check if a chain is available for payout
-   * 
-   * Validates:
-   * 1. Token address is configured for the chain
-   * 2. Hot wallet has sufficient token balance
-   * 3. Hot wallet has sufficient ETH for gas
-   * 4. Chain is reachable
-   */
   private async checkChainAvailability(
     chain: X402Network,
     request: PayoutRoutingRequest
   ): Promise<PayoutRoutingResult["route"] | null> {
-    const chainId = this.getChainId(chain);
+    const chainId = CHAIN_IDS[chain];
     const networkConfig = getNetworkConfig(chain);
-    const viemChain = getViemChain(chain);
+    const viemChain = VIEM_CHAINS[chain];
     
-    // Get token address for the chain
-    const tokenAddress = this.getTokenAddress(chain, request.token);
+    const tokenAddress = getTokenAddress(chain, request.token);
     if (!tokenAddress || tokenAddress === "0x0000000000000000000000000000000000000000") {
       logger.debug("[OIF] Token not configured on chain", { chain, token: request.token });
       return null;
@@ -437,7 +370,7 @@ class OIFRouterService {
       const gasCost = gasPrice * estimatedGas;
       
       // Estimate time based on chain
-      const estimatedTime = this.getEstimatedTime(chain);
+      const estimatedTime = CHAIN_CONFIRM_TIMES[chain];
       
       logger.debug("[OIF] Chain available for payout", {
         chain,
@@ -462,140 +395,49 @@ class OIFRouterService {
       return null;
     }
   }
-  
-  /**
-   * Get token address for a chain and token symbol
-   */
-  private getTokenAddress(chain: X402Network, token: string): Address | null {
-    if (token.toLowerCase() === "usdc") {
-      return USDC_ADDRESSES[chain];
-    }
-    
-    if (token.toLowerCase() === "elizaos" || token.toLowerCase() === "eliza") {
-      const evmTokens = ELIZA_TOKEN_ADDRESSES.evm;
-      // Map network to token config key
-      const tokenKey = chain === "jeju" ? "jeju" 
-        : chain === "jeju-testnet" ? "jeju-testnet"
-        : chain === "base" ? "base"
-        : chain === "base-sepolia" ? "base"
-        : null;
-      
-      if (tokenKey && evmTokens[tokenKey]) {
-        return evmTokens[tokenKey] as Address;
-      }
-    }
-    
-    return null;
-  }
-  
-  /**
-   * Get estimated confirmation time for a chain
-   */
-  private getEstimatedTime(chain: X402Network): number {
-    const times: Record<X402Network, number> = {
-      "jeju-localnet": 2,
-      "jeju-testnet": 6,
-      "jeju": 6,
-      "base-sepolia": 4,
-      "base": 4,
-    };
-    return times[chain] || 15;
-  }
 
-  /**
-   * Get chain ID for a network
-   */
-  private getChainId(network: X402Network): number {
-    const chainIds: Record<X402Network, number> = {
-      "jeju-localnet": 1337,
-      "jeju-testnet": 420690,
-      "jeju": 420691,
-      "base-sepolia": 84532,
-      "base": 8453,
-    };
-    return chainIds[network];
-  }
-
-  /**
-   * Refresh aggregator URL (for config changes)
-   */
   refreshConfig(): void {
     this.aggregatorUrl = getOIFAggregatorUrl();
   }
 }
 
-// ============================================================================
-// Singleton Export
-// ============================================================================
-
 export const oifRouter = new OIFRouterService();
 
-/**
- * Check if cross-chain payment is supported from a given chain
- */
 export function canAcceptCrossChainPayment(sourceChainId: number): boolean {
   return oifRouter.canAcceptFromChain(sourceChainId);
 }
 
-/**
- * Get the best payout chain for a recipient
- */
 export async function getOptimalPayoutChain(
   recipient: Address,
   preferredChain?: X402Network
 ): Promise<X402Network> {
   const result = await oifRouter.getPayoutRoute({
-    amountUsd: 0, // Not needed for chain selection
+    amountUsd: 0,
     token: "elizaOS",
     recipient,
     preferredChain,
   });
-
   return result.route?.chain ?? getSettlementChain();
 }
 
-// ============================================================================
-// Cross-Chain Payout via Intents (EIL - no bridges needed)
-// ============================================================================
-
-/** Cross-chain payout request */
 export interface CrossChainPayoutRequest {
-  /** Source chain where hot wallet has tokens */
   sourceChain: X402Network;
-  /** User's preferred destination chain */
   destinationChain: X402Network;
-  /** Token to pay out */
   token: "elizaOS" | "usdc";
-  /** Amount in token units (wei/smallest unit) */
   amount: string;
-  /** Recipient address on destination chain */
   recipient: Address;
-  /** Deadline for fill (unix seconds) */
   deadline?: number;
 }
 
-/** Cross-chain payout result */
 export interface CrossChainPayoutResult {
   success: boolean;
-  /** If same-chain, direct tx hash. If cross-chain, intent ID. */
   txHash?: string;
   intentId?: string;
-  /** Actual chain used for payout */
   chain: X402Network;
-  /** Was cross-chain routing used? */
   crossChain: boolean;
   error?: string;
 }
 
-/**
- * Execute a payout to user's preferred chain via OIF intents.
- * 
- * If user wants tokens on a different chain than where we hold them,
- * we create an intent that solvers can fill. This enables:
- * - User on Base wants payout -> we have tokens on Jeju -> solver fills
- * - User on Jeju wants payout -> we have tokens on Base -> solver fills
- * - No bridges needed - just intents and solver liquidity
- */
 export async function executeCrossChainPayout(
   request: CrossChainPayoutRequest
 ): Promise<CrossChainPayoutResult> {
@@ -624,10 +466,10 @@ export async function executeCrossChainPayout(
   }
   
   // Get token addresses
-  const sourceChainId = getChainIdForNetwork(sourceChain);
-  const destChainId = getChainIdForNetwork(destinationChain);
-  const inputToken = getTokenAddressForChain(sourceChain, token);
-  const outputToken = getTokenAddressForChain(destinationChain, token);
+  const sourceChainId = CHAIN_IDS[sourceChain];
+  const destChainId = CHAIN_IDS[destinationChain];
+  const inputToken = getTokenAddress(sourceChain, token);
+  const outputToken = getTokenAddress(destinationChain, token);
   
   if (!inputToken || !outputToken) {
     return {
@@ -695,48 +537,6 @@ export async function executeCrossChainPayout(
   };
 }
 
-/**
- * Get chain ID for a network
- */
-function getChainIdForNetwork(network: X402Network): number {
-  const chainIds: Record<X402Network, number> = {
-    "jeju-localnet": 1337,
-    "jeju-testnet": 420690,
-    "jeju": 420691,
-    "base-sepolia": 84532,
-    "base": 8453,
-  };
-  return chainIds[network];
-}
-
-/**
- * Get token address for a chain
- */
-function getTokenAddressForChain(chain: X402Network, token: string): Address | null {
-  if (token.toLowerCase() === "usdc") {
-    return USDC_ADDRESSES[chain];
-  }
-  
-  if (token.toLowerCase() === "elizaos" || token.toLowerCase() === "eliza") {
-    const evmTokens = ELIZA_TOKEN_ADDRESSES.evm;
-    const tokenKey = chain === "jeju" ? "jeju" 
-      : chain === "jeju-testnet" ? "jeju-testnet"
-      : chain === "base" ? "base"
-      : chain === "base-sepolia" ? "base"
-      : null;
-    
-    if (tokenKey && evmTokens[tokenKey]) {
-      return evmTokens[tokenKey] as Address;
-    }
-  }
-  
-  return null;
-}
-
-/**
- * Check if user's preferred chain can be used for payout
- * Returns the chain to actually use (may differ from preferred if unavailable)
- */
 export async function resolvePayoutChain(
   preferredChain: X402Network,
   fallbackChain: X402Network,
@@ -745,7 +545,7 @@ export async function resolvePayoutChain(
   recipient: Address
 ): Promise<{ chain: X402Network; crossChain: boolean }> {
   // Check if token is available on preferred chain
-  const preferredToken = getTokenAddressForChain(preferredChain, token);
+  const preferredToken = getTokenAddress(preferredChain, token);
   
   if (preferredToken && preferredToken !== "0x0000000000000000000000000000000000000000") {
     // Token available on preferred chain
@@ -764,7 +564,7 @@ export async function resolvePayoutChain(
   
   // Try cross-chain to preferred if we have it on fallback
   if (oifRouter.isAvailable()) {
-    const fallbackToken = getTokenAddressForChain(fallbackChain, token);
+    const fallbackToken = getTokenAddress(fallbackChain, token);
     if (fallbackToken && fallbackToken !== "0x0000000000000000000000000000000000000000") {
       // Can do cross-chain from fallback to preferred
       return { chain: preferredChain, crossChain: true };

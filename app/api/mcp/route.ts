@@ -44,6 +44,7 @@ import { getElevenLabsService } from "@/lib/services/elevenlabs";
 import { characterMarketplaceService } from "@/lib/services/characters/marketplace";
 import { storageService, calculateUploadCost, formatPrice } from "@/lib/services/storage";
 import { ipfsService } from "@/lib/services/ipfs";
+import { seoService } from "@/lib/services/seo";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import {
@@ -70,6 +71,12 @@ import {
   CONVERSATION_SUMMARY_BASE_COST,
   CONVERSATION_SUMMARY_MAX_COST,
 } from "@/lib/config/mcp";
+import {
+  seoArtifactsRepository,
+  seoProviderCallsRepository,
+  seoRequestsRepository,
+} from "@/db/repositories";
+import { seoRequestTypeEnum } from "@/db/schemas/seo";
 
 // Next.js requires literal values for segment config exports
 export const maxDuration = 60; // 60 seconds - matches default MCP_REQUEST_TIMEOUT
@@ -6706,6 +6713,1163 @@ const mcpHandler = createMcpHandler(
         } catch (error) {
           return {
             content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to deploy project" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: SEO Create Request
+    server.registerTool(
+      "seo_create_request",
+      {
+        description: "Create an SEO request using DataForSEO, SerpApi, Claude, and IndexNow.",
+        inputSchema: {
+          type: z.enum(seoRequestTypeEnum.enumValues).describe("SEO request type"),
+          pageUrl: z.string().url().optional().describe("Target page URL"),
+          keywords: z.array(z.string()).optional().describe("Seed keywords"),
+          locale: z.string().optional().describe("Locale, e.g., en-US"),
+          searchEngine: z.string().optional().describe("Search engine (google, bing)"),
+          device: z.string().optional().describe("Device type (desktop, mobile)"),
+          environment: z.string().optional().describe("App environment"),
+          agentIdentifier: z.string().optional().describe("Agent identifier for attribution"),
+          promptContext: z.string().optional().describe("Additional context for Claude"),
+          idempotencyKey: z.string().optional().describe("Idempotency key for deduplication"),
+          locationCode: z.number().int().optional().describe("DataForSEO location code (defaults to US 2840)"),
+          query: z.string().optional().describe("Explicit query for SERP snapshot"),
+          appId: z.string().optional().describe("App ID to associate the request"),
+        },
+      },
+      async (input) => {
+        try {
+          const { user } = getAuthContext();
+          const result = await seoService.createRequest({
+            organizationId: user.organization_id!,
+            userId: user.id,
+            apiKeyId: user.api_key_id || undefined,
+            appId: input.appId,
+            type: input.type,
+            pageUrl: input.pageUrl,
+            keywords: input.keywords,
+            locale: input.locale,
+            searchEngine: input.searchEngine,
+            device: input.device,
+            environment: input.environment,
+            agentIdentifier: input.agentIdentifier,
+            promptContext: input.promptContext,
+            idempotencyKey: input.idempotencyKey,
+            locationCode: input.locationCode,
+            query: input.query,
+          });
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    request: {
+                      id: result.request.id,
+                      status: result.request.status,
+                      type: result.request.type,
+                      pageUrl: result.request.page_url,
+                    },
+                    artifacts: result.artifacts.map((a) => ({
+                      id: a.id,
+                      type: a.type,
+                      provider: a.provider,
+                    })),
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to create SEO request",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: SEO Get Request
+    server.registerTool(
+      "seo_get_request",
+      {
+        description: "Get SEO request status, artifacts, and provider calls.",
+        inputSchema: {
+          id: z.string().describe("SEO request ID"),
+        },
+      },
+      async ({ id }) => {
+        try {
+          const { user } = getAuthContext();
+          const request = await seoRequestsRepository.findById(id);
+
+          if (!request || request.organization_id !== user.organization_id) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "SEO request not found" }, null, 2),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const [artifacts, providerCalls] = await Promise.all([
+            seoArtifactsRepository.listByRequest(request.id),
+            seoProviderCallsRepository.listByRequest(request.id),
+          ]);
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    request: {
+                      id: request.id,
+                      status: request.status,
+                      type: request.type,
+                      pageUrl: request.page_url,
+                      totalCost: request.total_cost,
+                    },
+                    artifacts: artifacts.map((a) => ({
+                      id: a.id,
+                      type: a.type,
+                      provider: a.provider,
+                    })),
+                    providerCalls: providerCalls.map((call) => ({
+                      id: call.id,
+                      provider: call.provider,
+                      status: call.status,
+                      operation: call.operation,
+                    })),
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to fetch SEO request",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // =========================================================================
+    // DOMAIN MANAGEMENT TOOLS
+    // =========================================================================
+
+    // Tool: Search Domains
+    server.registerTool(
+      "domains_search",
+      {
+        description:
+          "Search for available domain names. Returns availability status and pricing. " +
+          "Provide a keyword and optionally specific TLDs to check. FREE tool.",
+        inputSchema: {
+          query: z.string().min(1).max(63).describe("Domain name keyword to search for"),
+          tlds: z.array(z.string()).optional().describe("TLDs to check (default: com, ai, io, co, app, dev)"),
+        },
+      },
+      async ({ query, tlds }) => {
+        try {
+          const { domainManagementService } = await import("@/lib/services/domain-management");
+          const results = await domainManagementService.searchDomains(query, tlds);
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                query,
+                results: results.map(r => ({
+                  domain: r.domain,
+                  available: r.available,
+                  price: r.price ? {
+                    amount: r.price.price / 100, // Convert cents to dollars
+                    currency: r.price.currency,
+                    period: r.price.period,
+                  } : null,
+                })),
+                availableCount: results.filter(r => r.available).length,
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to search domains" }, null, 2),
+            }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Check Domain Availability
+    server.registerTool(
+      "domains_check",
+      {
+        description:
+          "Check if a specific domain is available for purchase. " +
+          "Returns availability, pricing, and any moderation concerns. FREE tool.",
+        inputSchema: {
+          domain: z.string().min(3).max(253).describe("Full domain name to check (e.g., example.com)"),
+        },
+      },
+      async ({ domain }) => {
+        try {
+          const { domainManagementService } = await import("@/lib/services/domain-management");
+          const { domainModerationService } = await import("@/lib/services/domain-moderation");
+
+          const moderation = await domainModerationService.validateDomainName(domain);
+          if (!moderation.allowed) {
+            return {
+              content: [{
+                type: "text" as const,
+                text: JSON.stringify({
+                  domain,
+                  available: false,
+                  reason: "Domain name not allowed by moderation policy",
+                  flags: moderation.flags,
+                }, null, 2),
+              }],
+            };
+          }
+
+          const result = await domainManagementService.checkAvailability(domain);
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                domain: result.domain,
+                available: result.available,
+                price: result.price ? {
+                  amount: result.price.price / 100,
+                  currency: result.price.currency,
+                  period: result.price.period,
+                  renewalAmount: result.price.renewalPrice / 100,
+                } : null,
+                moderationFlags: moderation.flags,
+                requiresReview: moderation.requiresReview,
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to check domain" }, null, 2),
+            }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: List My Domains
+    server.registerTool(
+      "domains_list",
+      {
+        description:
+          "List all domains owned by your organization. " +
+          "Shows status, assignment, and expiration info. FREE tool.",
+        inputSchema: {
+          filter: z.enum(["all", "unassigned", "assigned"]).optional().default("all").describe("Filter domains by assignment status"),
+        },
+      },
+      async ({ filter }) => {
+        try {
+          const { user } = getAuthContext();
+          const { domainManagementService } = await import("@/lib/services/domain-management");
+
+          let domains;
+          if (filter === "unassigned") {
+            domains = await domainManagementService.listUnassignedDomains(user.organization_id);
+          } else {
+            domains = await domainManagementService.listDomains(user.organization_id);
+            if (filter === "assigned") {
+              domains = domains.filter(d => d.resourceType !== null);
+            }
+          }
+
+          const stats = await domainManagementService.getStats(user.organization_id);
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                domains: domains.map(d => ({
+                  id: d.id,
+                  domain: d.domain,
+                  status: d.status,
+                  verified: d.verified,
+                  resourceType: d.resourceType,
+                  resourceId: d.appId || d.containerId || d.agentId || d.mcpId,
+                  expiresAt: d.expiresAt?.toISOString(),
+                  sslStatus: d.sslStatus,
+                  isLive: d.isLive,
+                })),
+                stats,
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list domains" }, null, 2),
+            }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Register External Domain
+    server.registerTool(
+      "domains_register_external",
+      {
+        description:
+          "Register an external domain you already own. " +
+          "Returns DNS instructions for verification. Costs 1 credit.",
+        inputSchema: {
+          domain: z.string().min(3).max(253).describe("Domain name to register"),
+          nameserverMode: z.enum(["vercel", "external"]).optional().default("external")
+            .describe("'vercel' = delegate nameservers to Vercel, 'external' = keep your nameservers and add DNS records"),
+        },
+      },
+      async ({ domain, nameserverMode }) => {
+        try {
+          const { user } = getAuthContext();
+
+          // Deduct credit
+          const creditResult = await creditsService.deduct({
+            organizationId: user.organization_id,
+            amount: 1,
+            description: `Register external domain: ${domain}`,
+            metadata: { tool: "domains_register_external", domain },
+          });
+
+          if (!creditResult.success) {
+            return {
+              content: [{
+                type: "text" as const,
+                text: JSON.stringify({ error: "Insufficient credits", required: 1 }, null, 2),
+              }],
+              isError: true,
+            };
+          }
+
+          const { domainManagementService } = await import("@/lib/services/domain-management");
+          const result = await domainManagementService.registerExternalDomain(
+            domain,
+            user.organization_id,
+            nameserverMode
+          );
+
+          if (!result.success) {
+            return {
+              content: [{
+                type: "text" as const,
+                text: JSON.stringify({ error: result.error }, null, 2),
+              }],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                success: true,
+                domain: {
+                  id: result.domain!.id,
+                  domain: result.domain!.domain,
+                  status: result.domain!.status,
+                  verificationToken: result.domain!.verificationToken,
+                },
+                dnsInstructions: result.dnsInstructions,
+                message: "Add the DNS records below to verify domain ownership",
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to register domain" }, null, 2),
+            }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Verify Domain
+    server.registerTool(
+      "domains_verify",
+      {
+        description:
+          "Verify domain ownership by checking DNS records. " +
+          "Call this after adding the verification TXT record. FREE tool.",
+        inputSchema: {
+          domainId: z.string().uuid().describe("Domain ID to verify"),
+        },
+      },
+      async ({ domainId }) => {
+        try {
+          const { user } = getAuthContext();
+          const { domainManagementService } = await import("@/lib/services/domain-management");
+
+          const domain = await domainManagementService.getDomain(domainId, user.organization_id);
+          if (!domain) {
+            return {
+              content: [{
+                type: "text" as const,
+                text: JSON.stringify({ error: "Domain not found" }, null, 2),
+              }],
+              isError: true,
+            };
+          }
+
+          const result = await domainManagementService.verifyDomain(domainId);
+
+          if (result.verified) {
+            return {
+              content: [{
+                type: "text" as const,
+                text: JSON.stringify({
+                  success: true,
+                  verified: true,
+                  domain: domain.domain,
+                  message: "Domain verified successfully! You can now assign it to a resource.",
+                }, null, 2),
+              }],
+            };
+          }
+
+          const dnsInstructions = domainManagementService.generateDnsInstructions(
+            domain.domain,
+            domain.verificationToken || "",
+            domain.nameserverMode
+          );
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                success: true,
+                verified: false,
+                error: result.error,
+                dnsInstructions,
+                message: "Verification failed. Please check your DNS configuration and try again.",
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to verify domain" }, null, 2),
+            }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Assign Domain
+    server.registerTool(
+      "domains_assign",
+      {
+        description:
+          "Assign a verified domain to an app, container, agent, or MCP. " +
+          "The domain must be verified first. Costs 1 credit.",
+        inputSchema: {
+          domainId: z.string().uuid().describe("Domain ID to assign"),
+          resourceType: z.enum(["app", "container", "agent", "mcp"]).describe("Type of resource to assign to"),
+          resourceId: z.string().uuid().describe("ID of the resource"),
+        },
+      },
+      async ({ domainId, resourceType, resourceId }) => {
+        try {
+          const { user } = getAuthContext();
+
+          // Deduct credit
+          const creditResult = await creditsService.deduct({
+            organizationId: user.organization_id,
+            amount: 1,
+            description: `Assign domain to ${resourceType}: ${resourceId}`,
+            metadata: { tool: "domains_assign", domainId, resourceType, resourceId },
+          });
+
+          if (!creditResult.success) {
+            return {
+              content: [{
+                type: "text" as const,
+                text: JSON.stringify({ error: "Insufficient credits", required: 1 }, null, 2),
+              }],
+              isError: true,
+            };
+          }
+
+          const { domainManagementService } = await import("@/lib/services/domain-management");
+
+          let updated;
+          switch (resourceType) {
+            case "app":
+              updated = await domainManagementService.assignToApp(domainId, resourceId, user.organization_id);
+              break;
+            case "container":
+              updated = await domainManagementService.assignToContainer(domainId, resourceId, user.organization_id);
+              break;
+            case "agent":
+              updated = await domainManagementService.assignToAgent(domainId, resourceId, user.organization_id);
+              break;
+            case "mcp":
+              updated = await domainManagementService.assignToMcp(domainId, resourceId, user.organization_id);
+              break;
+          }
+
+          if (!updated) {
+            return {
+              content: [{
+                type: "text" as const,
+                text: JSON.stringify({
+                  error: "Failed to assign domain. Ensure the domain is verified and the resource exists.",
+                }, null, 2),
+              }],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                success: true,
+                domain: {
+                  id: updated.id,
+                  domain: updated.domain,
+                  resourceType: updated.resourceType,
+                  resourceId: updated.appId || updated.containerId || updated.agentId || updated.mcpId,
+                },
+                message: `Domain assigned to ${resourceType}`,
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to assign domain" }, null, 2),
+            }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Unassign Domain
+    server.registerTool(
+      "domains_unassign",
+      {
+        description:
+          "Unassign a domain from its current resource. " +
+          "The domain will remain in your account but not point anywhere. FREE tool.",
+        inputSchema: {
+          domainId: z.string().uuid().describe("Domain ID to unassign"),
+        },
+      },
+      async ({ domainId }) => {
+        try {
+          const { user } = getAuthContext();
+          const { domainManagementService } = await import("@/lib/services/domain-management");
+
+          const updated = await domainManagementService.unassignDomain(domainId, user.organization_id);
+
+          if (!updated) {
+            return {
+              content: [{
+                type: "text" as const,
+                text: JSON.stringify({ error: "Domain not found or already unassigned" }, null, 2),
+              }],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                success: true,
+                domain: {
+                  id: updated.id,
+                  domain: updated.domain,
+                },
+                message: "Domain unassigned successfully",
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to unassign domain" }, null, 2),
+            }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Get DNS Records
+    server.registerTool(
+      "domains_get_dns",
+      {
+        description:
+          "Get DNS records for a domain. Only works for domains using Vercel nameservers. FREE tool.",
+        inputSchema: {
+          domainId: z.string().uuid().describe("Domain ID"),
+        },
+      },
+      async ({ domainId }) => {
+        try {
+          const { user } = getAuthContext();
+          const { domainManagementService } = await import("@/lib/services/domain-management");
+
+          const domain = await domainManagementService.getDomain(domainId, user.organization_id);
+          if (!domain) {
+            return {
+              content: [{
+                type: "text" as const,
+                text: JSON.stringify({ error: "Domain not found" }, null, 2),
+              }],
+              isError: true,
+            };
+          }
+
+          const records = await domainManagementService.getDnsRecords(domainId);
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                domain: domain.domain,
+                manageable: domain.registrar === "vercel" && domain.nameserverMode === "vercel",
+                records,
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get DNS records" }, null, 2),
+            }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Add DNS Record
+    server.registerTool(
+      "domains_add_dns_record",
+      {
+        description:
+          "Add a DNS record to a domain. Only works for domains using Vercel nameservers. Costs 1 credit.",
+        inputSchema: {
+          domainId: z.string().uuid().describe("Domain ID"),
+          type: z.enum(["A", "AAAA", "CNAME", "TXT", "MX"]).describe("Record type"),
+          name: z.string().min(1).describe("Record name (subdomain or @)"),
+          value: z.string().min(1).describe("Record value"),
+          ttl: z.number().int().min(60).max(86400).optional().describe("TTL in seconds"),
+          priority: z.number().int().optional().describe("Priority for MX records"),
+        },
+      },
+      async ({ domainId, type, name, value, ttl, priority }) => {
+        try {
+          const { user } = getAuthContext();
+
+          // Deduct credit
+          const creditResult = await creditsService.deduct({
+            organizationId: user.organization_id,
+            amount: 1,
+            description: `Add DNS ${type} record`,
+            metadata: { tool: "domains_add_dns_record", domainId, type, name },
+          });
+
+          if (!creditResult.success) {
+            return {
+              content: [{
+                type: "text" as const,
+                text: JSON.stringify({ error: "Insufficient credits", required: 1 }, null, 2),
+              }],
+              isError: true,
+            };
+          }
+
+          const { domainManagementService } = await import("@/lib/services/domain-management");
+
+          const domain = await domainManagementService.getDomain(domainId, user.organization_id);
+          if (!domain) {
+            return {
+              content: [{
+                type: "text" as const,
+                text: JSON.stringify({ error: "Domain not found" }, null, 2),
+              }],
+              isError: true,
+            };
+          }
+
+          const result = await domainManagementService.addDnsRecord(domainId, {
+            type,
+            name,
+            value,
+            ttl,
+            priority,
+          });
+
+          if (!result.success) {
+            return {
+              content: [{
+                type: "text" as const,
+                text: JSON.stringify({ error: result.error }, null, 2),
+              }],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                success: true,
+                record: result.record,
+                message: "DNS record added",
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to add DNS record" }, null, 2),
+            }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // =========================================================================
+    // SECRETS MANAGEMENT TOOLS
+    // =========================================================================
+
+    // Tool: List Secrets
+    server.registerTool(
+      "secrets_list",
+      {
+        description: "List secrets (metadata only, no values). FREE tool. Use filters to narrow results.",
+        inputSchema: {
+          projectId: z.string().uuid().optional().describe("Filter by project ID"),
+          projectType: z.enum(["character", "app", "workflow", "container", "mcp"]).optional().describe("Filter by project type"),
+          environment: z.enum(["development", "preview", "production"]).optional().describe("Filter by environment"),
+          provider: z.enum(["openai", "anthropic", "google", "elevenlabs", "fal", "stripe", "discord", "telegram", "twitter", "github", "slack", "aws", "vercel", "custom"]).optional().describe("Filter by provider"),
+          limit: z.number().int().min(1).max(500).optional().default(100).describe("Max results"),
+          offset: z.number().int().min(0).optional().default(0).describe("Offset for pagination"),
+        },
+      },
+      async ({ projectId, projectType, environment, provider, limit, offset }) => {
+        try {
+          const { user } = getAuthContext();
+          const { secretsService } = await import("@/lib/services/secrets");
+
+          const result = await secretsService.listFiltered({
+            organizationId: user.organization_id!,
+            projectId,
+            projectType,
+            environment,
+            provider,
+            limit,
+            offset,
+          });
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                secrets: result.secrets.map((s) => ({
+                  id: s.id,
+                  name: s.name,
+                  description: s.description,
+                  scope: s.scope,
+                  projectId: s.projectId,
+                  projectType: s.projectType,
+                  environment: s.environment,
+                  provider: s.provider,
+                  version: s.version,
+                  createdAt: s.createdAt.toISOString(),
+                  lastAccessedAt: s.lastAccessedAt?.toISOString(),
+                  accessCount: s.accessCount,
+                })),
+                total: result.total,
+                limit,
+                offset,
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list secrets" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Get Secret
+    server.registerTool(
+      "secrets_get",
+      {
+        description: "Get a secret value by name. Retrieves the decrypted value.",
+        inputSchema: {
+          name: z.string().min(1).describe("Secret name"),
+          projectId: z.string().uuid().optional().describe("Project ID for scoped secrets"),
+          environment: z.enum(["development", "preview", "production"]).optional().describe("Environment"),
+        },
+      },
+      async ({ name, projectId, environment }) => {
+        try {
+          const { user } = getAuthContext();
+          const { secretsService } = await import("@/lib/services/secrets");
+
+          const value = await secretsService.get(
+            user.organization_id!,
+            name,
+            projectId,
+            environment,
+            { actorType: "api_key", actorId: user.id, source: "mcp" }
+          );
+
+          if (!value) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ name, found: false }, null, 2) }],
+            };
+          }
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ name, value }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get secret" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Get Multiple Secrets
+    server.registerTool(
+      "secrets_get_bulk",
+      {
+        description: "Get multiple secrets by names. Returns a key-value object of decrypted values.",
+        inputSchema: {
+          names: z.array(z.string()).min(1).max(50).describe("Secret names to retrieve"),
+          projectId: z.string().uuid().optional().describe("Project ID for scoped secrets"),
+          projectType: z.enum(["character", "app", "workflow", "container", "mcp"]).optional().describe("Project type"),
+          environment: z.enum(["development", "preview", "production"]).optional().describe("Environment"),
+          includeBindings: z.boolean().optional().default(true).describe("Include bound secrets"),
+        },
+      },
+      async ({ names, projectId, projectType, environment, includeBindings }) => {
+        try {
+          const { user } = getAuthContext();
+          const { secretsService } = await import("@/lib/services/secrets");
+
+          const secrets = await secretsService.getDecrypted(
+            {
+              organizationId: user.organization_id!,
+              projectId,
+              projectType,
+              environment,
+              names,
+              includeBindings,
+            },
+            { actorType: "api_key", actorId: user.id, source: "mcp" }
+          );
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ secrets, count: Object.keys(secrets).length }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get secrets" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Create Secret
+    server.registerTool(
+      "secrets_create",
+      {
+        description: "Create a new secret. Secrets are encrypted at rest.",
+        inputSchema: {
+          name: z.string().min(1).max(255).describe("Secret name (unique within scope)"),
+          value: z.string().min(1).describe("Secret value"),
+          description: z.string().optional().describe("Description"),
+          provider: z.enum(["openai", "anthropic", "google", "elevenlabs", "fal", "stripe", "discord", "telegram", "twitter", "github", "slack", "aws", "vercel", "custom"]).optional().describe("Provider type"),
+          projectId: z.string().uuid().optional().describe("Project ID for scoped secrets"),
+          projectType: z.enum(["character", "app", "workflow", "container", "mcp"]).optional().describe("Project type"),
+          environment: z.enum(["development", "preview", "production"]).optional().describe("Environment"),
+        },
+      },
+      async ({ name, value, description, provider, projectId, projectType, environment }) => {
+        try {
+          const { user } = getAuthContext();
+          const { secretsService } = await import("@/lib/services/secrets");
+
+          const secret = await secretsService.create(
+            {
+              organizationId: user.organization_id!,
+              name,
+              value,
+              description,
+              provider,
+              projectId,
+              projectType,
+              environment,
+              scope: projectId ? "project" : "organization",
+              createdBy: user.id,
+            },
+            { actorType: "api_key", actorId: user.id, source: "mcp" }
+          );
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, id: secret.id, name: secret.name }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to create secret" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Update Secret
+    server.registerTool(
+      "secrets_update",
+      {
+        description: "Update an existing secret's value or description.",
+        inputSchema: {
+          secretId: z.string().uuid().describe("Secret ID"),
+          value: z.string().optional().describe("New secret value"),
+          description: z.string().optional().describe("New description"),
+        },
+      },
+      async ({ secretId, value, description }) => {
+        try {
+          const { user } = getAuthContext();
+          const { secretsService } = await import("@/lib/services/secrets");
+
+          const updated = await secretsService.update(
+            secretId,
+            user.organization_id!,
+            { value, description },
+            { actorType: "api_key", actorId: user.id, source: "mcp" }
+          );
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, id: updated.id, name: updated.name, version: updated.version }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to update secret" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Delete Secret
+    server.registerTool(
+      "secrets_delete",
+      {
+        description: "Delete a secret permanently.",
+        inputSchema: {
+          secretId: z.string().uuid().describe("Secret ID to delete"),
+        },
+      },
+      async ({ secretId }) => {
+        try {
+          const { user } = getAuthContext();
+          const { secretsService } = await import("@/lib/services/secrets");
+
+          await secretsService.delete(
+            secretId,
+            user.organization_id!,
+            { actorType: "api_key", actorId: user.id, source: "mcp" }
+          );
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, secretId }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to delete secret" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Bind Secret to Project
+    server.registerTool(
+      "secrets_bind",
+      {
+        description: "Bind an organization-level secret to a project. Allows reusing secrets across projects without duplication.",
+        inputSchema: {
+          secretId: z.string().uuid().describe("Secret ID to bind"),
+          projectId: z.string().uuid().describe("Project ID"),
+          projectType: z.enum(["character", "app", "workflow", "container", "mcp"]).describe("Project type"),
+        },
+      },
+      async ({ secretId, projectId, projectType }) => {
+        try {
+          const { user } = getAuthContext();
+          const { secretsService } = await import("@/lib/services/secrets");
+
+          const binding = await secretsService.bindSecret(
+            { secretId, projectId, projectType, createdBy: user.id },
+            { actorType: "api_key", actorId: user.id, source: "mcp" }
+          );
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, bindingId: binding.id, secretName: binding.secretName }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to bind secret" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Unbind Secret from Project
+    server.registerTool(
+      "secrets_unbind",
+      {
+        description: "Remove a secret binding from a project.",
+        inputSchema: {
+          bindingId: z.string().uuid().describe("Binding ID to remove"),
+        },
+      },
+      async ({ bindingId }) => {
+        try {
+          const { user } = getAuthContext();
+          const { secretsService } = await import("@/lib/services/secrets");
+
+          await secretsService.unbindSecret(
+            bindingId,
+            user.organization_id!,
+            { actorType: "api_key", actorId: user.id, source: "mcp" }
+          );
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, bindingId }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to unbind secret" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: List Secret Bindings
+    server.registerTool(
+      "secrets_list_bindings",
+      {
+        description: "List secret bindings for a project or for a specific secret.",
+        inputSchema: {
+          projectId: z.string().uuid().optional().describe("Project ID to list bindings for"),
+          projectType: z.enum(["character", "app", "workflow", "container", "mcp"]).optional().describe("Project type filter"),
+          secretId: z.string().uuid().optional().describe("Secret ID to list bindings for"),
+        },
+      },
+      async ({ projectId, projectType, secretId }) => {
+        try {
+          const { user } = getAuthContext();
+          const { secretsService } = await import("@/lib/services/secrets");
+
+          if (!projectId && !secretId) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: "Either projectId or secretId is required" }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          let bindings;
+          if (secretId) {
+            bindings = await secretsService.listSecretBindings(secretId);
+          } else {
+            bindings = await secretsService.listBindings(projectId!, projectType);
+          }
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ bindings, count: bindings.length }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list bindings" }, null, 2) }],
             isError: true,
           };
         }

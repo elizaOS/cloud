@@ -14,10 +14,6 @@ import { characterMarketplaceService } from "@/lib/services/characters/marketpla
 import { cache } from "@/lib/cache/client";
 import { CacheTTL } from "@/lib/cache/keys";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 interface SkillInfo {
   /** Skill ID */
   id: string;
@@ -56,10 +52,6 @@ interface SkillsResponse {
     lastUpdated: string;
   };
 }
-
-// ============================================================================
-// Query Validation
-// ============================================================================
 
 const querySchema = z.object({
   query: z.string().optional(),
@@ -100,9 +92,6 @@ export async function GET(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://elizacloud.ai";
     const allSkills: SkillInfo[] = [];
 
-    // ========================================================================
-    // Get skills from local agents (marketplace characters)
-    // ========================================================================
     try {
       const result = await characterMarketplaceService.searchCharactersPublic({
         filters: {},
@@ -135,10 +124,6 @@ export async function GET(request: NextRequest) {
     } catch {
       // Database unavailable - continue with ERC-8004 only
     }
-
-  // ========================================================================
-  // Get skills from ERC-8004 agents
-  // ========================================================================
 
   const agents = await agent0Service.searchAgentsCached({ active: true });
 

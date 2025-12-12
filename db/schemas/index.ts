@@ -49,8 +49,12 @@ export * from "./app-sandboxes";
 export * from "./secrets";
 export * from "./org-platforms";
 export * from "./org-agents";
+export * from "./org-community-moderation";
 export * from "./platform-credentials";
+export * from "./discord-gateway";
 export * from "./application-triggers";
+export * from "./social-feed";
+export * from "./seo";
 
 // Media & Collections
 export * from "./media-collections";
@@ -62,3 +66,10 @@ export * from "./ad-accounts";
 export * from "./ad-campaigns";
 export * from "./ad-creatives";
 export * from "./ad-transactions";
+
+// Domain Management
+export * from "./managed-domains";
+export * from "./domain-moderation-events";
+
+// Code Agent & Interpreter
+export * from "./code-agent-sessions";

@@ -24,6 +24,7 @@ import {
   estimateRequestCost,
   IMAGE_GENERATION_COST,
 } from "@/lib/pricing";
+import { seoRequestTypeEnum } from "@/db/schemas/seo";
 // Base URL for internal API calls
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -629,7 +630,6 @@ export async function executeSkillGetUserProfile(
   };
 }
 
-// ============ STORAGE SKILLS ============
 
 /**
  * Storage upload result
@@ -832,7 +832,6 @@ export async function executeSkillStoragePin(
   };
 }
 
-// ============ N8N WORKFLOW SKILLS ============
 
 /**
  * N8N workflow result types
@@ -1441,7 +1440,6 @@ export async function executeSkillFragmentDeployProject(
   };
 }
 
-// ============ ERC-8004 MARKETPLACE DISCOVERY SKILLS ============
 
 /**
  * Marketplace discovery result type
@@ -1725,7 +1723,6 @@ export async function executeSkillMarketplaceFindPayable(
   };
 }
 
-// ============ FULL APP BUILDER SKILLS ============
 
 /**
  * Start a full app builder session skill
@@ -1938,9 +1935,7 @@ export async function executeSkillFullAppBuilderListSessions(
   };
 }
 
-// =============================================================================
 // N8N WORKFLOW TRIGGER SKILLS
-// =============================================================================
 
 /**
  * Execute N8N workflow via A2A/MCP trigger
@@ -2142,9 +2137,7 @@ export async function executeSkillN8nCreateTrigger(
   return result;
 }
 
-// =============================================================================
 // APPLICATION TRIGGER SKILLS (Apps, Agents, MCPs)
-// =============================================================================
 
 /**
  * Create application trigger skill
@@ -2323,9 +2316,7 @@ export async function executeSkillExecuteAppTrigger(
   return result;
 }
 
-// =============================================================================
 // TELEGRAM SKILLS
-// =============================================================================
 
 /**
  * Send a Telegram message
@@ -2438,9 +2429,7 @@ export async function executeSkillTelegramListBots(
   };
 }
 
-// =============================================================================
 // ORG TOOLS SKILLS - Task and Check-in Management
-// =============================================================================
 
 /**
  * Create a task
@@ -2886,9 +2875,7 @@ export async function executeSkillGetPlatformStatus(
   };
 }
 
-// =============================================================================
 // SOCIAL MEDIA SKILLS
-// =============================================================================
 
 /**
  * Social media post result type
@@ -3269,5 +3256,1671 @@ export async function executeSkillSocialMediaValidateCredentials(
     platform as "twitter" | "bluesky" | "discord" | "telegram" | "reddit" | "facebook" | "instagram" | "tiktok" | "linkedin",
     credentialId
   );
+}
+
+// ADVERTISING SKILLS
+
+/**
+ * List advertising accounts
+ */
+export async function executeSkillAdsListAccounts(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  accounts: Array<{
+    id: string;
+    platform: string;
+    accountName: string;
+    status: string;
+  }>;
+  count: number;
+}> {
+  const { advertisingService } = await import("@/lib/services/advertising");
+
+  const platform = dataContent.platform as string | undefined;
+  const accounts = await advertisingService.listAccounts(
+    ctx.user.organization_id,
+    platform ? { platform: platform as "meta" | "google" | "tiktok" } : undefined
+  );
+
+  return {
+    accounts: accounts.map((a) => ({
+      id: a.id,
+      platform: a.platform,
+      accountName: a.account_name,
+      status: a.status,
+    })),
+    count: accounts.length,
+  };
+}
+
+/**
+ * List advertising campaigns
+ */
+export async function executeSkillAdsListCampaigns(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  campaigns: Array<{
+    id: string;
+    name: string;
+    platform: string;
+    status: string;
+    budgetAmount: string;
+    totalSpend: string;
+    totalImpressions: number;
+    totalClicks: number;
+  }>;
+  count: number;
+}> {
+  const { advertisingService } = await import("@/lib/services/advertising");
+
+  const campaigns = await advertisingService.listCampaigns(
+    ctx.user.organization_id,
+    {
+      adAccountId: dataContent.adAccountId as string | undefined,
+      platform: dataContent.platform as "meta" | "google" | "tiktok" | undefined,
+      status: dataContent.status as string | undefined,
+      appId: dataContent.appId as string | undefined,
+    }
+  );
+
+  return {
+    campaigns: campaigns.map((c) => ({
+      id: c.id,
+      name: c.name,
+      platform: c.platform,
+      status: c.status,
+      budgetAmount: c.budget_amount,
+      totalSpend: c.total_spend,
+      totalImpressions: c.total_impressions,
+      totalClicks: c.total_clicks,
+    })),
+    count: campaigns.length,
+  };
+}
+
+/**
+ * Create advertising campaign
+ */
+export async function executeSkillAdsCreateCampaign(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  success: boolean;
+  campaign: {
+    id: string;
+    name: string;
+    status: string;
+    creditsAllocated: string;
+  };
+}> {
+  const { advertisingService } = await import("@/lib/services/advertising");
+
+  const name = (dataContent.name as string) || textContent;
+  if (!name) throw new Error("Campaign name required");
+
+  const adAccountId = dataContent.adAccountId as string;
+  if (!adAccountId) throw new Error("Ad account ID required");
+
+  const objective = dataContent.objective as string;
+  if (!objective) throw new Error("Objective required");
+
+  const budgetType = dataContent.budgetType as "daily" | "lifetime";
+  if (!budgetType) throw new Error("Budget type required");
+
+  const budgetAmount = dataContent.budgetAmount as number;
+  if (!budgetAmount) throw new Error("Budget amount required");
+
+  const campaign = await advertisingService.createCampaign({
+    organizationId: ctx.user.organization_id,
+    adAccountId,
+    name,
+    objective: objective as "awareness" | "traffic" | "engagement" | "leads" | "app_promotion" | "sales" | "conversions",
+    budgetType,
+    budgetAmount,
+    budgetCurrency: dataContent.budgetCurrency as string | undefined,
+    startDate: dataContent.startDate ? new Date(dataContent.startDate as string) : undefined,
+    endDate: dataContent.endDate ? new Date(dataContent.endDate as string) : undefined,
+    targeting: dataContent.targeting as Record<string, unknown> | undefined,
+    appId: dataContent.appId as string | undefined,
+  });
+
+  return {
+    success: true,
+    campaign: {
+      id: campaign.id,
+      name: campaign.name,
+      status: campaign.status,
+      creditsAllocated: campaign.credits_allocated,
+    },
+  };
+}
+
+/**
+ * Start advertising campaign
+ */
+export async function executeSkillAdsStartCampaign(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean; campaignId: string; status: string }> {
+  const { advertisingService } = await import("@/lib/services/advertising");
+
+  const campaignId = dataContent.campaignId as string;
+  if (!campaignId) throw new Error("Campaign ID required");
+
+  const campaign = await advertisingService.startCampaign(
+    campaignId,
+    ctx.user.organization_id
+  );
+
+  return {
+    success: true,
+    campaignId: campaign.id,
+    status: campaign.status,
+  };
+}
+
+/**
+ * Pause advertising campaign
+ */
+export async function executeSkillAdsPauseCampaign(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean; campaignId: string; status: string }> {
+  const { advertisingService } = await import("@/lib/services/advertising");
+
+  const campaignId = dataContent.campaignId as string;
+  if (!campaignId) throw new Error("Campaign ID required");
+
+  const campaign = await advertisingService.pauseCampaign(
+    campaignId,
+    ctx.user.organization_id
+  );
+
+  return {
+    success: true,
+    campaignId: campaign.id,
+    status: campaign.status,
+  };
+}
+
+/**
+ * Delete advertising campaign
+ */
+export async function executeSkillAdsDeleteCampaign(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean }> {
+  const { advertisingService } = await import("@/lib/services/advertising");
+
+  const campaignId = dataContent.campaignId as string;
+  if (!campaignId) throw new Error("Campaign ID required");
+
+  await advertisingService.deleteCampaign(campaignId, ctx.user.organization_id);
+
+  return { success: true };
+}
+
+/**
+ * Get advertising campaign analytics
+ */
+export async function executeSkillAdsGetCampaignAnalytics(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  campaignId: string;
+  metrics: {
+    spend: number;
+    impressions: number;
+    clicks: number;
+    conversions: number;
+    ctr?: number;
+    cpc?: number;
+    cpm?: number;
+  };
+}> {
+  const { advertisingService } = await import("@/lib/services/advertising");
+
+  const campaignId = dataContent.campaignId as string;
+  if (!campaignId) throw new Error("Campaign ID required");
+
+  const dateRange =
+    dataContent.startDate && dataContent.endDate
+      ? {
+          start: new Date(dataContent.startDate as string),
+          end: new Date(dataContent.endDate as string),
+        }
+      : undefined;
+
+  const metrics = await advertisingService.getCampaignMetrics(
+    campaignId,
+    ctx.user.organization_id,
+    dateRange
+  );
+
+  return { campaignId, metrics };
+}
+
+/**
+ * Get advertising statistics
+ */
+export async function executeSkillAdsGetStats(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  totalCampaigns: number;
+  activeCampaigns: number;
+  totalSpend: number;
+  totalImpressions: number;
+  totalClicks: number;
+  totalConversions: number;
+}> {
+  const { advertisingService } = await import("@/lib/services/advertising");
+
+  return advertisingService.getStats(ctx.user.organization_id, {
+    platform: dataContent.platform as "meta" | "google" | "tiktok" | undefined,
+  });
+}
+
+/**
+ * Create ad creative
+ */
+export async function executeSkillAdsCreateCreative(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  success: boolean;
+  creative: {
+    id: string;
+    name: string;
+    type: string;
+    status: string;
+  };
+}> {
+  const { advertisingService } = await import("@/lib/services/advertising");
+
+  const campaignId = dataContent.campaignId as string;
+  if (!campaignId) throw new Error("Campaign ID required");
+
+  const name = (dataContent.name as string) || textContent;
+  if (!name) throw new Error("Creative name required");
+
+  const type = dataContent.type as "image" | "video" | "carousel";
+  if (!type) throw new Error("Creative type required");
+
+  const media = dataContent.media as Array<{
+    id: string;
+    source: "generation" | "upload";
+    url: string;
+    type: "image" | "video";
+    order: number;
+  }>;
+  if (!media?.length) throw new Error("Media required");
+
+  const creative = await advertisingService.createCreative(
+    ctx.user.organization_id,
+    {
+      campaignId,
+      name,
+      type,
+      headline: dataContent.headline as string | undefined,
+      primaryText: dataContent.primaryText as string | undefined,
+      description: dataContent.description as string | undefined,
+      callToAction: dataContent.callToAction as "learn_more" | "shop_now" | "sign_up" | "download" | "contact_us" | "get_offer" | "book_now" | "watch_more" | "apply_now" | "subscribe" | undefined,
+      destinationUrl: dataContent.destinationUrl as string | undefined,
+      media,
+    }
+  );
+
+  return {
+    success: true,
+    creative: {
+      id: creative.id,
+      name: creative.name,
+      type: creative.type,
+      status: creative.status,
+    },
+  };
+}
+
+// SEO SKILLS
+
+/**
+ * Create an SEO request (DataForSEO / SerpApi / Claude / IndexNow)
+ */
+export async function executeSkillSeoCreateRequest(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  id: string;
+  status: string;
+  artifacts: Array<{ id: string; type: string }>;
+}> {
+  const { seoService } = await import("@/lib/services/seo");
+
+  const type = dataContent.type as string;
+  if (
+    !type ||
+    !seoRequestTypeEnum.enumValues.includes(type as (typeof seoRequestTypeEnum.enumValues)[number])
+  ) {
+    throw new Error("Valid SEO request type is required");
+  }
+
+  const keywords =
+    (dataContent.keywords as string[] | undefined) ||
+    (textContent ? [textContent] : undefined);
+
+  const result = await seoService.createRequest({
+    organizationId: ctx.user.organization_id,
+    userId: ctx.user.id,
+    apiKeyId: ctx.apiKeyId || undefined,
+    appId: dataContent.appId as string | undefined,
+    type: type as (typeof seoRequestTypeEnum.enumValues)[number],
+    pageUrl: dataContent.pageUrl as string | undefined,
+    keywords,
+    locale: (dataContent.locale as string | undefined) || "en-US",
+    searchEngine: (dataContent.searchEngine as string | undefined) || "google",
+    device: (dataContent.device as string | undefined) || "desktop",
+    environment: (dataContent.environment as string | undefined) || "production",
+    agentIdentifier: dataContent.agentIdentifier as string | undefined,
+    promptContext: dataContent.promptContext as string | undefined,
+    idempotencyKey: dataContent.idempotencyKey as string | undefined,
+    locationCode: dataContent.locationCode as number | undefined,
+    query: dataContent.query as string | undefined,
+  });
+
+  return {
+    id: result.request.id,
+    status: result.request.status,
+    artifacts: result.artifacts.map((a) => ({ id: a.id, type: a.type })),
+  };
+}
+
+/**
+ * Get SEO request status and artifacts
+ */
+export async function executeSkillSeoGetRequest(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  request: {
+    id: string;
+    status: string;
+    type: string;
+    pageUrl: string | null;
+  };
+  artifacts: Array<{ id: string; type: string; provider: string }>;
+  providerCalls: Array<{
+    id: string;
+    provider: string;
+    status: string;
+    operation: string;
+  }>;
+}> {
+  const {
+    seoRequestsRepository,
+    seoArtifactsRepository,
+    seoProviderCallsRepository,
+  } = await import("@/db/repositories");
+
+  const requestId = dataContent.requestId as string;
+  if (!requestId) throw new Error("requestId required");
+
+  const request = await seoRequestsRepository.findById(requestId);
+  if (!request || request.organization_id !== ctx.user.organization_id) {
+    throw new Error("SEO request not found");
+  }
+
+  const [artifacts, providerCalls] = await Promise.all([
+    seoArtifactsRepository.listByRequest(request.id),
+    seoProviderCallsRepository.listByRequest(request.id),
+  ]);
+
+  return {
+    request: {
+      id: request.id,
+      status: request.status,
+      type: request.type,
+      pageUrl: request.page_url,
+    },
+    artifacts: artifacts.map((a) => ({
+      id: a.id,
+      type: a.type,
+      provider: a.provider,
+    })),
+    providerCalls: providerCalls.map((call) => ({
+      id: call.id,
+      provider: call.provider,
+      status: call.status,
+      operation: call.operation,
+    })),
+  };
+}
+
+// MEDIA COLLECTIONS SKILLS
+
+/**
+ * List media collections
+ */
+export async function executeSkillCollectionsList(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  collections: Array<{
+    id: string;
+    name: string;
+    description: string | null;
+    itemCount: number;
+  }>;
+  count: number;
+}> {
+  const { mediaCollectionsService } = await import("@/lib/services/media-collections");
+
+  const collections = await mediaCollectionsService.listByOrganization(
+    ctx.user.organization_id,
+    {
+      userId: ctx.user.id,
+      limit: (dataContent.limit as number) || 50,
+      offset: dataContent.offset as number | undefined,
+    }
+  );
+
+  return {
+    collections: collections.map((c) => ({
+      id: c.id,
+      name: c.name,
+      description: c.description,
+      itemCount: c.item_count,
+    })),
+    count: collections.length,
+  };
+}
+
+/**
+ * Create media collection
+ */
+export async function executeSkillCollectionsCreate(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  success: boolean;
+  collection: { id: string; name: string };
+}> {
+  const { mediaCollectionsService } = await import("@/lib/services/media-collections");
+
+  const name = (dataContent.name as string) || textContent;
+  if (!name) throw new Error("Collection name required");
+
+  const collection = await mediaCollectionsService.create({
+    organizationId: ctx.user.organization_id,
+    userId: ctx.user.id,
+    name,
+    description: dataContent.description as string | undefined,
+    purpose: dataContent.purpose as "advertising" | "app_assets" | "general" | undefined,
+    tags: dataContent.tags as string[] | undefined,
+  });
+
+  return {
+    success: true,
+    collection: { id: collection.id, name: collection.name },
+  };
+}
+
+/**
+ * Get media collection with items
+ */
+export async function executeSkillCollectionsGet(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  id: string;
+  name: string;
+  description: string | null;
+  itemCount: number;
+  items: Array<{
+    id: string;
+    sourceType: string;
+    sourceId: string;
+    url: string;
+    type: string;
+  }>;
+} | null> {
+  const { mediaCollectionsService } = await import("@/lib/services/media-collections");
+
+  const collectionId = dataContent.collectionId as string;
+  if (!collectionId) throw new Error("Collection ID required");
+
+  const isOwner = await mediaCollectionsService.validateOwnership(
+    collectionId,
+    ctx.user.organization_id
+  );
+  if (!isOwner) return null;
+
+  const collection = await mediaCollectionsService.getByIdWithItems(collectionId);
+  if (!collection) return null;
+
+  return {
+    id: collection.id,
+    name: collection.name,
+    description: collection.description,
+    itemCount: collection.item_count,
+    items: collection.items.map((item) => ({
+      id: item.id,
+      sourceType: item.sourceType,
+      sourceId: item.sourceId,
+      url: item.url,
+      type: item.type,
+    })),
+  };
+}
+
+/**
+ * Add items to collection
+ */
+export async function executeSkillCollectionsAddItems(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean; added: number }> {
+  const { mediaCollectionsService } = await import("@/lib/services/media-collections");
+
+  const collectionId = dataContent.collectionId as string;
+  if (!collectionId) throw new Error("Collection ID required");
+
+  const items = dataContent.items as Array<{
+    sourceType: "generation" | "upload";
+    sourceId: string;
+  }>;
+  if (!items?.length) throw new Error("Items required");
+
+  const isOwner = await mediaCollectionsService.validateOwnership(
+    collectionId,
+    ctx.user.organization_id
+  );
+  if (!isOwner) throw new Error("Collection not found");
+
+  const added = await mediaCollectionsService.addItems(collectionId, items);
+
+  return { success: true, added };
+}
+
+/**
+ * Remove items from collection
+ */
+export async function executeSkillCollectionsRemoveItems(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean }> {
+  const { mediaCollectionsService } = await import("@/lib/services/media-collections");
+
+  const collectionId = dataContent.collectionId as string;
+  if (!collectionId) throw new Error("Collection ID required");
+
+  const itemIds = dataContent.itemIds as string[];
+  if (!itemIds?.length) throw new Error("Item IDs required");
+
+  const isOwner = await mediaCollectionsService.validateOwnership(
+    collectionId,
+    ctx.user.organization_id
+  );
+  if (!isOwner) throw new Error("Collection not found");
+
+  await mediaCollectionsService.removeItems(collectionId, itemIds);
+
+  return { success: true };
+}
+
+// Discord Gateway Skills
+
+/**
+ * List Discord bot connections
+ */
+export async function executeSkillDiscordGatewayListConnections(
+  _dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  connections: Array<{
+    id: string;
+    botUsername: string | null;
+    status: string;
+    guildCount: number;
+  }>;
+}> {
+  const { discordGatewayService } = await import("@/lib/services/discord-gateway");
+
+  const botStatuses = await discordGatewayService.getBotStatus(
+    ctx.user.organization_id
+  );
+
+  return {
+    connections: botStatuses.map((s) => ({
+      id: s.connectionId,
+      botUsername: s.botUsername,
+      status: s.status,
+      guildCount: s.guildCount,
+    })),
+  };
+}
+
+/**
+ * List Discord event routes
+ */
+export async function executeSkillDiscordGatewayListRoutes(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  routes: Array<{
+    id: string;
+    guildId: string;
+    eventType: string;
+    routeType: string;
+    routeTarget: string;
+    enabled: boolean;
+  }>;
+}> {
+  const { discordEventRouter } = await import("@/lib/services/discord-gateway");
+
+  let routes = await discordEventRouter.getRoutes(ctx.user.organization_id);
+
+  const guildId = dataContent.guildId as string | undefined;
+  if (guildId) {
+    routes = routes.filter((r) => r.guild_id === guildId);
+  }
+
+  return {
+    routes: routes.map((r) => ({
+      id: r.id,
+      guildId: r.guild_id,
+      eventType: r.event_type,
+      routeType: r.route_type,
+      routeTarget: r.route_target,
+      enabled: r.enabled,
+    })),
+  };
+}
+
+/**
+ * Create Discord event route
+ */
+export async function executeSkillDiscordGatewayCreateRoute(
+  _taskId: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  id: string;
+  guildId: string;
+  eventType: string;
+  routeType: string;
+  enabled: boolean;
+}> {
+  const { discordEventRouter } = await import("@/lib/services/discord-gateway");
+
+  const platformConnectionId = dataContent.platformConnectionId as string;
+  if (!platformConnectionId) throw new Error("Platform connection ID required");
+
+  const guildId = dataContent.guildId as string;
+  if (!guildId) throw new Error("Guild ID required");
+
+  const eventType = dataContent.eventType as string;
+  if (!eventType) throw new Error("Event type required");
+
+  const routeType = dataContent.routeType as string;
+  if (!routeType) throw new Error("Route type required");
+
+  const routeTarget = dataContent.routeTarget as string;
+  if (!routeTarget) throw new Error("Route target required");
+
+  const route = await discordEventRouter.createRoute({
+    organization_id: ctx.user.organization_id,
+    platform_connection_id: platformConnectionId,
+    guild_id: guildId,
+    channel_id: dataContent.channelId as string | undefined,
+    event_type: eventType as "MESSAGE_CREATE",
+    route_type: routeType as "a2a",
+    route_target: routeTarget,
+    mention_only: (dataContent.mentionOnly as boolean) ?? false,
+    command_prefix: dataContent.commandPrefix as string | undefined,
+  });
+
+  return {
+    id: route.id,
+    guildId: route.guild_id,
+    eventType: route.event_type,
+    routeType: route.route_type,
+    enabled: route.enabled,
+  };
+}
+
+/**
+ * Update Discord event route
+ */
+export async function executeSkillDiscordGatewayUpdateRoute(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ id: string; enabled: boolean; updatedAt: string }> {
+  const { discordEventRouter } = await import("@/lib/services/discord-gateway");
+
+  const routeId = dataContent.routeId as string;
+  if (!routeId) throw new Error("Route ID required");
+
+  // Verify ownership
+  const routes = await discordEventRouter.getRoutes(ctx.user.organization_id);
+  const route = routes.find((r) => r.id === routeId);
+  if (!route) throw new Error("Route not found");
+
+  const updated = await discordEventRouter.updateRoute(routeId, {
+    enabled: dataContent.enabled as boolean | undefined,
+    mention_only: dataContent.mentionOnly as boolean | undefined,
+    command_prefix: dataContent.commandPrefix as string | undefined,
+    priority: dataContent.priority as number | undefined,
+  });
+
+  if (!updated) throw new Error("Failed to update route");
+
+  return {
+    id: updated.id,
+    enabled: updated.enabled,
+    updatedAt: updated.updated_at.toISOString(),
+  };
+}
+
+/**
+ * Delete Discord event route
+ */
+export async function executeSkillDiscordGatewayDeleteRoute(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean }> {
+  const { discordEventRouter } = await import("@/lib/services/discord-gateway");
+
+  const routeId = dataContent.routeId as string;
+  if (!routeId) throw new Error("Route ID required");
+
+  // Verify ownership
+  const routes = await discordEventRouter.getRoutes(ctx.user.organization_id);
+  const route = routes.find((r) => r.id === routeId);
+  if (!route) throw new Error("Route not found");
+
+  const deleted = await discordEventRouter.deleteRoute(routeId);
+  if (!deleted) throw new Error("Failed to delete route");
+
+  return { success: true };
+}
+
+/**
+ * Get Discord gateway stats
+ */
+export async function executeSkillDiscordGatewayGetStats(
+  _dataContent: Record<string, unknown>,
+  _ctx: A2AContext
+): Promise<{
+  connections: {
+    totalBots: number;
+    connectedBots: number;
+    disconnectedBots: number;
+    totalGuilds: number;
+  };
+  queue: {
+    pending: number;
+    processing: number;
+    deadLetter: number;
+  };
+}> {
+  const { discordGatewayService } = await import("@/lib/services/discord-gateway");
+
+  const health = await discordGatewayService.getHealth();
+
+  return {
+    connections: {
+      totalBots: health.totalBots,
+      connectedBots: health.connectedBots,
+      disconnectedBots: health.disconnectedBots,
+      totalGuilds: health.totalGuilds,
+    },
+    queue: {
+      pending: health.queueStats.pending,
+      processing: health.queueStats.processing,
+      deadLetter: health.queueStats.deadLetter,
+    },
+  };
+}
+
+/**
+ * Create a feed configuration to monitor social accounts
+ */
+export async function executeSkillCreateFeedConfig(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  success: boolean;
+  configId: string;
+  sourcePlatform: string;
+  sourceAccountId: string;
+}> {
+  const { feedConfigService } = await import("@/lib/services/social-feed");
+
+  const sourcePlatform = dataContent.sourcePlatform as string;
+  const sourceAccountId = dataContent.sourceAccountId as string;
+
+  if (!sourcePlatform) throw new Error("sourcePlatform is required");
+  if (!sourceAccountId) throw new Error("sourceAccountId is required");
+
+  const notificationChannels = (dataContent.notificationChannels as Array<{
+    platform: string;
+    channelId: string;
+    serverId?: string;
+  }>) || [];
+
+  const config = await feedConfigService.create({
+    organizationId: ctx.user.organization_id,
+    sourcePlatform,
+    sourceAccountId,
+    sourceUsername: dataContent.sourceUsername as string | undefined,
+    monitorMentions: dataContent.monitorMentions as boolean | undefined,
+    monitorReplies: dataContent.monitorReplies as boolean | undefined,
+    monitorQuoteTweets: dataContent.monitorQuoteTweets as boolean | undefined,
+    notificationChannels: notificationChannels.map((c) => ({
+      platform: c.platform as "discord" | "telegram" | "slack",
+      channelId: c.channelId,
+      serverId: c.serverId,
+    })),
+    pollingIntervalSeconds: dataContent.pollingIntervalSeconds as number | undefined,
+    minFollowerCount: dataContent.minFollowerCount as number | undefined,
+    createdBy: ctx.user.id,
+  });
+
+  return {
+    success: true,
+    configId: config.id,
+    sourcePlatform: config.source_platform,
+    sourceAccountId: config.source_account_id,
+  };
+}
+
+/**
+ * List feed configurations
+ */
+export async function executeSkillListFeedConfigs(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  configs: Array<{
+    id: string;
+    sourcePlatform: string;
+    sourceAccountId: string;
+    enabled: boolean;
+    lastPolledAt: string | null;
+  }>;
+  total: number;
+}> {
+  const { feedConfigService } = await import("@/lib/services/social-feed");
+
+  const { configs, total } = await feedConfigService.list({
+    organizationId: ctx.user.organization_id,
+    sourcePlatform: dataContent.sourcePlatform as string | undefined,
+    enabled: dataContent.enabled as boolean | undefined,
+    limit: (dataContent.limit as number) || 50,
+  });
+
+  return {
+    configs: configs.map((c) => ({
+      id: c.id,
+      sourcePlatform: c.source_platform,
+      sourceAccountId: c.source_account_id,
+      enabled: c.enabled,
+      lastPolledAt: c.last_polled_at?.toISOString() ?? null,
+    })),
+    total,
+  };
+}
+
+/**
+ * List engagement events from monitored feeds
+ */
+export async function executeSkillListEngagements(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  engagements: Array<{
+    id: string;
+    eventType: string;
+    sourcePlatform: string;
+    authorUsername: string | null;
+    content: string | null;
+    sourcePostUrl: string | null;
+    createdAt: string;
+  }>;
+  total: number;
+}> {
+  const { engagementEventService } = await import("@/lib/services/social-feed");
+
+  const { events, total } = await engagementEventService.list({
+    organizationId: ctx.user.organization_id,
+    feedConfigId: dataContent.feedConfigId as string | undefined,
+    eventType: dataContent.eventType as "mention" | "reply" | "quote_tweet" | undefined,
+    since: dataContent.since ? new Date(dataContent.since as string) : undefined,
+    limit: (dataContent.limit as number) || 50,
+  });
+
+  return {
+    engagements: events.map((e) => ({
+      id: e.id,
+      eventType: e.event_type,
+      sourcePlatform: e.source_platform,
+      authorUsername: e.author_username,
+      content: e.content?.slice(0, 500) ?? null,
+      sourcePostUrl: e.source_post_url,
+      createdAt: e.created_at.toISOString(),
+    })),
+    total,
+  };
+}
+
+/**
+ * List pending reply confirmations
+ */
+export async function executeSkillListPendingReplies(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  pendingReplies: Array<{
+    id: string;
+    targetPlatform: string;
+    replyContent: string;
+    sourceUsername: string | null;
+    status: string;
+    expiresAt: string;
+  }>;
+  total: number;
+}> {
+  const { replyConfirmationService } = await import("@/lib/services/social-feed");
+
+  const status = dataContent.status as "pending" | "confirmed" | "rejected" | undefined;
+  const { confirmations, total } = await replyConfirmationService.list({
+    organizationId: ctx.user.organization_id,
+    status: status || "pending",
+    limit: (dataContent.limit as number) || 20,
+  });
+
+  return {
+    pendingReplies: confirmations.map((c) => ({
+      id: c.id,
+      targetPlatform: c.target_platform,
+      replyContent: c.reply_content,
+      sourceUsername: c.source_username,
+      status: c.status,
+      expiresAt: c.expires_at.toISOString(),
+    })),
+    total,
+  };
+}
+
+/**
+ * Confirm and send a pending reply
+ */
+export async function executeSkillConfirmReply(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  success: boolean;
+  postId?: string;
+  postUrl?: string;
+  error?: string;
+}> {
+  const { replyRouterService } = await import("@/lib/services/social-feed/reply-router");
+
+  const confirmationId = dataContent.confirmationId as string;
+  if (!confirmationId) throw new Error("confirmationId is required");
+
+  const result = await replyRouterService.handleConfirmation(
+    confirmationId,
+    ctx.user.organization_id,
+    ctx.user.id,
+    ctx.user.email || "Agent"
+  );
+
+  return {
+    success: result.success,
+    postId: result.postId,
+    postUrl: result.postUrl,
+    error: result.error,
+  };
+}
+
+/**
+ * Reject a pending reply
+ */
+export async function executeSkillRejectReply(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean }> {
+  const { replyRouterService } = await import("@/lib/services/social-feed/reply-router");
+
+  const confirmationId = dataContent.confirmationId as string;
+  if (!confirmationId) throw new Error("confirmationId is required");
+
+  await replyRouterService.handleRejection(
+    confirmationId,
+    ctx.user.organization_id,
+    ctx.user.id,
+    dataContent.reason as string | undefined
+  );
+
+  return { success: true };
+}
+
+/**
+ * Poll feeds for new engagements
+ */
+export async function executeSkillPollFeeds(
+  _dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  feedsPolled: number;
+  newEngagements: number;
+  errors: string[];
+}> {
+  const { feedConfigService } = await import("@/lib/services/social-feed");
+  const { feedPollingService } = await import("@/lib/services/social-feed/polling");
+
+  const { configs } = await feedConfigService.list({
+    organizationId: ctx.user.organization_id,
+    enabled: true,
+    limit: 10,
+  });
+
+  let totalNew = 0;
+  const errors: string[] = [];
+
+  for (const config of configs) {
+    const result = await feedPollingService.pollFeed(config);
+    totalNew += result.newEngagements;
+    errors.push(...result.errors);
+  }
+
+  return {
+    feedsPolled: configs.length,
+    newEngagements: totalNew,
+    errors,
+  };
+}
+
+/**
+ * Process unnotified engagement events
+ */
+export async function executeSkillProcessNotifications(
+  _dataContent: Record<string, unknown>,
+  _ctx: A2AContext
+): Promise<{
+  processed: number;
+  successful: number;
+  failed: number;
+}> {
+  const { socialNotificationService } = await import("@/lib/services/social-feed/notifications");
+
+  return socialNotificationService.processUnnotifiedEvents();
+}
+
+// ============================================================================
+// SECRETS SKILLS
+// ============================================================================
+
+export interface SecretMetadataResult {
+  id: string;
+  name: string;
+  description: string | null;
+  scope: string;
+  projectId: string | null;
+  projectType: string | null;
+  environment: string | null;
+  provider: string | null;
+  version: number;
+  createdAt: string;
+  lastAccessedAt: string | null;
+  accessCount: number;
+}
+
+export interface SecretsListResult {
+  secrets: SecretMetadataResult[];
+  total: number;
+}
+
+export interface SecretValueResult {
+  name: string;
+  value: string;
+}
+
+export interface SecretCreateResult {
+  id: string;
+  name: string;
+}
+
+const a2aAudit = (ctx: A2AContext) => ({
+  actorType: "api_key" as const,
+  actorId: ctx.apiKeyId || ctx.user.id,
+  source: "a2a",
+});
+
+/**
+ * List secrets (metadata only, no values)
+ */
+export async function executeSkillSecretsList(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<SecretsListResult> {
+  const { secretsService } = await import("@/lib/services/secrets");
+  const { SecretProvider, SecretProjectType, SecretEnvironment } = await import("@/db/schemas/secrets");
+
+  const result = await secretsService.listFiltered({
+    organizationId: ctx.user.organization_id,
+    projectId: dataContent.projectId as string | undefined,
+    projectType: dataContent.projectType as typeof SecretProjectType.$type | undefined,
+    environment: dataContent.environment as typeof SecretEnvironment.$type | undefined,
+    provider: dataContent.provider as typeof SecretProvider.$type | undefined,
+    limit: Math.min((dataContent.limit as number) || 100, 500),
+    offset: (dataContent.offset as number) || 0,
+  });
+
+  return {
+    secrets: result.secrets.map((s) => ({
+      id: s.id,
+      name: s.name,
+      description: s.description,
+      scope: s.scope,
+      projectId: s.projectId,
+      projectType: s.projectType,
+      environment: s.environment,
+      provider: s.provider,
+      version: s.version,
+      createdAt: s.createdAt.toISOString(),
+      lastAccessedAt: s.lastAccessedAt?.toISOString() ?? null,
+      accessCount: s.accessCount,
+    })),
+    total: result.total,
+  };
+}
+
+/**
+ * Get a secret value by name
+ */
+export async function executeSkillSecretsGet(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<SecretValueResult | null> {
+  const { secretsService } = await import("@/lib/services/secrets");
+  const { SecretEnvironment } = await import("@/db/schemas/secrets");
+
+  const name = dataContent.name as string;
+  if (!name) throw new Error("name is required");
+
+  const value = await secretsService.get(
+    ctx.user.organization_id,
+    name,
+    dataContent.projectId as string | undefined,
+    dataContent.environment as typeof SecretEnvironment.$type | undefined,
+    a2aAudit(ctx)
+  );
+
+  return value ? { name, value } : null;
+}
+
+/**
+ * Get multiple secrets by names
+ */
+export async function executeSkillSecretsGetBulk(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<Record<string, string>> {
+  const { secretsService } = await import("@/lib/services/secrets");
+  const { SecretEnvironment, SecretProjectType } = await import("@/db/schemas/secrets");
+
+  const names = dataContent.names as string[];
+  if (!names || !Array.isArray(names) || names.length === 0) {
+    throw new Error("names array is required");
+  }
+
+  return secretsService.getDecrypted({
+    organizationId: ctx.user.organization_id,
+    projectId: dataContent.projectId as string | undefined,
+    projectType: dataContent.projectType as typeof SecretProjectType.$type | undefined,
+    environment: dataContent.environment as typeof SecretEnvironment.$type | undefined,
+    names,
+    includeBindings: (dataContent.includeBindings as boolean) ?? true,
+  }, a2aAudit(ctx));
+}
+
+/**
+ * Create a new secret
+ */
+export async function executeSkillSecretsCreate(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<SecretCreateResult> {
+  const { secretsService } = await import("@/lib/services/secrets");
+  const { SecretProvider, SecretProjectType, SecretEnvironment } = await import("@/db/schemas/secrets");
+
+  const name = dataContent.name as string;
+  const value = dataContent.value as string;
+  if (!name) throw new Error("name is required");
+  if (!value) throw new Error("value is required");
+
+  const secret = await secretsService.create({
+    organizationId: ctx.user.organization_id,
+    name,
+    value,
+    description: dataContent.description as string | undefined,
+    provider: dataContent.provider as typeof SecretProvider.$type | undefined,
+    projectId: dataContent.projectId as string | undefined,
+    projectType: dataContent.projectType as typeof SecretProjectType.$type | undefined,
+    environment: dataContent.environment as typeof SecretEnvironment.$type | undefined,
+    createdBy: ctx.user.id,
+  }, a2aAudit(ctx));
+
+  return { id: secret.id, name: secret.name };
+}
+
+/**
+ * Update an existing secret
+ */
+export async function executeSkillSecretsUpdate(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<SecretMetadataResult> {
+  const { secretsService } = await import("@/lib/services/secrets");
+
+  const secretId = dataContent.secretId as string;
+  if (!secretId) throw new Error("secretId is required");
+
+  const updated = await secretsService.update(secretId, ctx.user.organization_id, {
+    value: dataContent.value as string | undefined,
+    description: dataContent.description as string | undefined,
+  }, a2aAudit(ctx));
+
+  return {
+    id: updated.id,
+    name: updated.name,
+    description: updated.description,
+    scope: updated.scope,
+    projectId: updated.projectId,
+    projectType: updated.projectType,
+    environment: updated.environment,
+    provider: updated.provider,
+    version: updated.version,
+    createdAt: updated.createdAt.toISOString(),
+    lastAccessedAt: updated.lastAccessedAt?.toISOString() ?? null,
+    accessCount: updated.accessCount,
+  };
+}
+
+/**
+ * Delete a secret
+ */
+export async function executeSkillSecretsDelete(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean }> {
+  const { secretsService } = await import("@/lib/services/secrets");
+
+  const secretId = dataContent.secretId as string;
+  if (!secretId) throw new Error("secretId is required");
+
+  await secretsService.delete(secretId, ctx.user.organization_id, a2aAudit(ctx));
+
+  return { success: true };
+}
+
+/**
+ * Bind a secret to a project
+ */
+export async function executeSkillSecretsBind(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ bindingId: string }> {
+  const { secretsService } = await import("@/lib/services/secrets");
+  const { SecretProjectType } = await import("@/db/schemas/secrets");
+
+  const secretId = dataContent.secretId as string;
+  const projectId = dataContent.projectId as string;
+  const projectType = dataContent.projectType as typeof SecretProjectType.$type;
+
+  if (!secretId) throw new Error("secretId is required");
+  if (!projectId) throw new Error("projectId is required");
+  if (!projectType) throw new Error("projectType is required");
+
+  const binding = await secretsService.bindSecret({
+    secretId,
+    projectId,
+    projectType,
+    createdBy: ctx.user.id,
+  }, a2aAudit(ctx));
+
+  return { bindingId: binding.id };
+}
+
+/**
+ * Unbind a secret from a project
+ */
+export async function executeSkillSecretsUnbind(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean }> {
+  const { secretsService } = await import("@/lib/services/secrets");
+
+  const bindingId = dataContent.bindingId as string;
+  if (!bindingId) throw new Error("bindingId is required");
+
+  await secretsService.unbindSecret(bindingId, ctx.user.organization_id, a2aAudit(ctx));
+
+  return { success: true };
+}
+
+// ============================================
+// Domain Management Skills
+// ============================================
+
+import type {
+  DomainSearchResult,
+  DomainCheckResult,
+  DomainListResult,
+  DomainRegisterResult,
+  DomainVerifyResult,
+  DomainAssignResult,
+} from "./types";
+
+/**
+ * Search for available domains
+ */
+export async function executeSkillDomainsSearch(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<DomainSearchResult> {
+  const { domainManagementService } = await import("@/lib/services/domain-management");
+
+  const query = dataContent.query as string;
+  if (!query) throw new Error("query is required");
+
+  const tlds = dataContent.tlds as string[] | undefined;
+
+  const results = await domainManagementService.searchDomains(query, tlds);
+
+  return {
+    query,
+    results: results.map((r) => ({
+      domain: r.domain,
+      available: r.available,
+      price: r.price
+        ? {
+            amount: r.price.price / 100,
+            currency: r.price.currency,
+            period: r.price.period,
+          }
+        : null,
+    })),
+    availableCount: results.filter((r) => r.available).length,
+  };
+}
+
+/**
+ * Check if a specific domain is available
+ */
+export async function executeSkillDomainsCheck(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<DomainCheckResult> {
+  const { domainManagementService } = await import("@/lib/services/domain-management");
+  const { domainModerationService } = await import("@/lib/services/domain-moderation");
+
+  const domain = dataContent.domain as string;
+  if (!domain) throw new Error("domain is required");
+
+  const moderation = await domainModerationService.validateDomainName(domain);
+  if (!moderation.allowed) {
+    return {
+      domain,
+      available: false,
+      price: null,
+      moderationFlags: moderation.flags.map((f) => ({
+        type: f.type,
+        severity: f.severity,
+        reason: f.reason,
+      })),
+      requiresReview: moderation.requiresReview,
+    };
+  }
+
+  const result = await domainManagementService.checkAvailability(domain);
+
+  return {
+    domain: result.domain,
+    available: result.available,
+    price: result.price
+      ? {
+          amount: result.price.price / 100,
+          currency: result.price.currency,
+          period: result.price.period,
+          renewalAmount: result.price.renewalPrice / 100,
+        }
+      : null,
+    moderationFlags: moderation.flags.map((f) => ({
+      type: f.type,
+      severity: f.severity,
+      reason: f.reason,
+    })),
+    requiresReview: moderation.requiresReview,
+  };
+}
+
+/**
+ * List domains for the organization
+ */
+export async function executeSkillDomainsList(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<DomainListResult> {
+  const { domainManagementService } = await import("@/lib/services/domain-management");
+
+  const filter = (dataContent.filter as "all" | "unassigned" | "assigned") || "all";
+
+  let domains;
+  if (filter === "unassigned") {
+    domains = await domainManagementService.listUnassignedDomains(ctx.user.organization_id);
+  } else {
+    domains = await domainManagementService.listDomains(ctx.user.organization_id);
+    if (filter === "assigned") {
+      domains = domains.filter((d) => d.resourceType !== null);
+    }
+  }
+
+  const stats = await domainManagementService.getStats(ctx.user.organization_id);
+
+  return {
+    domains: domains.map((d) => ({
+      id: d.id,
+      domain: d.domain,
+      status: d.status,
+      verified: d.verified,
+      resourceType: d.resourceType,
+      resourceId: d.appId || d.containerId || d.agentId || d.mcpId || null,
+      expiresAt: d.expiresAt?.toISOString() || null,
+      sslStatus: d.sslStatus,
+      isLive: d.isLive,
+    })),
+    stats,
+  };
+}
+
+/**
+ * Register an external domain
+ */
+export async function executeSkillDomainsRegister(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<DomainRegisterResult> {
+  const { domainManagementService } = await import("@/lib/services/domain-management");
+
+  const domain = dataContent.domain as string;
+  if (!domain) throw new Error("domain is required");
+
+  const nameserverMode = (dataContent.nameserverMode as "vercel" | "external") || "external";
+
+  const deduction = await creditsService.deductCredits({
+    organizationId: ctx.user.organization_id,
+    amount: 1,
+    description: `A2A: Register external domain ${domain}`,
+    metadata: { skill: "domains_register", domain },
+  });
+
+  if (!deduction.success) throw new Error("Insufficient credits");
+
+  const result = await domainManagementService.registerExternalDomain(
+    domain,
+    ctx.user.organization_id,
+    nameserverMode
+  );
+
+  if (!result.success) {
+    throw new Error(result.error || "Failed to register domain");
+  }
+
+  return {
+    success: true,
+    domain: {
+      id: result.domain!.id,
+      domain: result.domain!.domain,
+      status: result.domain!.status,
+      verificationToken: result.domain!.verificationToken || undefined,
+    },
+    dnsInstructions: result.dnsInstructions,
+    message: "Add the DNS records to verify ownership",
+  };
+}
+
+/**
+ * Verify domain ownership
+ */
+export async function executeSkillDomainsVerify(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<DomainVerifyResult> {
+  const { domainManagementService } = await import("@/lib/services/domain-management");
+
+  const domainId = dataContent.domainId as string;
+  if (!domainId) throw new Error("domainId is required");
+
+  const domain = await domainManagementService.getDomain(domainId, ctx.user.organization_id);
+  if (!domain) {
+    throw new Error("Domain not found");
+  }
+
+  const result = await domainManagementService.verifyDomain(domainId);
+
+  if (result.verified) {
+    return {
+      verified: true,
+      domain: domain.domain,
+      message: "Domain verified successfully",
+    };
+  }
+
+  const dnsInstructions = domainManagementService.generateDnsInstructions(
+    domain.domain,
+    domain.verificationToken || "",
+    domain.nameserverMode
+  );
+
+  return {
+    verified: false,
+    domain: domain.domain,
+    error: result.error,
+    dnsInstructions,
+    message: "Verification failed. Check DNS configuration.",
+  };
+}
+
+/**
+ * Assign domain to a resource
+ */
+export async function executeSkillDomainsAssign(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<DomainAssignResult> {
+  const { domainManagementService } = await import("@/lib/services/domain-management");
+
+  const domainId = dataContent.domainId as string;
+  const resourceType = dataContent.resourceType as "app" | "container" | "agent" | "mcp";
+  const resourceId = dataContent.resourceId as string;
+
+  if (!domainId) throw new Error("domainId is required");
+  if (!resourceType) throw new Error("resourceType is required");
+  if (!resourceId) throw new Error("resourceId is required");
+
+  const deduction = await creditsService.deductCredits({
+    organizationId: ctx.user.organization_id,
+    amount: 1,
+    description: `A2A: Assign domain to ${resourceType}`,
+    metadata: { skill: "domains_assign", domainId, resourceType, resourceId },
+  });
+
+  if (!deduction.success) throw new Error("Insufficient credits");
+
+  let updated;
+  switch (resourceType) {
+    case "app":
+      updated = await domainManagementService.assignToApp(domainId, resourceId, ctx.user.organization_id);
+      break;
+    case "container":
+      updated = await domainManagementService.assignToContainer(domainId, resourceId, ctx.user.organization_id);
+      break;
+    case "agent":
+      updated = await domainManagementService.assignToAgent(domainId, resourceId, ctx.user.organization_id);
+      break;
+    case "mcp":
+      updated = await domainManagementService.assignToMcp(domainId, resourceId, ctx.user.organization_id);
+      break;
+  }
+
+  if (!updated) {
+    throw new Error("Failed to assign domain. Ensure domain is verified and resource exists.");
+  }
+
+  return {
+    success: true,
+    domain: {
+      id: updated.id,
+      domain: updated.domain,
+      resourceType: updated.resourceType!,
+      resourceId: (updated.appId || updated.containerId || updated.agentId || updated.mcpId)!,
+    },
+    message: `Domain assigned to ${resourceType}`,
+  };
+}
+
+/**
+ * Unassign domain from resource
+ */
+export async function executeSkillDomainsUnassign(
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean; message: string }> {
+  const { domainManagementService } = await import("@/lib/services/domain-management");
+
+  const domainId = dataContent.domainId as string;
+  if (!domainId) throw new Error("domainId is required");
+
+  const updated = await domainManagementService.unassignDomain(domainId, ctx.user.organization_id);
+
+  if (!updated) {
+    throw new Error("Domain not found or already unassigned");
+  }
+
+  return {
+    success: true,
+    message: "Domain unassigned successfully",
+  };
 }
 

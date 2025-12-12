@@ -72,6 +72,28 @@ const ENV_VARS = {
     required: false,
     description: "AI Gateway API key",
   },
+  DATAFORSEO_LOGIN: {
+    required: false,
+    description: "DataForSEO API login (email)",
+  },
+  DATAFORSEO_PASSWORD: {
+    required: false,
+    description: "DataForSEO API password",
+  },
+  SERPAPI_KEY: {
+    required: false,
+    description: "SerpApi key for live SERP snapshots",
+  },
+  INDEXNOW_KEY: {
+    required: false,
+    description: "IndexNow key for URL submissions",
+  },
+  INDEXNOW_KEY_LOCATION: {
+    required: false,
+    description: "Public URL to the IndexNow key file",
+    validate: (value: string) => value.startsWith("http"),
+    errorMessage: "Must be a valid URL to the IndexNow key",
+  },
 
   // Storage
   BLOB_READ_WRITE_TOKEN: {

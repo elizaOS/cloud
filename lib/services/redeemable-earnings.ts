@@ -30,10 +30,6 @@ import { eq, sql, and } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 import Decimal from "decimal.js";
 
-// ============================================================================
-// TYPES
-// ============================================================================
-
 type EarningsSource = "app" | "agent" | "mcp";
 
 interface AddEarningsParams {
@@ -81,10 +77,6 @@ interface RefundEarningsParams {
   amount: number;
   reason: string;
 }
-
-// ============================================================================
-// SERVICE
-// ============================================================================
 
 class RedeemableEarningsService {
   /**

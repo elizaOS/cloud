@@ -16,6 +16,8 @@ import type {
 } from "@/lib/providers/types";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { hasX402Payment, createX402RequirementResponse, verifyX402PaymentFromRequest } from "@/lib/middleware/x402-route";
+import type { Address } from "viem";
 import type { NextRequest } from "next/server";
 
 export const maxDuration = 60;
@@ -120,23 +122,39 @@ async function handlePOST(req: NextRequest) {
       balance: Number(org.credit_balance),
     };
 
+    // Check for x402 payment if credits insufficient
     if (!creditCheck.sufficient) {
-      logger.warn("[OpenAI Proxy] Insufficient credits for embeddings", {
-        organizationId: user.organization_id!!,
-        required: creditCheck.required,
-        balance: creditCheck.balance,
-      });
+      if (hasX402Payment(req)) {
+        const requirement = {
+          scheme: 'exact' as const,
+          network: 'jeju-testnet',
+          maxAmountRequired: requiredCredits.toString(),
+          payTo: '0x0000000000000000000000000000000000000000' as Address,
+          asset: '0x0000000000000000000000000000000000000000' as Address,
+          resource: `/api/v1/embeddings`,
+        };
+        const paymentCtx = await verifyX402PaymentFromRequest(req, requirement);
+        if (paymentCtx?.verified) {
+          logger.info("[OpenAI Proxy] x402 payment verified for embeddings", {
+            payer: paymentCtx.payer,
+            amount: paymentCtx.amount,
+          });
+          // Payment verified, proceed without credit check
+        } else {
+          logger.warn("[OpenAI Proxy] Invalid x402 payment for embeddings", {
+            organizationId: user.organization_id!!,
+          });
+          return createX402RequirementResponse(requiredCredits, `/api/v1/embeddings`);
+        }
+      } else {
+        logger.warn("[OpenAI Proxy] Insufficient credits for embeddings", {
+          organizationId: user.organization_id!!,
+          required: creditCheck.required,
+          balance: creditCheck.balance,
+        });
 
-      return Response.json(
-        {
-          error: {
-            message: `Insufficient balance. Required: $${Number(creditCheck.required).toFixed(2)}, Available: $${Number(creditCheck.balance).toFixed(2)}`,
-            type: "insufficient_quota",
-            code: "insufficient_balance",
-          },
-        },
-        { status: 402 },
-      );
+        return createX402RequirementResponse(requiredCredits, `/api/v1/embeddings`);
+      }
     }
 
     // Forward via provider

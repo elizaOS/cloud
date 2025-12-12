@@ -1,68 +1,79 @@
 /**
- * App Serving Route - Custom Domain
- * 
- * Serves app content for custom domain requests.
+ * Custom Domain Route Handler
+ *
+ * Routes custom domain requests to apps, containers, agents, or MCPs.
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import {
-  serveApp,
-  getDomainByCustomDomain,
-  generateErrorPage,
-} from "@/lib/services/app-serve";
+import { serveApp, getDomainByCustomDomain, generateErrorPage } from "@/lib/services/app-serve";
+import { domainRouterService } from "@/lib/services/domain-router";
+import { managedDomainsRepository } from "@/db/repositories/managed-domains";
 
 interface RouteParams {
   params: Promise<{ hostname: string; path?: string[] }>;
 }
 
-export async function GET(
-  _request: NextRequest,
-  { params }: RouteParams
-): Promise<NextResponse> {
-  const { hostname: encodedHostname } = await params;
-  const hostname = decodeURIComponent(encodedHostname);
+async function parseParams(params: RouteParams["params"]) {
+  const { hostname: encodedHostname, path } = await params;
+  return {
+    hostname: decodeURIComponent(encodedHostname),
+    pathname: path ? `/${path.join("/")}` : "/",
+  };
+}
 
-  // Look up domain record by custom domain
+function htmlResponse(html: string, status: number, headers: Record<string, string> = {}) {
+  return new NextResponse(html, { status, headers: { "Content-Type": "text/html", ...headers } });
+}
+
+async function routeRequest(request: NextRequest, params: RouteParams["params"]) {
+  const { hostname, pathname } = await parseParams(params);
+
+  // Try managed domains first (supports all resource types)
+  const managedDomain = await managedDomainsRepository.findByDomain(hostname);
+  if (managedDomain?.resourceType) {
+    const result = await domainRouterService.routeCustomDomain(request, hostname, pathname);
+    if (result.success) return result.response;
+    return htmlResponse(result.html, result.status);
+  }
+
+  // Fall back to legacy app domains
   const domain = await getDomainByCustomDomain(hostname);
-
   if (!domain) {
-    return new NextResponse(
-      generateErrorPage("Domain Not Configured", `The domain ${hostname} is not connected to any app.`),
-      {
-        status: 404,
-        headers: { "Content-Type": "text/html" },
-      }
-    );
+    return htmlResponse(generateErrorPage("Not Configured", `Domain ${hostname} is not connected to any service.`), 404);
   }
-
-  // Check if domain is verified
   if (!domain.custom_domain_verified) {
-    return new NextResponse(
-      generateErrorPage(
-        "Domain Not Verified",
-        `The domain ${hostname} is pending DNS verification. Please configure your DNS records.`
-      ),
-      {
-        status: 403,
-        headers: { "Content-Type": "text/html" },
-      }
-    );
+    return htmlResponse(generateErrorPage("Pending Verification", `Domain ${hostname} is pending DNS verification.`), 403);
   }
 
-  // Serve the app
   const result = await serveApp(domain);
+  if (!result.success) return htmlResponse(result.error.html, result.error.status);
+  return new NextResponse(result.data.html, { status: 200, headers: { ...result.data.headers, "X-Custom-Domain": hostname } });
+}
 
-  if (!result.success) {
-    return new NextResponse(result.error.html, {
-      status: result.error.status,
-      headers: { "Content-Type": "text/html" },
-    });
-  }
+export async function GET(request: NextRequest, { params }: RouteParams) {
+  return routeRequest(request, params);
+}
 
-  return new NextResponse(result.data.html, {
-    status: 200,
+export async function POST(request: NextRequest, { params }: RouteParams) {
+  const { hostname, pathname } = await parseParams(params);
+  const result = await domainRouterService.routeCustomDomain(request, hostname, pathname);
+  if (result.success) return result.response;
+  return NextResponse.json({ error: result.message }, { status: result.status });
+}
+
+export const PUT = POST;
+export const DELETE = POST;
+export const PATCH = POST;
+
+export async function OPTIONS(_request: NextRequest, { params }: RouteParams) {
+  const { hostname } = await parseParams(params);
+  return new NextResponse(null, {
+    status: 204,
     headers: {
-      ...result.data.headers,
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Api-Key, X-Payment",
+      "Access-Control-Max-Age": "86400",
       "X-Custom-Domain": hostname,
     },
   });

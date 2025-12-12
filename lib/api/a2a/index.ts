@@ -68,6 +68,35 @@ export {
   executeSkillAddTeamMember,
   executeSkillListTeamMembers,
   executeSkillGetPlatformStatus,
+  // Social Feed skills
+  executeSkillCreateFeedConfig,
+  executeSkillListFeedConfigs,
+  executeSkillListEngagements,
+  executeSkillListPendingReplies,
+  executeSkillConfirmReply,
+  executeSkillRejectReply,
+  executeSkillPollFeeds,
+  executeSkillProcessNotifications,
+  // SEO skills
+  executeSkillSeoCreateRequest,
+  executeSkillSeoGetRequest,
+  // Secrets skills
+  executeSkillSecretsList,
+  executeSkillSecretsGet,
+  executeSkillSecretsGetBulk,
+  executeSkillSecretsCreate,
+  executeSkillSecretsUpdate,
+  executeSkillSecretsDelete,
+  executeSkillSecretsBind,
+  executeSkillSecretsUnbind,
+  // Domain management skills
+  executeSkillDomainsSearch,
+  executeSkillDomainsCheck,
+  executeSkillDomainsList,
+  executeSkillDomainsRegister,
+  executeSkillDomainsVerify,
+  executeSkillDomainsAssign,
+  executeSkillDomainsUnassign,
 } from "./skills";
 
 // Handlers

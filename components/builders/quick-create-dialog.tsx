@@ -1,10 +1,3 @@
-/**
- * Quick Create Dialog
- * 
- * Unified dialog for creating apps, agents, workflows, and services.
- * Minimal friction - auto-generated names, deferred configuration.
- */
-
 "use client";
 
 import { useState } from "react";
@@ -32,10 +25,9 @@ import {
   ChevronRight,
   Globe,
   Zap,
-  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
-import { generateDisplayName, generateServiceName, generateWorkflowName } from "@/lib/utils/random-names";
+import { generateNameForType } from "@/lib/utils/random-names";
 import { cn } from "@/lib/utils";
 
 export type QuickCreateType = "miniapp" | "workflow" | "service" | "agent";
@@ -114,25 +106,13 @@ export function QuickCreateDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [createdResult, setCreatedResult] = useState<CreatedResult | null>(null);
   const [copied, setCopied] = useState(false);
-
-  // Service-specific
   const [serviceEndpoints, setServiceEndpoints] = useState<ServiceEndpoints>({
     mcp: true,
     a2a: true,
     rest: true,
   });
 
-  const generateName = (type: QuickCreateType): string => {
-    switch (type) {
-      case "miniapp":
-      case "agent":
-        return generateDisplayName();
-      case "workflow":
-        return generateWorkflowName();
-      case "service":
-        return generateServiceName();
-    }
-  };
+  const generateName = (type: QuickCreateType): string => generateNameForType(type);
 
   const handleTypeSelect = (type: QuickCreateType) => {
     setSelectedType(type);
@@ -150,108 +130,86 @@ export function QuickCreateDialog({
     if (!selectedType || !name.trim()) return;
     setIsLoading(true);
 
+    const trimmedName = name.trim();
     let result: CreatedResult | null = null;
 
-    switch (selectedType) {
-      case "miniapp":
-      case "service": {
-        const metadata: Record<string, unknown> = { app_type: selectedType };
-        if (selectedType === "service") {
-          metadata.service_endpoints = serviceEndpoints;
-        }
+    const createApp = async (isService: boolean) => {
+      const response = await fetch("/api/v1/apps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: trimmedName,
+          description: `${isService ? "Service" : "Mini App"} created with Eliza Cloud`,
+          app_url: "https://localhost:3000",
+          features_enabled: { chat: true, agents: isService, embedding: isService },
+          metadata: { app_type: selectedType, ...(isService && { service_endpoints: serviceEndpoints }) },
+        }),
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Failed to create");
+      }
+      const data = await response.json();
+      return { id: data.app.id, type: selectedType, name: trimmedName, apiKey: data.apiKey } as CreatedResult;
+    };
 
-        const response = await fetch("/api/v1/apps", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: name.trim(),
-            description: `${selectedType === "service" ? "Service" : "Mini App"} created with Eliza Cloud`,
-            app_url: "https://localhost:3000",
-            features_enabled: {
-              chat: true,
-              agents: selectedType === "service",
-              embedding: selectedType === "service",
-            },
-            metadata,
-          }),
-        });
+    const createAgent = async () => {
+      const response = await fetch("/api/v1/app/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: trimmedName, bio: "A helpful AI assistant" }),
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Failed to create agent");
+      }
+      const data = await response.json();
+      return { id: data.agent.id, type: "agent" as const, name: trimmedName };
+    };
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Failed to create");
-        }
+    const createWorkflow = async () => {
+      const response = await fetch("/api/v1/n8n/workflows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: trimmedName,
+          description: "Workflow created with Eliza Cloud",
+          workflowData: { nodes: [], connections: {}, settings: {} },
+        }),
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Failed to create workflow");
+      }
+      const data = await response.json();
+      return { id: data.workflow.id, type: "workflow" as const, name: trimmedName };
+    };
 
-        const data = await response.json();
-        result = {
-          id: data.app.id,
-          type: selectedType,
-          name: name.trim(),
-          apiKey: data.apiKey,
-        };
-        break;
+    try {
+      switch (selectedType) {
+        case "miniapp":
+          result = await createApp(false);
+          break;
+        case "service":
+          result = await createApp(true);
+          break;
+        case "agent":
+          result = await createAgent();
+          break;
+        case "workflow":
+          result = await createWorkflow();
+          break;
       }
 
-      case "agent": {
-        const response = await fetch("/api/v1/app/agents", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: name.trim(),
-            bio: "A helpful AI assistant",
-          }),
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Failed to create agent");
-        }
-
-        const data = await response.json();
-        result = {
-          id: data.character?.id || data.id,
-          type: "agent",
-          name: name.trim(),
-        };
-        break;
-      }
-
-      case "workflow": {
-        const response = await fetch("/api/v1/n8n/workflows", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: name.trim(),
-            description: "Workflow created with Eliza Cloud",
-            workflow_data: {
-              nodes: [],
-              connections: {},
-              settings: {},
-            },
-          }),
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Failed to create workflow");
-        }
-
-        const data = await response.json();
-        result = {
-          id: data.workflow?.id || data.id,
-          type: "workflow",
-          name: name.trim(),
-        };
-        break;
-      }
-    }
-
-    if (result) {
       setCreatedResult(result);
       setStep("success");
       onCreated?.(result);
-      toast.success(`${selectedType === "agent" ? "Agent" : selectedType === "workflow" ? "Workflow" : "App"} created`);
+      toast.success(`${TYPE_OPTIONS.find((t) => t.type === selectedType)?.label} created`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Creation failed");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const copyApiKey = async () => {
@@ -279,7 +237,6 @@ export function QuickCreateDialog({
     if (createdResult) {
       router.push(getNavigationPath());
     }
-    // Reset state
     setStep(defaultType ? "configure" : "type");
     setSelectedType(defaultType ?? null);
     setName(defaultType ? generateName(defaultType) : "");
@@ -299,10 +256,9 @@ export function QuickCreateDialog({
     }
   };
 
-  // Success state
   if (step === "success" && createdResult) {
     const typeConfig = TYPE_OPTIONS.find((t) => t.type === createdResult.type);
-    const TypeIcon = typeConfig?.icon || Sparkles;
+    const TypeIcon = typeConfig?.icon ?? Smartphone;
 
     return (
       <Dialog open={open} onOpenChange={handleClose}>
@@ -354,10 +310,9 @@ export function QuickCreateDialog({
     );
   }
 
-  // Configure step
   if (step === "configure" && selectedType) {
     const typeConfig = TYPE_OPTIONS.find((t) => t.type === selectedType);
-    const TypeIcon = typeConfig?.icon || Sparkles;
+    const TypeIcon = typeConfig?.icon ?? Smartphone;
 
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -460,7 +415,6 @@ export function QuickCreateDialog({
     );
   }
 
-  // Type selection step (default)
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">

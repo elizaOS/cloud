@@ -23,10 +23,20 @@ import type { AuditContext } from "@/lib/services/secrets";
 // Test fixtures - using valid UUIDs
 const TEST_ORG_ID = "00000000-0000-0000-0000-000000000001";
 const TEST_USER_ID = "00000000-0000-0000-0000-000000000002";
+const TEST_PROJECT_ID = "00000000-0000-0000-0000-000000000003";
+const TEST_PROJECT_ID_2 = "00000000-0000-0000-0000-000000000004";
 const TEST_MASTER_KEY = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
 
 // Secrets table check happens in beforeAll to avoid top-level async issues
 let secretsTablesAvailable = false;
+
+function skipIfNoTables() {
+  if (!secretsTablesAvailable) {
+    console.log("    ⏭️  SKIPPED (secrets tables not available)");
+    return true;
+  }
+  return false;
+}
 
 describe("Secrets Integration Tests", () => {
   let service: SecretsService;
@@ -42,82 +52,61 @@ describe("Secrets Integration Tests", () => {
   };
 
   beforeAll(async () => {
-    // Check if secrets tables exist - wrap everything in try-catch for safety
     try {
       await db.execute("SELECT 1 FROM secrets LIMIT 1");
       secretsTablesAvailable = true;
     } catch {
-      console.log("[secrets-api.test.ts] Skipping - secrets tables not available");
+      console.log("\n⚠️  [secrets-api.test.ts] Secrets tables not available.");
+      console.log("   Run migration: bun drizzle-kit push");
+      console.log("   Tests will be skipped.\n");
       return;
     }
 
-    try {
-      // Set up encryption service
-      const kms = new LocalKMSProvider(TEST_MASTER_KEY);
-      const encryption = new SecretsEncryptionService(kms);
-      service = new SecretsService(encryption);
+    const kms = new LocalKMSProvider(TEST_MASTER_KEY);
+    const encryption = new SecretsEncryptionService(kms);
+    service = new SecretsService(encryption);
 
-      // Create test organization and user if they don't exist
-      const existingOrg = await db.query.organizations.findFirst({
-        where: eq(organizations.id, TEST_ORG_ID),
+    const existingOrg = await db.query.organizations.findFirst({
+      where: eq(organizations.id, TEST_ORG_ID),
+    });
+    if (!existingOrg) {
+      await db.insert(organizations).values({
+        id: TEST_ORG_ID,
+        name: "Test Org for Secrets",
+        credit_balance: 1000,
       });
-
-      if (!existingOrg) {
-        // Create test org
-        await db.insert(organizations).values({
-          id: TEST_ORG_ID,
-          name: "Test Org for Secrets",
-          credit_balance: 1000,
-        });
-      }
-      testOrgId = TEST_ORG_ID;
-
-      const existingUser = await db.query.users.findFirst({
-        where: eq(users.id, TEST_USER_ID),
-      });
-
-      if (!existingUser) {
-        // Create test user
-        await db.insert(users).values({
-          id: TEST_USER_ID,
-          email: "secrets-test@example.com",
-          organization_id: TEST_ORG_ID,
-        });
-      }
-      testUserId = TEST_USER_ID;
-    } catch (error) {
-      console.log("[secrets-api.test.ts] Setup failed:", (error as Error).message);
-      secretsTablesAvailable = false;
     }
+    testOrgId = TEST_ORG_ID;
+
+    const existingUser = await db.query.users.findFirst({
+      where: eq(users.id, TEST_USER_ID),
+    });
+    if (!existingUser) {
+      await db.insert(users).values({
+        id: TEST_USER_ID,
+        email: "secrets-test@example.com",
+        organization_id: TEST_ORG_ID,
+      });
+    }
+    testUserId = TEST_USER_ID;
   });
 
   afterAll(async () => {
-    // Clean up test data - skip if tables don't exist
     if (!secretsTablesAvailable) return;
-    try {
-      await db.delete(secretAuditLog).where(eq(secretAuditLog.organization_id, TEST_ORG_ID));
-      await db.delete(oauthSessions).where(eq(oauthSessions.organization_id, TEST_ORG_ID));
-      await db.delete(secrets).where(eq(secrets.organization_id, TEST_ORG_ID));
-      // Don't delete org/user as they might be used by other tests
-    } catch {
-      // Silently ignore cleanup errors
-    }
+    await db.delete(secretAuditLog).where(eq(secretAuditLog.organization_id, TEST_ORG_ID)).catch(() => {});
+    await db.delete(oauthSessions).where(eq(oauthSessions.organization_id, TEST_ORG_ID)).catch(() => {});
+    await db.delete(secrets).where(eq(secrets.organization_id, TEST_ORG_ID)).catch(() => {});
   });
 
   beforeEach(async () => {
-    // Clean up secrets before each test - skip if tables don't exist
     if (!secretsTablesAvailable) return;
-    try {
-      await db.delete(secretAuditLog).where(eq(secretAuditLog.organization_id, TEST_ORG_ID));
-      await db.delete(secrets).where(eq(secrets.organization_id, TEST_ORG_ID));
-    } catch {
-      // Ignore cleanup errors
-    }
+    await db.delete(secretAuditLog).where(eq(secretAuditLog.organization_id, TEST_ORG_ID)).catch(() => {});
+    await db.delete(secrets).where(eq(secrets.organization_id, TEST_ORG_ID)).catch(() => {});
   });
 
   describe("Secret CRUD Operations", () => {
     it("creates a secret with encryption", async () => {
-      if (!secretsTablesAvailable) return;
+      if (skipIfNoTables()) return;
       const result = await service.create(
         {
           organizationId: testOrgId,
@@ -144,7 +133,7 @@ describe("Secrets Integration Tests", () => {
     });
 
     it("retrieves and decrypts a secret", async () => {
-      if (!secretsTablesAvailable) return;
+      if (skipIfNoTables()) return;
       const secretValue = "my-super-secret-value-abc123";
 
       await service.create(
@@ -163,7 +152,7 @@ describe("Secrets Integration Tests", () => {
     });
 
     it("lists secrets (metadata only)", async () => {
-      if (!secretsTablesAvailable) return;
+      if (skipIfNoTables()) return;
       await service.create(
         {
           organizationId: testOrgId,
@@ -198,7 +187,7 @@ describe("Secrets Integration Tests", () => {
     });
 
     it("updates a secret value", async () => {
-      if (!secretsTablesAvailable) return;
+      if (skipIfNoTables()) return;
       const created = await service.create(
         {
           organizationId: testOrgId,
@@ -225,7 +214,7 @@ describe("Secrets Integration Tests", () => {
     });
 
     it("rotates a secret", async () => {
-      if (!secretsTablesAvailable) return;
+      if (skipIfNoTables()) return;
       const created = await service.create(
         {
           organizationId: testOrgId,
@@ -252,7 +241,7 @@ describe("Secrets Integration Tests", () => {
     });
 
     it("deletes a secret", async () => {
-      if (!secretsTablesAvailable) return;
+      if (skipIfNoTables()) return;
       const created = await service.create(
         {
           organizationId: testOrgId,
@@ -277,8 +266,7 @@ describe("Secrets Integration Tests", () => {
 
   describe("Secret Scoping", () => {
     it("supports project-scoped secrets", async () => {
-      if (!secretsTablesAvailable) return;
-      const projectId = "test-project-123";
+      if (skipIfNoTables()) return;
 
       await service.create(
         {
@@ -286,7 +274,7 @@ describe("Secrets Integration Tests", () => {
           name: "PROJECT_SECRET",
           value: "project-value",
           scope: "project",
-          projectId,
+          projectId: TEST_PROJECT_ID,
           projectType: "container",
           createdBy: testUserId,
         },
@@ -296,7 +284,7 @@ describe("Secrets Integration Tests", () => {
       // Get with project context
       const withProject = await service.getDecrypted({
         organizationId: testOrgId,
-        projectId,
+        projectId: TEST_PROJECT_ID,
       });
       expect(withProject.PROJECT_SECRET).toBe("project-value");
 
@@ -306,7 +294,7 @@ describe("Secrets Integration Tests", () => {
     });
 
     it("supports environment-scoped secrets", async () => {
-      if (!secretsTablesAvailable) return;
+      if (skipIfNoTables()) return;
       await service.create(
         {
           organizationId: testOrgId,
@@ -332,8 +320,7 @@ describe("Secrets Integration Tests", () => {
     });
 
     it("prioritizes more specific secrets (project > org)", async () => {
-      if (!secretsTablesAvailable) return;
-      const projectId = "priority-test-project";
+      if (skipIfNoTables()) return;
 
       // Create org-level secret
       await service.create(
@@ -353,7 +340,7 @@ describe("Secrets Integration Tests", () => {
           name: "SHARED_CONFIG",
           value: "project-override",
           scope: "project",
-          projectId,
+          projectId: TEST_PROJECT_ID_2,
           createdBy: testUserId,
         },
         auditContext
@@ -362,7 +349,7 @@ describe("Secrets Integration Tests", () => {
       // With project context, should get project value
       const projectSecrets = await service.getDecrypted({
         organizationId: testOrgId,
-        projectId,
+        projectId: TEST_PROJECT_ID_2,
       });
       expect(projectSecrets.SHARED_CONFIG).toBe("project-override");
 
@@ -376,7 +363,7 @@ describe("Secrets Integration Tests", () => {
 
   describe("OAuth Token Storage", () => {
     it("stores and retrieves OAuth tokens", async () => {
-      if (!secretsTablesAvailable) return;
+      if (skipIfNoTables()) return;
       await service.storeOAuthTokens({
         organizationId: testOrgId,
         provider: "github",
@@ -396,7 +383,7 @@ describe("Secrets Integration Tests", () => {
     });
 
     it("updates existing OAuth tokens", async () => {
-      if (!secretsTablesAvailable) return;
+      if (skipIfNoTables()) return;
       await service.storeOAuthTokens({
         organizationId: testOrgId,
         provider: "google",
@@ -419,7 +406,7 @@ describe("Secrets Integration Tests", () => {
     });
 
     it("revokes OAuth connection", async () => {
-      if (!secretsTablesAvailable) return;
+      if (skipIfNoTables()) return;
       await service.storeOAuthTokens({
         organizationId: testOrgId,
         provider: "slack",
@@ -446,7 +433,7 @@ describe("Secrets Integration Tests", () => {
 
   describe("Audit Logging", () => {
     it("logs all secret operations", async () => {
-      if (!secretsTablesAvailable) return;
+      if (skipIfNoTables()) return;
       const created = await service.create(
         {
           organizationId: testOrgId,
@@ -473,7 +460,7 @@ describe("Secrets Integration Tests", () => {
     });
 
     it("includes audit context details", async () => {
-      if (!secretsTablesAvailable) return;
+      if (skipIfNoTables()) return;
       const customContext: AuditContext = {
         actorType: "api_key",
         actorId: "apikey-123",
@@ -510,7 +497,7 @@ describe("Secrets Integration Tests", () => {
 
   describe("Error Handling", () => {
     it("prevents duplicate secrets in same context", async () => {
-      if (!secretsTablesAvailable) return;
+      if (skipIfNoTables()) return;
       await service.create(
         {
           organizationId: testOrgId,
@@ -535,7 +522,7 @@ describe("Secrets Integration Tests", () => {
     });
 
     it("prevents accessing secrets from other organizations", async () => {
-      if (!secretsTablesAvailable) return;
+      if (skipIfNoTables()) return;
       const created = await service.create(
         {
           organizationId: testOrgId,
@@ -560,7 +547,7 @@ describe("Secrets Integration Tests", () => {
 
   describe("Batch Operations", () => {
     it("retrieves multiple secrets efficiently", async () => {
-      if (!secretsTablesAvailable) return;
+      if (skipIfNoTables()) return;
       // Create multiple secrets
       const secretNames = ["BATCH_1", "BATCH_2", "BATCH_3", "BATCH_4", "BATCH_5"];
 

@@ -84,38 +84,24 @@ export default function FragmentsPage() {
     api: "/api/fragments/chat",
     schema: fragmentSchema,
     onError: (error) => {
-      console.error("Error submitting request:", error);
-      if (error.message.includes("limit")) {
-        setIsRateLimited(true);
-      }
+      if (error.message.includes("limit")) setIsRateLimited(true);
       setErrorMessage(error.message);
     },
     onFinish: async ({ object: fragment, error }) => {
       if (!error && fragment) {
-        console.log("fragment", fragment);
         setIsPreviewLoading(true);
-
         try {
           const response = await fetch("/api/fragments/sandbox", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              fragment,
-              userID: user?.id,
-            }),
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fragment, userID: user?.id }),
           });
-
           const result = await response.json();
-          console.log("result", result);
-
           setResult(result);
           setCurrentPreview({ fragment, result });
           setMessage({ result });
           setCurrentTab("fragment");
-        } catch (err) {
-          console.error("Sandbox error:", err);
+        } catch {
           setErrorMessage("Failed to execute fragment");
         } finally {
           setIsPreviewLoading(false);
@@ -280,7 +266,6 @@ export default function FragmentsPage() {
       setSavedProjectId(project.id);
       toast.success("Project saved successfully!");
     } catch (error) {
-      console.error("Error saving project:", error);
       toast.error(error instanceof Error ? error.message : "Failed to save project");
     } finally {
       setIsSaving(false);
@@ -326,7 +311,6 @@ export default function FragmentsPage() {
       toast.success("Project deployed successfully!");
       router.push(`/dashboard/apps/${deployment.app.id}`);
     } catch (error) {
-      console.error("Error deploying project:", error);
       toast.error(error instanceof Error ? error.message : "Failed to deploy project");
     } finally {
       setIsDeploying(false);

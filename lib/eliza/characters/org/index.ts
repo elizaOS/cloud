@@ -11,6 +11,7 @@
  * - Eddy (DevRel): Developer support, documentation, technical guidance
  * - Ruby (Liaison): Cross-platform awareness, community information
  * - Laura (Social Media Manager): Marketing, content creation, messaging
+ * - Maya (Growth Manager): SEO, advertising, analytics, growth strategy
  */
 
 export { projectManagerCharacter } from "./project-manager";
@@ -18,12 +19,14 @@ export { communityManagerCharacter } from "./community-manager";
 export { devRelCharacter } from "./devrel";
 export { liaisonCharacter } from "./liaison";
 export { socialMediaManagerCharacter } from "./social-media-manager";
+export { growthManagerCharacter } from "./growth-manager";
 
 import { projectManagerCharacter } from "./project-manager";
 import { communityManagerCharacter } from "./community-manager";
 import { devRelCharacter } from "./devrel";
 import { liaisonCharacter } from "./liaison";
 import { socialMediaManagerCharacter } from "./social-media-manager";
+import { growthManagerCharacter } from "./growth-manager";
 
 /**
  * All org characters with their IDs for easy lookup
@@ -34,6 +37,7 @@ export const orgCharacters = {
   "org-devrel": devRelCharacter,
   "org-liaison": liaisonCharacter,
   "org-social-media-manager": socialMediaManagerCharacter,
+  "org-growth-manager": growthManagerCharacter,
 } as const;
 
 /**

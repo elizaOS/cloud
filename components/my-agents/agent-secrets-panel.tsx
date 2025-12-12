@@ -273,7 +273,7 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
 
         <div className="relative z-10 space-y-4">
           {/* Header */}
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
                 <Lock className="h-4 w-4 text-[#FF5800]" />
@@ -289,7 +289,7 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
             <button
               type="button"
               onClick={handleCreateNew}
-              className="relative bg-[#e1e1e1] px-3 py-2 overflow-hidden hover:bg-white transition-colors flex items-center gap-2"
+              className="relative bg-[#e1e1e1] h-10 px-4 overflow-hidden hover:bg-white active:bg-gray-200 transition-colors flex items-center gap-2 w-full sm:w-auto justify-center"
             >
               <Plus className="h-4 w-4 text-black" />
               <span className="text-black font-mono text-xs">Add Secret</span>
@@ -313,17 +313,20 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
               {secrets.map((secret) => (
                 <div
                   key={secret.id}
-                  className="flex items-center justify-between gap-4 p-3 bg-[rgba(10,10,10,0.5)] border border-brand-surface"
+                  className="p-3 bg-[rgba(10,10,10,0.5)] border border-brand-surface space-y-3"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <Lock className="h-3 w-3 text-[#FF5800] flex-shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-sm font-mono text-white truncate">{secret.name}</p>
-                      {secret.description && (
-                        <p className="text-xs font-mono text-white/40 truncate">
-                          {secret.description}
-                        </p>
-                      )}
+                  {/* Secret info */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2 min-w-0 flex-1">
+                      <Lock className="h-3 w-3 text-[#FF5800] flex-shrink-0 mt-0.5" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-mono text-white truncate">{secret.name}</p>
+                        {secret.description && (
+                          <p className="text-xs font-mono text-white/40 line-clamp-1">
+                            {secret.description}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     {secret.environment && (
                       <span className="px-1.5 py-0.5 bg-[rgba(255,88,0,0.2)] border border-[#FF5800]/40 text-[#FF5800] text-[10px] font-mono uppercase flex-shrink-0">
@@ -332,39 +335,42 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
                     )}
                   </div>
 
-                  <div className="flex items-center gap-1 flex-shrink-0">
+                  {/* Actions - larger touch targets */}
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => handleRevealValue(secret)}
                       disabled={operationState.revealingSecretId === secret.id}
-                      className="p-1.5 border border-white/20 hover:bg-white/5 transition-colors disabled:opacity-50"
+                      className="flex-1 h-9 px-2 border border-white/20 hover:bg-white/5 active:bg-white/10 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
                       title="Reveal value"
                     >
                       {operationState.revealingSecretId === secret.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin text-white/60" />
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-white/60" />
                       ) : (
-                        <Eye className="h-3 w-3 text-white/60" />
+                        <Eye className="h-3.5 w-3.5 text-white/60" />
                       )}
+                      <span className="text-xs font-mono text-white/60">Reveal</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => handleEditSecret(secret)}
-                      className="p-1.5 border border-white/20 hover:bg-white/5 transition-colors"
+                      className="flex-1 h-9 px-2 border border-white/20 hover:bg-white/5 active:bg-white/10 transition-colors flex items-center justify-center gap-1.5"
                       title="Edit secret"
                     >
-                      <Edit2 className="h-3 w-3 text-white/60" />
+                      <Edit2 className="h-3.5 w-3.5 text-white/60" />
+                      <span className="text-xs font-mono text-white/60">Edit</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => handleDeleteSecret(secret.id, secret.name)}
                       disabled={operationState.deletingSecretId === secret.id}
-                      className="p-1.5 border border-[#EB4335]/40 bg-[#EB4335]/10 hover:bg-[#EB4335]/20 transition-colors disabled:opacity-50"
+                      className="h-9 px-3 border border-[#EB4335]/40 bg-[#EB4335]/10 hover:bg-[#EB4335]/20 active:bg-[#EB4335]/30 transition-colors disabled:opacity-50 flex items-center justify-center"
                       title="Delete secret"
                     >
                       {operationState.deletingSecretId === secret.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin text-[#EB4335]" />
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-[#EB4335]" />
                       ) : (
-                        <Trash2 className="h-3 w-3 text-[#EB4335]" />
+                        <Trash2 className="h-3.5 w-3.5 text-[#EB4335]" />
                       )}
                     </button>
                   </div>
@@ -377,8 +383,8 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
 
       {/* Create Modal */}
       {modalState.showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="relative bg-[#0a0a0a] border border-brand-surface p-4 w-full max-w-md">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="relative bg-[#0a0a0a] border border-brand-surface p-4 w-full max-w-md my-auto">
             <CornerBrackets size="sm" className="opacity-50" />
 
             <div className="relative z-10 space-y-4">
@@ -387,7 +393,7 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
                 <button
                   type="button"
                   onClick={() => updateModal({ showCreateModal: false })}
-                  className="text-white/60 hover:text-white transition-colors"
+                  className="text-white/60 hover:text-white transition-colors p-1 -m-1"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -487,8 +493,8 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
 
       {/* Edit Modal */}
       {modalState.showEditModal && modalState.selectedSecret && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="relative bg-[#0a0a0a] border border-brand-surface p-4 w-full max-w-md">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="relative bg-[#0a0a0a] border border-brand-surface p-4 w-full max-w-md my-auto">
             <CornerBrackets size="sm" className="opacity-50" />
 
             <div className="relative z-10 space-y-4">
@@ -566,8 +572,8 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
 
       {/* Reveal Value Modal */}
       {modalState.showValueModal && modalState.selectedSecret && modalState.revealedValue && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="relative bg-[#0a0a0a] border border-brand-surface p-4 w-full max-w-lg">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="relative bg-[#0a0a0a] border border-brand-surface p-4 w-full max-w-lg my-auto max-h-[90vh] overflow-y-auto">
             <CornerBrackets size="sm" className="opacity-50" />
 
             <div className="relative z-10 space-y-4">

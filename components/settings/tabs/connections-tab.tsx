@@ -1,30 +1,16 @@
 /**
  * Social Connections settings tab for managing platform OAuth connections.
- * Supports OAuth flow for most platforms and manual credentials for Bluesky/Telegram.
  */
 
 "use client";
 
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import type { UserWithOrganization } from "@/lib/types";
-import { 
-  Loader2, 
-  X, 
-  ExternalLink, 
-  CheckCircle2, 
-  AlertCircle,
-  Link2,
-  Unlink,
-  RefreshCw,
-} from "lucide-react";
+import { Loader2, X, ExternalLink, CheckCircle2, Link2, Unlink, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-interface ConnectionsTabProps {
-  user: UserWithOrganization;
-}
 
 interface PlatformConnection {
   platform: string;
@@ -41,198 +27,137 @@ interface PlatformConnection {
   };
 }
 
-interface ModalState {
-  showManualModal: boolean;
-  selectedPlatform: string | null;
-}
-
-interface FormState {
-  handle: string;
-  appPassword: string;
-  botToken: string;
-  instanceUrl: string;
-}
-
-const PLATFORM_INFO: Record<string, { 
-  name: string; 
-  icon: string; 
-  color: string;
-  description: string;
-}> = {
-  twitter: { name: "Twitter / X", icon: "𝕏", color: "#000000", description: "Post tweets and threads" },
-  bluesky: { name: "Bluesky", icon: "🦋", color: "#0085FF", description: "Post to your Bluesky account" },
-  discord: { name: "Discord", icon: "🎮", color: "#5865F2", description: "Send messages to Discord servers" },
-  telegram: { name: "Telegram", icon: "✈️", color: "#0088CC", description: "Post via Telegram bot" },
-  slack: { name: "Slack", icon: "💬", color: "#4A154B", description: "Post to Slack channels" },
-  reddit: { name: "Reddit", icon: "🤖", color: "#FF4500", description: "Submit posts and comments" },
-  facebook: { name: "Facebook", icon: "📘", color: "#1877F2", description: "Post to Facebook pages" },
-  instagram: { name: "Instagram", icon: "📸", color: "#E4405F", description: "Share photos and reels" },
-  tiktok: { name: "TikTok", icon: "🎵", color: "#000000", description: "Upload videos to TikTok" },
-  linkedin: { name: "LinkedIn", icon: "💼", color: "#0A66C2", description: "Share professional updates" },
-  mastodon: { name: "Mastodon", icon: "🐘", color: "#6364FF", description: "Post to your Mastodon instance" },
+const PLATFORM_INFO: Record<string, { name: string; icon: string; description: string }> = {
+  twitter: { name: "Twitter / X", icon: "𝕏", description: "Post tweets" },
+  bluesky: { name: "Bluesky", icon: "🦋", description: "Post to Bluesky" },
+  discord: { name: "Discord", icon: "🎮", description: "Send to Discord" },
+  telegram: { name: "Telegram", icon: "✈️", description: "Post via bot" },
+  slack: { name: "Slack", icon: "💬", description: "Post to Slack" },
+  reddit: { name: "Reddit", icon: "🤖", description: "Submit posts" },
+  facebook: { name: "Facebook", icon: "📘", description: "Post to pages" },
+  instagram: { name: "Instagram", icon: "📸", description: "Share photos" },
+  tiktok: { name: "TikTok", icon: "🎵", description: "Upload videos" },
+  linkedin: { name: "LinkedIn", icon: "💼", description: "Share updates" },
+  mastodon: { name: "Mastodon", icon: "🐘", description: "Post to instance" },
 };
 
-export function ConnectionsTab({ user }: ConnectionsTabProps) {
+export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
   const [platforms, setPlatforms] = useState<PlatformConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  
-  const [modalState, setModalState] = useState<ModalState>({
-    showManualModal: false,
-    selectedPlatform: null,
-  });
-
-  const [formState, setFormState] = useState<FormState>({
-    handle: "",
-    appPassword: "",
-    botToken: "",
-    instanceUrl: "",
-  });
+  const [modal, setModal] = useState<{ platform: string | null; form: Record<string, string> }>({ platform: null, form: {} });
 
   const fetchConnections = useCallback(async () => {
     setLoading(true);
     const response = await fetch("/api/v1/social-connections");
-    if (!response.ok) throw new Error("Failed to fetch connections");
-    const data = await response.json();
+    const data = response.ok ? await response.json() : { platforms: [] };
     setPlatforms(data.platforms || []);
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    queueMicrotask(() => { fetchConnections(); });
-  }, [fetchConnections]);
+  useEffect(() => { fetchConnections(); }, [fetchConnections]);
 
   const handleConnect = async (platform: string, authType: "oauth" | "manual") => {
-    if (authType === "manual") {
-      setModalState({ showManualModal: true, selectedPlatform: platform });
-      setFormState({ handle: "", appPassword: "", botToken: "", instanceUrl: "" });
-      return;
-    }
-
-    // Special handling for Mastodon - need instance URL first
-    if (platform === "mastodon") {
-      setModalState({ showManualModal: true, selectedPlatform: "mastodon" });
-      setFormState({ handle: "", appPassword: "", botToken: "", instanceUrl: "mastodon.social" });
+    if (authType === "manual" || platform === "mastodon") {
+      const defaultForm = platform === "mastodon" ? { instanceUrl: "mastodon.social" } : {};
+      setModal({ platform, form: defaultForm });
       return;
     }
 
     setActionLoading(platform);
-
     const response = await fetch(`/api/v1/social-connections/connect/${platform}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+      body: "{}",
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      toast.error(error.error || "Failed to start connection");
+      toast.error((await response.json()).error || "Failed to connect");
       setActionLoading(null);
       return;
     }
 
-    const data = await response.json();
-    
-    // Redirect to OAuth URL
-    window.location.href = data.authUrl;
+    window.location.href = (await response.json()).authUrl;
   };
 
   const handleManualConnect = async () => {
-    const platform = modalState.selectedPlatform;
+    const { platform, form } = modal;
     if (!platform) return;
 
     setActionLoading(platform);
 
-    // Handle Mastodon OAuth with instance URL
     if (platform === "mastodon") {
-      const response = await fetch(`/api/v1/social-connections/connect/mastodon`, {
+      const response = await fetch("/api/v1/social-connections/connect/mastodon", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ instanceUrl: formState.instanceUrl }),
+        body: JSON.stringify({ instanceUrl: form.instanceUrl }),
       });
-
       if (!response.ok) {
-        const error = await response.json();
-        toast.error(error.error || "Failed to start connection");
+        toast.error((await response.json()).error || "Failed to connect");
         setActionLoading(null);
         return;
       }
-
-      const data = await response.json();
-      window.location.href = data.authUrl;
+      window.location.href = (await response.json()).authUrl;
       return;
     }
 
-    // Handle Bluesky/Telegram manual credentials
     const credentials = platform === "bluesky"
-      ? { handle: formState.handle, appPassword: formState.appPassword }
-      : { botToken: formState.botToken };
+      ? { handle: form.handle, appPassword: form.appPassword }
+      : { botToken: form.botToken };
 
     const response = await fetch("/api/v1/social-connections", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ platform, credentials }),
     });
-
     setActionLoading(null);
 
     if (!response.ok) {
-      const error = await response.json();
-      toast.error(error.error || "Failed to connect");
+      toast.error((await response.json()).error || "Failed to connect");
       return;
     }
 
-    toast.success(`${PLATFORM_INFO[platform]?.name || platform} connected successfully`);
-    setModalState({ showManualModal: false, selectedPlatform: null });
+    toast.success(`${PLATFORM_INFO[platform]?.name || platform} connected`);
+    setModal({ platform: null, form: {} });
     fetchConnections();
   };
 
   const handleDisconnect = async (platform: string, connectionId: string) => {
-    if (!window.confirm(`Disconnect ${PLATFORM_INFO[platform]?.name || platform}? You'll need to reconnect to use it again.`)) {
-      return;
-    }
+    if (!confirm(`Disconnect ${PLATFORM_INFO[platform]?.name || platform}?`)) return;
 
     setActionLoading(platform);
-
-    const response = await fetch(`/api/v1/social-connections/${connectionId}`, {
-      method: "DELETE",
-    });
-
+    const response = await fetch(`/api/v1/social-connections/${connectionId}`, { method: "DELETE" });
     setActionLoading(null);
 
     if (!response.ok) {
-      const error = await response.json();
-      toast.error(error.error || "Failed to disconnect");
+      toast.error((await response.json()).error || "Failed to disconnect");
       return;
     }
-
-    toast.success("Disconnected successfully");
+    toast.success("Disconnected");
     fetchConnections();
   };
 
   const handleRefresh = async (platform: string, connectionId: string) => {
     setActionLoading(platform);
-
     const response = await fetch(`/api/v1/social-connections/${connectionId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "refresh" }),
     });
-
     setActionLoading(null);
 
     if (!response.ok) {
-      const error = await response.json();
-      toast.error(error.error || "Failed to refresh token");
+      toast.error((await response.json()).error || "Refresh failed");
       return;
     }
-
     toast.success("Token refreshed");
     fetchConnections();
   };
 
   const connectedPlatforms = platforms.filter(p => p.connected);
   const availablePlatforms = platforms.filter(p => !p.connected);
+  const updateForm = (key: string, value: string) => setModal(m => ({ ...m, form: { ...m.form, [key]: value } }));
+  const closeModal = () => setModal({ platform: null, form: {} });
 
   return (
     <div className="flex flex-col gap-4 md:gap-6 pb-6 md:pb-8">
@@ -418,136 +343,71 @@ export function ConnectionsTab({ user }: ConnectionsTabProps) {
       </BrandCard>
 
       {/* Manual Credentials Modal */}
-      {modalState.showManualModal && modalState.selectedPlatform && (
+      {modal.platform && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="relative bg-[#0a0a0a] border border-brand-surface p-4 sm:p-6 w-full max-w-md">
             <CornerBrackets size="sm" className="opacity-50" />
-
             <div className="relative z-10 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-mono text-white uppercase">
-                  Connect {PLATFORM_INFO[modalState.selectedPlatform]?.name || modalState.selectedPlatform}
+                  Connect {PLATFORM_INFO[modal.platform]?.name || modal.platform}
                 </h3>
-                <button
-                  type="button"
-                  onClick={() => setModalState({ showManualModal: false, selectedPlatform: null })}
-                  className="text-white/60 hover:text-white transition-colors"
-                >
+                <button type="button" onClick={closeModal} className="text-white/60 hover:text-white">
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
-              {modalState.selectedPlatform === "bluesky" && (
+              {modal.platform === "bluesky" && (
                 <div className="space-y-4">
                   <div className="bg-blue-500/10 border border-blue-500/30 p-3">
                     <p className="text-xs text-blue-400 font-mono">
-                      Bluesky uses app passwords for third-party access.{" "}
-                      <a 
-                        href="https://bsky.app/settings/app-passwords" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="underline hover:text-blue-300 inline-flex items-center gap-1"
-                      >
-                        Create one here <ExternalLink className="h-3 w-3" />
+                      <a href="https://bsky.app/settings/app-passwords" target="_blank" rel="noopener noreferrer" className="underline inline-flex items-center gap-1">
+                        Create an app password <ExternalLink className="h-3 w-3" />
                       </a>
                     </p>
                   </div>
-
                   <div className="space-y-2">
                     <Label className="text-white font-mono text-sm">Handle</Label>
-                    <Input
-                      value={formState.handle}
-                      onChange={(e) => setFormState(s => ({ ...s, handle: e.target.value }))}
-                      placeholder="@yourname.bsky.social"
-                      className="bg-transparent border-[#303030] text-white"
-                    />
+                    <Input value={modal.form.handle || ""} onChange={e => updateForm("handle", e.target.value)} placeholder="@yourname.bsky.social" className="bg-transparent border-[#303030] text-white" />
                   </div>
-
                   <div className="space-y-2">
                     <Label className="text-white font-mono text-sm">App Password</Label>
-                    <Input
-                      type="password"
-                      value={formState.appPassword}
-                      onChange={(e) => setFormState(s => ({ ...s, appPassword: e.target.value }))}
-                      placeholder="xxxx-xxxx-xxxx-xxxx"
-                      className="bg-transparent border-[#303030] text-white"
-                    />
+                    <Input type="password" value={modal.form.appPassword || ""} onChange={e => updateForm("appPassword", e.target.value)} placeholder="xxxx-xxxx-xxxx-xxxx" className="bg-transparent border-[#303030] text-white" />
                   </div>
                 </div>
               )}
 
-              {modalState.selectedPlatform === "telegram" && (
+              {modal.platform === "telegram" && (
                 <div className="space-y-4">
                   <div className="bg-blue-500/10 border border-blue-500/30 p-3">
-                    <p className="text-xs text-blue-400 font-mono">
-                      Create a bot via @BotFather on Telegram and paste the token below.
-                    </p>
+                    <p className="text-xs text-blue-400 font-mono">Create a bot via @BotFather on Telegram</p>
                   </div>
-
                   <div className="space-y-2">
                     <Label className="text-white font-mono text-sm">Bot Token</Label>
-                    <Input
-                      type="password"
-                      value={formState.botToken}
-                      onChange={(e) => setFormState(s => ({ ...s, botToken: e.target.value }))}
-                      placeholder="123456789:ABCdefGHIjklMNOpqrSTUvwxyz"
-                      className="bg-transparent border-[#303030] text-white"
-                    />
+                    <Input type="password" value={modal.form.botToken || ""} onChange={e => updateForm("botToken", e.target.value)} placeholder="123456789:ABCdefGHIjklMNOpqrSTUvwxyz" className="bg-transparent border-[#303030] text-white" />
                   </div>
                 </div>
               )}
 
-              {modalState.selectedPlatform === "mastodon" && (
+              {modal.platform === "mastodon" && (
                 <div className="space-y-4">
                   <div className="bg-purple-500/10 border border-purple-500/30 p-3">
-                    <p className="text-xs text-purple-400 font-mono">
-                      Enter your Mastodon instance URL. You&apos;ll be redirected to authorize.
-                    </p>
+                    <p className="text-xs text-purple-400 font-mono">Enter your Mastodon instance URL</p>
                   </div>
-
                   <div className="space-y-2">
                     <Label className="text-white font-mono text-sm">Instance URL</Label>
-                    <Input
-                      value={formState.instanceUrl}
-                      onChange={(e) => setFormState(s => ({ ...s, instanceUrl: e.target.value }))}
-                      placeholder="mastodon.social"
-                      className="bg-transparent border-[#303030] text-white"
-                    />
+                    <Input value={modal.form.instanceUrl || ""} onChange={e => updateForm("instanceUrl", e.target.value)} placeholder="mastodon.social" className="bg-transparent border-[#303030] text-white" />
                   </div>
                 </div>
               )}
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-end pt-4">
-                <button
-                  type="button"
-                  onClick={() => setModalState({ showManualModal: false, selectedPlatform: null })}
-                  className="px-4 py-2.5 border border-[#303030] text-white hover:bg-white/5 transition-colors order-2 sm:order-1 w-full sm:w-auto"
-                  disabled={!!actionLoading}
-                >
-                  <span className="font-mono text-sm">Cancel</span>
+              <div className="flex gap-4 justify-end pt-4">
+                <button type="button" onClick={closeModal} disabled={!!actionLoading} className="px-4 py-2.5 border border-[#303030] text-white hover:bg-white/5 font-mono text-sm">
+                  Cancel
                 </button>
-                <button
-                  type="button"
-                  onClick={handleManualConnect}
-                  disabled={!!actionLoading}
-                  className="relative bg-[#e1e1e1] px-4 py-2.5 overflow-hidden hover:bg-white transition-colors disabled:opacity-50 order-1 sm:order-2 w-full sm:w-auto"
-                >
-                  <div
-                    className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
-                    style={{
-                      backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
-                      backgroundSize: "2.915576934814453px 2.915576934814453px",
-                    }}
-                  />
-                  <span className="relative z-10 text-black font-mono font-medium text-sm flex items-center justify-center gap-2">
-                    {actionLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Connecting...
-                      </>
-                    ) : (
-                      "Connect"
-                    )}
+                <button type="button" onClick={handleManualConnect} disabled={!!actionLoading} className="relative bg-[#e1e1e1] px-4 py-2.5 hover:bg-white disabled:opacity-50">
+                  <span className="text-black font-mono font-medium text-sm flex items-center gap-2">
+                    {actionLoading ? <><Loader2 className="h-4 w-4 animate-spin" /> Connecting...</> : "Connect"}
                   </span>
                 </button>
               </div>

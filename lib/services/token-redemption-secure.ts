@@ -207,25 +207,7 @@ function calculateTokenAmount(usdValue: Decimal, priceUsd: Decimal): Decimal {
   const effectiveUsd = usdValue.mul(1 - ARBITRAGE_PROTECTION.SAFETY_SPREAD);
   return effectiveUsd.div(priceUsd);
 }
-
-// ============================================================================
-// SECURE TOKEN REDEMPTION SERVICE
-// ============================================================================
-
 export class SecureTokenRedemptionService {
-  /**
-   * Create a secure redemption request.
-   * 
-   * This method addresses all 14 vulnerabilities:
-   * - Uses TWAP pricing exclusively (Fix #8, #14)
-   * - Validates in-flight redemptions (Fix #3)
-   * - Enforces cooldown (Fix #2)
-   * - Checks contract addresses (Fix #12)
-   * - Uses Decimal.js for precision (Fix #11)
-   * - Uses UTC for dates (Fix #6)
-   * - Supports idempotency key (Fix #10)
-   * - Atomic balance checks with constraints (Fix #1, #5)
-   */
   async createRedemption(
     request: SecureRedemptionRequest
   ): Promise<SecureRedemptionResult> {
@@ -242,10 +224,6 @@ export class SecureTokenRedemptionService {
     } = request;
 
     const warnings: string[] = [];
-
-    // ========================================
-    // VALIDATION PHASE
-    // ========================================
 
     // Fix #9: Strict integer bounds
     if (!Number.isInteger(pointsAmount)) {

@@ -33,6 +33,23 @@ CREATE TYPE secret_actor_type AS ENUM (
   'workflow'
 );
 
+CREATE TYPE secret_provider AS ENUM (
+  'openai',
+  'anthropic',
+  'google',
+  'elevenlabs',
+  'fal',
+  'stripe',
+  'discord',
+  'telegram',
+  'twitter',
+  'github',
+  'slack',
+  'aws',
+  'vercel',
+  'custom'
+);
+
 -- =============================================================================
 -- SECRETS TABLE
 -- =============================================================================
@@ -52,6 +69,8 @@ CREATE TABLE secrets (
   -- Secret identity
   name TEXT NOT NULL,
   description TEXT,
+  provider secret_provider,
+  provider_metadata JSONB,
   
   -- Encrypted value (AES-256-GCM)
   encrypted_value TEXT NOT NULL,

@@ -1,14 +1,3 @@
-/**
- * Slack Webhook Handler
- *
- * POST /api/webhooks/slack
- *
- * Handles incoming Slack events and interactions:
- * - Event subscriptions (messages, reactions)
- * - Block actions (button clicks)
- * - Slash commands
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { createHmac } from "crypto";
@@ -232,14 +221,30 @@ export async function POST(request: NextRequest): Promise<Response> {
     const innerEvent = event.event;
 
     // Handle message events (for reply detection)
-    if (innerEvent.type === "message" && innerEvent.thread_ts) {
-      // This is a reply in a thread - could be a reply to a notification
-      // For now, just log it - the reply flow uses explicit buttons
-      logger.debug("[Slack Webhook] Thread reply received", {
-        channel: innerEvent.channel,
-        threadTs: innerEvent.thread_ts,
-        user: innerEvent.user,
-      });
+    if (innerEvent.type === "message" && innerEvent.thread_ts && innerEvent.text && innerEvent.user) {
+      // This is a reply in a thread - check if it's a reply to a notification message
+      const connection = await findOrgConnectionByTeam(event.team_id ?? "");
+      
+      if (connection && innerEvent.channel) {
+        const { replyRouterService } = await import("@/lib/services/social-feed/reply-router");
+
+        const result = await replyRouterService.processIncomingReply({
+          platform: "slack",
+          channelId: innerEvent.channel,
+          messageId: innerEvent.ts ?? "",
+          replyToMessageId: innerEvent.thread_ts,
+          userId: innerEvent.user,
+          content: innerEvent.text,
+        });
+
+        if (result) {
+          logger.info("[Slack Webhook] Social feed reply processed", {
+            channelId: innerEvent.channel,
+            confirmationId: result.confirmationId,
+            success: result.success,
+          });
+        }
+      }
     }
   }
 

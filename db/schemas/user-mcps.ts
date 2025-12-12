@@ -163,6 +163,13 @@ export const userMcps = pgTable(
     erc8004_tx_hash: text("erc8004_tx_hash"), // Registration transaction
     erc8004_registered_at: timestamp("erc8004_registered_at"),
 
+    // =========================================================================
+    // Custom Domain Support
+    // MCPs can have their own custom domain for MCP endpoints
+    // =========================================================================
+    custom_domain: text("custom_domain"),
+    custom_domain_verified: boolean("custom_domain_verified").default(false),
+
     // Timestamps
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),

@@ -60,6 +60,9 @@ export const containers = pgTable(
     port: integer("port").default(3000).notNull(),
     health_check_path: text("health_check_path").default("/health"),
     architecture: text("architecture").default("arm64").notNull(), // CPU architecture: arm64 (t4g) or x86_64 (t3)
+    // Custom domain support
+    custom_domain: text("custom_domain"),
+    custom_domain_verified: text("custom_domain_verified").default("false"),
     last_deployed_at: timestamp("last_deployed_at"),
     last_health_check: timestamp("last_health_check"),
     deployment_log: text("deployment_log"),

@@ -97,55 +97,28 @@ export async function POST(
   });
 }
 
-/**
- * GET /api/v1/social-connections/connect/[platform]
- * Get platform connection requirements
- */
+const MANUAL_PLATFORM_INFO: Record<string, { authType: string; requiredFields: string[]; steps: string[] }> = {
+  bluesky: {
+    authType: "app_password",
+    requiredFields: ["handle", "appPassword"],
+    steps: ["Go to bsky.app/settings/app-passwords", "Create app password named 'ElizaCloud'", "Copy the password"],
+  },
+  telegram: {
+    authType: "bot_token",
+    requiredFields: ["botToken"],
+    steps: ["Message @BotFather on Telegram", "Send /newbot and follow prompts", "Copy the bot token"],
+  },
+};
+
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ platform: string }> }
 ) {
   const { platform } = await params;
 
-  if (MANUAL_AUTH_PLATFORMS.includes(platform as typeof MANUAL_AUTH_PLATFORMS[number])) {
-    const instructions = platform === "bluesky"
-      ? {
-          platform: "bluesky",
-          authType: "app_password",
-          instructions: [
-            "Go to bsky.app/settings/app-passwords",
-            "Click 'Add App Password'",
-            "Name it 'ElizaCloud' or similar",
-            "Copy the generated password",
-          ],
-          requiredFields: ["handle", "appPassword"],
-          exampleRequest: {
-            platform: "bluesky",
-            credentials: {
-              handle: "@yourname.bsky.social",
-              appPassword: "xxxx-xxxx-xxxx-xxxx",
-            },
-          },
-        }
-      : {
-          platform: "telegram",
-          authType: "bot_token",
-          instructions: [
-            "Open Telegram and message @BotFather",
-            "Send /newbot and follow the prompts",
-            "Copy the bot token provided",
-            "Add your bot to channels/groups where you want it to post",
-          ],
-          requiredFields: ["botToken"],
-          exampleRequest: {
-            platform: "telegram",
-            credentials: {
-              botToken: "123456789:ABCdefGHIjklMNOpqrSTUvwxyz",
-            },
-          },
-        };
-
-    return NextResponse.json({ success: true, ...instructions });
+  const manualInfo = MANUAL_PLATFORM_INFO[platform];
+  if (manualInfo) {
+    return NextResponse.json({ success: true, platform, ...manualInfo });
   }
 
   const config = OAUTH_CONFIGS[platform];
@@ -153,17 +126,12 @@ export async function GET(
     return NextResponse.json({ success: false, error: `Unsupported platform: ${platform}` }, { status: 404 });
   }
 
-  const clientId = process.env[config.clientIdEnv];
-  const configured = !!clientId;
-
+  const configured = !!process.env[config.clientIdEnv];
   return NextResponse.json({
     success: true,
     platform,
     authType: "oauth",
     configured,
     scopes: config.scopes,
-    message: configured
-      ? "Send a POST request to this endpoint to start OAuth flow"
-      : `OAuth not configured. Set ${config.clientIdEnv} and ${config.clientSecretEnv} environment variables.`,
   });
 }

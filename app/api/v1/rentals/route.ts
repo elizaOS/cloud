@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 import { db, eq, gpuRentals } from '@/db';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -74,8 +74,8 @@ const GPU_PRICING: Record<string, GPUPricing> = {
  * Create a new GPU rental
  */
 export async function POST(request: NextRequest) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
+  const user = await requireAuth().catch(() => null);
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
   // For now, create a rental record
   const rental = {
     id: rentalId,
-    userId: session.user.id,
+    userId: user.id,
     gpuType: body.gpuType,
     durationHours: body.durationHours,
     containerImage: body.containerImage,
@@ -147,14 +147,14 @@ export async function POST(request: NextRequest) {
  * GET /api/v1/rentals
  * List user's rentals
  */
-export async function GET(request: NextRequest) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
+export async function GET() {
+  const user = await requireAuth().catch(() => null);
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   // In production, fetch from database
-  // const rentals = await db.select().from(gpuRentals).where(eq(gpuRentals.userId, session.user.id));
+  // const rentals = await db.select().from(gpuRentals).where(eq(gpuRentals.userId, user.id));
 
   return NextResponse.json({
     rentals: [],

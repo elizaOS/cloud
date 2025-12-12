@@ -1,31 +1,36 @@
-/**
- * Secrets Repository
- *
- * Database operations for secrets, OAuth sessions, and audit logs.
- */
-
 import { db } from "@/db/client";
 import {
   secrets,
   oauthSessions,
   secretAuditLog,
+  secretBindings,
+  appSecretRequirements,
   type Secret,
   type NewSecret,
   type OAuthSession,
   type NewOAuthSession,
   type SecretAuditLog,
   type NewSecretAuditLog,
+  type SecretBinding,
+  type NewSecretBinding,
+  type AppSecretRequirement,
+  type NewAppSecretRequirement,
   type SecretScope,
   type SecretEnvironment,
+  type SecretProvider,
+  type SecretProjectType,
 } from "@/db/schemas/secrets";
-import { eq, and, isNull, sql, desc, gte, lte, inArray } from "drizzle-orm";
+import { eq, and, isNull, sql, desc, gte, lte, inArray, or, ne } from "drizzle-orm";
 
 export interface FindSecretsParams {
   organizationId: string;
   projectId?: string;
+  projectType?: SecretProjectType;
   environment?: SecretEnvironment;
   scope?: SecretScope;
+  provider?: SecretProvider;
   names?: string[];
+  includeBindings?: boolean;
 }
 
 class SecretsRepository {
@@ -71,7 +76,7 @@ class SecretsRepository {
   }
 
   async findByContext(params: FindSecretsParams): Promise<Secret[]> {
-    const { organizationId, projectId, environment, scope, names } = params;
+    const { organizationId, projectId, projectType, environment, scope, provider, names, includeBindings } = params;
 
     const conditions = [eq(secrets.organization_id, organizationId)];
 
@@ -79,42 +84,121 @@ class SecretsRepository {
       conditions.push(eq(secrets.scope, scope));
     }
 
-    if (projectId) {
-      // Include both project-specific and organization-level secrets
+    if (provider) {
+      conditions.push(eq(secrets.provider, provider));
+    }
+
+    if (projectId && includeBindings) {
+      // Include project-specific secrets, org-level secrets, and secrets bound to this project
+      const boundSecretIds = db
+        .select({ id: secretBindings.secret_id })
+        .from(secretBindings)
+        .where(
+          and(
+            eq(secretBindings.project_id, projectId),
+            projectType ? eq(secretBindings.project_type, projectType) : sql`1=1`
+          )
+        );
+
       conditions.push(
-        sql`(${secrets.project_id} = ${projectId} OR ${secrets.project_id} IS NULL)`
+        or(
+          eq(secrets.project_id, projectId),
+          isNull(secrets.project_id),
+          inArray(secrets.id, boundSecretIds)
+        )!
+      );
+    } else if (projectId) {
+      // Include project-specific and org-level secrets
+      conditions.push(sql`(${secrets.project_id} = ${projectId} OR ${secrets.project_id} IS NULL)`);
+    } else {
+      // Only org-level secrets when no project specified
+      conditions.push(isNull(secrets.project_id));
+    }
+
+    if (projectType && !includeBindings) {
+      conditions.push(
+        or(
+          eq(secrets.project_type, projectType),
+          isNull(secrets.project_type)
+        )!
       );
     }
 
     if (environment) {
-      // Include both environment-specific and non-environment secrets
-      conditions.push(
-        sql`(${secrets.environment} = ${environment} OR ${secrets.environment} IS NULL)`
-      );
+      // Include environment-specific and global secrets
+      conditions.push(sql`(${secrets.environment} = ${environment} OR ${secrets.environment} IS NULL)`);
+    } else {
+      // Only global secrets when no environment specified
+      conditions.push(isNull(secrets.environment));
     }
 
     if (names && names.length > 0) {
       conditions.push(inArray(secrets.name, names));
     }
 
+    // Order: project-scoped first, then environment-scoped, then org-level
     const results = await db
       .select()
       .from(secrets)
       .where(and(...conditions))
       .orderBy(
-        // Priority: environment-specific > project-specific > organization
-        desc(secrets.environment),
-        desc(secrets.project_id),
+        sql`CASE WHEN ${secrets.project_id} IS NOT NULL THEN 0 ELSE 1 END`,
+        sql`CASE WHEN ${secrets.environment} IS NOT NULL THEN 0 ELSE 1 END`,
         secrets.name
       );
 
-    // Deduplicate by name, keeping highest priority (first occurrence)
+    // Deduplicate by name, keeping the first (most specific) secret
     const seen = new Set<string>();
     return results.filter((secret) => {
       if (seen.has(secret.name)) return false;
       seen.add(secret.name);
       return true;
     });
+  }
+
+  async listFiltered(params: {
+    organizationId: string;
+    projectId?: string;
+    projectType?: SecretProjectType;
+    environment?: SecretEnvironment;
+    provider?: SecretProvider;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ secrets: Secret[]; total: number }> {
+    const { organizationId, projectId, projectType, environment, provider, limit = 100, offset = 0 } = params;
+
+    const conditions = [eq(secrets.organization_id, organizationId)];
+
+    if (projectId) {
+      conditions.push(eq(secrets.project_id, projectId));
+    }
+
+    if (projectType) {
+      conditions.push(eq(secrets.project_type, projectType));
+    }
+
+    if (environment) {
+      conditions.push(eq(secrets.environment, environment));
+    }
+
+    if (provider) {
+      conditions.push(eq(secrets.provider, provider));
+    }
+
+    const [countResult] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(secrets)
+      .where(and(...conditions));
+
+    const results = await db
+      .select()
+      .from(secrets)
+      .where(and(...conditions))
+      .orderBy(secrets.name)
+      .limit(limit)
+      .offset(offset);
+
+    return { secrets: results, total: countResult?.count ?? 0 };
   }
 
   async listByOrganization(organizationId: string): Promise<Secret[]> {
@@ -157,9 +241,6 @@ class SecretsRepository {
       .where(eq(secrets.id, id));
   }
 
-  /**
-   * Find secrets expiring within a given time window.
-   */
   async findExpiringSoon(withinDays: number): Promise<Secret[]> {
     const now = new Date();
     const deadline = new Date(now.getTime() + withinDays * 24 * 60 * 60 * 1000);
@@ -177,22 +258,12 @@ class SecretsRepository {
   }
 }
 
-// =============================================================================
-// OAuth Sessions Repository
-// =============================================================================
-
 class OAuthSessionsRepository {
-  /**
-   * Create a new OAuth session.
-   */
   async create(data: NewOAuthSession): Promise<OAuthSession> {
     const [session] = await db.insert(oauthSessions).values(data).returning();
     return session;
   }
 
-  /**
-   * Find an OAuth session by ID.
-   */
   async findById(id: string): Promise<OAuthSession | undefined> {
     const [session] = await db
       .select()
@@ -201,9 +272,6 @@ class OAuthSessionsRepository {
     return session;
   }
 
-  /**
-   * Find an OAuth session by organization and provider.
-   */
   async findByOrgAndProvider(
     organizationId: string,
     provider: string,
@@ -227,9 +295,6 @@ class OAuthSessionsRepository {
     return session;
   }
 
-  /**
-   * List all OAuth sessions for an organization.
-   */
   async listByOrganization(organizationId: string): Promise<OAuthSession[]> {
     return db
       .select()
@@ -238,9 +303,6 @@ class OAuthSessionsRepository {
       .orderBy(oauthSessions.provider);
   }
 
-  /**
-   * Update an OAuth session.
-   */
   async update(
     id: string,
     data: Partial<NewOAuthSession>
@@ -253,9 +315,6 @@ class OAuthSessionsRepository {
     return session;
   }
 
-  /**
-   * Revoke an OAuth session.
-   */
   async revoke(id: string, reason: string): Promise<OAuthSession | undefined> {
     const [session] = await db
       .update(oauthSessions)
@@ -270,17 +329,11 @@ class OAuthSessionsRepository {
     return session;
   }
 
-  /**
-   * Delete an OAuth session.
-   */
   async delete(id: string): Promise<boolean> {
     const result = await db.delete(oauthSessions).where(eq(oauthSessions.id, id)).returning({ id: oauthSessions.id });
     return result.length > 0;
   }
 
-  /**
-   * Record usage of an OAuth session.
-   */
   async recordUsage(id: string): Promise<void> {
     await db
       .update(oauthSessions)
@@ -288,9 +341,6 @@ class OAuthSessionsRepository {
       .where(eq(oauthSessions.id, id));
   }
 
-  /**
-   * Record a token refresh.
-   */
   async recordRefresh(id: string): Promise<void> {
     await db
       .update(oauthSessions)
@@ -302,9 +352,6 @@ class OAuthSessionsRepository {
       .where(eq(oauthSessions.id, id));
   }
 
-  /**
-   * Find sessions with expired access tokens that have refresh tokens.
-   */
   async findNeedingRefresh(): Promise<OAuthSession[]> {
     const now = new Date();
 
@@ -321,22 +368,12 @@ class OAuthSessionsRepository {
   }
 }
 
-// =============================================================================
-// Secret Audit Log Repository
-// =============================================================================
-
 class SecretAuditLogRepository {
-  /**
-   * Create an audit log entry.
-   */
   async create(data: NewSecretAuditLog): Promise<SecretAuditLog> {
     const [entry] = await db.insert(secretAuditLog).values(data).returning();
     return entry;
   }
 
-  /**
-   * Find audit entries for a specific secret.
-   */
   async findBySecret(secretId: string, limit = 100): Promise<SecretAuditLog[]> {
     return db
       .select()
@@ -346,9 +383,6 @@ class SecretAuditLogRepository {
       .limit(limit);
   }
 
-  /**
-   * Find audit entries for an organization.
-   */
   async findByOrganization(
     organizationId: string,
     limit = 100
@@ -361,9 +395,6 @@ class SecretAuditLogRepository {
       .limit(limit);
   }
 
-  /**
-   * Find audit entries within a time range.
-   */
   async findByTimeRange(
     organizationId: string,
     start: Date,
@@ -384,9 +415,6 @@ class SecretAuditLogRepository {
       .limit(limit);
   }
 
-  /**
-   * Find audit entries by actor.
-   */
   async findByActor(
     actorType: string,
     actorId: string,
@@ -406,14 +434,250 @@ class SecretAuditLogRepository {
   }
 }
 
-// =============================================================================
-// Exports
-// =============================================================================
+class SecretBindingsRepository {
+  async create(data: NewSecretBinding): Promise<SecretBinding> {
+    const [binding] = await db.insert(secretBindings).values(data).returning();
+    return binding;
+  }
+
+  async createMany(data: NewSecretBinding[]): Promise<SecretBinding[]> {
+    if (data.length === 0) return [];
+    return db.insert(secretBindings).values(data).returning();
+  }
+
+  async findById(id: string): Promise<SecretBinding | undefined> {
+    const [binding] = await db
+      .select()
+      .from(secretBindings)
+      .where(eq(secretBindings.id, id));
+    return binding;
+  }
+
+  async findBySecret(secretId: string): Promise<SecretBinding[]> {
+    return db
+      .select()
+      .from(secretBindings)
+      .where(eq(secretBindings.secret_id, secretId));
+  }
+
+  async findByProject(projectId: string, projectType?: SecretProjectType): Promise<SecretBinding[]> {
+    const conditions = [eq(secretBindings.project_id, projectId)];
+    if (projectType) {
+      conditions.push(eq(secretBindings.project_type, projectType));
+    }
+    return db
+      .select()
+      .from(secretBindings)
+      .where(and(...conditions));
+  }
+
+  async findBySecretAndProject(
+    secretId: string,
+    projectId: string,
+    projectType: SecretProjectType
+  ): Promise<SecretBinding | undefined> {
+    const [binding] = await db
+      .select()
+      .from(secretBindings)
+      .where(
+        and(
+          eq(secretBindings.secret_id, secretId),
+          eq(secretBindings.project_id, projectId),
+          eq(secretBindings.project_type, projectType)
+        )
+      );
+    return binding;
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const result = await db
+      .delete(secretBindings)
+      .where(eq(secretBindings.id, id))
+      .returning({ id: secretBindings.id });
+    return result.length > 0;
+  }
+
+  async deleteBySecret(secretId: string): Promise<number> {
+    const result = await db
+      .delete(secretBindings)
+      .where(eq(secretBindings.secret_id, secretId))
+      .returning({ id: secretBindings.id });
+    return result.length;
+  }
+
+  async deleteByProject(projectId: string, projectType?: SecretProjectType): Promise<number> {
+    const conditions = [eq(secretBindings.project_id, projectId)];
+    if (projectType) {
+      conditions.push(eq(secretBindings.project_type, projectType));
+    }
+    const result = await db
+      .delete(secretBindings)
+      .where(and(...conditions))
+      .returning({ id: secretBindings.id });
+    return result.length;
+  }
+}
+
+class AppSecretRequirementsRepository {
+  async create(data: NewAppSecretRequirement): Promise<AppSecretRequirement> {
+    const [req] = await db.insert(appSecretRequirements).values(data).returning();
+    return req;
+  }
+
+  async createMany(data: NewAppSecretRequirement[]): Promise<AppSecretRequirement[]> {
+    if (data.length === 0) return [];
+    return db.insert(appSecretRequirements).values(data).returning();
+  }
+
+  async findById(id: string): Promise<AppSecretRequirement | undefined> {
+    const [req] = await db
+      .select()
+      .from(appSecretRequirements)
+      .where(eq(appSecretRequirements.id, id));
+    return req;
+  }
+
+  async findByApp(appId: string): Promise<AppSecretRequirement[]> {
+    return db
+      .select()
+      .from(appSecretRequirements)
+      .where(eq(appSecretRequirements.app_id, appId))
+      .orderBy(appSecretRequirements.secret_name);
+  }
+
+  async findApprovedByApp(appId: string): Promise<AppSecretRequirement[]> {
+    return db
+      .select()
+      .from(appSecretRequirements)
+      .where(
+        and(
+          eq(appSecretRequirements.app_id, appId),
+          eq(appSecretRequirements.approved, true)
+        )
+      )
+      .orderBy(appSecretRequirements.secret_name);
+  }
+
+  async findByAppAndSecret(appId: string, secretName: string): Promise<AppSecretRequirement | undefined> {
+    const [req] = await db
+      .select()
+      .from(appSecretRequirements)
+      .where(
+        and(
+          eq(appSecretRequirements.app_id, appId),
+          eq(appSecretRequirements.secret_name, secretName)
+        )
+      );
+    return req;
+  }
+
+  async approve(id: string, approvedBy: string): Promise<AppSecretRequirement | undefined> {
+    const [req] = await db
+      .update(appSecretRequirements)
+      .set({
+        approved: true,
+        approved_by: approvedBy,
+        approved_at: new Date(),
+        updated_at: new Date(),
+      })
+      .where(eq(appSecretRequirements.id, id))
+      .returning();
+    return req;
+  }
+
+  async revoke(id: string): Promise<AppSecretRequirement | undefined> {
+    const [req] = await db
+      .update(appSecretRequirements)
+      .set({
+        approved: false,
+        approved_by: null,
+        approved_at: null,
+        updated_at: new Date(),
+      })
+      .where(eq(appSecretRequirements.id, id))
+      .returning();
+    return req;
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const result = await db
+      .delete(appSecretRequirements)
+      .where(eq(appSecretRequirements.id, id))
+      .returning({ id: appSecretRequirements.id });
+    return result.length > 0;
+  }
+
+  async deleteByApp(appId: string): Promise<number> {
+    const result = await db
+      .delete(appSecretRequirements)
+      .where(eq(appSecretRequirements.app_id, appId))
+      .returning({ id: appSecretRequirements.id });
+    return result.length;
+  }
+
+  async syncRequirements(
+    appId: string,
+    requirements: Array<{ secretName: string; required: boolean }>
+  ): Promise<AppSecretRequirement[]> {
+    // Get existing requirements
+    const existing = await this.findByApp(appId);
+    const existingMap = new Map(existing.map((r) => [r.secret_name, r]));
+
+    // Find requirements to add, keep, or remove
+    const toAdd: NewAppSecretRequirement[] = [];
+    const toKeep = new Set<string>();
+
+    for (const req of requirements) {
+      const existingReq = existingMap.get(req.secretName);
+      if (existingReq) {
+        toKeep.add(existingReq.id);
+        // Update required flag if changed
+        if (existingReq.required !== req.required) {
+          await db
+            .update(appSecretRequirements)
+            .set({ required: req.required, updated_at: new Date() })
+            .where(eq(appSecretRequirements.id, existingReq.id));
+        }
+      } else {
+        toAdd.push({
+          app_id: appId,
+          secret_name: req.secretName,
+          required: req.required,
+        });
+      }
+    }
+
+    // Remove requirements that are no longer in the manifest
+    const toRemove = existing.filter((r) => !toKeep.has(r.id));
+    for (const req of toRemove) {
+      await this.delete(req.id);
+    }
+
+    // Add new requirements
+    if (toAdd.length > 0) {
+      await this.createMany(toAdd);
+    }
+
+    return this.findByApp(appId);
+  }
+}
 
 export const secretsRepository = new SecretsRepository();
 export const oauthSessionsRepository = new OAuthSessionsRepository();
 export const secretAuditLogRepository = new SecretAuditLogRepository();
+export const secretBindingsRepository = new SecretBindingsRepository();
+export const appSecretRequirementsRepository = new AppSecretRequirementsRepository();
 
-// Re-export types
-export type { Secret, NewSecret, OAuthSession, NewOAuthSession, SecretAuditLog, NewSecretAuditLog };
+export type {
+  Secret,
+  NewSecret,
+  OAuthSession,
+  NewOAuthSession,
+  SecretAuditLog,
+  NewSecretAuditLog,
+  SecretBinding,
+  NewSecretBinding,
+  AppSecretRequirement,
+  NewAppSecretRequirement,
+};
 

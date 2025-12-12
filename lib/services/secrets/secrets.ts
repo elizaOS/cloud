@@ -1,16 +1,13 @@
-/**
- * Secrets Service
- *
- * Unified service for managing encrypted secrets across the platform.
- * Provides CRUD operations with automatic encryption/decryption and audit logging.
- */
-
 import {
   secretsRepository,
   oauthSessionsRepository,
   secretAuditLogRepository,
+  secretBindingsRepository,
+  appSecretRequirementsRepository,
   type Secret,
   type OAuthSession,
+  type SecretBinding,
+  type AppSecretRequirement,
   type FindSecretsParams,
 } from "@/db/repositories/secrets";
 import {
@@ -22,7 +19,11 @@ import type {
   SecretEnvironment,
   SecretAuditAction,
   SecretActorType,
+  SecretProvider,
+  SecretProjectType,
 } from "@/db/schemas/secrets";
+
+const MAX_SECRET_VALUE_BYTES = 65536; // 64KB max for secret values
 
 export interface CreateSecretParams {
   organizationId: string;
@@ -30,10 +31,29 @@ export interface CreateSecretParams {
   value: string;
   scope?: SecretScope;
   projectId?: string;
-  projectType?: string;
+  projectType?: SecretProjectType;
   environment?: SecretEnvironment;
   description?: string;
+  provider?: SecretProvider;
+  providerMetadata?: {
+    pattern?: string;
+    testUrl?: string;
+    testMethod?: string;
+    validated?: boolean;
+    lastValidatedAt?: string;
+  };
   expiresAt?: Date;
+  createdBy: string;
+}
+
+export interface BulkCreateSecretParams {
+  organizationId: string;
+  secrets: Array<{
+    name: string;
+    value: string;
+    description?: string;
+    provider?: SecretProvider;
+  }>;
   createdBy: string;
 }
 
@@ -46,8 +66,28 @@ export interface UpdateSecretParams {
 export interface GetSecretsParams {
   organizationId: string;
   projectId?: string;
+  projectType?: SecretProjectType;
   environment?: SecretEnvironment;
+  provider?: SecretProvider;
   names?: string[];
+  includeBindings?: boolean;
+}
+
+export interface ListSecretsParams {
+  organizationId: string;
+  projectId?: string;
+  projectType?: SecretProjectType;
+  environment?: SecretEnvironment;
+  provider?: SecretProvider;
+  limit?: number;
+  offset?: number;
+}
+
+export interface BindSecretParams {
+  secretId: string;
+  projectId: string;
+  projectType: SecretProjectType;
+  createdBy: string;
 }
 
 export interface AuditContext {
@@ -69,6 +109,14 @@ export interface SecretMetadata {
   projectId: string | null;
   projectType: string | null;
   environment: "development" | "preview" | "production" | null;
+  provider: SecretProvider | null;
+  providerMetadata: {
+    pattern?: string;
+    testUrl?: string;
+    testMethod?: string;
+    validated?: boolean;
+    lastValidatedAt?: string;
+  } | null;
   version: number;
   expiresAt: Date | null;
   lastRotatedAt: Date | null;
@@ -78,6 +126,15 @@ export interface SecretMetadata {
   updatedAt: Date;
 }
 
+export interface SecretBindingMetadata {
+  id: string;
+  secretId: string;
+  secretName: string;
+  projectId: string;
+  projectType: SecretProjectType;
+  createdAt: Date;
+}
+
 class SecretsService {
   private encryption: SecretsEncryptionService;
 
@@ -85,9 +142,6 @@ class SecretsService {
     this.encryption = encryption || getEncryptionService();
   }
 
-  /**
-   * Check if secrets service is properly configured.
-   */
   isConfigured(): boolean {
     return this.encryption.isConfigured();
   }
@@ -102,11 +156,16 @@ class SecretsService {
       projectType,
       environment,
       description,
+      provider,
+      providerMetadata,
       expiresAt,
       createdBy,
     } = params;
 
-    // Check if secret already exists
+    if (Buffer.byteLength(value, "utf8") > MAX_SECRET_VALUE_BYTES) {
+      throw new Error(`Secret value exceeds maximum size of ${MAX_SECRET_VALUE_BYTES} bytes`);
+    }
+
     const existing = await secretsRepository.findByName(
       organizationId,
       name,
@@ -120,11 +179,9 @@ class SecretsService {
       );
     }
 
-    // Encrypt the value
     const { encryptedValue, encryptedDek, nonce, authTag, keyId } =
       await this.encryption.encrypt(value);
 
-    // Create the secret
     const secret = await secretsRepository.create({
       organization_id: organizationId,
       name,
@@ -133,6 +190,8 @@ class SecretsService {
       project_type: projectType,
       environment,
       description,
+      provider,
+      provider_metadata: providerMetadata,
       encrypted_value: encryptedValue,
       encryption_key_id: keyId,
       encrypted_dek: encryptedDek,
@@ -162,7 +221,6 @@ class SecretsService {
 
     if (!secret) return null;
 
-    // Decrypt
     const value = await this.encryption.decrypt({
       encryptedValue: secret.encrypted_value,
       encryptedDek: secret.encrypted_dek,
@@ -170,10 +228,7 @@ class SecretsService {
       authTag: secret.auth_tag,
     });
 
-    // Record access
     await secretsRepository.recordAccess(secret.id);
-
-    // Audit log (if context provided)
     if (audit) {
       await this.logAudit(secret.id, organizationId, "read", name, audit);
     }
@@ -215,8 +270,11 @@ class SecretsService {
     const secrets = await secretsRepository.findByContext({
       organizationId: params.organizationId,
       projectId: params.projectId,
+      projectType: params.projectType,
       environment: params.environment,
+      provider: params.provider,
       names: params.names,
+      includeBindings: params.includeBindings,
     });
 
     const result: Record<string, string> = {};
@@ -264,7 +322,9 @@ class SecretsService {
     const updateData: Record<string, unknown> = {};
 
     if (params.value !== undefined) {
-      // Encrypt new value
+      if (Buffer.byteLength(params.value, "utf8") > MAX_SECRET_VALUE_BYTES) {
+        throw new Error(`Secret value exceeds maximum size of ${MAX_SECRET_VALUE_BYTES} bytes`);
+      }
       const { encryptedValue, encryptedDek, nonce, authTag, keyId } =
         await this.encryption.encrypt(params.value);
 
@@ -299,12 +359,15 @@ class SecretsService {
     newValue: string,
     audit: AuditContext
   ): Promise<SecretMetadata> {
+    if (Buffer.byteLength(newValue, "utf8") > MAX_SECRET_VALUE_BYTES) {
+      throw new Error(`Secret value exceeds maximum size of ${MAX_SECRET_VALUE_BYTES} bytes`);
+    }
+
     const existing = await secretsRepository.findById(secretId);
     if (!existing || existing.organization_id !== organizationId) {
       throw new Error("Secret not found");
     }
 
-    // Encrypt new value with fresh DEK
     const { encryptedValue, encryptedDek, nonce, authTag, keyId } =
       await this.encryption.encrypt(newValue);
 
@@ -371,7 +434,6 @@ class SecretsService {
       providerData,
     } = params;
 
-    // Encrypt access token
     const {
       encryptedValue: encryptedAccessToken,
       encryptedDek,
@@ -380,7 +442,6 @@ class SecretsService {
       keyId,
     } = await this.encryption.encrypt(accessToken);
 
-    // Encrypt refresh token if provided (with separate DEK for security)
     let encryptedRefreshToken: string | undefined;
     let refreshEncryptedDek: string | undefined;
     let refreshNonce: string | undefined;
@@ -393,7 +454,6 @@ class SecretsService {
       refreshAuthTag = refreshResult.authTag;
     }
 
-    // Encrypt provider data if provided
     let encryptedProviderData: string | undefined;
     let providerDataNonce: string | undefined;
     let providerDataAuthTag: string | undefined;
@@ -404,7 +464,6 @@ class SecretsService {
       providerDataAuthTag = dataResult.authTag;
     }
 
-    // Check for existing session
     const existing = await oauthSessionsRepository.findByOrgAndProvider(
       organizationId,
       provider,
@@ -412,7 +471,6 @@ class SecretsService {
     );
 
     if (existing) {
-      // Update existing session
       const updated = await oauthSessionsRepository.update(existing.id, {
         encrypted_access_token: encryptedAccessToken,
         encrypted_refresh_token: encryptedRefreshToken,
@@ -441,8 +499,7 @@ class SecretsService {
       return updated;
     }
 
-    // Create new session
-    const session = await oauthSessionsRepository.create({
+    return oauthSessionsRepository.create({
       organization_id: organizationId,
       user_id: userId,
       provider,
@@ -464,8 +521,6 @@ class SecretsService {
       provider_data_nonce: providerDataNonce,
       provider_data_auth_tag: providerDataAuthTag,
     });
-
-    return session;
   }
 
   async getOAuthTokens(
@@ -488,7 +543,6 @@ class SecretsService {
 
     if (!session) return null;
 
-    // Decrypt access token
     const accessToken = await this.encryption.decrypt({
       encryptedValue: session.encrypted_access_token,
       encryptedDek: session.encrypted_dek,
@@ -496,7 +550,6 @@ class SecretsService {
       authTag: session.auth_tag,
     });
 
-    // Decrypt refresh token if present (uses separate encryption metadata)
     let refreshToken: string | undefined;
     if (
       session.encrypted_refresh_token &&
@@ -576,6 +629,260 @@ class SecretsService {
     return secretAuditLogRepository.findByOrganization(organizationId, limit);
   }
 
+  async bulkCreate(
+    params: BulkCreateSecretParams,
+    audit: AuditContext
+  ): Promise<{ created: SecretMetadata[]; errors: Array<{ name: string; error: string }> }> {
+    const { organizationId, secrets: secretsToCreate, createdBy } = params;
+    const created: SecretMetadata[] = [];
+    const errors: Array<{ name: string; error: string }> = [];
+
+    for (const secretData of secretsToCreate) {
+      const { name, value, description, provider } = secretData;
+      
+      const existing = await secretsRepository.findByName(organizationId, name);
+      if (existing) {
+        errors.push({ name, error: `Secret '${name}' already exists` });
+        continue;
+      }
+
+      if (Buffer.byteLength(value, "utf8") > MAX_SECRET_VALUE_BYTES) {
+        errors.push({ name, error: `Value exceeds maximum size of ${MAX_SECRET_VALUE_BYTES} bytes` });
+        continue;
+      }
+
+      const { encryptedValue, encryptedDek, nonce, authTag, keyId } =
+        await this.encryption.encrypt(value);
+
+      const secret = await secretsRepository.create({
+        organization_id: organizationId,
+        name,
+        scope: "organization",
+        description,
+        provider,
+        encrypted_value: encryptedValue,
+        encryption_key_id: keyId,
+        encrypted_dek: encryptedDek,
+        nonce,
+        auth_tag: authTag,
+        created_by: createdBy,
+      });
+
+      await this.logAudit(secret.id, organizationId, "created", name, audit);
+      created.push(this.toMetadata(secret));
+    }
+
+    return { created, errors };
+  }
+
+  async listFiltered(params: ListSecretsParams): Promise<{ secrets: SecretMetadata[]; total: number }> {
+    const result = await secretsRepository.listFiltered({
+      organizationId: params.organizationId,
+      projectId: params.projectId,
+      projectType: params.projectType,
+      environment: params.environment,
+      provider: params.provider,
+      limit: params.limit,
+      offset: params.offset,
+    });
+    return {
+      secrets: result.secrets.map(this.toMetadata),
+      total: result.total,
+    };
+  }
+
+  async bindSecret(params: BindSecretParams, audit: AuditContext): Promise<SecretBindingMetadata> {
+    const { secretId, projectId, projectType, createdBy } = params;
+
+    const secret = await secretsRepository.findById(secretId);
+    if (!secret) {
+      throw new Error("Secret not found");
+    }
+
+    const existing = await secretBindingsRepository.findBySecretAndProject(
+      secretId,
+      projectId,
+      projectType
+    );
+    if (existing) {
+      throw new Error("Secret is already bound to this project");
+    }
+
+    const binding = await secretBindingsRepository.create({
+      secret_id: secretId,
+      project_id: projectId,
+      project_type: projectType,
+      created_by: createdBy,
+    });
+
+    await this.logAudit(secretId, secret.organization_id, "read", secret.name, audit);
+
+    return {
+      id: binding.id,
+      secretId: binding.secret_id,
+      secretName: secret.name,
+      projectId: binding.project_id,
+      projectType: binding.project_type,
+      createdAt: binding.created_at,
+    };
+  }
+
+  async bindSecrets(
+    secretIds: string[],
+    projectId: string,
+    projectType: SecretProjectType,
+    createdBy: string,
+    audit: AuditContext
+  ): Promise<{ bound: SecretBindingMetadata[]; errors: Array<{ secretId: string; error: string }> }> {
+    const bound: SecretBindingMetadata[] = [];
+    const errors: Array<{ secretId: string; error: string }> = [];
+
+    for (const secretId of secretIds) {
+      const secret = await secretsRepository.findById(secretId);
+      if (!secret) {
+        errors.push({ secretId, error: "Secret not found" });
+        continue;
+      }
+
+      const existing = await secretBindingsRepository.findBySecretAndProject(
+        secretId,
+        projectId,
+        projectType
+      );
+      if (existing) {
+        errors.push({ secretId, error: "Already bound" });
+        continue;
+      }
+
+      const binding = await secretBindingsRepository.create({
+        secret_id: secretId,
+        project_id: projectId,
+        project_type: projectType,
+        created_by: createdBy,
+      });
+
+      bound.push({
+        id: binding.id,
+        secretId: binding.secret_id,
+        secretName: secret.name,
+        projectId: binding.project_id,
+        projectType: binding.project_type,
+        createdAt: binding.created_at,
+      });
+    }
+
+    return { bound, errors };
+  }
+
+  async unbindSecret(bindingId: string, organizationId: string, audit: AuditContext): Promise<void> {
+    const binding = await secretBindingsRepository.findById(bindingId);
+    if (!binding) {
+      throw new Error("Binding not found");
+    }
+
+    const secret = await secretsRepository.findById(binding.secret_id);
+    if (!secret || secret.organization_id !== organizationId) {
+      throw new Error("Secret not found");
+    }
+
+    await secretBindingsRepository.delete(bindingId);
+  }
+
+  async listBindings(projectId: string, projectType?: SecretProjectType): Promise<SecretBindingMetadata[]> {
+    const bindings = await secretBindingsRepository.findByProject(projectId, projectType);
+    const results: SecretBindingMetadata[] = [];
+
+    for (const binding of bindings) {
+      const secret = await secretsRepository.findById(binding.secret_id);
+      if (secret) {
+        results.push({
+          id: binding.id,
+          secretId: binding.secret_id,
+          secretName: secret.name,
+          projectId: binding.project_id,
+          projectType: binding.project_type,
+          createdAt: binding.created_at,
+        });
+      }
+    }
+
+    return results;
+  }
+
+  async listSecretBindings(secretId: string): Promise<SecretBindingMetadata[]> {
+    const bindings = await secretBindingsRepository.findBySecret(secretId);
+    const secret = await secretsRepository.findById(secretId);
+    if (!secret) {
+      throw new Error("Secret not found");
+    }
+
+    return bindings.map((b) => ({
+      id: b.id,
+      secretId: b.secret_id,
+      secretName: secret.name,
+      projectId: b.project_id,
+      projectType: b.project_type,
+      createdAt: b.created_at,
+    }));
+  }
+
+  async getAppSecretRequirements(appId: string): Promise<AppSecretRequirement[]> {
+    return appSecretRequirementsRepository.findByApp(appId);
+  }
+
+  async getApprovedAppSecrets(appId: string): Promise<string[]> {
+    const approved = await appSecretRequirementsRepository.findApprovedByApp(appId);
+    return approved.map((r) => r.secret_name);
+  }
+
+  async syncAppSecretRequirements(
+    appId: string,
+    requirements: Array<{ secretName: string; required: boolean }>
+  ): Promise<AppSecretRequirement[]> {
+    return appSecretRequirementsRepository.syncRequirements(appId, requirements);
+  }
+
+  async approveAppSecretRequirement(
+    requirementId: string,
+    approvedBy: string
+  ): Promise<AppSecretRequirement> {
+    const req = await appSecretRequirementsRepository.approve(requirementId, approvedBy);
+    if (!req) {
+      throw new Error("Requirement not found");
+    }
+    return req;
+  }
+
+  async revokeAppSecretRequirement(requirementId: string): Promise<AppSecretRequirement> {
+    const req = await appSecretRequirementsRepository.revoke(requirementId);
+    if (!req) {
+      throw new Error("Requirement not found");
+    }
+    return req;
+  }
+
+  async getAppSecrets(
+    appId: string,
+    organizationId: string,
+    audit?: AuditContext
+  ): Promise<Record<string, string>> {
+    const approvedNames = await this.getApprovedAppSecrets(appId);
+    if (approvedNames.length === 0) {
+      return {};
+    }
+
+    return this.getDecrypted(
+      {
+        organizationId,
+        names: approvedNames,
+        includeBindings: true,
+        projectId: appId,
+        projectType: "app",
+      },
+      audit
+    );
+  }
+
   private async logAudit(
     secretId: string,
     organizationId: string,
@@ -608,6 +915,8 @@ class SecretsService {
       projectId: secret.project_id,
       projectType: secret.project_type,
       environment: secret.environment,
+      provider: secret.provider,
+      providerMetadata: secret.provider_metadata,
       version: secret.version,
       expiresAt: secret.expires_at,
       lastRotatedAt: secret.last_rotated_at,
@@ -626,7 +935,6 @@ export function getSecretsService(): SecretsService {
   return instance;
 }
 
-// Singleton proxy for backwards compatibility
 export const secretsService = new Proxy({} as SecretsService, {
   get(_, prop: keyof SecretsService | "isConfigured") {
     const svc = getSecretsService();

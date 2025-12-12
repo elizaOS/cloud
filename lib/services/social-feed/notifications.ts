@@ -1,10 +1,3 @@
-/**
- * Social Feed Notification Service
- *
- * Sends engagement notifications to Discord, Telegram, and Slack channels.
- * Formats notifications appropriately for each platform.
- */
-
 import { logger } from "@/lib/utils/logger";
 import { telegramService } from "@/lib/services/telegram";
 import { botsService } from "@/lib/services/bots";
@@ -117,7 +110,6 @@ function formatForDiscord(event: SocialEngagementEvent): FormattedNotification {
     ? ` • ${event.author_follower_count.toLocaleString()} followers`
     : "";
 
-  // Build embed
   const embed: DiscordEmbed = {
     title: `${emoji} ${label}`,
     color: getColorForEventType(event.event_type),
@@ -129,12 +121,10 @@ function formatForDiscord(event: SocialEngagementEvent): FormattedNotification {
     timestamp: event.created_at.toISOString(),
   };
 
-  // Add content
   if (event.content) {
     embed.description = truncateText(event.content, 4000);
   }
 
-  // Add original post reference
   const fields: Array<{ name: string; value: string; inline?: boolean }> = [];
 
   if (event.original_post_content) {
@@ -165,7 +155,6 @@ function formatForDiscord(event: SocialEngagementEvent): FormattedNotification {
     embed.fields = fields;
   }
 
-  // Add footer with stats
   const metrics = event.engagement_metrics;
   if (metrics) {
     const stats: string[] = [];
@@ -206,7 +195,6 @@ function formatForTelegram(event: SocialEngagementEvent): FormattedNotification 
     text += `<blockquote>${escapeHtml(truncateText(event.original_post_content, 500))}</blockquote>\n\n`;
   }
 
-  // Add metrics
   const metrics = event.engagement_metrics;
   if (metrics) {
     const stats: string[] = [];
@@ -220,7 +208,6 @@ function formatForTelegram(event: SocialEngagementEvent): FormattedNotification 
 
   text += "💬 <i>Reply to this message to respond</i>";
 
-  // Build inline keyboard with links
   const buttons: Array<{ text: string; url?: string; callback_data?: string }> = [];
 
   if (event.source_post_url) {
@@ -293,13 +280,12 @@ function formatForSlack(event: SocialEngagementEvent): FormattedNotification {
     });
   }
 
-  // Add context with metrics and links
   const contextElements: string[] = [];
-  const metrics = event.engagement_metrics;
-  if (metrics) {
-    if (metrics.likes) contextElements.push(`${metrics.likes} :heart:`);
-    if (metrics.reposts) contextElements.push(`${metrics.reposts} :recycle:`);
-    if (metrics.replies) contextElements.push(`${metrics.replies} :speech_balloon:`);
+  const slackMetrics = event.engagement_metrics;
+  if (slackMetrics) {
+    if (slackMetrics.likes) contextElements.push(`${slackMetrics.likes} :heart:`);
+    if (slackMetrics.reposts) contextElements.push(`${slackMetrics.reposts} :recycle:`);
+    if (slackMetrics.replies) contextElements.push(`${slackMetrics.replies} :speech_balloon:`);
   }
 
   if (event.source_post_url) {
@@ -309,22 +295,16 @@ function formatForSlack(event: SocialEngagementEvent): FormattedNotification {
   if (contextElements.length > 0) {
     blocks.push({
       type: "context",
-      elements: contextElements.map((text) => ({ type: "mrkdwn", text })),
+      elements: contextElements.map((t) => ({ type: "mrkdwn", text: t })),
     });
   }
 
   blocks.push({
     type: "section",
-    text: {
-      type: "mrkdwn",
-      text: "_Reply in thread to respond_",
-    },
+    text: { type: "mrkdwn", text: "_Reply in thread to respond_" },
   });
 
-  return {
-    text: `${emoji} *${label}* from ${authorDisplay}`,
-    blocks,
-  };
+  return { text: `${emoji} *${label}* from ${authorDisplay}`, blocks };
 }
 
 function getColorForEventType(eventType: string): number {
@@ -357,7 +337,6 @@ async function sendToDiscord(
   organizationId: string
 ): Promise<NotificationResult> {
   try {
-    // Get bot connection
     const connections = await botsService.getConnections(organizationId);
     const discordConnection = connections.find(
       (c) => c.platform === "discord" && c.status === "active" &&
@@ -425,7 +404,6 @@ async function sendToTelegram(
   organizationId: string
 ): Promise<NotificationResult> {
   try {
-    // Get bot connection
     const connections = await botsService.getConnections(organizationId);
     const telegramConnection = connections.find(
       (c) => c.platform === "telegram" && c.status === "active" &&
@@ -475,7 +453,6 @@ async function sendToSlack(
   organizationId: string
 ): Promise<NotificationResult> {
   try {
-    // Get Slack bot token from secrets
     const botToken = await secretsService.get(organizationId, "SLACK_BOT_TOKEN");
 
     if (!botToken) {
@@ -529,9 +506,6 @@ async function sendToSlack(
 }
 
 class SocialNotificationService {
-  /**
-   * Send notification for an engagement event
-   */
   async sendNotification(
     event: SocialEngagementEvent,
     config: OrgFeedConfig
@@ -573,7 +547,6 @@ class SocialNotificationService {
 
       results.push(result);
 
-      // Record successful notifications for reply tracking
       if (result.success && result.messageId) {
         await notificationMessageService.create(
           config.organization_id,
@@ -587,7 +560,6 @@ class SocialNotificationService {
       }
     }
 
-    // Update event with notification status
     const successfulChannels = results.filter((r) => r.success);
     if (successfulChannels.length > 0) {
       const messageIds: Record<string, string> = {};
@@ -613,9 +585,6 @@ class SocialNotificationService {
     return results;
   }
 
-  /**
-   * Process unnotified engagement events
-   */
   async processUnnotifiedEvents(): Promise<{
     processed: number;
     successful: number;
@@ -631,7 +600,6 @@ class SocialNotificationService {
     for (const event of events) {
       const config = await feedConfigService.get(event.feed_config_id, event.organization_id);
       if (!config || !config.enabled) {
-        // Mark as processed but skip
         await engagementEventService.markNotificationSent(event.id, [], {});
         continue;
       }

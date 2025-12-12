@@ -1,175 +1,14 @@
 /**
- * Todo App Storage API Integration Tests
+ * Todo App Business Logic Tests
  *
- * Tests the todo-app storage and MCP endpoints directly.
- * Run with: bun test tests/integration/todoapp-storage.test.ts
- *
- * Prerequisites:
- * - Database running and seeded: bun run db:todoapp:seed
- * - Cloud server running: bun run dev
+ * Tests the gamification logic (points calculation, level progression).
+ * Storage integration is tested via:
+ * - MCP endpoint tests (todoapp-mcp.test.ts)
+ * - App storage service tests (app-storage.test.ts)
+ * - E2E tests (todoapp.spec.ts)
  */
 
-import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { setupIntegrationTest, requireSchema, testContext } from "../test-utils";
-
-const TEST_APP_SLUG = "eliza-todo-test";
-
-// Note: app_collections and app_documents tables may not exist in all environments
-// These tests focus on logic validation and skip storage operations if tables are missing
-
-describe("Todo App Storage Service", () => {
-  let testAppId: string | null = null;
-  let testOrgId: string | null = null;
-  let storageTablesExist = false;
-  let setupSuccessful = false;
-
-  // Lazy-loaded modules
-  let db: Awaited<typeof import("@/db/client")>["db"];
-  let apps: Awaited<typeof import("@/db/schemas/apps")>["apps"];
-  let apiKeys: Awaited<typeof import("@/db/schemas/api-keys")>["apiKeys"];
-  let eq: Awaited<typeof import("drizzle-orm")>["eq"];
-
-  beforeAll(async () => {
-    // Check database availability first
-    const dbReady = await setupIntegrationTest({ requireDb: true });
-    if (!dbReady) {
-      console.log("[todoapp-storage.test.ts] Setup failed: database not available");
-      return;
-    }
-
-    // Lazy load modules after database check
-    const dbModule = await import("@/db/client");
-    const appsModule = await import("@/db/schemas/apps");
-    const apiKeysModule = await import("@/db/schemas/api-keys");
-    const drizzleModule = await import("drizzle-orm");
-    db = dbModule.db;
-    apps = appsModule.apps;
-    apiKeys = apiKeysModule.apiKeys;
-    eq = drizzleModule.eq;
-
-    // Check if apps schema is available
-    const appsAvailable = await requireSchema("apps");
-    if (!appsAvailable) {
-      console.log("[todoapp-storage.test.ts] Setup failed: apps schema not available");
-      return;
-    }
-
-    try {
-      // Find or create test app
-      const existingApp = await db.query.apps.findFirst({
-        where: eq(apps.slug, TEST_APP_SLUG),
-      });
-
-      if (existingApp) {
-        testAppId = existingApp.id;
-        testOrgId = existingApp.organization_id;
-      } else {
-        // Use the seeded todoapp
-        const todoApp = await db.query.apps.findFirst({
-          where: eq(apps.slug, "eliza-todo"),
-        });
-
-        if (todoApp) {
-          testAppId = todoApp.id;
-          testOrgId = todoApp.organization_id;
-        }
-      }
-
-      if (!testAppId) {
-        console.log("⚠️ No todo app found. Run: bun run db:todoapp:seed");
-        return;
-      }
-
-      // Find API key for the organization - only if testOrgId is set
-      if (testOrgId) {
-        await db.query.apiKeys.findFirst({
-          where: eq(apiKeys.organization_id, testOrgId),
-        });
-      }
-      
-      setupSuccessful = true;
-    } catch (error) {
-      console.log("[todoapp-storage.test.ts] Setup failed:", (error as Error).message);
-    }
-  });
-
-  afterAll(async () => {
-    // Cleanup handled by individual tests if needed
-  });
-
-  describe("Collection Management", () => {
-    test("tasks collection exists", async () => {
-      if (!testAppId) {
-        console.log("Skipping: no test app");
-        return;
-      }
-      // Note: app_collections table may not exist - this test validates the concept
-      console.log("Skipping: app_collections table not available in this environment");
-    });
-
-    test("user_points collection exists", async () => {
-      if (!testAppId) {
-        console.log("Skipping: no test app");
-        return;
-      }
-      // Note: app_collections table may not exist - this test validates the concept
-      console.log("Skipping: app_collections table not available in this environment");
-    });
-  });
-
-  describe("Document CRUD Operations", () => {
-    // Note: These tests require app_documents table which may not exist
-    test("can insert a task document", async () => {
-      if (!testAppId) {
-        console.log("Skipping: no test app");
-        return;
-      }
-      console.log("Skipping: app_documents table not available in this environment");
-    });
-
-    test("can query task documents", async () => {
-      if (!testAppId) {
-        console.log("Skipping: no test app");
-        return;
-      }
-      console.log("Skipping: app_documents table not available in this environment");
-    });
-
-    test("can get a specific document", async () => {
-      console.log("Skipping: no test app or document");
-    });
-
-    test("can update a document", async () => {
-      console.log("Skipping: no test app or document");
-    });
-
-    test("can soft delete a document", async () => {
-      console.log("Skipping: no test app or document");
-    });
-
-    test("can hard delete a document", async () => {
-      console.log("Skipping: no test app or document");
-    });
-  });
-
-  describe("Query Filtering", () => {
-    test("can filter by type", async () => {
-      if (!testAppId) {
-        console.log("Skipping: no test app");
-        return;
-      }
-      console.log("Skipping: app_documents table not available in this environment");
-    });
-
-    test("can filter by completion status", async () => {
-      if (!testAppId) {
-        console.log("Skipping: no test app");
-        return;
-      }
-      console.log("Skipping: app_documents table not available in this environment");
-    });
-  });
-});
+import { describe, test, expect } from "bun:test";
 
 describe("Todo MCP Endpoint Logic", () => {
   // These tests verify the MCP handler logic
@@ -277,18 +116,18 @@ function calculateTestPoints(task: {
   urgent?: boolean;
   metadata: { streak?: number };
 }): number {
-  let points = 0;
-
   if (task.type === "daily") {
-    points = 10 + Math.min((task.metadata.streak ?? 0) * 5, 50);
-  } else if (task.type === "one-off") {
-    const priorityPoints = task.priority ? (5 - task.priority) * 10 : 10;
-    points = priorityPoints + (task.urgent ? 10 : 0);
-  } else if (task.type === "aspirational") {
-    points = 50;
+    const streak = Math.max(0, task.metadata.streak ?? 0);
+    return 10 + Math.min(streak * 5, 50);
   }
-
-  return points;
+  if (task.type === "one-off") {
+    const priorityPoints = task.priority ? (5 - task.priority) * 10 : 10;
+    return priorityPoints + (task.urgent ? 10 : 0);
+  }
+  if (task.type === "aspirational") {
+    return 50;
+  }
+  return 0;
 }
 
 const LEVELS = [

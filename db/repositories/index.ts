@@ -111,3 +111,35 @@ export * from "./n8n-workflows";
 // Fragment Projects
 // ============================================
 export * from "./fragment-projects";
+
+// ============================================
+// Media Collections & Uploads
+// ============================================
+export * from "./media-collections";
+export * from "./media-uploads";
+
+// ============================================
+// Advertising
+// ============================================
+export * from "./ad-accounts";
+export * from "./ad-campaigns";
+export * from "./ad-creatives";
+export * from "./ad-transactions";
+export * from "./seo-requests";
+export * from "./seo-artifacts";
+export * from "./seo-provider-calls";
+
+// ============================================
+// Discord Gateway (Multi-tenant Discord Service)
+// ============================================
+export * from "./discord-gateway";
+
+// ============================================
+// Managed Domains
+// ============================================
+export * from "./managed-domains";
+
+// ============================================
+// Community Moderation
+// ============================================
+export * from "./community-moderation";

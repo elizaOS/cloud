@@ -646,6 +646,12 @@ class FeedPollingService {
       accountId: config.source_account_id,
     });
 
+    // Mark as polling immediately to prevent concurrent execution
+    await feedConfigService.updatePollingState(config.id, {
+      lastPolledAt: new Date(),
+      errorCount: config.poll_error_count ?? 0,
+    });
+
     const poller = pollers[config.source_platform as SocialPlatform];
     if (!poller) {
       const error = `No poller for platform: ${config.source_platform}`;

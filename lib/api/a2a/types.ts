@@ -303,6 +303,121 @@ export interface FullAppBuilderStatusResult {
   generatedFiles: string[];
 }
 
+// ============================================
+// Domain Management Types
+// ============================================
+
+/**
+ * Domain search result
+ */
+export interface DomainSearchResult {
+  query: string;
+  results: Array<{
+    domain: string;
+    available: boolean;
+    price: {
+      amount: number;
+      currency: string;
+      period: number;
+    } | null;
+  }>;
+  availableCount: number;
+}
+
+/**
+ * Domain check result
+ */
+export interface DomainCheckResult {
+  domain: string;
+  available: boolean;
+  price: {
+    amount: number;
+    currency: string;
+    period: number;
+    renewalAmount: number;
+  } | null;
+  moderationFlags: Array<{
+    type: string;
+    severity: string;
+    reason: string;
+  }>;
+  requiresReview: boolean;
+}
+
+/**
+ * Domain list result
+ */
+export interface DomainListResult {
+  domains: Array<{
+    id: string;
+    domain: string;
+    status: string;
+    verified: boolean;
+    resourceType: string | null;
+    resourceId: string | null;
+    expiresAt: string | null;
+    sslStatus: string | null;
+    isLive: boolean;
+  }>;
+  stats: {
+    total: number;
+    active: number;
+    pending: number;
+    suspended: number;
+    expiringSoon: number;
+  };
+}
+
+/**
+ * Domain registration result
+ */
+export interface DomainRegisterResult {
+  success: boolean;
+  domain: {
+    id: string;
+    domain: string;
+    status: string;
+    verificationToken?: string;
+  };
+  dnsInstructions?: Array<{
+    type: string;
+    name: string;
+    value: string;
+    description: string;
+  }>;
+  message: string;
+}
+
+/**
+ * Domain verification result
+ */
+export interface DomainVerifyResult {
+  verified: boolean;
+  domain: string;
+  error?: string;
+  dnsInstructions?: Array<{
+    type: string;
+    name: string;
+    value: string;
+    description: string;
+  }>;
+  message: string;
+}
+
+/**
+ * Domain assignment result
+ */
+export interface DomainAssignResult {
+  success: boolean;
+  domain: {
+    id: string;
+    domain: string;
+    resourceType: string;
+    resourceId: string;
+  };
+  message: string;
+}
+
 /**
  * A2A method handler type
  */

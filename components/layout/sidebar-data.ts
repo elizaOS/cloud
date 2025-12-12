@@ -18,6 +18,7 @@ import {
   Coins,
   FolderOpen,
   Workflow,
+  Megaphone,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import type { FeatureFlag } from "@/lib/config/feature-flags";
@@ -125,6 +126,14 @@ export const sidebarSections: SidebarSection[] = [
         freeAllowed: false,
         featureFlag: "gallery",
       },
+      {
+        id: "collections",
+        label: "Collections",
+        href: "/dashboard/collections",
+        icon: FolderOpen,
+        freeAllowed: false,
+        featureFlag: "gallery",
+      },
     ],
   },
   {
@@ -166,6 +175,14 @@ export const sidebarSections: SidebarSection[] = [
   {
     title: "Monetization",
     items: [
+      {
+        id: "advertising",
+        label: "Advertising",
+        href: "/dashboard/advertising",
+        icon: Megaphone,
+        freeAllowed: false,
+        isNew: true,
+      },
       {
         id: "earnings",
         label: "Earnings",

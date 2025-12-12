@@ -4,7 +4,7 @@
  * Tools for checking credit balance, transactions, and billing usage.
  */
 
-import { z } from "zod3";
+import { z } from "zod";
 import { creditsService } from "@/lib/services/credits";
 import { organizationsService } from "@/lib/services/organizations";
 import { usageService } from "@/lib/services/usage";

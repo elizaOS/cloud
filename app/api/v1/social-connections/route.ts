@@ -1,12 +1,11 @@
 /**
- * Social Connections API
- * List and manage platform credential connections.
+ * Social Connections API - List and manage platform credential connections.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuth } from "@/lib/middleware/app-auth";
-import { platformCredentialsService, MANUAL_AUTH_PLATFORMS } from "@/lib/services/platform-credentials";
+import { platformCredentialsService, MANUAL_AUTH_PLATFORMS, SOCIAL_PLATFORMS } from "@/lib/services/platform-credentials";
 import { logger } from "@/lib/utils/logger";
 
 const ManualCredentialsSchema = z.object({
@@ -18,24 +17,15 @@ const ManualCredentialsSchema = z.object({
   }),
 });
 
-/**
- * GET /api/v1/social-connections
- * List all connected platforms for the organization
- */
 export async function GET(request: NextRequest) {
   const authResult = await requireAuth(request);
   if (authResult instanceof NextResponse) return authResult;
-  const { user } = authResult;
 
-  const platforms = await platformCredentialsService.getAvailablePlatforms(user.organization_id);
+  const platforms = await platformCredentialsService.getAvailablePlatforms(authResult.user.organization_id);
 
   return NextResponse.json({
     success: true,
-    platforms: platforms.filter(p => 
-      // Only return social platforms
-      ["twitter", "bluesky", "discord", "telegram", "slack", "reddit", 
-       "facebook", "instagram", "tiktok", "linkedin", "mastodon"].includes(p.platform)
-    ),
+    platforms: platforms.filter(p => SOCIAL_PLATFORMS.includes(p.platform)),
   });
 }
 

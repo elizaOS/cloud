@@ -1,23 +1,10 @@
 /**
- * A2A Task Store Service
- *
- * Redis-backed persistent storage for A2A tasks.
- * Replaces the in-memory Map to work across serverless instances.
- *
- * Features:
- * - Redis persistence with TTL
- * - Automatic cleanup of expired tasks
- * - Organization-scoped task isolation
- * - Graceful fallback to in-memory when Redis unavailable
+ * Redis-backed A2A task storage with fallback to in-memory for serverless.
  */
 
 import { Redis } from "@upstash/redis";
 import { logger } from "@/lib/utils/logger";
 import type { Task } from "@/lib/types/a2a";
-
-// ============================================================================
-// Types
-// ============================================================================
 
 export interface TaskStoreEntry {
   task: Task;
@@ -27,17 +14,9 @@ export interface TaskStoreEntry {
   updatedAt: string;
 }
 
-// ============================================================================
-// Configuration
-// ============================================================================
-
-const TASK_TTL_SECONDS = 3600; // 1 hour
+const TASK_TTL_SECONDS = 3600;
 const TASK_KEY_PREFIX = "a2a:task:";
 const TASK_ORG_INDEX_PREFIX = "a2a:org:";
-
-// ============================================================================
-// Redis Client
-// ============================================================================
 
 let redis: Redis | null = null;
 let initialized = false;
@@ -64,13 +43,8 @@ function getRedisClient(): Redis | null {
   return redis;
 }
 
-// ============================================================================
-// In-Memory Fallback
-// ============================================================================
-
 const memoryStore = new Map<string, TaskStoreEntry>();
 
-// Cleanup old tasks every 5 minutes
 if (typeof setInterval !== "undefined") {
   setInterval(() => {
     const oneHourAgo = Date.now() - TASK_TTL_SECONDS * 1000;
@@ -82,14 +56,7 @@ if (typeof setInterval !== "undefined") {
   }, 300000);
 }
 
-// ============================================================================
-// Task Store Service
-// ============================================================================
-
 class A2ATaskStoreService {
-  /**
-   * Get a task by ID
-   */
   async get(taskId: string, organizationId: string): Promise<TaskStoreEntry | null> {
     const client = getRedisClient();
     const key = `${TASK_KEY_PREFIX}${taskId}`;
@@ -119,9 +86,6 @@ class A2ATaskStoreService {
     return entry;
   }
 
-  /**
-   * Store a task
-   */
   async set(taskId: string, entry: TaskStoreEntry): Promise<void> {
     const client = getRedisClient();
     const key = `${TASK_KEY_PREFIX}${taskId}`;
@@ -150,9 +114,6 @@ class A2ATaskStoreService {
     }
   }
 
-  /**
-   * Update a task
-   */
   async update(
     taskId: string,
     organizationId: string,
@@ -170,9 +131,6 @@ class A2ATaskStoreService {
     return updated;
   }
 
-  /**
-   * Delete a task
-   */
   async delete(taskId: string, organizationId: string): Promise<boolean> {
     const client = getRedisClient();
     const key = `${TASK_KEY_PREFIX}${taskId}`;
@@ -197,9 +155,6 @@ class A2ATaskStoreService {
     return true;
   }
 
-  /**
-   * List tasks for an organization
-   */
   async listByOrganization(
     organizationId: string,
     limit = 50
@@ -243,9 +198,6 @@ class A2ATaskStoreService {
       .slice(0, limit);
   }
 
-  /**
-   * Update task state
-   */
   async updateTaskState(
     taskId: string,
     organizationId: string,
@@ -267,9 +219,6 @@ class A2ATaskStoreService {
     return result?.task ?? null;
   }
 
-  /**
-   * Add artifact to task
-   */
   async addArtifact(
     taskId: string,
     organizationId: string,
@@ -286,9 +235,6 @@ class A2ATaskStoreService {
     return result?.task ?? null;
   }
 
-  /**
-   * Add message to task history
-   */
   async addMessageToHistory(
     taskId: string,
     organizationId: string,
@@ -303,9 +249,6 @@ class A2ATaskStoreService {
     }));
   }
 
-  /**
-   * Check if Redis is available
-   */
   isRedisAvailable(): boolean {
     return getRedisClient() !== null;
   }

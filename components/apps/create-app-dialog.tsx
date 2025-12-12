@@ -1,8 +1,3 @@
-/**
- * Create app dialog component for creating new applications.
- * Simplified flow with auto-generated names and deferred configuration.
- */
-
 "use client";
 
 import { useState } from "react";

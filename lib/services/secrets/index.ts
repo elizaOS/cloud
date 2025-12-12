@@ -1,22 +1,16 @@
-/**
- * Secrets Module
- *
- * Production-grade secrets management with:
- * - Envelope encryption (AES-256-GCM + KMS)
- * - Organization → Project → Environment scoping
- * - OAuth token storage
- * - Audit logging for compliance
- */
-
 export {
   secretsService,
   getSecretsService,
   SecretsService,
   type CreateSecretParams,
+  type BulkCreateSecretParams,
   type UpdateSecretParams,
   type GetSecretsParams,
+  type ListSecretsParams,
+  type BindSecretParams,
   type AuditContext,
   type SecretMetadata,
+  type SecretBindingMetadata,
 } from "./secrets";
 
 export {

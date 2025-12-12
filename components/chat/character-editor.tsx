@@ -1,13 +1,3 @@
-/**
- * Character editor component with tabbed interface for editing character properties.
- * Supports form-based editing, JSON editing, plugins management, and knowledge uploads.
- *
- * @param props - Character editor configuration
- * @param props.character - Character data to edit
- * @param props.onChange - Callback when character data changes
- * @param props.onSave - Callback when save button is clicked
- */
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -119,7 +109,6 @@ export function CharacterEditor({
   };
   return (
     <div className="flex h-full flex-col bg-black/40">
-      {/* Header */}
       <div className="flex-shrink-0 border-b border-white/10 px-6 py-4">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
@@ -152,10 +141,8 @@ export function CharacterEditor({
         </p>
       </div>
 
-      {/* Responsive Tabs + JSON Toggle */}
       <div className="flex-shrink-0 border-b border-white/10 px-6">
         <div className="space-y-4 xl:space-y-0 flex flex-col xl:flex-row xl:items-center gap-3 py-3">
-          {/* Tabs - Dropdown on mobile, tabs on desktop with horizontal scroll */}
           <div className="flex-1 min-w-0 overflow-x-auto scrollbar-thin">
             <BrandTabsResponsive
               id="character-editor-tabs"
@@ -164,7 +151,6 @@ export function CharacterEditor({
               onValueChange={(value) => setActiveTab(value as MainTab)}
               breakpoint="md"
             >
-              {/* Empty children - content is rendered below */}
               <div className="hidden" />
             </BrandTabsResponsive>
           </div>
@@ -191,7 +177,7 @@ export function CharacterEditor({
           </div>
         </div>
       </div>
-      {/* Content Area - Full Height */}
+
       <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
         {showJson ? (
           <JsonEditor
