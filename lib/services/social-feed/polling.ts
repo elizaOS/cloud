@@ -15,10 +15,6 @@ import {
   type SocialEngagementType,
 } from "./index";
 
-// =============================================================================
-// TYPES
-// =============================================================================
-
 interface PolledEngagement {
   eventType: SocialEngagementType;
   sourcePostId: string;
@@ -58,10 +54,6 @@ interface PlatformPoller {
     sinceId?: string
   ): Promise<PollResult>;
 }
-
-// =============================================================================
-// TWITTER POLLER
-// =============================================================================
 
 const TWITTER_API_BASE = "https://api.twitter.com/2";
 
@@ -183,7 +175,7 @@ class TwitterPoller implements PlatformPoller {
           : undefined,
         originalPostContent: originalTweet?.text,
         content: tweet.text,
-        mediaUrls: this.extractMediaUrls(tweet),
+        mediaUrls: undefined,
         rawData: tweet,
         engagementMetrics: {
           likes: tweet.public_metrics?.like_count,
@@ -299,14 +291,6 @@ class TwitterPoller implements PlatformPoller {
     };
   }
 
-  private extractMediaUrls(tweet: TwitterTweet): string[] {
-    const urls: string[] = [];
-    if (tweet.attachments?.media_keys) {
-      // Would need to include media in expansions and map
-      // Simplified - just note that media exists
-    }
-    return urls;
-  }
 }
 
 interface TwitterUser {
@@ -334,10 +318,6 @@ interface TwitterTweet {
   referenced_tweets?: Array<{ type: string; id: string }>;
   attachments?: { media_keys?: string[] };
 }
-
-// =============================================================================
-// BLUESKY POLLER
-// =============================================================================
 
 class BlueskyPoller implements PlatformPoller {
   async poll(
