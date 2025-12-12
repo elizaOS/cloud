@@ -1192,6 +1192,38 @@ POST /api/v1/social-media/credentials/validate
 - `social_media_repost` / `retweet` - Repost content
 - `social_media_get_platforms` / `list_social_platforms` - List supported platforms
 
+**OAuth Connection Flow**:
+
+Users can connect social accounts via Settings → Connections tab:
+
+1. **OAuth Platforms** (Twitter, Discord, Reddit, etc.):
+   - Click "Connect" → Redirect to platform OAuth
+   - User authorizes ElizaCloud → Tokens stored securely
+   - No need for manual API key configuration
+
+2. **Manual Platforms** (Bluesky, Telegram):
+   - Click "Connect" → Modal with setup instructions
+   - Bluesky: Enter handle + app password from bsky.app/settings
+   - Telegram: Enter bot token from @BotFather
+
+**Connection API**:
+
+```bash
+# List connections
+GET /api/v1/social-connections
+
+# Start OAuth flow
+POST /api/v1/social-connections/connect/twitter
+→ { authUrl: "https://twitter.com/oauth/..." }
+
+# Submit manual credentials
+POST /api/v1/social-connections
+{ "platform": "bluesky", "credentials": { "handle": "@user.bsky.social", "appPassword": "..." } }
+
+# Disconnect
+DELETE /api/v1/social-connections/{id}
+```
+
 ### 12. MCP (Model Context Protocol) API
 
 **Location**: `/app/api/mcp/route.ts`
