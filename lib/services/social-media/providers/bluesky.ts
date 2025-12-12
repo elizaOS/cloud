@@ -1,11 +1,9 @@
 /**
- * Bluesky Provider
- *
- * Posts to Bluesky using the AT Protocol.
- * Uses the official @atproto/api SDK.
+ * Bluesky Provider - AT Protocol
  */
 
 import { logger } from "@/lib/utils/logger";
+import { withRetry } from "../rate-limit";
 import type {
   SocialMediaProvider,
   SocialCredentials,
@@ -18,10 +16,6 @@ import type {
 } from "@/lib/types/social-media";
 
 const BLUESKY_SERVICE = "https://bsky.social";
-
-// =============================================================================
-// TYPES
-// =============================================================================
 
 interface BskySession {
   did: string;
@@ -42,56 +36,44 @@ interface BskyProfile {
 
 interface BskyFacet {
   index: { byteStart: number; byteEnd: number };
-  features: Array<{
-    $type: string;
-    uri?: string;
-    tag?: string;
-    did?: string;
-  }>;
+  features: Array<{ $type: string; uri?: string; tag?: string; did?: string }>;
 }
 
-// =============================================================================
-// HELPERS
-// =============================================================================
-
-async function createSession(
-  handle: string,
-  appPassword: string
-): Promise<BskySession> {
-  const response = await fetch(`${BLUESKY_SERVICE}/xrpc/com.atproto.server.createSession`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ identifier: handle, password: appPassword }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.message || `Authentication failed: ${response.status}`);
-  }
-
-  return response.json();
-}
-
-async function bskyApiRequest<T>(
-  endpoint: string,
-  accessJwt: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const response = await fetch(`${BLUESKY_SERVICE}/xrpc/${endpoint}`, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${accessJwt}`,
-      "Content-Type": "application/json",
-      ...options.headers,
+async function createSession(handle: string, appPassword: string): Promise<BskySession> {
+  const { data } = await withRetry<BskySession>(
+    () => fetch(`${BLUESKY_SERVICE}/xrpc/com.atproto.server.createSession`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier: handle, password: appPassword }),
+    }),
+    async (response) => {
+      const json = await response.json();
+      if (json.error) throw new Error(json.message || json.error);
+      return json;
     },
-  });
+    { platform: "bluesky", maxRetries: 2 }
+  );
+  return data;
+}
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.message || `Bluesky API error: ${response.status}`);
-  }
-
-  return response.json();
+async function bskyApiRequest<T>(endpoint: string, accessJwt: string, options: RequestInit = {}): Promise<T> {
+  const { data } = await withRetry<T>(
+    () => fetch(`${BLUESKY_SERVICE}/xrpc/${endpoint}`, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${accessJwt}`,
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    }),
+    async (response) => {
+      const json = await response.json();
+      if (json.error) throw new Error(json.message || json.error);
+      return json;
+    },
+    { platform: "bluesky", maxRetries: 3 }
+  );
+  return data;
 }
 
 async function uploadBlob(
@@ -565,3 +547,4 @@ export const blueskyProvider: SocialMediaProvider = {
     }
   },
 };
+

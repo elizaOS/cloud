@@ -1,11 +1,9 @@
 /**
- * Discord Provider
- *
- * Posts to Discord channels via bot token or webhook.
- * Supports embeds, attachments, and components.
+ * Discord Provider - Bot API and Webhooks
  */
 
 import { logger } from "@/lib/utils/logger";
+import { withRetry } from "../rate-limit";
 import type {
   SocialMediaProvider,
   SocialCredentials,
@@ -16,10 +14,6 @@ import type {
 } from "@/lib/types/social-media";
 
 const DISCORD_API_BASE = "https://discord.com/api/v10";
-
-// =============================================================================
-// TYPES
-// =============================================================================
 
 interface DiscordMessage {
   id: string;
@@ -48,53 +42,42 @@ interface DiscordUser {
   bot?: boolean;
 }
 
-// =============================================================================
-// HELPERS
-// =============================================================================
-
-async function discordApiRequest<T>(
-  endpoint: string,
-  botToken: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const response = await fetch(`${DISCORD_API_BASE}${endpoint}`, {
-    ...options,
-    headers: {
-      Authorization: `Bot ${botToken}`,
-      "Content-Type": "application/json",
-      ...options.headers,
+async function discordApiRequest<T>(endpoint: string, botToken: string, options: RequestInit = {}): Promise<T> {
+  const { data } = await withRetry<T>(
+    () => fetch(`${DISCORD_API_BASE}${endpoint}`, {
+      ...options,
+      headers: {
+        Authorization: `Bot ${botToken}`,
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    }),
+    async (response) => {
+      const json = await response.json();
+      if (json.code) throw new Error(json.message || `Discord error ${json.code}`);
+      return json;
     },
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.message || `Discord API error: ${response.status}`);
-  }
-
-  return response.json();
+    { platform: "discord", maxRetries: 3 }
+  );
+  return data;
 }
 
-async function webhookRequest<T>(
-  webhookUrl: string,
-  payload: Record<string, unknown>
-): Promise<T> {
-  // Append ?wait=true to get the message back
-  const url = webhookUrl.includes("?")
-    ? `${webhookUrl}&wait=true`
-    : `${webhookUrl}?wait=true`;
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.message || `Webhook error: ${response.status}`);
-  }
-
-  return response.json();
+async function webhookRequest<T>(webhookUrl: string, payload: Record<string, unknown>): Promise<T> {
+  const url = webhookUrl.includes("?") ? `${webhookUrl}&wait=true` : `${webhookUrl}?wait=true`;
+  const { data } = await withRetry<T>(
+    () => fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+    async (response) => {
+      const json = await response.json();
+      if (json.code) throw new Error(json.message || `Webhook error ${json.code}`);
+      return json;
+    },
+    { platform: "discord", maxRetries: 3 }
+  );
+  return data;
 }
 
 // =============================================================================
@@ -362,3 +345,4 @@ export const discordProvider: SocialMediaProvider = {
     }
   },
 };
+

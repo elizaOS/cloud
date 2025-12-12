@@ -34,3 +34,4 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
 
   return NextResponse.json(result);
 }
+

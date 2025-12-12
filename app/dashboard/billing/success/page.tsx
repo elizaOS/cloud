@@ -39,13 +39,13 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
   credits?: number;
   alreadyProcessed?: boolean;
 }> {
-  console.log(`[BillingSuccess] Verifying session: ${sessionId}`);
+  logger.info(`[BillingSuccess] Verifying session: ${sessionId}`);
 
   // Fetch the session from Stripe
   const session = await stripe.checkout.sessions.retrieve(sessionId);
 
   if (session.payment_status !== "paid") {
-    console.warn(
+    logger.warn(
       `[BillingSuccess] Session ${sessionId} not paid: ${session.payment_status}`,
     );
     return {
@@ -62,7 +62,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
   const paymentIntentId = session.payment_intent as string;
 
   if (!organizationId || !credits) {
-    console.warn("[BillingSuccess] Invalid metadata", {
+    logger.warn("[BillingSuccess] Invalid metadata", {
       hasOrgId: !!organizationId,
       hasValidCredits: !!credits,
     });
@@ -73,7 +73,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
   }
 
   if (!paymentIntentId) {
-    console.warn("[BillingSuccess] No payment intent ID in session");
+    logger.warn("[BillingSuccess] No payment intent ID in session");
     return {
       success: false,
       error: "No payment intent found",
@@ -85,7 +85,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
     await creditsService.getTransactionByStripePaymentIntent(paymentIntentId);
 
   if (existingTransaction) {
-    console.log("[BillingSuccess] Session already processed via webhook");
+    logger.info("[BillingSuccess] Session already processed via webhook");
     return {
       success: true,
       credits,
@@ -94,7 +94,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
   }
 
   // Add credits (with built-in idempotency)
-  console.log(
+  logger.info(
     `[BillingSuccess] Adding ${credits} credits to org ${organizationId}`,
   );
 
@@ -112,7 +112,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
     stripePaymentIntentId: paymentIntentId,
   });
 
-  console.log(
+  logger.info(
     `[BillingSuccess] ✓ Credits added for session ${sessionId} (fallback)`,
   );
 
@@ -149,7 +149,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
         paid_at: new Date(),
       });
 
-      console.log(
+      logger.info(
         `[BillingSuccess] ✓ Invoice created for session ${sessionId}`,
       );
     }
@@ -162,7 +162,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
   }
 
   if (existingTransaction) {
-    console.log(
+    logger.info(
       `[BillingSuccess] Session already processed via webhook (transaction: ${existingTransaction.id})`
     );
     return {
@@ -173,7 +173,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
   }
 
   // Add credits (with built-in idempotency)
-  console.log(
+  logger.info(
     `[BillingSuccess] Adding ${credits} credits to org ${organizationId}`
   );
 
@@ -191,7 +191,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
     stripePaymentIntentId: paymentIntentId,
   });
 
-  console.log(
+  logger.info(
     `[BillingSuccess] ✓ Credits added for session ${sessionId} (fallback)`
   );
 
@@ -227,7 +227,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
       paid_at: new Date(),
     });
 
-    console.log(
+    logger.info(
       `[BillingSuccess] ✓ Invoice created for session ${sessionId}`
     );
   }

@@ -1,6 +1,8 @@
 /**
- * Create app dialog component for creating new applications.
- * Simplified flow with auto-generated names and deferred configuration.
+ * Quick Create Dialog
+ * 
+ * Unified dialog for creating apps, agents, workflows, and services.
+ * Minimal friction - auto-generated names, deferred configuration.
  */
 
 "use client";
@@ -18,7 +20,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Loader2,
   Copy,
@@ -27,43 +28,54 @@ import {
   Smartphone,
   Workflow,
   Server,
+  Bot,
   ChevronRight,
   Globe,
-  Bot,
   Zap,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { generateDisplayName, generateServiceName, generateWorkflowName } from "@/lib/utils/random-names";
 import { cn } from "@/lib/utils";
 
-interface CreatedAppData {
-  appId: string;
-  apiKey: string;
-  appName: string;
-}
+export type QuickCreateType = "miniapp" | "workflow" | "service" | "agent";
 
-interface CreateAppDialogProps {
+interface QuickCreateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultType?: QuickCreateType;
+  onCreated?: (result: CreatedResult) => void;
 }
 
-type AppType = "miniapp" | "workflow" | "service";
+interface CreatedResult {
+  id: string;
+  type: QuickCreateType;
+  name: string;
+  apiKey?: string;
+}
 
-interface AppTypeOption {
-  type: AppType;
+interface TypeOption {
+  type: QuickCreateType;
   label: string;
   description: string;
   icon: React.ComponentType<{ className?: string }>;
   color: string;
 }
 
-const APP_TYPES: AppTypeOption[] = [
+const TYPE_OPTIONS: TypeOption[] = [
   {
     type: "miniapp",
     label: "Mini App",
     description: "Web app or mobile experience",
     icon: Smartphone,
     color: "from-blue-500 to-cyan-500",
+  },
+  {
+    type: "agent",
+    label: "AI Agent",
+    description: "Conversational AI with personality",
+    icon: Bot,
+    color: "from-green-500 to-emerald-500",
   },
   {
     type: "workflow",
@@ -75,7 +87,7 @@ const APP_TYPES: AppTypeOption[] = [
   {
     type: "service",
     label: "Service",
-    description: "API with MCP, A2A, REST",
+    description: "API with MCP, A2A, REST endpoints",
     icon: Server,
     color: "from-orange-500 to-red-500",
   },
@@ -87,29 +99,33 @@ interface ServiceEndpoints {
   rest: boolean;
 }
 
-export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
+type Step = "type" | "configure" | "success";
+
+export function QuickCreateDialog({
+  open,
+  onOpenChange,
+  defaultType,
+  onCreated,
+}: QuickCreateDialogProps) {
   const router = useRouter();
+  const [step, setStep] = useState<Step>(defaultType ? "configure" : "type");
+  const [selectedType, setSelectedType] = useState<QuickCreateType | null>(defaultType ?? null);
+  const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [createdApp, setCreatedApp] = useState<CreatedAppData | null>(null);
+  const [createdResult, setCreatedResult] = useState<CreatedResult | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Step 1: Type selection
-  const [step, setStep] = useState<"type" | "name" | "success">("type");
-  const [selectedType, setSelectedType] = useState<AppType | null>(null);
-
-  // Step 2: Name (auto-generated, editable)
-  const [appName, setAppName] = useState("");
-
-  // Service endpoints (only for service type)
+  // Service-specific
   const [serviceEndpoints, setServiceEndpoints] = useState<ServiceEndpoints>({
     mcp: true,
     a2a: true,
     rest: true,
   });
 
-  const generateNameForType = (type: AppType): string => {
+  const generateName = (type: QuickCreateType): string => {
     switch (type) {
       case "miniapp":
+      case "agent":
         return generateDisplayName();
       case "workflow":
         return generateWorkflowName();
@@ -118,98 +134,176 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
     }
   };
 
-  const regenerateName = () => {
-    if (selectedType) {
-      setAppName(generateNameForType(selectedType));
-    }
+  const handleTypeSelect = (type: QuickCreateType) => {
+    setSelectedType(type);
+    setName(generateName(type));
+    setStep("configure");
   };
 
-  const handleTypeSelect = (type: AppType) => {
-    setSelectedType(type);
-    setAppName(generateNameForType(type));
-    setStep("name");
+  const regenerateName = () => {
+    if (selectedType) {
+      setName(generateName(selectedType));
+    }
   };
 
   const handleCreate = async () => {
-    if (!selectedType || !appName.trim()) return;
+    if (!selectedType || !name.trim()) return;
     setIsLoading(true);
 
-    const metadata: Record<string, unknown> = {
-      app_type: selectedType,
-    };
+    let result: CreatedResult | null = null;
 
-    if (selectedType === "service") {
-      metadata.service_endpoints = serviceEndpoints;
+    switch (selectedType) {
+      case "miniapp":
+      case "service": {
+        const metadata: Record<string, unknown> = { app_type: selectedType };
+        if (selectedType === "service") {
+          metadata.service_endpoints = serviceEndpoints;
+        }
+
+        const response = await fetch("/api/v1/apps", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: name.trim(),
+            description: `${selectedType === "service" ? "Service" : "Mini App"} created with Eliza Cloud`,
+            app_url: "https://localhost:3000",
+            features_enabled: {
+              chat: true,
+              agents: selectedType === "service",
+              embedding: selectedType === "service",
+            },
+            metadata,
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Failed to create");
+        }
+
+        const data = await response.json();
+        result = {
+          id: data.app.id,
+          type: selectedType,
+          name: name.trim(),
+          apiKey: data.apiKey,
+        };
+        break;
+      }
+
+      case "agent": {
+        const response = await fetch("/api/v1/app/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: name.trim(),
+            bio: "A helpful AI assistant",
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Failed to create agent");
+        }
+
+        const data = await response.json();
+        result = {
+          id: data.character?.id || data.id,
+          type: "agent",
+          name: name.trim(),
+        };
+        break;
+      }
+
+      case "workflow": {
+        const response = await fetch("/api/v1/n8n/workflows", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: name.trim(),
+            description: "Workflow created with Eliza Cloud",
+            workflow_data: {
+              nodes: [],
+              connections: {},
+              settings: {},
+            },
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Failed to create workflow");
+        }
+
+        const data = await response.json();
+        result = {
+          id: data.workflow?.id || data.id,
+          type: "workflow",
+          name: name.trim(),
+        };
+        break;
+      }
     }
 
-    const response = await fetch("/api/v1/apps", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: appName.trim(),
-        description: `${selectedType === "service" ? "Service" : selectedType === "workflow" ? "Workflow" : "Mini App"} created with Eliza Cloud`,
-        app_url: "https://localhost:3000", // Placeholder, can be updated later
-        features_enabled: {
-          chat: true,
-          agents: selectedType === "service",
-          embedding: selectedType === "service",
-        },
-        metadata,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      toast.error("Failed to create", {
-        description: error.error || "Please try again",
-      });
-      setIsLoading(false);
-      return;
+    if (result) {
+      setCreatedResult(result);
+      setStep("success");
+      onCreated?.(result);
+      toast.success(`${selectedType === "agent" ? "Agent" : selectedType === "workflow" ? "Workflow" : "App"} created`);
     }
-
-    const data = await response.json();
-    setCreatedApp({
-      appId: data.app.id,
-      apiKey: data.apiKey,
-      appName: appName,
-    });
-    setStep("success");
     setIsLoading(false);
-    toast.success("Created successfully");
   };
 
   const copyApiKey = async () => {
-    if (!createdApp) return;
-    await navigator.clipboard.writeText(createdApp.apiKey);
+    if (!createdResult?.apiKey) return;
+    await navigator.clipboard.writeText(createdResult.apiKey);
     setCopied(true);
     toast.success("API key copied");
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const getNavigationPath = (): string => {
+    if (!createdResult) return "/dashboard";
+    switch (createdResult.type) {
+      case "miniapp":
+      case "service":
+        return `/dashboard/apps/${createdResult.id}`;
+      case "agent":
+        return `/dashboard/my-agents?edit=${createdResult.id}`;
+      case "workflow":
+        return `/dashboard/workflows?view=${createdResult.id}`;
+    }
+  };
+
   const handleClose = () => {
-    if (createdApp) {
-      router.push(`/dashboard/apps/${createdApp.appId}`);
+    if (createdResult) {
+      router.push(getNavigationPath());
     }
     // Reset state
-    setCreatedApp(null);
+    setStep(defaultType ? "configure" : "type");
+    setSelectedType(defaultType ?? null);
+    setName(defaultType ? generateName(defaultType) : "");
+    setCreatedResult(null);
     setCopied(false);
-    setStep("type");
-    setSelectedType(null);
-    setAppName("");
     setServiceEndpoints({ mcp: true, a2a: true, rest: true });
     onOpenChange(false);
   };
 
   const handleBack = () => {
-    if (step === "name") {
+    if (defaultType) {
+      onOpenChange(false);
+    } else {
       setStep("type");
       setSelectedType(null);
-      setAppName("");
+      setName("");
     }
   };
 
   // Success state
-  if (step === "success" && createdApp) {
+  if (step === "success" && createdResult) {
+    const typeConfig = TYPE_OPTIONS.find((t) => t.type === createdResult.type);
+    const TypeIcon = typeConfig?.icon || Sparkles;
+
     return (
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="max-w-md">
@@ -219,24 +313,34 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
               Created Successfully
             </DialogTitle>
             <DialogDescription>
-              Copy your API key now — you won&apos;t see it again.
+              {createdResult.apiKey
+                ? "Copy your API key now — you won't see it again."
+                : "Your project is ready to configure."}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div>
-              <Label className="text-xs text-white/60">Name</Label>
-              <div className="text-lg font-medium text-white mt-1">{createdApp.appName}</div>
-            </div>
-            <div>
-              <Label className="text-xs text-white/60">API Key</Label>
-              <div className="flex gap-2 mt-1">
-                <Input value={createdApp.apiKey} readOnly className="font-mono text-sm" />
-                <Button type="button" variant="outline" onClick={copyApiKey} className="shrink-0">
-                  {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                </Button>
+            <div className="flex items-center gap-3">
+              <div className={cn("p-3 rounded-lg bg-gradient-to-r", typeConfig?.color)}>
+                <TypeIcon className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <div className="text-lg font-medium text-white">{createdResult.name}</div>
+                <div className="text-sm text-white/60">{typeConfig?.label}</div>
               </div>
             </div>
+
+            {createdResult.apiKey && (
+              <div>
+                <Label className="text-xs text-white/60">API Key</Label>
+                <div className="flex gap-2 mt-1">
+                  <Input value={createdResult.apiKey} readOnly className="font-mono text-sm" />
+                  <Button type="button" variant="outline" onClick={copyApiKey} className="shrink-0">
+                    {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
@@ -250,10 +354,10 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
     );
   }
 
-  // Name step
-  if (step === "name" && selectedType) {
-    const typeConfig = APP_TYPES.find((t) => t.type === selectedType);
-    const TypeIcon = typeConfig?.icon || Smartphone;
+  // Configure step
+  if (step === "configure" && selectedType) {
+    const typeConfig = TYPE_OPTIONS.find((t) => t.type === selectedType);
+    const TypeIcon = typeConfig?.icon || Sparkles;
 
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -274,14 +378,12 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
 
           <div className="space-y-4 py-4">
             <div>
-              <Label htmlFor="name" className="text-white/80">
-                Name
-              </Label>
+              <Label htmlFor="name" className="text-white/80">Name</Label>
               <div className="flex gap-2 mt-1">
                 <Input
                   id="name"
-                  value={appName}
-                  onChange={(e) => setAppName(e.target.value)}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   placeholder="Enter a name..."
                   className="flex-1"
                 />
@@ -303,9 +405,7 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                     <button
                       key={key}
                       type="button"
-                      onClick={() =>
-                        setServiceEndpoints((prev) => ({ ...prev, [key]: !prev[key] }))
-                      }
+                      onClick={() => setServiceEndpoints((prev) => ({ ...prev, [key]: !prev[key] }))}
                       className={cn(
                         "flex items-center gap-3 p-3 rounded-lg border transition-all text-left",
                         serviceEndpoints[key]
@@ -313,14 +413,8 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                           : "border-white/10 bg-white/5 hover:bg-white/10"
                       )}
                     >
-                      <div className={cn(
-                        "p-2 rounded-lg",
-                        serviceEndpoints[key] ? "bg-[#FF5800]/20" : "bg-white/10"
-                      )}>
-                        <Icon className={cn(
-                          "h-4 w-4",
-                          serviceEndpoints[key] ? "text-[#FF5800]" : "text-white/60"
-                        )} />
+                      <div className={cn("p-2 rounded-lg", serviceEndpoints[key] ? "bg-[#FF5800]/20" : "bg-white/10")}>
+                        <Icon className={cn("h-4 w-4", serviceEndpoints[key] ? "text-[#FF5800]" : "text-white/60")} />
                       </div>
                       <div className="flex-1">
                         <div className="font-medium text-white text-sm">{label}</div>
@@ -336,7 +430,7 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                   ))}
                 </div>
                 <p className="text-xs text-white/40">
-                  All endpoints are automatically exposed to n8n workflows
+                  All endpoints integrate with workflows and n8n
                 </p>
               </div>
             )}
@@ -344,11 +438,11 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
 
           <DialogFooter className="flex justify-between">
             <Button type="button" variant="ghost" onClick={handleBack}>
-              Back
+              {defaultType ? "Cancel" : "Back"}
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={isLoading || !appName.trim()}
+              disabled={isLoading || !name.trim()}
               className="bg-gradient-to-r from-[#FF5800] to-purple-600"
             >
               {isLoading ? (
@@ -373,12 +467,12 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
         <DialogHeader>
           <DialogTitle>What do you want to build?</DialogTitle>
           <DialogDescription>
-            Choose a starting point. You can always change or expand later.
+            Choose a starting point. Everything integrates together.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-3 py-4">
-          {APP_TYPES.map((option) => {
+          {TYPE_OPTIONS.map((option) => {
             const Icon = option.icon;
             return (
               <button
@@ -390,14 +484,7 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                   <Icon className="h-5 w-5 text-white" />
                 </div>
                 <div className="flex-1">
-                  <div className="font-medium text-white flex items-center gap-2">
-                    {option.label}
-                    {option.type === "service" && (
-                      <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-[#FF5800]/50 text-[#FF5800]">
-                        MCP + A2A + REST
-                      </Badge>
-                    )}
-                  </div>
+                  <div className="font-medium text-white">{option.label}</div>
                   <div className="text-sm text-white/60">{option.description}</div>
                 </div>
                 <ChevronRight className="h-5 w-5 text-white/30 group-hover:text-white/60 transition-colors" />
@@ -407,7 +494,7 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
         </div>
 
         <div className="text-xs text-white/40 text-center pb-2">
-          Services integrate with workflows and expose endpoints for agents to call
+          Services expose MCP, A2A, and REST • Workflows integrate with everything
         </div>
       </DialogContent>
     </Dialog>

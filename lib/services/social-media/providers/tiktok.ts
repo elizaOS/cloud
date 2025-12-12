@@ -1,11 +1,9 @@
 /**
- * TikTok Provider
- *
- * Posts videos to TikTok via the Content Posting API.
- * Requires TikTok developer app with video.publish scope.
+ * TikTok Provider - Content Posting API
  */
 
 import { logger } from "@/lib/utils/logger";
+import { withRetry } from "../rate-limit";
 import type {
   SocialMediaProvider,
   SocialCredentials,
@@ -18,10 +16,6 @@ import type {
 } from "@/lib/types/social-media";
 
 const TIKTOK_API_BASE = "https://open.tiktokapis.com/v2";
-
-// =============================================================================
-// TYPES
-// =============================================================================
 
 interface TikTokUser {
   open_id: string;
@@ -44,38 +38,27 @@ interface TikTokPublishStatus {
   publicaly_available_post_id?: string[];
 }
 
-// =============================================================================
-// HELPERS
-// =============================================================================
+async function tiktokApiRequest<T>(endpoint: string, accessToken: string, options: RequestInit = {}): Promise<T> {
+  const url = endpoint.startsWith("http") ? endpoint : `${TIKTOK_API_BASE}${endpoint}`;
 
-async function tiktokApiRequest<T>(
-  endpoint: string,
-  accessToken: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const url = endpoint.startsWith("http")
-    ? endpoint
-    : `${TIKTOK_API_BASE}${endpoint}`;
-
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json; charset=UTF-8",
-      ...options.headers,
+  const { data } = await withRetry<{ data: T; error?: { code: string; message: string } }>(
+    () => fetch(url, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json; charset=UTF-8",
+        ...options.headers,
+      },
+    }),
+    async (response) => {
+      const json = await response.json();
+      if (json.error?.code && json.error.code !== "ok") {
+        throw new Error(json.error.message || `TikTok error: ${json.error.code}`);
+      }
+      return json;
     },
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.error?.message || `TikTok API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-
-  if (data.error?.code !== "ok" && data.error?.code) {
-    throw new Error(data.error.message || `TikTok error: ${data.error.code}`);
-  }
+    { platform: "tiktok", maxRetries: 3 }
+  );
 
   return data.data;
 }
@@ -374,3 +357,4 @@ export const tiktokProvider: SocialMediaProvider = {
     throw new Error("TikTok requires video URL for posting");
   },
 };
+

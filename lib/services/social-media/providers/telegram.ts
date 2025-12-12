@@ -1,11 +1,9 @@
 /**
- * Telegram Provider
- *
- * Posts to Telegram chats/channels via Bot API.
- * Re-uses the existing telegram service for consistency.
+ * Telegram Provider - Bot API
  */
 
 import { logger } from "@/lib/utils/logger";
+import { withRetry } from "../rate-limit";
 import type {
   SocialMediaProvider,
   SocialCredentials,
@@ -16,10 +14,6 @@ import type {
 } from "@/lib/types/social-media";
 
 const TELEGRAM_API_BASE = "https://api.telegram.org/bot";
-
-// =============================================================================
-// TYPES
-// =============================================================================
 
 interface TelegramResponse<T> {
   ok: boolean;
@@ -42,29 +36,18 @@ interface TelegramMessage {
   text?: string;
 }
 
-// =============================================================================
-// HELPERS
-// =============================================================================
+async function telegramApiRequest<T>(token: string, method: string, params?: Record<string, unknown>): Promise<T> {
+  const { data } = await withRetry<TelegramResponse<T>>(
+    () => fetch(`${TELEGRAM_API_BASE}${token}/${method}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: params ? JSON.stringify(params) : undefined,
+    }),
+    async (response) => response.json(),
+    { platform: "telegram", maxRetries: 3 }
+  );
 
-async function telegramApiRequest<T>(
-  token: string,
-  method: string,
-  params?: Record<string, unknown>
-): Promise<T> {
-  const url = `${TELEGRAM_API_BASE}${token}/${method}`;
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: params ? JSON.stringify(params) : undefined,
-  });
-
-  const data: TelegramResponse<T> = await response.json();
-
-  if (!data.ok) {
-    throw new Error(data.description ?? `Telegram API error: ${data.error_code}`);
-  }
-
+  if (!data.ok) throw new Error(data.description ?? `Telegram error: ${data.error_code}`);
   return data.result as T;
 }
 
@@ -291,3 +274,4 @@ export const telegramProvider: SocialMediaProvider = {
     throw new Error("Only URL-based media is supported for Telegram");
   },
 };
+

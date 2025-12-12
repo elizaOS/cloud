@@ -24,10 +24,6 @@ import type {
   SecretActorType,
 } from "@/db/schemas/secrets";
 
-// =============================================================================
-// Types
-// =============================================================================
-
 export interface CreateSecretParams {
   organizationId: string;
   name: string;
@@ -82,10 +78,6 @@ export interface SecretMetadata {
   updatedAt: Date;
 }
 
-// =============================================================================
-// Service Implementation
-// =============================================================================
-
 class SecretsService {
   private encryption: SecretsEncryptionService;
 
@@ -100,13 +92,6 @@ class SecretsService {
     return this.encryption.isConfigured();
   }
 
-  // ===========================================================================
-  // Secret CRUD Operations
-  // ===========================================================================
-
-  /**
-   * Create a new secret.
-   */
   async create(params: CreateSecretParams, audit: AuditContext): Promise<SecretMetadata> {
     const {
       organizationId,
@@ -161,9 +146,6 @@ class SecretsService {
     return this.toMetadata(secret);
   }
 
-  /**
-   * Get a single decrypted secret by name.
-   */
   async get(
     organizationId: string,
     name: string,
@@ -199,10 +181,6 @@ class SecretsService {
     return value;
   }
 
-  /**
-   * Get a decrypted secret by its ID.
-   * Convenience method for when you have the secret ID stored as a reference.
-   */
   async getDecryptedValue(
     secretId: string,
     organizationId: string,
@@ -230,10 +208,6 @@ class SecretsService {
     return value;
   }
 
-  /**
-   * Get multiple decrypted secrets for a context.
-   * Returns a map of name -> value.
-   */
   async getDecrypted(
     params: GetSecretsParams,
     audit?: AuditContext
@@ -266,25 +240,16 @@ class SecretsService {
     return result;
   }
 
-  /**
-   * List secrets (metadata only, no values).
-   */
   async list(organizationId: string): Promise<SecretMetadata[]> {
     const secrets = await secretsRepository.listByOrganization(organizationId);
     return secrets.map(this.toMetadata);
   }
 
-  /**
-   * List secrets for a specific project.
-   */
   async listByProject(projectId: string): Promise<SecretMetadata[]> {
     const secrets = await secretsRepository.listByProject(projectId);
     return secrets.map(this.toMetadata);
   }
 
-  /**
-   * Update a secret's value.
-   */
   async update(
     secretId: string,
     organizationId: string,
@@ -328,9 +293,6 @@ class SecretsService {
     return this.toMetadata(updated);
   }
 
-  /**
-   * Rotate a secret (update value with new encryption).
-   */
   async rotate(
     secretId: string,
     organizationId: string,
@@ -364,9 +326,6 @@ class SecretsService {
     return this.toMetadata(updated);
   }
 
-  /**
-   * Delete a secret.
-   */
   async delete(
     secretId: string,
     organizationId: string,
@@ -385,13 +344,6 @@ class SecretsService {
     await this.logAudit(secretId, organizationId, "deleted", existing.name, audit);
   }
 
-  // ===========================================================================
-  // OAuth Session Operations
-  // ===========================================================================
-
-  /**
-   * Store OAuth tokens for a provider.
-   */
   async storeOAuthTokens(params: {
     organizationId: string;
     userId?: string;
@@ -516,9 +468,6 @@ class SecretsService {
     return session;
   }
 
-  /**
-   * Get decrypted OAuth tokens.
-   */
   async getOAuthTokens(
     organizationId: string,
     provider: string,
@@ -579,9 +528,6 @@ class SecretsService {
     };
   }
 
-  /**
-   * List OAuth connections for an organization (metadata only).
-   */
   async listOAuthConnections(
     organizationId: string
   ): Promise<
@@ -609,9 +555,6 @@ class SecretsService {
     }));
   }
 
-  /**
-   * Revoke an OAuth connection.
-   */
   async revokeOAuthConnection(
     sessionId: string,
     organizationId: string,
@@ -625,27 +568,13 @@ class SecretsService {
     await oauthSessionsRepository.revoke(sessionId, reason);
   }
 
-  // ===========================================================================
-  // Audit Operations
-  // ===========================================================================
-
-  /**
-   * Get audit log for a secret.
-   */
   async getSecretAuditLog(secretId: string, limit = 100) {
     return secretAuditLogRepository.findBySecret(secretId, limit);
   }
 
-  /**
-   * Get audit log for an organization.
-   */
   async getOrganizationAuditLog(organizationId: string, limit = 100) {
     return secretAuditLogRepository.findByOrganization(organizationId, limit);
   }
-
-  // ===========================================================================
-  // Private Helpers
-  // ===========================================================================
 
   private async logAudit(
     secretId: string,
@@ -690,70 +619,22 @@ class SecretsService {
   }
 }
 
-// =============================================================================
-// Singleton Export
-// =============================================================================
-
-let secretsServiceInstance: SecretsService | null = null;
+let instance: SecretsService | null = null;
 
 export function getSecretsService(): SecretsService {
-  if (!secretsServiceInstance) {
-    secretsServiceInstance = new SecretsService();
-  }
-  return secretsServiceInstance;
+  if (!instance) instance = new SecretsService();
+  return instance;
 }
 
-// For backwards compatibility
-export const secretsService = {
-  get isConfigured() {
-    return getSecretsService().isConfigured();
+// Singleton proxy for backwards compatibility
+export const secretsService = new Proxy({} as SecretsService, {
+  get(_, prop: keyof SecretsService | "isConfigured") {
+    const svc = getSecretsService();
+    if (prop === "isConfigured") return svc.isConfigured();
+    const value = svc[prop];
+    return typeof value === "function" ? value.bind(svc) : value;
   },
-  create: (params: CreateSecretParams, audit: AuditContext) =>
-    getSecretsService().create(params, audit),
-  get: (
-    organizationId: string,
-    name: string,
-    projectId?: string,
-    environment?: SecretEnvironment,
-    audit?: AuditContext
-  ) => getSecretsService().get(organizationId, name, projectId, environment, audit),
-  getDecryptedValue: (
-    secretId: string,
-    organizationId: string,
-    audit?: AuditContext
-  ) => getSecretsService().getDecryptedValue(secretId, organizationId, audit),
-  getDecrypted: (params: GetSecretsParams, audit?: AuditContext) =>
-    getSecretsService().getDecrypted(params, audit),
-  list: (organizationId: string) => getSecretsService().list(organizationId),
-  listByProject: (projectId: string) => getSecretsService().listByProject(projectId),
-  update: (
-    secretId: string,
-    organizationId: string,
-    params: UpdateSecretParams,
-    audit: AuditContext
-  ) => getSecretsService().update(secretId, organizationId, params, audit),
-  rotate: (
-    secretId: string,
-    organizationId: string,
-    newValue: string,
-    audit: AuditContext
-  ) => getSecretsService().rotate(secretId, organizationId, newValue, audit),
-  delete: (secretId: string, organizationId: string, audit: AuditContext) =>
-    getSecretsService().delete(secretId, organizationId, audit),
-  storeOAuthTokens: (params: Parameters<SecretsService["storeOAuthTokens"]>[0]) =>
-    getSecretsService().storeOAuthTokens(params),
-  getOAuthTokens: (organizationId: string, provider: string, userId?: string) =>
-    getSecretsService().getOAuthTokens(organizationId, provider, userId),
-  listOAuthConnections: (organizationId: string) =>
-    getSecretsService().listOAuthConnections(organizationId),
-  revokeOAuthConnection: (sessionId: string, organizationId: string, reason: string) =>
-    getSecretsService().revokeOAuthConnection(sessionId, organizationId, reason),
-  getSecretAuditLog: (secretId: string, limit?: number) =>
-    getSecretsService().getSecretAuditLog(secretId, limit),
-  getOrganizationAuditLog: (organizationId: string, limit?: number) =>
-    getSecretsService().getOrganizationAuditLog(organizationId, limit),
-};
+});
 
-// Export class for testing
 export { SecretsService };
 

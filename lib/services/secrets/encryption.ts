@@ -16,10 +16,6 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 import { logger } from "@/lib/utils/logger";
 
-// =============================================================================
-// Types
-// =============================================================================
-
 export interface EncryptionResult {
   encryptedValue: string; // Base64 encoded ciphertext
   encryptedDek: string; // Base64 encoded encrypted DEK
@@ -57,14 +53,7 @@ export interface KMSProvider {
   isConfigured(): boolean;
 }
 
-// =============================================================================
-// Local KMS Provider (Development/Testing)
-// =============================================================================
-
-/**
- * Local KMS provider using a static master key.
- * ONLY FOR DEVELOPMENT/TESTING - Use real KMS in production!
- */
+/** Local KMS provider for development/testing. Use real KMS in production. */
 export class LocalKMSProvider implements KMSProvider {
   private masterKey: Buffer;
   private keyId: string;
@@ -130,14 +119,7 @@ export class LocalKMSProvider implements KMSProvider {
   }
 }
 
-// =============================================================================
-// AWS KMS Provider
-// =============================================================================
-
-/**
- * AWS KMS provider for production use.
- * Uses AWS SDK to generate and decrypt data keys.
- */
+/** AWS KMS provider for production use. */
 export class AWSKMSProvider implements KMSProvider {
   private keyId: string;
   private region: string;
@@ -216,17 +198,9 @@ export class AWSKMSProvider implements KMSProvider {
   }
 }
 
-// Type for KMS client (avoid importing at module level for build compatibility)
 type KMSClientType = {
-  send(command: unknown): Promise<{
-    Plaintext?: Uint8Array;
-    CiphertextBlob?: Uint8Array;
-  }>;
+  send(command: unknown): Promise<{ Plaintext?: Uint8Array; CiphertextBlob?: Uint8Array }>;
 };
-
-// =============================================================================
-// Encryption Service
-// =============================================================================
 
 export class SecretsEncryptionService {
   private kms: KMSProvider;
@@ -244,37 +218,16 @@ export class SecretsEncryptionService {
     }
   }
 
-  /**
-   * Check if encryption is properly configured.
-   */
   isConfigured(): boolean {
     return this.kms.isConfigured();
   }
 
-  /**
-   * Encrypt a secret value using envelope encryption.
-   *
-   * 1. Generate a unique DEK via KMS
-   * 2. Encrypt the secret with DEK using AES-256-GCM
-   * 3. Return encrypted value + encrypted DEK + nonce + auth tag
-   */
   async encrypt(plaintext: string): Promise<EncryptionResult> {
-    // Generate a unique data key via KMS
-    const { plaintext: dekPlaintext, ciphertext: encryptedDek, keyId } =
-      await this.kms.generateDataKey();
-
-    // Generate random nonce for AES-GCM (96 bits recommended)
+    const { plaintext: dekPlaintext, ciphertext: encryptedDek, keyId } = await this.kms.generateDataKey();
     const nonce = randomBytes(12);
-
-    // Encrypt with AES-256-GCM
     const cipher = createCipheriv("aes-256-gcm", dekPlaintext, nonce);
-    const encrypted = Buffer.concat([
-      cipher.update(plaintext, "utf8"),
-      cipher.final(),
-    ]);
+    const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
     const authTag = cipher.getAuthTag();
-
-    // Zero out DEK from memory (best effort)
     dekPlaintext.fill(0);
 
     return {
@@ -286,66 +239,27 @@ export class SecretsEncryptionService {
     };
   }
 
-  /**
-   * Decrypt a secret value.
-   *
-   * 1. Decrypt the DEK using KMS
-   * 2. Use DEK to decrypt the secret value
-   * 3. Zero out DEK from memory
-   */
   async decrypt(params: DecryptionParams): Promise<string> {
     const { encryptedValue, encryptedDek, nonce, authTag } = params;
-
-    // Decrypt the DEK via KMS
     const dekPlaintext = await this.kms.decrypt(encryptedDek);
-
-    // Parse encrypted value and metadata
-    const encrypted = Buffer.from(encryptedValue, "base64");
-    const nonceBuffer = Buffer.from(nonce, "base64");
-    const authTagBuffer = Buffer.from(authTag, "base64");
-
-    // Decrypt with AES-256-GCM
-    const decipher = createDecipheriv("aes-256-gcm", dekPlaintext, nonceBuffer);
-    decipher.setAuthTag(authTagBuffer);
-
-    const plaintext = Buffer.concat([
-      decipher.update(encrypted),
-      decipher.final(),
-    ]).toString("utf8");
-
-    // Zero out DEK from memory (best effort)
+    const decipher = createDecipheriv("aes-256-gcm", dekPlaintext, Buffer.from(nonce, "base64"));
+    decipher.setAuthTag(Buffer.from(authTag, "base64"));
+    const plaintext = Buffer.concat([decipher.update(Buffer.from(encryptedValue, "base64")), decipher.final()]).toString("utf8");
     dekPlaintext.fill(0);
-
     return plaintext;
   }
 
-  /**
-   * Re-encrypt a secret with a new DEK.
-   * Used for key rotation.
-   */
   async rotate(params: DecryptionParams): Promise<EncryptionResult> {
-    // Decrypt with old key
-    const plaintext = await this.decrypt(params);
-
-    // Re-encrypt with new key
-    return this.encrypt(plaintext);
+    return this.encrypt(await this.decrypt(params));
   }
 }
 
-// =============================================================================
-// Singleton Export
-// =============================================================================
-
-let encryptionServiceInstance: SecretsEncryptionService | null = null;
+let instance: SecretsEncryptionService | null = null;
 
 export function getEncryptionService(): SecretsEncryptionService {
-  if (!encryptionServiceInstance) {
-    encryptionServiceInstance = new SecretsEncryptionService();
-  }
-  return encryptionServiceInstance;
+  return instance || (instance = new SecretsEncryptionService());
 }
 
-// For testing - allows injecting mock KMS
 export function createEncryptionService(kms?: KMSProvider): SecretsEncryptionService {
   return new SecretsEncryptionService(kms);
 }

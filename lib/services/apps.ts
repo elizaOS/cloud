@@ -55,6 +55,15 @@ export class AppsService {
     logo_url?: string;
     website_url?: string;
     contact_email?: string;
+    features_enabled?: {
+      chat?: boolean;
+      image?: boolean;
+      video?: boolean;
+      voice?: boolean;
+      agents?: boolean;
+      embedding?: boolean;
+    };
+    metadata?: Record<string, unknown>;
   }): Promise<{ app: App; apiKey: string }> {
     let slug = this.generateSlug(data.name);
     let slugAttempts = 0;
@@ -91,6 +100,8 @@ export class AppsService {
       logo_url: data.logo_url,
       website_url: data.website_url,
       contact_email: data.contact_email,
+      features_enabled: data.features_enabled || { chat: true },
+      metadata: data.metadata || {},
     });
 
     logger.info(`Created app: ${app.name} (${app.id})`, {

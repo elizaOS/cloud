@@ -1,11 +1,9 @@
 /**
- * LinkedIn Provider
- *
- * Posts to LinkedIn profiles and company pages via the UGC Post API.
- * Requires LinkedIn app with w_member_social permission.
+ * LinkedIn Provider - UGC Post API
  */
 
 import { logger } from "@/lib/utils/logger";
+import { withRetry } from "../rate-limit";
 import type {
   SocialMediaProvider,
   SocialCredentials,
@@ -19,17 +17,11 @@ import type {
 
 const LINKEDIN_API_BASE = "https://api.linkedin.com/v2";
 
-// =============================================================================
-// TYPES
-// =============================================================================
-
 interface LinkedInProfile {
   id: string;
   localizedFirstName?: string;
   localizedLastName?: string;
-  profilePicture?: {
-    displayImage: string;
-  };
+  profilePicture?: { displayImage: string };
 }
 
 interface LinkedInShareResponse {
@@ -49,50 +41,36 @@ interface LinkedInUploadResponse {
   };
 }
 
-// =============================================================================
-// HELPERS
-// =============================================================================
+async function linkedinApiRequest<T>(endpoint: string, accessToken: string, options: RequestInit = {}): Promise<T> {
+  const url = endpoint.startsWith("http") ? endpoint : `${LINKEDIN_API_BASE}${endpoint}`;
 
-async function linkedinApiRequest<T>(
-  endpoint: string,
-  accessToken: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const url = endpoint.startsWith("http")
-    ? endpoint
-    : `${LINKEDIN_API_BASE}${endpoint}`;
-
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-      "X-Restli-Protocol-Version": "2.0.0",
-      ...options.headers,
+  const { data } = await withRetry<T | { id: string }>(
+    () => fetch(url, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        "X-Restli-Protocol-Version": "2.0.0",
+        ...options.headers,
+      },
+    }),
+    async (response) => {
+      if (response.status === 201) {
+        const locationHeader = response.headers.get("x-restli-id");
+        if (locationHeader) return { id: locationHeader };
+      }
+      const json = await response.json();
+      if (json.message && json.status >= 400) throw new Error(json.message);
+      return json;
     },
-  });
+    { platform: "linkedin", maxRetries: 3 }
+  );
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.message || `LinkedIn API error: ${response.status}`);
-  }
-
-  // Some endpoints return 201 with no body
-  if (response.status === 201) {
-    const locationHeader = response.headers.get("x-restli-id");
-    if (locationHeader) {
-      return { id: locationHeader } as T;
-    }
-  }
-
-  return response.json();
+  return data as T;
 }
 
 async function getPersonUrn(accessToken: string): Promise<string> {
-  const profile = await linkedinApiRequest<LinkedInProfile>(
-    "/me",
-    accessToken
-  );
+  const profile = await linkedinApiRequest<LinkedInProfile>("/me", accessToken);
   return `urn:li:person:${profile.id}`;
 }
 
@@ -508,3 +486,4 @@ export const linkedinProvider: SocialMediaProvider = {
     }
   },
 };
+

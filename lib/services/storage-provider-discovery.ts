@@ -229,7 +229,7 @@ export const storageProviderDiscoveryService = {
   },
   
   /**
-   * Get quotes from multiple providers
+   * Get quotes from multiple providers, sorted by total cost
    */
   async getQuotes(
     sizeBytes: number,
@@ -239,8 +239,12 @@ export const storageProviderDiscoveryService = {
     const providers = await this.discoverProviders(options);
     const tier = options.tier || 'WARM';
     
-    return providers.map(p => this.getQuote(p, sizeBytes, durationDays, tier))
-      .sort((a, b) => a.then(qa => qa.totalCostUSD) > b.then(qb => qb.totalCostUSD) ? 1 : -1) as unknown as Promise<StorageQuote[]>;
+    // Get all quotes in parallel, then sort by cost
+    const quotes = await Promise.all(
+      providers.map(p => this.getQuote(p, sizeBytes, durationDays, tier))
+    );
+    
+    return quotes.sort((a, b) => a.totalCostUSD - b.totalCostUSD);
   },
   
   /**

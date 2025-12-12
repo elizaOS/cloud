@@ -1,11 +1,9 @@
 /**
- * Meta Provider (Facebook & Instagram)
- *
- * Posts to Facebook Pages and Instagram Business accounts via Graph API.
- * Requires Facebook app with appropriate permissions.
+ * Meta Provider - Facebook & Instagram via Graph API
  */
 
 import { logger } from "@/lib/utils/logger";
+import { withRetry } from "../rate-limit";
 import type {
   SocialMediaProvider,
   SocialCredentials,
@@ -19,16 +17,8 @@ import type {
 
 const GRAPH_API_BASE = "https://graph.facebook.com/v19.0";
 
-// =============================================================================
-// TYPES
-// =============================================================================
-
 interface GraphApiError {
-  error?: {
-    message: string;
-    code: number;
-    type: string;
-  };
+  error?: { message: string; code: number; type: string };
 }
 
 interface FacebookPage {
@@ -55,37 +45,24 @@ interface InstagramMediaContainer {
   id: string;
 }
 
-// =============================================================================
-// HELPERS
-// =============================================================================
-
-async function graphApiRequest<T>(
-  endpoint: string,
-  accessToken: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const url = new URL(
-    endpoint.startsWith("http") ? endpoint : `${GRAPH_API_BASE}${endpoint}`
-  );
-
-  // Add access token as query param for GET requests
+async function graphApiRequest<T>(endpoint: string, accessToken: string, options: RequestInit = {}): Promise<T> {
+  const url = new URL(endpoint.startsWith("http") ? endpoint : `${GRAPH_API_BASE}${endpoint}`);
   if (!options.method || options.method === "GET") {
     url.searchParams.set("access_token", accessToken);
   }
 
-  const response = await fetch(url.toString(), {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
+  const { data } = await withRetry<T>(
+    () => fetch(url.toString(), {
+      ...options,
+      headers: { "Content-Type": "application/json", ...options.headers },
+    }),
+    async (response) => {
+      const json = await response.json();
+      if ((json as GraphApiError).error) throw new Error((json as GraphApiError).error!.message);
+      return json;
     },
-  });
-
-  const data = await response.json();
-
-  if ((data as GraphApiError).error) {
-    throw new Error((data as GraphApiError).error!.message);
-  }
+    { platform: "facebook", maxRetries: 3 }
+  );
 
   return data;
 }
@@ -593,3 +570,4 @@ export const metaProvider: SocialMediaProvider = {
     }
   },
 };
+

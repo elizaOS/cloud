@@ -1,11 +1,9 @@
 /**
- * Reddit Provider
- *
- * Posts to Reddit subreddits via the Reddit API.
- * Supports text posts, link posts, and image posts.
+ * Reddit Provider - Reddit API with OAuth2
  */
 
 import { logger } from "@/lib/utils/logger";
+import { withRetry } from "../rate-limit";
 import type {
   SocialMediaProvider,
   SocialCredentials,
@@ -19,10 +17,6 @@ import type {
 
 const REDDIT_API_BASE = "https://oauth.reddit.com";
 const REDDIT_AUTH_BASE = "https://www.reddit.com/api/v1";
-
-// =============================================================================
-// TYPES
-// =============================================================================
 
 interface RedditToken {
   access_token: string;
@@ -51,10 +45,6 @@ interface RedditSubmission {
   upvote_ratio: number;
 }
 
-// =============================================================================
-// HELPERS
-// =============================================================================
-
 async function getAccessToken(
   clientId: string,
   clientSecret: string,
@@ -63,18 +53,39 @@ async function getAccessToken(
 ): Promise<string> {
   const auth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 
-  const response = await fetch(`${REDDIT_AUTH_BASE}/access_token`, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${auth}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": "ElizaCloud/1.0 (social-media-automation)",
-    },
-    body: new URLSearchParams({
-      grant_type: "password",
-      username,
-      password,
+  const { data } = await withRetry<RedditToken>(
+    () => fetch(`${REDDIT_AUTH_BASE}/access_token`, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${auth}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": "ElizaCloud/1.0 (social-media-automation)",
+      },
+      body: new URLSearchParams({ grant_type: "password", username, password }),
     }),
+    async (response) => {
+      const json = await response.json();
+      if (json.error) throw new Error(json.error_description || json.error);
+      return json;
+    },
+    { platform: "reddit", maxRetries: 2 }
+  );
+
+  return data.access_token;
+}
+
+async function redditApiRequestLegacy(
+  accessToken: string,
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const response = await fetch(`${REDDIT_API_BASE}${endpoint}`, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "User-Agent": "ElizaCloud/1.0 (social-media-automation)",
+      ...options.headers,
+    },
   });
 
   if (!response.ok) {
@@ -508,3 +519,4 @@ export const redditProvider: SocialMediaProvider = {
     }
   },
 };
+

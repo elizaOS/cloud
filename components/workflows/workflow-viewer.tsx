@@ -14,7 +14,9 @@ import {
   Settings,
   Code,
   Activity,
+  Zap,
 } from "lucide-react";
+import { WorkflowTriggers } from "./workflow-triggers";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
@@ -182,6 +184,10 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
             <Settings className="h-4 w-4 mr-2" />
             Overview
           </TabsTrigger>
+          <TabsTrigger value="triggers" className="data-[state=active]:bg-[#FF5800]">
+            <Zap className="h-4 w-4 mr-2" />
+            Triggers
+          </TabsTrigger>
           <TabsTrigger value="code" className="data-[state=active]:bg-[#FF5800]">
             <Code className="h-4 w-4 mr-2" />
             JSON
@@ -248,6 +254,10 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
               </div>
             </BrandCard>
           </div>
+        </TabsContent>
+
+        <TabsContent value="triggers" className="mt-6">
+          <WorkflowTriggers workflowId={workflowId} workflowName={workflow.name} />
         </TabsContent>
 
         <TabsContent value="code" className="mt-6">

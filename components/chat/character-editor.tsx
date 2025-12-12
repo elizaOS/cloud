@@ -15,6 +15,7 @@ import { CharacterForm } from "@/components/character-builder";
 import { JsonEditor } from "@/components/character-creator/json-editor";
 import { PluginsTab } from "@/components/chat/plugins-tab";
 import { UploadsTab } from "@/components/chat/uploads-tab";
+import { AgentSecretsPanel } from "@/components/my-agents";
 import type { ElizaCharacter } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +25,7 @@ import {
   BookOpen,
   Sparkles,
   Puzzle,
+  Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -38,7 +40,7 @@ interface CharacterEditorProps {
   onSave: () => Promise<void>;
 }
 
-type MainTab = "character" | "plugins" | "knowledge";
+type MainTab = "character" | "plugins" | "knowledge" | "secrets";
 
 export function CharacterEditor({
   character,
@@ -47,8 +49,9 @@ export function CharacterEditor({
 }: CharacterEditorProps) {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") as MainTab | null;
+  const validTabs = ["character", "plugins", "knowledge", "secrets"];
   const [activeTab, setActiveTab] = useState<MainTab>(
-    initialTab && ["character", "plugins", "knowledge"].includes(initialTab)
+    initialTab && validTabs.includes(initialTab)
       ? initialTab
       : "character"
   );
@@ -57,7 +60,7 @@ export function CharacterEditor({
 
   // Sync tab from URL when searchParams change
   const urlTab = searchParams.get("tab") as MainTab | null;
-  const validUrlTab = urlTab && ["character", "plugins", "knowledge"].includes(urlTab) ? urlTab : null;
+  const validUrlTab = urlTab && validTabs.includes(urlTab) ? urlTab : null;
   
   useEffect(() => {
     if (validUrlTab && validUrlTab !== activeTab) {
@@ -65,6 +68,9 @@ export function CharacterEditor({
       setActiveTab(validUrlTab);
     }
   }, [validUrlTab, activeTab]);
+
+  // Only show secrets tab for saved characters (not new ones)
+  const hasSavedCharacter = !!character.id;
 
   const tabs: TabItem[] = [
     {
@@ -82,6 +88,15 @@ export function CharacterEditor({
       label: "Knowledge",
       icon: <BookOpen className="h-4 w-4" />,
     },
+    ...(hasSavedCharacter
+      ? [
+          {
+            value: "secrets",
+            label: "Secrets",
+            icon: <Lock className="h-4 w-4" />,
+          },
+        ]
+      : []),
   ];
 
   const handleSave = async () => {
@@ -199,6 +214,14 @@ export function CharacterEditor({
             )}
             {activeTab === "knowledge" && (
               <UploadsTab characterId={character.id || null} />
+            )}
+            {activeTab === "secrets" && hasSavedCharacter && (
+              <div className="p-6">
+                <AgentSecretsPanel
+                  characterId={character.id!}
+                  characterName={character.name || "This agent"}
+                />
+              </div>
             )}
           </>
         )}

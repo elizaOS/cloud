@@ -1,11 +1,9 @@
 /**
- * Twitter/X Provider
- *
- * Supports posting via the Twitter API v2 using OAuth2.
- * Also supports scraper mode for accounts without API access.
+ * Twitter/X Provider - Twitter API v2 with OAuth2
  */
 
 import { logger } from "@/lib/utils/logger";
+import { withRetry, isRateLimitResponse, createRateLimitError } from "../rate-limit";
 import type {
   SocialMediaProvider,
   SocialCredentials,
@@ -20,35 +18,33 @@ import type {
 const TWITTER_API_BASE = "https://api.twitter.com/2";
 const TWITTER_UPLOAD_BASE = "https://upload.twitter.com/1.1";
 
-// =============================================================================
-// HELPERS
-// =============================================================================
-
 async function twitterApiRequest<T>(
   endpoint: string,
   accessToken: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = endpoint.startsWith("http")
-    ? endpoint
-    : `${TWITTER_API_BASE}${endpoint}`;
+  const url = endpoint.startsWith("http") ? endpoint : `${TWITTER_API_BASE}${endpoint}`;
 
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-      ...options.headers,
+  const { data } = await withRetry<T>(
+    () => fetch(url, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    }),
+    async (response) => {
+      const json = await response.json();
+      if (json.errors?.length) {
+        throw new Error(json.errors[0].detail || json.errors[0].message || "Twitter API error");
+      }
+      return json;
     },
-  });
+    { platform: "twitter", maxRetries: 3 }
+  );
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    const errorMessage = error.detail || error.title || `HTTP ${response.status}`;
-    throw new Error(`Twitter API error: ${errorMessage}`);
-  }
-
-  return response.json();
+  return data;
 }
 
 async function uploadMedia(
@@ -509,3 +505,4 @@ export const twitterProvider: SocialMediaProvider = {
     }
   },
 };
+

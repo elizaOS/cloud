@@ -102,3 +102,4 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
 
   return NextResponse.json({ analytics });
 }
+

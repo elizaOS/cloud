@@ -67,3 +67,4 @@ export async function DELETE(request: NextRequest, ctx: RouteContext) {
 
   return NextResponse.json(result);
 }
+

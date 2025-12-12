@@ -36,7 +36,7 @@ export function MyAgentsClient() {
       .then((res) => res.json())
       .then((data) => {
         if (data.success && data.claimed?.length > 0) {
-          console.log(
+          logger.debug(
             "[My Agents] 🎯 Claimed affiliate characters:",
             data.claimed,
           );
@@ -55,7 +55,7 @@ export function MyAgentsClient() {
           if (sessionToken) {
             try {
               localStorage.removeItem("eliza-anon-session-token");
-              console.log(
+              logger.debug(
                 "[My Agents] Cleaned up session token from localStorage",
               );
             } catch (e) {

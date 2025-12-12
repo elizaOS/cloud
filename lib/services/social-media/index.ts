@@ -4,6 +4,8 @@ import { creditsService } from "@/lib/services/credits";
 import { db } from "@/db";
 import { platformCredentials } from "@/db/schemas/platform-credentials";
 import { eq, and } from "drizzle-orm";
+import { needsRefresh, refreshToken, getRefreshGuidance } from "./token-refresh";
+import { alertOnPostFailure } from "./alerts";
 import type {
   SocialPlatform,
   SocialMediaProvider,
@@ -79,7 +81,7 @@ class SocialMediaService {
 
     if (!credential) return this.getCredentialsFromSecrets(organizationId, platform);
 
-    const [accessToken, refreshToken] = await Promise.all([
+    const [accessToken, storedRefreshToken] = await Promise.all([
       credential.access_token_secret_id
         ? secretsService.getDecryptedValue(credential.access_token_secret_id, organizationId)
         : undefined,
@@ -88,14 +90,63 @@ class SocialMediaService {
         : undefined,
     ]);
 
-    return {
+    let credentials: SocialCredentials = {
       platform,
       accessToken,
-      refreshToken,
+      refreshToken: storedRefreshToken,
       tokenExpiresAt: credential.token_expires_at ?? undefined,
       username: credential.platform_username ?? undefined,
       accountId: credential.platform_user_id,
     };
+
+    // Auto-refresh if token is expired
+    if (needsRefresh(credentials)) {
+      const refreshed = await refreshToken(platform, credentials).catch(err => {
+        logger.warn(`[SocialMedia] Token refresh failed for ${platform}: ${err.message}`);
+        return null;
+      });
+
+      if (refreshed) {
+        credentials = { ...credentials, accessToken: refreshed.accessToken, refreshToken: refreshed.refreshToken };
+        // Update stored credentials in background
+        this.updateStoredToken(organizationId, credential.id, refreshed).catch(() => {});
+        logger.info(`[SocialMedia] Token refreshed for ${platform}`);
+      } else {
+        throw new Error(`Token expired. ${getRefreshGuidance(platform)}`);
+      }
+    }
+
+    return credentials;
+  }
+
+  private async updateStoredToken(
+    organizationId: string,
+    credentialId: string,
+    refreshed: { accessToken: string; refreshToken?: string; expiresAt?: Date }
+  ): Promise<void> {
+    const audit = { actorType: "system" as const, actorId: "token-refresh", source: "social-media-service" };
+
+    // Store new access token
+    const accessSecretId = await secretsService.create(
+      { organizationId, name: `REFRESHED_ACCESS_TOKEN_${credentialId}`, value: refreshed.accessToken, scope: "organization", createdBy: "system" },
+      audit
+    );
+
+    const updates: Record<string, unknown> = {
+      access_token_secret_id: accessSecretId,
+      token_expires_at: refreshed.expiresAt,
+      updated_at: new Date(),
+    };
+
+    if (refreshed.refreshToken) {
+      const refreshSecretId = await secretsService.create(
+        { organizationId, name: `REFRESHED_REFRESH_TOKEN_${credentialId}`, value: refreshed.refreshToken, scope: "organization", createdBy: "system" },
+        audit
+      );
+      updates.refresh_token_secret_id = refreshSecretId;
+    }
+
+    await db.update(platformCredentials).set(updates).where(eq(platformCredentials.id, credentialId));
   }
 
   private async getCredentialsFromSecrets(
@@ -106,14 +157,12 @@ class SocialMediaService {
 
     switch (platform) {
       case "twitter": {
-        const [username, password, email, twoFactorSecret] = await Promise.all([
-          secretsService.get(organizationId, `${prefix}_USERNAME`),
-          secretsService.get(organizationId, `${prefix}_PASSWORD`),
-          secretsService.get(organizationId, `${prefix}_EMAIL`),
-          secretsService.get(organizationId, `${prefix}_2FA_SECRET`),
+        const [accessToken, refreshToken] = await Promise.all([
+          secretsService.get(organizationId, `${prefix}_ACCESS_TOKEN`),
+          secretsService.get(organizationId, `${prefix}_REFRESH_TOKEN`),
         ]);
-        if (!username || !password) return null;
-        return { platform, username, password, email: email ?? undefined, twoFactorSecret: twoFactorSecret ?? undefined };
+        if (!accessToken) return null;
+        return { platform, accessToken, refreshToken: refreshToken ?? undefined };
       }
       case "bluesky": {
         const [handle, appPassword] = await Promise.all([
@@ -209,6 +258,13 @@ class SocialMediaService {
         description: `Refund for failed posts: ${failed.map(f => f.platform).join(", ")}`,
         metadata: { userId, failedPlatforms: failed.map(f => f.platform) },
       });
+
+      // Alert on failures (fire-and-forget)
+      alertOnPostFailure(
+        organizationId,
+        failed.map(f => f.platform),
+        failed.map(f => f.error || "Unknown error")
+      ).catch(() => {});
     }
 
     logger.info("[SocialMedia] Post complete", { organizationId, successCount: successful.length, failureCount: failed.length });

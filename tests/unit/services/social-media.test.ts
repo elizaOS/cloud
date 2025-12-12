@@ -869,3 +869,212 @@ describe("Data Integrity", () => {
     expect(PLATFORM_CAPABILITIES.mastodon.maxTextLength).toBe(500);
   });
 });
+
+// =============================================================================
+// RATE LIMIT UTILITY TESTS
+// =============================================================================
+
+describe("Rate Limit Utility", () => {
+  it("should detect 429 response as rate limited", async () => {
+    const { isRateLimitResponse } = await import("@/lib/services/social-media/rate-limit");
+
+    expect(isRateLimitResponse(new Response(null, { status: 429 }))).toBe(true);
+    expect(isRateLimitResponse(new Response(null, { status: 200 }))).toBe(false);
+    expect(isRateLimitResponse(new Response(null, { status: 401 }))).toBe(false);
+    expect(isRateLimitResponse(new Response(null, { status: 500 }))).toBe(false);
+  });
+
+  it("should create rate limit error with correct properties", async () => {
+    const { createRateLimitError } = await import("@/lib/services/social-media/rate-limit");
+
+    const error = createRateLimitError("twitter", 60);
+
+    expect(error.rateLimited).toBe(true);
+    expect(error.retryAfter).toBe(60);
+    expect(error.platform).toBe("twitter");
+    expect(error.message).toContain("twitter");
+  });
+
+  it("should have rate limit config for all platforms", async () => {
+    const { getRateLimitConfig } = await import("@/lib/services/social-media/rate-limit");
+    const { SUPPORTED_PLATFORMS } = await import("@/lib/types/social-media");
+
+    for (const platform of SUPPORTED_PLATFORMS) {
+      const config = getRateLimitConfig(platform);
+      expect(config).toBeDefined();
+      expect(config.requestsPerWindow).toBeGreaterThan(0);
+      expect(config.windowMs).toBeGreaterThan(0);
+    }
+  });
+
+  it("should have reasonable rate limits per platform", async () => {
+    const { getRateLimitConfig } = await import("@/lib/services/social-media/rate-limit");
+
+    // Twitter: 300 requests per 15 min
+    expect(getRateLimitConfig("twitter").requestsPerWindow).toBe(300);
+    expect(getRateLimitConfig("twitter").windowMs).toBe(15 * 60 * 1000);
+
+    // Discord: 50 requests per second
+    expect(getRateLimitConfig("discord").requestsPerWindow).toBe(50);
+    expect(getRateLimitConfig("discord").windowMs).toBe(1000);
+
+    // Telegram: 30 requests per second
+    expect(getRateLimitConfig("telegram").requestsPerWindow).toBe(30);
+    expect(getRateLimitConfig("telegram").windowMs).toBe(1000);
+  });
+});
+
+// =============================================================================
+// TOKEN REFRESH UTILITY TESTS
+// =============================================================================
+
+describe("Token Refresh Utility", () => {
+  it("should detect expired token", async () => {
+    const { isTokenExpired } = await import("@/lib/services/social-media/token-refresh");
+
+    const expired: SocialCredentials = {
+      platform: "twitter",
+      accessToken: "test",
+      tokenExpiresAt: new Date(Date.now() - 1000),
+    };
+
+    const valid: SocialCredentials = {
+      platform: "twitter",
+      accessToken: "test",
+      tokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    };
+
+    expect(isTokenExpired(expired)).toBe(true);
+    expect(isTokenExpired(valid)).toBe(false);
+  });
+
+  it("should not consider token expired if no expiry date", async () => {
+    const { isTokenExpired } = await import("@/lib/services/social-media/token-refresh");
+
+    const noExpiry: SocialCredentials = {
+      platform: "twitter",
+      accessToken: "test",
+    };
+
+    expect(isTokenExpired(noExpiry)).toBe(false);
+  });
+
+  it("should determine if refresh is needed", async () => {
+    const { needsRefresh } = await import("@/lib/services/social-media/token-refresh");
+
+    const needsIt: SocialCredentials = {
+      platform: "twitter",
+      accessToken: "test",
+      refreshToken: "refresh",
+      tokenExpiresAt: new Date(Date.now() - 1000),
+    };
+
+    const noRefreshToken: SocialCredentials = {
+      platform: "twitter",
+      accessToken: "test",
+      tokenExpiresAt: new Date(Date.now() - 1000),
+    };
+
+    const notExpired: SocialCredentials = {
+      platform: "twitter",
+      accessToken: "test",
+      refreshToken: "refresh",
+      tokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    };
+
+    expect(needsRefresh(needsIt)).toBe(true);
+    expect(needsRefresh(noRefreshToken)).toBe(false);
+    expect(needsRefresh(notExpired)).toBe(false);
+  });
+
+  it("should provide refresh guidance for all platforms", async () => {
+    const { getRefreshGuidance } = await import("@/lib/services/social-media/token-refresh");
+    const { SUPPORTED_PLATFORMS } = await import("@/lib/types/social-media");
+
+    for (const platform of SUPPORTED_PLATFORMS) {
+      const guidance = getRefreshGuidance(platform);
+      expect(typeof guidance).toBe("string");
+      expect(guidance.length).toBeGreaterThan(0);
+      expect(guidance).toContain("/settings/connections/");
+    }
+  });
+});
+
+// =============================================================================
+// ALERT SERVICE TESTS
+// =============================================================================
+
+describe("Alert Service", () => {
+  it("should export all alert functions", async () => {
+    const alerts = await import("@/lib/services/social-media/alerts");
+
+    expect(typeof alerts.sendSocialMediaAlert).toBe("function");
+    expect(typeof alerts.alertOnPostFailure).toBe("function");
+    expect(typeof alerts.alertOnTokenExpiry).toBe("function");
+    expect(typeof alerts.alertOnRateLimit).toBe("function");
+  });
+
+  it("should not throw when no channels configured", async () => {
+    const { sendSocialMediaAlert } = await import("@/lib/services/social-media/alerts");
+
+    // Should complete without error even with no channels
+    await expect(
+      sendSocialMediaAlert({
+        severity: "low",
+        title: "Test",
+        message: "Test message",
+      })
+    ).resolves.toBeUndefined();
+  });
+
+  it("should not throw on post failure alert", async () => {
+    const { alertOnPostFailure } = await import("@/lib/services/social-media/alerts");
+
+    await expect(
+      alertOnPostFailure("org-123", ["twitter", "bluesky"], ["Auth failed", "Rate limited"])
+    ).resolves.toBeUndefined();
+  });
+
+  it("should not throw on token expiry alert", async () => {
+    const { alertOnTokenExpiry } = await import("@/lib/services/social-media/alerts");
+
+    await expect(alertOnTokenExpiry("org-123", "twitter")).resolves.toBeUndefined();
+  });
+
+  it("should not throw on rate limit alert", async () => {
+    const { alertOnRateLimit } = await import("@/lib/services/social-media/alerts");
+
+    await expect(alertOnRateLimit("twitter", 60)).resolves.toBeUndefined();
+  });
+});
+
+// =============================================================================
+// SERVICE EXPORT TESTS
+// =============================================================================
+
+describe("Service Exports", () => {
+  it("should export socialMediaService", async () => {
+    const { socialMediaService } = await import("@/lib/services/social-media");
+
+    expect(socialMediaService).toBeDefined();
+    expect(typeof socialMediaService.getSupportedPlatforms).toBe("function");
+    expect(typeof socialMediaService.isPlatformSupported).toBe("function");
+    expect(typeof socialMediaService.getProvider).toBe("function");
+    expect(typeof socialMediaService.createPost).toBe("function");
+    expect(typeof socialMediaService.deletePost).toBe("function");
+    expect(typeof socialMediaService.validateCredentials).toBe("function");
+    expect(typeof socialMediaService.storeCredentials).toBe("function");
+  });
+
+  it("should re-export types from index", async () => {
+    const exports = await import("@/lib/services/social-media");
+
+    expect(exports.SUPPORTED_PLATFORMS).toBeDefined();
+    expect(exports.PLATFORM_CAPABILITIES).toBeDefined();
+    expect(typeof exports.validatePostContent).toBe("function");
+    expect(typeof exports.validatePlatformOptions).toBe("function");
+    expect(typeof exports.createSuccessResult).toBe("function");
+    expect(typeof exports.createErrorResult).toBe("function");
+    expect(typeof exports.aggregateResults).toBe("function");
+  });
+});
