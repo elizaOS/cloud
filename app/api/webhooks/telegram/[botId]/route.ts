@@ -225,6 +225,35 @@ export async function POST(
           logger.debug("[Telegram Webhook] Unknown command", { command, chatId });
       }
     } else if (messageText) {
+      // Check if this is a reply to a notification message
+      if (message.reply_to_message) {
+        const replyToMessageId = String(message.reply_to_message.message_id);
+
+        // Check if the reply is to a social notification message
+        const { replyRouterService } = await import("@/lib/services/social-feed/reply-router");
+
+        const result = await replyRouterService.processIncomingReply({
+          platform: "telegram",
+          channelId: chatId,
+          messageId: String(message.message_id),
+          replyToMessageId,
+          userId: String(message.from.id),
+          username: message.from.username,
+          displayName: `${message.from.first_name}${message.from.last_name ? ` ${message.from.last_name}` : ""}`,
+          content: messageText,
+        });
+
+        if (result) {
+          // This was a reply to a social notification - confirmation prompt was sent
+          logger.info("[Telegram Webhook] Reply to notification processed", {
+            chatId,
+            confirmationId: result.confirmationId,
+            success: result.success,
+          });
+          return NextResponse.json({ ok: true });
+        }
+      }
+
       // Regular message - agent routing is available via the agent service
       // To enable agent responses for this org:
       // 1. Org must have at least one active agent character
@@ -256,12 +285,66 @@ export async function POST(
       fromUser: callback_query.from.username,
     });
 
-    // Acknowledge the callback to remove loading state
+    // Handle reply confirmation buttons
+    if (callback_query.data?.startsWith("reply_confirm:") || callback_query.data?.startsWith("reply_reject:")) {
+      const [action, confirmationId] = callback_query.data.split(":");
+      const isConfirm = action === "reply_confirm";
+      const chatId = callback_query.message?.chat.id;
+
+      // Acknowledge with loading state
+      await telegramService.answerCallbackQuery(token, callback_query.id, {
+        text: isConfirm ? "Posting reply..." : "Cancelling...",
+      });
+
+      const { replyRouterService } = await import("@/lib/services/social-feed/reply-router");
+
+      if (isConfirm) {
+        const result = await replyRouterService.handleConfirmation(
+          confirmationId,
+          connection.organization_id,
+          String(callback_query.from.id),
+          callback_query.from.username
+        );
+
+        const message = result.success
+          ? `✅ Reply posted successfully!${result.postUrl ? `\n\n${result.postUrl}` : ""}`
+          : `❌ Failed to post reply: ${result.error}`;
+
+        if (chatId && callback_query.message) {
+          await telegramService.editMessageViaConnection(
+            connection.id,
+            connection.organization_id,
+            chatId,
+            callback_query.message.message_id,
+            message,
+            { parse_mode: "HTML" }
+          );
+        }
+      } else {
+        await replyRouterService.handleRejection(
+          confirmationId,
+          connection.organization_id,
+          String(callback_query.from.id)
+        );
+
+        if (chatId && callback_query.message) {
+          await telegramService.editMessageViaConnection(
+            connection.id,
+            connection.organization_id,
+            chatId,
+            callback_query.message.message_id,
+            "❌ Reply was not sent.",
+            { parse_mode: "HTML" }
+          );
+        }
+      }
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // Acknowledge other callbacks
     await telegramService.answerCallbackQuery(token, callback_query.id);
 
-    // Callback data handling is application-specific.
-    // Organizations can implement custom handlers via the agent character system.
-    // Common callback patterns: confirm_, cancel_, select_, menu_, etc.
     logger.debug("[Telegram Webhook] Callback acknowledged", {
       callbackId: callback_query.id,
       data: callback_query.data,

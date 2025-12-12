@@ -136,13 +136,35 @@ async function sendFollowup(
   ephemeral = false
 ): Promise<void> {
   const url = `https://discord.com/api/v10/webhooks/${applicationId}/${interactionToken}`;
-  
+
   await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       content,
       flags: ephemeral ? 64 : 0,
+    }),
+  });
+}
+
+/**
+ * Update the original interaction message
+ */
+async function updateInteractionMessage(
+  applicationId: string,
+  interactionToken: string,
+  content: string,
+  removeComponents = false
+): Promise<void> {
+  const url = `https://discord.com/api/v10/webhooks/${applicationId}/${interactionToken}/messages/@original`;
+
+  await fetch(url, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      content,
+      embeds: [],
+      components: removeComponents ? [] : undefined,
     }),
   });
 }
@@ -253,11 +275,62 @@ export async function POST(request: NextRequest) {
   // Handle message components (buttons, selects)
   if (interaction.type === INTERACTION_TYPES.MESSAGE_COMPONENT) {
     const customId = interaction.data?.custom_id;
-    
+    const userId = interaction.member?.user?.id || interaction.user?.id;
+    const username = interaction.member?.user?.username || interaction.user?.username;
+
     logger.info("[Discord Webhook] Processing component interaction", {
       customId,
       guildId: interaction.guild_id,
+      userId,
     });
+
+    // Handle reply confirmation buttons
+    if (customId?.startsWith("reply_confirm:") || customId?.startsWith("reply_reject:")) {
+      const [action, confirmationId] = customId.split(":");
+      const isConfirm = action === "reply_confirm";
+
+      // Defer immediately, then process
+      void (async () => {
+        const { replyRouterService } = await import("@/lib/services/social-feed/reply-router");
+
+        if (isConfirm) {
+          const result = await replyRouterService.handleConfirmation(
+            confirmationId,
+            connection.organization_id,
+            userId ?? "unknown",
+            username
+          );
+
+          const message = result.success
+            ? `✅ Reply posted successfully!${result.postUrl ? `\n${result.postUrl}` : ""}`
+            : `❌ Failed to post reply: ${result.error}`;
+
+          await updateInteractionMessage(
+            interaction.application_id,
+            interaction.token,
+            message,
+            true
+          );
+        } else {
+          await replyRouterService.handleRejection(
+            confirmationId,
+            connection.organization_id,
+            userId ?? "unknown"
+          );
+
+          await updateInteractionMessage(
+            interaction.application_id,
+            interaction.token,
+            "❌ Reply was not sent.",
+            true
+          );
+        }
+      })();
+
+      return NextResponse.json({
+        type: RESPONSE_TYPES.DEFERRED_UPDATE_MESSAGE,
+      });
+    }
 
     return NextResponse.json({
       type: RESPONSE_TYPES.DEFERRED_UPDATE_MESSAGE,

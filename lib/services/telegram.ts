@@ -184,14 +184,46 @@ class TelegramService {
   async answerCallbackQuery(
     token: string,
     callbackQueryId: string,
-    text?: string,
-    showAlert = false
+    options?: { text?: string; show_alert?: boolean }
   ): Promise<boolean> {
     return telegramApiRequest<boolean>(token, "answerCallbackQuery", {
       callback_query_id: callbackQueryId,
-      text,
-      show_alert: showAlert,
+      text: options?.text,
+      show_alert: options?.show_alert ?? false,
     });
+  }
+
+  /**
+   * Edit a message text
+   */
+  async editMessageText(
+    token: string,
+    chatId: number | string,
+    messageId: number,
+    text: string,
+    options?: Partial<SendMessageParams>
+  ): Promise<TelegramMessage | boolean> {
+    return telegramApiRequest(token, "editMessageText", {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      ...options,
+    });
+  }
+
+  /**
+   * Edit a message using a bot connection ID
+   */
+  async editMessageViaConnection(
+    connectionId: string,
+    organizationId: string,
+    chatId: number | string,
+    messageId: number,
+    text: string,
+    options?: Partial<SendMessageParams>
+  ): Promise<TelegramMessage | boolean> {
+    const token = await botsService.getBotToken(connectionId, organizationId);
+    return this.editMessageText(token, chatId, messageId, text, options);
   }
 
   /**
