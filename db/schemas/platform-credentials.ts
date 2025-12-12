@@ -48,6 +48,8 @@ export const platformCredentialTypeEnum = pgEnum("platform_credential_type", [
   "tiktok",
   "linkedin",
   "mastodon",
+  "twilio",
+  "google_calendar",
 ]);
 
 export const platformCredentialStatusEnum = pgEnum("platform_credential_status", [
@@ -182,6 +184,7 @@ export const platformCredentialSessions = pgTable(
       server_id?: string;
       channel_id?: string;
       user_id?: string;
+      instanceUrl?: string; // Mastodon instance URL
     }>(),
 
     // Session status

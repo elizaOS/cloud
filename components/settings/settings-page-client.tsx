@@ -22,6 +22,7 @@ import {
   SecretsTab,
   AnalyticsTab,
   OrganizationTab,
+  ConnectionsTab,
 } from "./tabs";
 
 interface SettingsPageClientProps {
@@ -31,6 +32,7 @@ interface SettingsPageClientProps {
 export type SettingsTab =
   | "general"
   | "account"
+  | "connections"
   | "usage"
   | "billing"
   | "apis"
@@ -64,6 +66,8 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
         return <GeneralTab user={user} />;
       case "account":
         return <AccountTab user={user} onTabChange={setActiveTab} />;
+      case "connections":
+        return <ConnectionsTab user={user} />;
       case "usage":
         return <UsageTab user={user} onTabChange={setActiveTab} />;
       case "billing":

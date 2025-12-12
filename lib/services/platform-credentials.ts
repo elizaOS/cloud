@@ -59,6 +59,14 @@ export const OAUTH_CONFIGS: Record<string, {
     clientIdEnv: "GOOGLE_CLIENT_ID",
     clientSecretEnv: "GOOGLE_CLIENT_SECRET",
   },
+  google_calendar: {
+    authUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+    tokenUrl: "https://oauth2.googleapis.com/token",
+    profileUrl: "https://www.googleapis.com/oauth2/v2/userinfo",
+    scopes: ["openid", "email", "profile", "https://www.googleapis.com/auth/calendar", "https://www.googleapis.com/auth/calendar.events"],
+    clientIdEnv: "GOOGLE_CLIENT_ID",
+    clientSecretEnv: "GOOGLE_CLIENT_SECRET",
+  },
   gmail: {
     authUrl: "https://accounts.google.com/o/oauth2/v2/auth",
     tokenUrl: "https://oauth2.googleapis.com/token",
@@ -125,7 +133,32 @@ export const OAUTH_CONFIGS: Record<string, {
     clientIdEnv: "LINKEDIN_CLIENT_ID",
     clientSecretEnv: "LINKEDIN_CLIENT_SECRET",
   },
+  // Note: Twilio uses API keys stored as secrets, not OAuth
+  twilio: {
+    authUrl: "",
+    tokenUrl: "",
+    profileUrl: "",
+    scopes: [],
+    clientIdEnv: "TWILIO_ACCOUNT_SID",
+    clientSecretEnv: "TWILIO_AUTH_TOKEN",
+  },
+  // Mastodon uses instance-based OAuth - config is a template
+  // Actual URLs are constructed from the instance URL at runtime
+  mastodon: {
+    authUrl: "", // Template: {instanceUrl}/oauth/authorize
+    tokenUrl: "", // Template: {instanceUrl}/oauth/token
+    profileUrl: "", // Template: {instanceUrl}/api/v1/accounts/verify_credentials
+    scopes: ["read:accounts", "write:statuses", "write:favourites", "write:notifications"],
+    clientIdEnv: "MASTODON_CLIENT_ID",
+    clientSecretEnv: "MASTODON_CLIENT_SECRET",
+  },
 };
+
+/**
+ * Non-OAuth platforms that use API keys or app passwords
+ */
+export const MANUAL_AUTH_PLATFORMS = ["bluesky", "telegram"] as const;
+export type ManualAuthPlatform = typeof MANUAL_AUTH_PLATFORMS[number];
 
 export interface CreateLinkSessionParams {
   organizationId: string;
@@ -224,8 +257,9 @@ class PlatformCredentialsService {
       organizationId: session.organization_id,
       name: `${session.platform.toUpperCase()}_ACCESS_${params.platformUserId}`,
       value: params.accessToken,
-      scope: "project",
-      projectType: session.app_id || "cloud",
+      scope: session.app_id ? "project" : "organization",
+      projectId: session.app_id || undefined,
+      projectType: session.app_id ? "app" : undefined,
       createdBy: session.requesting_user_id || "system",
     }, SYSTEM_AUDIT);
 
@@ -235,8 +269,9 @@ class PlatformCredentialsService {
         organizationId: session.organization_id,
         name: `${session.platform.toUpperCase()}_REFRESH_${params.platformUserId}`,
         value: params.refreshToken,
-        scope: "project",
-        projectType: session.app_id || "cloud",
+        scope: session.app_id ? "project" : "organization",
+        projectId: session.app_id || undefined,
+        projectType: session.app_id ? "app" : undefined,
         createdBy: session.requesting_user_id || "system",
       }, SYSTEM_AUDIT);
       refreshSecretId = refreshSecret.id;
@@ -429,6 +464,355 @@ class PlatformCredentialsService {
     const result = await db.delete(platformCredentialSessions)
       .where(and(lt(platformCredentialSessions.expires_at, new Date()), eq(platformCredentialSessions.status, "pending")));
     return result.rowCount || 0;
+  }
+
+  /**
+   * Store credentials for non-OAuth platforms (Bluesky app password, Telegram bot token)
+   */
+  async storeManualCredentials(params: {
+    organizationId: string;
+    userId?: string;
+    appId?: string;
+    platform: PlatformType;
+    credentials: {
+      handle?: string;
+      appPassword?: string;
+      botToken?: string;
+      instanceUrl?: string;
+    };
+  }): Promise<PlatformCredential> {
+    const { organizationId, userId, appId, platform, credentials } = params;
+
+    // Validate credentials based on platform
+    let platformUserId: string;
+    let platformUsername: string | undefined;
+    let platformDisplayName: string | undefined;
+    let platformAvatarUrl: string | undefined;
+    let secretValue: string;
+    let secretName: string;
+
+    if (platform === "bluesky") {
+      if (!credentials.handle || !credentials.appPassword) {
+        throw new Error("Bluesky requires handle and app password");
+      }
+
+      // Validate Bluesky credentials by attempting login
+      const validation = await this.validateBlueskyCredentials(credentials.handle, credentials.appPassword);
+      if (!validation.valid) {
+        throw new Error(validation.error || "Invalid Bluesky credentials");
+      }
+
+      platformUserId = validation.did!;
+      platformUsername = credentials.handle;
+      platformDisplayName = validation.displayName;
+      platformAvatarUrl = validation.avatarUrl;
+      secretValue = credentials.appPassword;
+      secretName = `BLUESKY_APP_PASSWORD_${platformUserId}`;
+    } else if (platform === "telegram") {
+      if (!credentials.botToken) {
+        throw new Error("Telegram requires bot token");
+      }
+
+      // Validate Telegram bot token
+      const validation = await this.validateTelegramBotToken(credentials.botToken);
+      if (!validation.valid) {
+        throw new Error(validation.error || "Invalid Telegram bot token");
+      }
+
+      platformUserId = String(validation.botId!);
+      platformUsername = validation.botUsername;
+      platformDisplayName = validation.botName;
+      secretValue = credentials.botToken;
+      secretName = `TELEGRAM_BOT_TOKEN_${platformUserId}`;
+    } else {
+      throw new Error(`Manual credentials not supported for platform: ${platform}`);
+    }
+
+    // Store the secret
+    const secret = await secretsService.create({
+      organizationId,
+      name: secretName,
+      value: secretValue,
+      scope: appId ? "project" : "organization",
+      projectId: appId,
+      projectType: appId ? "app" : undefined,
+      createdBy: userId || "system",
+    }, SYSTEM_AUDIT);
+
+    // Check for existing credential
+    const [existing] = await db.select().from(platformCredentials)
+      .where(and(
+        eq(platformCredentials.organization_id, organizationId),
+        eq(platformCredentials.platform, platform),
+        eq(platformCredentials.platform_user_id, platformUserId)
+      )).limit(1);
+
+    const credentialData = {
+      status: "active" as const,
+      platform_username: platformUsername,
+      platform_display_name: platformDisplayName,
+      platform_avatar_url: platformAvatarUrl,
+      api_key_secret_id: secret.id,
+      linked_at: new Date(),
+      error_message: null,
+      updated_at: new Date(),
+    };
+
+    const [credential] = existing
+      ? await db.update(platformCredentials).set(credentialData).where(eq(platformCredentials.id, existing.id)).returning()
+      : await db.insert(platformCredentials).values({
+          organization_id: organizationId,
+          user_id: userId,
+          app_id: appId,
+          platform,
+          platform_user_id: platformUserId,
+          source_type: "manual",
+          ...credentialData,
+        }).returning();
+
+    logger.info("[Credentials] Manual credentials stored", { platform, credentialId: credential.id });
+    return credential;
+  }
+
+  /**
+   * Validate Bluesky credentials
+   */
+  async validateBlueskyCredentials(handle: string, appPassword: string): Promise<{
+    valid: boolean;
+    did?: string;
+    displayName?: string;
+    avatarUrl?: string;
+    error?: string;
+  }> {
+    const normalizedHandle = handle.startsWith("@") ? handle.slice(1) : handle;
+    const service = normalizedHandle.includes(".") && !normalizedHandle.endsWith(".bsky.social")
+      ? `https://${normalizedHandle.split(".").slice(-2).join(".")}`
+      : "https://bsky.social";
+
+    const response = await fetch(`${service}/xrpc/com.atproto.server.createSession`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier: normalizedHandle, password: appPassword }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      return { valid: false, error: error.message || "Authentication failed" };
+    }
+
+    const session = await response.json();
+
+    // Fetch profile for display name and avatar
+    const profileResponse = await fetch(`${service}/xrpc/app.bsky.actor.getProfile?actor=${session.did}`, {
+      headers: { Authorization: `Bearer ${session.accessJwt}` },
+    });
+
+    let displayName: string | undefined;
+    let avatarUrl: string | undefined;
+    if (profileResponse.ok) {
+      const profile = await profileResponse.json();
+      displayName = profile.displayName;
+      avatarUrl = profile.avatar;
+    }
+
+    return { valid: true, did: session.did, displayName, avatarUrl };
+  }
+
+  /**
+   * Validate Telegram bot token
+   */
+  async validateTelegramBotToken(botToken: string): Promise<{
+    valid: boolean;
+    botId?: number;
+    botUsername?: string;
+    botName?: string;
+    error?: string;
+  }> {
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/getMe`);
+    const data = await response.json();
+
+    if (!data.ok) {
+      return { valid: false, error: data.description || "Invalid bot token" };
+    }
+
+    return {
+      valid: true,
+      botId: data.result.id,
+      botUsername: data.result.username,
+      botName: data.result.first_name,
+    };
+  }
+
+  /**
+   * Get manual credentials (Bluesky, Telegram)
+   */
+  async getManualCredentials(credentialId: string, organizationId: string): Promise<{
+    credential: PlatformCredential;
+    apiKey: string;
+  } | null> {
+    const [credential] = await db.select().from(platformCredentials)
+      .where(and(
+        eq(platformCredentials.id, credentialId),
+        eq(platformCredentials.organization_id, organizationId),
+        eq(platformCredentials.status, "active")
+      )).limit(1);
+
+    if (!credential || !credential.api_key_secret_id) return null;
+
+    const secretName = credential.platform === "bluesky"
+      ? `BLUESKY_APP_PASSWORD_${credential.platform_user_id}`
+      : `TELEGRAM_BOT_TOKEN_${credential.platform_user_id}`;
+
+    const apiKey = await secretsService.get(
+      organizationId,
+      secretName,
+      credential.app_id || undefined
+    );
+
+    if (!apiKey) return null;
+
+    await db.update(platformCredentials).set({ last_used_at: new Date() }).where(eq(platformCredentials.id, credentialId));
+
+    return { credential, apiKey };
+  }
+
+  /**
+   * Create Mastodon OAuth session (instance-based)
+   */
+  async createMastodonLinkSession(params: CreateLinkSessionParams & { instanceUrl: string }) {
+    const { instanceUrl, ...rest } = params;
+    
+    // Validate instance URL
+    const normalizedUrl = instanceUrl.startsWith("http") ? instanceUrl : `https://${instanceUrl}`;
+    const instanceHost = new URL(normalizedUrl).origin;
+
+    // Check if we have an app registered for this instance
+    let clientId = process.env.MASTODON_CLIENT_ID;
+    let clientSecret = process.env.MASTODON_CLIENT_SECRET;
+
+    // For production, you'd dynamically register apps per-instance
+    // For now, we support a single configured instance
+    const configuredInstance = process.env.MASTODON_INSTANCE_URL;
+    if (!configuredInstance || !clientId || !clientSecret) {
+      throw new Error("Mastodon OAuth not configured. Set MASTODON_INSTANCE_URL, MASTODON_CLIENT_ID, and MASTODON_CLIENT_SECRET");
+    }
+
+    if (!instanceHost.includes(new URL(configuredInstance).host)) {
+      throw new Error(`Instance ${instanceHost} not supported. Only ${configuredInstance} is configured.`);
+    }
+
+    const sessionId = nanoid(32);
+    const oauthState = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + SESSION_EXPIRY_MS);
+    const scopes = rest.requestedScopes?.length ? rest.requestedScopes : OAUTH_CONFIGS.mastodon.scopes;
+
+    await db.insert(platformCredentialSessions).values({
+      session_id: sessionId,
+      organization_id: rest.organizationId,
+      app_id: rest.appId,
+      requesting_user_id: rest.requestingUserId,
+      platform: "mastodon",
+      requested_scopes: scopes,
+      oauth_state: oauthState,
+      callback_url: rest.callbackUrl,
+      callback_type: rest.callbackType,
+      callback_context: { ...rest.callbackContext, instanceUrl: instanceHost },
+      expires_at: expiresAt,
+    });
+
+    const cloudUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const authParams = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: `${cloudUrl}/api/auth/platform-callback/mastodon`,
+      response_type: "code",
+      state: oauthState,
+      scope: scopes.join(" "),
+    });
+
+    logger.info("[Credentials] Mastodon session created", { sessionId: sessionId.slice(0, 8), instance: instanceHost });
+
+    return { sessionId, linkUrl: `${instanceHost}/oauth/authorize?${authParams}`, expiresAt };
+  }
+
+  /**
+   * Get available platforms with their connection status for an organization
+   */
+  async getAvailablePlatforms(organizationId: string): Promise<Array<{
+    platform: string;
+    authType: "oauth" | "manual";
+    configured: boolean;
+    connected: boolean;
+    connection?: {
+      id: string;
+      username: string;
+      displayName: string;
+      avatarUrl?: string;
+      status: string;
+      linkedAt: Date | null;
+    };
+  }>> {
+    const credentials = await this.listCredentials(organizationId, { status: "active" });
+    const credentialMap = new Map(credentials.map(c => [c.platform, c]));
+
+    const platforms: Array<{
+      platform: string;
+      authType: "oauth" | "manual";
+      configured: boolean;
+      connected: boolean;
+      connection?: {
+        id: string;
+        username: string;
+        displayName: string;
+        avatarUrl?: string;
+        status: string;
+        linkedAt: Date | null;
+      };
+    }> = [];
+
+    // OAuth platforms
+    for (const [platform, config] of Object.entries(OAUTH_CONFIGS)) {
+      if (platform === "twilio") continue; // Skip non-social platforms
+      
+      const clientId = process.env[config.clientIdEnv];
+      const configured = !!clientId;
+      const cred = credentialMap.get(platform as PlatformType);
+
+      platforms.push({
+        platform,
+        authType: "oauth",
+        configured,
+        connected: !!cred,
+        connection: cred ? {
+          id: cred.id,
+          username: cred.platform_username || cred.platform_user_id,
+          displayName: cred.platform_display_name || cred.platform_username || "",
+          avatarUrl: cred.platform_avatar_url || undefined,
+          status: cred.status,
+          linkedAt: cred.linked_at,
+        } : undefined,
+      });
+    }
+
+    // Manual platforms
+    for (const platform of MANUAL_AUTH_PLATFORMS) {
+      const cred = credentialMap.get(platform as PlatformType);
+      platforms.push({
+        platform,
+        authType: "manual",
+        configured: true, // Always available
+        connected: !!cred,
+        connection: cred ? {
+          id: cred.id,
+          username: cred.platform_username || cred.platform_user_id,
+          displayName: cred.platform_display_name || cred.platform_username || "",
+          avatarUrl: cred.platform_avatar_url || undefined,
+          status: cred.status,
+          linkedAt: cred.linked_at,
+        } : undefined,
+      });
+    }
+
+    return platforms;
   }
 }
 

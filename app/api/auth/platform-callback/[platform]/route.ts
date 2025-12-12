@@ -8,13 +8,19 @@ import { logger } from "@/lib/utils/logger";
 
 const CLOUD_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-async function exchangeCode(platform: string, code: string, state: string) {
+async function exchangeCode(platform: string, code: string, state: string, instanceUrl?: string) {
   const config = OAUTH_CONFIGS[platform];
   if (!config) throw new Error(`Unsupported platform: ${platform}`);
 
   const clientId = process.env[config.clientIdEnv];
   const clientSecret = process.env[config.clientSecretEnv];
   if (!clientId || !clientSecret) throw new Error(`${platform} OAuth not configured`);
+
+  // Determine token URL - Mastodon uses instance-specific URL
+  let tokenUrl = config.tokenUrl;
+  if (platform === "mastodon" && instanceUrl) {
+    tokenUrl = `${instanceUrl}/oauth/token`;
+  }
 
   const body: Record<string, string> = {
     client_id: clientId,
@@ -24,14 +30,29 @@ async function exchangeCode(platform: string, code: string, state: string) {
     redirect_uri: `${CLOUD_URL}/api/auth/platform-callback/${platform}`,
   };
   if (platform === "twitter") body.code_verifier = state;
+  if (platform === "reddit") body.redirect_uri = `${CLOUD_URL}/api/auth/platform-callback/reddit`;
 
-  const response = await fetch(config.tokenUrl, {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/x-www-form-urlencoded",
+    Accept: "application/json",
+  };
+
+  // Reddit requires Basic auth for token exchange
+  if (platform === "reddit") {
+    headers.Authorization = `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`;
+  }
+
+  const response = await fetch(tokenUrl, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+    headers,
     body: new URLSearchParams(body),
   });
 
-  if (!response.ok) throw new Error(`Token exchange failed: ${response.status}`);
+  if (!response.ok) {
+    const errorText = await response.text();
+    logger.error("[OAuth] Token exchange failed", { platform, status: response.status, error: errorText });
+    throw new Error(`Token exchange failed: ${response.status}`);
+  }
   const data = await response.json();
 
   return {
@@ -42,14 +63,24 @@ async function exchangeCode(platform: string, code: string, state: string) {
   };
 }
 
-async function fetchProfile(platform: string, accessToken: string) {
+async function fetchProfile(platform: string, accessToken: string, instanceUrl?: string) {
   const config = OAUTH_CONFIGS[platform];
   if (!config) throw new Error(`Unsupported platform: ${platform}`);
 
-  const response = await fetch(config.profileUrl, {
+  // Determine profile URL - Mastodon uses instance-specific URL
+  let profileUrl = config.profileUrl;
+  if (platform === "mastodon" && instanceUrl) {
+    profileUrl = `${instanceUrl}/api/v1/accounts/verify_credentials`;
+  }
+
+  const response = await fetch(profileUrl, {
     headers: { Authorization: `Bearer ${accessToken}`, ...config.profileHeaders },
   });
-  if (!response.ok) throw new Error(`Profile fetch failed: ${response.status}`);
+  if (!response.ok) {
+    const errorText = await response.text();
+    logger.error("[OAuth] Profile fetch failed", { platform, status: response.status, error: errorText });
+    throw new Error(`Profile fetch failed: ${response.status}`);
+  }
 
   const data = await response.json();
 
@@ -85,6 +116,14 @@ async function fetchProfile(platform: string, accessToken: string) {
       email: data.email,
       raw: data,
     }),
+    google_calendar: () => ({
+      id: data.id,
+      username: data.email?.split("@")[0],
+      displayName: data.name,
+      avatarUrl: data.picture,
+      email: data.email,
+      raw: data,
+    }),
     github: () => ({
       id: String(data.id),
       username: data.login,
@@ -94,12 +133,54 @@ async function fetchProfile(platform: string, accessToken: string) {
       raw: data,
     }),
     slack: () => ({
-      id: data.user.id,
-      username: data.user.name,
-      displayName: data.user.name,
-      avatarUrl: data.user.image_192,
-      email: data.user.email,
-      raw: data.user,
+      id: data.user?.id || data.authed_user?.id,
+      username: data.user?.name || data.authed_user?.name,
+      displayName: data.user?.name || data.authed_user?.name,
+      avatarUrl: data.user?.image_192,
+      email: data.user?.email,
+      raw: data.user || data,
+    }),
+    reddit: () => ({
+      id: data.id,
+      username: data.name,
+      displayName: data.subreddit?.display_name_prefixed || data.name,
+      avatarUrl: data.icon_img?.split("?")[0],
+      raw: data,
+    }),
+    facebook: () => ({
+      id: data.id,
+      username: data.email?.split("@")[0],
+      displayName: data.name,
+      email: data.email,
+      raw: data,
+    }),
+    instagram: () => ({
+      id: data.id,
+      username: data.username,
+      displayName: data.username,
+      raw: data,
+    }),
+    tiktok: () => ({
+      id: data.data?.user?.open_id || data.open_id,
+      username: data.data?.user?.display_name || data.display_name,
+      displayName: data.data?.user?.display_name || data.display_name,
+      avatarUrl: data.data?.user?.avatar_url || data.avatar_url,
+      raw: data.data?.user || data,
+    }),
+    linkedin: () => ({
+      id: data.id || data.sub,
+      username: data.email?.split("@")[0],
+      displayName: data.localizedFirstName ? `${data.localizedFirstName} ${data.localizedLastName}` : data.name,
+      avatarUrl: data.profilePicture?.["displayImage~"]?.elements?.[0]?.identifiers?.[0]?.identifier,
+      email: data.email,
+      raw: data,
+    }),
+    mastodon: () => ({
+      id: data.id,
+      username: data.username,
+      displayName: data.display_name || data.username,
+      avatarUrl: data.avatar,
+      raw: data,
     }),
   };
 
@@ -130,8 +211,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   logger.info("[OAuth] Processing", { platform, sessionId: session.session_id.slice(0, 8) });
 
-  const tokens = await exchangeCode(platform, code, state);
-  const profile = await fetchProfile(platform, tokens.accessToken);
+  // Get instance URL for Mastodon from session context
+  const instanceUrl = (session.callback_context as Record<string, unknown>)?.instanceUrl as string | undefined;
+
+  const tokens = await exchangeCode(platform, code, state, instanceUrl);
+  const profile = await fetchProfile(platform, tokens.accessToken, instanceUrl);
 
   const credential = await platformCredentialsService.completeOAuth({
     oauthState: state,

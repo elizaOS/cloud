@@ -6,3 +6,4 @@ export { ApisTab } from "./apis-tab";
 export { SecretsTab } from "./secrets-tab";
 export { AnalyticsTab } from "./analytics-tab";
 export { OrganizationTab } from "./organization-tab";
+export { ConnectionsTab } from "./connections-tab";
