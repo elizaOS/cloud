@@ -1,41 +1,27 @@
 {
-  "$schema": "../../jeju-manifest.schema.json",
   "name": "cloud",
-  "displayName": "Jeju Cloud Dashboard",
+  "displayName": "Cloud Platform Integration",
   "version": "1.0.0",
   "type": "vendor",
-  "description": "Next.js dashboard for Jeju L3 cloud infrastructure management",
+  "description": "Cloud platform integration with agent marketplace, reputation management, and x402 payments",
   "commands": {
-    "dev": "bun run dev",
-    "build": "bun run build",
-    "start": "bun run start"
+    "dev": "bun run src/index.ts",
+    "build": "bun build src/index.ts --outdir=dist",
+    "test": "bun test tests/",
+    "deploy": "bun run scripts/deploy.ts"
   },
   "ports": {
-    "main": 5006
+    "main": 8010
   },
-  "dependencies": ["config", "contracts"],
+  "dependencies": ["contracts", "config"],
   "optional": true,
   "enabled": true,
-  "autoStart": true,
-  "tags": ["dashboard", "infrastructure", "nextjs", "jns"],
-  "jns": {
-    "name": "cloud.jeju",
-    "description": "Jeju Cloud Dashboard",
-    "url": "https://cloud.jeju.network"
+  "autoStart": false,
+  "contracts": {
+    "CloudReputationProvider": "contracts/CloudReputationProvider.sol"
   },
-  "healthCheck": {
-    "url": "http://localhost:5006/api/health",
-    "interval": 10000
-  },
-  "agent": {
-    "enabled": true,
-    "tags": ["jeju-app", "cloud", "dashboard"],
-    "metadata": {
-      "category": "infrastructure",
-      "provider": "jeju-network"
-    },
-    "trustModels": ["open"],
-    "jnsName": "cloud.jeju"
+  "exports": {
+    "CloudIntegration": "./src/cloud-integration.ts",
+    "CloudSigning": "./src/cloud-signing.ts"
   }
 }
-

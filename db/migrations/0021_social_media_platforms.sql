@@ -51,3 +51,4 @@ END$$;
 -- =============================================================================
 
 COMMENT ON TYPE platform_credential_type IS 'Supported social media platforms for credential storage. Includes: discord, telegram, twitter, gmail, slack, github, google, bluesky, reddit, facebook, instagram, tiktok, linkedin, mastodon';
+

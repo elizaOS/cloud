@@ -20,10 +20,6 @@ import {
 } from "@/db/schemas/secrets";
 import { eq, and, isNull, sql, desc, gte, lte, inArray } from "drizzle-orm";
 
-// =============================================================================
-// Secrets Repository
-// =============================================================================
-
 export interface FindSecretsParams {
   organizationId: string;
   projectId?: string;
@@ -33,25 +29,16 @@ export interface FindSecretsParams {
 }
 
 class SecretsRepository {
-  /**
-   * Create a new secret.
-   */
   async create(data: NewSecret): Promise<Secret> {
     const [secret] = await db.insert(secrets).values(data).returning();
     return secret;
   }
 
-  /**
-   * Find a secret by ID.
-   */
   async findById(id: string): Promise<Secret | undefined> {
     const [secret] = await db.select().from(secrets).where(eq(secrets.id, id));
     return secret;
   }
 
-  /**
-   * Find a secret by name within an organization context.
-   */
   async findByName(
     organizationId: string,
     name: string,
@@ -83,10 +70,6 @@ class SecretsRepository {
     return secret;
   }
 
-  /**
-   * Find secrets for a given context (org, project, environment).
-   * Returns secrets in priority order: environment > project > organization
-   */
   async findByContext(params: FindSecretsParams): Promise<Secret[]> {
     const { organizationId, projectId, environment, scope, names } = params;
 
@@ -134,9 +117,6 @@ class SecretsRepository {
     });
   }
 
-  /**
-   * List all secrets for an organization (metadata only, no values).
-   */
   async listByOrganization(organizationId: string): Promise<Secret[]> {
     return db
       .select()
@@ -145,9 +125,6 @@ class SecretsRepository {
       .orderBy(secrets.name);
   }
 
-  /**
-   * List secrets for a specific project.
-   */
   async listByProject(projectId: string): Promise<Secret[]> {
     return db
       .select()
@@ -156,9 +133,6 @@ class SecretsRepository {
       .orderBy(secrets.name);
   }
 
-  /**
-   * Update a secret.
-   */
   async update(id: string, data: Partial<NewSecret>): Promise<Secret | undefined> {
     const [secret] = await db
       .update(secrets)
@@ -168,17 +142,11 @@ class SecretsRepository {
     return secret;
   }
 
-  /**
-   * Delete a secret.
-   */
   async delete(id: string): Promise<boolean> {
     const result = await db.delete(secrets).where(eq(secrets.id, id)).returning({ id: secrets.id });
     return result.length > 0;
   }
 
-  /**
-   * Increment access count and update last accessed time.
-   */
   async recordAccess(id: string): Promise<void> {
     await db
       .update(secrets)

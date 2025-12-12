@@ -51,3 +51,14 @@ export * from "./org-platforms";
 export * from "./org-agents";
 export * from "./platform-credentials";
 export * from "./application-triggers";
+
+// Media & Collections
+export * from "./media-collections";
+export * from "./media-collection-items";
+export * from "./media-uploads";
+
+// Advertising
+export * from "./ad-accounts";
+export * from "./ad-campaigns";
+export * from "./ad-creatives";
+export * from "./ad-transactions";

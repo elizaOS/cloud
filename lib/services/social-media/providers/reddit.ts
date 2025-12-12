@@ -74,37 +74,32 @@ async function getAccessToken(
   return data.access_token;
 }
 
-async function redditApiRequestLegacy(
-  accessToken: string,
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<Response> {
-  const response = await fetch(`${REDDIT_API_BASE}${endpoint}`, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "User-Agent": "ElizaCloud/1.0 (social-media-automation)",
-      ...options.headers,
+async function redditApiRequest<T>(endpoint: string, accessToken: string, options: RequestInit = {}): Promise<T> {
+  const url = endpoint.startsWith("http") ? endpoint : `${REDDIT_API_BASE}${endpoint}`;
+
+  const { data } = await withRetry<T>(
+    () => fetch(url, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": "ElizaCloud/1.0 (social-media-automation)",
+        ...options.headers,
+      },
+    }),
+    async (response) => {
+      const json = await response.json();
+      if (json.error) throw new Error(json.error_description || json.error);
+      return json;
     },
-  });
+    { platform: "reddit", maxRetries: 3 }
+  );
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || `Auth failed: ${response.status}`);
-  }
-
-  const data: RedditToken = await response.json();
-  return data.access_token;
+  return data;
 }
 
-async function redditApiRequest<T>(
-  endpoint: string,
-  accessToken: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const url = endpoint.startsWith("http")
-    ? endpoint
-    : `${REDDIT_API_BASE}${endpoint}`;
+async function redditApiRequestLegacy<T>(endpoint: string, accessToken: string, options: RequestInit = {}): Promise<T> {
+  const url = endpoint.startsWith("http") ? endpoint : `${REDDIT_API_BASE}${endpoint}`;
 
   const response = await fetch(url, {
     ...options,
