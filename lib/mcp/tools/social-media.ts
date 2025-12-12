@@ -1,31 +1,13 @@
 import { z } from "zod";
 import { socialMediaService } from "@/lib/services/social-media";
-import type { SocialPlatform, PostContent, PlatformPostOptions } from "@/lib/types/social-media";
+import {
+  SocialPlatformSchema,
+  PostContentSchema,
+  type SocialPlatform,
+  type PostContent,
+  type PlatformPostOptions,
+} from "@/lib/types/social-media";
 import type { ToolResponse, AuthResultWithOrg } from "./types";
-
-const SocialPlatformSchema = z.enum([
-  "twitter", "bluesky", "discord", "telegram", "reddit", "facebook", "instagram", "tiktok", "linkedin",
-]);
-
-const MediaAttachmentSchema = z.object({
-  type: z.enum(["image", "video", "gif"]),
-  url: z.string().url().optional(),
-  base64: z.string().optional(),
-  mimeType: z.string(),
-  altText: z.string().optional(),
-});
-
-const PostContentSchema = z.object({
-  text: z.string().max(5000),
-  media: z.array(MediaAttachmentSchema).max(4).optional(),
-  link: z.string().url().optional(),
-  linkTitle: z.string().optional(),
-  linkDescription: z.string().optional(),
-  hashtags: z.array(z.string()).optional(),
-  mentions: z.array(z.string()).optional(),
-  replyToId: z.string().optional(),
-  quoteId: z.string().optional(),
-});
 
 const CreatePostSchema = z.object({
   content: PostContentSchema,
@@ -72,6 +54,7 @@ const StoreCredentialsSchema = z.object({
     handle: z.string().optional(),
     appPassword: z.string().optional(),
     webhookUrl: z.string().optional(),
+    instanceUrl: z.string().optional(), // Mastodon instance URL
   }),
 });
 
@@ -180,10 +163,10 @@ export function handleGetSupportedPlatforms(): ToolResponse {
       features: {
         post: true,
         delete: true,
-        reply: ["twitter", "bluesky", "reddit", "facebook", "linkedin", "discord"].includes(p),
-        like: ["twitter", "bluesky", "reddit", "facebook", "linkedin", "discord"].includes(p),
-        repost: ["twitter", "bluesky"].includes(p),
-        analytics: ["twitter", "bluesky", "reddit", "facebook", "instagram", "tiktok", "linkedin"].includes(p),
+        reply: ["twitter", "bluesky", "reddit", "facebook", "linkedin", "discord", "mastodon"].includes(p),
+        like: ["twitter", "bluesky", "reddit", "facebook", "linkedin", "discord", "mastodon"].includes(p),
+        repost: ["twitter", "bluesky", "mastodon"].includes(p),
+        analytics: ["twitter", "bluesky", "reddit", "facebook", "instagram", "tiktok", "linkedin", "mastodon"].includes(p),
       },
     })),
   });

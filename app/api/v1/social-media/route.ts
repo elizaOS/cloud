@@ -23,11 +23,13 @@ const SocialPlatformSchema = z.enum([
   "bluesky",
   "discord",
   "telegram",
+  "slack",
   "reddit",
   "facebook",
   "instagram",
   "tiktok",
   "linkedin",
+  "mastodon",
 ]);
 
 const MediaAttachmentSchema = z.object({
@@ -105,10 +107,10 @@ export async function GET(request: NextRequest) {
       features: {
         post: true,
         delete: true,
-        reply: ["twitter", "bluesky", "reddit", "facebook", "linkedin", "discord"].includes(p),
-        like: ["twitter", "bluesky", "reddit", "facebook", "linkedin", "discord"].includes(p),
-        repost: ["twitter", "bluesky"].includes(p),
-        analytics: ["twitter", "bluesky", "reddit", "facebook", "instagram", "tiktok", "linkedin"].includes(p),
+        reply: ["twitter", "bluesky", "reddit", "facebook", "linkedin", "discord", "mastodon", "slack"].includes(p),
+        like: ["twitter", "bluesky", "reddit", "facebook", "linkedin", "discord", "mastodon"].includes(p),
+        repost: ["twitter", "bluesky", "mastodon"].includes(p),
+        analytics: ["twitter", "bluesky", "reddit", "facebook", "instagram", "tiktok", "linkedin", "mastodon"].includes(p),
         mediaUpload: true,
       },
     })),
