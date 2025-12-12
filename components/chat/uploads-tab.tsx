@@ -43,9 +43,11 @@ export function UploadsTab({ characterId }: UploadsTabProps) {
 
   useEffect(() => {
     if (characterId) {
-      queueMicrotask(() => {
-        fetchDocuments();
+      // Schedule fetch to avoid synchronous setState in effect
+      const rafId = requestAnimationFrame(() => {
+        void fetchDocuments();
       });
+      return () => cancelAnimationFrame(rafId);
     }
   }, [characterId, fetchDocuments]);
 
@@ -136,7 +138,9 @@ export function UploadsTab({ characterId }: UploadsTabProps) {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div>
-        <h3 className="text-lg font-semibold text-white mb-1">Knowledge Base</h3>
+        <h3 className="text-lg font-semibold text-white mb-1">
+          Knowledge Base
+        </h3>
         <p className="text-sm text-white/60">
           Upload documents to give your agent knowledge for RAG.
         </p>
@@ -160,7 +164,7 @@ export function UploadsTab({ characterId }: UploadsTabProps) {
           <Button
             onClick={handleUpload}
             disabled={selectedFiles.length === 0 || uploading}
-            className="bg-[#E500FF] hover:bg-[#E500FF]/90 text-white shrink-0"
+            className="bg-[#FF5800] hover:bg-[#FF5800]/90 text-white shrink-0"
           >
             {uploading ? (
               <>

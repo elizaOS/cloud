@@ -121,17 +121,17 @@ export const appSandboxSessions = pgTable(
   (table) => ({
     user_id_idx: index("app_sandbox_sessions_user_id_idx").on(table.user_id),
     organization_id_idx: index("app_sandbox_sessions_org_id_idx").on(
-      table.organization_id
+      table.organization_id,
     ),
     app_id_idx: index("app_sandbox_sessions_app_id_idx").on(table.app_id),
     sandbox_id_idx: index("app_sandbox_sessions_sandbox_id_idx").on(
-      table.sandbox_id
+      table.sandbox_id,
     ),
     status_idx: index("app_sandbox_sessions_status_idx").on(table.status),
     created_at_idx: index("app_sandbox_sessions_created_at_idx").on(
-      table.created_at
+      table.created_at,
     ),
-  })
+  }),
 );
 
 /**
@@ -179,12 +179,12 @@ export const appBuilderPrompts = pgTable(
   },
   (table) => ({
     session_idx: index("app_builder_prompts_session_idx").on(
-      table.sandbox_session_id
+      table.sandbox_session_id,
     ),
     created_at_idx: index("app_builder_prompts_created_at_idx").on(
-      table.created_at
+      table.created_at,
     ),
-  })
+  }),
 );
 
 /**
@@ -213,10 +213,7 @@ export const appTemplates = pgTable(
     git_branch: text("git_branch").default("main"),
 
     // Features included
-    features: jsonb("features")
-      .$type<string[]>()
-      .default([])
-      .notNull(),
+    features: jsonb("features").$type<string[]>().default([]).notNull(),
 
     // Claude prompts for this template
     system_prompt: text("system_prompt"), // Initial context for Claude
@@ -241,9 +238,9 @@ export const appTemplates = pgTable(
     category_idx: index("app_templates_category_idx").on(table.category),
     is_active_idx: index("app_templates_is_active_idx").on(table.is_active),
     is_featured_idx: index("app_templates_is_featured_idx").on(
-      table.is_featured
+      table.is_featured,
     ),
-  })
+  }),
 );
 
 // Type inference

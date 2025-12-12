@@ -34,7 +34,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           error: "Invalid request data",
           details: validationResult.error.format(),
         }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: { "Content-Type": "application/json" } },
       );
     }
 
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
                 result: result.substring(0, 500),
               });
             },
-          }
+          },
         );
 
         await sendEvent("complete", {
@@ -81,7 +81,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         logger.error("Failed to send prompt via stream", { error });
         await sendEvent("error", {
           success: false,
-          error: error instanceof Error ? error.message : "Failed to send prompt",
+          error:
+            error instanceof Error ? error.message : "Failed to send prompt",
         });
       } finally {
         await writer.close();
@@ -96,15 +97,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       },
     });
   } catch (error) {
-    logger.error("Auth or ownership verification failed for prompt stream", { error });
-    const message = error instanceof Error ? error.message : "Authentication failed";
-    const status = message.includes("Unauthorized") ? 403 : message.includes("not found") ? 404 : 401;
+    logger.error("Auth or ownership verification failed for prompt stream", {
+      error,
+    });
+    const message =
+      error instanceof Error ? error.message : "Authentication failed";
+    const status = message.includes("Unauthorized")
+      ? 403
+      : message.includes("not found")
+        ? 404
+        : 401;
     return new Response(
       JSON.stringify({
         success: false,
         error: message,
       }),
-      { status, headers: { "Content-Type": "application/json" } }
+      { status, headers: { "Content-Type": "application/json" } },
     );
   }
 }

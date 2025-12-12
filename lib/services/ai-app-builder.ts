@@ -5,8 +5,15 @@
  * Vercel Sandbox and Claude Code CLI.
  */
 
-import { sandboxService, type SandboxSessionData, type SandboxProgress } from "./sandbox";
-import { buildSystemPrompt, EXAMPLE_PROMPTS } from "@/lib/config/claude-prompts";
+import {
+  sandboxService,
+  type SandboxSessionData,
+  type SandboxProgress,
+} from "./sandbox";
+import {
+  buildSystemPrompt,
+  EXAMPLE_PROMPTS,
+} from "@/lib/config/claude-prompts";
 import { logger } from "@/lib/utils/logger";
 import { db } from "@/db/client";
 import {
@@ -27,7 +34,12 @@ export interface BuilderSessionConfig {
   appName?: string;
   appDescription?: string;
   initialPrompt?: string;
-  templateType?: "chat" | "agent-dashboard" | "landing-page" | "analytics" | "blank";
+  templateType?:
+    | "chat"
+    | "agent-dashboard"
+    | "landing-page"
+    | "analytics"
+    | "blank";
   includeMonetization?: boolean;
   includeAnalytics?: boolean;
   onProgress?: (progress: SandboxProgress) => void;
@@ -149,7 +161,8 @@ export class AIAppBuilderService {
       } satisfies NewAppBuilderPrompt);
 
       // Get example prompts for this template
-      const examplePrompts = EXAMPLE_PROMPTS[templateType] || EXAMPLE_PROMPTS.blank;
+      const examplePrompts =
+        EXAMPLE_PROMPTS[templateType] || EXAMPLE_PROMPTS.blank;
 
       logger.info("AI App Builder session started", {
         sessionId: session.id,
@@ -177,7 +190,10 @@ export class AIAppBuilderService {
   async sendPrompt(
     sessionId: string,
     prompt: string,
-    options: { onToolUse?: (tool: string, input: unknown, result: string) => void; onThinking?: (text: string) => void } = {}
+    options: {
+      onToolUse?: (tool: string, input: unknown, result: string) => void;
+      onThinking?: (text: string) => void;
+    } = {},
   ): Promise<PromptResult> {
     logger.info("Sending prompt to AI App Builder", {
       sessionId,
@@ -194,7 +210,9 @@ export class AIAppBuilderService {
     }
 
     if (session.status !== "ready") {
-      throw new Error(`Session is not ready. Current status: ${session.status}`);
+      throw new Error(
+        `Session is not ready. Current status: ${session.status}`,
+      );
     }
 
     try {
@@ -233,7 +251,7 @@ export class AIAppBuilderService {
           systemPrompt: systemPromptRecord?.content,
           onToolUse: options.onToolUse,
           onThinking: options.onThinking,
-        }
+        },
       );
 
       const durationMs = Date.now() - startTime;
@@ -261,14 +279,15 @@ export class AIAppBuilderService {
       } satisfies NewAppBuilderPrompt);
 
       // Update session
-      const messages = (session.claude_messages as BuilderSession["messages"]) || [];
+      const messages =
+        (session.claude_messages as BuilderSession["messages"]) || [];
       messages.push(
         { role: "user", content: prompt, timestamp: new Date().toISOString() },
         {
           role: "assistant",
           content: result.output,
           timestamp: new Date().toISOString(),
-        }
+        },
       );
 
       await db
@@ -277,11 +296,11 @@ export class AIAppBuilderService {
           status: "ready",
           claude_messages: messages,
           generated_files: [
-            ...(session.generated_files as Array<{
+            ...((session.generated_files as Array<{
               path: string;
               type: string;
               timestamp: string;
-            }>) || [],
+            }>) || []),
             ...result.filesAffected.map((path) => ({
               path,
               type: "modified" as const,
@@ -306,7 +325,8 @@ export class AIAppBuilderService {
         .update(appSandboxSessions)
         .set({
           status: "error",
-          status_message: error instanceof Error ? error.message : "Unknown error",
+          status_message:
+            error instanceof Error ? error.message : "Unknown error",
           updated_at: new Date(),
         })
         .where(eq(appSandboxSessions.id, sessionId));
@@ -316,14 +336,13 @@ export class AIAppBuilderService {
     }
   }
 
-
   /**
    * Verify that a user owns a session
    * Returns the session if ownership is verified, throws an error otherwise
    */
   async verifySessionOwnership(
     sessionId: string,
-    userId: string
+    userId: string,
   ): Promise<AppSandboxSession> {
     const session = await db.query.appSandboxSessions.findFirst({
       where: eq(appSandboxSessions.id, sessionId),
@@ -365,8 +384,10 @@ export class AIAppBuilderService {
       }))
       .reverse();
 
-    const templateType = (session.template_type as keyof typeof EXAMPLE_PROMPTS) || "blank";
-    const examplePrompts = EXAMPLE_PROMPTS[templateType] || EXAMPLE_PROMPTS.blank;
+    const templateType =
+      (session.template_type as keyof typeof EXAMPLE_PROMPTS) || "blank";
+    const examplePrompts =
+      EXAMPLE_PROMPTS[templateType] || EXAMPLE_PROMPTS.blank;
 
     return {
       id: session.id,
@@ -383,7 +404,7 @@ export class AIAppBuilderService {
    */
   async listSessions(
     userId: string,
-    options: { limit?: number; includeInactive?: boolean } = {}
+    options: { limit?: number; includeInactive?: boolean } = {},
   ): Promise<AppSandboxSession[]> {
     const { limit = 10, includeInactive = false } = options;
 
@@ -397,7 +418,7 @@ export class AIAppBuilderService {
 
     if (!includeInactive) {
       return sessions.filter(
-        (s) => s.status !== "stopped" && s.status !== "timeout"
+        (s) => s.status !== "stopped" && s.status !== "timeout",
       );
     }
 
@@ -407,7 +428,10 @@ export class AIAppBuilderService {
   /**
    * Extend session timeout
    */
-  async extendSession(sessionId: string, durationMs: number = 15 * 60 * 1000): Promise<void> {
+  async extendSession(
+    sessionId: string,
+    durationMs: number = 15 * 60 * 1000,
+  ): Promise<void> {
     const session = await db.query.appSandboxSessions.findFirst({
       where: eq(appSandboxSessions.id, sessionId),
     });
@@ -474,7 +498,7 @@ export class AIAppBuilderService {
       appName: string;
       appDescription?: string;
       appUrl?: string;
-    }
+    },
   ): Promise<{ appId: string; deploymentUrl: string }> {
     const session = await db.query.appSandboxSessions.findFirst({
       where: eq(appSandboxSessions.id, sessionId),

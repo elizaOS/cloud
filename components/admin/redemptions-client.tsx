@@ -124,7 +124,8 @@ export function AdminRedemptionsClient() {
   const [searchQuery, setSearchQuery] = useState("");
 
   // Action dialogs
-  const [selectedRedemption, setSelectedRedemption] = useState<RedemptionData | null>(null);
+  const [selectedRedemption, setSelectedRedemption] =
+    useState<RedemptionData | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showApproveDialog, setShowApproveDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
@@ -166,7 +167,9 @@ export function AdminRedemptionsClient() {
       await fetchSystemStatus();
     };
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [fetchRedemptions, fetchSystemStatus]);
 
   // Approve redemption
@@ -305,11 +308,15 @@ export function AdminRedemptionsClient() {
           <h3 className="text-lg font-semibold text-white mb-4">Queue Stats</h3>
           <div className="grid grid-cols-3 gap-4">
             <div className="text-center">
-              <p className="text-2xl font-bold text-yellow-400">{stats?.pending || 0}</p>
+              <p className="text-2xl font-bold text-yellow-400">
+                {stats?.pending || 0}
+              </p>
               <p className="text-xs text-white/60">Pending</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-purple-400">{stats?.processing || 0}</p>
+              <p className="text-2xl font-bold text-purple-400">
+                {stats?.processing || 0}
+              </p>
               <p className="text-xs text-white/60">Processing</p>
             </div>
             <div className="text-center">
@@ -339,7 +346,11 @@ export function AdminRedemptionsClient() {
             </SelectTrigger>
             <SelectContent className="bg-zinc-900 border-white/10">
               {STATUS_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value} className="text-white">
+                <SelectItem
+                  key={opt.value}
+                  value={opt.value}
+                  className="text-white"
+                >
                   {opt.label}
                 </SelectItem>
               ))}
@@ -350,11 +361,21 @@ export function AdminRedemptionsClient() {
               <SelectValue placeholder="Network" />
             </SelectTrigger>
             <SelectContent className="bg-zinc-900 border-white/10">
-              <SelectItem value="all" className="text-white">All Networks</SelectItem>
-              <SelectItem value="base" className="text-white">Base</SelectItem>
-              <SelectItem value="solana" className="text-white">Solana</SelectItem>
-              <SelectItem value="ethereum" className="text-white">Ethereum</SelectItem>
-              <SelectItem value="bnb" className="text-white">BNB</SelectItem>
+              <SelectItem value="all" className="text-white">
+                All Networks
+              </SelectItem>
+              <SelectItem value="base" className="text-white">
+                Base
+              </SelectItem>
+              <SelectItem value="solana" className="text-white">
+                Solana
+              </SelectItem>
+              <SelectItem value="ethereum" className="text-white">
+                Ethereum
+              </SelectItem>
+              <SelectItem value="bnb" className="text-white">
+                BNB
+              </SelectItem>
             </SelectContent>
           </Select>
           <Button
@@ -406,7 +427,7 @@ export function AdminRedemptionsClient() {
                   <TableCell>
                     <button
                       onClick={() => copyToClipboard(r.user_id)}
-                      className="text-white/80 font-mono text-xs hover:text-[#FF5800] flex items-center gap-1"
+                      className="text-white/80 text-xs hover:text-[#FF5800] flex items-center gap-1"
                     >
                       {truncateAddress(r.user_id)}
                       <Copy className="h-3 w-3 opacity-50" />
@@ -428,14 +449,18 @@ export function AdminRedemptionsClient() {
                   <TableCell>
                     <button
                       onClick={() => copyToClipboard(r.payout_address)}
-                      className="text-white/80 font-mono text-xs hover:text-[#FF5800] flex items-center gap-1"
+                      className="text-white/80 text-xs hover:text-[#FF5800] flex items-center gap-1"
                     >
                       {truncateAddress(r.payout_address)}
                       <Copy className="h-3 w-3 opacity-50" />
                     </button>
                   </TableCell>
                   <TableCell>
-                    <Badge className={STATUS_COLORS[r.status] || STATUS_COLORS.pending}>
+                    <Badge
+                      className={
+                        STATUS_COLORS[r.status] || STATUS_COLORS.pending
+                      }
+                    >
                       {r.status}
                     </Badge>
                   </TableCell>
@@ -557,7 +582,7 @@ export function AdminRedemptionsClient() {
               </div>
               <div>
                 <p className="text-xs text-white/40 mb-1">Payout Address</p>
-                <p className="text-sm text-white font-mono break-all">
+                <p className="text-sm text-white break-all">
                   {selectedRedemption.payout_address}
                 </p>
               </div>
@@ -567,7 +592,7 @@ export function AdminRedemptionsClient() {
                   <a
                     href={getExplorerUrl(
                       selectedRedemption.network,
-                      selectedRedemption.tx_hash
+                      selectedRedemption.tx_hash,
                     )}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -614,20 +639,27 @@ export function AdminRedemptionsClient() {
             <AlertDialogDescription className="text-white/60">
               This will approve the redemption of{" "}
               <span className="text-[#FF5800] font-semibold">
-                {selectedRedemption && formatCurrency(selectedRedemption.usd_value)}
+                {selectedRedemption &&
+                  formatCurrency(selectedRedemption.usd_value)}
               </span>{" "}
-              ({selectedRedemption && parseFloat(selectedRedemption.eliza_amount).toFixed(2)} elizaOS)
-              to{" "}
+              (
+              {selectedRedemption &&
+                parseFloat(selectedRedemption.eliza_amount).toFixed(2)}{" "}
+              elizaOS) to{" "}
               <span className="font-mono text-white">
-                {selectedRedemption && truncateAddress(selectedRedemption.payout_address)}
+                {selectedRedemption &&
+                  truncateAddress(selectedRedemption.payout_address)}
               </span>{" "}
               on {selectedRedemption?.network}.
-              <br /><br />
+              <br />
+              <br />
               The tokens will be sent in the next processing batch.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="text-white/60">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="text-white/60">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleApprove}
               disabled={actionLoading}
@@ -687,4 +719,3 @@ export function AdminRedemptionsClient() {
     </div>
   );
 }
-

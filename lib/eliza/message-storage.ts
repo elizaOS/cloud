@@ -66,7 +66,9 @@ class MessageStorageService {
   /**
    * Store a user message in the database
    */
-  async storeUserMessage(params: StoreUserMessageParams): Promise<StoredMessage> {
+  async storeUserMessage(
+    params: StoreUserMessageParams,
+  ): Promise<StoredMessage> {
     const { roomId, entityId, agentId, text, attachments } = params;
 
     const messageId = uuidv4();
@@ -93,7 +95,9 @@ class MessageStorageService {
         createdAt: now,
       });
 
-      logger.info(`[MessageStorage] Stored user message: ${messageId} in room ${roomId}`);
+      logger.info(
+        `[MessageStorage] Stored user message: ${messageId} in room ${roomId}`,
+      );
 
       return {
         id: messageId,
@@ -113,7 +117,9 @@ class MessageStorageService {
   /**
    * Store an agent message in the database
    */
-  async storeAgentMessage(params: StoreAgentMessageParams): Promise<StoredMessage> {
+  async storeAgentMessage(
+    params: StoreAgentMessageParams,
+  ): Promise<StoredMessage> {
     const { roomId, agentId, content, inReplyTo } = params;
 
     const messageId = uuidv4();
@@ -140,7 +146,9 @@ class MessageStorageService {
         createdAt: now,
       });
 
-      logger.info(`[MessageStorage] Stored agent message: ${messageId} in room ${roomId}`);
+      logger.info(
+        `[MessageStorage] Stored agent message: ${messageId} in room ${roomId}`,
+      );
 
       return {
         id: messageId,
@@ -183,7 +191,10 @@ class MessageStorageService {
         roomId: msg.roomId,
         entityId: msg.entityId,
         agentId: msg.agentId ?? msg.entityId,
-        content: (msg.content as MessageContent) || { text: "", source: "unknown" },
+        content: (msg.content as MessageContent) || {
+          text: "",
+          source: "unknown",
+        },
         type: msg.type ?? "messages",
         createdAt: msg.createdAt ?? Date.now(),
       }));
@@ -206,7 +217,10 @@ class MessageStorageService {
 
       return result.length > 0;
     } catch (error) {
-      logger.error("[MessageStorage] Failed to check message existence:", error);
+      logger.error(
+        "[MessageStorage] Failed to check message existence:",
+        error,
+      );
       return false;
     }
   }

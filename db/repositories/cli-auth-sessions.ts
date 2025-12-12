@@ -14,7 +14,7 @@ export type { CliAuthSession, NewCliAuthSession };
 export class CliAuthSessionsRepository {
   /**
    * Creates a new CLI auth session.
-   * 
+   *
    * @throws Error if session creation fails.
    */
   async create(data: NewCliAuthSession): Promise<CliAuthSession> {

@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
   if (!parseResult.success) {
     return NextResponse.json(
       { error: "Invalid parameters", details: parseResult.error.issues },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
       // ========================================================================
       // Deduplicate services (prefer local over ERC-8004 for same service)
       // ========================================================================
-      
+
       const deduped = deduplicateServices(services);
 
       // ========================================================================
@@ -153,7 +153,7 @@ export async function GET(request: NextRequest) {
         filtered = filtered.filter(
           (s) =>
             s.name.toLowerCase().includes(query) ||
-            s.description.toLowerCase().includes(query)
+            s.description.toLowerCase().includes(query),
         );
       }
 
@@ -170,14 +170,14 @@ export async function GET(request: NextRequest) {
       // Filter by categories
       if (params.categories?.length) {
         filtered = filtered.filter(
-          (s) => s.category && params.categories!.includes(s.category)
+          (s) => s.category && params.categories!.includes(s.category),
         );
       }
 
       // Filter by tags
       if (params.tags?.length) {
         filtered = filtered.filter((s) =>
-          s.tags.some((tag) => params.tags!.includes(tag))
+          s.tags.some((tag) => params.tags!.includes(tag)),
         );
       }
 
@@ -188,7 +188,7 @@ export async function GET(request: NextRequest) {
       const total = filtered.length;
       const paginated = filtered.slice(
         params.offset,
-        params.offset + params.limit
+        params.offset + params.limit,
       );
 
       return {
@@ -200,13 +200,13 @@ export async function GET(request: NextRequest) {
           offset: params.offset,
         },
       };
-    }
+    },
   );
 
   if (!result) {
     return NextResponse.json(
       { error: "Failed to fetch discovery results" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -224,7 +224,7 @@ export async function GET(request: NextRequest) {
  * Fetch local agents from the marketplace
  */
 async function fetchLocalAgents(
-  params: z.infer<typeof querySchema>
+  params: z.infer<typeof querySchema>,
 ): Promise<DiscoveredService[]> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
 
@@ -271,7 +271,7 @@ async function fetchLocalAgents(
  * Fetch local MCPs from the registry
  */
 async function fetchLocalMcps(
-  params: z.infer<typeof querySchema>
+  params: z.infer<typeof querySchema>,
 ): Promise<DiscoveredService[]> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
 
@@ -282,46 +282,48 @@ async function fetchLocalMcps(
     offset: params.offset,
   });
 
-  return mcps.map((mcp): DiscoveredService => ({
-    id: mcp.id,
-    name: mcp.name,
-    description: mcp.description,
-    type: "mcp",
-    source: "local",
-    category: mcp.category,
-    tags: mcp.tags ?? [],
-    active: mcp.status === "live",
-    mcpEndpoint: userMcpsService.getEndpointUrl(mcp, baseUrl),
-    mcpTools: mcp.tools.map((t) => t.name),
-    a2aSkills: [],
-    x402Support: mcp.x402_enabled,
-    organizationId: mcp.organization_id,
-    creatorId: mcp.created_by_user_id,
-    verified: mcp.is_verified,
-    slug: mcp.slug,
-    pricing:
-      mcp.pricing_type === "free"
-        ? { type: "free", description: "Free to use" }
-        : mcp.pricing_type === "credits"
-          ? {
-              type: "credits",
-              amount: Number(mcp.credits_per_request),
-              description: `${mcp.credits_per_request} credits per request`,
-            }
-          : {
-              type: "x402",
-              amount: Number(mcp.x402_price_usd),
-              currency: "USD",
-              description: `$${mcp.x402_price_usd} per request`,
-            },
-  }));
+  return mcps.map(
+    (mcp): DiscoveredService => ({
+      id: mcp.id,
+      name: mcp.name,
+      description: mcp.description,
+      type: "mcp",
+      source: "local",
+      category: mcp.category,
+      tags: mcp.tags ?? [],
+      active: mcp.status === "live",
+      mcpEndpoint: userMcpsService.getEndpointUrl(mcp, baseUrl),
+      mcpTools: mcp.tools.map((t) => t.name),
+      a2aSkills: [],
+      x402Support: mcp.x402_enabled,
+      organizationId: mcp.organization_id,
+      creatorId: mcp.created_by_user_id,
+      verified: mcp.is_verified,
+      slug: mcp.slug,
+      pricing:
+        mcp.pricing_type === "free"
+          ? { type: "free", description: "Free to use" }
+          : mcp.pricing_type === "credits"
+            ? {
+                type: "credits",
+                amount: Number(mcp.credits_per_request),
+                description: `${mcp.credits_per_request} credits per request`,
+              }
+            : {
+                type: "x402",
+                amount: Number(mcp.x402_price_usd),
+                currency: "USD",
+                description: `$${mcp.x402_price_usd} per request`,
+              },
+    }),
+  );
 }
 
 /**
  * Fetch services from the ERC-8004 registry
  */
 async function fetchERC8004Services(
-  params: z.infer<typeof querySchema>
+  params: z.infer<typeof querySchema>,
 ): Promise<DiscoveredService[]> {
   const network = getDefaultNetwork();
   const chainId = CHAIN_IDS[network];
@@ -336,33 +338,35 @@ async function fetchERC8004Services(
   });
 
   return agents.map((agent) =>
-    agent0ToDiscoveredService(agent, network, chainId)
+    agent0ToDiscoveredService(agent, network, chainId),
   );
 }
 
 /**
  * Deduplicate services by preferring local over ERC-8004
- * 
+ *
  * When a service exists in both local marketplace and ERC-8004 registry,
  * we prefer the local version since it has richer metadata.
- * 
+ *
  * Deduplication is based on:
  * 1. Same name (case-insensitive)
  * 2. Same endpoints (A2A or MCP)
  */
-function deduplicateServices(services: DiscoveredService[]): DiscoveredService[] {
+function deduplicateServices(
+  services: DiscoveredService[],
+): DiscoveredService[] {
   const seen = new Map<string, DiscoveredService>();
-  
+
   // Process local services first (they have priority)
   const localServices = services.filter((s) => s.source === "local");
   const erc8004Services = services.filter((s) => s.source === "erc8004");
-  
+
   // Add all local services
   for (const service of localServices) {
     const key = getServiceDedupeKey(service);
     seen.set(key, service);
   }
-  
+
   // Add ERC-8004 services only if not already present
   for (const service of erc8004Services) {
     const key = getServiceDedupeKey(service);
@@ -370,7 +374,7 @@ function deduplicateServices(services: DiscoveredService[]): DiscoveredService[]
       seen.set(key, service);
     }
   }
-  
+
   return Array.from(seen.values());
 }
 
@@ -380,10 +384,10 @@ function deduplicateServices(services: DiscoveredService[]): DiscoveredService[]
 function getServiceDedupeKey(service: DiscoveredService): string {
   // Primary key: normalized name + type
   const normalizedName = service.name.toLowerCase().trim();
-  
+
   // Secondary: endpoint matching
   const endpointKey = service.a2aEndpoint || service.mcpEndpoint || "";
-  
+
   // Combine for unique key
   return `${normalizedName}:${service.type}:${normalizeEndpoint(endpointKey)}`;
 }
@@ -393,12 +397,10 @@ function getServiceDedupeKey(service: DiscoveredService): string {
  */
 function normalizeEndpoint(url: string): string {
   if (!url) return "";
-  
+
   // Remove protocol and trailing slashes for comparison
   return url
     .replace(/^https?:\/\//, "")
     .replace(/\/$/, "")
     .toLowerCase();
 }
-
-

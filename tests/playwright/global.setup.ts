@@ -46,7 +46,7 @@ const PAGES_TO_WARMUP = [
   "/dashboard/voices",
   "/dashboard/mcps",
   "/dashboard/invoices",
-  "/dashboard/character-creator",
+  "/dashboard/build",
   "/dashboard/apps",
   "/dashboard/organization",
 
@@ -69,7 +69,7 @@ const API_ROUTES_TO_WARMUP = [
 async function warmupPage(
   url: string,
   browser: Awaited<ReturnType<typeof chromium.launch>>,
-  timeout: number
+  timeout: number,
 ): Promise<{ url: string; status: number | null; time: number }> {
   const startTime = Date.now();
   const context = await browser.newContext();
@@ -97,7 +97,7 @@ async function warmupPage(
 
 async function warmupApiRoute(
   url: string,
-  timeout: number
+  timeout: number,
 ): Promise<{ url: string; status: number | null; time: number }> {
   const startTime = Date.now();
   let status: number | null = null;
@@ -156,7 +156,7 @@ async function globalSetup(_config: FullConfig) {
               : "❌";
 
     console.log(
-      `  ${statusEmoji} ${path} - ${result.status ?? "failed"} (${result.time}ms)`
+      `  ${statusEmoji} ${path} - ${result.status ?? "failed"} (${result.time}ms)`,
     );
   }
 
@@ -183,7 +183,7 @@ async function globalSetup(_config: FullConfig) {
             : "❌";
 
     console.log(
-      `  ${statusEmoji} ${path} - ${result.status ?? "failed"} (${result.time}ms)`
+      `  ${statusEmoji} ${path} - ${result.status ?? "failed"} (${result.time}ms)`,
     );
   }
 
@@ -194,17 +194,17 @@ async function globalSetup(_config: FullConfig) {
   // We consider a page "compiled" if we got any response
   const compiledPages = pageResults.filter((r) => r.status !== null).length;
   const publicPagesOk = pageResults.filter(
-    (r) => r.status && r.status < 500
+    (r) => r.status && r.status < 500,
   ).length;
   const compiledApis = apiResults.filter((r) => r.status !== null).length;
 
   console.log("\n📊 Warmup Summary:");
   console.log(
-    `  Pages: ${compiledPages}/${pageResults.length} compiled (${publicPagesOk} public pages OK)`
+    `  Pages: ${compiledPages}/${pageResults.length} compiled (${publicPagesOk} public pages OK)`,
   );
   console.log(`  APIs: ${compiledApis}/${apiResults.length} compiled`);
   console.log(
-    "\n  Note: 500 errors on dashboard pages are expected (auth required)"
+    "\n  Note: 500 errors on dashboard pages are expected (auth required)",
   );
   console.log("");
 
@@ -213,4 +213,3 @@ async function globalSetup(_config: FullConfig) {
 }
 
 export default globalSetup;
-

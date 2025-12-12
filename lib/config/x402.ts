@@ -68,7 +68,8 @@ export const USDC_ADDRESSES: Record<X402Network, Address> = {
 // Environment configuration
 // x402 is enabled by default - disable with ENABLE_X402_PAYMENTS=false
 export const X402_ENABLED = process.env.ENABLE_X402_PAYMENTS !== "false";
-export const X402_RECIPIENT_ADDRESS: Address = (process.env.X402_RECIPIENT_ADDRESS || ZERO_ADDRESS) as Address;
+export const X402_RECIPIENT_ADDRESS: Address = (process.env
+  .X402_RECIPIENT_ADDRESS || ZERO_ADDRESS) as Address;
 
 // Credit pricing from config
 export const TOPUP_PRICE = config.pricing.topupPrice;
@@ -90,7 +91,8 @@ export const ELIZA_TOKEN_ADDRESSES = {
 export function getDefaultNetwork(): X402Network {
   const envNetwork = process.env.X402_NETWORK as X402Network | undefined;
   if (envNetwork && CHAIN_IDS[envNetwork]) return envNetwork;
-  if (process.env.NODE_ENV === "production") return config.defaults.productionNetwork as X402Network;
+  if (process.env.NODE_ENV === "production")
+    return config.defaults.productionNetwork as X402Network;
   return config.defaults.network as X402Network;
 }
 

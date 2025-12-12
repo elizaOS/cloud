@@ -1,14 +1,14 @@
 /**
  * COMPREHENSIVE API Integration Tests
- * 
+ *
  * Tests ALL MCP tools (60) and A2A methods (54) with:
  * - Real HTTP requests
  * - Database verification for write operations
  * - Credit deduction tracking
  * - Error handling validation
- * 
+ *
  * NO MOCKS. NO LARP. REAL TESTS.
- * 
+ *
  * Requirements:
  * - TEST_API_KEY: Valid API key with credits
  * - Server running at TEST_SERVER_URL (default: http://localhost:3000)
@@ -51,11 +51,13 @@ let apiKeyValid = false;
 async function fetchWithAuth(
   endpoint: string,
   method: "GET" | "POST" | "DELETE" = "GET",
-  body?: Record<string, unknown>
+  body?: Record<string, unknown>,
 ): Promise<Response> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
   if (API_KEY) headers["Authorization"] = `Bearer ${API_KEY}`;
-  
+
   return fetch(`${SERVER_URL}${endpoint}`, {
     method,
     headers,
@@ -74,7 +76,10 @@ interface A2aResponse {
   error?: { code: number; message: string; data?: unknown };
 }
 
-async function mcpCall(toolName: string, args: Record<string, unknown> = {}): Promise<McpResponse> {
+async function mcpCall(
+  toolName: string,
+  args: Record<string, unknown> = {},
+): Promise<McpResponse> {
   const response = await fetchWithAuth("/api/mcp", "POST", {
     jsonrpc: "2.0",
     method: "tools/call",
@@ -84,7 +89,10 @@ async function mcpCall(toolName: string, args: Record<string, unknown> = {}): Pr
   return response.json();
 }
 
-async function a2aCall(method: string, params: Record<string, unknown> = {}): Promise<A2aResponse> {
+async function a2aCall(
+  method: string,
+  params: Record<string, unknown> = {},
+): Promise<A2aResponse> {
   const response = await fetchWithAuth("/api/a2a", "POST", {
     jsonrpc: "2.0",
     method,
@@ -114,7 +122,11 @@ describe("Prerequisites", () => {
       const response = await fetch(`${SERVER_URL}/api/a2a`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", method: "a2a.getAgentCard", id: 1 }),
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          method: "a2a.getAgentCard",
+          id: 1,
+        }),
         signal: AbortSignal.timeout(5000),
       });
       serverRunning = response.ok;
@@ -144,13 +156,13 @@ describe("Prerequisites", () => {
       console.log(`⚠️ API key invalid: ${data.error.message}`);
       return;
     }
-    
+
     const balance = data.result?.balance;
     if (typeof balance !== "number") {
       console.log(`⚠️ Unexpected balance response`);
       return;
     }
-    
+
     console.log(`✅ API key valid, balance: $${balance.toFixed(2)}`);
     initialBalance = balance;
     apiKeyValid = true;
@@ -222,7 +234,9 @@ describe("MCP: Credits & Billing", () => {
     const data = await mcpCall("get_redemption_quote", { amount: 10 });
     const result = parseMcpResult(data);
     // May error if no balance, but should return valid response
-    expect(result.success !== undefined || result.error !== undefined).toBe(true);
+    expect(result.success !== undefined || result.error !== undefined).toBe(
+      true,
+    );
   });
 });
 
@@ -254,26 +268,29 @@ describe("MCP: Agents", () => {
     expect(typeof result.agentId).toBe("string");
     testAgentId = result.agentId as string;
     createdResources.agents.push(testAgentId);
-    
+
     // Verify in DB
     const listData = await mcpCall("list_agents");
     const listResult = parseMcpResult(listData);
     const agents = listResult.agents as Array<{ id: string }>;
-    expect(agents.some(a => a.id === testAgentId)).toBe(true);
+    expect(agents.some((a) => a.id === testAgentId)).toBe(true);
   });
 
   test("update_agent", async () => {
     if (skip() || !testAgentId) return;
     const newName = `Updated ${Date.now()}`;
-    const data = await mcpCall("update_agent", { agentId: testAgentId, name: newName });
+    const data = await mcpCall("update_agent", {
+      agentId: testAgentId,
+      name: newName,
+    });
     const result = parseMcpResult(data);
     expect(result.success).toBe(true);
-    
+
     // Verify update
     const listData = await mcpCall("list_agents");
     const listResult = parseMcpResult(listData);
     const agents = listResult.agents as Array<{ id: string; name: string }>;
-    expect(agents.find(a => a.id === testAgentId)?.name).toBe(newName);
+    expect(agents.find((a) => a.id === testAgentId)?.name).toBe(newName);
   });
 
   test("chat_with_agent", async () => {
@@ -284,7 +301,9 @@ describe("MCP: Agents", () => {
     });
     const result = parseMcpResult(data);
     // May succeed or fail depending on agent setup
-    expect(result.success !== undefined || result.error !== undefined).toBe(true);
+    expect(result.success !== undefined || result.error !== undefined).toBe(
+      true,
+    );
   });
 
   test("delete_agent", async () => {
@@ -292,13 +311,15 @@ describe("MCP: Agents", () => {
     const data = await mcpCall("delete_agent", { agentId: testAgentId });
     const result = parseMcpResult(data);
     expect(result.success).toBe(true);
-    
+
     // Verify deletion
     const listData = await mcpCall("list_agents");
     const listResult = parseMcpResult(listData);
     const agents = listResult.agents as Array<{ id: string }>;
-    expect(agents.some(a => a.id === testAgentId)).toBe(false);
-    createdResources.agents = createdResources.agents.filter(id => id !== testAgentId);
+    expect(agents.some((a) => a.id === testAgentId)).toBe(false);
+    createdResources.agents = createdResources.agents.filter(
+      (id) => id !== testAgentId,
+    );
   });
 });
 
@@ -324,7 +345,7 @@ describe("MCP: Containers", () => {
   });
 
   // Note: create_container, get_container, get_container_health, get_container_logs,
-  // get_container_metrics, delete_container require actual container IDs or 
+  // get_container_metrics, delete_container require actual container IDs or
   // incur AWS costs, so we skip them in basic tests
 });
 
@@ -352,15 +373,15 @@ describe("MCP: API Keys", () => {
     expect(result.apiKey).toBeDefined();
     expect(typeof result.plainKey).toBe("string");
     expect((result.plainKey as string).startsWith("sk_")).toBe(true);
-    
+
     testApiKeyId = (result.apiKey as { id: string }).id;
     createdResources.apiKeys.push(testApiKeyId);
-    
+
     // Verify in DB
     const listData = await mcpCall("list_api_keys");
     const listResult = parseMcpResult(listData);
     const keys = listResult.apiKeys as Array<{ id: string }>;
-    expect(keys.some(k => k.id === testApiKeyId)).toBe(true);
+    expect(keys.some((k) => k.id === testApiKeyId)).toBe(true);
   });
 
   test("delete_api_key", async () => {
@@ -368,13 +389,15 @@ describe("MCP: API Keys", () => {
     const data = await mcpCall("delete_api_key", { apiKeyId: testApiKeyId });
     const result = parseMcpResult(data);
     expect(result.success).toBe(true);
-    
+
     // Verify deletion
     const listData = await mcpCall("list_api_keys");
     const listResult = parseMcpResult(listData);
     const keys = listResult.apiKeys as Array<{ id: string }>;
-    expect(keys.some(k => k.id === testApiKeyId)).toBe(false);
-    createdResources.apiKeys = createdResources.apiKeys.filter(id => id !== testApiKeyId);
+    expect(keys.some((k) => k.id === testApiKeyId)).toBe(false);
+    createdResources.apiKeys = createdResources.apiKeys.filter(
+      (id) => id !== testApiKeyId,
+    );
   });
 });
 
@@ -401,12 +424,12 @@ describe("MCP: Rooms", () => {
     expect(typeof result.roomId).toBe("string");
     testRoomId = result.roomId as string;
     createdResources.rooms.push(testRoomId);
-    
+
     // Verify in DB
     const listData = await mcpCall("list_rooms");
     const listResult = parseMcpResult(listData);
     const rooms = listResult.rooms as Array<{ id: string }>;
-    expect(rooms.some(r => r.id === testRoomId)).toBe(true);
+    expect(rooms.some((r) => r.id === testRoomId)).toBe(true);
   });
 });
 
@@ -432,37 +455,58 @@ describe("MCP: Conversations", () => {
 
   test("get_conversation_context", async () => {
     if (skip() || !testConvoId) return;
-    const data = await mcpCall("get_conversation_context", { conversationId: testConvoId });
+    const data = await mcpCall("get_conversation_context", {
+      conversationId: testConvoId,
+    });
     const result = parseMcpResult(data);
-    expect(result.success !== undefined || result.error !== undefined).toBe(true);
+    expect(result.success !== undefined || result.error !== undefined).toBe(
+      true,
+    );
   });
 
   test("search_conversations", async () => {
     if (skip()) return;
-    const data = await mcpCall("search_conversations", { query: "test", limit: 5 });
+    const data = await mcpCall("search_conversations", {
+      query: "test",
+      limit: 5,
+    });
     const result = parseMcpResult(data);
-    expect(result.success !== undefined || result.error !== undefined).toBe(true);
+    expect(result.success !== undefined || result.error !== undefined).toBe(
+      true,
+    );
   });
 
   test("clone_conversation", async () => {
     if (skip() || !testConvoId) return;
-    const data = await mcpCall("clone_conversation", { conversationId: testConvoId });
+    const data = await mcpCall("clone_conversation", {
+      conversationId: testConvoId,
+    });
     const result = parseMcpResult(data);
-    expect(result.success !== undefined || result.error !== undefined).toBe(true);
+    expect(result.success !== undefined || result.error !== undefined).toBe(
+      true,
+    );
   });
 
   test("summarize_conversation", async () => {
     if (skip() || !testConvoId) return;
-    const data = await mcpCall("summarize_conversation", { conversationId: testConvoId });
+    const data = await mcpCall("summarize_conversation", {
+      conversationId: testConvoId,
+    });
     const result = parseMcpResult(data);
-    expect(result.success !== undefined || result.error !== undefined).toBe(true);
+    expect(result.success !== undefined || result.error !== undefined).toBe(
+      true,
+    );
   });
 
   test("export_conversation", async () => {
     if (skip() || !testConvoId) return;
-    const data = await mcpCall("export_conversation", { conversationId: testConvoId });
+    const data = await mcpCall("export_conversation", {
+      conversationId: testConvoId,
+    });
     const result = parseMcpResult(data);
-    expect(result.success !== undefined || result.error !== undefined).toBe(true);
+    expect(result.success !== undefined || result.error !== undefined).toBe(
+      true,
+    );
   });
 });
 
@@ -478,36 +522,51 @@ describe("MCP: Memory", () => {
       tags: ["test"],
     });
     const result = parseMcpResult(data);
-    expect(result.success !== undefined || result.error !== undefined).toBe(true);
+    expect(result.success !== undefined || result.error !== undefined).toBe(
+      true,
+    );
   });
 
   test("retrieve_memories", async () => {
     if (skip()) return;
-    const data = await mcpCall("retrieve_memories", { query: "test", limit: 5 });
+    const data = await mcpCall("retrieve_memories", {
+      query: "test",
+      limit: 5,
+    });
     const result = parseMcpResult(data);
-    expect(result.success !== undefined || result.error !== undefined).toBe(true);
+    expect(result.success !== undefined || result.error !== undefined).toBe(
+      true,
+    );
   });
 
   test("analyze_memory_patterns", async () => {
     if (skip()) return;
     const data = await mcpCall("analyze_memory_patterns", {});
     const result = parseMcpResult(data);
-    expect(result.success !== undefined || result.error !== undefined).toBe(true);
+    expect(result.success !== undefined || result.error !== undefined).toBe(
+      true,
+    );
   });
 
   test("optimize_context_window", async () => {
     if (skip()) return;
     const data = await mcpCall("optimize_context_window", { maxTokens: 4096 });
     const result = parseMcpResult(data);
-    expect(result.success !== undefined || result.error !== undefined).toBe(true);
+    expect(result.success !== undefined || result.error !== undefined).toBe(
+      true,
+    );
   });
 
   test("delete_memory", async () => {
     if (skip()) return;
     // Would need valid memory ID - just verify API responds
-    const data = await mcpCall("delete_memory", { memoryId: "00000000-0000-0000-0000-000000000000" });
+    const data = await mcpCall("delete_memory", {
+      memoryId: "00000000-0000-0000-0000-000000000000",
+    });
     const result = parseMcpResult(data);
-    expect(result.success !== undefined || result.error !== undefined).toBe(true);
+    expect(result.success !== undefined || result.error !== undefined).toBe(
+      true,
+    );
   });
 });
 
@@ -520,7 +579,9 @@ describe("MCP: Knowledge", () => {
     if (skip()) return;
     const data = await mcpCall("query_knowledge", { query: "test", limit: 5 });
     const result = parseMcpResult(data);
-    expect(result.success !== undefined || result.error !== undefined).toBe(true);
+    expect(result.success !== undefined || result.error !== undefined).toBe(
+      true,
+    );
   });
 
   test("upload_knowledge", async () => {
@@ -530,7 +591,9 @@ describe("MCP: Knowledge", () => {
       title: "Test",
     });
     const result = parseMcpResult(data);
-    expect(result.success !== undefined || result.error !== undefined).toBe(true);
+    expect(result.success !== undefined || result.error !== undefined).toBe(
+      true,
+    );
   });
 });
 
@@ -549,7 +612,9 @@ describe("MCP: User", () => {
 
   test("update_user_profile", async () => {
     if (skip()) return;
-    const data = await mcpCall("update_user_profile", { name: `Test ${Date.now()}` });
+    const data = await mcpCall("update_user_profile", {
+      name: `Test ${Date.now()}`,
+    });
     const result = parseMcpResult(data);
     expect(result.success).toBe(true);
   });
@@ -616,7 +681,9 @@ describe("MCP: Analytics", () => {
     if (skip()) return;
     const data = await mcpCall("get_analytics", { period: "7d" });
     const result = parseMcpResult(data);
-    expect(result.success !== undefined || result.error !== undefined).toBe(true);
+    expect(result.success !== undefined || result.error !== undefined).toBe(
+      true,
+    );
   });
 });
 
@@ -627,7 +694,10 @@ describe("MCP: Analytics", () => {
 describe("MCP: ERC-8004 Discovery", () => {
   test("discover_services", async () => {
     if (skip()) return;
-    const data = await mcpCall("discover_services", { sources: ["local"], limit: 5 });
+    const data = await mcpCall("discover_services", {
+      sources: ["local"],
+      limit: 5,
+    });
     const result = parseMcpResult(data);
     expect(result.success).toBe(true);
     expect(Array.isArray(result.services)).toBe(true);
@@ -638,14 +708,20 @@ describe("MCP: ERC-8004 Discovery", () => {
     // Would need valid service ID - just verify API responds
     const data = await mcpCall("get_service_details", { agentId: "1:1" });
     const result = parseMcpResult(data);
-    expect(result.success !== undefined || result.error !== undefined).toBe(true);
+    expect(result.success !== undefined || result.error !== undefined).toBe(
+      true,
+    );
   });
 
   test("find_mcp_tools", async () => {
     if (skip()) return;
-    const data = await mcpCall("find_mcp_tools", { tools: ["get_crypto_price"] });
+    const data = await mcpCall("find_mcp_tools", {
+      tools: ["get_crypto_price"],
+    });
     const result = parseMcpResult(data);
-    expect(result.success !== undefined || result.error !== undefined).toBe(true);
+    expect(result.success !== undefined || result.error !== undefined).toBe(
+      true,
+    );
   });
 });
 
@@ -662,21 +738,27 @@ describe("MCP: Generation (cost-aware)", () => {
       maxTokens: 10,
     });
     const result = parseMcpResult(data);
-    expect(result.success !== undefined || result.error !== undefined).toBe(true);
+    expect(result.success !== undefined || result.error !== undefined).toBe(
+      true,
+    );
   });
 
   test("generate_embeddings", async () => {
     if (skip()) return;
     const data = await mcpCall("generate_embeddings", { text: "test" });
     const result = parseMcpResult(data);
-    expect(result.success !== undefined || result.error !== undefined).toBe(true);
+    expect(result.success !== undefined || result.error !== undefined).toBe(
+      true,
+    );
   });
 
   test("generate_prompts", async () => {
     if (skip()) return;
     const data = await mcpCall("generate_prompts", { topic: "test" });
     const result = parseMcpResult(data);
-    expect(result.success !== undefined || result.error !== undefined).toBe(true);
+    expect(result.success !== undefined || result.error !== undefined).toBe(
+      true,
+    );
   });
 
   // generate_image and generate_video are expensive - skip
@@ -756,24 +838,30 @@ describe("A2A: Agents", () => {
     expect(typeof data.result?.agentId).toBe("string");
     testAgentId = data.result?.agentId as string;
     createdResources.agents.push(testAgentId);
-    
+
     // Verify in DB
     const listData = await a2aCall("a2a.listAgents");
     const agents = listData.result?.agents as Array<{ id: string }>;
-    expect(agents.some(a => a.id === testAgentId)).toBe(true);
+    expect(agents.some((a) => a.id === testAgentId)).toBe(true);
   });
 
   test("a2a.updateAgent", async () => {
     if (skip() || !testAgentId) return;
     const newName = `Updated ${Date.now()}`;
-    const data = await a2aCall("a2a.updateAgent", { agentId: testAgentId, name: newName });
+    const data = await a2aCall("a2a.updateAgent", {
+      agentId: testAgentId,
+      name: newName,
+    });
     expect(data.error).toBeUndefined();
     expect(data.result?.success).toBe(true);
-    
+
     // Verify
     const listData = await a2aCall("a2a.listAgents");
-    const agents = listData.result?.agents as Array<{ id: string; name: string }>;
-    expect(agents.find(a => a.id === testAgentId)?.name).toBe(newName);
+    const agents = listData.result?.agents as Array<{
+      id: string;
+      name: string;
+    }>;
+    expect(agents.find((a) => a.id === testAgentId)?.name).toBe(newName);
   });
 
   test("a2a.chatWithAgent", async () => {
@@ -791,12 +879,14 @@ describe("A2A: Agents", () => {
     const data = await a2aCall("a2a.deleteAgent", { agentId: testAgentId });
     expect(data.error).toBeUndefined();
     expect(data.result?.success).toBe(true);
-    
+
     // Verify deletion
     const listData = await a2aCall("a2a.listAgents");
     const agents = listData.result?.agents as Array<{ id: string }>;
-    expect(agents.some(a => a.id === testAgentId)).toBe(false);
-    createdResources.agents = createdResources.agents.filter(id => id !== testAgentId);
+    expect(agents.some((a) => a.id === testAgentId)).toBe(false);
+    createdResources.agents = createdResources.agents.filter(
+      (id) => id !== testAgentId,
+    );
   });
 });
 
@@ -843,7 +933,7 @@ describe("A2A: API Keys", () => {
     expect(data.error).toBeUndefined();
     expect(data.result?.apiKey).toBeDefined();
     expect(typeof data.result?.plainKey).toBe("string");
-    
+
     testApiKeyId = (data.result?.apiKey as { id: string }).id;
     createdResources.apiKeys.push(testApiKeyId);
   });
@@ -853,7 +943,9 @@ describe("A2A: API Keys", () => {
     const data = await a2aCall("a2a.deleteApiKey", { apiKeyId: testApiKeyId });
     expect(data.error).toBeUndefined();
     expect(data.result?.success).toBe(true);
-    createdResources.apiKeys = createdResources.apiKeys.filter(id => id !== testApiKeyId);
+    createdResources.apiKeys = createdResources.apiKeys.filter(
+      (id) => id !== testApiKeyId,
+    );
   });
 });
 
@@ -898,8 +990,8 @@ describe("A2A: Conversations", () => {
   test("a2a.getConversationContext", async () => {
     if (skip()) return;
     // Would need valid conversation ID
-    const data = await a2aCall("a2a.getConversationContext", { 
-      conversationId: "00000000-0000-0000-0000-000000000000" 
+    const data = await a2aCall("a2a.getConversationContext", {
+      conversationId: "00000000-0000-0000-0000-000000000000",
     });
     expect(data.error !== undefined || data.result !== undefined).toBe(true);
   });
@@ -921,14 +1013,17 @@ describe("A2A: Memory", () => {
 
   test("a2a.retrieveMemories", async () => {
     if (skip()) return;
-    const data = await a2aCall("a2a.retrieveMemories", { query: "test", limit: 5 });
+    const data = await a2aCall("a2a.retrieveMemories", {
+      query: "test",
+      limit: 5,
+    });
     expect(data.error !== undefined || data.result !== undefined).toBe(true);
   });
 
   test("a2a.deleteMemory", async () => {
     if (skip()) return;
-    const data = await a2aCall("a2a.deleteMemory", { 
-      memoryId: "00000000-0000-0000-0000-000000000000" 
+    const data = await a2aCall("a2a.deleteMemory", {
+      memoryId: "00000000-0000-0000-0000-000000000000",
     });
     expect(data.error !== undefined || data.result !== undefined).toBe(true);
   });
@@ -969,7 +1064,9 @@ describe("A2A: User", () => {
 
   test("a2a.updateUserProfile", async () => {
     if (skip()) return;
-    const data = await a2aCall("a2a.updateUserProfile", { name: `Test ${Date.now()}` });
+    const data = await a2aCall("a2a.updateUserProfile", {
+      name: `Test ${Date.now()}`,
+    });
     expect(data.error !== undefined || data.result !== undefined).toBe(true);
   });
 });
@@ -1054,7 +1151,10 @@ describe("A2A: Redemptions", () => {
 describe("A2A: ERC-8004 Discovery", () => {
   test("a2a.discoverServices", async () => {
     if (skip()) return;
-    const data = await a2aCall("a2a.discoverServices", { sources: ["local"], limit: 5 });
+    const data = await a2aCall("a2a.discoverServices", {
+      sources: ["local"],
+      limit: 5,
+    });
     expect(data.error).toBeUndefined();
     expect(data.result?.success).toBe(true);
     expect(Array.isArray(data.result?.services)).toBe(true);
@@ -1068,7 +1168,9 @@ describe("A2A: ERC-8004 Discovery", () => {
 
   test("a2a.findMcpTools", async () => {
     if (skip()) return;
-    const data = await a2aCall("a2a.findMcpTools", { tools: ["get_crypto_price"] });
+    const data = await a2aCall("a2a.findMcpTools", {
+      tools: ["get_crypto_price"],
+    });
     expect(data.error !== undefined || data.result !== undefined).toBe(true);
   });
 
@@ -1148,10 +1250,10 @@ describe("Error Handling", () => {
 describe("Credit Deduction", () => {
   test("Operations deduct credits", async () => {
     if (skip() || initialBalance === null) return;
-    
+
     const data = await a2aCall("a2a.getBalance");
     const currentBalance = data.result?.balance as number;
-    
+
     if (currentBalance < initialBalance) {
       const spent = initialBalance - currentBalance;
       console.log(`✅ Credits deducted: $${spent.toFixed(4)}`);
@@ -1166,16 +1268,20 @@ describe("Credit Deduction", () => {
 
 afterAll(async () => {
   if (!apiKeyValid) return;
-  
+
   console.log("\n🧹 Cleaning up...");
-  
+
   for (const id of createdResources.agents) {
-    try { await a2aCall("a2a.deleteAgent", { agentId: id }); } catch {}
+    try {
+      await a2aCall("a2a.deleteAgent", { agentId: id });
+    } catch {}
   }
   for (const id of createdResources.apiKeys) {
-    try { await a2aCall("a2a.deleteApiKey", { apiKeyId: id }); } catch {}
+    try {
+      await a2aCall("a2a.deleteApiKey", { apiKeyId: id });
+    } catch {}
   }
-  
+
   console.log("🧹 Done\n");
 });
 
@@ -1187,7 +1293,7 @@ describe("Summary", () => {
   test("Final report", async () => {
     const mcpToolCount = 60;
     const a2aMethodCount = 54;
-    
+
     console.log(`
 ════════════════════════════════════════════════════════════════════
                     COMPREHENSIVE TEST SUMMARY
@@ -1201,14 +1307,17 @@ Coverage:
 ├── A2A Methods: ${a2aMethodCount} registered
 └── Tests: Comprehensive coverage with DB verification
 
-${!apiKeyValid || !serverRunning ? `
+${
+  !apiKeyValid || !serverRunning
+    ? `
 ⚠️  Tests passed as no-op (prerequisites not met)
 
 To run full tests:
   1. Start server: bun run dev
   2. Set API key: export TEST_API_KEY=your_key  
   3. Run tests: bun run test:real
-` : `
+`
+    : `
 ✅ All APIs tested with:
 ├── Real HTTP requests
 ├── Database verification for write ops
@@ -1216,7 +1325,8 @@ To run full tests:
 └── Error handling validation
 
 NO MOCKS. NO LARP. REAL TESTS.
-`}
+`
+}
 ════════════════════════════════════════════════════════════════════
 `);
   });

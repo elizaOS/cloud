@@ -40,7 +40,7 @@ const VALID_EVENT_TYPES: AgentEventType[] = [
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ agentId: string }> }
+  { params }: { params: Promise<{ agentId: string }> },
 ): Promise<NextResponse<EventsResponse>> {
   try {
     const { agentId } = await params;
@@ -58,7 +58,7 @@ export async function GET(
     if (typesParam) {
       const requestedTypes = typesParam.split(",").map((t) => t.trim());
       types = requestedTypes.filter((t) =>
-        VALID_EVENT_TYPES.includes(t as AgentEventType)
+        VALID_EVENT_TYPES.includes(t as AgentEventType),
       ) as AgentEventType[];
     }
 
@@ -69,7 +69,7 @@ export async function GET(
         limit,
         since,
         types,
-      }
+      },
     );
 
     return NextResponse.json(
@@ -90,7 +90,7 @@ export async function GET(
         headers: {
           "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
         },
-      }
+      },
     );
   } catch (error) {
     logger.error("[Agent Events API] Error:", error);
@@ -104,7 +104,7 @@ export async function GET(
         success: false,
         error: message,
       },
-      { status }
+      { status },
     );
   }
 }

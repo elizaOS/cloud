@@ -1,18 +1,25 @@
 /**
  * Full Redemption Flow Test
- * 
+ *
  * Tests the complete token redemption flow from quote to payout.
  * This is a comprehensive end-to-end test.
- * 
+ *
  * Run: bun run scripts/test-full-redemption-flow.ts
  */
 
-import { createPublicClient, http, parseAbi, formatUnits, type Address } from "viem";
+import {
+  createPublicClient,
+  http,
+  parseAbi,
+  formatUnits,
+  type Address,
+} from "viem";
 import { base } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 
 // Token configuration
-const ELIZA_TOKEN_ADDRESS = "0xea17df5cf6d172224892b5477a16acb111182478" as Address;
+const ELIZA_TOKEN_ADDRESS =
+  "0xea17df5cf6d172224892b5477a16acb111182478" as Address;
 const ELIZA_DECIMALS = 9;
 
 const ERC20_ABI = parseAbi([
@@ -31,8 +38,9 @@ async function main() {
   console.log("1. ENVIRONMENT CHECK");
   console.log("-".repeat(40));
 
-  const privateKey = process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY;
-  
+  const privateKey =
+    process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY;
+
   if (!privateKey) {
     console.error("❌ No EVM private key configured");
     console.log("   Set EVM_PRIVATE_KEY or EVM_PAYOUT_PRIVATE_KEY");
@@ -40,9 +48,9 @@ async function main() {
   }
   console.log("✅ EVM private key found");
 
-  const formattedKey = privateKey.startsWith("0x") 
-    ? privateKey as `0x${string}` 
-    : `0x${privateKey}` as `0x${string}`;
+  const formattedKey = privateKey.startsWith("0x")
+    ? (privateKey as `0x${string}`)
+    : (`0x${privateKey}` as `0x${string}`);
   const account = privateKeyToAccount(formattedKey);
   console.log("✅ Payout wallet:", account.address);
   console.log("");
@@ -58,7 +66,9 @@ async function main() {
     transport: http(),
   });
 
-  const ethBalance = await publicClient.getBalance({ address: account.address });
+  const ethBalance = await publicClient.getBalance({
+    address: account.address,
+  });
   console.log("   ETH:", formatUnits(ethBalance, 18), "ETH");
 
   const tokenBalance = await publicClient.readContract({
@@ -67,7 +77,11 @@ async function main() {
     functionName: "balanceOf",
     args: [account.address],
   });
-  console.log("   elizaOS:", formatUnits(tokenBalance, ELIZA_DECIMALS), "tokens");
+  console.log(
+    "   elizaOS:",
+    formatUnits(tokenBalance, ELIZA_DECIMALS),
+    "tokens",
+  );
 
   if (tokenBalance === BigInt(0)) {
     console.error("❌ No elizaOS tokens in wallet");
@@ -95,10 +109,18 @@ async function main() {
   console.log("   elizaOS Amount:", elizaAmount.toFixed(4), "tokens");
 
   // Check if wallet has enough
-  const requiredTokens = BigInt(Math.floor(elizaAmount * Math.pow(10, ELIZA_DECIMALS)));
+  const requiredTokens = BigInt(
+    Math.floor(elizaAmount * Math.pow(10, ELIZA_DECIMALS)),
+  );
   const hasEnough = tokenBalance >= requiredTokens;
-  console.log("   Required tokens:", formatUnits(requiredTokens, ELIZA_DECIMALS));
-  console.log("   Available tokens:", formatUnits(tokenBalance, ELIZA_DECIMALS));
+  console.log(
+    "   Required tokens:",
+    formatUnits(requiredTokens, ELIZA_DECIMALS),
+  );
+  console.log(
+    "   Available tokens:",
+    formatUnits(tokenBalance, ELIZA_DECIMALS),
+  );
   console.log("   Can fulfill:", hasEnough ? "✅ Yes" : "❌ No");
   console.log("");
 
@@ -126,15 +148,31 @@ async function main() {
     },
     solana: {
       configured: !!process.env.SOLANA_PAYOUT_PRIVATE_KEY,
-      note: process.env.SOLANA_PAYOUT_PRIVATE_KEY ? "Configured" : "Not configured",
+      note: process.env.SOLANA_PAYOUT_PRIVATE_KEY
+        ? "Configured"
+        : "Not configured",
     },
   };
 
   console.log("   Network Status:");
-  console.log("   - Base:", systemStatus.base.canProcessPayouts ? "✅ Ready" : "❌ Not ready");
-  console.log("   - Ethereum:", systemStatus.base.canProcessPayouts ? "✅ Ready" : "⚠️ Check balance");
-  console.log("   - BNB:", systemStatus.base.canProcessPayouts ? "✅ Ready" : "⚠️ Check balance");
-  console.log("   - Solana:", systemStatus.solana.configured ? "⚠️ Configured (needs verification)" : "❌ Not configured");
+  console.log(
+    "   - Base:",
+    systemStatus.base.canProcessPayouts ? "✅ Ready" : "❌ Not ready",
+  );
+  console.log(
+    "   - Ethereum:",
+    systemStatus.base.canProcessPayouts ? "✅ Ready" : "⚠️ Check balance",
+  );
+  console.log(
+    "   - BNB:",
+    systemStatus.base.canProcessPayouts ? "✅ Ready" : "⚠️ Check balance",
+  );
+  console.log(
+    "   - Solana:",
+    systemStatus.solana.configured
+      ? "⚠️ Configured (needs verification)"
+      : "❌ Not configured",
+  );
   console.log("");
 
   // ========================================
@@ -166,15 +204,28 @@ When a user redeems:
   console.log("═".repeat(70));
   console.log("");
   console.log("✅ Environment configured");
-  console.log("✅ Wallet funded with", formatUnits(tokenBalance, ELIZA_DECIMALS), "elizaOS");
+  console.log(
+    "✅ Wallet funded with",
+    formatUnits(tokenBalance, ELIZA_DECIMALS),
+    "elizaOS",
+  );
   console.log("✅ Gas available:", formatUnits(ethBalance, 18), "ETH");
   console.log("✅ Base network ready for payouts");
   console.log("");
   console.log("Available for redemption:");
-  console.log("  At $0.05/token:", formatUnits(tokenBalance, ELIZA_DECIMALS), "tokens = $" + (Number(formatUnits(tokenBalance, ELIZA_DECIMALS)) * 0.05).toFixed(2));
-  console.log("  At $0.01/token:", formatUnits(tokenBalance, ELIZA_DECIMALS), "tokens = $" + (Number(formatUnits(tokenBalance, ELIZA_DECIMALS)) * 0.01).toFixed(2));
+  console.log(
+    "  At $0.05/token:",
+    formatUnits(tokenBalance, ELIZA_DECIMALS),
+    "tokens = $" +
+      (Number(formatUnits(tokenBalance, ELIZA_DECIMALS)) * 0.05).toFixed(2),
+  );
+  console.log(
+    "  At $0.01/token:",
+    formatUnits(tokenBalance, ELIZA_DECIMALS),
+    "tokens = $" +
+      (Number(formatUnits(tokenBalance, ELIZA_DECIMALS)) * 0.01).toFixed(2),
+  );
   console.log("");
 }
 
 main().catch(console.error);
-

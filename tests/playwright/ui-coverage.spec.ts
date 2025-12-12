@@ -25,7 +25,9 @@ test.describe("Landing Page", () => {
     await page.goto(BASE_URL);
     await page.waitForLoadState("networkidle");
 
-    const ctaBtn = page.locator('button:has-text("Get Started"), button:has-text("Sign Up")').first();
+    const ctaBtn = page
+      .locator('button:has-text("Get Started"), button:has-text("Sign Up")')
+      .first();
     if (await ctaBtn.isVisible().catch(() => false)) {
       await expect(ctaBtn).toBeEnabled();
     }
@@ -106,7 +108,9 @@ test.describe("Marketplace", () => {
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(2000);
 
-    const card = page.locator('a[href*="character"], a[href*="marketplace"]').first();
+    const card = page
+      .locator('a[href*="character"], a[href*="marketplace"]')
+      .first();
     if (await card.isVisible().catch(() => false)) {
       const href = await card.getAttribute("href");
       expect(href).toBeTruthy();
@@ -165,7 +169,9 @@ test.describe("Modals", () => {
 
     if (page.url().includes("/login")) return;
 
-    const createBtn = page.locator('button:has-text("Create"), button:has-text("New")').first();
+    const createBtn = page
+      .locator('button:has-text("Create"), button:has-text("New")')
+      .first();
     if (await createBtn.isVisible().catch(() => false)) {
       await createBtn.click();
       await page.waitForTimeout(500);
@@ -244,4 +250,3 @@ test.describe("Error Handling", () => {
     console.log("✅ 404 handled gracefully");
   });
 });
-

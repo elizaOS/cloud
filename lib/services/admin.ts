@@ -25,7 +25,9 @@ const ANVIL_DEFAULT_WALLET = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 
 // Check if we're in development/devnet mode
 function isDevnet(): boolean {
-  return process.env.NODE_ENV === "development" || process.env.DEVNET === "true";
+  return (
+    process.env.NODE_ENV === "development" || process.env.DEVNET === "true"
+  );
 }
 
 type AdminRole = "super_admin" | "moderator" | "viewer";
@@ -38,14 +40,17 @@ class AdminService {
    */
   async isAdmin(walletAddress: string): Promise<boolean> {
     // In devnet, the default anvil wallet is always admin
-    if (isDevnet() && walletAddress.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase()) {
+    if (
+      isDevnet() &&
+      walletAddress.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase()
+    ) {
       return true;
     }
 
     const admin = await db.query.adminUsers.findFirst({
       where: and(
         eq(adminUsers.walletAddress, walletAddress.toLowerCase()),
-        eq(adminUsers.isActive, true)
+        eq(adminUsers.isActive, true),
       ),
     });
 
@@ -72,14 +77,17 @@ class AdminService {
    */
   async getAdminRole(walletAddress: string): Promise<AdminRole | null> {
     // In devnet, the default anvil wallet is super_admin
-    if (isDevnet() && walletAddress.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase()) {
+    if (
+      isDevnet() &&
+      walletAddress.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase()
+    ) {
       return "super_admin";
     }
 
     const admin = await db.query.adminUsers.findFirst({
       where: and(
         eq(adminUsers.walletAddress, walletAddress.toLowerCase()),
-        eq(adminUsers.isActive, true)
+        eq(adminUsers.isActive, true),
       ),
     });
 
@@ -95,7 +103,12 @@ class AdminService {
     grantedByWallet?: string;
     notes?: string;
   }): Promise<AdminUser> {
-    const { walletAddress, role = "moderator", grantedByWallet, notes } = params;
+    const {
+      walletAddress,
+      role = "moderator",
+      grantedByWallet,
+      notes,
+    } = params;
 
     // Check if already admin
     const existing = await db.query.adminUsers.findFirst({
@@ -116,11 +129,11 @@ class AdminService {
           })
           .where(eq(adminUsers.id, existing.id))
           .returning();
-        
+
         logger.info("[Admin] Reactivated admin", { walletAddress, role });
         return updated;
       }
-      
+
       // Update role if different
       if (existing.role !== role) {
         const [updated] = await db
@@ -128,7 +141,7 @@ class AdminService {
           .set({ role, updatedAt: new Date() })
           .where(eq(adminUsers.id, existing.id))
           .returning();
-        
+
         logger.info("[Admin] Updated admin role", { walletAddress, role });
         return updated;
       }
@@ -152,14 +165,21 @@ class AdminService {
       })
       .returning();
 
-    logger.info("[Admin] Promoted to admin", { walletAddress, role, userId: user?.id });
+    logger.info("[Admin] Promoted to admin", {
+      walletAddress,
+      role,
+      userId: user?.id,
+    });
     return admin;
   }
 
   /**
    * Revoke admin privileges
    */
-  async revokeAdmin(walletAddress: string, revokedByWallet?: string): Promise<void> {
+  async revokeAdmin(
+    walletAddress: string,
+    revokedByWallet?: string,
+  ): Promise<void> {
     await db
       .update(adminUsers)
       .set({
@@ -185,9 +205,10 @@ class AdminService {
     // In devnet, include the anvil wallet if not already in list
     if (isDevnet()) {
       const hasAnvil = admins.some(
-        (a) => a.walletAddress.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase()
+        (a) =>
+          a.walletAddress.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase(),
       );
-      
+
       if (!hasAnvil) {
         return [
           {
@@ -256,7 +277,7 @@ class AdminService {
    */
   private async updateUserModerationStatus(
     userId: string,
-    action: ModerationAction
+    action: ModerationAction,
   ): Promise<void> {
     const existing = await db.query.userModerationStatus.findFirst({
       where: eq(userModerationStatus.userId, userId),
@@ -297,7 +318,8 @@ class AdminService {
         userId,
         status: "clean",
         totalViolations: 1,
-        warningCount: action === "warned" || action === "flagged_for_ban" ? 1 : 0,
+        warningCount:
+          action === "warned" || action === "flagged_for_ban" ? 1 : 0,
         riskScore: 20,
         lastViolationAt: now,
         lastWarningAt: action === "warned" ? now : null,
@@ -308,7 +330,9 @@ class AdminService {
   /**
    * Get user moderation status
    */
-  async getUserModerationStatus(userId: string): Promise<UserModerationStatus | null> {
+  async getUserModerationStatus(
+    userId: string,
+  ): Promise<UserModerationStatus | null> {
     const result = await db.query.userModerationStatus.findFirst({
       where: eq(userModerationStatus.userId, userId),
     });
@@ -329,7 +353,7 @@ class AdminService {
   async shouldBlockUser(userId: string): Promise<boolean> {
     const status = await this.getUserModerationStatus(userId);
     if (!status) return false;
-    
+
     return status.status === "banned" || status.totalViolations >= 5;
   }
 
@@ -364,7 +388,12 @@ class AdminService {
       });
     }
 
-    logger.warn("[Admin] User marked as", { userId, status, adminUserId, reason });
+    logger.warn("[Admin] User marked as", {
+      userId,
+      status,
+      adminUserId,
+      reason,
+    });
   }
 
   /**
@@ -478,14 +507,15 @@ class AdminService {
     violations: ModerationViolation[];
     generationsCount: number;
   }> {
-    const [user, moderationStatusResult, violations, generationsResult] = await Promise.all([
-      db.query.users.findFirst({ where: eq(users.id, userId) }),
-      this.getUserModerationStatus(userId),
-      this.getUserViolations(userId),
-      db.execute<{ count: string }>(
-        sql`SELECT COUNT(*) as count FROM generations WHERE user_id = ${userId}::uuid`
-      ),
-    ]);
+    const [user, moderationStatusResult, violations, generationsResult] =
+      await Promise.all([
+        db.query.users.findFirst({ where: eq(users.id, userId) }),
+        this.getUserModerationStatus(userId),
+        this.getUserViolations(userId),
+        db.execute<{ count: string }>(
+          sql`SELECT COUNT(*) as count FROM generations WHERE user_id = ${userId}::uuid`,
+        ),
+      ]);
 
     return {
       user: user ?? null,
@@ -497,4 +527,3 @@ class AdminService {
 }
 
 export const adminService = new AdminService();
-

@@ -4,7 +4,7 @@ const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
 
 /**
  * Anonymous Session API Tests
- * 
+ *
  * These tests verify the anonymous session endpoints work correctly.
  * Some tests require a database connection and will be skipped if
  * the server returns 500 (indicating missing database).
@@ -12,15 +12,14 @@ const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
 test.describe("Anonymous Session API", () => {
   test.describe("POST /api/affiliate/create-session - Input Validation", () => {
     test("rejects invalid characterId format", async ({ request }) => {
-      const response = await request.post(
-        `${BASE_URL}/api/affiliate/create-session`,
-        {
+      const response = await request
+        .post(`${BASE_URL}/api/affiliate/create-session`, {
           data: {
             characterId: "not-a-uuid",
             source: "e2e-test",
           },
-        },
-      ).catch(() => null);
+        })
+        .catch(() => null);
 
       if (!response) {
         console.log("ℹ️ Server connection failed - skipping");
@@ -34,14 +33,13 @@ test.describe("Anonymous Session API", () => {
     });
 
     test("rejects missing characterId", async ({ request }) => {
-      const response = await request.post(
-        `${BASE_URL}/api/affiliate/create-session`,
-        {
+      const response = await request
+        .post(`${BASE_URL}/api/affiliate/create-session`, {
           data: {
             source: "e2e-test",
           },
-        },
-      ).catch(() => null);
+        })
+        .catch(() => null);
 
       if (!response) {
         console.log("ℹ️ Server connection failed - skipping");
@@ -84,12 +82,11 @@ test.describe("Anonymous Session API", () => {
 
   test.describe("POST /api/set-anonymous-session - Input Validation", () => {
     test("rejects missing session token", async ({ request }) => {
-      const response = await request.post(
-        `${BASE_URL}/api/set-anonymous-session`,
-        {
+      const response = await request
+        .post(`${BASE_URL}/api/set-anonymous-session`, {
           data: {},
-        },
-      ).catch(() => null);
+        })
+        .catch(() => null);
 
       if (!response) {
         console.log("ℹ️ Server connection failed - skipping");
@@ -102,12 +99,11 @@ test.describe("Anonymous Session API", () => {
     });
 
     test("rejects non-string session token", async ({ request }) => {
-      const response = await request.post(
-        `${BASE_URL}/api/set-anonymous-session`,
-        {
+      const response = await request
+        .post(`${BASE_URL}/api/set-anonymous-session`, {
           data: { sessionToken: 12345 },
-        },
-      ).catch(() => null);
+        })
+        .catch(() => null);
 
       if (!response) {
         console.log("ℹ️ Server connection failed - skipping");
@@ -136,7 +132,9 @@ test.describe("Anonymous Session API", () => {
 
   test.describe("GET /api/anonymous-session - Input Validation", () => {
     test("returns 400 for missing token", async ({ request }) => {
-      const response = await request.get(`${BASE_URL}/api/anonymous-session`).catch(() => null);
+      const response = await request
+        .get(`${BASE_URL}/api/anonymous-session`)
+        .catch(() => null);
 
       if (!response) {
         console.log("ℹ️ Server connection failed - skipping");
@@ -149,9 +147,9 @@ test.describe("Anonymous Session API", () => {
     });
 
     test("returns 400 for token too short", async ({ request }) => {
-      const response = await request.get(
-        `${BASE_URL}/api/anonymous-session?token=short`,
-      ).catch(() => null);
+      const response = await request
+        .get(`${BASE_URL}/api/anonymous-session?token=short`)
+        .catch(() => null);
 
       if (!response) {
         console.log("ℹ️ Server connection failed - skipping");
@@ -181,7 +179,9 @@ test.describe("Anonymous Session API", () => {
   });
 
   test.describe("GET /api/auth/create-anonymous-session", () => {
-    test("redirects with valid returnUrl (requires DB)", async ({ request }) => {
+    test("redirects with valid returnUrl (requires DB)", async ({
+      request,
+    }) => {
       const response = await request.get(
         `${BASE_URL}/api/auth/create-anonymous-session?returnUrl=/dashboard/chat`,
         {
@@ -344,4 +344,3 @@ test.describe("Anonymous Session API", () => {
     });
   });
 });
-

@@ -1,6 +1,6 @@
 /**
  * MCP (Model Context Protocol) Type Definitions
- * 
+ *
  * Shared types for MCP server configuration and settings.
  */
 
@@ -20,4 +20,3 @@ export interface McpSettings {
   servers: Record<string, McpServerConfig>;
   maxRetries?: number;
 }
-

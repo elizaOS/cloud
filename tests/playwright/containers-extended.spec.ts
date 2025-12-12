@@ -41,7 +41,11 @@ test.describe("Container Log Streaming", () => {
       },
     });
 
-    if (response.status() === 200 || response.status() === 201 || response.status() === 202) {
+    if (
+      response.status() === 200 ||
+      response.status() === 201 ||
+      response.status() === 202
+    ) {
       const data = await response.json();
       if (data.success && data.data) {
         testContainerId = data.data.id;
@@ -51,13 +55,18 @@ test.describe("Container Log Streaming", () => {
 
   test.afterAll(async ({ request }) => {
     if (testContainerId) {
-      await request.delete(`${CLOUD_URL}/api/v1/containers/${testContainerId}`, {
-        headers: authHeaders(),
-      });
+      await request.delete(
+        `${CLOUD_URL}/api/v1/containers/${testContainerId}`,
+        {
+          headers: authHeaders(),
+        },
+      );
     }
   });
 
-  test("GET /containers/:id/logs/stream returns SSE stream", async ({ request }) => {
+  test("GET /containers/:id/logs/stream returns SSE stream", async ({
+    request,
+  }) => {
     if (!testContainerId) {
       console.log("ℹ️ No test container available");
       return;
@@ -67,7 +76,7 @@ test.describe("Container Log Streaming", () => {
       `${CLOUD_URL}/api/v1/containers/${testContainerId}/logs/stream`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect([200, 404, 501]).toContain(response.status());
@@ -103,7 +112,11 @@ test.describe("Container Metrics", () => {
       },
     });
 
-    if (response.status() === 200 || response.status() === 201 || response.status() === 202) {
+    if (
+      response.status() === 200 ||
+      response.status() === 201 ||
+      response.status() === 202
+    ) {
       const data = await response.json();
       if (data.success && data.data) {
         testContainerId = data.data.id;
@@ -113,13 +126,18 @@ test.describe("Container Metrics", () => {
 
   test.afterAll(async ({ request }) => {
     if (testContainerId) {
-      await request.delete(`${CLOUD_URL}/api/v1/containers/${testContainerId}`, {
-        headers: authHeaders(),
-      });
+      await request.delete(
+        `${CLOUD_URL}/api/v1/containers/${testContainerId}`,
+        {
+          headers: authHeaders(),
+        },
+      );
     }
   });
 
-  test("GET /containers/:id/metrics returns container metrics", async ({ request }) => {
+  test("GET /containers/:id/metrics returns container metrics", async ({
+    request,
+  }) => {
     if (!testContainerId) {
       return;
     }
@@ -128,7 +146,7 @@ test.describe("Container Metrics", () => {
       `${CLOUD_URL}/api/v1/containers/${testContainerId}/metrics`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect([200, 404, 501]).toContain(response.status());
@@ -165,7 +183,11 @@ test.describe("Container Health", () => {
       },
     });
 
-    if (response.status() === 200 || response.status() === 201 || response.status() === 202) {
+    if (
+      response.status() === 200 ||
+      response.status() === 201 ||
+      response.status() === 202
+    ) {
       const data = await response.json();
       if (data.success && data.data) {
         testContainerId = data.data.id;
@@ -175,13 +197,18 @@ test.describe("Container Health", () => {
 
   test.afterAll(async ({ request }) => {
     if (testContainerId) {
-      await request.delete(`${CLOUD_URL}/api/v1/containers/${testContainerId}`, {
-        headers: authHeaders(),
-      });
+      await request.delete(
+        `${CLOUD_URL}/api/v1/containers/${testContainerId}`,
+        {
+          headers: authHeaders(),
+        },
+      );
     }
   });
 
-  test("GET /containers/:id/health returns health status", async ({ request }) => {
+  test("GET /containers/:id/health returns health status", async ({
+    request,
+  }) => {
     if (!testContainerId) {
       return;
     }
@@ -190,7 +217,7 @@ test.describe("Container Health", () => {
       `${CLOUD_URL}/api/v1/containers/${testContainerId}/health`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect([200, 404, 501]).toContain(response.status());
@@ -226,7 +253,11 @@ test.describe("Container Deployments", () => {
       },
     });
 
-    if (response.status() === 200 || response.status() === 201 || response.status() === 202) {
+    if (
+      response.status() === 200 ||
+      response.status() === 201 ||
+      response.status() === 202
+    ) {
       const data = await response.json();
       if (data.success && data.data) {
         testContainerId = data.data.id;
@@ -236,13 +267,18 @@ test.describe("Container Deployments", () => {
 
   test.afterAll(async ({ request }) => {
     if (testContainerId) {
-      await request.delete(`${CLOUD_URL}/api/v1/containers/${testContainerId}`, {
-        headers: authHeaders(),
-      });
+      await request.delete(
+        `${CLOUD_URL}/api/v1/containers/${testContainerId}`,
+        {
+          headers: authHeaders(),
+        },
+      );
     }
   });
 
-  test("GET /containers/:id/deployments returns deployment history", async ({ request }) => {
+  test("GET /containers/:id/deployments returns deployment history", async ({
+    request,
+  }) => {
     if (!testContainerId) {
       return;
     }
@@ -251,7 +287,7 @@ test.describe("Container Deployments", () => {
       `${CLOUD_URL}/api/v1/containers/${testContainerId}/deployments`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect([200, 404, 501]).toContain(response.status());
@@ -281,7 +317,11 @@ test.describe("Container Actions", () => {
       },
     });
 
-    if (response.status() === 200 || response.status() === 201 || response.status() === 202) {
+    if (
+      response.status() === 200 ||
+      response.status() === 201 ||
+      response.status() === 202
+    ) {
       const data = await response.json();
       if (data.success && data.data) {
         testContainerId = data.data.id;
@@ -291,9 +331,12 @@ test.describe("Container Actions", () => {
 
   test.afterAll(async ({ request }) => {
     if (testContainerId) {
-      await request.delete(`${CLOUD_URL}/api/v1/containers/${testContainerId}`, {
-        headers: authHeaders(),
-      });
+      await request.delete(
+        `${CLOUD_URL}/api/v1/containers/${testContainerId}`,
+        {
+          headers: authHeaders(),
+        },
+      );
     }
   });
 
@@ -306,7 +349,7 @@ test.describe("Container Actions", () => {
       `${CLOUD_URL}/api/v1/containers/${testContainerId}/start`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect([200, 202, 400, 404, 501]).toContain(response.status());
@@ -327,7 +370,7 @@ test.describe("Container Actions", () => {
       `${CLOUD_URL}/api/v1/containers/${testContainerId}/stop`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect([200, 202, 400, 404, 501]).toContain(response.status());
@@ -339,7 +382,9 @@ test.describe("Container Actions", () => {
     }
   });
 
-  test("POST /containers/:id/restart restarts container", async ({ request }) => {
+  test("POST /containers/:id/restart restarts container", async ({
+    request,
+  }) => {
     if (!testContainerId) {
       return;
     }
@@ -348,7 +393,7 @@ test.describe("Container Actions", () => {
       `${CLOUD_URL}/api/v1/containers/${testContainerId}/restart`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect([200, 202, 400, 404, 501]).toContain(response.status());
@@ -389,7 +434,7 @@ test.describe("Container Detail Page UI", () => {
 
       // Check for action buttons
       const actionButtons = page.locator(
-        'button:has-text("Start"), button:has-text("Stop"), button:has-text("Restart")'
+        'button:has-text("Start"), button:has-text("Stop"), button:has-text("Restart")',
       );
       const buttonCount = await actionButtons.count();
       console.log(`   Found ${buttonCount} action buttons`);
@@ -419,7 +464,7 @@ test.describe("Container Detail Page UI", () => {
 
       // Look for logs section
       const logsSection = page.locator(
-        '[class*="logs"], [class*="terminal"], pre, code, [class*="console"]'
+        '[class*="logs"], [class*="terminal"], pre, code, [class*="console"]',
       );
       const hasLogs = await logsSection.isVisible().catch(() => false);
 
@@ -448,7 +493,7 @@ test.describe("Container Detail Page UI", () => {
 
       // Look for metrics display
       const metricsSection = page.locator(
-        '[class*="metric"], [class*="stat"], text=/cpu|memory|network/i'
+        '[class*="metric"], [class*="stat"], text=/cpu|memory|network/i',
       );
       const metricsCount = await metricsSection.count();
 
@@ -456,5 +501,3 @@ test.describe("Container Detail Page UI", () => {
     }
   });
 });
-
-

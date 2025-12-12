@@ -105,7 +105,6 @@ export default function Installation() {
               <p
                 className="font-normal uppercase tracking-wide text-sm md:text-base"
                 style={{
-                  fontFamily: "var(--font-geist-mono)",
                   lineHeight: "1.5",
                   letterSpacing: "-0.003em",
                   color: "#858585",

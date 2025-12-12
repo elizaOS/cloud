@@ -65,7 +65,9 @@ describe("A2A Message", () => {
 
 describe("A2A Task", () => {
   test("creates task with status", () => {
-    const task = createTask("task-1", "working", undefined, "ctx-1", { source: "test" });
+    const task = createTask("task-1", "working", undefined, "ctx-1", {
+      source: "test",
+    });
 
     expect(task.id).toBe("task-1");
     expect(task.contextId).toBe("ctx-1");
@@ -75,8 +77,11 @@ describe("A2A Task", () => {
 
   test("updates task status", () => {
     const task = createTask("t1", "working");
-    task.status = createTaskStatus("completed", createMessage("agent", [createTextPart("Done")]));
-    
+    task.status = createTaskStatus(
+      "completed",
+      createMessage("agent", [createTextPart("Done")]),
+    );
+
     expect(task.status.state).toBe("completed");
     expect(task.status.message?.parts[0].type).toBe("text");
   });
@@ -89,7 +94,7 @@ describe("A2A Artifact", () => {
       "output",
       "description",
       0,
-      { cost: 0.001 }
+      { cost: 0.001 },
     );
 
     expect(artifact.name).toBe("output");

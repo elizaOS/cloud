@@ -6,4 +6,7 @@ config({ path: ".env" });
 config({ path: ".env.local", override: true });
 
 console.log("[Test Setup] Environment loaded");
-console.log("[Test Setup] DATABASE_URL:", process.env.DATABASE_URL?.slice(0, 40) + "...");
+console.log(
+  "[Test Setup] DATABASE_URL:",
+  process.env.DATABASE_URL?.slice(0, 40) + "...",
+);

@@ -115,8 +115,8 @@ export function AppUsers({ appId }: AppUsersProps) {
 
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-medium truncate mb-1">
-                      User {appUser.user_id.substring(0, 8)}
-                    </p>
+                    User {appUser.user_id.substring(0, 8)}
+                  </p>
                   <div className="flex items-center gap-4 text-sm text-white/60">
                     <span className="flex items-center gap-1">
                       <Activity className="h-3 w-3" />

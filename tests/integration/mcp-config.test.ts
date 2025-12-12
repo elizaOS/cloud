@@ -19,20 +19,66 @@ import {
 } from "@/lib/config/mcp";
 
 const MCP_TOOLS = [
-  "check_credits", "stream_credit_updates", "get_credit_summary", "list_credit_transactions",
-  "list_credit_packs", "get_billing_usage", "get_recent_usage", "generate_text", "generate_image",
-  "generate_video", "generate_embeddings", "generate_prompts", "save_memory", "retrieve_memories",
-  "delete_memory", "analyze_memory_patterns", "query_knowledge", "upload_knowledge",
-  "get_conversation_context", "create_conversation", "search_conversations", "summarize_conversation",
-  "optimize_context_window", "export_conversation", "clone_conversation", "chat_with_agent",
-  "list_agents", "subscribe_agent_events", "create_agent", "update_agent", "delete_agent",
-  "list_containers", "get_container", "get_container_health", "get_container_logs",
-  "create_container", "delete_container", "get_container_metrics", "get_container_quota",
-  "list_models", "list_gallery", "get_analytics", "text_to_speech", "list_voices",
-  "list_api_keys", "create_api_key", "delete_api_key", "get_redemption_balance",
-  "get_redemption_quote", "list_mcps", "create_mcp", "delete_mcp", "list_rooms", "create_room",
-  "get_user_profile", "update_user_profile", "discover_services", "get_service_details",
-  "find_mcp_tools", "find_a2a_skills",
+  "check_credits",
+  "stream_credit_updates",
+  "get_credit_summary",
+  "list_credit_transactions",
+  "list_credit_packs",
+  "get_billing_usage",
+  "get_recent_usage",
+  "generate_text",
+  "generate_image",
+  "generate_video",
+  "generate_embeddings",
+  "generate_prompts",
+  "save_memory",
+  "retrieve_memories",
+  "delete_memory",
+  "analyze_memory_patterns",
+  "query_knowledge",
+  "upload_knowledge",
+  "get_conversation_context",
+  "create_conversation",
+  "search_conversations",
+  "summarize_conversation",
+  "optimize_context_window",
+  "export_conversation",
+  "clone_conversation",
+  "chat_with_agent",
+  "list_agents",
+  "subscribe_agent_events",
+  "create_agent",
+  "update_agent",
+  "delete_agent",
+  "list_containers",
+  "get_container",
+  "get_container_health",
+  "get_container_logs",
+  "create_container",
+  "delete_container",
+  "get_container_metrics",
+  "get_container_quota",
+  "list_models",
+  "list_gallery",
+  "get_analytics",
+  "text_to_speech",
+  "list_voices",
+  "list_api_keys",
+  "create_api_key",
+  "delete_api_key",
+  "get_redemption_balance",
+  "get_redemption_quote",
+  "list_mcps",
+  "create_mcp",
+  "delete_mcp",
+  "list_rooms",
+  "create_room",
+  "get_user_profile",
+  "update_user_profile",
+  "discover_services",
+  "get_service_details",
+  "find_mcp_tools",
+  "find_a2a_skills",
 ] as const;
 
 describe("MCP Configuration", () => {
@@ -51,7 +97,9 @@ describe("MCP Configuration", () => {
   test("credit costs are positive", () => {
     expect(MEMORY_SAVE_COST).toBeGreaterThan(0);
     expect(MEMORY_RETRIEVAL_COST_PER_ITEM).toBeGreaterThan(0);
-    expect(MEMORY_RETRIEVAL_MAX_COST).toBeGreaterThan(MEMORY_RETRIEVAL_COST_PER_ITEM);
+    expect(MEMORY_RETRIEVAL_MAX_COST).toBeGreaterThan(
+      MEMORY_RETRIEVAL_COST_PER_ITEM,
+    );
     expect(CONTEXT_RETRIEVAL_COST).toBeGreaterThan(0);
     expect(CONVERSATION_CREATE_COST).toBeGreaterThan(0);
   });
@@ -104,4 +152,3 @@ describe("MCP Tools", () => {
     expect(MCP_TOOLS).toContain("find_a2a_skills");
   });
 });
-

@@ -78,12 +78,20 @@ function getNetworkConfig(network: ERC8004Network): NetworkConfig {
   }
 
   // Environment variable overrides (for secrets and dynamic values)
-  const envPrefix = network === "base-sepolia" ? "SEPOLIA" : network === "base" ? "BASE" : "ANVIL";
+  const envPrefix =
+    network === "base-sepolia"
+      ? "SEPOLIA"
+      : network === "base"
+        ? "BASE"
+        : "ANVIL";
 
   return {
     ...base,
     // Override RPC URL if provided (useful for private RPCs)
-    rpcUrl: process.env[`${envPrefix}_RPC_URL`] || process.env.ANVIL_RPC_URL || base.rpcUrl,
+    rpcUrl:
+      process.env[`${envPrefix}_RPC_URL`] ||
+      process.env.ANVIL_RPC_URL ||
+      base.rpcUrl,
     contracts: {
       identity:
         process.env[`ERC8004_IDENTITY_REGISTRY_${envPrefix}`] ||
@@ -127,21 +135,30 @@ export const BLOCK_EXPLORERS: Record<ERC8004Network, string> = {
 
 // Contract addresses (with .env overrides)
 export const IDENTITY_REGISTRY_ADDRESSES: Record<ERC8004Network, Address> = {
-  anvil: (getNetworkConfig("anvil").contracts.identity || ZERO_ADDRESS) as Address,
-  "base-sepolia": (getNetworkConfig("base-sepolia").contracts.identity || ZERO_ADDRESS) as Address,
-  base: (getNetworkConfig("base").contracts.identity || ZERO_ADDRESS) as Address,
+  anvil: (getNetworkConfig("anvil").contracts.identity ||
+    ZERO_ADDRESS) as Address,
+  "base-sepolia": (getNetworkConfig("base-sepolia").contracts.identity ||
+    ZERO_ADDRESS) as Address,
+  base: (getNetworkConfig("base").contracts.identity ||
+    ZERO_ADDRESS) as Address,
 };
 
 export const REPUTATION_REGISTRY_ADDRESSES: Record<ERC8004Network, Address> = {
-  anvil: (getNetworkConfig("anvil").contracts.reputation || ZERO_ADDRESS) as Address,
-  "base-sepolia": (getNetworkConfig("base-sepolia").contracts.reputation || ZERO_ADDRESS) as Address,
-  base: (getNetworkConfig("base").contracts.reputation || ZERO_ADDRESS) as Address,
+  anvil: (getNetworkConfig("anvil").contracts.reputation ||
+    ZERO_ADDRESS) as Address,
+  "base-sepolia": (getNetworkConfig("base-sepolia").contracts.reputation ||
+    ZERO_ADDRESS) as Address,
+  base: (getNetworkConfig("base").contracts.reputation ||
+    ZERO_ADDRESS) as Address,
 };
 
 export const VALIDATION_REGISTRY_ADDRESSES: Record<ERC8004Network, Address> = {
-  anvil: (getNetworkConfig("anvil").contracts.validation || ZERO_ADDRESS) as Address,
-  "base-sepolia": (getNetworkConfig("base-sepolia").contracts.validation || ZERO_ADDRESS) as Address,
-  base: (getNetworkConfig("base").contracts.validation || ZERO_ADDRESS) as Address,
+  anvil: (getNetworkConfig("anvil").contracts.validation ||
+    ZERO_ADDRESS) as Address,
+  "base-sepolia": (getNetworkConfig("base-sepolia").contracts.validation ||
+    ZERO_ADDRESS) as Address,
+  base: (getNetworkConfig("base").contracts.validation ||
+    ZERO_ADDRESS) as Address,
 };
 
 export const SUBGRAPH_URLS: Record<ERC8004Network, string | null> = {
@@ -151,9 +168,8 @@ export const SUBGRAPH_URLS: Record<ERC8004Network, string | null> = {
 };
 
 // Service wallet (from .env - it's a secret)
-export const SERVICE_WALLET_ADDRESS: Address = (
-  process.env.X402_RECIPIENT_ADDRESS || ZERO_ADDRESS
-) as Address;
+export const SERVICE_WALLET_ADDRESS: Address = (process.env
+  .X402_RECIPIENT_ADDRESS || ZERO_ADDRESS) as Address;
 
 // Agent IDs (from JSON config, overridable via .env)
 export const ELIZA_CLOUD_AGENT_ID: Record<ERC8004Network, number | null> = {
@@ -189,7 +205,8 @@ export function getDefaultNetwork(): ERC8004Network {
   const envNetwork = process.env.ERC8004_NETWORK as ERC8004Network | undefined;
   if (envNetwork && CHAIN_IDS[envNetwork]) return envNetwork;
   if (process.env.USE_ANVIL === "true") return "anvil";
-  if (process.env.NODE_ENV === "production") return config.defaults.productionNetwork as ERC8004Network;
+  if (process.env.NODE_ENV === "production")
+    return config.defaults.productionNetwork as ERC8004Network;
   return config.defaults.network as ERC8004Network;
 }
 
@@ -258,7 +275,9 @@ export interface ERC8004RegistrationFile {
 /**
  * Generate the ERC-8004 registration file
  */
-export function generateRegistrationFile(baseUrl: string): ERC8004RegistrationFile {
+export function generateRegistrationFile(
+  baseUrl: string,
+): ERC8004RegistrationFile {
   const network = getDefaultNetwork();
 
   return {
@@ -290,7 +309,10 @@ export function generateRegistrationFile(baseUrl: string): ERC8004RegistrationFi
     ],
     registrations: [
       { agentId: ELIZA_CLOUD_AGENT_ID["anvil"], network: "eip155:31337" },
-      { agentId: ELIZA_CLOUD_AGENT_ID["base-sepolia"], network: "eip155:84532" },
+      {
+        agentId: ELIZA_CLOUD_AGENT_ID["base-sepolia"],
+        network: "eip155:84532",
+      },
       { agentId: ELIZA_CLOUD_AGENT_ID["base"], network: "eip155:8453" },
     ].filter((r) => r.agentId !== null && r.agentId !== 0), // Filter out null and 0 (not registered)
     supportedTrust: SERVICE_INFO.supportedTrust,

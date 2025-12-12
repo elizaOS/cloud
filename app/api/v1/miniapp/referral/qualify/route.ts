@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { referralsService } from "@/lib/services/referrals";
-import { addCorsHeaders, validateOrigin, createPreflightResponse } from "@/lib/middleware/cors-apps";
+import {
+  addCorsHeaders,
+  validateOrigin,
+  createPreflightResponse,
+} from "@/lib/middleware/cors-apps";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -50,13 +54,19 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logger.error("[Referral Qualify] Error qualifying referral", { error });
 
-    const status = error instanceof Error && error.message.includes("Unauthorized") ? 401 : 500;
+    const status =
+      error instanceof Error && error.message.includes("Unauthorized")
+        ? 401
+        : 500;
     const response = NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Failed to qualify referral" },
-      { status }
+      {
+        success: false,
+        error:
+          error instanceof Error ? error.message : "Failed to qualify referral",
+      },
+      { status },
     );
 
     return addCorsHeaders(response, corsResult.origin);
   }
 }
-

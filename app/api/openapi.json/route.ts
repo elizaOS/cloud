@@ -174,7 +174,8 @@ export async function GET() {
         get: {
           operationId: "getTopupInfo",
           summary: "Get credit top-up information",
-          description: "Get current balance and pricing info for credit top-up.",
+          description:
+            "Get current balance and pricing info for credit top-up.",
           tags: ["Credits"],
           responses: {
             "200": {
@@ -467,7 +468,10 @@ export async function GET() {
             pricing: {
               type: "object",
               properties: {
-                rate: { type: "string", example: `${CREDITS_PER_DOLLAR} credits per $1 USDC` },
+                rate: {
+                  type: "string",
+                  example: `${CREDITS_PER_DOLLAR} credits per $1 USDC`,
+                },
                 minimumPayment: { type: "string", example: TOPUP_PRICE },
                 networks: { type: "array", items: { type: "string" } },
               },
@@ -627,4 +631,3 @@ export async function OPTIONS() {
     },
   });
 }
-

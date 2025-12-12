@@ -57,7 +57,9 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
   const [displayApiKey, setDisplayApiKey] = useState(showApiKey || "");
   const [showKey, setShowKey] = useState(!!showApiKey);
   const [isRegenerating, setIsRegenerating] = useState(false);
-  const [monetizationEnabled, setMonetizationEnabled] = useState<boolean | null>(null);
+  const [monetizationEnabled, setMonetizationEnabled] = useState<
+    boolean | null
+  >(null);
   const [totalEarnings, setTotalEarnings] = useState<number | null>(null);
 
   const copyToClipboard = (text: string, label: string) => {
@@ -246,10 +248,10 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
             </h2>
 
             <div className="p-3 bg-black/30 rounded-lg border border-white/10">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 <code className="flex-1 text-sm text-white/80 font-mono overflow-x-auto">
                   {showKey && displayApiKey ? displayApiKey : maskedApiKey}
-                  </code>
+                </code>
                 {displayApiKey && (
                   <>
                     <Button
@@ -258,20 +260,24 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
                       onClick={() => setShowKey(!showKey)}
                       className="text-white/60 hover:text-white"
                     >
-                      {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showKey ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
                     </Button>
-                  <Button
-                    size="sm"
+                    <Button
+                      size="sm"
                       variant="ghost"
                       onClick={() => copyToClipboard(displayApiKey, "API Key")}
                       className="text-white/60 hover:text-white"
-                  >
+                    >
                       {copiedItem === "API Key" ? (
                         <Check className="h-4 w-4 text-green-400" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
                   </>
                 )}
               </div>
@@ -300,8 +306,8 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Regenerate API Key?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will immediately invalidate your current API key. Your app will stop 
-                    working until you update it with the new key.
+                    This will immediately invalidate your current API key. Your
+                    app will stop working until you update it with the new key.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -340,38 +346,40 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
                 Configure →
               </Button>
             </div>
-            
+
             <div className="flex items-center gap-4">
-              <Badge 
+              <Badge
                 className={
-                  monetizationEnabled 
-                    ? "bg-green-500/10 text-green-400 border-green-500/20" 
+                  monetizationEnabled
+                    ? "bg-green-500/10 text-green-400 border-green-500/20"
                     : "bg-white/10 text-white/60 border-white/20"
                 }
               >
                 {monetizationEnabled ? "Enabled" : "Disabled"}
               </Badge>
-              
-              {monetizationEnabled && totalEarnings !== null && totalEarnings > 0 && (
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-green-400" />
-                  <span className="text-sm text-white">
-                    ${totalEarnings.toFixed(2)} earned
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      router.push(`/dashboard/apps/${app.id}?tab=earnings`);
-                    }}
-                    className="text-white/60 hover:text-white h-auto p-0"
-                  >
-                    View Details →
-                  </Button>
-                </div>
-              )}
+
+              {monetizationEnabled &&
+                totalEarnings !== null &&
+                totalEarnings > 0 && (
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-green-400" />
+                    <span className="text-sm text-white">
+                      ${totalEarnings.toFixed(2)} earned
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        router.push(`/dashboard/apps/${app.id}?tab=earnings`);
+                      }}
+                      className="text-white/60 hover:text-white h-auto p-0"
+                    >
+                      View Details →
+                    </Button>
+                  </div>
+                )}
             </div>
-            
+
             {!monetizationEnabled && (
               <p className="text-sm text-white/60">
                 Enable monetization to earn from app usage and credit purchases

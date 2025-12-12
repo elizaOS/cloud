@@ -4,11 +4,11 @@
  * GET /api/v1/redemptions/balance
  *
  * Returns user's REDEEMABLE balance (earnings from miniapps, agents, MCPs).
- * 
+ *
  * IMPORTANT: This uses the redeemable_earnings table, NOT app_credit_balances.
  * - app_credit_balances = purchased credits (NOT redeemable)
  * - redeemable_earnings = earned credits (redeemable for elizaOS tokens)
- * 
+ *
  * Response includes:
  * - Total earned from all sources
  * - Available balance (ready to redeem)
@@ -22,7 +22,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { db } from "@/db/client";
-import { redeemableEarnings, redeemableEarningsLedger } from "@/db/schemas/redeemable-earnings";
+import {
+  redeemableEarnings,
+  redeemableEarningsLedger,
+} from "@/db/schemas/redeemable-earnings";
 import { tokenRedemptions } from "@/db/schemas/token-redemptions";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { SUPPLY_SHOCK_PROTECTION } from "@/lib/config/redemption-security";
@@ -90,8 +93,8 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
     .where(
       and(
         eq(redeemableEarningsLedger.user_id, user.id),
-        eq(redeemableEarningsLedger.entry_type, "earning")
-      )
+        eq(redeemableEarningsLedger.entry_type, "earning"),
+      ),
     )
     .groupBy(redeemableEarningsLedger.earnings_source);
 
@@ -109,8 +112,8 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
     .where(
       and(
         eq(redeemableEarningsLedger.user_id, user.id),
-        eq(redeemableEarningsLedger.entry_type, "earning")
-      )
+        eq(redeemableEarningsLedger.entry_type, "earning"),
+      ),
     )
     .orderBy(desc(redeemableEarningsLedger.created_at))
     .limit(10);
@@ -124,8 +127,8 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
     .where(
       and(
         eq(tokenRedemptions.user_id, user.id),
-        sql`${tokenRedemptions.status} IN ('completed', 'approved', 'processing')`
-      )
+        sql`${tokenRedemptions.status} IN ('completed', 'approved', 'processing')`,
+      ),
     );
 
   const totalRedeemed = Number(redeemedResult[0]?.total || 0);
@@ -155,18 +158,24 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
   `);
 
   const dailyRedeemed = Number(
-    (dailyRedeemedResult.rows[0] as { total: string })?.total || 0
+    (dailyRedeemedResult.rows[0] as { total: string })?.total || 0,
   );
   const dailyLimitRemaining = Math.max(
     0,
-    SUPPLY_SHOCK_PROTECTION.USER_DAILY_LIMIT_USD - dailyRedeemed
+    SUPPLY_SHOCK_PROTECTION.USER_DAILY_LIMIT_USD - dailyRedeemed,
   );
 
   // Build balance
-  const availableBalance = earningsRecord ? Number(earningsRecord.available_balance) : 0;
-  const pendingBalance = earningsRecord ? Number(earningsRecord.total_pending) : 0;
+  const availableBalance = earningsRecord
+    ? Number(earningsRecord.available_balance)
+    : 0;
+  const pendingBalance = earningsRecord
+    ? Number(earningsRecord.total_pending)
+    : 0;
   const totalEarned = earningsRecord ? Number(earningsRecord.total_earned) : 0;
-  const totalPending = earningsRecord ? Number(earningsRecord.total_pending) : 0;
+  const totalPending = earningsRecord
+    ? Number(earningsRecord.total_pending)
+    : 0;
 
   // Determine eligibility
   let canRedeem = true;

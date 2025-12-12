@@ -12,7 +12,7 @@ import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
 /**
  * Provider health table schema.
- * 
+ *
  * Tracks health status and performance metrics for AI model providers.
  */
 export const providerHealth = pgTable(

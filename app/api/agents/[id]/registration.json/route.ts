@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const { id } = await ctx.params;
 
@@ -32,10 +32,7 @@ export async function GET(
 
   // Only public agents can have registration files
   if (!character.is_public) {
-    return NextResponse.json(
-      { error: "Agent is not public" },
-      { status: 403 }
-    );
+    return NextResponse.json({ error: "Agent is not public" }, { status: 403 });
   }
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
@@ -106,7 +103,7 @@ export async function GET(
       tags: character.tags || [],
       monetizationEnabled: character.monetization_enabled,
       inferenceMarkupPercentage: Number(
-        character.inference_markup_percentage || 0
+        character.inference_markup_percentage || 0,
       ),
       protocols: {
         a2a: character.a2a_enabled,
@@ -147,4 +144,3 @@ export async function OPTIONS() {
     },
   });
 }
-

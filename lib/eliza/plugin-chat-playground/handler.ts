@@ -25,7 +25,11 @@ import {
   clearLatestResponseId,
   isResponseStillValid,
 } from "../shared/utils/response-tracking";
-import { cleanPrompt, runEvaluatorsWithTimeout } from "../shared/utils/helpers";
+import {
+  cleanPrompt,
+  runEvaluatorsWithTimeout,
+  postProcessResponse,
+} from "../shared/utils/helpers";
 import type { ParsedResponse } from "../shared/utils/parsers";
 import type { MessageReceivedHandlerParams } from "../shared/types";
 
@@ -47,8 +51,14 @@ export async function handleMessage({
 
   await setLatestResponseId(runtime, message.roomId, responseId);
   await runtime.emitEvent(EventType.RUN_STARTED, {
-    runtime, runId, messageId: message.id, roomId: message.roomId, entityId: message.entityId,
-    startTime, status: "started", source: "chatPlaygroundWorkflow",
+    runtime,
+    runId,
+    messageId: message.id,
+    roomId: message.roomId,
+    entityId: message.entityId,
+    startTime,
+    status: "started",
+    source: "chatPlaygroundWorkflow",
   });
 
   const originalSystemPrompt = runtime.character.system;
@@ -57,32 +67,52 @@ export async function handleMessage({
     await runtime.createMemory(message, "messages");
 
     // Wait for MCP if available
-    const mcpService = runtime.getService("mcp") as { waitForInitialization?: () => Promise<void> } | undefined;
+    const mcpService = runtime.getService("mcp") as
+      | { waitForInitialization?: () => Promise<void> }
+      | undefined;
     if (mcpService?.waitForInitialization) {
       await mcpService.waitForInitialization();
     }
 
     const state = await runtime.composeState(message, [
-      "SUMMARIZED_CONTEXT", "RECENT_MESSAGES", "LONG_TERM_MEMORY", "CHARACTER", "MCP",
+      "SUMMARIZED_CONTEXT",
+      "RECENT_MESSAGES",
+      "LONG_TERM_MEMORY",
+      "CHARACTER",
+      "MCP",
+      "APP_CONFIG",
     ]);
 
     // Try MCP action first
     if (await checkAndRunMcpAction(runtime, message, state, callback)) {
       await clearLatestResponseId(runtime, message.roomId);
       await runtime.emitEvent(EventType.RUN_ENDED, {
-        runtime, runId, messageId: message.id, roomId: message.roomId, entityId: message.entityId,
-        startTime, status: "completed", endTime: Date.now(), duration: Date.now() - startTime,
+        runtime,
+        runId,
+        messageId: message.id,
+        roomId: message.roomId,
+        entityId: message.entityId,
+        startTime,
+        status: "completed",
+        endTime: Date.now(),
+        duration: Date.now() - startTime,
         source: "chatPlaygroundWorkflow",
       });
       return;
     }
 
-    runtime.character.system = cleanPrompt(composePromptFromState({ state, template: chatPlaygroundSystemPrompt }));
+    runtime.character.system = cleanPrompt(
+      composePromptFromState({ state, template: chatPlaygroundSystemPrompt }),
+    );
 
-    const prompt = cleanPrompt(composePromptFromState({
-      state,
-      template: runtime.character.templates?.chatPlaygroundTemplate || chatPlaygroundTemplate,
-    }));
+    const prompt = cleanPrompt(
+      composePromptFromState({
+        state,
+        template:
+          runtime.character.templates?.chatPlaygroundTemplate ||
+          chatPlaygroundTemplate,
+      }),
+    );
 
     const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
     runtime.character.system = originalSystemPrompt;
@@ -92,12 +122,20 @@ export async function handleMessage({
       throw new Error("Failed to generate valid response");
     }
 
-    if (!(await isResponseStillValid(runtime, message.roomId, responseId))) return;
+    if (!(await isResponseStillValid(runtime, message.roomId, responseId)))
+      return;
     await clearLatestResponseId(runtime, message.roomId);
+
+    // Post-process response to remove AI-speak and track openings
+    const processedResponse = postProcessResponse(
+      parsedResponse.text,
+      message.roomId as string,
+    );
+    const finalText = processedResponse.text;
 
     if (callback) {
       await callback({
-        text: parsedResponse.text,
+        text: finalText,
         thought: parsedResponse.thought || "",
         source: "agent",
         inReplyTo: message.id,
@@ -109,28 +147,53 @@ export async function handleMessage({
       entityId: runtime.agentId,
       roomId: message.roomId,
       worldId: message.worldId,
-      content: { text: parsedResponse.text, thought: parsedResponse.thought || "", source: "agent", inReplyTo: message.id },
+      content: {
+        text: finalText,
+        thought: parsedResponse.thought || "",
+        source: "agent",
+        inReplyTo: message.id,
+      },
       metadata: {
         type: MemoryType.MESSAGE,
-        role: 'agent',
-        dialogueType: 'message',
-        visibility: 'visible',
-        agentMode: 'chat',
+        role: "agent",
+        dialogueType: "message",
+        visibility: "visible",
+        agentMode: "chat",
       } as DialogueMetadata,
     };
 
-    await runEvaluatorsWithTimeout(runtime, message, state, responseMemory, callback);
+    await runEvaluatorsWithTimeout(
+      runtime,
+      message,
+      state,
+      responseMemory,
+      callback,
+    );
 
     await runtime.emitEvent(EventType.RUN_ENDED, {
-      runtime, runId, messageId: message.id, roomId: message.roomId, entityId: message.entityId,
-      startTime, status: "completed", endTime: Date.now(), duration: Date.now() - startTime,
+      runtime,
+      runId,
+      messageId: message.id,
+      roomId: message.roomId,
+      entityId: message.entityId,
+      startTime,
+      status: "completed",
+      endTime: Date.now(),
+      duration: Date.now() - startTime,
       source: "chatPlaygroundWorkflow",
     });
   } catch (error) {
     runtime.character.system = originalSystemPrompt;
     await runtime.emitEvent(EventType.RUN_ENDED, {
-      runtime, runId, messageId: message.id, roomId: message.roomId, entityId: message.entityId,
-      startTime, status: "error", endTime: Date.now(), duration: Date.now() - startTime,
+      runtime,
+      runId,
+      messageId: message.id,
+      roomId: message.roomId,
+      entityId: message.entityId,
+      startTime,
+      status: "error",
+      endTime: Date.now(),
+      duration: Date.now() - startTime,
       error: error instanceof Error ? error.message : String(error),
       source: "chatPlaygroundWorkflow",
     });
@@ -219,7 +282,10 @@ async function checkAndRunMcpAction(
     );
     return false;
   } catch (error) {
-    logger.error("[ChatPlayground] Error checking/running MCP action", error instanceof Error ? error.message : String(error));
+    logger.error(
+      "[ChatPlayground] Error checking/running MCP action",
+      error instanceof Error ? error.message : String(error),
+    );
     return false;
   }
 }

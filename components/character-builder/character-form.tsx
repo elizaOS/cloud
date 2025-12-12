@@ -65,7 +65,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
       : [];
     updateField(
       type,
-      currentArray.filter((_, i) => i !== index)
+      currentArray.filter((_, i) => i !== index),
     );
   };
 
@@ -90,7 +90,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
     const currentExamples = character.messageExamples || [];
     updateField(
       "messageExamples",
-      currentExamples.filter((_, i) => i !== index)
+      currentExamples.filter((_, i) => i !== index),
     );
   };
 

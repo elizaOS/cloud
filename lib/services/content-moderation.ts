@@ -18,34 +18,34 @@ import { logger } from "@/lib/utils/logger";
 
 // OpenAI Moderation API types
 interface ModerationCategory {
-  "sexual": boolean;
+  sexual: boolean;
   "sexual/minors": boolean;
-  "harassment": boolean;
+  harassment: boolean;
   "harassment/threatening": boolean;
-  "hate": boolean;
+  hate: boolean;
   "hate/threatening": boolean;
-  "illicit": boolean;
+  illicit: boolean;
   "illicit/violent": boolean;
   "self-harm": boolean;
   "self-harm/intent": boolean;
   "self-harm/instructions": boolean;
-  "violence": boolean;
+  violence: boolean;
   "violence/graphic": boolean;
 }
 
 interface ModerationCategoryScores {
-  "sexual": number;
+  sexual: number;
   "sexual/minors": number;
-  "harassment": number;
+  harassment: number;
   "harassment/threatening": number;
-  "hate": number;
+  hate: number;
   "hate/threatening": number;
-  "illicit": number;
+  illicit: number;
   "illicit/violent": number;
   "self-harm": number;
   "self-harm/intent": number;
   "self-harm/instructions": number;
-  "violence": number;
+  violence: number;
   "violence/graphic": number;
 }
 
@@ -64,7 +64,11 @@ interface OpenAIModerationResponse {
 /**
  * Categories we care about for legal compliance
  */
-export type CriticalCategory = "sexual/minors" | "self-harm" | "self-harm/intent" | "self-harm/instructions";
+export type CriticalCategory =
+  | "sexual/minors"
+  | "self-harm"
+  | "self-harm/intent"
+  | "self-harm/instructions";
 
 /**
  * Error thrown when moderation blocks a response
@@ -76,7 +80,9 @@ export class ModerationBlockedError extends Error {
 
   constructor(
     message: string,
-    result: AsyncModerationResult & { action?: "refused" | "warned" | "flagged_for_ban" }
+    result: AsyncModerationResult & {
+      action?: "refused" | "warned" | "flagged_for_ban";
+    },
   ) {
     super(message);
     this.name = "ModerationBlockedError";
@@ -122,7 +128,7 @@ const THRESHOLDS = {
   "self-harm": 0.5,
   "self-harm/intent": 0.4,
   "self-harm/instructions": 0.4,
-  
+
   // Violation counts for escalation
   WARN_AFTER_VIOLATIONS: 2,
   FLAG_FOR_BAN_AFTER_VIOLATIONS: 5,
@@ -134,24 +140,28 @@ const THRESHOLDS = {
 function containsMinimalBadWords(text: string): boolean {
   const lowerText = text.toLowerCase();
   return minimalBadWordsArray.some((word: string) =>
-    lowerText.includes(word.toLowerCase())
+    lowerText.includes(word.toLowerCase()),
   );
 }
 
 /**
  * Call OpenAI's free moderation endpoint
  */
-async function callOpenAIModeration(text: string): Promise<AsyncModerationResult> {
+async function callOpenAIModeration(
+  text: string,
+): Promise<AsyncModerationResult> {
   const apiKey = process.env.OPENAI_API_KEY || process.env.AI_GATEWAY_API_KEY;
-  
+
   if (!apiKey) {
-    throw new Error("OPENAI_API_KEY or AI_GATEWAY_API_KEY required for content moderation");
+    throw new Error(
+      "OPENAI_API_KEY or AI_GATEWAY_API_KEY required for content moderation",
+    );
   }
 
   const response = await fetch("https://api.openai.com/v1/moderations", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${apiKey}`,
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -161,10 +171,12 @@ async function callOpenAIModeration(text: string): Promise<AsyncModerationResult
   });
 
   if (!response.ok) {
-    throw new Error(`OpenAI moderation API failed: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `OpenAI moderation API failed: ${response.status} ${response.statusText}`,
+    );
   }
 
-  const data = await response.json() as OpenAIModerationResponse;
+  const data = (await response.json()) as OpenAIModerationResponse;
   const result = data.results[0];
 
   if (!result) {
@@ -185,7 +197,7 @@ async function callOpenAIModeration(text: string): Promise<AsyncModerationResult
   for (const category of criticalCategories) {
     const score = result.category_scores[category];
     const threshold = THRESHOLDS[category];
-    
+
     if (score >= threshold) {
       flaggedCategories.push(category);
       scores[category] = score;
@@ -229,14 +241,17 @@ class ContentModerationService {
   async moderateAsync(
     text: string,
     userId: string,
-    roomId?: string
-  ): Promise<AsyncModerationResult & { action?: "refused" | "warned" | "flagged_for_ban" }> {
+    roomId?: string,
+  ): Promise<
+    AsyncModerationResult & {
+      action?: "refused" | "warned" | "flagged_for_ban";
+    }
+  > {
     const result = await callOpenAIModeration(text);
 
     if (!result.flagged) {
       return result;
     }
-
 
     // Get current violation count from DB
     const status = await adminService.getUserModerationStatus(userId);
@@ -276,7 +291,11 @@ class ContentModerationService {
     text: string,
     userId: string,
     roomId?: string,
-    onViolation?: (result: AsyncModerationResult & { action: "refused" | "warned" | "flagged_for_ban" }) => void
+    onViolation?: (
+      result: AsyncModerationResult & {
+        action: "refused" | "warned" | "flagged_for_ban";
+      },
+    ) => void,
   ): void {
     // Only run async moderation if keywords suggest it's needed
     if (!this.needsAsyncModeration(text)) {
@@ -288,12 +307,16 @@ class ContentModerationService {
     this.moderateAsync(text, userId, roomId)
       .then((result) => {
         if (result.flagged && result.action && onViolation) {
-          onViolation(result as AsyncModerationResult & { action: "refused" | "warned" | "flagged_for_ban" });
+          onViolation(
+            result as AsyncModerationResult & {
+              action: "refused" | "warned" | "flagged_for_ban";
+            },
+          );
         }
       })
       .catch((error) => {
         // Log error but don't propagate - moderation failures should not block users
-        logger.error("[ContentModeration] Background moderation failed", { 
+        logger.error("[ContentModeration] Background moderation failed", {
           error: error instanceof Error ? error.message : String(error),
           userId,
           roomId,
@@ -303,7 +326,7 @@ class ContentModerationService {
 
   /**
    * Race moderation against work - blocks if moderation finishes first with violation
-   * 
+   *
    * This is the recommended pattern for non-streaming responses:
    * 1. Start moderation and work in parallel
    * 2. If moderation finishes first AND finds violation → throw error
@@ -320,7 +343,7 @@ class ContentModerationService {
     text: string,
     userId: string,
     work: () => Promise<T>,
-    roomId?: string
+    roomId?: string,
   ): Promise<T> {
     // Skip moderation if no keywords detected
     if (!this.needsAsyncModeration(text)) {
@@ -329,44 +352,53 @@ class ContentModerationService {
 
     // Create moderation promise
     const moderationPromise = this.moderateAsync(text, userId, roomId);
-    
+
     // Create work promise
     const workPromise = work();
 
     // Race them - but with special handling
     // We use Promise.race with a wrapper that tracks which finished
-    type RaceResult = 
-      | { type: "moderation"; result: AsyncModerationResult & { action?: "refused" | "warned" | "flagged_for_ban" } }
+    type RaceResult =
+      | {
+          type: "moderation";
+          result: AsyncModerationResult & {
+            action?: "refused" | "warned" | "flagged_for_ban";
+          };
+        }
       | { type: "work"; result: T };
 
     const moderationRacer: Promise<RaceResult> = moderationPromise.then(
-      (result) => ({ type: "moderation" as const, result })
+      (result) => ({ type: "moderation" as const, result }),
     );
-    
-    const workRacer: Promise<RaceResult> = workPromise.then(
-      (result) => ({ type: "work" as const, result })
-    );
+
+    const workRacer: Promise<RaceResult> = workPromise.then((result) => ({
+      type: "work" as const,
+      result,
+    }));
 
     const firstResult = await Promise.race([moderationRacer, workRacer]);
 
     if (firstResult.type === "moderation") {
       const modResult = firstResult.result;
-      
+
       if (modResult.flagged && modResult.action) {
         // Moderation finished first with a violation - BLOCK
-        logger.warn("[ContentModeration] Blocking response - moderation detected violation", {
-          userId,
-          roomId,
-          categories: modResult.flaggedCategories,
-          action: modResult.action,
-        });
-        
+        logger.warn(
+          "[ContentModeration] Blocking response - moderation detected violation",
+          {
+            userId,
+            roomId,
+            categories: modResult.flaggedCategories,
+            action: modResult.action,
+          },
+        );
+
         throw new ModerationBlockedError(
           `Content policy violation detected: ${modResult.flaggedCategories.join(", ")}`,
-          modResult
+          modResult,
         );
       }
-      
+
       // Moderation finished first but no violation - wait for work
       return workPromise;
     }
@@ -376,18 +408,24 @@ class ContentModerationService {
     moderationPromise
       .then((result) => {
         if (result.flagged) {
-          logger.info("[ContentModeration] Violation detected after response sent", {
-            userId,
-            roomId,
-            categories: result.flaggedCategories,
-            action: result.action,
-          });
+          logger.info(
+            "[ContentModeration] Violation detected after response sent",
+            {
+              userId,
+              roomId,
+              categories: result.flaggedCategories,
+              action: result.action,
+            },
+          );
         }
       })
       .catch((error) => {
-        logger.error("[ContentModeration] Background moderation failed after response", {
-          error: error instanceof Error ? error.message : String(error),
-        });
+        logger.error(
+          "[ContentModeration] Background moderation failed after response",
+          {
+            error: error instanceof Error ? error.message : String(error),
+          },
+        );
       });
 
     return firstResult.result;
@@ -395,7 +433,7 @@ class ContentModerationService {
 
   /**
    * Start moderation and return a checker function for streaming responses
-   * 
+   *
    * Use this pattern for streaming:
    * 1. Call startModerationCheck() before streaming
    * 2. It returns a checker function
@@ -410,24 +448,34 @@ class ContentModerationService {
   startModerationCheck(
     text: string,
     userId: string,
-    roomId?: string
+    roomId?: string,
   ): {
     /** Check if moderation has flagged - throws if violation detected before streaming */
     checkBeforeStream: () => Promise<void>;
     /** Get the moderation promise for background tracking */
-    moderationPromise: Promise<AsyncModerationResult & { action?: "refused" | "warned" | "flagged_for_ban" }> | null;
+    moderationPromise: Promise<
+      AsyncModerationResult & {
+        action?: "refused" | "warned" | "flagged_for_ban";
+      }
+    > | null;
   } {
     // Skip if no keywords
     if (!this.needsAsyncModeration(text)) {
       return {
-        checkBeforeStream: async () => { /* no-op */ },
+        checkBeforeStream: async () => {
+          /* no-op */
+        },
         moderationPromise: null,
       };
     }
 
     // Start moderation
     const moderationPromise = this.moderateAsync(text, userId, roomId);
-    let moderationResult: (AsyncModerationResult & { action?: "refused" | "warned" | "flagged_for_ban" }) | null = null;
+    let moderationResult:
+      | (AsyncModerationResult & {
+          action?: "refused" | "warned" | "flagged_for_ban";
+        })
+      | null = null;
     let moderationError: Error | null = null;
 
     // Track when moderation completes
@@ -436,7 +484,8 @@ class ContentModerationService {
         moderationResult = result;
       })
       .catch((error) => {
-        moderationError = error instanceof Error ? error : new Error(String(error));
+        moderationError =
+          error instanceof Error ? error : new Error(String(error));
       });
 
     return {
@@ -446,24 +495,30 @@ class ContentModerationService {
 
         // If moderation completed with violation, block
         if (moderationResult?.flagged && moderationResult.action) {
-          logger.warn("[ContentModeration] Blocking stream - moderation detected violation", {
-            userId,
-            roomId,
-            categories: moderationResult.flaggedCategories,
-            action: moderationResult.action,
-          });
-          
+          logger.warn(
+            "[ContentModeration] Blocking stream - moderation detected violation",
+            {
+              userId,
+              roomId,
+              categories: moderationResult.flaggedCategories,
+              action: moderationResult.action,
+            },
+          );
+
           throw new ModerationBlockedError(
             `Content policy violation detected: ${moderationResult.flaggedCategories.join(", ")}`,
-            moderationResult
+            moderationResult,
           );
         }
 
         // If moderation errored, log but don't block
         if (moderationError) {
-          logger.error("[ContentModeration] Moderation check failed, allowing stream", {
-            error: moderationError.message,
-          });
+          logger.error(
+            "[ContentModeration] Moderation check failed, allowing stream",
+            {
+              error: moderationError.message,
+            },
+          );
         }
 
         // Otherwise, allow stream to proceed
@@ -533,7 +588,9 @@ class ContentModerationService {
   async getUsersFlaggedForBan(): Promise<string[]> {
     const flagged = await adminService.getUsersFlaggedForReview();
     return flagged
-      .filter((u) => u.totalViolations >= THRESHOLDS.FLAG_FOR_BAN_AFTER_VIOLATIONS)
+      .filter(
+        (u) => u.totalViolations >= THRESHOLDS.FLAG_FOR_BAN_AFTER_VIOLATIONS,
+      )
       .map((u) => u.userId);
   }
 
@@ -552,7 +609,11 @@ class ContentModerationService {
     userId: string,
     agentIdentifier: string,
     roomId?: string,
-    onViolation?: (result: AsyncModerationResult & { action: "refused" | "warned" | "flagged_for_ban" }) => void
+    onViolation?: (
+      result: AsyncModerationResult & {
+        action: "refused" | "warned" | "flagged_for_ban";
+      },
+    ) => void,
   ): void {
     // Only run async moderation if keywords suggest it's needed
     if (!this.needsAsyncModeration(text)) {
@@ -564,15 +625,18 @@ class ContentModerationService {
       .then(async (result) => {
         if (result.flagged && result.action) {
           // Also record to agent reputation system
-          
+
           // Map moderation categories to flag types
-          let flagType: "csam" | "self_harm" | "harassment" | "spam" | "other" = "other";
+          let flagType: "csam" | "self_harm" | "harassment" | "spam" | "other" =
+            "other";
           let severity: "low" | "medium" | "high" | "critical" = "medium";
-          
+
           if (result.flaggedCategories.includes("sexual/minors")) {
             flagType = "csam";
             severity = "critical";
-          } else if (result.flaggedCategories.some(c => c.startsWith("self-harm"))) {
+          } else if (
+            result.flaggedCategories.some((c) => c.startsWith("self-harm"))
+          ) {
             flagType = "self_harm";
             severity = "high";
           }
@@ -588,19 +652,22 @@ class ContentModerationService {
           });
 
           if (onViolation) {
-            onViolation(result as AsyncModerationResult & { action: "refused" | "warned" | "flagged_for_ban" });
+            onViolation(
+              result as AsyncModerationResult & {
+                action: "refused" | "warned" | "flagged_for_ban";
+              },
+            );
           }
         }
       })
       .catch((error) => {
-        logger.error("[ContentModeration] Agent moderation failed", { 
+        logger.error("[ContentModeration] Agent moderation failed", {
           error: error instanceof Error ? error.message : String(error),
           userId,
           agentIdentifier,
         });
       });
   }
-
 }
 
 export const contentModerationService = new ContentModerationService();

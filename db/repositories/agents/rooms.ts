@@ -1,6 +1,6 @@
 /**
  * Repository for ElizaOS rooms table.
- * 
+ *
  * Handles all database operations for rooms without spinning up runtime.
  */
 
@@ -16,8 +16,21 @@ import type { Room as BaseRoom } from "@elizaos/core";
 export type Room = BaseRoom;
 
 /**
+ * Room metadata with locked state.
+ */
+export interface RoomMetadata {
+  locked?: boolean;
+  createdCharacterId?: string;
+  createdCharacterName?: string;
+  lockedAt?: number;
+  createdAt?: number;
+  creatorUserId?: string;
+  [key: string]: unknown;
+}
+
+/**
  * Room with last message preview for sidebar/list views.
- * 
+ *
  * All data comes from a single optimized query.
  */
 export interface RoomWithPreview {
@@ -29,6 +42,7 @@ export interface RoomWithPreview {
   createdAt: Date;
   lastMessageTime: Date | null;
   lastMessageText: string | null;
+  metadata: RoomMetadata | null; // Room metadata including locked state
 }
 
 /**
@@ -107,7 +121,7 @@ export class RoomsRepository {
 
   /**
    * Creates a new room.
-   * 
+   *
    * Note: source and type are required in the database (notNull, no defaults).
    */
   async create(input: CreateRoomInput): Promise<Room> {
@@ -202,10 +216,10 @@ export class RoomsRepository {
 
   /**
    * Gets all rooms for an entity (user) with last message preview.
-   * 
+   *
    * Uses a single optimized query with joins. Returns rooms sorted by most recent activity.
    * Includes character name and avatar from user_characters table.
-   * 
+   *
    * @param entityId - The user's ID (from auth).
    * @returns Rooms with preview data, sorted by most recent activity.
    */
@@ -238,6 +252,7 @@ export class RoomsRepository {
         createdAt: roomTable.createdAt,
         lastMessageTime: latestMessagesSubquery.createdAt,
         lastMessageText: latestMessagesSubquery.text,
+        metadata: roomTable.metadata,
       })
       .from(participantTable)
       .innerJoin(roomTable, eq(participantTable.roomId, roomTable.id))

@@ -171,7 +171,10 @@ export function useInfiniteCharacters({
           ...prev,
           isLoading: false,
           isLoadingMore: false,
-          error: error instanceof Error ? error.message : "Failed to fetch characters",
+          error:
+            error instanceof Error
+              ? error.message
+              : "Failed to fetch characters",
         }));
       }
     },
@@ -185,7 +188,7 @@ export function useInfiniteCharacters({
       setPage(1);
       fetchPage(1, false);
     });
-  }, [filterKey, fetchPage]);  
+  }, [filterKey, fetchPage]);
 
   // Cleanup on unmount
   useEffect(() => {

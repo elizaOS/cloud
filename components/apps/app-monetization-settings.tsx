@@ -97,7 +97,7 @@ export function AppMonetizationSettings({
 
   const updateSetting = <K extends keyof MonetizationSettings>(
     key: K,
-    value: MonetizationSettings[K]
+    value: MonetizationSettings[K],
   ) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
     setHasChanges(true);
@@ -112,8 +112,11 @@ export function AppMonetizationSettings({
   }
 
   // Example calculations
-  const inferenceExample = 0.01 * (1 + settings.inferenceMarkupPercentage / 100);
-  const purchaseExample = (10 - settings.platformOffsetAmount) * (settings.purchaseSharePercentage / 100);
+  const inferenceExample =
+    0.01 * (1 + settings.inferenceMarkupPercentage / 100);
+  const purchaseExample =
+    (10 - settings.platformOffsetAmount) *
+    (settings.purchaseSharePercentage / 100);
 
   return (
     <TooltipProvider>
@@ -125,10 +128,13 @@ export function AppMonetizationSettings({
             <div className="relative z-10 flex items-start gap-3 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
               <Info className="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-white mb-1">Enable monetization to earn</p>
+                <p className="text-sm font-medium text-white mb-1">
+                  Enable monetization to earn
+                </p>
                 <p className="text-xs text-white/60">
-                  When enabled, you&apos;ll earn from inference markups and credit purchases. 
-                  Users will pay app-specific credits instead of organization credits.
+                  When enabled, you&apos;ll earn from inference markups and
+                  credit purchases. Users will pay app-specific credits instead
+                  of organization credits.
                 </p>
               </div>
             </div>
@@ -140,13 +146,19 @@ export function AppMonetizationSettings({
           <CornerBrackets size="sm" className="opacity-20" />
           <div className="relative z-10 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${settings.monetizationEnabled ? 'bg-green-500/20' : 'bg-white/5'}`}>
-                <Coins className={`h-5 w-5 ${settings.monetizationEnabled ? 'text-green-400' : 'text-white/40'}`} />
+              <div
+                className={`p-2 rounded-lg ${settings.monetizationEnabled ? "bg-green-500/20" : "bg-white/5"}`}
+              >
+                <Coins
+                  className={`h-5 w-5 ${settings.monetizationEnabled ? "text-green-400" : "text-white/40"}`}
+                />
               </div>
               <div>
                 <p className="font-medium text-white">Monetization</p>
                 <p className="text-xs text-white/50">
-                  {settings.monetizationEnabled ? 'Earning from usage' : 'Not earning'}
+                  {settings.monetizationEnabled
+                    ? "Earning from usage"
+                    : "Not earning"}
                 </p>
               </div>
             </div>
@@ -173,7 +185,9 @@ export function AppMonetizationSettings({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Zap className="h-4 w-4 text-purple-400" />
-                  <span className="text-sm font-medium text-white">Inference Markup</span>
+                  <span className="text-sm font-medium text-white">
+                    Inference Markup
+                  </span>
                   <Tooltip>
                     <TooltipTrigger>
                       <Info className="h-3.5 w-3.5 text-white/30" />
@@ -194,7 +208,9 @@ export function AppMonetizationSettings({
               </div>
               <Slider
                 value={[settings.inferenceMarkupPercentage]}
-                onValueChange={([value]) => updateSetting("inferenceMarkupPercentage", value)}
+                onValueChange={([value]) =>
+                  updateSetting("inferenceMarkupPercentage", value)
+                }
                 min={0}
                 max={500}
                 step={5}
@@ -209,7 +225,9 @@ export function AppMonetizationSettings({
                         ? "bg-purple-500/30 text-purple-300"
                         : "bg-white/5 text-white/50 hover:bg-white/10"
                     }`}
-                    onClick={() => updateSetting("inferenceMarkupPercentage", preset)}
+                    onClick={() =>
+                      updateSetting("inferenceMarkupPercentage", preset)
+                    }
                   >
                     {preset}%
                   </button>
@@ -224,13 +242,16 @@ export function AppMonetizationSettings({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Coins className="h-4 w-4 text-yellow-400" />
-                  <span className="text-sm font-medium text-white">Purchase Share</span>
+                  <span className="text-sm font-medium text-white">
+                    Purchase Share
+                  </span>
                   <Tooltip>
                     <TooltipTrigger>
                       <Info className="h-3.5 w-3.5 text-white/30" />
                     </TooltipTrigger>
                     <TooltipContent side="right" className="max-w-[200px]">
-                      Your cut of credit purchases after ${settings.platformOffsetAmount} platform fee.
+                      Your cut of credit purchases after $
+                      {settings.platformOffsetAmount} platform fee.
                     </TooltipContent>
                   </Tooltip>
                 </div>
@@ -245,7 +266,9 @@ export function AppMonetizationSettings({
               </div>
               <Slider
                 value={[settings.purchaseSharePercentage]}
-                onValueChange={([value]) => updateSetting("purchaseSharePercentage", value)}
+                onValueChange={([value]) =>
+                  updateSetting("purchaseSharePercentage", value)
+                }
                 min={0}
                 max={50}
                 step={5}
@@ -260,7 +283,9 @@ export function AppMonetizationSettings({
                         ? "bg-yellow-500/30 text-yellow-300"
                         : "bg-white/5 text-white/50 hover:bg-white/10"
                     }`}
-                    onClick={() => updateSetting("purchaseSharePercentage", preset)}
+                    onClick={() =>
+                      updateSetting("purchaseSharePercentage", preset)
+                    }
                   >
                     {preset}%
                   </button>
@@ -322,11 +347,12 @@ export function AppMonetizationSettings({
             <AlertDialogHeader>
               <AlertDialogTitle>Enable Monetization?</AlertDialogTitle>
               <AlertDialogDescription className="space-y-2">
-                <p>
-                  When monetization is enabled, users of your app will:
-                </p>
+                <p>When monetization is enabled, users of your app will:</p>
                 <ul className="list-disc list-inside space-y-1 text-sm">
-                  <li>Pay app-specific credits (separate from their organization balance)</li>
+                  <li>
+                    Pay app-specific credits (separate from their organization
+                    balance)
+                  </li>
                   <li>See inference costs with your markup applied</li>
                   <li>Purchase credits that contribute to your earnings</li>
                 </ul>
@@ -336,9 +362,7 @@ export function AppMonetizationSettings({
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>
-                Cancel
-              </AlertDialogCancel>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={() => {
                   updateSetting("monetizationEnabled", true);

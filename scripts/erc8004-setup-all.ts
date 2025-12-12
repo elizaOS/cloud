@@ -135,24 +135,36 @@ const ERC1967_PROXY_BYTECODE =
 
 async function deployContracts(
   networkKey: string,
-  privateKey: Hex
-): Promise<{ identity: Address; reputation: Address; validation: Address } | null> {
+  privateKey: Hex,
+): Promise<{
+  identity: Address;
+  reputation: Address;
+  validation: Address;
+} | null> {
   const config = NETWORKS[networkKey];
   console.log(`\n📦 Deploying contracts to ${config.name}...`);
 
   // Check if we have compiled contracts
   const identityBytecode = loadContractBytecode("IdentityRegistryUpgradeable");
-  const reputationBytecode = loadContractBytecode("ReputationRegistryUpgradeable");
-  const validationBytecode = loadContractBytecode("ValidationRegistryUpgradeable");
+  const reputationBytecode = loadContractBytecode(
+    "ReputationRegistryUpgradeable",
+  );
+  const validationBytecode = loadContractBytecode(
+    "ValidationRegistryUpgradeable",
+  );
   const proxyBytecode = loadContractBytecode("ERC1967Proxy");
 
   if (!identityBytecode || !reputationBytecode || !validationBytecode) {
     console.log(`\n⚠️  Compiled contracts not found.`);
-    console.log(`   Run: cd docs/docs/erc-8004-contracts && npm install && npx hardhat compile`);
+    console.log(
+      `   Run: cd docs/docs/erc-8004-contracts && npm install && npx hardhat compile`,
+    );
 
     if (networkKey === "anvil") {
       console.log(`\n   For Anvil, you can use the Hardhat deployment script:`);
-      console.log(`   cd docs/docs/erc-8004-contracts && npm run deploy:upgradeable`);
+      console.log(
+        `   cd docs/docs/erc-8004-contracts && npm run deploy:upgradeable`,
+      );
     }
 
     return null;
@@ -162,23 +174,27 @@ async function deployContracts(
   const transport = http(config.rpcUrl);
 
   const publicClient = createPublicClient({
-    chain: config.chain || {
-      id: config.chainId,
-      name: config.name,
-      nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
-      rpcUrls: { default: { http: [config.rpcUrl] } },
-    } as Parameters<typeof createPublicClient>[0]["chain"],
+    chain:
+      config.chain ||
+      ({
+        id: config.chainId,
+        name: config.name,
+        nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
+        rpcUrls: { default: { http: [config.rpcUrl] } },
+      } as Parameters<typeof createPublicClient>[0]["chain"]),
     transport,
   });
 
   const walletClient = createWalletClient({
     account,
-    chain: config.chain || {
-      id: config.chainId,
-      name: config.name,
-      nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
-      rpcUrls: { default: { http: [config.rpcUrl] } },
-    } as Parameters<typeof createWalletClient>[0]["chain"],
+    chain:
+      config.chain ||
+      ({
+        id: config.chainId,
+        name: config.name,
+        nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
+        rpcUrls: { default: { http: [config.rpcUrl] } },
+      } as Parameters<typeof createWalletClient>[0]["chain"]),
     transport,
   });
 
@@ -196,7 +212,9 @@ async function deployContracts(
   console.log(`\n   Use Hardhat for deployment:`);
   console.log(`   cd docs/docs/erc-8004-contracts`);
   console.log(`   npx hardhat vars set DEPLOYER_PRIVATE_KEY ${privateKey}`);
-  console.log(`   npm run deploy:upgradeable:${networkKey === "base" ? "base" : networkKey}`);
+  console.log(
+    `   npm run deploy:upgradeable:${networkKey === "base" ? "base" : networkKey}`,
+  );
 
   return null;
 }
@@ -208,7 +226,7 @@ async function deployContracts(
 async function registerAgent(
   networkKey: string,
   privateKey: Hex,
-  contracts: { identity: Address; reputation: Address; validation: Address }
+  contracts: { identity: Address; reputation: Address; validation: Address },
 ): Promise<number | null> {
   const config = NETWORKS[networkKey];
   const baseUrl = env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
@@ -239,7 +257,7 @@ async function registerAgent(
     "Eliza Cloud",
     "AI agent infrastructure: inference, agents, memory, billing. " +
       "Supports REST, MCP, A2A protocols with x402 or API key authentication.",
-    `${baseUrl}/logo.png`
+    `${baseUrl}/logo.png`,
   );
 
   // Configure endpoints
@@ -299,12 +317,14 @@ async function registerAgent(
   // If we used HTTP registration, query for the token ID
   const transport = http(config.rpcUrl);
   const publicClient = createPublicClient({
-    chain: config.chain || {
-      id: config.chainId,
-      name: config.name,
-      nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
-      rpcUrls: { default: { http: [config.rpcUrl] } },
-    } as Parameters<typeof createPublicClient>[0]["chain"],
+    chain:
+      config.chain ||
+      ({
+        id: config.chainId,
+        name: config.name,
+        nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
+        rpcUrls: { default: { http: [config.rpcUrl] } },
+      } as Parameters<typeof createPublicClient>[0]["chain"]),
     transport,
   });
 
@@ -352,9 +372,12 @@ async function main() {
   const skipDeploy = args.includes("--skip-deploy");
 
   // Get private key
-  const privateKey = (env.AGENT0_PRIVATE_KEY || env.DEPLOYER_PRIVATE_KEY) as Hex;
+  const privateKey = (env.AGENT0_PRIVATE_KEY ||
+    env.DEPLOYER_PRIVATE_KEY) as Hex;
   if (!privateKey) {
-    console.error("\n❌ AGENT0_PRIVATE_KEY or DEPLOYER_PRIVATE_KEY required in .env.local");
+    console.error(
+      "\n❌ AGENT0_PRIVATE_KEY or DEPLOYER_PRIVATE_KEY required in .env.local",
+    );
     process.exit(1);
   }
 
@@ -366,7 +389,10 @@ async function main() {
     ? [specificNetwork]
     : Object.keys(NETWORKS);
 
-  const results: Record<string, { agentId: number | null; contracts: Record<string, Address> }> = {};
+  const results: Record<
+    string,
+    { agentId: number | null; contracts: Record<string, Address> }
+  > = {};
 
   for (const networkKey of networksToSetup) {
     const config = NETWORKS[networkKey];
@@ -380,7 +406,11 @@ async function main() {
     console.log(`${"═".repeat(60)}`);
 
     // Get contract addresses
-    let contracts: { identity: Address; reputation: Address; validation: Address };
+    let contracts: {
+      identity: Address;
+      reputation: Address;
+      validation: Address;
+    };
 
     if (networkKey === "base-sepolia") {
       // Use official agent0 contracts
@@ -389,8 +419,10 @@ async function main() {
     } else {
       // Check if we have custom contracts configured
       const identityAddr = env[`ERC8004_IDENTITY_REGISTRY_${config.envPrefix}`];
-      const reputationAddr = env[`ERC8004_REPUTATION_REGISTRY_${config.envPrefix}`];
-      const validationAddr = env[`ERC8004_VALIDATION_REGISTRY_${config.envPrefix}`];
+      const reputationAddr =
+        env[`ERC8004_REPUTATION_REGISTRY_${config.envPrefix}`];
+      const validationAddr =
+        env[`ERC8004_VALIDATION_REGISTRY_${config.envPrefix}`];
 
       if (identityAddr && identityAddr !== ZERO_ADDRESS) {
         contracts = {
@@ -411,12 +443,16 @@ async function main() {
         // Save to env
         updateEnvFile({
           [`ERC8004_IDENTITY_REGISTRY_${config.envPrefix}`]: contracts.identity,
-          [`ERC8004_REPUTATION_REGISTRY_${config.envPrefix}`]: contracts.reputation,
-          [`ERC8004_VALIDATION_REGISTRY_${config.envPrefix}`]: contracts.validation,
+          [`ERC8004_REPUTATION_REGISTRY_${config.envPrefix}`]:
+            contracts.reputation,
+          [`ERC8004_VALIDATION_REGISTRY_${config.envPrefix}`]:
+            contracts.validation,
         });
       } else {
         console.log(`   ⚠️  No contracts configured for ${config.name}`);
-        console.log(`   Set ERC8004_IDENTITY_REGISTRY_${config.envPrefix} in .env.local`);
+        console.log(
+          `   Set ERC8004_IDENTITY_REGISTRY_${config.envPrefix} in .env.local`,
+        );
         continue;
       }
     }
@@ -426,7 +462,9 @@ async function main() {
     // Check existing agent ID
     const existingAgentId = env[`ELIZA_CLOUD_AGENT_ID_${config.envPrefix}`];
     if (existingAgentId) {
-      console.log(`\n   Agent already registered: ${config.chainId}:${existingAgentId}`);
+      console.log(
+        `\n   Agent already registered: ${config.chainId}:${existingAgentId}`,
+      );
       results[networkKey] = {
         agentId: parseInt(existingAgentId, 10),
         contracts,
@@ -452,8 +490,12 @@ async function main() {
   console.log("📊 SETUP COMPLETE");
   console.log(`${"═".repeat(60)}`);
 
-  console.log("\n| Network        | Agent ID         | Identity Registry                  |");
-  console.log("|----------------|------------------|-------------------------------------|");
+  console.log(
+    "\n| Network        | Agent ID         | Identity Registry                  |",
+  );
+  console.log(
+    "|----------------|------------------|-------------------------------------|",
+  );
 
   for (const [networkKey, result] of Object.entries(results)) {
     const config = NETWORKS[networkKey];
@@ -461,7 +503,7 @@ async function main() {
       ? `${config.chainId}:${result.agentId}`
       : "Not registered";
     console.log(
-      `| ${config.name.padEnd(14)} | ${agentIdStr.padEnd(16)} | ${result.contracts.identity} |`
+      `| ${config.name.padEnd(14)} | ${agentIdStr.padEnd(16)} | ${result.contracts.identity} |`,
     );
   }
 
@@ -469,4 +511,3 @@ async function main() {
 }
 
 main().catch(console.error);
-

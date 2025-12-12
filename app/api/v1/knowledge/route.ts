@@ -51,7 +51,10 @@ async function handleGET(req: NextRequest) {
 
     if (!knowledgeService) {
       const status = runtime.getServiceRegistrationStatus("knowledge");
-      logger.error("[Knowledge API] Knowledge service not available, status:", status);
+      logger.error(
+        "[Knowledge API] Knowledge service not available, status:",
+        status,
+      );
 
       return NextResponse.json(
         {

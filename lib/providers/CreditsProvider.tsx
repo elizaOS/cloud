@@ -96,17 +96,21 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
     });
 
     if (!response.ok) {
-        if (response.status === 401) {
-          authErrorCountRef.current++;
+      if (response.status === 401) {
+        authErrorCountRef.current++;
 
-          if (authErrorCountRef.current === 1) {
-            logger.warn("[CreditsProvider] Unauthorized - user may need to re-authenticate");
-          }
+        if (authErrorCountRef.current === 1) {
+          logger.warn(
+            "[CreditsProvider] Unauthorized - user may need to re-authenticate",
+          );
+        }
 
-          if (authErrorCountRef.current >= MAX_AUTH_ERRORS) {
-            logger.warn("[CreditsProvider] Too many auth errors, pausing polling");
-            stopPolling();
-          }
+        if (authErrorCountRef.current >= MAX_AUTH_ERRORS) {
+          logger.warn(
+            "[CreditsProvider] Too many auth errors, pausing polling",
+          );
+          stopPolling();
+        }
 
         if (isMountedRef.current) {
           setError("Unauthorized");
@@ -223,7 +227,7 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
       lastUpdate,
       refreshBalance: fetchBalance,
     }),
-    [creditBalance, isConnected, isLoading, error, lastUpdate, fetchBalance]
+    [creditBalance, isConnected, isLoading, error, lastUpdate, fetchBalance],
   );
 
   return (
@@ -253,4 +257,3 @@ export function useCredits(): CreditsContextValue {
 
   return context;
 }
-

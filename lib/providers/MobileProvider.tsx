@@ -1,6 +1,6 @@
 /**
  * Mobile Provider
- * 
+ *
  * Wraps the application with mobile-specific functionality when running
  * in the Tauri mobile app. This includes:
  * - Deep link handling
@@ -20,8 +20,8 @@ import {
   type ReactNode,
 } from "react";
 import { useDeepLink } from "@/lib/hooks/use-deep-link";
-import { 
-  getPlatformConfig, 
+import {
+  getPlatformConfig,
   type Platform,
   getUserAgentInfo,
 } from "@/lib/utils/platform";
@@ -58,42 +58,44 @@ const MobileContext = createContext<MobileContextValue | null>(null);
  */
 export function MobileProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
-  const [config, setConfig] = useState<ReturnType<typeof getPlatformConfig> | null>(null);
+  const [config, setConfig] = useState<ReturnType<
+    typeof getPlatformConfig
+  > | null>(null);
   const [safeAreaInsets, setSafeAreaInsets] = useState({
     top: 0,
     right: 0,
     bottom: 0,
     left: 0,
   });
-  
+
   // Set up deep link handling
   useDeepLink();
-  
+
   // Initialize platform detection
   useEffect(() => {
     const platformConfig = getPlatformConfig();
-    
+
     // Use queueMicrotask to avoid cascading render warnings
     queueMicrotask(() => {
       setConfig(platformConfig);
     });
-    
+
     // Log platform info in development
     if (process.env.NODE_ENV === "development") {
       console.log("[MobileProvider] Platform info:", getUserAgentInfo());
     }
-    
+
     // Set up safe area CSS variables
     if (typeof window !== "undefined" && platformConfig.isMobile) {
       const style = document.documentElement.style;
-      
+
       // These CSS variables are set by the viewport-fit=cover meta tag
       // and env() safe-area-inset-* properties
       style.setProperty("--sat", "env(safe-area-inset-top, 0px)");
       style.setProperty("--sar", "env(safe-area-inset-right, 0px)");
       style.setProperty("--sab", "env(safe-area-inset-bottom, 0px)");
       style.setProperty("--sal", "env(safe-area-inset-left, 0px)");
-      
+
       // Read computed values after a brief delay
       setTimeout(() => {
         const computedStyle = getComputedStyle(document.documentElement);
@@ -105,16 +107,16 @@ export function MobileProvider({ children }: { children: ReactNode }) {
         });
       }, 100);
     }
-    
+
     queueMicrotask(() => {
       setIsReady(true);
     });
   }, []);
-  
+
   // Set up status bar styling for mobile
   useEffect(() => {
     if (!config?.isMobile || typeof document === "undefined") return;
-    
+
     // Add viewport-fit=cover for safe areas
     let viewportMeta = document.querySelector('meta[name="viewport"]');
     if (viewportMeta) {
@@ -123,7 +125,7 @@ export function MobileProvider({ children }: { children: ReactNode }) {
         viewportMeta.setAttribute("content", `${content}, viewport-fit=cover`);
       }
     }
-    
+
     // Add theme-color meta for status bar
     let themeMeta = document.querySelector('meta[name="theme-color"]');
     if (!themeMeta) {
@@ -132,7 +134,7 @@ export function MobileProvider({ children }: { children: ReactNode }) {
       document.head.appendChild(themeMeta);
     }
     themeMeta.setAttribute("content", "#000000");
-    
+
     // Add apple-specific meta tags
     if (config.platform === "ios") {
       const appleMeta = document.createElement("meta");
@@ -141,21 +143,22 @@ export function MobileProvider({ children }: { children: ReactNode }) {
       document.head.appendChild(appleMeta);
     }
   }, [config]);
-  
-  const value: MobileContextValue = useMemo(() => ({
-    platform: config?.platform || "unknown",
-    isTauri: config?.isTauri || false,
-    isMobile: config?.isMobile || false,
-    isTouch: config?.isTouch || false,
-    supportsIAP: config?.supportsIAP || false,
-    isReady,
-    safeAreaInsets,
-  }), [config, isReady, safeAreaInsets]);
-  
+
+  const value: MobileContextValue = useMemo(
+    () => ({
+      platform: config?.platform || "unknown",
+      isTauri: config?.isTauri || false,
+      isMobile: config?.isMobile || false,
+      isTouch: config?.isTouch || false,
+      supportsIAP: config?.supportsIAP || false,
+      isReady,
+      safeAreaInsets,
+    }),
+    [config, isReady, safeAreaInsets],
+  );
+
   return (
-    <MobileContext.Provider value={value}>
-      {children}
-    </MobileContext.Provider>
+    <MobileContext.Provider value={value}>{children}</MobileContext.Provider>
   );
 }
 
@@ -164,7 +167,7 @@ export function MobileProvider({ children }: { children: ReactNode }) {
  */
 export function useMobile(): MobileContextValue {
   const context = useContext(MobileContext);
-  
+
   if (!context) {
     // Return sensible defaults when used outside provider
     return {
@@ -177,7 +180,7 @@ export function useMobile(): MobileContextValue {
       safeAreaInsets: { top: 0, right: 0, bottom: 0, left: 0 },
     };
   }
-  
+
   return context;
 }
 
@@ -185,15 +188,15 @@ export function useMobile(): MobileContextValue {
  * HOC to conditionally render based on platform
  */
 export function withMobileOnly<P extends object>(
-  Component: React.ComponentType<P>
+  Component: React.ComponentType<P>,
 ): React.FC<P> {
   return function MobileOnlyComponent(props: P) {
     const { isMobile } = useMobile();
-    
+
     if (!isMobile) {
       return null;
     }
-    
+
     return <Component {...props} />;
   };
 }
@@ -202,18 +205,17 @@ export function withMobileOnly<P extends object>(
  * HOC to conditionally render on web only
  */
 export function withWebOnly<P extends object>(
-  Component: React.ComponentType<P>
+  Component: React.ComponentType<P>,
 ): React.FC<P> {
   return function WebOnlyComponent(props: P) {
     const { isMobile, isTauri } = useMobile();
-    
+
     if (isMobile || isTauri) {
       return null;
     }
-    
+
     return <Component {...props} />;
   };
 }
 
 export type { MobileContextValue };
-

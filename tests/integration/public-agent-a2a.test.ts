@@ -41,11 +41,11 @@ const getConfig = () => ({
 async function fetchWithTimeout(
   url: string,
   options: RequestInit = {},
-  timeoutMs = 3000
+  timeoutMs = 3000,
 ): Promise<Response | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  
+
   try {
     const response = await fetch(url, {
       ...options,
@@ -136,28 +136,32 @@ describe("Public Agent A2A Protocol", () => {
         // (agent-specific endpoints require auth which may return 401 for all requests)
         const response = await fetchWithTimeout(
           `${config.apiUrl}/.well-known/agent-card.json`,
-          { method: "GET" }
+          { method: "GET" },
         );
-        
+
         if (!response) {
           console.log("ℹ️  Server not running - testing config only");
           expect(true).toBe(true);
           return;
         }
-        
+
         // Platform agent card should be accessible without auth
         expect(response.status).toBe(200);
         const card = await response.json();
         expect(card.name).toBeDefined();
         expect(card.authentication).toBeDefined();
-        console.log("✅ Platform agent card accessible - agent discovery works");
+        console.log(
+          "✅ Platform agent card accessible - agent discovery works",
+        );
         console.log(`   Name: ${card.name}`);
-        console.log(`   Auth schemes: ${card.authentication?.schemes?.length || 0}`);
+        console.log(
+          `   Auth schemes: ${card.authentication?.schemes?.length || 0}`,
+        );
         return;
       }
 
       const response = await fetch(
-        `${config.apiUrl}/api/agents/${config.testAgentId}/a2a`
+        `${config.apiUrl}/api/agents/${config.testAgentId}/a2a`,
       );
 
       // Should succeed for public agents
@@ -176,7 +180,7 @@ describe("Public Agent A2A Protocol", () => {
         console.log("   Skills:", card.skills.map((s) => s.id).join(", "));
         console.log(
           "   Payment methods:",
-          card.pricing.paymentMethods.join(", ")
+          card.pricing.paymentMethods.join(", "),
         );
       } else if (response.status === 403) {
         console.log("⚠️ Agent is not public or A2A not enabled");
@@ -188,7 +192,7 @@ describe("Public Agent A2A Protocol", () => {
     test("platform agent card includes x402 when enabled", async () => {
       // Test platform agent card instead of requiring TEST_PUBLIC_AGENT_ID
       const response = await fetchWithTimeout(
-        `${config.apiUrl}/.well-known/agent-card.json`
+        `${config.apiUrl}/.well-known/agent-card.json`,
       );
 
       if (!response) {
@@ -203,7 +207,7 @@ describe("Public Agent A2A Protocol", () => {
 
         if (X402_ENABLED) {
           const hasX402Scheme = card.authentication?.schemes?.some(
-            (s: { scheme: string }) => s.scheme === "x402"
+            (s: { scheme: string }) => s.scheme === "x402",
           );
           expect(hasX402Scheme).toBe(true);
           console.log("✅ Platform Agent Card includes x402 scheme");
@@ -219,24 +223,21 @@ describe("Public Agent A2A Protocol", () => {
   describe("2. Authentication", () => {
     test("platform A2A without auth returns 401 or 402", async () => {
       // Test platform A2A endpoint using message/send with skill
-      const response = await fetchWithTimeout(
-        `${config.apiUrl}/api/a2a`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            jsonrpc: "2.0",
-            method: "message/send",
-            params: {
-              message: {
-                role: "user",
-                parts: [{ type: "data", data: { skill: "check_balance" } }],
-              },
+      const response = await fetchWithTimeout(`${config.apiUrl}/api/a2a`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          method: "message/send",
+          params: {
+            message: {
+              role: "user",
+              parts: [{ type: "data", data: { skill: "check_balance" } }],
             },
-            id: 1,
-          }),
-        }
-      );
+          },
+          id: 1,
+        }),
+      });
 
       if (!response) {
         console.log("ℹ️  Server not running - testing config only");
@@ -266,27 +267,24 @@ describe("Public Agent A2A Protocol", () => {
         return;
       }
 
-      const response = await fetchWithTimeout(
-        `${config.apiUrl}/api/a2a`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${config.apiKey}`,
-          },
-          body: JSON.stringify({
-            jsonrpc: "2.0",
-            method: "message/send",
-            params: {
-              message: {
-                role: "user",
-                parts: [{ type: "data", data: { skill: "check_balance" } }],
-              },
+      const response = await fetchWithTimeout(`${config.apiUrl}/api/a2a`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          method: "message/send",
+          params: {
+            message: {
+              role: "user",
+              parts: [{ type: "data", data: { skill: "check_balance" } }],
             },
-            id: 1,
-          }),
-        }
-      );
+          },
+          id: 1,
+        }),
+      });
 
       if (!response) {
         console.log("ℹ️  Server not running");
@@ -308,27 +306,27 @@ describe("Public Agent A2A Protocol", () => {
   describe("3. Chat Interaction", () => {
     test("chat_completion skill requires authentication", async () => {
       // Test that unauthenticated chat returns proper auth error
-      const response = await fetchWithTimeout(
-        `${config.apiUrl}/api/a2a`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            jsonrpc: "2.0",
-            method: "message/send",
-            params: {
-              message: {
-                role: "user",
-                parts: [
-                  { type: "text", text: "Hello" },
-                  { type: "data", data: { skill: "chat_completion", model: "gpt-4o-mini" } },
-                ],
-              },
+      const response = await fetchWithTimeout(`${config.apiUrl}/api/a2a`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          method: "message/send",
+          params: {
+            message: {
+              role: "user",
+              parts: [
+                { type: "text", text: "Hello" },
+                {
+                  type: "data",
+                  data: { skill: "chat_completion", model: "gpt-4o-mini" },
+                },
+              ],
             },
-            id: "test-chat-1",
-          }),
-        }
-      );
+          },
+          id: "test-chat-1",
+        }),
+      });
 
       if (!response) {
         console.log("ℹ️  Server not running");
@@ -342,30 +340,30 @@ describe("Public Agent A2A Protocol", () => {
 
       // If we have API key, test actual chat
       if (config.apiKey) {
-        const authResponse = await fetch(
-          `${config.apiUrl}/api/a2a`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${config.apiKey}`,
-            },
-            body: JSON.stringify({
-              jsonrpc: "2.0",
-              method: "message/send",
-              params: {
-                message: {
-                  role: "user",
-                  parts: [
-                    { type: "text", text: "Say hello in one word." },
-                    { type: "data", data: { skill: "chat_completion", model: "gpt-4o-mini" } },
-                  ],
-                },
+        const authResponse = await fetch(`${config.apiUrl}/api/a2a`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${config.apiKey}`,
+          },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            method: "message/send",
+            params: {
+              message: {
+                role: "user",
+                parts: [
+                  { type: "text", text: "Say hello in one word." },
+                  {
+                    type: "data",
+                    data: { skill: "chat_completion", model: "gpt-4o-mini" },
+                  },
+                ],
               },
-              id: "test-chat-2",
-            }),
-          }
-        );
+            },
+            id: "test-chat-2",
+          }),
+        });
 
         if (authResponse.status === 200) {
           const data = await authResponse.json();
@@ -373,30 +371,29 @@ describe("Public Agent A2A Protocol", () => {
           console.log("✅ Authenticated chat works");
         }
       } else {
-        console.log("ℹ️  TEST_API_KEY not set - skipping authenticated chat test");
+        console.log(
+          "ℹ️  TEST_API_KEY not set - skipping authenticated chat test",
+        );
       }
     });
 
     test("list_agents skill requires authentication", async () => {
       // Test without API key - verify endpoint structure
-      const response = await fetchWithTimeout(
-        `${config.apiUrl}/api/a2a`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            jsonrpc: "2.0",
-            method: "message/send",
-            params: {
-              message: {
-                role: "user",
-                parts: [{ type: "data", data: { skill: "list_agents" } }],
-              },
+      const response = await fetchWithTimeout(`${config.apiUrl}/api/a2a`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          method: "message/send",
+          params: {
+            message: {
+              role: "user",
+              parts: [{ type: "data", data: { skill: "list_agents" } }],
             },
-            id: "test-list-1",
-          }),
-        }
-      );
+          },
+          id: "test-list-1",
+        }),
+      });
 
       if (!response) {
         console.log("ℹ️  Server not running");
@@ -424,7 +421,7 @@ describe("Public Agent A2A Protocol", () => {
               params: {},
               id: "test-info-1",
             }),
-          }
+          },
         );
 
         if (authResponse.status === 200) {
@@ -433,7 +430,9 @@ describe("Public Agent A2A Protocol", () => {
           console.log("✅ Authenticated agent info works");
         }
       } else {
-        console.log("ℹ️  TEST_API_KEY or TEST_PUBLIC_AGENT_ID not set - skipping authenticated test");
+        console.log(
+          "ℹ️  TEST_API_KEY or TEST_PUBLIC_AGENT_ID not set - skipping authenticated test",
+        );
       }
     });
   });
@@ -459,11 +458,13 @@ describe("Public Agent A2A Protocol", () => {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
 
       if (!response) {
-        console.log(`ℹ️ Could not connect to ${config.apiUrl} - server may not be running`);
+        console.log(
+          `ℹ️ Could not connect to ${config.apiUrl} - server may not be running`,
+        );
         return;
       }
 
@@ -500,7 +501,7 @@ describe("Public Agent A2A Protocol", () => {
         console.log(`      Chain ID: ${chainId}`);
         console.log(`      Registry: ${registryAddress}`);
         console.log(
-          `      Agent ID: ${agentId !== null && agentId !== 0 ? agentId : "Not registered yet"}`
+          `      Agent ID: ${agentId !== null && agentId !== 0 ? agentId : "Not registered yet"}`,
         );
 
         // Base Sepolia should be registered
@@ -517,7 +518,7 @@ describe("Public Agent A2A Protocol", () => {
     test("Platform ERC-8004 registration file accessible", async () => {
       // Test platform registration (doesn't need TEST_PUBLIC_AGENT_ID)
       const response = await fetchWithTimeout(
-        `${config.apiUrl}/.well-known/erc8004-registration.json`
+        `${config.apiUrl}/.well-known/erc8004-registration.json`,
       );
 
       if (!response) {
@@ -529,14 +530,16 @@ describe("Public Agent A2A Protocol", () => {
 
       expect(response.status).toBe(200);
       const registration = await response.json();
-      
+
       expect(registration.name).toBeDefined();
       expect(registration.endpoints).toBeInstanceOf(Array);
       expect(registration.registrations).toBeDefined();
-      
+
       console.log("✅ Platform ERC-8004 registration file accessible");
       console.log(`   Name: ${registration.name}`);
-      console.log(`   Endpoints: ${registration.endpoints.map((e: { name: string }) => e.name).join(", ")}`);
+      console.log(
+        `   Endpoints: ${registration.endpoints.map((e: { name: string }) => e.name).join(", ")}`,
+      );
       console.log(`   Registrations: ${registration.registrations.length}`);
     });
   });
@@ -544,10 +547,9 @@ describe("Public Agent A2A Protocol", () => {
   describe("6. CORS Support", () => {
     test("Platform A2A OPTIONS returns correct CORS headers", async () => {
       // Test platform A2A endpoint (doesn't need TEST_PUBLIC_AGENT_ID)
-      const response = await fetchWithTimeout(
-        `${config.apiUrl}/api/a2a`,
-        { method: "OPTIONS" }
-      );
+      const response = await fetchWithTimeout(`${config.apiUrl}/api/a2a`, {
+        method: "OPTIONS",
+      });
 
       if (!response) {
         console.log("ℹ️  Server not running");
@@ -573,7 +575,7 @@ describe("Public Agent A2A Protocol", () => {
     test("Credit topup OPTIONS returns correct CORS headers", async () => {
       const response = await fetchWithTimeout(
         `${config.apiUrl}/api/v1/credits/topup`,
-        { method: "OPTIONS" }
+        { method: "OPTIONS" },
       );
 
       if (!response) {
@@ -601,14 +603,18 @@ describe("Platform A2A (Eliza Cloud)", () => {
 
   test("GET /api/a2a returns platform service info", async () => {
     const response = await fetchWithTimeout(`${config.apiUrl}/api/a2a`);
-    
+
     if (!response) {
-      console.log(`ℹ️ Could not connect to ${config.apiUrl} - server may not be running`);
+      console.log(
+        `ℹ️ Could not connect to ${config.apiUrl} - server may not be running`,
+      );
       return;
     }
-    
+
     if (response.status !== 200) {
-      console.log(`ℹ️ Server returned ${response.status} - endpoint may not be deployed`);
+      console.log(
+        `ℹ️ Server returned ${response.status} - endpoint may not be deployed`,
+      );
       return;
     }
 
@@ -619,22 +625,28 @@ describe("Platform A2A (Eliza Cloud)", () => {
     console.log("✅ Platform A2A info:");
     console.log(`   Name: ${data.name}`);
     console.log(`   Version: ${data.version || "N/A"}`);
-    console.log(`   Protocol: ${data.protocolVersion || data.protocol || "N/A"}`);
+    console.log(
+      `   Protocol: ${data.protocolVersion || data.protocol || "N/A"}`,
+    );
     console.log(`   Methods: ${data.methods?.length || 0}`);
   });
 
   test("GET /.well-known/agent-card.json returns platform Agent Card", async () => {
     const response = await fetchWithTimeout(
-      `${config.apiUrl}/.well-known/agent-card.json`
+      `${config.apiUrl}/.well-known/agent-card.json`,
     );
-    
+
     if (!response) {
-      console.log(`ℹ️ Could not connect to ${config.apiUrl} - server may not be running`);
+      console.log(
+        `ℹ️ Could not connect to ${config.apiUrl} - server may not be running`,
+      );
       return;
     }
-    
+
     if (response.status !== 200) {
-      console.log(`ℹ️ Server returned ${response.status} - endpoint may not be deployed`);
+      console.log(
+        `ℹ️ Server returned ${response.status} - endpoint may not be deployed`,
+      );
       return;
     }
 
@@ -650,16 +662,20 @@ describe("Platform A2A (Eliza Cloud)", () => {
 
   test("GET /.well-known/erc8004-registration.json returns ERC-8004 file", async () => {
     const response = await fetchWithTimeout(
-      `${config.apiUrl}/.well-known/erc8004-registration.json`
+      `${config.apiUrl}/.well-known/erc8004-registration.json`,
     );
-    
+
     if (!response) {
-      console.log(`ℹ️ Could not connect to ${config.apiUrl} - server may not be running`);
+      console.log(
+        `ℹ️ Could not connect to ${config.apiUrl} - server may not be running`,
+      );
       return;
     }
-    
+
     if (response.status !== 200) {
-      console.log(`ℹ️ Server returned ${response.status} - endpoint may not be deployed`);
+      console.log(
+        `ℹ️ Server returned ${response.status} - endpoint may not be deployed`,
+      );
       return;
     }
 
@@ -670,7 +686,9 @@ describe("Platform A2A (Eliza Cloud)", () => {
     console.log("✅ ERC-8004 Registration:");
     console.log(`   Name: ${registration.name}`);
     if (registration.endpoints) {
-      console.log(`   Endpoints: ${Object.keys(registration.endpoints).join(", ")}`);
+      console.log(
+        `   Endpoints: ${Object.keys(registration.endpoints).join(", ")}`,
+      );
     }
   });
 });
@@ -714,4 +732,3 @@ x402 Payment:
 `);
   });
 });
-

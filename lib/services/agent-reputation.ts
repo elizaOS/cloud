@@ -35,7 +35,15 @@ import reputationConfig from "@/config/agent-reputation.json";
 
 type TrustLevel = "untrusted" | "low" | "neutral" | "trusted" | "verified";
 type AgentStatus = "new" | "trusted" | "warned" | "restricted" | "banned";
-type FlagType = "csam" | "self_harm" | "spam" | "scam" | "harassment" | "copyright" | "malware" | "other";
+type FlagType =
+  | "csam"
+  | "self_harm"
+  | "spam"
+  | "scam"
+  | "harassment"
+  | "copyright"
+  | "malware"
+  | "other";
 type ViolationSeverity = "low" | "medium" | "high" | "critical";
 
 interface ReputationUpdate {
@@ -149,11 +157,14 @@ class AgentReputationService {
   /**
    * Get agent by ERC-8004 chain:tokenId
    */
-  async getAgentByOnChainId(chainId: number, tokenId: number): Promise<AgentReputation | null> {
+  async getAgentByOnChainId(
+    chainId: number,
+    tokenId: number,
+  ): Promise<AgentReputation | null> {
     const result = await db.query.agentReputation.findFirst({
       where: and(
         eq(agentReputation.chainId, chainId),
-        eq(agentReputation.tokenId, tokenId)
+        eq(agentReputation.tokenId, tokenId),
       ),
     });
     return result ?? null;
@@ -165,7 +176,9 @@ class AgentReputationService {
    * Record a payment event (positive reputation)
    */
   async recordPayment(event: PaymentEvent): Promise<AgentReputation> {
-    const agent = await this.getOrCreateAgent({ agentIdentifier: event.agentIdentifier });
+    const agent = await this.getOrCreateAgent({
+      agentIdentifier: event.agentIdentifier,
+    });
 
     const now = new Date();
     const newTotalDeposited = agent.totalDeposited + event.amountUsd;
@@ -187,7 +200,10 @@ class AgentReputationService {
       agentReputationId: agent.id,
       activityType: "payment",
       amountUsd: event.amountUsd,
-      details: { paymentType: event.paymentType, transactionId: event.transactionId },
+      details: {
+        paymentType: event.paymentType,
+        transactionId: event.transactionId,
+      },
       isSuccessful: true,
     });
 
@@ -199,7 +215,9 @@ class AgentReputationService {
    * Record an API request event
    */
   async recordRequest(event: RequestEvent): Promise<void> {
-    const agent = await this.getOrCreateAgent({ agentIdentifier: event.agentIdentifier });
+    const agent = await this.getOrCreateAgent({
+      agentIdentifier: event.agentIdentifier,
+    });
 
     const now = new Date();
     const updates: Partial<AgentReputation> = {
@@ -234,13 +252,21 @@ class AgentReputationService {
    * Record a moderation violation (negative reputation)
    */
   async recordViolation(event: ViolationEvent): Promise<AgentReputation> {
-    const agent = await this.getOrCreateAgent({ agentIdentifier: event.agentIdentifier });
+    const agent = await this.getOrCreateAgent({
+      agentIdentifier: event.agentIdentifier,
+    });
     const previousScore = agent.reputationScore;
 
     // Get penalty from config
-    const violationKey = `${event.flagType}Violation` as keyof typeof config.scoring.negativeFactors;
-    const violationConfig = config.scoring.negativeFactors[violationKey] || config.scoring.negativeFactors.adminFlag;
-    const penalty = "pointsDeducted" in violationConfig ? violationConfig.pointsDeducted : violationConfig.defaultPoints;
+    const violationKey =
+      `${event.flagType}Violation` as keyof typeof config.scoring.negativeFactors;
+    const violationConfig =
+      config.scoring.negativeFactors[violationKey] ||
+      config.scoring.negativeFactors.adminFlag;
+    const penalty =
+      "pointsDeducted" in violationConfig
+        ? violationConfig.pointsDeducted
+        : violationConfig.defaultPoints;
 
     const now = new Date();
     const updates: Partial<AgentReputation> = {
@@ -259,15 +285,19 @@ class AgentReputationService {
     }
 
     // Check for auto-ban
-    const shouldAutoBan = "autoban" in violationConfig && violationConfig.autoban;
-    const isPermanent = "permanent" in violationConfig && violationConfig.permanent;
+    const shouldAutoBan =
+      "autoban" in violationConfig && violationConfig.autoban;
+    const isPermanent =
+      "permanent" in violationConfig && violationConfig.permanent;
 
     if (shouldAutoBan) {
       updates.status = "banned";
       updates.bannedAt = now;
       updates.banReason = `Auto-banned for ${event.flagType} violation`;
       if (!isPermanent) {
-        updates.banExpiresAt = new Date(now.getTime() + config.defaults.banDurationDays * 24 * 60 * 60 * 1000);
+        updates.banExpiresAt = new Date(
+          now.getTime() + config.defaults.banDurationDays * 24 * 60 * 60 * 1000,
+        );
       }
     } else {
       // Check if should restrict based on violation count
@@ -276,9 +306,13 @@ class AgentReputationService {
         updates.status = "banned";
         updates.bannedAt = now;
         updates.banReason = `Banned after ${newTotalViolations} violations`;
-      } else if (newTotalViolations >= config.moderation.violationsBeforeRestriction) {
+      } else if (
+        newTotalViolations >= config.moderation.violationsBeforeRestriction
+      ) {
         updates.status = "restricted";
-      } else if (newTotalViolations >= config.moderation.violationsBeforeWarning) {
+      } else if (
+        newTotalViolations >= config.moderation.violationsBeforeWarning
+      ) {
         updates.status = "warned";
       }
     }
@@ -289,7 +323,9 @@ class AgentReputationService {
       .where(eq(agentReputation.id, agent.id));
 
     // Recalculate score
-    const updatedAgent = await this.recalculateReputation(agent.agentIdentifier);
+    const updatedAgent = await this.recalculateReputation(
+      agent.agentIdentifier,
+    );
 
     // Log moderation event
     await db.insert(agentModerationEvents).values({
@@ -321,7 +357,9 @@ class AgentReputationService {
    * Admin flag an agent
    */
   async flagAgent(params: AdminFlagParams): Promise<AgentReputation> {
-    const agent = await this.getOrCreateAgent({ agentIdentifier: params.agentIdentifier });
+    const agent = await this.getOrCreateAgent({
+      agentIdentifier: params.agentIdentifier,
+    });
     const previousScore = agent.reputationScore;
 
     const now = new Date();
@@ -347,7 +385,9 @@ class AgentReputationService {
       .where(eq(agentReputation.id, agent.id));
 
     // Recalculate
-    const updatedAgent = await this.recalculateReputation(agent.agentIdentifier);
+    const updatedAgent = await this.recalculateReputation(
+      agent.agentIdentifier,
+    );
 
     // Log event
     await db.insert(agentModerationEvents).values({
@@ -383,12 +423,16 @@ class AgentReputationService {
     adminUserId: string;
     permanent?: boolean;
   }): Promise<AgentReputation> {
-    const agent = await this.getOrCreateAgent({ agentIdentifier: params.agentIdentifier });
+    const agent = await this.getOrCreateAgent({
+      agentIdentifier: params.agentIdentifier,
+    });
 
     const now = new Date();
     const banExpiresAt = params.permanent
       ? null
-      : new Date(now.getTime() + config.defaults.banDurationDays * 24 * 60 * 60 * 1000);
+      : new Date(
+          now.getTime() + config.defaults.banDurationDays * 24 * 60 * 60 * 1000,
+        );
 
     await db
       .update(agentReputation)
@@ -443,7 +487,7 @@ class AgentReputationService {
     await db
       .update(agentReputation)
       .set({
-        status: "warned",  // Reset to warned, not clean
+        status: "warned", // Reset to warned, not clean
         bannedAt: null,
         bannedBy: null,
         banReason: null,
@@ -453,7 +497,9 @@ class AgentReputationService {
       .where(eq(agentReputation.id, agent.id));
 
     // Recalculate
-    const updatedAgent = await this.recalculateReputation(params.agentIdentifier);
+    const updatedAgent = await this.recalculateReputation(
+      params.agentIdentifier,
+    );
 
     // Log event
     await db.insert(agentModerationEvents).values({
@@ -480,7 +526,9 @@ class AgentReputationService {
   /**
    * Recalculate reputation score for an agent
    */
-  async recalculateReputation(agentIdentifier: string): Promise<AgentReputation> {
+  async recalculateReputation(
+    agentIdentifier: string,
+  ): Promise<AgentReputation> {
     const agent = await this.getAgent(agentIdentifier);
     if (!agent) {
       throw new Error(`Agent not found: ${agentIdentifier}`);
@@ -490,7 +538,11 @@ class AgentReputationService {
     if (agent.status === "banned") {
       await db
         .update(agentReputation)
-        .set({ reputationScore: 0, trustLevel: "untrusted", updatedAt: new Date() })
+        .set({
+          reputationScore: 0,
+          trustLevel: "untrusted",
+          updatedAt: new Date(),
+        })
         .where(eq(agentReputation.id, agent.id));
 
       return { ...agent, reputationScore: 0, trustLevel: "untrusted" };
@@ -503,23 +555,26 @@ class AgentReputationService {
 
     // Payment reputation
     const paymentPoints = Math.min(
-      agent.totalDeposited * scoring.positiveFactors.paymentDeposit.pointsPerDollar,
-      scoring.positiveFactors.paymentDeposit.maxPoints
+      agent.totalDeposited *
+        scoring.positiveFactors.paymentDeposit.pointsPerDollar,
+      scoring.positiveFactors.paymentDeposit.maxPoints,
     );
     score += paymentPoints;
 
     // Request reputation
     const requestPoints = Math.min(
-      agent.successfulRequests * scoring.positiveFactors.successfulRequest.pointsPerRequest,
-      scoring.positiveFactors.successfulRequest.maxPoints
+      agent.successfulRequests *
+        scoring.positiveFactors.successfulRequest.pointsPerRequest,
+      scoring.positiveFactors.successfulRequest.maxPoints,
     );
     score += requestPoints;
 
     // Account age
-    const ageInDays = (Date.now() - agent.firstSeenAt.getTime()) / (1000 * 60 * 60 * 24);
+    const ageInDays =
+      (Date.now() - agent.firstSeenAt.getTime()) / (1000 * 60 * 60 * 24);
     const agePoints = Math.min(
       ageInDays * scoring.positiveFactors.accountAge.pointsPerDay,
-      scoring.positiveFactors.accountAge.maxPoints
+      scoring.positiveFactors.accountAge.maxPoints,
     );
     score += agePoints;
 
@@ -527,14 +582,18 @@ class AgentReputationService {
 
     // CSAM violations (most severe)
     if (agent.csamViolations > 0) {
-      score = 0;  // Instant zero
+      score = 0; // Instant zero
     }
 
     // Self-harm violations
-    score -= agent.selfHarmViolations * scoring.negativeFactors.selfHarmViolation.pointsDeducted;
+    score -=
+      agent.selfHarmViolations *
+      scoring.negativeFactors.selfHarmViolation.pointsDeducted;
 
     // Other violations
-    score -= agent.otherViolations * scoring.negativeFactors.spamViolation.pointsDeducted;
+    score -=
+      agent.otherViolations *
+      scoring.negativeFactors.spamViolation.pointsDeducted;
 
     // Admin flags
     if (agent.isFlaggedByAdmin) {
@@ -543,8 +602,9 @@ class AgentReputationService {
 
     // Failed requests penalty
     const failedRequestPenalty = Math.min(
-      agent.failedRequests * scoring.negativeFactors.failedRequest.pointsPerRequest,
-      scoring.negativeFactors.failedRequest.maxPoints
+      agent.failedRequests *
+        scoring.negativeFactors.failedRequest.pointsPerRequest,
+      scoring.negativeFactors.failedRequest.maxPoints,
     );
     score -= failedRequestPenalty;
 
@@ -555,7 +615,8 @@ class AgentReputationService {
     const trustLevel = this.getTrustLevelForScore(score);
 
     // Calculate confidence (more data = higher confidence)
-    const dataPoints = agent.paymentCount + agent.totalRequests + agent.totalViolations;
+    const dataPoints =
+      agent.paymentCount + agent.totalRequests + agent.totalViolations;
     const confidenceScore = Math.min(100, dataPoints / 10);
 
     // Update agent
@@ -650,7 +711,9 @@ class AgentReputationService {
   /**
    * Get moderation events for an agent
    */
-  async getAgentModerationEvents(agentIdentifier: string): Promise<AgentModerationEvent[]> {
+  async getAgentModerationEvents(
+    agentIdentifier: string,
+  ): Promise<AgentModerationEvent[]> {
     const agent = await this.getAgent(agentIdentifier);
     if (!agent) return [];
 
@@ -674,11 +737,13 @@ class AgentReputationService {
   /**
    * Get agents with low reputation (for monitoring)
    */
-  async getLowReputationAgents(scoreThreshold = 30): Promise<AgentReputation[]> {
+  async getLowReputationAgents(
+    scoreThreshold = 30,
+  ): Promise<AgentReputation[]> {
     return db.query.agentReputation.findMany({
       where: and(
         sql`${agentReputation.reputationScore} < ${scoreThreshold}`,
-        sql`${agentReputation.status} != 'banned'`
+        sql`${agentReputation.status} != 'banned'`,
       ),
       orderBy: [agentReputation.reputationScore],
     });
@@ -686,4 +751,3 @@ class AgentReputationService {
 }
 
 export const agentReputationService = new AgentReputationService();
-

@@ -94,14 +94,17 @@ export class ReferralsService {
     referredUserId: string,
     organizationId: string,
     code: string,
-    appContext?: AppContext
+    appContext?: AppContext,
   ): Promise<{ success: boolean; message: string; bonusAmount?: number }> {
-    const existingSignup = await referralSignupsRepository.findByReferredUserId(referredUserId);
+    const existingSignup =
+      await referralSignupsRepository.findByReferredUserId(referredUserId);
     if (existingSignup) {
       return { success: false, message: "Already used a referral code" };
     }
 
-    const referralCode = await referralCodesRepository.findByCode(code.toUpperCase());
+    const referralCode = await referralCodesRepository.findByCode(
+      code.toUpperCase(),
+    );
     if (!referralCode) {
       return { success: false, message: "Invalid referral code" };
     }
@@ -117,7 +120,9 @@ export class ReferralsService {
     // Get referrer's organization to credit them
     const referrer = await usersRepository.findById(referralCode.user_id);
     if (!referrer?.organization_id) {
-      logger.warn("[Referrals] Referrer has no organization", { referrerId: referralCode.user_id });
+      logger.warn("[Referrals] Referrer has no organization", {
+        referrerId: referralCode.user_id,
+      });
       return { success: false, message: "Referral code is invalid" };
     }
 
@@ -135,7 +140,7 @@ export class ReferralsService {
         appContext.appId,
         referredUserId,
         REWARDS.REFERRED_BONUS,
-        "Referral signup bonus"
+        "Referral signup bonus",
       );
     } else {
       // Org balance for cloud users
@@ -152,13 +157,22 @@ export class ReferralsService {
       organizationId: referrer.organization_id,
       amount: REWARDS.SIGNUP_BONUS,
       description: "Referral signup bonus - new user joined",
-      metadata: { referred_user_id: referredUserId, type: "referral_signup_bonus" },
+      metadata: {
+        referred_user_id: referredUserId,
+        type: "referral_signup_bonus",
+      },
     });
 
     // Mark signup bonus as credited and update stats
-    await referralSignupsRepository.markBonusCredited(signup.id, REWARDS.SIGNUP_BONUS);
+    await referralSignupsRepository.markBonusCredited(
+      signup.id,
+      REWARDS.SIGNUP_BONUS,
+    );
     await referralCodesRepository.incrementReferrals(referralCode.id);
-    await referralCodesRepository.addSignupEarnings(referralCode.id, REWARDS.SIGNUP_BONUS);
+    await referralCodesRepository.addSignupEarnings(
+      referralCode.id,
+      REWARDS.SIGNUP_BONUS,
+    );
 
     logger.info("[Referrals] Referral code applied", {
       referredUserId,
@@ -179,9 +193,10 @@ export class ReferralsService {
   async processReferralCommission(
     purchaserUserId: string,
     purchaseAmount: number,
-    referrerOrganizationId: string
+    referrerOrganizationId: string,
   ): Promise<number> {
-    const signup = await referralSignupsRepository.findByReferredUserId(purchaserUserId);
+    const signup =
+      await referralSignupsRepository.findByReferredUserId(purchaserUserId);
     if (!signup) return 0;
 
     const commission = purchaseAmount * REWARDS.COMMISSION_RATE;
@@ -198,7 +213,10 @@ export class ReferralsService {
     });
 
     await referralSignupsRepository.addCommission(signup.id, commission);
-    await referralCodesRepository.addCommissionEarnings(signup.referral_code_id, commission);
+    await referralCodesRepository.addCommissionEarnings(
+      signup.referral_code_id,
+      commission,
+    );
 
     logger.info("[Referrals] Commission credited", {
       purchaserUserId,
@@ -233,7 +251,10 @@ export class ReferralsService {
       };
     }
 
-    const recentReferrals = await referralSignupsRepository.listByReferrerId(userId, 10);
+    const recentReferrals = await referralSignupsRepository.listByReferrerId(
+      userId,
+      10,
+    );
 
     return {
       code: referralCode.code,
@@ -252,16 +273,19 @@ export class ReferralsService {
   /**
    * Check and qualify a referral when the referred user links a social account.
    * Awards the referrer a qualified bonus.
-   * 
+   *
    * Call this when a user links Farcaster, Twitter, or a wallet.
    * Note: Qualified bonus always goes to referrer's org balance (they're a cloud user).
    */
   async checkAndQualifyReferral(
-    referredUserId: string
+    referredUserId: string,
   ): Promise<{ qualified: boolean; bonusAwarded?: number }> {
     // Find unqualified referral for this user
-    const signup = await referralSignupsRepository.findUnqualifiedByReferredUserId(referredUserId);
-    
+    const signup =
+      await referralSignupsRepository.findUnqualifiedByReferredUserId(
+        referredUserId,
+      );
+
     if (!signup) {
       return { qualified: false };
     }
@@ -269,9 +293,12 @@ export class ReferralsService {
     // Get referrer's organization to credit them
     const referrer = await usersRepository.findById(signup.referrer_user_id);
     if (!referrer?.organization_id) {
-      logger.warn("[Referrals] Referrer has no organization for qualified bonus", {
-        referrerId: signup.referrer_user_id,
-      });
+      logger.warn(
+        "[Referrals] Referrer has no organization for qualified bonus",
+        {
+          referrerId: signup.referrer_user_id,
+        },
+      );
       return { qualified: false };
     }
 
@@ -279,7 +306,8 @@ export class ReferralsService {
     await creditsService.addCredits({
       organizationId: referrer.organization_id,
       amount: REWARDS.QUALIFIED_BONUS,
-      description: "Referral qualified bonus - referred user linked social account",
+      description:
+        "Referral qualified bonus - referred user linked social account",
       metadata: {
         referred_user_id: referredUserId,
         type: "referral_qualified_bonus",
@@ -287,8 +315,14 @@ export class ReferralsService {
     });
 
     // Mark signup as qualified
-    await referralSignupsRepository.markQualified(signup.id, REWARDS.QUALIFIED_BONUS);
-    await referralCodesRepository.addQualifiedEarnings(signup.referral_code_id, REWARDS.QUALIFIED_BONUS);
+    await referralSignupsRepository.markQualified(
+      signup.id,
+      REWARDS.QUALIFIED_BONUS,
+    );
+    await referralCodesRepository.addQualifiedEarnings(
+      signup.referral_code_id,
+      REWARDS.QUALIFIED_BONUS,
+    );
 
     logger.info("[Referrals] Referral qualified", {
       referredUserId,
@@ -303,13 +337,13 @@ export class ReferralsService {
 export class SocialRewardsService {
   /**
    * Record a share intent and award credits immediately.
-   * 
+   *
    * This follows Babylon's pattern:
    * 1. User clicks share button
    * 2. We record the intent and award credits server-side
    * 3. Share window opens (client-side)
    * 4. Daily limit prevents abuse (one share per platform per day)
-   * 
+   *
    * Uses atomic check-and-insert to prevent race conditions from concurrent requests.
    */
   async claimShareReward(
@@ -318,21 +352,27 @@ export class SocialRewardsService {
     platform: SocialPlatform,
     shareType: ShareType,
     shareUrl?: string,
-    appContext?: AppContext
-  ): Promise<{ success: boolean; message: string; amount?: number; alreadyAwarded?: boolean }> {
+    appContext?: AppContext,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    amount?: number;
+    alreadyAwarded?: boolean;
+  }> {
     const rewardAmount = this.getRewardAmount(platform);
 
     // Atomically check if claimed today and create record if not
     // This prevents race conditions where multiple concurrent requests could both pass the check
-    const shareRecord = await socialShareRewardsRepository.createIfNotClaimedToday(
-      userId,
-      platform,
-      {
-        share_type: shareType,
-        share_url: shareUrl,
-        credits_awarded: String(rewardAmount),
-      }
-    );
+    const shareRecord =
+      await socialShareRewardsRepository.createIfNotClaimedToday(
+        userId,
+        platform,
+        {
+          share_type: shareType,
+          share_url: shareUrl,
+          credits_awarded: String(rewardAmount),
+        },
+      );
 
     if (!shareRecord) {
       return {
@@ -349,7 +389,7 @@ export class SocialRewardsService {
         appContext.appId,
         userId,
         rewardAmount,
-        `Social share reward (${platform})`
+        `Social share reward (${platform})`,
       );
     } else {
       // Org balance for cloud users
@@ -387,21 +427,25 @@ export class SocialRewardsService {
   }
 
   async getShareStatus(
-    userId: string
+    userId: string,
   ): Promise<Record<SocialPlatform, { claimed: boolean; amount: number }>> {
-    const platforms: SocialPlatform[] = ["x", "farcaster", "telegram", "discord"];
-    const result: Record<SocialPlatform, { claimed: boolean; amount: number }> = {
-      x: { claimed: false, amount: REWARDS.SHARE_X },
-      farcaster: { claimed: false, amount: REWARDS.SHARE_FARCASTER },
-      telegram: { claimed: false, amount: REWARDS.SHARE_TELEGRAM },
-      discord: { claimed: false, amount: REWARDS.SHARE_DISCORD },
-    };
+    const platforms: SocialPlatform[] = [
+      "x",
+      "farcaster",
+      "telegram",
+      "discord",
+    ];
+    const result: Record<SocialPlatform, { claimed: boolean; amount: number }> =
+      {
+        x: { claimed: false, amount: REWARDS.SHARE_X },
+        farcaster: { claimed: false, amount: REWARDS.SHARE_FARCASTER },
+        telegram: { claimed: false, amount: REWARDS.SHARE_TELEGRAM },
+        discord: { claimed: false, amount: REWARDS.SHARE_DISCORD },
+      };
 
     for (const platform of platforms) {
-      result[platform].claimed = await socialShareRewardsRepository.hasClaimedToday(
-        userId,
-        platform
-      );
+      result[platform].claimed =
+        await socialShareRewardsRepository.hasClaimedToday(userId, platform);
     }
 
     return result;
@@ -411,7 +455,10 @@ export class SocialRewardsService {
     return socialShareRewardsRepository.getTotalEarnings(userId);
   }
 
-  async getRewardHistory(userId: string, limit = 50): Promise<SocialShareReward[]> {
+  async getRewardHistory(
+    userId: string,
+    limit = 50,
+  ): Promise<SocialShareReward[]> {
     return socialShareRewardsRepository.listByUserId(userId, limit);
   }
 
@@ -435,4 +482,3 @@ export const referralsService = new ReferralsService();
 export const socialRewardsService = new SocialRewardsService();
 
 export { REWARDS };
-

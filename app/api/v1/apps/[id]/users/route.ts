@@ -57,7 +57,7 @@ export async function GET(
       success: true,
       users: appUsers,
       pagination: {
-      total: appUsers.length,
+        total: appUsers.length,
         limit: limit ?? appUsers.length,
       },
     });

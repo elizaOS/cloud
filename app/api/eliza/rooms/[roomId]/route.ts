@@ -5,7 +5,10 @@ import type { NextRequest } from "next/server";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { agentsService } from "@/lib/services/agents/agents";
 import { logger } from "@/lib/utils/logger";
-import { parseMessageContent, type MessageContent } from "@/lib/types/message-content";
+import {
+  parseMessageContent,
+  type MessageContent,
+} from "@/lib/types/message-content";
 import type { Memory } from "@elizaos/core";
 
 /**
@@ -30,8 +33,7 @@ export async function GET(
     const anonData = await getAnonymousUser();
     if (!anonData) {
       // Create new anonymous session if none exists
-      const { getOrCreateAnonymousUser } =
-        await import("@/lib/auth-anonymous");
+      const { getOrCreateAnonymousUser } = await import("@/lib/auth-anonymous");
       const newAnonData = await getOrCreateAnonymousUser();
       userId = newAnonData.user.id;
     } else {
@@ -44,10 +46,7 @@ export async function GET(
   const limit = searchParams.get("limit");
 
   if (!roomId) {
-    return NextResponse.json(
-      { error: "roomId is required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "roomId is required" }, { status: 400 });
   }
 
   // Access control: verify user is a participant of the room
@@ -70,24 +69,18 @@ export async function GET(
   );
 
   if (!roomData) {
-    return NextResponse.json(
-      { error: "Room not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ error: "Room not found" }, { status: 404 });
   }
 
   // Get character ID from room agentId (single source of truth)
   const characterId = roomData.room.agentId || undefined;
 
   if (characterId) {
-    logger.info(
-      "[Eliza Room API] Loading room with character:",
-      characterId,
-    );
+    logger.info("[Eliza Room API] Loading room with character:", characterId);
   } else {
     logger.info("[Eliza Room API] Loading room with default character");
   }
-  
+
   // Transform messages for API response
   const messages = roomData.messages.map((msg: Memory) => {
     const content = parseMessageContent(msg.content);
@@ -95,7 +88,7 @@ export async function GET(
     // Debug: Log attachment info for agent messages
     if (content?.source === "agent" && content?.attachments) {
       logger.info(
-        `[Eliza Room API] 📎 Message ${msg.id?.substring(0, 8)} has ${content.attachments.length} attachment(s)`
+        `[Eliza Room API] 📎 Message ${msg.id?.substring(0, 8)} has ${content.attachments.length} attachment(s)`,
       );
     }
 
@@ -116,7 +109,7 @@ export async function GET(
   });
 
   logger.info(
-    `[Eliza Room API] ✅ Returning ${messages.length} messages for room ${roomId}`
+    `[Eliza Room API] ✅ Returning ${messages.length} messages for room ${roomId}`,
   );
 
   // Get agent display info from database (no runtime needed!)
@@ -146,9 +139,76 @@ export async function GET(
       count: messages.length,
       characterId,
       agent: agentInfo,
+      metadata: roomData.room.metadata || {},
     },
     { headers: { "Cache-Control": "no-store" } },
   );
+}
+
+/**
+ * PATCH /api/eliza/rooms/[roomId] - Update room metadata
+ *
+ * Pure database operation - no runtime needed
+ * Requires the authenticated user to be a participant of the room
+ */
+export async function PATCH(
+  request: NextRequest,
+  ctx: { params: Promise<{ roomId: string }> },
+) {
+  // Get authenticated user ID
+  let userId: string;
+
+  try {
+    const authResult = await requireAuthOrApiKey(request);
+    userId = authResult.user.id;
+  } catch {
+    // Fallback to anonymous user
+    const anonData = await getAnonymousUser();
+    if (!anonData) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 },
+      );
+    }
+    userId = anonData.user.id;
+  }
+
+  const { roomId } = await ctx.params;
+
+  if (!roomId) {
+    return NextResponse.json({ error: "roomId is required" }, { status: 400 });
+  }
+
+  // Access control: verify user is a participant of the room
+  const hasAccess = await roomsService.hasAccess(roomId, userId);
+  if (!hasAccess) {
+    logger.warn(
+      `[Eliza Room API] Access denied: User ${userId} attempted to update room ${roomId}`,
+    );
+    return NextResponse.json(
+      { error: "You don't have permission to update this room" },
+      { status: 403 },
+    );
+  }
+
+  const body = (await request.json()) as { metadata?: Record<string, unknown> };
+
+  if (!body.metadata || typeof body.metadata !== "object") {
+    return NextResponse.json(
+      { error: "metadata object is required" },
+      { status: 400 },
+    );
+  }
+
+  await roomsService.updateMetadata(roomId, body.metadata);
+
+  logger.info("[Eliza Room API] ✓ Room metadata updated successfully:", roomId);
+
+  return NextResponse.json({
+    success: true,
+    message: "Room metadata updated successfully",
+    roomId,
+  });
 }
 
 /**
@@ -182,10 +242,7 @@ export async function DELETE(
   const { roomId } = await ctx.params;
 
   if (!roomId) {
-    return NextResponse.json(
-      { error: "roomId is required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "roomId is required" }, { status: 400 });
   }
 
   // Access control: verify user is a participant of the room

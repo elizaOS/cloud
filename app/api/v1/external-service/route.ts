@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
         error: "rate_limit_exceeded",
         message: `Rate limit exceeded. Try again in ${Math.ceil((rateLimit.retryAfter || 60) / 1000)} seconds.`,
       },
-      { status: 429 }
+      { status: 429 },
     );
   }
 
@@ -74,11 +74,12 @@ export async function POST(request: NextRequest) {
   if (!parseResult.success) {
     return NextResponse.json(
       { error: "Invalid request", details: parseResult.error.issues },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
-  const { serviceId, serviceType, payload, endpoint, timeout } = parseResult.data;
+  const { serviceId, serviceType, payload, endpoint, timeout } =
+    parseResult.data;
 
   // Determine service endpoint
   let targetEndpoint = endpoint;
@@ -90,14 +91,14 @@ export async function POST(request: NextRequest) {
     if (!service) {
       return NextResponse.json(
         { error: "Service not found", serviceId },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (!service.active) {
       return NextResponse.json(
         { error: "Service is not active", serviceId },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -110,7 +111,7 @@ export async function POST(request: NextRequest) {
           error: `Service does not have a ${serviceType.toUpperCase()} endpoint`,
           serviceId,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
   }
@@ -124,7 +125,7 @@ export async function POST(request: NextRequest) {
         required: PROXY_REQUEST_COST,
         available: balance.credits,
       },
-      { status: 402 }
+      { status: 402 },
     );
   }
 
@@ -143,7 +144,7 @@ export async function POST(request: NextRequest) {
   if (!deductResult.success) {
     return NextResponse.json(
       { error: "Failed to deduct credits" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -214,7 +215,7 @@ export async function POST(request: NextRequest) {
         serviceId,
         duration: Date.now() - startTime,
       },
-      { status: 502 }
+      { status: 502 },
     );
   }
 
@@ -272,4 +273,3 @@ export async function GET() {
     },
   });
 }
-

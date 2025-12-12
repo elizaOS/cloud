@@ -8,7 +8,7 @@ import {
 
 /**
  * Repository for Eliza room-character mapping database operations.
- * 
+ *
  * Maps ElizaOS rooms to user-created characters, allowing each conversation
  * room to use a different character.
  */
@@ -73,7 +73,7 @@ export const elizaRoomCharactersRepository = {
 
   /**
    * Finds character mapping for a room ID.
-   * 
+   *
    * Note: Always fetches from DB (caching disabled for Vercel serverless compatibility).
    */
   async findByRoomId(roomId: string): Promise<ElizaRoomCharacter | undefined> {
@@ -98,7 +98,7 @@ export const elizaRoomCharactersRepository = {
 
   /**
    * Finds character mappings for multiple room IDs.
-   * 
+   *
    * @returns Map of room ID to character ID.
    */
   async findByRoomIds(roomIds: string[]): Promise<Map<string, string>> {

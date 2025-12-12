@@ -60,7 +60,7 @@ export class AppEarningsRepository {
    */
   async addInferenceEarnings(
     appId: string,
-    amount: number
+    amount: number,
   ): Promise<AppEarnings> {
     await this.getOrCreate(appId);
 
@@ -83,7 +83,7 @@ export class AppEarningsRepository {
    */
   async addPurchaseEarnings(
     appId: string,
-    amount: number
+    amount: number,
   ): Promise<AppEarnings> {
     await this.getOrCreate(appId);
 
@@ -103,7 +103,7 @@ export class AppEarningsRepository {
 
   /**
    * Moves pending balance to withdrawable balance.
-   * 
+   *
    * @throws Error if earnings record not found.
    */
   async releasePendingToWithdrawable(appId: string): Promise<AppEarnings> {
@@ -132,13 +132,13 @@ export class AppEarningsRepository {
 
   /**
    * Processes a withdrawal request atomically in a transaction.
-   * 
+   *
    * Uses row-level locking (FOR UPDATE) to prevent race conditions.
    * Validates amount meets threshold and balance is sufficient.
    */
   async processWithdrawal(
     appId: string,
-    amount: number
+    amount: number,
   ): Promise<{
     success: boolean;
     earnings: AppEarnings | null;
@@ -202,7 +202,7 @@ export class AppEarningsRepository {
    */
   async updatePayoutThreshold(
     appId: string,
-    threshold: number
+    threshold: number,
   ): Promise<AppEarnings> {
     const [updated] = await db
       .update(appEarnings)
@@ -220,7 +220,7 @@ export class AppEarningsRepository {
    * Creates a new earnings transaction record.
    */
   async createTransaction(
-    data: NewAppEarningsTransaction
+    data: NewAppEarningsTransaction,
   ): Promise<AppEarningsTransaction> {
     const [transaction] = await db
       .insert(appEarningsTransactions)
@@ -235,7 +235,7 @@ export class AppEarningsRepository {
   async listTransactions(
     appId: string,
     limit: number = 50,
-    offset: number = 0
+    offset: number = 0,
   ): Promise<AppEarningsTransaction[]> {
     return await db.query.appEarningsTransactions.findMany({
       where: eq(appEarningsTransactions.app_id, appId),
@@ -251,12 +251,12 @@ export class AppEarningsRepository {
   async listTransactionsByType(
     appId: string,
     type: string,
-    limit: number = 50
+    limit: number = 50,
   ): Promise<AppEarningsTransaction[]> {
     return await db.query.appEarningsTransactions.findMany({
       where: and(
         eq(appEarningsTransactions.app_id, appId),
-        eq(appEarningsTransactions.type, type)
+        eq(appEarningsTransactions.type, type),
       ),
       orderBy: [desc(appEarningsTransactions.created_at)],
       limit,
@@ -265,12 +265,12 @@ export class AppEarningsRepository {
 
   /**
    * Finds an earnings transaction by Stripe payment intent ID.
-   * 
+   *
    * Uses JSONB containment query for efficient lookup.
    */
   async findTransactionByPaymentIntent(
     appId: string,
-    paymentIntentId: string
+    paymentIntentId: string,
   ): Promise<AppEarningsTransaction | undefined> {
     const result = await db
       .select()
@@ -278,11 +278,11 @@ export class AppEarningsRepository {
       .where(
         and(
           eq(appEarningsTransactions.app_id, appId),
-          sql`${appEarningsTransactions.metadata} @> ${JSON.stringify({ stripePaymentIntentId: paymentIntentId })}::jsonb`
-        )
+          sql`${appEarningsTransactions.metadata} @> ${JSON.stringify({ stripePaymentIntentId: paymentIntentId })}::jsonb`,
+        ),
       )
       .limit(1);
-    
+
     return result[0];
   }
 
@@ -292,7 +292,7 @@ export class AppEarningsRepository {
   async getTransactionTotalsByType(
     appId: string,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
   ): Promise<{
     inference_markup: number;
     purchase_share: number;
@@ -309,8 +309,8 @@ export class AppEarningsRepository {
         and(
           eq(appEarningsTransactions.app_id, appId),
           gte(appEarningsTransactions.created_at, startDate),
-          lte(appEarningsTransactions.created_at, endDate)
-        )
+          lte(appEarningsTransactions.created_at, endDate),
+        ),
       )
       .groupBy(appEarningsTransactions.type);
 
@@ -336,7 +336,7 @@ export class AppEarningsRepository {
   async getDailyEarnings(
     appId: string,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
   ): Promise<
     Array<{
       date: string;
@@ -356,12 +356,12 @@ export class AppEarningsRepository {
         and(
           eq(appEarningsTransactions.app_id, appId),
           gte(appEarningsTransactions.created_at, startDate),
-          lte(appEarningsTransactions.created_at, endDate)
-        )
+          lte(appEarningsTransactions.created_at, endDate),
+        ),
       )
       .groupBy(
         sql`DATE(${appEarningsTransactions.created_at})`,
-        appEarningsTransactions.type
+        appEarningsTransactions.type,
       )
       .orderBy(sql`DATE(${appEarningsTransactions.created_at})`);
 
@@ -399,4 +399,3 @@ export class AppEarningsRepository {
  * Singleton instance of AppEarningsRepository.
  */
 export const appEarningsRepository = new AppEarningsRepository();
-

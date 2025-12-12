@@ -14,9 +14,9 @@ import { users } from "./users";
  * Admin role enum for different permission levels
  */
 export const adminRoleEnum = pgEnum("admin_role", [
-  "super_admin",  // Can manage other admins
-  "moderator",    // Can moderate users and content
-  "viewer",       // Read-only access to admin panel
+  "super_admin", // Can manage other admins
+  "moderator", // Can moderate users and content
+  "viewer", // Read-only access to admin panel
 ]);
 
 /**
@@ -55,13 +55,14 @@ export const adminUsers = pgTable(
     revokedAt: timestamp("revoked_at"),
   },
   (table) => ({
-    walletAddressIdx: index("admin_users_wallet_address_idx").on(table.walletAddress),
+    walletAddressIdx: index("admin_users_wallet_address_idx").on(
+      table.walletAddress,
+    ),
     userIdIdx: index("admin_users_user_id_idx").on(table.userId),
     roleIdx: index("admin_users_role_idx").on(table.role),
     isActiveIdx: index("admin_users_is_active_idx").on(table.isActive),
-  })
+  }),
 );
 
 export type AdminUser = InferSelectModel<typeof adminUsers>;
 export type NewAdminUser = InferInsertModel<typeof adminUsers>;
-

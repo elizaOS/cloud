@@ -6,7 +6,10 @@
 
 import { v4 as uuidv4 } from "uuid";
 import { contentModerationService } from "@/lib/services/content-moderation";
-import { a2aTaskStoreService, type TaskStoreEntry } from "@/lib/services/a2a-task-store";
+import {
+  a2aTaskStoreService,
+  type TaskStoreEntry,
+} from "@/lib/services/a2a-task-store";
 import { logger } from "@/lib/utils/logger";
 import {
   type A2AContext,
@@ -42,7 +45,10 @@ import {
 } from "./skills";
 
 // Task store helpers
-async function getTaskStore(taskId: string, organizationId: string): Promise<TaskStoreEntry | null> {
+async function getTaskStore(
+  taskId: string,
+  organizationId: string,
+): Promise<TaskStoreEntry | null> {
   return a2aTaskStoreService.get(taskId, organizationId);
 }
 
@@ -50,15 +56,20 @@ async function updateTaskState(
   taskId: string,
   organizationId: string,
   state: TaskState,
-  message?: Message
+  message?: Message,
 ): Promise<Task | null> {
-  return a2aTaskStoreService.updateTaskState(taskId, organizationId, state, message);
+  return a2aTaskStoreService.updateTaskState(
+    taskId,
+    organizationId,
+    state,
+    message,
+  );
 }
 
 async function addArtifactToTask(
   taskId: string,
   organizationId: string,
-  artifact: Artifact
+  artifact: Artifact,
 ): Promise<Task | null> {
   return a2aTaskStoreService.addArtifact(taskId, organizationId, artifact);
 }
@@ -66,16 +77,20 @@ async function addArtifactToTask(
 async function addMessageToHistory(
   taskId: string,
   organizationId: string,
-  message: Message
+  message: Message,
 ): Promise<void> {
-  await a2aTaskStoreService.addMessageToHistory(taskId, organizationId, message);
+  await a2aTaskStoreService.addMessageToHistory(
+    taskId,
+    organizationId,
+    message,
+  );
 }
 
 async function storeTask(
   taskId: string,
   task: Task,
   userId: string,
-  organizationId: string
+  organizationId: string,
 ): Promise<void> {
   await a2aTaskStoreService.set(taskId, {
     task,
@@ -92,7 +107,7 @@ async function storeTask(
  */
 export async function handleMessageSend(
   params: MessageSendParams,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<Task | Message> {
   const { message, configuration, metadata } = params;
 
@@ -123,7 +138,7 @@ export async function handleMessageSend(
           categories: result.flaggedCategories,
           action: result.action,
         });
-      }
+      },
     );
   }
 
@@ -152,13 +167,14 @@ async function processA2AMessage(
   task: Task,
   message: Message,
   ctx: A2AContext,
-  _configuration?: MessageSendParams["configuration"]
+  _configuration?: MessageSendParams["configuration"],
 ): Promise<Task> {
   const textParts = message.parts.filter(
-    (p): p is { type: "text"; text: string } => p.type === "text"
+    (p): p is { type: "text"; text: string } => p.type === "text",
   );
   const dataParts = message.parts.filter(
-    (p): p is { type: "data"; data: Record<string, unknown> } => p.type === "data"
+    (p): p is { type: "data"; data: Record<string, unknown> } =>
+      p.type === "data",
   );
 
   const textContent = textParts.map((p) => p.text).join("\n");
@@ -172,25 +188,50 @@ async function processA2AMessage(
 
   // Dispatch to appropriate skill
   if (skillId === "chat_completion" || (textContent && !skillId)) {
-    const result = await executeSkillChatCompletion(textContent, dataContent, ctx);
+    const result = await executeSkillChatCompletion(
+      textContent,
+      dataContent,
+      ctx,
+    );
     responseMessage = createMessage("agent", [createTextPart(result.content)]);
     artifacts.push(
       createArtifact(
-        [createDataPart({ model: result.model, usage: result.usage, cost: result.cost })],
+        [
+          createDataPart({
+            model: result.model,
+            usage: result.usage,
+            cost: result.cost,
+          }),
+        ],
         "usage",
-        "Token usage and cost information"
-      )
+        "Token usage and cost information",
+      ),
     );
   } else if (skillId === "image_generation") {
-    const result = await executeSkillImageGeneration(textContent, dataContent, ctx);
+    const result = await executeSkillImageGeneration(
+      textContent,
+      dataContent,
+      ctx,
+    );
     responseMessage = createMessage("agent", [
-      { type: "file", file: { bytes: result.image.split(",")[1], mimeType: result.mimeType } },
+      {
+        type: "file",
+        file: { bytes: result.image.split(",")[1], mimeType: result.mimeType },
+      },
     ]);
     artifacts.push(
-      createArtifact([createDataPart({ cost: result.cost })], "cost", "Generation cost")
+      createArtifact(
+        [createDataPart({ cost: result.cost })],
+        "cost",
+        "Generation cost",
+      ),
     );
   } else if (skillId === "chat_with_agent") {
-    const result = await executeSkillChatWithAgent(textContent, dataContent, ctx);
+    const result = await executeSkillChatWithAgent(
+      textContent,
+      dataContent,
+      ctx,
+    );
     responseMessage = createMessage("agent", [createTextPart(result.response)]);
   } else if (skillId === "list_agents") {
     const result = await executeSkillListAgents(dataContent, ctx);
@@ -205,7 +246,11 @@ async function processA2AMessage(
     const result = await executeSkillSaveMemory(textContent, dataContent, ctx);
     responseMessage = createMessage("agent", [createDataPart(result)]);
   } else if (skillId === "retrieve_memories") {
-    const result = await executeSkillRetrieveMemories(textContent, dataContent, ctx);
+    const result = await executeSkillRetrieveMemories(
+      textContent,
+      dataContent,
+      ctx,
+    );
     responseMessage = createMessage("agent", [createDataPart(result)]);
   } else if (skillId === "list_containers") {
     const result = await executeSkillListContainers(dataContent, ctx);
@@ -220,14 +265,22 @@ async function processA2AMessage(
     const result = await executeSkillGetConversationContext(dataContent, ctx);
     responseMessage = createMessage("agent", [createDataPart(result)]);
   } else if (skillId === "video_generation" || skillId === "generate_video") {
-    const result = await executeSkillVideoGeneration(textContent, dataContent, ctx);
+    const result = await executeSkillVideoGeneration(
+      textContent,
+      dataContent,
+      ctx,
+    );
     responseMessage = createMessage("agent", [createDataPart(result)]);
   } else if (skillId === "get_user_profile" || skillId === "profile") {
     const result = await executeSkillGetUserProfile(ctx);
     responseMessage = createMessage("agent", [createDataPart(result)]);
   } else {
     // Default: treat as chat completion
-    const result = await executeSkillChatCompletion(textContent, dataContent, ctx);
+    const result = await executeSkillChatCompletion(
+      textContent,
+      dataContent,
+      ctx,
+    );
     responseMessage = createMessage("agent", [createTextPart(result.content)]);
   }
 
@@ -238,7 +291,12 @@ async function processA2AMessage(
   }
 
   // Update state and get the fully updated task from store
-  const updatedTask = await updateTaskState(task.id, ctx.user.organization_id, "completed", responseMessage);
+  const updatedTask = await updateTaskState(
+    task.id,
+    ctx.user.organization_id,
+    "completed",
+    responseMessage,
+  );
 
   // Return the updated task from store (includes history and artifacts)
   if (updatedTask) {
@@ -253,7 +311,10 @@ async function processA2AMessage(
 /**
  * tasks/get - Get task status and history
  */
-export async function handleTasksGet(params: TaskGetParams, ctx: A2AContext): Promise<Task> {
+export async function handleTasksGet(
+  params: TaskGetParams,
+  ctx: A2AContext,
+): Promise<Task> {
   const { id, historyLength } = params;
 
   const store = await getTaskStore(id, ctx.user.organization_id);
@@ -273,7 +334,10 @@ export async function handleTasksGet(params: TaskGetParams, ctx: A2AContext): Pr
 /**
  * tasks/cancel - Cancel a running task
  */
-export async function handleTasksCancel(params: TaskCancelParams, ctx: A2AContext): Promise<Task> {
+export async function handleTasksCancel(
+  params: TaskCancelParams,
+  ctx: A2AContext,
+): Promise<Task> {
   const { id } = params;
 
   const store = await getTaskStore(id, ctx.user.organization_id);
@@ -281,9 +345,16 @@ export async function handleTasksCancel(params: TaskCancelParams, ctx: A2AContex
     throw new Error(`Task not found: ${id}`);
   }
 
-  const terminalStates: TaskState[] = ["completed", "canceled", "failed", "rejected"];
+  const terminalStates: TaskState[] = [
+    "completed",
+    "canceled",
+    "failed",
+    "rejected",
+  ];
   if (terminalStates.includes(store.task.status.state)) {
-    throw new Error(`Task ${id} is already in terminal state: ${store.task.status.state}`);
+    throw new Error(
+      `Task ${id} is already in terminal state: ${store.task.status.state}`,
+    );
   }
 
   const task = await updateTaskState(id, ctx.user.organization_id, "canceled");
@@ -304,13 +375,21 @@ export const AVAILABLE_SKILLS = [
   { id: "check_balance", description: "Check credit balance" },
   { id: "get_usage", description: "Get usage statistics" },
   { id: "list_agents", description: "List available agents" },
-  { id: "chat_with_agent", description: "Chat with agent (requires agentId or roomId)" },
+  {
+    id: "chat_with_agent",
+    description: "Chat with agent (requires agentId or roomId)",
+  },
   { id: "save_memory", description: "Save a memory (requires roomId)" },
   { id: "retrieve_memories", description: "Retrieve memories by query" },
   { id: "delete_memory", description: "Delete a memory (requires memoryId)" },
-  { id: "create_conversation", description: "Create a new conversation (requires title)" },
-  { id: "get_conversation_context", description: "Get conversation details (requires conversationId)" },
+  {
+    id: "create_conversation",
+    description: "Create a new conversation (requires title)",
+  },
+  {
+    id: "get_conversation_context",
+    description: "Get conversation details (requires conversationId)",
+  },
   { id: "list_containers", description: "List deployed containers" },
   { id: "get_user_profile", description: "Get current user profile" },
 ] as const;
-

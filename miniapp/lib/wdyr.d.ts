@@ -52,10 +52,7 @@ declare module "@welldone-software/why-did-you-render" {
     notifier?: (info: UpdateInfo) => void;
   }
 
-  function whyDidYouRender<T>(
-    react: T,
-    options?: Options
-  ): T;
+  function whyDidYouRender<T>(react: T, options?: Options): T;
 
   export default whyDidYouRender;
 }

@@ -41,14 +41,14 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
   const tabFromUrl = searchParams.get("tab") as SettingsTab | null;
 
   const [activeTab, setActiveTab] = useState<SettingsTab>(
-    tabFromUrl || "general"
+    tabFromUrl || "general",
   );
 
   useEffect(() => {
     if (tabFromUrl) {
-      queueMicrotask(() => {
-        setActiveTab(tabFromUrl);
-      });
+      // Schedule state update to avoid synchronous setState in effect
+      const rafId = requestAnimationFrame(() => setActiveTab(tabFromUrl));
+      return () => cancelAnimationFrame(rafId);
     }
   }, [tabFromUrl]);
 
