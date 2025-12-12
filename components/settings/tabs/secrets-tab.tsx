@@ -498,7 +498,7 @@ export function SecretsTab({ user }: SecretsTabProps) {
 
         <div className="relative z-10 space-y-6">
           {/* Header */}
-          <div className="flex flex-col md:flex-row items-start md:justify-between gap-4 w-full">
+          <div className="flex flex-col lg:flex-row items-start lg:justify-between gap-4 w-full">
             <div className="flex flex-col gap-2 max-w-[850px]">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
@@ -512,7 +512,7 @@ export function SecretsTab({ user }: SecretsTabProps) {
                   using AES-256-GCM with envelope encryption and are automatically available to
                   your agents, MCPs, workflows, and deployments.
                 </p>
-                <p>
+                <p className="hidden sm:block">
                   <strong>Global secrets</strong> are available everywhere.{" "}
                   <strong>Project-scoped secrets</strong> are only available to specific agents, MCPs,
                   workflows, containers, or apps.
@@ -520,19 +520,19 @@ export function SecretsTab({ user }: SecretsTabProps) {
               </div>
             </div>
 
-            {/* Buttons */}
-            <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+            {/* Buttons - side by side on tablet+, stacked on phone */}
+            <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
               <button
                 type="button"
                 onClick={handleBulkImport}
-                className="px-4 py-2.5 border border-[#303030] text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-2 w-full md:w-auto"
+                className="h-11 px-4 border border-[#303030] text-white hover:bg-white/5 active:bg-white/10 transition-colors flex items-center justify-center gap-2 w-full sm:w-auto"
               >
                 <span className="font-mono text-sm whitespace-nowrap">Import .env</span>
               </button>
               <button
                 type="button"
                 onClick={handleCreateNew}
-                className="relative bg-[#e1e1e1] px-4 py-2.5 overflow-hidden hover:bg-white transition-colors flex items-center justify-center gap-2 w-full md:w-auto md:flex-shrink-0"
+                className="relative h-11 bg-[#e1e1e1] px-4 overflow-hidden hover:bg-white active:bg-gray-200 transition-colors flex items-center justify-center gap-2 w-full sm:w-auto lg:flex-shrink-0"
               >
                 <div
                   className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
@@ -542,7 +542,7 @@ export function SecretsTab({ user }: SecretsTabProps) {
                   }}
                 />
                 <Plus className="relative z-10 h-[18px] w-[18px] text-black flex-shrink-0" />
-                <span className="relative z-10 text-black font-mono font-medium text-sm md:text-base whitespace-nowrap">
+                <span className="relative z-10 text-black font-mono font-medium text-sm whitespace-nowrap">
                   Add secret
                 </span>
               </button>
@@ -564,59 +564,60 @@ export function SecretsTab({ user }: SecretsTabProps) {
               </div>
             ) : (
               <>
-                {/* Mobile Card Layout */}
-                <div className="md:hidden space-y-4">
+                {/* Mobile & Tablet Card Layout (up to 1024px) */}
+                <div className="lg:hidden space-y-3 md:space-y-4">
                   {secrets.map((secret) => (
                     <div
                       key={secret.id}
-                      className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-4 space-y-3"
+                      className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-4 md:p-5 space-y-3"
                     >
                       {/* Name and Scope Badge */}
                       <div className="space-y-2">
-                        <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-2 min-w-0 flex-1">
                             <Lock className="h-4 w-4 text-[#FF5800] flex-shrink-0" />
-                            <h4 className="text-sm font-mono font-semibold text-white truncate">
+                            <h4 className="text-sm md:text-base font-mono font-semibold text-white truncate">
                               {secret.name}
                             </h4>
                           </div>
-                          <span className="px-2 py-0.5 bg-[rgba(255,88,0,0.25)] border border-[#FF5800]/40 text-[#FF5800] text-[10px] font-mono uppercase flex-shrink-0">
-                            {formatScopeLabel(secret)}
-                          </span>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="px-2 py-0.5 bg-[rgba(255,88,0,0.25)] border border-[#FF5800]/40 text-[#FF5800] text-[10px] md:text-xs font-mono uppercase">
+                              {formatScopeLabel(secret)}
+                            </span>
+                            <span className="hidden md:inline text-xs font-mono text-white/40">v{secret.version}</span>
+                          </div>
                         </div>
                         {secret.description && (
-                          <p className="text-xs font-mono text-white/40 line-clamp-2">
+                          <p className="text-xs font-mono text-white/40 line-clamp-2 md:line-clamp-1">
                             {secret.description}
                           </p>
                         )}
                       </div>
 
-                      {/* Info Grid */}
-                      <div className="grid grid-cols-2 gap-3 pt-2 border-t border-white/10">
+                      {/* Info Grid - 2 cols on phone, 4 cols on tablet */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-white/10">
                         <div className="space-y-1">
-                          <p className="text-xs font-mono text-white/40 uppercase">Version</p>
+                          <p className="text-[10px] md:text-xs font-mono text-white/40 uppercase">Version</p>
                           <p className="text-xs font-mono text-white/80">v{secret.version}</p>
                         </div>
                         <div className="space-y-1">
-                          <p className="text-xs font-mono text-white/40 uppercase">Access Count</p>
-                          <p className="text-xs font-mono text-white/80">{secret.accessCount}</p>
+                          <p className="text-[10px] md:text-xs font-mono text-white/40 uppercase">Accessed</p>
+                          <p className="text-xs font-mono text-white/80">{secret.accessCount}x</p>
                         </div>
                         <div className="space-y-1">
-                          <p className="text-xs font-mono text-white/40 uppercase">Created</p>
+                          <p className="text-[10px] md:text-xs font-mono text-white/40 uppercase">Created</p>
                           <p className="text-xs font-mono text-white/80">
                             {new Date(secret.createdAt).toLocaleDateString("en-US", {
-                              year: "numeric",
                               month: "short",
                               day: "numeric",
                             })}
                           </p>
                         </div>
                         <div className="space-y-1">
-                          <p className="text-xs font-mono text-white/40 uppercase">Last Accessed</p>
+                          <p className="text-[10px] md:text-xs font-mono text-white/40 uppercase">Last Used</p>
                           <p className="text-xs font-mono text-white/80">
                             {secret.lastAccessedAt
                               ? new Date(secret.lastAccessedAt).toLocaleDateString("en-US", {
-                                  year: "numeric",
                                   month: "short",
                                   day: "numeric",
                                 })
@@ -625,62 +626,59 @@ export function SecretsTab({ user }: SecretsTabProps) {
                         </div>
                       </div>
 
-                      {/* Actions - Two rows for better touch targets */}
-                      <div className="flex flex-col gap-2 pt-3 border-t border-white/10">
-                        {/* Primary actions row */}
-                        <div className="grid grid-cols-3 gap-2">
+                      {/* Actions - Responsive grid layout */}
+                      <div className="pt-3 border-t border-white/10">
+                        {/* On phones: 2 rows. On tablets (md): single row with 5 items */}
+                        <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
                           <button
                             type="button"
                             onClick={() => handleRevealValue(secret)}
                             disabled={operationState.revealingSecretId === secret.id}
-                            className="h-11 px-3 border border-white/20 hover:bg-white/5 active:bg-white/10 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                            className="h-11 px-2 md:px-3 border border-white/20 hover:bg-white/5 active:bg-white/10 transition-colors disabled:opacity-50 flex items-center justify-center gap-1 md:gap-1.5"
                           >
                             {operationState.revealingSecretId === secret.id ? (
                               <Loader2 className="h-4 w-4 animate-spin text-white/60" />
                             ) : (
                               <Eye className="h-4 w-4 text-white/60" />
                             )}
-                            <span className="text-xs font-mono text-white/60">Reveal</span>
+                            <span className="text-[10px] md:text-xs font-mono text-white/60">Reveal</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => handleRotateSecret(secret)}
-                            className="h-11 px-3 border border-white/20 hover:bg-white/5 active:bg-white/10 transition-colors flex items-center justify-center gap-1.5"
+                            className="h-11 px-2 md:px-3 border border-white/20 hover:bg-white/5 active:bg-white/10 transition-colors flex items-center justify-center gap-1 md:gap-1.5"
                           >
                             <RotateCw className="h-4 w-4 text-white/60" />
-                            <span className="text-xs font-mono text-white/60">Rotate</span>
+                            <span className="text-[10px] md:text-xs font-mono text-white/60">Rotate</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => handleViewAudit(secret)}
-                            className="h-11 px-3 border border-white/20 hover:bg-white/5 active:bg-white/10 transition-colors flex items-center justify-center gap-1.5"
+                            className="h-11 px-2 md:px-3 border border-white/20 hover:bg-white/5 active:bg-white/10 transition-colors flex items-center justify-center gap-1 md:gap-1.5"
                           >
                             <History className="h-4 w-4 text-white/60" />
-                            <span className="text-xs font-mono text-white/60">Audit</span>
+                            <span className="text-[10px] md:text-xs font-mono text-white/60">Audit</span>
                           </button>
-                        </div>
-                        {/* Secondary actions row */}
-                        <div className="grid grid-cols-2 gap-2">
                           <button
                             type="button"
                             onClick={() => handleEditSecret(secret)}
-                            className="h-11 px-3 border border-white/20 hover:bg-white/5 active:bg-white/10 transition-colors flex items-center justify-center gap-1.5"
+                            className="h-11 px-2 md:px-3 border border-white/20 hover:bg-white/5 active:bg-white/10 transition-colors flex items-center justify-center gap-1 md:gap-1.5"
                           >
                             <Edit2 className="h-4 w-4 text-white/60" />
-                            <span className="text-xs font-mono text-white/60">Edit</span>
+                            <span className="text-[10px] md:text-xs font-mono text-white/60">Edit</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => handleDeleteSecret(secret.id, secret.name)}
                             disabled={operationState.deletingSecretId === secret.id}
-                            className="h-11 px-3 border border-[#EB4335]/40 bg-[#EB4335]/10 hover:bg-[#EB4335]/20 active:bg-[#EB4335]/30 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                            className="h-11 px-2 md:px-3 border border-[#EB4335]/40 bg-[#EB4335]/10 hover:bg-[#EB4335]/20 active:bg-[#EB4335]/30 transition-colors disabled:opacity-50 flex items-center justify-center gap-1 md:gap-1.5 col-span-3 md:col-span-1"
                           >
                             {operationState.deletingSecretId === secret.id ? (
                               <Loader2 className="h-4 w-4 animate-spin text-[#EB4335]" />
                             ) : (
                               <Trash2 className="h-4 w-4 text-[#EB4335]" />
                             )}
-                            <span className="text-xs font-mono text-[#EB4335]">Delete</span>
+                            <span className="text-[10px] md:text-xs font-mono text-[#EB4335]">Delete</span>
                           </button>
                         </div>
                       </div>
@@ -688,8 +686,8 @@ export function SecretsTab({ user }: SecretsTabProps) {
                   ))}
                 </div>
 
-                {/* Desktop Table Layout */}
-                <div className="hidden md:block w-full space-y-3">
+                {/* Desktop Table Layout (1024px+) */}
+                <div className="hidden lg:block w-full space-y-3">
                   {secrets.map((secret) => (
                     <div
                       key={secret.id}
@@ -802,19 +800,19 @@ export function SecretsTab({ user }: SecretsTabProps) {
 
       {/* Create Secret Modal */}
       {modalState.showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="relative bg-[#0a0a0a] border border-brand-surface p-4 sm:p-6 w-full max-w-lg my-auto max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4 md:p-6 overflow-y-auto">
+          <div className="relative bg-[#0a0a0a] border border-brand-surface p-4 md:p-6 w-full max-w-lg my-auto max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
             <CornerBrackets size="sm" className="opacity-50" />
 
             <div className="relative z-10 space-y-4">
-              <div className="flex items-center justify-between sticky top-0 bg-[#0a0a0a] pb-2 -mt-1 pt-1">
-                <h3 className="text-base sm:text-lg font-mono text-white uppercase">
+              <div className="flex items-center justify-between sticky top-0 bg-[#0a0a0a] pb-2 -mt-1 pt-1 z-10">
+                <h3 className="text-base md:text-lg font-mono text-white uppercase">
                   Create Secret
                 </h3>
                 <button
                   type="button"
                   onClick={() => updateModal({ showCreateModal: false })}
-                  className="text-white/60 hover:text-white transition-colors p-1 -m-1"
+                  className="text-white/60 hover:text-white transition-colors p-2 -m-2"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -822,50 +820,50 @@ export function SecretsTab({ user }: SecretsTabProps) {
 
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label className="text-white font-mono text-sm">
+                  <Label className="text-white font-mono text-xs md:text-sm">
                     Name <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     value={formState.name}
                     onChange={(e) => updateForm({ name: e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, "_") })}
                     placeholder="MY_API_KEY"
-                    className="bg-transparent border-[#303030] text-white font-mono"
+                    className="bg-transparent border-[#303030] text-white font-mono h-11"
                   />
-                  <p className="text-xs text-white/40 font-mono">
+                  <p className="text-[10px] md:text-xs text-white/40 font-mono">
                     Uppercase with underscores (e.g., OPENAI_API_KEY)
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-white font-mono text-sm">
+                  <Label className="text-white font-mono text-xs md:text-sm">
                     Value <span className="text-red-500">*</span>
                   </Label>
                   <Textarea
                     value={formState.value}
                     onChange={(e) => updateForm({ value: e.target.value })}
                     placeholder="sk-..."
-                    className="bg-transparent border-[#303030] text-white font-mono min-h-[80px] resize-none"
+                    className="bg-transparent border-[#303030] text-white font-mono min-h-[80px] md:min-h-[100px] resize-none text-sm"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-white font-mono text-sm">
+                  <Label className="text-white font-mono text-xs md:text-sm">
                     Description (optional)
                   </Label>
                   <Input
                     value={formState.description}
                     onChange={(e) => updateForm({ description: e.target.value })}
                     placeholder="OpenAI API key for production"
-                    className="bg-transparent border-[#303030] text-white"
+                    className="bg-transparent border-[#303030] text-white h-11"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-white font-mono text-sm">Provider (optional)</Label>
+                  <Label className="text-white font-mono text-xs md:text-sm">Provider (optional)</Label>
                   <select
                     value={formState.provider}
                     onChange={(e) => updateForm({ provider: e.target.value as FormState["provider"] })}
-                    className="w-full bg-transparent border border-[#303030] text-white p-2 font-mono text-sm"
+                    className="w-full bg-transparent border border-[#303030] text-white h-11 px-3 font-mono text-sm appearance-none"
                   >
                     <option value="" className="bg-[#0a0a0a]">Auto-detect / Custom</option>
                     {Object.entries(PROVIDER_LABELS).map(([key, label]) => (
@@ -875,11 +873,11 @@ export function SecretsTab({ user }: SecretsTabProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-white font-mono text-sm">Scope</Label>
+                  <Label className="text-white font-mono text-xs md:text-sm">Scope</Label>
                   <select
                     value={formState.scope}
                     onChange={(e) => updateForm({ scope: e.target.value as FormState["scope"] })}
-                    className="w-full bg-transparent border border-[#303030] text-white p-2 font-mono text-sm"
+                    className="w-full bg-transparent border border-[#303030] text-white h-11 px-3 font-mono text-sm appearance-none"
                   >
                     <option value="organization" className="bg-[#0a0a0a]">Global (all projects)</option>
                     <option value="project" className="bg-[#0a0a0a]">Project-scoped</option>

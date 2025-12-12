@@ -250,44 +250,37 @@ describe("Telegram Bot Token Format Validation", () => {
 describe("Session Expiry Calculations", () => {
   const SESSION_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
   const TOKEN_EXPIRY_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
+  const REFRESH_BUFFER_MS = 5 * 60 * 1000; // 5 minute buffer
 
-  test("session expiry is 15 minutes", () => {
-    expect(SESSION_EXPIRY_MS).toBe(900000);
-  });
-
-  test("token expiry is 90 days", () => {
-    expect(TOKEN_EXPIRY_MS).toBe(7776000000);
-  });
-
-  test("session expiry calculation", () => {
+  test("expiry timestamps are in the future", () => {
     const now = Date.now();
-    const expiresAt = new Date(now + SESSION_EXPIRY_MS);
+    const sessionExpiry = new Date(now + SESSION_EXPIRY_MS);
+    const tokenExpiry = new Date(now + TOKEN_EXPIRY_MS);
 
-    // Should expire ~15 minutes from now
-    const diffMs = expiresAt.getTime() - now;
-    expect(diffMs).toBe(SESSION_EXPIRY_MS);
+    expect(sessionExpiry.getTime()).toBeGreaterThan(now);
+    expect(tokenExpiry.getTime()).toBeGreaterThan(now);
+    expect(tokenExpiry.getTime()).toBeGreaterThan(sessionExpiry.getTime());
   });
 
-  test("expired session detection", () => {
-    const now = Date.now();
-    const expiredSession = new Date(now - 1000); // 1 second ago
-    const validSession = new Date(now + SESSION_EXPIRY_MS);
+  test("expired dates are detected correctly", () => {
+    const past = new Date(Date.now() - 1000);
+    const future = new Date(Date.now() + 60000);
 
-    expect(expiredSession < new Date()).toBe(true);
-    expect(validSession > new Date()).toBe(true);
+    const isExpired = (date: Date) => date.getTime() < Date.now();
+    expect(isExpired(past)).toBe(true);
+    expect(isExpired(future)).toBe(false);
   });
 
-  test("token refresh window detection", () => {
-    const REFRESH_BUFFER_MS = 5 * 60 * 1000; // 5 minute buffer
-    const now = Date.now();
-
-    const tokenExpiringSoon = new Date(now + REFRESH_BUFFER_MS - 1000); // 4 min 59 sec
-    const tokenNotExpiringSoon = new Date(now + REFRESH_BUFFER_MS + 60000); // 6 minutes
-
+  test("token refresh buffer correctly identifies tokens needing refresh", () => {
     const needsRefresh = (expiresAt: Date) => expiresAt.getTime() - Date.now() < REFRESH_BUFFER_MS;
+    const now = Date.now();
 
-    expect(needsRefresh(tokenExpiringSoon)).toBe(true);
-    expect(needsRefresh(tokenNotExpiringSoon)).toBe(false);
+    // Token expiring in 4 minutes (inside buffer) should need refresh
+    expect(needsRefresh(new Date(now + 4 * 60 * 1000))).toBe(true);
+    // Token expiring in 10 minutes (outside buffer) should not need refresh
+    expect(needsRefresh(new Date(now + 10 * 60 * 1000))).toBe(false);
+    // Already expired token should need refresh
+    expect(needsRefresh(new Date(now - 1000))).toBe(true);
   });
 });
 

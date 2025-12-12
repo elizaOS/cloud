@@ -47,10 +47,19 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [modal, setModal] = useState<{ platform: string | null; form: Record<string, string> }>({ platform: null, form: {} });
 
+  const [error, setError] = useState<string | null>(null);
+
   const fetchConnections = useCallback(async () => {
     setLoading(true);
+    setError(null);
     const response = await fetch("/api/v1/social-connections");
-    const data = response.ok ? await response.json() : { platforms: [] };
+    if (!response.ok) {
+      setError("Failed to load connections");
+      setPlatforms([]);
+      setLoading(false);
+      return;
+    }
+    const data = await response.json();
     setPlatforms(data.platforms || []);
     setLoading(false);
   }, []);
@@ -180,6 +189,13 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
           {loading ? (
             <div className="flex items-center justify-center p-8 border border-brand-surface">
               <Loader2 className="h-6 w-6 animate-spin text-[#FF5800]" />
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center p-8 border border-red-500/30 gap-2">
+              <p className="text-sm text-red-400 font-mono">{error}</p>
+              <button type="button" onClick={fetchConnections} className="text-xs text-white/60 underline">
+                Retry
+              </button>
             </div>
           ) : connectedPlatforms.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-8 border border-brand-surface gap-2">

@@ -453,6 +453,14 @@ class SecretBindingsRepository {
     return binding;
   }
 
+  async findByIdAndOrg(id: string, organizationId: string): Promise<SecretBinding | undefined> {
+    const [binding] = await db
+      .select()
+      .from(secretBindings)
+      .where(and(eq(secretBindings.id, id), eq(secretBindings.organization_id, organizationId)));
+    return binding;
+  }
+
   async findBySecret(secretId: string): Promise<SecretBinding[]> {
     return db
       .select()
@@ -469,6 +477,36 @@ class SecretBindingsRepository {
       .select()
       .from(secretBindings)
       .where(and(...conditions));
+  }
+
+  async findByOrgAndProject(
+    organizationId: string,
+    projectId: string,
+    projectType?: SecretProjectType,
+    limit = 100,
+    offset = 0
+  ): Promise<{ bindings: SecretBinding[]; total: number }> {
+    const conditions = [
+      eq(secretBindings.organization_id, organizationId),
+      eq(secretBindings.project_id, projectId),
+    ];
+    if (projectType) {
+      conditions.push(eq(secretBindings.project_type, projectType));
+    }
+
+    const [countResult] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(secretBindings)
+      .where(and(...conditions));
+
+    const bindings = await db
+      .select()
+      .from(secretBindings)
+      .where(and(...conditions))
+      .limit(limit)
+      .offset(offset);
+
+    return { bindings, total: countResult?.count ?? 0 };
   }
 
   async findBySecretAndProject(

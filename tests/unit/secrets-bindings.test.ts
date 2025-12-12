@@ -24,7 +24,9 @@ const mockSecretsRecordAccess = mock(() => Promise.resolve());
 
 const mockBindingsCreate = mock(() => Promise.resolve({} as never));
 const mockBindingsFindById = mock(() => Promise.resolve(undefined));
+const mockBindingsFindByIdAndOrg = mock(() => Promise.resolve(undefined));
 const mockBindingsFindByProject = mock(() => Promise.resolve([] as never[]));
+const mockBindingsFindByOrgAndProject = mock(() => Promise.resolve({ bindings: [], total: 0 } as never));
 const mockBindingsFindBySecret = mock(() => Promise.resolve([] as never[]));
 const mockBindingsFindBySecretAndProject = mock(() => Promise.resolve(undefined));
 const mockBindingsDelete = mock(() => Promise.resolve());
@@ -68,7 +70,9 @@ mock.module("@/db/repositories/secrets", () => ({
   secretBindingsRepository: {
     create: mockBindingsCreate,
     findById: mockBindingsFindById,
+    findByIdAndOrg: mockBindingsFindByIdAndOrg,
     findByProject: mockBindingsFindByProject,
+    findByOrgAndProject: mockBindingsFindByOrgAndProject,
     findBySecret: mockBindingsFindBySecret,
     findBySecretAndProject: mockBindingsFindBySecretAndProject,
     delete: mockBindingsDelete,

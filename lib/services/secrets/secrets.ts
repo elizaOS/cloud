@@ -709,6 +709,7 @@ class SecretsService {
     }
 
     const binding = await secretBindingsRepository.create({
+      organization_id: secret.organization_id,
       secret_id: secretId,
       project_id: projectId,
       project_type: projectType,
@@ -755,6 +756,7 @@ class SecretsService {
       }
 
       const binding = await secretBindingsRepository.create({
+        organization_id: secret.organization_id,
         secret_id: secretId,
         project_id: projectId,
         project_type: projectType,
@@ -775,27 +777,34 @@ class SecretsService {
   }
 
   async unbindSecret(bindingId: string, organizationId: string, audit: AuditContext): Promise<void> {
-    const binding = await secretBindingsRepository.findById(bindingId);
+    const binding = await secretBindingsRepository.findByIdAndOrg(bindingId, organizationId);
     if (!binding) {
       throw new Error("Binding not found");
-    }
-
-    const secret = await secretsRepository.findById(binding.secret_id);
-    if (!secret || secret.organization_id !== organizationId) {
-      throw new Error("Secret not found");
     }
 
     await secretBindingsRepository.delete(bindingId);
   }
 
-  async listBindings(projectId: string, projectType?: SecretProjectType): Promise<SecretBindingMetadata[]> {
-    const bindings = await secretBindingsRepository.findByProject(projectId, projectType);
-    const results: SecretBindingMetadata[] = [];
+  async listBindings(
+    organizationId: string,
+    projectId: string,
+    projectType?: SecretProjectType,
+    limit = 100,
+    offset = 0
+  ): Promise<{ bindings: SecretBindingMetadata[]; total: number }> {
+    const result = await secretBindingsRepository.findByOrgAndProject(
+      organizationId,
+      projectId,
+      projectType,
+      limit,
+      offset
+    );
 
-    for (const binding of bindings) {
+    const bindings: SecretBindingMetadata[] = [];
+    for (const binding of result.bindings) {
       const secret = await secretsRepository.findById(binding.secret_id);
       if (secret) {
-        results.push({
+        bindings.push({
           id: binding.id,
           secretId: binding.secret_id,
           secretName: secret.name,
@@ -806,7 +815,7 @@ class SecretsService {
       }
     }
 
-    return results;
+    return { bindings, total: result.total };
   }
 
   async listSecretBindings(secretId: string): Promise<SecretBindingMetadata[]> {

@@ -1,12 +1,7 @@
 /**
  * DeFi Services - Shared Types
- *
- * Common types and interfaces used across all DeFi service integrations.
  */
 
-/**
- * Supported blockchain networks
- */
 export type ChainId =
   | "solana"
   | "ethereum"
@@ -17,9 +12,6 @@ export type ChainId =
   | "bsc"
   | "avalanche";
 
-/**
- * Chain metadata for cross-chain operations
- */
 export const CHAIN_METADATA: Record<
   ChainId,
   { name: string; nativeCurrency: string; decimals: number; isEVM: boolean }
@@ -34,9 +26,6 @@ export const CHAIN_METADATA: Record<
   avalanche: { name: "Avalanche", nativeCurrency: "AVAX", decimals: 18, isEVM: true },
 };
 
-/**
- * Token information
- */
 export interface TokenInfo {
   address: string;
   symbol: string;
@@ -46,9 +35,6 @@ export interface TokenInfo {
   logoUri?: string;
 }
 
-/**
- * Token price data
- */
 export interface TokenPrice {
   address: string;
   symbol: string;
@@ -59,9 +45,6 @@ export interface TokenPrice {
   lastUpdated: Date;
 }
 
-/**
- * OHLCV (candlestick) data point
- */
 export interface OHLCVDataPoint {
   timestamp: number;
   open: number;
@@ -71,14 +54,8 @@ export interface OHLCVDataPoint {
   volume: number;
 }
 
-/**
- * Time intervals for historical data
- */
 export type TimeInterval = "1m" | "5m" | "15m" | "30m" | "1h" | "4h" | "1d" | "1w";
 
-/**
- * Swap quote request
- */
 export interface SwapQuoteRequest {
   inputToken: string;
   outputToken: string;
@@ -87,9 +64,6 @@ export interface SwapQuoteRequest {
   userAddress?: string;
 }
 
-/**
- * Swap quote response
- */
 export interface SwapQuote {
   inputToken: TokenInfo;
   outputToken: TokenInfo;
@@ -98,15 +72,9 @@ export interface SwapQuote {
   priceImpactPercent: number;
   routes: SwapRoute[];
   estimatedGas?: string;
-  fee?: {
-    amount: string;
-    token: string;
-  };
+  fee?: { amount: string; token: string };
 }
 
-/**
- * Swap route through DEXs
- */
 export interface SwapRoute {
   protocol: string;
   inputToken: string;
@@ -114,9 +82,6 @@ export interface SwapRoute {
   portion: number;
 }
 
-/**
- * Transaction data for swap execution
- */
 export interface SwapTransaction {
   to: string;
   data: string;
@@ -125,9 +90,6 @@ export interface SwapTransaction {
   chainId?: number;
 }
 
-/**
- * Wallet portfolio entry
- */
 export interface WalletHolding {
   token: TokenInfo;
   balance: string;
@@ -135,9 +97,6 @@ export interface WalletHolding {
   percentage: number;
 }
 
-/**
- * Wallet portfolio summary
- */
 export interface WalletPortfolio {
   address: string;
   totalValueUsd: number;
@@ -145,9 +104,6 @@ export interface WalletPortfolio {
   lastUpdated: Date;
 }
 
-/**
- * Trending token entry
- */
 export interface TrendingToken {
   token: TokenInfo;
   rank: number;
@@ -157,9 +113,6 @@ export interface TrendingToken {
   trendScore?: number;
 }
 
-/**
- * Market overview data
- */
 export interface MarketOverview {
   totalMarketCapUsd: number;
   totalVolume24hUsd: number;
@@ -169,9 +122,6 @@ export interface MarketOverview {
   lastUpdated: Date;
 }
 
-/**
- * Liquidity pool information
- */
 export interface LiquidityPool {
   address: string;
   protocol: string;
@@ -184,9 +134,6 @@ export interface LiquidityPool {
   fee: number;
 }
 
-/**
- * Transaction record
- */
 export interface TokenTransaction {
   signature: string;
   blockTime: number;
@@ -198,9 +145,6 @@ export interface TokenTransaction {
   to: string;
 }
 
-/**
- * API error response
- */
 export interface DeFiApiError {
   code: string;
   message: string;
@@ -208,18 +152,12 @@ export interface DeFiApiError {
   provider: string;
 }
 
-/**
- * Rate limit information
- */
 export interface RateLimitInfo {
   remaining: number;
   limit: number;
   resetAt: Date;
 }
 
-/**
- * Service health status
- */
 export interface ServiceHealth {
   provider: string;
   status: "healthy" | "degraded" | "down";
@@ -227,4 +165,3 @@ export interface ServiceHealth {
   lastChecked: Date;
   rateLimit?: RateLimitInfo;
 }
-

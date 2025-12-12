@@ -1,10 +1,3 @@
-/**
- * Domain Router Service
- *
- * Routes custom domain requests to the appropriate backend:
- * apps, containers, agents, or MCPs.
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { managedDomainsRepository } from "@/db/repositories/managed-domains";
 import { containersRepository } from "@/db/repositories/containers";
@@ -12,9 +5,7 @@ import { charactersRepository } from "@/db/repositories/characters";
 import { userMcpsRepository } from "@/db/repositories/user-mcps";
 import { logger } from "@/lib/utils/logger";
 
-type RouteResult =
-  | { success: true; response: NextResponse }
-  | { success: false; status: number; message: string; html: string };
+type RouteResult = { success: true; response: NextResponse } | { success: false; status: number; message: string; html: string };
 
 const errorPage = (title: string, message: string) => `<!DOCTYPE html>
 <html><head><title>${title}</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -22,15 +13,9 @@ const errorPage = (title: string, message: string) => `<!DOCTYPE html>
 </head><body><div class="c"><h1>${title}</h1><p>${message}</p><p><a href="https://eliza.gg">Powered by Eliza</a></p></div></body></html>`;
 
 const fail = (status: number, message: string, html?: string): RouteResult => ({
-  success: false,
-  status,
-  message,
-  html: html || errorPage("Error", message),
+  success: false, status, message, html: html || errorPage("Error", message),
 });
 
-/**
- * Route a request to the appropriate backend based on custom domain
- */
 export async function routeCustomDomain(
   request: NextRequest,
   hostname: string,

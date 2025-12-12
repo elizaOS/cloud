@@ -24,6 +24,8 @@ export async function GET(request: NextRequest) {
     const projectId = searchParams.get("projectId");
     const projectType = searchParams.get("projectType") as SecretProjectType | undefined;
     const secretId = searchParams.get("secretId");
+    const limit = Math.min(parseInt(searchParams.get("limit") || "100"), 500);
+    const offset = parseInt(searchParams.get("offset") || "0");
 
     if (!projectId && !secretId) {
       return NextResponse.json({ error: "Either projectId or secretId query param required" }, { status: 400 });
@@ -38,8 +40,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: `Invalid projectType` }, { status: 400 });
     }
 
-    const bindings = await secretsService.listBindings(projectId!, projectType);
-    return NextResponse.json({ bindings });
+    const result = await secretsService.listBindings(user.organization_id, projectId!, projectType, limit, offset);
+    return NextResponse.json({ bindings: result.bindings, total: result.total, limit, offset });
   } catch (error) {
     logger.error("[Secrets] GET bindings failed", { error: error instanceof Error ? error.message : error });
     return NextResponse.json({ error: "Failed to list bindings" }, { status: 500 });

@@ -601,9 +601,6 @@ class DomainManagementService {
     return updated || null;
   }
 
-  /**
-   * Assign domain to an MCP
-   */
   async assignToMcp(
     domainId: string,
     mcpId: string,
@@ -636,9 +633,6 @@ class DomainManagementService {
     return updated || null;
   }
 
-  /**
-   * Unassign domain from any resource
-   */
   async unassignDomain(
     domainId: string,
     organizationId: string
@@ -666,13 +660,6 @@ class DomainManagementService {
     return updated || null;
   }
 
-  // ============================================
-  // DNS Management
-  // ============================================
-
-  /**
-   * Get DNS records for a domain
-   */
   async getDnsRecords(domainId: string): Promise<DnsRecord[]> {
     const domain = await managedDomainsRepository.findById(domainId);
     if (!domain) return [];
@@ -693,9 +680,6 @@ class DomainManagementService {
     return domain.dnsRecords || [];
   }
 
-  /**
-   * Add a DNS record
-   */
   async addDnsRecord(
     domainId: string,
     record: Omit<DnsRecord, "id" | "createdAt">
@@ -745,9 +729,6 @@ class DomainManagementService {
     }
   }
 
-  /**
-   * Delete a DNS record
-   */
   async deleteDnsRecord(
     domainId: string,
     recordId: string
@@ -794,62 +775,18 @@ class DomainManagementService {
     }
   }
 
-  // ============================================
-  // Domain Status & Info
-  // ============================================
-
-  /**
-   * Get domain by ID
-   */
-  async getDomain(
-    domainId: string,
-    organizationId: string
-  ): Promise<ManagedDomain | null> {
-    const domain = await managedDomainsRepository.findByIdAndOrg(
-      domainId,
-      organizationId
-    );
-    return domain || null;
+  async getDomain(domainId: string, organizationId: string): Promise<ManagedDomain | null> {
+    return (await managedDomainsRepository.findByIdAndOrg(domainId, organizationId)) || null;
   }
 
-  /**
-   * Get domain by domain name
-   */
   async getDomainByName(domain: string): Promise<ManagedDomain | null> {
-    const result = await managedDomainsRepository.findByDomain(
-      normalizeDomain(domain)
-    );
-    return result || null;
+    return (await managedDomainsRepository.findByDomain(normalizeDomain(domain))) || null;
   }
 
-  /**
-   * List domains for an organization
-   */
-  async listDomains(organizationId: string): Promise<ManagedDomain[]> {
-    return await managedDomainsRepository.listByOrganization(organizationId);
-  }
+  listDomains = (orgId: string) => managedDomainsRepository.listByOrganization(orgId);
+  listUnassignedDomains = (orgId: string) => managedDomainsRepository.listUnassigned(orgId);
+  getStats = (orgId: string) => managedDomainsRepository.getStats(orgId);
 
-  /**
-   * List unassigned domains
-   */
-  async listUnassignedDomains(organizationId: string): Promise<ManagedDomain[]> {
-    return await managedDomainsRepository.listUnassigned(organizationId);
-  }
-
-  /**
-   * Get domain statistics
-   */
-  async getStats(organizationId: string) {
-    return await managedDomainsRepository.getStats(organizationId);
-  }
-
-  // ============================================
-  // Domain Deletion
-  // ============================================
-
-  /**
-   * Delete a managed domain
-   */
   async deleteDomain(
     domainId: string,
     organizationId: string

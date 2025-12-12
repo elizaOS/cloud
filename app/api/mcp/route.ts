@@ -7857,15 +7857,16 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          let bindings;
           if (secretId) {
-            bindings = await secretsService.listSecretBindings(secretId);
-          } else {
-            bindings = await secretsService.listBindings(projectId!, projectType);
+            const bindings = await secretsService.listSecretBindings(secretId);
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ bindings, count: bindings.length }, null, 2) }],
+            };
           }
 
+          const result = await secretsService.listBindings(user.organization_id, projectId!, projectType);
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ bindings, count: bindings.length }, null, 2) }],
+            content: [{ type: "text" as const, text: JSON.stringify({ bindings: result.bindings, total: result.total }, null, 2) }],
           };
         } catch (error) {
           return {

@@ -1,16 +1,10 @@
 /**
- * DeFi Services - Base HTTP Client
- *
- * Provides a reusable HTTP client with rate limiting, retries, and error handling
- * for all DeFi API integrations.
+ * Base HTTP client with rate limiting, retries, and error handling for DeFi APIs
  */
 
 import { logger } from "@/lib/utils/logger";
 import type { DeFiApiError, RateLimitInfo } from "./types";
 
-/**
- * HTTP client configuration
- */
 export interface HttpClientConfig {
   baseUrl: string;
   apiKey: string;
@@ -20,9 +14,6 @@ export interface HttpClientConfig {
   retryDelay?: number;
 }
 
-/**
- * Request options for HTTP calls
- */
 export interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   headers?: Record<string, string>;
@@ -31,9 +22,6 @@ export interface RequestOptions {
   timeout?: number;
 }
 
-/**
- * Base HTTP client for DeFi API integrations
- */
 export class BaseHttpClient {
   protected readonly baseUrl: string;
   protected readonly apiKey: string;
@@ -42,45 +30,31 @@ export class BaseHttpClient {
   protected readonly maxRetries: number;
   protected readonly retryDelay: number;
   protected readonly provider: string;
-
   private rateLimitInfo: RateLimitInfo | null = null;
 
   constructor(config: HttpClientConfig, provider: string) {
     this.baseUrl = config.baseUrl.replace(/\/$/, "");
     this.apiKey = config.apiKey;
-    this.defaultHeaders = {
-      "Content-Type": "application/json",
-      ...config.headers,
-    };
+    this.defaultHeaders = { "Content-Type": "application/json", ...config.headers };
     this.timeout = config.timeout ?? 30000;
     this.maxRetries = config.maxRetries ?? 3;
     this.retryDelay = config.retryDelay ?? 1000;
     this.provider = provider;
   }
 
-  /**
-   * Build URL with query parameters
-   */
   protected buildUrl(
     endpoint: string,
     params?: Record<string, string | number | boolean | undefined>
   ): string {
     const url = new URL(`${this.baseUrl}${endpoint}`);
-
     if (params) {
       for (const [key, value] of Object.entries(params)) {
-        if (value !== undefined) {
-          url.searchParams.set(key, String(value));
-        }
+        if (value !== undefined) url.searchParams.set(key, String(value));
       }
     }
-
     return url.toString();
   }
 
-  /**
-   * Parse rate limit headers from response
-   */
   protected parseRateLimitHeaders(headers: Headers): RateLimitInfo | null {
     const remaining = headers.get("x-ratelimit-remaining");
     const limit = headers.get("x-ratelimit-limit");
@@ -93,33 +67,22 @@ export class BaseHttpClient {
         resetAt: reset ? new Date(parseInt(reset, 10) * 1000) : new Date(Date.now() + 60000),
       };
     }
-
     return null;
   }
 
-  /**
-   * Get current rate limit info
-   */
   getRateLimitInfo(): RateLimitInfo | null {
     return this.rateLimitInfo;
   }
 
-  /**
-   * Make HTTP request with retries and error handling
-   */
   async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const method = options.method ?? "GET";
     const url = this.buildUrl(endpoint, options.params);
     const headers = { ...this.defaultHeaders, ...options.headers };
-
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
       const controller = new AbortController();
-      const timeoutId = setTimeout(
-        () => controller.abort(),
-        options.timeout ?? this.timeout
-      );
+      const timeoutId = setTimeout(() => controller.abort(), options.timeout ?? this.timeout);
 
       try {
         const response = await fetch(url, {
@@ -130,46 +93,33 @@ export class BaseHttpClient {
         });
 
         clearTimeout(timeoutId);
-
-        // Update rate limit info
         this.rateLimitInfo = this.parseRateLimitHeaders(response.headers);
 
-        // Handle rate limiting
         if (response.status === 429) {
           const retryAfter = response.headers.get("retry-after");
           const waitTime = retryAfter
             ? parseInt(retryAfter, 10) * 1000
             : this.retryDelay * Math.pow(2, attempt);
 
-          logger.warn(
-            `[${this.provider}] Rate limited, waiting ${waitTime}ms before retry ${attempt + 1}/${this.maxRetries}`
-          );
-
+          logger.warn(`[${this.provider}] Rate limited, waiting ${waitTime}ms`);
           if (attempt < this.maxRetries) {
             await this.sleep(waitTime);
             continue;
           }
         }
 
-        // Handle server errors with retry
         if (response.status >= 500 && attempt < this.maxRetries) {
           const waitTime = this.retryDelay * Math.pow(2, attempt);
-          logger.warn(
-            `[${this.provider}] Server error ${response.status}, retrying in ${waitTime}ms (${attempt + 1}/${this.maxRetries})`
-          );
+          logger.warn(`[${this.provider}] Server error ${response.status}, retrying in ${waitTime}ms`);
           await this.sleep(waitTime);
           continue;
         }
 
-        // Handle client errors (no retry)
         if (!response.ok) {
-          const errorBody = await response.text();
-          const error = this.createApiError(response.status, errorBody);
-          throw error;
+          throw this.createApiError(response.status, await response.text());
         }
 
-        const data = await response.json();
-        return data as T;
+        return (await response.json()) as T;
       } catch (error) {
         clearTimeout(timeoutId);
 
@@ -181,17 +131,15 @@ export class BaseHttpClient {
           lastError = new Error(`Unknown error from ${this.provider}`);
         }
 
-        // Only retry on network errors, not on API errors
-        if (
+        const shouldRetry =
           attempt < this.maxRetries &&
-          lastError.message.includes("fetch") ||
-          lastError.message.includes("network") ||
-          lastError.message.includes("timed out")
-        ) {
+          (lastError.message.includes("fetch") ||
+            lastError.message.includes("network") ||
+            lastError.message.includes("timed out"));
+
+        if (shouldRetry) {
           const waitTime = this.retryDelay * Math.pow(2, attempt);
-          logger.warn(
-            `[${this.provider}] Network error, retrying in ${waitTime}ms (${attempt + 1}/${this.maxRetries}): ${lastError.message}`
-          );
+          logger.warn(`[${this.provider}] Network error, retrying in ${waitTime}ms`);
           await this.sleep(waitTime);
           continue;
         }
@@ -203,30 +151,14 @@ export class BaseHttpClient {
     throw lastError ?? new Error(`Failed to complete request to ${this.provider}`);
   }
 
-  /**
-   * GET request helper
-   */
-  async get<T>(
-    endpoint: string,
-    params?: Record<string, string | number | boolean | undefined>
-  ): Promise<T> {
+  async get<T>(endpoint: string, params?: Record<string, string | number | boolean | undefined>): Promise<T> {
     return this.request<T>(endpoint, { method: "GET", params });
   }
 
-  /**
-   * POST request helper
-   */
-  async post<T>(
-    endpoint: string,
-    body?: Record<string, unknown>,
-    params?: Record<string, string | number | boolean | undefined>
-  ): Promise<T> {
+  async post<T>(endpoint: string, body?: Record<string, unknown>, params?: Record<string, string | number | boolean | undefined>): Promise<T> {
     return this.request<T>(endpoint, { method: "POST", body, params });
   }
 
-  /**
-   * Create standardized API error
-   */
   private createApiError(statusCode: number, responseBody: string): DeFiApiError & Error {
     let message = `API error from ${this.provider}`;
     let code = "UNKNOWN_ERROR";
@@ -243,24 +175,16 @@ export class BaseHttpClient {
     error.code = code;
     error.statusCode = statusCode;
     error.provider = this.provider;
-
     return error;
   }
 
-  /**
-   * Sleep helper for retry delays
-   */
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  /**
-   * Health check - ping the API
-   */
   async healthCheck(): Promise<{ healthy: boolean; latencyMs: number }> {
     const start = Date.now();
     try {
-      // Most APIs have a status or health endpoint, subclasses can override
       await this.get("/");
       return { healthy: true, latencyMs: Date.now() - start };
     } catch {
@@ -268,4 +192,3 @@ export class BaseHttpClient {
     }
   }
 }
-

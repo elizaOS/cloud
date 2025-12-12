@@ -1,29 +1,10 @@
-/**
- * Domain Health Monitor Service
- *
- * Background service that periodically checks domain health and SSL status.
- * Designed to be run as a cron job.
- *
- * Features:
- * - DNS resolution verification
- * - HTTP/HTTPS connectivity checks
- * - SSL certificate validation
- * - Content moderation scans
- * - Expiration monitoring
- */
-
-import {
-  managedDomainsRepository,
-  type ManagedDomain,
-} from "@/db/repositories/managed-domains";
+import { managedDomainsRepository, type ManagedDomain } from "@/db/repositories/managed-domains";
 import { domainModerationService } from "./domain-moderation";
 import { logger } from "@/lib/utils/logger";
 
-// Configuration
-const HEALTH_CHECK_INTERVAL_HOURS = 6; // Check domains every 6 hours
-const CONTENT_SCAN_INTERVAL_HOURS = 24; // Scan content every 24 hours
-const EXPIRATION_WARNING_DAYS = 30; // Warn 30 days before expiration
-const BATCH_SIZE = 50; // Process domains in batches
+const HEALTH_CHECK_INTERVAL_HOURS = 6;
+const EXPIRATION_WARNING_DAYS = 30;
+const BATCH_SIZE = 50;
 
 export interface HealthMonitorStats {
   domainsChecked: number;
@@ -45,27 +26,7 @@ export interface HealthCheckBatchResult {
 }
 
 class DomainHealthMonitorService {
-  private isRunning = false;
-
-  /**
-   * Run health checks for all domains needing attention
-   */
   async runHealthChecks(): Promise<HealthMonitorStats> {
-    if (this.isRunning) {
-      logger.warn("[DomainHealthMonitor] Already running, skipping");
-      return {
-        domainsChecked: 0,
-        domainsLive: 0,
-        domainsDown: 0,
-        sslIssues: 0,
-        contentScanned: 0,
-        contentFlagged: 0,
-        expirationWarnings: 0,
-        errors: 0,
-      };
-    }
-
-    this.isRunning = true;
     const stats: HealthMonitorStats = {
       domainsChecked: 0,
       domainsLive: 0,
@@ -100,20 +61,13 @@ class DomainHealthMonitorService {
 
       logger.info("[DomainHealthMonitor] Health check run complete", stats);
     } catch (error) {
-      logger.error("[DomainHealthMonitor] Health check run failed", {
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
+      logger.error("[DomainHealthMonitor] Health check run failed", { error });
       stats.errors++;
-    } finally {
-      this.isRunning = false;
     }
 
     return stats;
   }
 
-  /**
-   * Process a batch of domains for health checks
-   */
   private async processBatch(
     domains: ManagedDomain[],
     stats: HealthMonitorStats
@@ -154,9 +108,6 @@ class DomainHealthMonitorService {
     await Promise.all(checkPromises);
   }
 
-  /**
-   * Check for domains expiring soon
-   */
   private async checkExpirations(stats: HealthMonitorStats): Promise<void> {
     const expiringDomains = await managedDomainsRepository.listExpiringWithinDays(
       EXPIRATION_WARNING_DAYS
@@ -197,9 +148,6 @@ class DomainHealthMonitorService {
     }
   }
 
-  /**
-   * Run content scans for all active domains
-   */
   async runContentScans(): Promise<HealthMonitorStats> {
     const stats: HealthMonitorStats = {
       domainsChecked: 0,
@@ -247,18 +195,13 @@ class DomainHealthMonitorService {
 
       logger.info("[DomainHealthMonitor] Content scan run complete", stats);
     } catch (error) {
-      logger.error("[DomainHealthMonitor] Content scan run failed", {
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
+      logger.error("[DomainHealthMonitor] Content scan run failed", { error });
       stats.errors++;
     }
 
     return stats;
   }
 
-  /**
-   * Check a single domain immediately (for API use)
-   */
   async checkSingleDomain(domainId: string): Promise<HealthCheckBatchResult | null> {
     const domain = await managedDomainsRepository.findById(domainId);
     if (!domain) return null;
@@ -274,9 +217,6 @@ class DomainHealthMonitorService {
     };
   }
 
-  /**
-   * Get summary of domain health across the platform
-   */
   async getHealthSummary(): Promise<{
     totalDomains: number;
     activeDomains: number;
@@ -312,9 +252,6 @@ class DomainHealthMonitorService {
     };
   }
 
-  /**
-   * Get domains with issues (for admin dashboard)
-   */
   async getDomainsWithIssues(): Promise<{
     down: ManagedDomain[];
     sslIssues: ManagedDomain[];

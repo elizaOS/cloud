@@ -407,10 +407,14 @@ class PlatformCredentialsService {
     if (!credential) throw new Error("Credential not found");
 
     if (credential.access_token_secret_id) {
-      await secretsService.delete(credential.access_token_secret_id, organizationId, SYSTEM_AUDIT).catch(() => {});
+      await secretsService.delete(credential.access_token_secret_id, organizationId, SYSTEM_AUDIT).catch(err => {
+        logger.warn("[Credentials] Failed to delete access token secret", { credentialId, error: err.message });
+      });
     }
     if (credential.refresh_token_secret_id) {
-      await secretsService.delete(credential.refresh_token_secret_id, organizationId, SYSTEM_AUDIT).catch(() => {});
+      await secretsService.delete(credential.refresh_token_secret_id, organizationId, SYSTEM_AUDIT).catch(err => {
+        logger.warn("[Credentials] Failed to delete refresh token secret", { credentialId, error: err.message });
+      });
     }
 
     await db.update(platformCredentials).set({

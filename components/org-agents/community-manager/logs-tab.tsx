@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import {
   ScrollText,
@@ -63,13 +63,7 @@ export function LogsTab({ organizationId, serverId }: LogsTabProps) {
   const [expandedEvent, setExpandedEvent] = useState<string | null>(null);
   const [isResolving, setIsResolving] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (serverId) {
-      fetchEvents();
-    }
-  }, [serverId, filter]);
-
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     if (!serverId) return;
     setIsLoading(true);
 
@@ -84,7 +78,13 @@ export function LogsTab({ organizationId, serverId }: LogsTabProps) {
     }
 
     setIsLoading(false);
-  };
+  }, [serverId, filter]);
+
+  useEffect(() => {
+    if (serverId) {
+      fetchEvents();
+    }
+  }, [serverId, fetchEvents]);
 
   const handleResolve = async (
     eventId: string,

@@ -7,15 +7,25 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAppAuth } from "@/lib/auth/app-auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { secretsService, type AuditContext } from "@/lib/services/secrets";
+import { appsService } from "@/lib/services/apps";
 import { logger } from "@/lib/utils/logger";
 
 export async function GET(request: NextRequest) {
   try {
-    const { app, user } = await requireAppAuth(request);
-    const audit: AuditContext = { actorType: "user", actorId: user.id, source: "app-secrets-api" };
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const appId = request.headers.get("X-App-Id");
+    if (!appId) {
+      return NextResponse.json({ error: "X-App-Id header required" }, { status: 400 });
+    }
 
+    const app = await appsService.getById(user.organization_id, appId);
+    if (!app) {
+      return NextResponse.json({ error: "App not found" }, { status: 404 });
+    }
+
+    const audit: AuditContext = { actorType: "user", actorId: user.id, source: "app-secrets-api" };
     const secrets = await secretsService.getAppSecrets(app.id, app.organization_id, audit);
 
     return NextResponse.json({
@@ -35,7 +45,17 @@ const CreateSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const { app, user } = await requireAppAuth(request);
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const appId = request.headers.get("X-App-Id");
+    if (!appId) {
+      return NextResponse.json({ error: "X-App-Id header required" }, { status: 400 });
+    }
+
+    const app = await appsService.getById(user.organization_id, appId);
+    if (!app) {
+      return NextResponse.json({ error: "App not found" }, { status: 404 });
+    }
+
     const body = await request.json();
     const audit: AuditContext = { actorType: "user", actorId: user.id, source: "app-secrets-api" };
 

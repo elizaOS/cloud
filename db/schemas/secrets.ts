@@ -128,6 +128,9 @@ export const secretBindings = pgTable(
   "secret_bindings",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    organization_id: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
     secret_id: uuid("secret_id")
       .notNull()
       .references(() => secrets.id, { onDelete: "cascade" }),
@@ -144,6 +147,7 @@ export const secretBindings = pgTable(
       table.project_id,
       table.project_type
     ),
+    org_idx: index("secret_bindings_org_idx").on(table.organization_id),
     project_idx: index("secret_bindings_project_idx").on(
       table.project_id,
       table.project_type

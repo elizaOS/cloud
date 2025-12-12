@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import { Coins, Plus, Trash2, Edit, Check, X, ExternalLink } from "lucide-react";
 import type { CommunityModerationSettings } from "@/db/schemas/org-agents";
@@ -81,13 +81,6 @@ export function TokenGatingTab({
   const [formData, setFormData] = useState<TokenGateForm>(DEFAULT_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch token gates
-  useEffect(() => {
-    if (serverId) {
-      fetchTokenGates();
-    }
-  }, [serverId]);
-
   const fetchTokenGates = async () => {
     if (!serverId) return;
     setIsLoadingGates(true);
@@ -102,6 +95,13 @@ export function TokenGatingTab({
     
     setIsLoadingGates(false);
   };
+
+  // Fetch token gates
+  useEffect(() => {
+    if (serverId) {
+      fetchTokenGates();
+    }
+  }, [serverId, fetchTokenGates]);
 
   const handleSaveSettings = async () => {
     await onSave({

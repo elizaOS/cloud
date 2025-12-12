@@ -134,6 +134,26 @@ const CheckTokenBalanceSchema = z.object({
   tokenAddress: z.string().describe("Token contract address"),
 });
 
+const GetVerificationChallengeSchema = z.object({
+  serverId: z.string().uuid().describe("Server ID"),
+  platformUserId: z.string().describe("Platform user ID"),
+  platform: z.enum(["discord", "telegram", "slack"]).describe("Platform"),
+});
+
+const SyncUserRolesSchema = z.object({
+  serverId: z.string().uuid().describe("Server ID"),
+  platformUserId: z.string().describe("Platform user ID"),
+  platform: z.enum(["discord", "telegram", "slack"]).describe("Platform"),
+  connectionId: z.string().uuid().describe("Platform connection ID"),
+  guildId: z.string().describe("Discord guild ID"),
+});
+
+const ListUserWalletsSchema = z.object({
+  serverId: z.string().uuid().describe("Server ID"),
+  platformUserId: z.string().describe("Platform user ID"),
+  platform: z.enum(["discord", "telegram", "slack"]).describe("Platform"),
+});
+
 // =============================================================================
 // HANDLERS
 // =============================================================================
@@ -562,16 +582,96 @@ async function handleCheckTokenBalance(
   params: z.infer<typeof CheckTokenBalanceSchema>,
   context: MCPContext
 ) {
-  // This is a placeholder - actual implementation would call blockchain RPC
-  // For now, we return a structure that indicates the check should be done
+  const { walletVerificationService } = await import("@/lib/services/wallet-verification");
+  
+  const result = await walletVerificationService.checkTokenBalance(
+    params.walletAddress,
+    params.tokenAddress,
+    params.chain,
+    "token"
+  );
+
   return {
     success: true,
-    pending: true,
-    message: "Token balance check queued. Results will be available shortly.",
     walletAddress: params.walletAddress,
     chain: params.chain,
     tokenAddress: params.tokenAddress,
-    // In production, this would trigger a background job to check balance
+    hasBalance: result.hasBalance,
+    balance: result.balance,
+  };
+}
+
+async function handleGetVerificationChallenge(
+  params: z.infer<typeof GetVerificationChallengeSchema>,
+  context: MCPContext
+) {
+  const { walletVerificationService } = await import("@/lib/services/wallet-verification");
+  
+  const challenge = walletVerificationService.generateChallenge(
+    params.serverId,
+    params.platformUserId,
+    params.platform
+  );
+
+  return {
+    success: true,
+    challenge: {
+      nonce: challenge.nonce,
+      message: challenge.message,
+      expiresAt: challenge.expiresAt.toISOString(),
+    },
+    instructions: "Sign this message with your wallet to verify ownership. The signature should be base64 encoded.",
+  };
+}
+
+async function handleSyncUserRoles(
+  params: z.infer<typeof SyncUserRolesSchema>,
+  context: MCPContext
+) {
+  const { walletVerificationService } = await import("@/lib/services/wallet-verification");
+  
+  const result = await walletVerificationService.syncRoles(
+    params.serverId,
+    params.platformUserId,
+    params.platform,
+    params.connectionId,
+    params.guildId
+  );
+
+  return {
+    success: true,
+    rolesAdded: result.added,
+    rolesRemoved: result.removed,
+    message: result.added.length > 0 || result.removed.length > 0
+      ? `Synced roles: +${result.added.length} / -${result.removed.length}`
+      : "No role changes needed",
+  };
+}
+
+async function handleListUserWallets(
+  params: z.infer<typeof ListUserWalletsSchema>,
+  context: MCPContext
+) {
+  const { memberWalletsRepository } = await import("@/db/repositories/community-moderation");
+  
+  const wallets = await memberWalletsRepository.findByPlatformUser(
+    params.serverId,
+    params.platformUserId,
+    params.platform
+  );
+
+  return {
+    success: true,
+    wallets: wallets.map((w) => ({
+      id: w.id,
+      address: w.wallet_address,
+      chain: w.chain,
+      isPrimary: w.is_primary,
+      verifiedAt: w.verified_at?.toISOString(),
+      lastCheckedAt: w.last_checked_at?.toISOString(),
+      assignedRoles: w.assigned_roles,
+    })),
+    total: wallets.length,
   };
 }
 
@@ -676,9 +776,30 @@ export const communityModerationTools: MCPToolDefinition[] = [
   {
     name: "check_token_balance",
     description:
-      "Queue a token balance check for a wallet address. Used for token gate verification.",
+      "Check the token balance for a wallet address. Used for token gate verification.",
     inputSchema: CheckTokenBalanceSchema,
     handler: handleCheckTokenBalance as MCPToolDefinition["handler"],
+  },
+  {
+    name: "get_verification_challenge",
+    description:
+      "Generate a signature challenge for wallet verification. User must sign this message with their wallet.",
+    inputSchema: GetVerificationChallengeSchema,
+    handler: handleGetVerificationChallenge as MCPToolDefinition["handler"],
+  },
+  {
+    name: "sync_user_roles",
+    description:
+      "Sync a user's roles based on their verified wallets and token gate rules.",
+    inputSchema: SyncUserRolesSchema,
+    handler: handleSyncUserRoles as MCPToolDefinition["handler"],
+  },
+  {
+    name: "list_user_wallets",
+    description:
+      "List all verified wallets for a user in a server.",
+    inputSchema: ListUserWalletsSchema,
+    handler: handleListUserWallets as MCPToolDefinition["handler"],
   },
 ];
 

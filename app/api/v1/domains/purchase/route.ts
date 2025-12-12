@@ -1,22 +1,10 @@
-/**
- * Domain Purchase API with x402 Payment Support
- *
- * POST /api/v1/domains/purchase - Purchase a domain with x402 or credits
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { domainManagementService } from "@/lib/services/domain-management";
 import { domainModerationService } from "@/lib/services/domain-moderation";
 import { creditsService } from "@/lib/services/credits";
-import {
-  X402_ENABLED,
-  isX402Configured,
-  X402_RECIPIENT_ADDRESS,
-  getDefaultNetwork,
-  USDC_ADDRESSES,
-} from "@/lib/config/x402";
+import { isX402Configured, X402_RECIPIENT_ADDRESS, getDefaultNetwork, USDC_ADDRESSES } from "@/lib/config/x402";
 import { logger } from "@/lib/utils/logger";
 
 const PurchaseDomainSchema = z.object({
@@ -39,10 +27,6 @@ const PurchaseDomainSchema = z.object({
   autoRenew: z.boolean().default(true),
 });
 
-/**
- * POST /api/v1/domains/purchase
- * Purchase a domain with x402 payment or credits
- */
 export async function POST(request: NextRequest) {
   // Check for x402 payment header
   const x402PaymentHeader = request.headers.get("X-PAYMENT");
@@ -54,9 +38,7 @@ export async function POST(request: NextRequest) {
   let userId: string;
 
   if (hasX402Payment && isX402Configured()) {
-    // x402 payment flow - verify payment and extract payer
-    // For domain purchases, we need to create or lookup org
-    // This is a simplified flow - in production, require auth or KYC
+    // TODO: Implement proper x402 payment verification
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     organizationId = user.organization_id;
     userId = user.id;
@@ -177,8 +159,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify x402 payment (simplified - in production use proper verification)
-    // The payment has already been verified by x402 middleware if we got here
+    // TODO: Verify x402 payment cryptographically
     logger.info("[Domain Purchase] x402 payment received", {
       domain,
       amount: priceInDollars,
@@ -230,10 +211,6 @@ export async function POST(request: NextRequest) {
   });
 }
 
-/**
- * GET /api/v1/domains/purchase
- * Get domain pricing and x402 payment requirements
- */
 export async function GET(request: NextRequest) {
   await requireAuthOrApiKeyWithOrg(request);
 
