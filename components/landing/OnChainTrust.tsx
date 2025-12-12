@@ -12,6 +12,7 @@ import MicropaymentNetwork from "./MicropaymentNetwork";
 import Image from "next/image";
 import { ReactFlowProvider } from "@xyflow/react";
 import { motion } from "framer-motion";
+import { agentFlagTypeEnum } from "@/db/schemas";
 
 export default function OnChainTrust() {
   const mockCardData = [
@@ -253,7 +254,7 @@ export default function OnChainTrust() {
                             />
                           </svg>
                           <span className="text-[10px] font-mono select-none">
-                            0xA9E3...C14
+                            {agent.address}
                           </span>
                         </div>
                       </div>
