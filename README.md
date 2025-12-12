@@ -102,6 +102,12 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
   - Credit activity timeline
   - Model usage breakdown
 
+- **Social Media Automation**:
+  - Cross-platform posting (11 networks)
+  - Unified API for multi-platform content
+  - Analytics and engagement tracking
+  - Bidirectional feed monitoring
+
 - **Gallery**:
   - View all generated images and videos
   - Filter by type (image/video)
@@ -234,6 +240,7 @@ eliza-cloud-v2/
 │   ├── DEPLOYMENT_TROUBLESHOOTING.md  # Troubleshooting
 │   ├── STRIPE_SETUP.md     # Stripe integration
 │   ├── ENV_VARIABLES.md    # Environment configuration
+│   ├── social-media-api-keys.md  # Social media platform credentials
 │   └── ...
 ├── scripts/                 # Utility scripts
 │   ├── seed-credit-packs.ts
@@ -1095,7 +1102,97 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
 - Response time percentiles
 - Error rate calculation
 
-### 11. MCP (Model Context Protocol) API
+### 11. Social Media Automation
+
+**Location**: `/app/api/v1/social-media/` and `lib/services/social-media/`
+
+**Features**:
+
+- Cross-platform posting to 11 social networks
+- Unified API for multi-platform content distribution
+- Per-platform credential management via secrets manager
+- Analytics retrieval for posts and accounts
+- Rate limiting with automatic retry and backoff
+- Token refresh for OAuth platforms
+
+**Supported Platforms**:
+
+| Platform | Post | Delete | Reply | Like | Repost | Analytics |
+|----------|------|--------|-------|------|--------|-----------|
+| Twitter/X | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Bluesky | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Discord | ✅ | ✅ | ✅ | ✅ | - | - |
+| Telegram | ✅ | ✅ | - | - | - | - |
+| Slack | ✅ | ✅ | ✅ | - | - | - |
+| Reddit | ✅ | ✅ | ✅ | ✅ | - | ✅ |
+| Facebook | ✅ | ✅ | ✅ | ✅ | - | ✅ |
+| Instagram | ✅ | ✅ | - | ✅ | - | ✅ |
+| TikTok | ✅ | ✅ | - | - | - | ✅ |
+| LinkedIn | ✅ | ✅ | ✅ | ✅ | - | ✅ |
+| Mastodon | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+**API**:
+
+```bash
+# Post to multiple platforms
+POST /api/v1/social-media
+{
+  "content": { "text": "Hello from ElizaCloud!" },
+  "platforms": ["twitter", "bluesky", "mastodon"]
+}
+
+# Post to single platform
+POST /api/v1/social-media/twitter
+{
+  "content": { "text": "Hello Twitter!" }
+}
+
+# Get supported platforms
+GET /api/v1/social-media
+
+# Validate credentials
+POST /api/v1/social-media/credentials/validate
+{
+  "platform": "twitter"
+}
+```
+
+**Required Environment Variables** (per platform):
+
+| Platform | Required Variables |
+|----------|-------------------|
+| Twitter | `TWITTER_ACCESS_TOKEN`, `TWITTER_REFRESH_TOKEN` (optional) |
+| Bluesky | `BLUESKY_HANDLE`, `BLUESKY_APP_PASSWORD` |
+| Discord | `DISCORD_BOT_TOKEN` or `DISCORD_WEBHOOK_URL` |
+| Telegram | `TELEGRAM_BOT_TOKEN` |
+| Slack | `SLACK_BOT_TOKEN` or `SLACK_WEBHOOK_URL` |
+| Reddit | `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET`, `REDDIT_USERNAME`, `REDDIT_PASSWORD` |
+| Facebook | `META_ACCESS_TOKEN`, `META_PAGE_ID` |
+| Instagram | `META_ACCESS_TOKEN`, `META_IG_ACCOUNT_ID` |
+| TikTok | `TIKTOK_ACCESS_TOKEN` |
+| LinkedIn | `LINKEDIN_ACCESS_TOKEN` |
+| Mastodon | `MASTODON_ACCESS_TOKEN`, `MASTODON_INSTANCE_URL` (optional) |
+
+**Full Documentation**: See `docs/social-media-api-keys.md` for detailed setup instructions.
+
+**MCP Tools Available**:
+- `social_media_create_post` - Post to multiple platforms
+- `social_media_post_to_platform` - Post to a single platform
+- `social_media_delete_post` - Delete a post
+- `social_media_reply` - Reply to a post
+- `social_media_like` - Like/upvote a post
+- `social_media_repost` - Retweet/reblog a post
+- `social_media_get_post_analytics` - Get post metrics
+- `social_media_get_account_analytics` - Get account metrics
+
+**A2A Skills Available**:
+- `social_media_post` / `post_social` - Multi-platform posting
+- `social_media_reply` / `reply_to_post` - Reply to posts
+- `social_media_like` / `like_post` - Like posts
+- `social_media_repost` / `retweet` - Repost content
+- `social_media_get_platforms` / `list_social_platforms` - List supported platforms
+
+### 12. MCP (Model Context Protocol) API
 
 **Location**: `/app/api/mcp/route.ts`
 
@@ -1492,6 +1589,57 @@ GET /api/v1/user
   "name": "John Doe",
   "organization": {...},
   "credit_balance": 5000
+}
+```
+
+#### Social Media
+
+```bash
+# Post to multiple platforms
+POST /api/v1/social-media
+{
+  "content": {
+    "text": "Hello from ElizaCloud!",
+    "media": [{"type": "image", "url": "https://...", "mimeType": "image/jpeg"}]
+  },
+  "platforms": ["twitter", "bluesky", "mastodon"]
+}
+
+# Post to single platform
+POST /api/v1/social-media/twitter
+{
+  "content": {"text": "Hello Twitter!"}
+}
+
+# Get supported platforms and capabilities
+GET /api/v1/social-media
+
+# Delete a post
+DELETE /api/v1/social-media/twitter/posts/{postId}
+
+# Like a post
+POST /api/v1/social-media/twitter/posts/{postId}/like
+
+# Reply to a post
+POST /api/v1/social-media/twitter/posts/{postId}/reply
+{
+  "content": {"text": "Great post!"}
+}
+
+# Validate credentials
+POST /api/v1/social-media/credentials/validate
+{
+  "platform": "twitter"
+}
+
+# Store credentials
+POST /api/v1/social-media/credentials
+{
+  "platform": "bluesky",
+  "credentials": {
+    "handle": "user.bsky.social",
+    "appPassword": "xxxx-xxxx-xxxx-xxxx"
+  }
 }
 ```
 
