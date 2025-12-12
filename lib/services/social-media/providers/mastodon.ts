@@ -1,10 +1,3 @@
-/**
- * Mastodon Provider - Mastodon API
- *
- * Supports posting, deleting, and analytics for Mastodon instances.
- * Each instance has its own API endpoint, configured via credentials.
- */
-
 import { logger } from "@/lib/utils/logger";
 import { withRetry } from "../rate-limit";
 import type {
@@ -62,9 +55,7 @@ interface MastodonMedia {
 }
 
 function getInstanceUrl(credentials: SocialCredentials): string {
-  // Instance URL from credentials or default to mastodon.social
-  const baseUrl = credentials.webhookUrl ?? "https://mastodon.social";
-  return baseUrl.replace(/\/$/, "");
+  return (credentials.webhookUrl ?? "https://mastodon.social").replace(/\/$/, "");
 }
 
 async function mastodonApiRequest<T>(
@@ -171,12 +162,8 @@ export const mastodonProvider: SocialMediaProvider = {
     const instanceUrl = getInstanceUrl(credentials);
     const mastodonOptions = options?.mastodon;
 
-    logger.info("[Mastodon] Creating post", {
-      hasMedia: !!content.media?.length,
-      visibility: mastodonOptions?.visibility ?? "public",
-    });
+    logger.info("[Mastodon] Creating post", { hasMedia: !!content.media?.length });
 
-    // Upload media first
     const mediaIds: string[] = [];
     if (content.media?.length) {
       for (const media of content.media) {
@@ -185,37 +172,20 @@ export const mastodonProvider: SocialMediaProvider = {
       }
     }
 
-    // Build status payload
     const payload: Record<string, unknown> = {
       status: content.text,
       visibility: mastodonOptions?.visibility ?? "public",
     };
 
-    if (mediaIds.length > 0) {
-      payload.media_ids = mediaIds;
-    }
-
-    if (content.replyToId) {
-      payload.in_reply_to_id = content.replyToId;
-    }
-
-    if (mastodonOptions?.sensitive) {
-      payload.sensitive = true;
-    }
-
-    if (mastodonOptions?.spoilerText) {
-      payload.spoiler_text = mastodonOptions.spoilerText;
-    }
-
-    if (mastodonOptions?.language) {
-      payload.language = mastodonOptions.language;
-    }
-
-    // Handle polls
+    if (mediaIds.length > 0) payload.media_ids = mediaIds;
+    if (content.replyToId) payload.in_reply_to_id = content.replyToId;
+    if (mastodonOptions?.sensitive) payload.sensitive = true;
+    if (mastodonOptions?.spoilerText) payload.spoiler_text = mastodonOptions.spoilerText;
+    if (mastodonOptions?.language) payload.language = mastodonOptions.language;
     if (mastodonOptions?.pollOptions?.length) {
       payload.poll = {
         options: mastodonOptions.pollOptions,
-        expires_in: mastodonOptions.pollExpiresIn ?? 86400, // Default 24 hours
+        expires_in: mastodonOptions.pollExpiresIn ?? 86400,
       };
     }
 

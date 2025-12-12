@@ -1,10 +1,3 @@
-/**
- * Social Feed Polling Service
- *
- * Polls external social platforms for engagement on monitored accounts.
- * Supports Twitter, Bluesky, and other platforms.
- */
-
 import { logger } from "@/lib/utils/logger";
 import { socialMediaService } from "@/lib/services/social-media";
 import type { SocialCredentials, SocialPlatform } from "@/lib/types/social-media";
@@ -72,7 +65,6 @@ class TwitterPoller implements PlatformPoller {
     let lastSeenId = sinceId;
     let hasMore = false;
 
-    // Poll mentions if enabled
     if (config.monitor_mentions) {
       const mentions = await this.fetchMentions(credentials.accessToken, accountId, sinceId);
       engagements.push(...mentions.engagements);
@@ -80,7 +72,6 @@ class TwitterPoller implements PlatformPoller {
       hasMore = hasMore || mentions.hasMore;
     }
 
-    // Poll quote tweets if enabled
     if (config.monitor_quote_tweets) {
       const quotes = await this.fetchQuoteTweets(credentials.accessToken, accountId, sinceId);
       engagements.push(...quotes.engagements);

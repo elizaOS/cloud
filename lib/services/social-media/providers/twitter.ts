@@ -1,9 +1,5 @@
-/**
- * Twitter/X Provider - Twitter API v2 with OAuth2
- */
-
 import { logger } from "@/lib/utils/logger";
-import { withRetry, isRateLimitResponse, createRateLimitError } from "../rate-limit";
+import { withRetry } from "../rate-limit";
 import type {
   SocialMediaProvider,
   SocialCredentials,
@@ -47,11 +43,7 @@ async function twitterApiRequest<T>(
   return data;
 }
 
-async function uploadMedia(
-  accessToken: string,
-  media: MediaAttachment
-): Promise<string> {
-  // Get media data
+async function uploadMedia(accessToken: string, media: MediaAttachment): Promise<string> {
   let mediaData: Buffer;
   if (media.data) {
     mediaData = media.data;
@@ -64,10 +56,8 @@ async function uploadMedia(
     throw new Error("No media data provided");
   }
 
-  // Determine media type
   const mediaType = media.type === "video" ? "tweet_video" : "tweet_image";
 
-  // For simple uploads (images < 5MB)
   if (media.type === "image" && mediaData.length < 5 * 1024 * 1024) {
     const formData = new URLSearchParams();
     formData.append("media_data", mediaData.toString("base64"));
@@ -90,8 +80,7 @@ async function uploadMedia(
     return data.media_id_string;
   }
 
-  // For chunked uploads (videos, large images)
-  // INIT
+  // Chunked upload for videos/large images
   const initParams = new URLSearchParams({
     command: "INIT",
     total_bytes: String(mediaData.length),
@@ -114,8 +103,7 @@ async function uploadMedia(
   const initData = await initResponse.json();
   const mediaId = initData.media_id_string;
 
-  // APPEND (chunk by chunk)
-  const chunkSize = 5 * 1024 * 1024; // 5MB chunks
+  const chunkSize = 5 * 1024 * 1024;
   let segmentIndex = 0;
   for (let offset = 0; offset < mediaData.length; offset += chunkSize) {
     const chunk = mediaData.subarray(offset, offset + chunkSize);
@@ -143,7 +131,6 @@ async function uploadMedia(
     segmentIndex++;
   }
 
-  // FINALIZE
   const finalizeParams = new URLSearchParams({
     command: "FINALIZE",
     media_id: mediaId,
@@ -163,7 +150,6 @@ async function uploadMedia(
 
   const finalizeData = await finalizeResponse.json();
 
-  // Check processing status for videos
   if (finalizeData.processing_info) {
     await waitForProcessing(accessToken, mediaId);
   }
@@ -171,11 +157,7 @@ async function uploadMedia(
   return mediaId;
 }
 
-async function waitForProcessing(
-  accessToken: string,
-  mediaId: string,
-  maxWait = 60000
-): Promise<void> {
+async function waitForProcessing(accessToken: string, mediaId: string, maxWait = 60000): Promise<void> {
   const startTime = Date.now();
 
   while (Date.now() - startTime < maxWait) {
@@ -198,12 +180,9 @@ async function waitForProcessing(
     }
 
     if (data.processing_info.state === "failed") {
-      throw new Error(
-        `Media processing failed: ${data.processing_info.error?.message || "Unknown error"}`
-      );
+      throw new Error(`Media processing failed: ${data.processing_info.error?.message || "Unknown error"}`);
     }
 
-    // Wait before checking again
     const waitTime = (data.processing_info.check_after_secs || 5) * 1000;
     await new Promise((resolve) => setTimeout(resolve, waitTime));
   }
@@ -254,12 +233,8 @@ export const twitterProvider: SocialMediaProvider = {
     }
 
     try {
-      // Build tweet payload
-      const payload: Record<string, unknown> = {
-        text: content.text,
-      };
+      const payload: Record<string, unknown> = { text: content.text };
 
-      // Handle media attachments
       if (content.media?.length) {
         const mediaIds: string[] = [];
         for (const media of content.media) {
@@ -269,22 +244,9 @@ export const twitterProvider: SocialMediaProvider = {
         payload.media = { media_ids: mediaIds };
       }
 
-      // Handle reply
-      if (content.replyToId) {
-        payload.reply = { in_reply_to_tweet_id: content.replyToId };
-      }
-
-      // Handle quote tweet
-      if (options?.twitter?.quoteTweetId) {
-        payload.quote_tweet_id = options.twitter.quoteTweetId;
-      }
-
-      // Handle reply settings
-      if (options?.twitter?.replySettings) {
-        payload.reply_settings = options.twitter.replySettings;
-      }
-
-      // Handle poll
+      if (content.replyToId) payload.reply = { in_reply_to_tweet_id: content.replyToId };
+      if (options?.twitter?.quoteTweetId) payload.quote_tweet_id = options.twitter.quoteTweetId;
+      if (options?.twitter?.replySettings) payload.reply_settings = options.twitter.replySettings;
       if (options?.twitter?.pollOptions?.length) {
         payload.poll = {
           options: options.twitter.pollOptions.map((opt) => ({ label: opt })),
@@ -437,67 +399,32 @@ export const twitterProvider: SocialMediaProvider = {
   },
 
   async likePost(credentials: SocialCredentials, postId: string) {
-    if (!credentials.accessToken) {
-      return { success: false, error: "Access token required" };
-    }
+    if (!credentials.accessToken) return { success: false, error: "Access token required" };
 
     try {
-      // First get user ID
-      const userResponse = await twitterApiRequest<{ data: { id: string } }>(
-        "/users/me",
-        credentials.accessToken
-      );
-
-      await twitterApiRequest(
-        `/users/${userResponse.data.id}/likes`,
-        credentials.accessToken,
-        {
-          method: "POST",
-          body: JSON.stringify({ tweet_id: postId }),
-        }
-      );
-
+      const userResponse = await twitterApiRequest<{ data: { id: string } }>("/users/me", credentials.accessToken);
+      await twitterApiRequest(`/users/${userResponse.data.id}/likes`, credentials.accessToken, {
+        method: "POST",
+        body: JSON.stringify({ tweet_id: postId }),
+      });
       return { success: true };
     } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Like failed",
-      };
+      return { success: false, error: error instanceof Error ? error.message : "Like failed" };
     }
   },
 
   async repost(credentials: SocialCredentials, postId: string): Promise<PostResult> {
-    if (!credentials.accessToken) {
-      return { platform: "twitter", success: false, error: "Access token required" };
-    }
+    if (!credentials.accessToken) return { platform: "twitter", success: false, error: "Access token required" };
 
     try {
-      // First get user ID
-      const userResponse = await twitterApiRequest<{ data: { id: string } }>(
-        "/users/me",
-        credentials.accessToken
-      );
-
-      await twitterApiRequest(
-        `/users/${userResponse.data.id}/retweets`,
-        credentials.accessToken,
-        {
-          method: "POST",
-          body: JSON.stringify({ tweet_id: postId }),
-        }
-      );
-
-      return {
-        platform: "twitter",
-        success: true,
-        postId: postId,
-      };
+      const userResponse = await twitterApiRequest<{ data: { id: string } }>("/users/me", credentials.accessToken);
+      await twitterApiRequest(`/users/${userResponse.data.id}/retweets`, credentials.accessToken, {
+        method: "POST",
+        body: JSON.stringify({ tweet_id: postId }),
+      });
+      return { platform: "twitter", success: true, postId };
     } catch (error) {
-      return {
-        platform: "twitter",
-        success: false,
-        error: error instanceof Error ? error.message : "Retweet failed",
-      };
+      return { platform: "twitter", success: false, error: error instanceof Error ? error.message : "Retweet failed" };
     }
   },
 };
