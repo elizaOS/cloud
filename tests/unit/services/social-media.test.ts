@@ -468,13 +468,16 @@ describe("Error Handling - Invalid Inputs", () => {
   it("should throw for unsupported platform in getProvider", async () => {
     const { socialMediaService } = await import("@/lib/services/social-media");
 
-    expect(() => socialMediaService.getProvider("mastodon")).toThrow("not supported");
+    // Use a fake platform name since all real platforms are supported
+    expect(() => socialMediaService.getProvider("fakebook" as "twitter")).toThrow();
   });
 
-  it("should return false for unsupported platform check", async () => {
+  it("should return true for all supported platforms", async () => {
     const { socialMediaService } = await import("@/lib/services/social-media");
 
-    expect(socialMediaService.isPlatformSupported("mastodon")).toBe(false);
+    expect(socialMediaService.isPlatformSupported("mastodon")).toBe(true);
+    expect(socialMediaService.isPlatformSupported("twitter")).toBe(true);
+    expect(socialMediaService.isPlatformSupported("bluesky")).toBe(true);
   });
 
   it("should handle validatePostContent with undefined media gracefully", async () => {

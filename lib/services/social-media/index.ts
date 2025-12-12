@@ -25,24 +25,27 @@ import { twitterProvider } from "./providers/twitter";
 import { blueskyProvider } from "./providers/bluesky";
 import { discordProvider } from "./providers/discord";
 import { telegramProvider } from "./providers/telegram";
+import { slackProvider } from "./providers/slack";
 import { redditProvider } from "./providers/reddit";
 import { metaProvider } from "./providers/meta";
 import { tiktokProvider } from "./providers/tiktok";
 import { linkedinProvider } from "./providers/linkedin";
+import { mastodonProvider } from "./providers/mastodon";
 
 const POST_CREDIT_COST = 0.01;
 
-const providers: Record<SocialPlatform, SocialMediaProvider | null> = {
+const providers: Record<SocialPlatform, SocialMediaProvider> = {
   twitter: twitterProvider,
   bluesky: blueskyProvider,
   discord: discordProvider,
   telegram: telegramProvider,
+  slack: slackProvider,
   reddit: redditProvider,
   facebook: metaProvider,
   instagram: metaProvider,
   tiktok: tiktokProvider,
   linkedin: linkedinProvider,
-  mastodon: null,
+  mastodon: mastodonProvider,
 };
 
 class SocialMediaService {
