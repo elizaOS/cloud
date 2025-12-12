@@ -2,8 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { charactersService } from "@/lib/services/characters";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { getCurrentUser } from "@/lib/auth";
-import { getAnonymousUser } from "@/lib/auth-anonymous";
-import { migrateAnonymousSession } from "@/lib/session";
+import { getOrCreateSessionUser, migrateAnonymousSession } from "@/lib/session";
 import { ChatInterface } from "@/components/chat/chat-interface";
 import { logger } from "@/lib/utils/logger";
 import { resolveCharacterTheme } from "@/lib/config/affiliate-themes";
@@ -105,18 +104,23 @@ export default async function ChatPage({
       );
     }
 
-    // Otherwise, use cookie-based session (read-only check)
-    const existingSession = await getAnonymousUser();
-
-    if (!existingSession || !existingSession.session) {
+    // Use session system to get or create session
+    let sessionUser;
+    try {
+      sessionUser = await getOrCreateSessionUser(undefined, { createIfMissing: false });
+    } catch {
       // No session exists - redirect to API route to create one
-      // The API route will set the cookie and redirect back here
       const returnUrl = `/chat/${characterId}${source ? `?source=${source}` : ""}`;
       logger.info(`[Chat Page] No anonymous session found, redirecting to create one`);
       redirect(`/api/auth/create-anonymous-session?returnUrl=${encodeURIComponent(returnUrl)}`);
     }
 
-    const { user: anonUser, session: cookieSession } = existingSession;
+    if (!sessionUser.anonymousSession) {
+      const returnUrl = `/chat/${characterId}${source ? `?source=${source}` : ""}`;
+      redirect(`/api/auth/create-anonymous-session?returnUrl=${encodeURIComponent(returnUrl)}`);
+    }
+
+    const cookieSession = sessionUser.anonymousSession;
 
     const messagesRemaining =
       cookieSession.messages_limit - cookieSession.message_count;
@@ -125,7 +129,7 @@ export default async function ChatPage({
     logger.info(
       `[Chat Page] Anonymous session from cookie with theme ${theme.id}`,
       {
-        userId: anonUser.id,
+        userId: sessionUser.userId,
         messageCount: cookieSession.message_count,
         messagesRemaining,
       },

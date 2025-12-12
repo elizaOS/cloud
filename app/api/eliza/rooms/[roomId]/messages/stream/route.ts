@@ -1,6 +1,6 @@
 import { roomsRepository } from "@/db/repositories";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { checkAnonymousLimit, getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
+import { getOrCreateSessionUser, incrementSessionMessageCount } from "@/lib/session";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { usersService } from "@/lib/services/users";
 import type { AgentModeConfig } from "@/lib/eliza/agent-mode-types";
@@ -141,20 +141,29 @@ export async function POST(
     }
 
     // Step 3: Rate limiting for anonymous users
-    if (userContext.isAnonymous && userContext.sessionToken) {
-      const limitCheck = await checkAnonymousLimit(userContext.sessionToken);
+    if (userContext.isAnonymous && userContext.anonymousSession) {
+      const session = userContext.anonymousSession;
+      const remaining = session.messages_limit - session.message_count;
 
-      if (!limitCheck.allowed) {
-        const errorMessage =
-          limitCheck.reason === "message_limit"
-            ? `You've reached your free message limit (${limitCheck.limit} messages). Sign up to continue!`
-            : "Hourly rate limit reached. Wait an hour or sign up for unlimited access.";
-
+      if (remaining <= 0) {
         return new Response(
           JSON.stringify({
-            error: errorMessage,
+            error: `You've reached your free message limit (${session.messages_limit} messages). Sign up to continue!`,
             requiresSignup: true,
-            reason: limitCheck.reason,
+            reason: "message_limit",
+          }),
+          { status: 429, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      // Check hourly rate limit
+      const rateLimitResult = await anonymousSessionsService.checkRateLimit(session.id);
+      if (!rateLimitResult.allowed) {
+        return new Response(
+          JSON.stringify({
+            error: "Hourly rate limit reached. Wait an hour or sign up for unlimited access.",
+            requiresSignup: true,
+            reason: "hourly_limit",
           }),
           { status: 429, headers: { "Content-Type": "application/json" } }
         );
@@ -600,35 +609,27 @@ async function authenticateAndBuildContext(
     );
   }
 
-  // Fall back to cookie
-  let anonData = await getAnonymousUser();
+  // Fall back to session system (creates anonymous if needed)
+  const sessionUser = await getOrCreateSessionUser(request, {
+    tokenSources: { header: headerToken, body: bodyToken },
+  });
 
-  if (!anonData) {
-    logger.info("[Stream] No session cookie - creating new anonymous session");
-    const newAnonData = await getOrCreateAnonymousUser();
-    anonData = {
-      user: newAnonData.user,
-      session: newAnonData.session,
-    };
-    logger.info("[Stream] Created anonymous user:", {
-      userId: anonData.user.id,
-      sessionToken: `${anonData.session?.session_token.slice(0, 8)}...`,
-    });
-  } else {
-    logger.info("[Stream] Anonymous user found via cookie:", {
-      userId: anonData.user.id,
-      sessionToken: `${anonData.session?.session_token.slice(0, 8)}...`,
-      messageCount: anonData.session?.message_count,
-    });
-  }
+  logger.info("[Stream] Session user:", {
+    userId: sessionUser.userId,
+    isAnonymous: sessionUser.isAnonymous,
+    sessionToken: sessionUser.sessionToken
+      ? `${sessionUser.sessionToken.slice(0, 8)}...`
+      : "N/A",
+    messageCount: sessionUser.messageCount,
+  });
 
-  if (!anonData.session) {
+  if (!sessionUser.anonymousSession) {
     throw new Error("Failed to create or retrieve anonymous session");
   }
 
   return await userContextService.buildContext({
-    user: anonData.user,
-    anonymousSession: anonData.session,
+    user: sessionUser.user,
+    anonymousSession: sessionUser.anonymousSession,
     isAnonymous: true,
     agentMode,
     appId: body?.appId,

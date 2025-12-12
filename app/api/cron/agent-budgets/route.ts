@@ -21,9 +21,15 @@ const CRON_SECRET = process.env.CRON_SECRET;
  * Process agent budget maintenance tasks
  */
 export async function POST(request: NextRequest): Promise<Response> {
+  // SECURITY: Require CRON_SECRET to be configured
+  if (!CRON_SECRET) {
+    logger.error("[AgentBudgets Cron] CRON_SECRET not configured");
+    return NextResponse.json({ error: "Cron not configured" }, { status: 500 });
+  }
+
   // Verify cron secret
   const authHeader = request.headers.get("authorization");
-  if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
+  if (authHeader !== `Bearer ${CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -70,9 +76,15 @@ export async function POST(request: NextRequest): Promise<Response> {
  * Health check and status
  */
 export async function GET(request: NextRequest): Promise<Response> {
+  // SECURITY: Require CRON_SECRET to be configured
+  if (!CRON_SECRET) {
+    logger.error("[AgentBudgets Cron] CRON_SECRET not configured");
+    return NextResponse.json({ error: "Cron not configured" }, { status: 500 });
+  }
+
   // Verify cron secret for status check
   const authHeader = request.headers.get("authorization");
-  if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
+  if (authHeader !== `Bearer ${CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

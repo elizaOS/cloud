@@ -47,13 +47,6 @@ export async function GET(
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await ctx.params;
 
-  if (!user.organization_id) {
-    return NextResponse.json(
-      { success: false, error: "User has no organization" },
-      { status: 400 }
-    );
-  }
-
   const trigger = await applicationTriggersService.getTrigger(id);
 
   if (!trigger) {
@@ -126,13 +119,6 @@ export async function PATCH(
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await ctx.params;
 
-  if (!user.organization_id) {
-    return NextResponse.json(
-      { success: false, error: "User has no organization" },
-      { status: 400 }
-    );
-  }
-
   const trigger = await applicationTriggersService.getTrigger(id);
 
   if (!trigger) {
@@ -202,13 +188,6 @@ export async function DELETE(
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await ctx.params;
-
-  if (!user.organization_id) {
-    return NextResponse.json(
-      { success: false, error: "User has no organization" },
-      { status: 400 }
-    );
-  }
 
   const trigger = await applicationTriggersService.getTrigger(id);
 

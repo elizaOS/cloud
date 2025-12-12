@@ -505,7 +505,7 @@ export async function GET(request: NextRequest) {
       });
     } catch (error) {
       // If user MCPs fail to load, continue with built-in only
-      console.warn("[MCP Registry] Failed to load user MCPs:", error);
+      logger.warn("[MCP Registry] Failed to load user MCPs", { error });
     }
 
     // Fetch external ERC-8004 registered MCPs if requested
@@ -563,7 +563,7 @@ export async function GET(request: NextRequest) {
           },
         }));
       } catch (error) {
-        console.warn("[MCP Registry] Failed to load ERC-8004 MCPs:", error);
+        logger.warn("[MCP Registry] Failed to load ERC-8004 MCPs", { error });
       }
     }
 

@@ -93,9 +93,7 @@ async function handlePOST(request: NextRequest) {
 
     generationId = generation.id;
 
-    console.log(
-      `[VIDEO GENERATION] Starting generation for user ${user.id}, model: ${model}`,
-    );
+    logger.info("[VIDEO GENERATION] Starting generation", { userId: user.id, model });
 
     const result = await fal.subscribe(model, {
       input: {
@@ -107,9 +105,7 @@ async function handlePOST(request: NextRequest) {
           const logMessages = update.logs
             ?.map((log: { message: string }) => log.message)
             .join(", ");
-          console.log(
-            `[VIDEO GENERATION] Progress: ${logMessages || "Processing..."}`,
-          );
+          logger.debug("[VIDEO GENERATION] Progress", { status: logMessages || "Processing..." });
         }
       },
     });
@@ -124,9 +120,7 @@ async function handlePOST(request: NextRequest) {
       );
     }
 
-    console.log(
-      `[VIDEO GENERATION] Success for user ${user.id}, requestId: ${result.requestId}`,
-    );
+    logger.info("[VIDEO GENERATION] Success", { userId: user.id, requestId: result.requestId });
 
     // Upload video to Vercel Blob (required - we don't expose Fal.ai URLs)
     let blobUrl: string;
@@ -141,9 +135,7 @@ async function handlePOST(request: NextRequest) {
       // Always upload to our storage - videos come from Fal.ai
       if (!isFalAiUrl(data.video.url)) {
         // If for some reason it's not a Fal.ai URL, log a warning but still upload
-        console.warn(
-          `[VIDEO GENERATION] Unexpected non-Fal.ai URL: ${data.video.url}`,
-        );
+        logger.warn("[VIDEO GENERATION] Unexpected non-Fal.ai URL", { url: data.video.url });
       }
 
       const uploadResult = await uploadFromUrl(data.video.url, {
@@ -156,9 +148,7 @@ async function handlePOST(request: NextRequest) {
       blobUrl = uploadResult.url;
       blobFileSize = BigInt(uploadResult.size);
 
-      console.log(
-        `[VIDEO GENERATION] Uploaded to Vercel Blob: ${blobUrl} (${blobFileSize.toString()} bytes)`,
-      );
+      logger.info("[VIDEO GENERATION] Uploaded to Vercel Blob", { url: blobUrl, sizeBytes: blobFileSize.toString() });
     } catch (blobError) {
       logger.error(
         "[VIDEO GENERATION] Failed to upload to Vercel Blob:",
@@ -243,9 +233,7 @@ async function handlePOST(request: NextRequest) {
       });
     }
 
-    console.log(
-      `[VIDEO GENERATION] Cost: $${VIDEO_GENERATION_COST.toFixed(2)}, New balance: $${deductionResult.newBalance.toFixed(2)}`,
-    );
+    logger.info("[VIDEO GENERATION] Cost deducted", { cost: VIDEO_GENERATION_COST.toFixed(2), newBalance: deductionResult.newBalance.toFixed(2) });
 
     return NextResponse.json(
       {
@@ -271,7 +259,7 @@ async function handlePOST(request: NextRequest) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
 
-    console.log("[VIDEO GENERATION] Returning fallback video due to error");
+    logger.info("[VIDEO GENERATION] Returning fallback due to error");
 
     try {
       const {
@@ -331,9 +319,10 @@ async function handlePOST(request: NextRequest) {
         });
       }
 
-      console.log(
-        `[VIDEO GENERATION] Fallback cost: $${VIDEO_GENERATION_FALLBACK_COST.toFixed(2)}, New balance: $${fallbackDeduction.newBalance.toFixed(2)}`,
-      );
+      logger.info("[VIDEO GENERATION] Fallback cost deducted", { 
+        cost: VIDEO_GENERATION_FALLBACK_COST.toFixed(2), 
+        newBalance: fallbackDeduction.newBalance.toFixed(2) 
+      });
     } catch (authError) {
       logger.error(
         "[VIDEO GENERATION] Auth error during fallback logging:",

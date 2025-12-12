@@ -7,41 +7,22 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/marketplace/categories
- * Gets all available character categories for the marketplace.
- *
- * @param request - The Next.js request object.
- * @returns Array of categories with character counts.
+ * 
+ * @deprecated Use /api/my-agents/categories instead.
+ * This endpoint is maintained for backwards compatibility.
  */
 export async function GET(request: NextRequest) {
-  try {
-    const user = await requireAuthWithOrg();
+  const user = await requireAuthWithOrg();
 
-    logger.debug(
-      "[Marketplace API] Getting categories for:",
-      user.organization_id!,
-    );
+  logger.debug("[Marketplace API] Getting categories for:", user.organization_id!);
 
-    const categories = await characterMarketplaceService.getCategories(
-      user.organization_id!,
-      user.id,
-    );
+  const categories = await characterMarketplaceService.getCategories(
+    user.organization_id!,
+    user.id,
+  );
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        categories,
-      },
-    });
-  } catch (error) {
-    logger.error("[Marketplace API] Error getting categories:", error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to get categories",
-      },
-      { status: 500 },
-    );
-  }
+  return NextResponse.json({
+    success: true,
+    data: { categories },
+  });
 }

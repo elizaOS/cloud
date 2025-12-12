@@ -51,22 +51,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log("🧹 Starting ALB priority cleanup cron job...");
+    logger.info("Starting ALB priority cleanup cron job");
 
     // Get stats before cleanup
     const statsBefore = await dbPriorityManager.getStats();
-    console.log("Stats before cleanup:", statsBefore);
+    logger.debug("Stats before cleanup", statsBefore);
 
     // Run cleanup
     const deletedCount = await dbPriorityManager.cleanupExpiredPriorities();
 
     // Get stats after cleanup
     const statsAfter = await dbPriorityManager.getStats();
-    console.log("Stats after cleanup:", statsAfter);
+    logger.debug("Stats after cleanup", statsAfter);
 
-    console.log(
-      `✅ ALB priority cleanup complete: ${deletedCount} priorities freed`,
-    );
+    logger.info("ALB priority cleanup complete", { deletedCount });
 
     return NextResponse.json({
       success: true,

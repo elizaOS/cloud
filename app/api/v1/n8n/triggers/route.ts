@@ -105,13 +105,6 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
-  if (!user.organization_id) {
-    return NextResponse.json(
-      { success: false, error: "User has no organization" },
-      { status: 400 }
-    );
-  }
-
   const body = await request.json();
   const validation = CreateTriggerSchema.safeParse(body);
 

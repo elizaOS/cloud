@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import {
-  getAnonymousUser,
-  getOrCreateAnonymousUser,
-} from "@/lib/auth-anonymous";
+import { getOrCreateSessionUser } from "@/lib/session";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { agentsService } from "@/lib/services/agents/agents";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
@@ -34,17 +31,18 @@ export async function GET(request: NextRequest) {
     userId = authResult.user.id;
     logger.debug("[Eliza Rooms API GET] Authenticated user:", userId);
   } catch {
-    // Fallback to anonymous user
-    const anonData = await getAnonymousUser();
-    if (!anonData) {
-      // No anonymous session - return empty rooms (don't create session for GET)
+    // Fallback to anonymous user - don't create session for GET
+    try {
+      const sessionUser = await getOrCreateSessionUser(request, { createIfMissing: false });
+      userId = sessionUser.userId;
+      logger.debug("[Eliza Rooms API GET] Anonymous user:", userId);
+    } catch {
+      // No session - return empty rooms
       return NextResponse.json({
         success: true,
         rooms: [],
       });
     }
-    userId = anonData.user.id;
-    logger.debug("[Eliza Rooms API GET] Anonymous user:", userId);
   }
 
   // Single optimized query: rooms + last message for each room
@@ -110,29 +108,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // If provided token didn't work, try the cookie
+    // If provided token didn't work, use session system (creates if needed)
     if (!userId) {
-      const anonData = await getAnonymousUser();
-
-      if (anonData) {
-        userId = anonData.user.id;
-        logger.info(
-          "[Eliza Rooms API POST] Anonymous auth via cookie:",
-          userId,
-        );
-      } else {
-        // No cookie found - create a new anonymous session
-        logger.info(
-          "[Eliza Rooms API POST] No session cookie - creating new anonymous session",
-        );
-
-        const newAnonData = await getOrCreateAnonymousUser();
-        userId = newAnonData.user.id;
-        logger.info(
-          "[Eliza Rooms API POST] Created new anonymous session:",
-          userId,
-        );
-      }
+      const sessionUser = await getOrCreateSessionUser(request);
+      userId = sessionUser.userId;
+      logger.info(
+        "[Eliza Rooms API POST] Session user:",
+        userId,
+        sessionUser.isAnonymous ? "(anonymous)" : "(authenticated)",
+      );
     }
   }
 

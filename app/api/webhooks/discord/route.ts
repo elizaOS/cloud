@@ -9,6 +9,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
+import { db } from "@/db";
+import { orgPlatformConnections, orgPlatformServers } from "@/db/schemas/org-platforms";
+import { eq, and } from "drizzle-orm";
 import nacl from "tweetnacl";
 
 const DISCORD_PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY;
@@ -24,6 +27,7 @@ interface DiscordInteraction {
       type: number;
       value: string;
     }>;
+    custom_id?: string;
   };
   guild_id?: string;
   channel_id?: string;
@@ -84,6 +88,65 @@ function verifyDiscordSignature(
   return nacl.sign.detached.verify(message, sig, key);
 }
 
+/**
+ * Find the org connection for a Discord application
+ */
+async function findOrgConnection(applicationId: string) {
+  const [connection] = await db
+    .select()
+    .from(orgPlatformConnections)
+    .where(
+      and(
+        eq(orgPlatformConnections.platform, "discord"),
+        eq(orgPlatformConnections.platform_bot_id, applicationId),
+        eq(orgPlatformConnections.status, "active")
+      )
+    )
+    .limit(1);
+
+  return connection;
+}
+
+/**
+ * Check if a guild/server is enabled for the organization
+ */
+async function isServerEnabled(connectionId: string, guildId: string): Promise<boolean> {
+  const [server] = await db
+    .select()
+    .from(orgPlatformServers)
+    .where(
+      and(
+        eq(orgPlatformServers.connection_id, connectionId),
+        eq(orgPlatformServers.server_id, guildId),
+        eq(orgPlatformServers.enabled, true)
+      )
+    )
+    .limit(1);
+
+  return !!server;
+}
+
+/**
+ * Send a followup message to Discord
+ */
+async function sendFollowup(
+  applicationId: string,
+  interactionToken: string,
+  content: string,
+  ephemeral = false
+): Promise<void> {
+  const url = `https://discord.com/api/v10/webhooks/${applicationId}/${interactionToken}`;
+  
+  await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      content,
+      flags: ephemeral ? 64 : 0,
+    }),
+  });
+}
+
 export async function POST(request: NextRequest) {
   const body = await request.text();
   const signature = request.headers.get("x-signature-ed25519");
@@ -108,6 +171,7 @@ export async function POST(request: NextRequest) {
 
   logger.info("[Discord Webhook] Received interaction", {
     type: interaction.type,
+    applicationId: interaction.application_id,
     guildId: interaction.guild_id,
     channelId: interaction.channel_id,
   });
@@ -117,17 +181,70 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ type: RESPONSE_TYPES.PONG });
   }
 
+  // Find org connection for this Discord application
+  const connection = await findOrgConnection(interaction.application_id);
+  if (!connection) {
+    logger.warn("[Discord Webhook] No active connection found for application", {
+      applicationId: interaction.application_id,
+    });
+    return NextResponse.json({
+      type: RESPONSE_TYPES.CHANNEL_MESSAGE,
+      data: {
+        content: "This bot is not configured. Please contact the administrator.",
+        flags: 64,
+      },
+    });
+  }
+
+  // Check if guild is enabled (if in a guild)
+  if (interaction.guild_id) {
+    const serverEnabled = await isServerEnabled(connection.id, interaction.guild_id);
+    if (!serverEnabled) {
+      logger.debug("[Discord Webhook] Server not enabled", {
+        guildId: interaction.guild_id,
+        connectionId: connection.id,
+      });
+      return NextResponse.json({
+        type: RESPONSE_TYPES.CHANNEL_MESSAGE,
+        data: {
+          content: "This bot is not enabled for this server.",
+          flags: 64,
+        },
+      });
+    }
+  }
+
   // Handle application commands
   if (interaction.type === INTERACTION_TYPES.APPLICATION_COMMAND) {
     const commandName = interaction.data?.name;
+    const userId = interaction.member?.user?.id || interaction.user?.id;
 
     logger.info("[Discord Webhook] Processing command", {
       command: commandName,
       guildId: interaction.guild_id,
+      userId,
+      organizationId: connection.organization_id,
     });
 
     // Defer response while processing
-    // TODO: Route to appropriate org agent based on command and guild
+    // Fire-and-forget: Send followup with actual response later
+    void (async () => {
+      // Basic command handling - in production, route to org agent
+      let responseContent = `Command \`/${commandName}\` received. Agent routing not yet implemented.`;
+      
+      if (commandName === "help") {
+        responseContent = "Available commands:\n• `/help` - Show this help message\n• `/ping` - Check bot status";
+      } else if (commandName === "ping") {
+        responseContent = "Pong! 🏓 Bot is online and responding.";
+      }
+
+      await sendFollowup(
+        interaction.application_id,
+        interaction.token,
+        responseContent
+      );
+    })();
+
     return NextResponse.json({
       type: RESPONSE_TYPES.DEFERRED_CHANNEL_MESSAGE,
     });
@@ -135,8 +252,25 @@ export async function POST(request: NextRequest) {
 
   // Handle message components (buttons, selects)
   if (interaction.type === INTERACTION_TYPES.MESSAGE_COMPONENT) {
+    const customId = interaction.data?.custom_id;
+    
+    logger.info("[Discord Webhook] Processing component interaction", {
+      customId,
+      guildId: interaction.guild_id,
+    });
+
     return NextResponse.json({
       type: RESPONSE_TYPES.DEFERRED_UPDATE_MESSAGE,
+    });
+  }
+
+  // Handle autocomplete
+  if (interaction.type === INTERACTION_TYPES.AUTOCOMPLETE) {
+    return NextResponse.json({
+      type: RESPONSE_TYPES.AUTOCOMPLETE_RESULT,
+      data: {
+        choices: [],
+      },
     });
   }
 
@@ -144,7 +278,7 @@ export async function POST(request: NextRequest) {
     type: RESPONSE_TYPES.CHANNEL_MESSAGE,
     data: {
       content: "Unknown interaction type",
-      flags: 64, // Ephemeral
+      flags: 64,
     },
   });
 }

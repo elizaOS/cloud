@@ -23,13 +23,6 @@ export async function POST(
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: triggerId } = await ctx.params;
 
-  if (!user.organization_id) {
-    return NextResponse.json(
-      { success: false, error: "User has no organization" },
-      { status: 400 }
-    );
-  }
-
   const result = await n8nWorkflowsService.regenerateWebhookSecret(
     triggerId,
     user.organization_id

@@ -103,7 +103,7 @@ export async function DELETE(
       );
     }
 
-    console.log(`Starting teardown of container ${containerId}...`);
+    logger.info("Starting teardown of container", { containerId });
 
     // Step 1: Update status to deleting
     await updateContainerStatus(containerId, "deleting", {
@@ -112,7 +112,7 @@ export async function DELETE(
 
     // Step 2: Delete CloudFormation stack
     try {
-      console.log(`Deleting CloudFormation stack for ${containerId}...`);
+      logger.info("Deleting CloudFormation stack", { containerId });
 
       await cloudFormationService.deleteUserStack(
         containerId,
@@ -127,7 +127,7 @@ export async function DELETE(
         DELETION_TIMEOUT_MINUTES,
       );
 
-      console.log(`✅ CloudFormation stack deleted for ${containerId}`);
+      logger.info("CloudFormation stack deleted", { containerId });
     } catch (cfError) {
       logger.error(`Failed to delete CloudFormation stack:`, cfError);
 
@@ -141,7 +141,7 @@ export async function DELETE(
     // Step 3: Release ALB priority
     try {
       await dbPriorityManager.releasePriority(containerId);
-      console.log(`✅ Released ALB priority for ${containerId}`);
+      logger.info("Released ALB priority", { containerId });
     } catch (priorityError) {
       logger.error(`Failed to release ALB priority:`, priorityError);
       // Non-critical - continue with cleanup
@@ -183,7 +183,7 @@ export async function DELETE(
             },
           });
 
-          console.log(`✅ Refunded ${refundAmount} credits for early deletion`);
+          logger.info("Refunded credits for early deletion", { refundAmount });
         }
       } catch (refundError) {
         logger.error(`Failed to process refund:`, refundError);
@@ -194,7 +194,7 @@ export async function DELETE(
     // Step 5: Delete from database
     await deleteContainer(containerId, user.organization_id!);
 
-    console.log(`✅ Container ${containerId} deleted successfully`);
+    logger.info("Container deleted successfully", { containerId });
 
     return NextResponse.json({
       success: true,
@@ -351,7 +351,7 @@ export async function PATCH(
       );
     }
 
-    console.log(`Updating container ${containerId}:`, updates);
+    logger.info("Updating container", { containerId, updates });
 
     // Update status to deploying
     await updateContainerStatus(containerId, "deploying", {
@@ -412,7 +412,7 @@ export async function PATCH(
         deploymentLog: "Container updated successfully",
       });
 
-      console.log(`✅ Container ${containerId} updated successfully`);
+      logger.info("Container updated successfully", { containerId });
 
       return NextResponse.json({
         success: true,

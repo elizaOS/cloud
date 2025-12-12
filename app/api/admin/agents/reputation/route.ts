@@ -9,8 +9,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAuth } from "@/lib/auth";
-import { adminService } from "@/lib/services/admin";
+import { requireAdmin } from "@/lib/auth";
 import { agentReputationService } from "@/lib/services/agent-reputation";
 import { logger } from "@/lib/utils/logger";
 
@@ -38,13 +37,7 @@ const ListAgentsSchema = z.object({
  * List agents with reputation data
  */
 export async function GET(request: NextRequest) {
-  const { user } = await requireAuth(request);
-
-  // Check admin status
-  const isAdmin = await adminService.isUserAdmin(user.id);
-  if (!isAdmin) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
+  const { user } = await requireAdmin(request);
 
   // Parse query params
   const searchParams = Object.fromEntries(request.nextUrl.searchParams);
@@ -82,13 +75,7 @@ export async function GET(request: NextRequest) {
  * Flag, ban, or unban an agent
  */
 export async function POST(request: NextRequest) {
-  const { user } = await requireAuth(request);
-
-  // Check admin status
-  const isAdmin = await adminService.isUserAdmin(user.id);
-  if (!isAdmin) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
+  const { user } = await requireAdmin(request);
 
   // Parse body - user-supplied data requires parse error handling
   let body: unknown;

@@ -29,7 +29,7 @@ import { containersService } from "@/lib/services/containers";
 import { contentModerationService } from "@/lib/services/content-moderation";
 import { agentReputationService } from "@/lib/services/agent-reputation";
 import { characterDeploymentDiscoveryService as agentDiscoveryService } from "@/lib/services/deployments/discovery";
-import { agentService } from "@/lib/services/agents/agents";
+import { agentsService } from "@/lib/services/agents/agents";
 import { charactersService } from "@/lib/services/characters/characters";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { secureTokenRedemptionService } from "@/lib/services/token-redemption-secure";
@@ -2905,9 +2905,9 @@ const mcpHandler = createMcpHandler(
 
           const actualRoomId =
             roomId ||
-            (await agentService.getOrCreateRoom(entityId || user.id, org.id));
+            (await agentsService.getOrCreateRoom(entityId || user.id, org.id));
 
-          const response = await agentService.sendMessage({
+          const response = await agentsService.sendMessage({
             roomId: actualRoomId,
             entityId: entityId || user.id,
             message,

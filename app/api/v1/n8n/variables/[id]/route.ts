@@ -26,55 +26,35 @@ export async function PUT(
   request: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const { id } = await ctx.params;
+  const { user } = await requireAuthOrApiKeyWithOrg(request);
+  const { id } = await ctx.params;
 
-    if (!user.organization_id) {
-      return NextResponse.json(
-        { success: false, error: "User has no organization" },
-        { status: 400 }
-      );
-    }
+  const body = await request.json();
+  const validation = UpdateVariableSchema.safeParse(body);
 
-    const body = await request.json();
-    const validation = UpdateVariableSchema.safeParse(body);
-
-    if (!validation.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid request",
-          details: validation.error.format(),
-        },
-        { status: 400 }
-      );
-    }
-
-    const variable = await n8nWorkflowsService.updateVariable(id, validation.data);
-
-    return NextResponse.json({
-      success: true,
-      variable: {
-        id: variable.id,
-        name: variable.name,
-        value: variable.is_secret ? "***" : variable.value,
-        type: variable.type,
-        isSecret: variable.is_secret,
-        description: variable.description,
-        updatedAt: variable.updated_at,
-      },
-    });
-  } catch (error) {
-    logger.error("[N8N Variables] Error updating variable:", error);
+  if (!validation.success) {
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to update variable",
-      },
-      { status: 500 }
+      { success: false, error: "Invalid request", details: validation.error.format() },
+      { status: 400 }
     );
   }
+
+  const variable = await n8nWorkflowsService.updateVariable(id, validation.data);
+
+  logger.info(`[N8N Variables] Updated variable: ${id}`);
+
+  return NextResponse.json({
+    success: true,
+    variable: {
+      id: variable.id,
+      name: variable.name,
+      value: variable.is_secret ? "***" : variable.value,
+      type: variable.type,
+      isSecret: variable.is_secret,
+      description: variable.description,
+      updatedAt: variable.updated_at,
+    },
+  });
 }
 
 /**
@@ -85,32 +65,14 @@ export async function DELETE(
   request: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const { id } = await ctx.params;
+  await requireAuthOrApiKeyWithOrg(request);
+  const { id } = await ctx.params;
 
-    if (!user.organization_id) {
-      return NextResponse.json(
-        { success: false, error: "User has no organization" },
-        { status: 400 }
-      );
-    }
+  await n8nWorkflowsService.deleteVariable(id);
 
-    await n8nWorkflowsService.deleteVariable(id);
+  logger.info(`[N8N Variables] Deleted variable: ${id}`);
 
-    logger.info(`[N8N Variables] Deleted variable: ${id}`);
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    logger.error("[N8N Variables] Error deleting variable:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to delete variable",
-      },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({ success: true });
 }
 
 

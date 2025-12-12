@@ -42,13 +42,6 @@ export async function POST(request: NextRequest) {
     const authResult = await requireAuthOrApiKeyWithOrg(request);
     const { user, apiKey } = authResult;
 
-    if (!user.organization_id) {
-      return NextResponse.json(
-        { error: "User has no organization" },
-        { status: 400 }
-      );
-    }
-
     // Parse and validate request
     const body = await request.json();
     const validation = GenerateWorkflowRequestSchema.safeParse(body);

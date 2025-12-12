@@ -1,30 +1,21 @@
 "use server";
 
-import { getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
-import { cookies } from "next/headers";
-
-const ANON_SESSION_COOKIE = "eliza-anon-session";
+import { getOrCreateSessionUser } from "@/lib/session";
 
 /**
  * Gets or creates an anonymous user session.
- * Sets an HTTP-only cookie if a new session is created.
+ * The session module handles cookie management automatically.
  *
- * @returns The anonymous user result with session token and expiration if new.
+ * @returns The session user with metadata.
  */
 export async function getOrCreateAnonymousUserAction() {
-  const result = await getOrCreateAnonymousUser();
+  const sessionUser = await getOrCreateSessionUser();
 
-  // Set cookie if this is a new session
-  if (result.isNew && "sessionToken" in result && "expiresAt" in result) {
-    const cookieStore = await cookies();
-    cookieStore.set(ANON_SESSION_COOKIE, result.sessionToken as string, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      expires: result.expiresAt as Date,
-      path: "/",
-    });
-  }
-
-  return result;
+  return {
+    user: sessionUser.user,
+    session: sessionUser.anonymousSession,
+    isNew: sessionUser.messageCount === 0,
+    sessionToken: sessionUser.sessionToken,
+    expiresAt: sessionUser.metadata.expiresAt,
+  };
 }

@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     // Parse the webhook payload
     const payload = JSON.parse(body);
 
-    console.log("Received Privy webhook:", payload.type);
+    logger.debug("Received Privy webhook", { type: payload.type });
 
     // Extract IP address from headers (for abuse tracking)
     const forwardedFor = headersList.get("x-forwarded-for");
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
 
         // Sync user on creation, linking new account, or authentication
         const user = await syncUserFromPrivy(payload.user, syncOptions);
-        console.log("User synced via webhook:", user.id);
+        logger.info("User synced via webhook", { userId: user.id });
 
         // Check for anonymous session cookie and migrate data
         const cookieStore = await cookies();
@@ -158,19 +158,19 @@ export async function POST(request: NextRequest) {
       case "user.updated": {
         // Update existing user
         const user = await syncUserFromPrivy(payload.user);
-        console.log("User updated via webhook:", user.id);
+        logger.info("User updated via webhook", { userId: user.id });
         break;
       }
 
       case "user.deleted": {
         // Handle user deletion if needed
-        console.log("User deletion event received:", payload.user.userId);
+        logger.info("User deletion event received", { privyUserId: payload.user.userId });
         // For now, we'll keep the user in our database but could mark as inactive
         break;
       }
 
       default:
-        console.log("Unhandled webhook type:", payload.type);
+        logger.debug("Unhandled webhook type", { type: payload.type });
     }
 
     return NextResponse.json(

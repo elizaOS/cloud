@@ -10,9 +10,6 @@ import { CreateWorkflowSchema } from "@/lib/schemas/n8n";
 
 export async function GET(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
-  if (!user.organization_id) {
-    return NextResponse.json({ success: false, error: "User has no organization" }, { status: 400 });
-  }
 
   const status = request.nextUrl.searchParams.get("status") as "draft" | "active" | "archived" | null;
   const limit = Number.parseInt(request.nextUrl.searchParams.get("limit") || "100");
@@ -43,9 +40,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
-  if (!user.organization_id) {
-    return NextResponse.json({ success: false, error: "User has no organization" }, { status: 400 });
-  }
 
   const body = await request.json();
   const validation = CreateWorkflowSchema.safeParse(body);

@@ -14,10 +14,6 @@ export async function GET(
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await ctx.params;
 
-  if (!user.organization_id) {
-    return NextResponse.json({ success: false, error: "User has no organization" }, { status: 400 });
-  }
-
   const workflow = await n8nWorkflowsService.getWorkflow(id);
   if (!workflow || workflow.organization_id !== user.organization_id) {
     return NextResponse.json({ success: false, error: "Workflow not found" }, { status: 404 });
@@ -47,10 +43,6 @@ export async function PUT(
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await ctx.params;
-
-  if (!user.organization_id) {
-    return NextResponse.json({ success: false, error: "User has no organization" }, { status: 400 });
-  }
 
   // Verify ownership before allowing update
   const existingWorkflow = await n8nWorkflowsService.getWorkflow(id);
@@ -100,10 +92,6 @@ export async function DELETE(
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await ctx.params;
-
-  if (!user.organization_id) {
-    return NextResponse.json({ success: false, error: "User has no organization" }, { status: 400 });
-  }
 
   const workflow = await n8nWorkflowsService.getWorkflow(id);
   if (!workflow || workflow.organization_id !== user.organization_id) {

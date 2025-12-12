@@ -11,7 +11,7 @@ import { agent0Service } from "@/lib/services/agent0";
 import { cache } from "@/lib/cache/client";
 import { CacheTTL } from "@/lib/cache/keys";
 import { logger } from "@/lib/utils/logger";
-import { getDefaultNetwork, CHAIN_IDS, BLOCK_EXPLORERS } from "@/lib/config/erc8004";
+import { getDefaultNetwork, CHAIN_IDS, BLOCK_EXPLORERS, getContractAddresses, type ERC8004Network } from "@/lib/config/erc8004";
 import { isValidAgentId, parseAgentId } from "@/lib/types/erc8004";
 
 // ============================================================================
@@ -217,12 +217,7 @@ function inferCategory(agent: {
 }
 
 function getRegistryAddress(network: string): string {
-  // Import and return the address from config
-  // For now, return placeholder - this should be imported from erc8004 config
-  const addresses: Record<string, string> = {
-    "base-sepolia": "0x8004AA63c570c570eBF15376c0dB199918BFe9Fb",
-    "base": "0x46e470b3655ff9efc772cfb927507ac65fee0267",
-  };
-  return addresses[network] ?? "0x0000000000000000000000000000000000000000";
+  const contracts = getContractAddresses(network as ERC8004Network);
+  return contracts.identity;
 }
 

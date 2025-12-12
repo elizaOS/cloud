@@ -112,13 +112,6 @@ export async function PATCH(
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: triggerId } = await ctx.params;
 
-  if (!user.organization_id) {
-    return NextResponse.json(
-      { success: false, error: "User has no organization" },
-      { status: 400 }
-    );
-  }
-
   const body = await request.json();
   const validation = UpdateTriggerSchema.safeParse(body);
 
@@ -195,13 +188,6 @@ export async function DELETE(
 ): Promise<Response> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: triggerId } = await ctx.params;
-
-  if (!user.organization_id) {
-    return NextResponse.json(
-      { success: false, error: "User has no organization" },
-      { status: 400 }
-    );
-  }
 
   await n8nWorkflowsService.deleteTrigger(triggerId, user.organization_id);
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
+import { getOrCreateSessionUser, incrementSessionMessageCount, type SessionUser } from "@/lib/session";
 import { creditsService } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { organizationsService } from "@/lib/services/organizations";
@@ -40,34 +40,19 @@ export async function POST(
       user = authResult.user;
       apiKey = authResult.apiKey;
     } catch {
-      // Fallback to anonymous user
-      logger.info("[Messages API] Privy auth failed, trying anonymous...");
+      // Fallback to session user (creates anonymous if needed)
+      logger.info("[Messages API] Privy auth failed, trying session...");
 
-      let anonData = await getAnonymousUser();
+      const sessionUser = await getOrCreateSessionUser(request);
+      user = sessionUser.user;
+      isAnonymous = sessionUser.isAnonymous;
+      anonymousSession = sessionUser.anonymousSession || null;
 
-      if (!anonData) {
-        // Create new anonymous session if none exists
-        logger.info(
-          "[Messages API] No session cookie - creating new anonymous session"
-        );
-        const { getOrCreateAnonymousUser } =
-          await import("@/lib/auth-anonymous");
-        const newAnonData = await getOrCreateAnonymousUser();
-        anonData = {
-          user: newAnonData.user,
-          session: newAnonData.session,
-        };
-        logger.info("[Messages API] Created anonymous user:", anonData.user.id);
-      }
-
-      user = anonData.user;
-      anonymousSession = anonData.session;
-      isAnonymous = true;
-
-      logger.info("[Messages API] Anonymous user authenticated:", {
+      logger.info("[Messages API] Session user authenticated:", {
         userId: user.id,
+        isAnonymous,
         sessionId: anonymousSession?.id,
-        messageCount: anonymousSession?.message_count,
+        messageCount: sessionUser.messageCount,
       });
     }
 
@@ -119,30 +104,43 @@ export async function POST(
 
     // Handle anonymous user rate limiting
     if (isAnonymous && anonymousSession) {
-      const limitCheck = await checkAnonymousLimit(
-        anonymousSession.session_token
-      );
+      const remaining = anonymousSession.messages_limit - anonymousSession.message_count;
 
-      if (!limitCheck.allowed) {
-        const errorMessage =
-          limitCheck.reason === "message_limit"
-            ? `You've reached your free message limit (${limitCheck.limit} messages). Sign up to continue chatting!`
-            : `You've reached the hourly rate limit. Please wait an hour or sign up for unlimited access.`;
-
-        logger.warn("eliza-messages-api", "Anonymous user limit reached", {
+      // Check message limit
+      if (remaining <= 0) {
+        logger.warn("eliza-messages-api", "Anonymous user message limit reached", {
           userId: user.id,
           sessionId: anonymousSession.id,
-          reason: limitCheck.reason,
-          limit: limitCheck.limit,
+          limit: anonymousSession.messages_limit,
         });
 
         return NextResponse.json(
           {
-            error: errorMessage,
+            error: `You've reached your free message limit (${anonymousSession.messages_limit} messages). Sign up to continue chatting!`,
             requiresSignup: true,
-            reason: limitCheck.reason,
-            limit: limitCheck.limit,
-            remaining: limitCheck.remaining,
+            reason: "message_limit",
+            limit: anonymousSession.messages_limit,
+            remaining: 0,
+          },
+          { status: 429 }
+        );
+      }
+
+      // Check hourly rate limit
+      const rateLimitResult = await anonymousSessionsService.checkRateLimit(anonymousSession.id);
+      if (!rateLimitResult.allowed) {
+        logger.warn("eliza-messages-api", "Anonymous user hourly limit reached", {
+          userId: user.id,
+          sessionId: anonymousSession.id,
+        });
+
+        return NextResponse.json(
+          {
+            error: "You've reached the hourly rate limit. Please wait an hour or sign up for unlimited access.",
+            requiresSignup: true,
+            reason: "hourly_limit",
+            limit: anonymousSession.messages_limit,
+            remaining: rateLimitResult.remaining,
           },
           { status: 429 }
         );
@@ -150,8 +148,8 @@ export async function POST(
 
       logger.info("eliza-messages-api", "Anonymous user message allowed", {
         userId: user.id,
-        remaining: limitCheck.remaining,
-        limit: limitCheck.limit,
+        remaining,
+        limit: anonymousSession.messages_limit,
       });
     }
 

@@ -51,9 +51,11 @@ async function handleTriggerAutoTopUp(req: NextRequest) {
       });
     }
 
-    console.log(
-      `[Manual Auto Top-Up] Triggering for org ${organizationId} (balance: $${currentBalance}, threshold: $${threshold})`,
-    );
+    logger.info("[Manual Auto Top-Up] Triggering", { 
+      organizationId, 
+      currentBalance, 
+      threshold 
+    });
 
     // Execute auto top-up (this is the same function the cron uses)
     const result = await autoTopUpService["executeAutoTopUp"](org);

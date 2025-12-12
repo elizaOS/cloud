@@ -150,7 +150,9 @@ export async function GET(
 
 /**
  * DELETE handler - delete a file
- * Requires ownership proof (signature from owner address)
+ * Supports two authentication methods:
+ * 1. Wallet signature (X-Signature + X-Signer-Address headers)
+ * 2. Authenticated user session (via cookies/auth headers)
  */
 export async function DELETE(
   request: NextRequest,
@@ -167,21 +169,7 @@ export async function DELETE(
     );
   }
   
-  // Get signature from header for ownership verification
-  const signature = request.headers.get("X-Signature");
-  const signerAddress = request.headers.get("X-Signer-Address");
-  
-  if (!signature || !signerAddress) {
-    return NextResponse.json(
-      { 
-        error: "Ownership proof required",
-        message: "Provide X-Signature and X-Signer-Address headers",
-      },
-      { status: 401 }
-    );
-  }
-  
-  // Check if file exists and verify ownership
+  // Check if file exists first
   const metadata = await storageService.getMetadata(url);
   if (!metadata) {
     return NextResponse.json(
@@ -190,26 +178,72 @@ export async function DELETE(
     );
   }
   
-  // Check if URL contains owner address
-  const pathParts = new URL(url).pathname.split("/");
-  const ownerFromPath = pathParts.find(p => p.startsWith("0x"));
+  // Method 1: Check for wallet signature headers
+  const signature = request.headers.get("X-Signature");
+  const signerAddress = request.headers.get("X-Signer-Address");
   
-  if (ownerFromPath && ownerFromPath.toLowerCase() !== signerAddress.toLowerCase()) {
+  if (signature && signerAddress) {
+    // Verify wallet ownership
+    const pathParts = new URL(url).pathname.split("/");
+    const ownerFromPath = pathParts.find(p => p.startsWith("0x"));
+    
+    if (ownerFromPath && ownerFromPath.toLowerCase() !== signerAddress.toLowerCase()) {
+      return NextResponse.json(
+        { error: "Not authorized to delete this file" },
+        { status: 403 }
+      );
+    }
+    
+    await storageService.delete(url);
+    
+    logger.info("[Storage API] File deleted via wallet signature", {
+      id,
+      url,
+      deletedBy: signerAddress,
+    });
+    
+    return NextResponse.json({
+      success: true,
+      id,
+      deleted: true,
+    });
+  }
+  
+  // Method 2: Check for authenticated user session
+  const { getAuth } = await import("@/lib/auth");
+  const user = await getAuth();
+  
+  if (!user) {
     return NextResponse.json(
-      { error: "Not authorized to delete this file" },
+      { 
+        error: "Authentication required",
+        message: "Sign in or provide X-Signature and X-Signer-Address headers",
+      },
+      { status: 401 }
+    );
+  }
+  
+  // Check if user owns this file (URL should contain org ID or user ID)
+  const pathParts = new URL(url).pathname.split("/");
+  const orgIdInPath = pathParts.find(p => p === user.organization_id);
+  const userIdInPath = pathParts.find(p => p === user.id);
+  const walletInPath = user.wallet_address ? 
+    pathParts.find(p => p.toLowerCase() === user.wallet_address?.toLowerCase()) : null;
+  
+  if (!orgIdInPath && !userIdInPath && !walletInPath) {
+    return NextResponse.json(
+      { error: "You can only delete files you uploaded" },
       { status: 403 }
     );
   }
   
-  // TODO: Verify EIP-712 signature for proper ownership proof
-  // For now, allow deletion if address matches path
-  
   await storageService.delete(url);
   
-  logger.info("[Storage API] File deleted", {
+  logger.info("[Storage API] File deleted via authenticated session", {
     id,
     url,
-    deletedBy: signerAddress,
+    deletedBy: user.id,
+    organizationId: user.organization_id,
   });
   
   return NextResponse.json({

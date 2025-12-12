@@ -1,9 +1,6 @@
 import { streamText } from "ai";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import {
-  getAnonymousUser,
-  getOrCreateAnonymousUser,
-} from "@/lib/auth-anonymous";
+import { getOrCreateSessionUser } from "@/lib/session";
 import { usageService } from "@/lib/services/usage";
 import { creditsService } from "@/lib/services/credits";
 import { generationsService } from "@/lib/services/generations";
@@ -60,36 +57,16 @@ async function authenticateUser(req: NextRequest): Promise<AuthContext> {
       session_token: authResult.session_token,
       isAnonymous: false,
     };
-  } catch (authError) {
-    // Fall back to anonymous user
-    logger.info("[Generate Image] Privy auth failed, trying anonymous...");
+  } catch {
+    // Fall back to session user (creates anonymous if needed)
+    logger.info("[Generate Image] Privy auth failed, trying session...");
 
-    let anonData = await getAnonymousUser();
-
-    if (!anonData) {
-      logger.info(
-        "[Generate Image] No session cookie - creating new anonymous session",
-      );
-      const newAnonData = await getOrCreateAnonymousUser();
-      anonData = {
-        user: newAnonData.user,
-        session: newAnonData.session,
-      };
-      logger.info("[Generate Image] Created anonymous user:", anonData.user.id);
-    } else {
-      logger.info("[Generate Image] Anonymous user found:", anonData.user.id);
-    }
-
-    // Create a minimal UserWithOrganization for anonymous users
-    const anonymousUser: UserWithOrganization = {
-      ...anonData.user,
-      organization_id: null,
-      organization: null,
-    };
+    const sessionUser = await getOrCreateSessionUser(req);
+    logger.info(`[Generate Image] Session user: ${sessionUser.userId} (anonymous: ${sessionUser.isAnonymous})`);
 
     return {
-      user: anonymousUser,
-      isAnonymous: true,
+      user: sessionUser.user,
+      isAnonymous: sessionUser.isAnonymous,
     };
   }
 }
