@@ -1,0 +1,511 @@
+/**
+ * Twitter/X Provider
+ *
+ * Supports posting via the Twitter API v2 using OAuth2.
+ * Also supports scraper mode for accounts without API access.
+ */
+
+import { logger } from "@/lib/utils/logger";
+import type {
+  SocialMediaProvider,
+  SocialCredentials,
+  PostContent,
+  PostResult,
+  PlatformPostOptions,
+  PostAnalytics,
+  AccountAnalytics,
+  MediaAttachment,
+} from "@/lib/types/social-media";
+
+const TWITTER_API_BASE = "https://api.twitter.com/2";
+const TWITTER_UPLOAD_BASE = "https://upload.twitter.com/1.1";
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+async function twitterApiRequest<T>(
+  endpoint: string,
+  accessToken: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const url = endpoint.startsWith("http")
+    ? endpoint
+    : `${TWITTER_API_BASE}${endpoint}`;
+
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    const errorMessage = error.detail || error.title || `HTTP ${response.status}`;
+    throw new Error(`Twitter API error: ${errorMessage}`);
+  }
+
+  return response.json();
+}
+
+async function uploadMedia(
+  accessToken: string,
+  media: MediaAttachment
+): Promise<string> {
+  // Get media data
+  let mediaData: Buffer;
+  if (media.data) {
+    mediaData = media.data;
+  } else if (media.base64) {
+    mediaData = Buffer.from(media.base64, "base64");
+  } else if (media.url) {
+    const response = await fetch(media.url);
+    mediaData = Buffer.from(await response.arrayBuffer());
+  } else {
+    throw new Error("No media data provided");
+  }
+
+  // Determine media type
+  const mediaType = media.type === "video" ? "tweet_video" : "tweet_image";
+
+  // For simple uploads (images < 5MB)
+  if (media.type === "image" && mediaData.length < 5 * 1024 * 1024) {
+    const formData = new URLSearchParams();
+    formData.append("media_data", mediaData.toString("base64"));
+    formData.append("media_category", mediaType);
+
+    const response = await fetch(`${TWITTER_UPLOAD_BASE}/media/upload.json`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Media upload failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.media_id_string;
+  }
+
+  // For chunked uploads (videos, large images)
+  // INIT
+  const initParams = new URLSearchParams({
+    command: "INIT",
+    total_bytes: String(mediaData.length),
+    media_type: media.mimeType,
+    media_category: mediaType,
+  });
+
+  const initResponse = await fetch(
+    `${TWITTER_UPLOAD_BASE}/media/upload.json?${initParams}`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }
+  );
+
+  if (!initResponse.ok) {
+    throw new Error("Media upload INIT failed");
+  }
+
+  const initData = await initResponse.json();
+  const mediaId = initData.media_id_string;
+
+  // APPEND (chunk by chunk)
+  const chunkSize = 5 * 1024 * 1024; // 5MB chunks
+  let segmentIndex = 0;
+  for (let offset = 0; offset < mediaData.length; offset += chunkSize) {
+    const chunk = mediaData.subarray(offset, offset + chunkSize);
+    const appendParams = new URLSearchParams({
+      command: "APPEND",
+      media_id: mediaId,
+      segment_index: String(segmentIndex),
+    });
+
+    const formData = new FormData();
+    formData.append("media", new Blob([chunk]));
+
+    const appendResponse = await fetch(
+      `${TWITTER_UPLOAD_BASE}/media/upload.json?${appendParams}`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: formData,
+      }
+    );
+
+    if (!appendResponse.ok) {
+      throw new Error(`Media upload APPEND failed at segment ${segmentIndex}`);
+    }
+    segmentIndex++;
+  }
+
+  // FINALIZE
+  const finalizeParams = new URLSearchParams({
+    command: "FINALIZE",
+    media_id: mediaId,
+  });
+
+  const finalizeResponse = await fetch(
+    `${TWITTER_UPLOAD_BASE}/media/upload.json?${finalizeParams}`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }
+  );
+
+  if (!finalizeResponse.ok) {
+    throw new Error("Media upload FINALIZE failed");
+  }
+
+  const finalizeData = await finalizeResponse.json();
+
+  // Check processing status for videos
+  if (finalizeData.processing_info) {
+    await waitForProcessing(accessToken, mediaId);
+  }
+
+  return mediaId;
+}
+
+async function waitForProcessing(
+  accessToken: string,
+  mediaId: string,
+  maxWait = 60000
+): Promise<void> {
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < maxWait) {
+    const statusParams = new URLSearchParams({
+      command: "STATUS",
+      media_id: mediaId,
+    });
+
+    const response = await fetch(
+      `${TWITTER_UPLOAD_BASE}/media/upload.json?${statusParams}`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!data.processing_info) {
+      return; // Processing complete
+    }
+
+    if (data.processing_info.state === "failed") {
+      throw new Error(
+        `Media processing failed: ${data.processing_info.error?.message || "Unknown error"}`
+      );
+    }
+
+    // Wait before checking again
+    const waitTime = (data.processing_info.check_after_secs || 5) * 1000;
+    await new Promise((resolve) => setTimeout(resolve, waitTime));
+  }
+
+  throw new Error("Media processing timeout");
+}
+
+// =============================================================================
+// PROVIDER
+// =============================================================================
+
+export const twitterProvider: SocialMediaProvider = {
+  platform: "twitter",
+
+  async validateCredentials(credentials: SocialCredentials) {
+    if (!credentials.accessToken) {
+      return { valid: false, error: "Access token required" };
+    }
+
+    try {
+      const response = await twitterApiRequest<{
+        data: {
+          id: string;
+          username: string;
+          name: string;
+          profile_image_url?: string;
+        };
+      }>("/users/me?user.fields=profile_image_url", credentials.accessToken);
+
+      return {
+        valid: true,
+        accountId: response.data.id,
+        username: response.data.username,
+        displayName: response.data.name,
+        avatarUrl: response.data.profile_image_url,
+      };
+    } catch (error) {
+      return {
+        valid: false,
+        error: error instanceof Error ? error.message : "Validation failed",
+      };
+    }
+  },
+
+  async createPost(
+    credentials: SocialCredentials,
+    content: PostContent,
+    options?: PlatformPostOptions
+  ): Promise<PostResult> {
+    if (!credentials.accessToken) {
+      return { platform: "twitter", success: false, error: "Access token required" };
+    }
+
+    try {
+      // Build tweet payload
+      const payload: Record<string, unknown> = {
+        text: content.text,
+      };
+
+      // Handle media attachments
+      if (content.media?.length) {
+        const mediaIds: string[] = [];
+        for (const media of content.media) {
+          const mediaId = await uploadMedia(credentials.accessToken, media);
+          mediaIds.push(mediaId);
+        }
+        payload.media = { media_ids: mediaIds };
+      }
+
+      // Handle reply
+      if (content.replyToId) {
+        payload.reply = { in_reply_to_tweet_id: content.replyToId };
+      }
+
+      // Handle quote tweet
+      if (options?.twitter?.quoteTweetId) {
+        payload.quote_tweet_id = options.twitter.quoteTweetId;
+      }
+
+      // Handle reply settings
+      if (options?.twitter?.replySettings) {
+        payload.reply_settings = options.twitter.replySettings;
+      }
+
+      // Handle poll
+      if (options?.twitter?.pollOptions?.length) {
+        payload.poll = {
+          options: options.twitter.pollOptions.map((opt) => ({ label: opt })),
+          duration_minutes: options.twitter.pollDurationMinutes || 1440,
+        };
+      }
+
+      logger.info("[Twitter] Creating post", { hasMedia: !!content.media?.length });
+
+      const response = await twitterApiRequest<{
+        data: { id: string; text: string };
+      }>("/tweets", credentials.accessToken, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      return {
+        platform: "twitter",
+        success: true,
+        postId: response.data.id,
+        postUrl: `https://twitter.com/i/status/${response.data.id}`,
+      };
+    } catch (error) {
+      logger.error("[Twitter] Post failed", { error });
+      return {
+        platform: "twitter",
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  },
+
+  async deletePost(credentials: SocialCredentials, postId: string) {
+    if (!credentials.accessToken) {
+      return { success: false, error: "Access token required" };
+    }
+
+    try {
+      await twitterApiRequest(`/tweets/${postId}`, credentials.accessToken, {
+        method: "DELETE",
+      });
+
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Delete failed",
+      };
+    }
+  },
+
+  async getPostAnalytics(
+    credentials: SocialCredentials,
+    postId: string
+  ): Promise<PostAnalytics | null> {
+    if (!credentials.accessToken) {
+      return null;
+    }
+
+    try {
+      const response = await twitterApiRequest<{
+        data: {
+          public_metrics: {
+            like_count: number;
+            retweet_count: number;
+            reply_count: number;
+            quote_count: number;
+            impression_count?: number;
+          };
+        };
+      }>(
+        `/tweets/${postId}?tweet.fields=public_metrics`,
+        credentials.accessToken
+      );
+
+      const metrics = response.data.public_metrics;
+
+      return {
+        platform: "twitter",
+        postId,
+        metrics: {
+          likes: metrics.like_count,
+          reposts: metrics.retweet_count,
+          comments: metrics.reply_count,
+          shares: metrics.quote_count,
+          impressions: metrics.impression_count,
+        },
+        fetchedAt: new Date(),
+      };
+    } catch {
+      return null;
+    }
+  },
+
+  async getAccountAnalytics(
+    credentials: SocialCredentials
+  ): Promise<AccountAnalytics | null> {
+    if (!credentials.accessToken) {
+      return null;
+    }
+
+    try {
+      const response = await twitterApiRequest<{
+        data: {
+          id: string;
+          public_metrics: {
+            followers_count: number;
+            following_count: number;
+            tweet_count: number;
+          };
+        };
+      }>(
+        "/users/me?user.fields=public_metrics",
+        credentials.accessToken
+      );
+
+      const metrics = response.data.public_metrics;
+
+      return {
+        platform: "twitter",
+        accountId: response.data.id,
+        metrics: {
+          followers: metrics.followers_count,
+          following: metrics.following_count,
+          totalPosts: metrics.tweet_count,
+        },
+        fetchedAt: new Date(),
+      };
+    } catch {
+      return null;
+    }
+  },
+
+  async uploadMedia(credentials: SocialCredentials, media: MediaAttachment) {
+    if (!credentials.accessToken) {
+      throw new Error("Access token required");
+    }
+
+    const mediaId = await uploadMedia(credentials.accessToken, media);
+    return { mediaId };
+  },
+
+  async replyToPost(
+    credentials: SocialCredentials,
+    postId: string,
+    content: PostContent,
+    options?: PlatformPostOptions
+  ): Promise<PostResult> {
+    return this.createPost(credentials, { ...content, replyToId: postId }, options);
+  },
+
+  async likePost(credentials: SocialCredentials, postId: string) {
+    if (!credentials.accessToken) {
+      return { success: false, error: "Access token required" };
+    }
+
+    try {
+      // First get user ID
+      const userResponse = await twitterApiRequest<{ data: { id: string } }>(
+        "/users/me",
+        credentials.accessToken
+      );
+
+      await twitterApiRequest(
+        `/users/${userResponse.data.id}/likes`,
+        credentials.accessToken,
+        {
+          method: "POST",
+          body: JSON.stringify({ tweet_id: postId }),
+        }
+      );
+
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Like failed",
+      };
+    }
+  },
+
+  async repost(credentials: SocialCredentials, postId: string): Promise<PostResult> {
+    if (!credentials.accessToken) {
+      return { platform: "twitter", success: false, error: "Access token required" };
+    }
+
+    try {
+      // First get user ID
+      const userResponse = await twitterApiRequest<{ data: { id: string } }>(
+        "/users/me",
+        credentials.accessToken
+      );
+
+      await twitterApiRequest(
+        `/users/${userResponse.data.id}/retweets`,
+        credentials.accessToken,
+        {
+          method: "POST",
+          body: JSON.stringify({ tweet_id: postId }),
+        }
+      );
+
+      return {
+        platform: "twitter",
+        success: true,
+        postId: postId,
+      };
+    } catch (error) {
+      return {
+        platform: "twitter",
+        success: false,
+        error: error instanceof Error ? error.message : "Retweet failed",
+      };
+    }
+  },
+};

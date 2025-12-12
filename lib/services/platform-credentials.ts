@@ -84,6 +84,47 @@ export const OAUTH_CONFIGS: Record<string, {
     clientIdEnv: "SLACK_CLIENT_ID",
     clientSecretEnv: "SLACK_CLIENT_SECRET",
   },
+  // Social media platforms
+  reddit: {
+    authUrl: "https://www.reddit.com/api/v1/authorize",
+    tokenUrl: "https://www.reddit.com/api/v1/access_token",
+    profileUrl: "https://oauth.reddit.com/api/v1/me",
+    scopes: ["identity", "submit", "edit", "read", "vote"],
+    clientIdEnv: "REDDIT_CLIENT_ID",
+    clientSecretEnv: "REDDIT_CLIENT_SECRET",
+  },
+  facebook: {
+    authUrl: "https://www.facebook.com/v19.0/dialog/oauth",
+    tokenUrl: "https://graph.facebook.com/v19.0/oauth/access_token",
+    profileUrl: "https://graph.facebook.com/v19.0/me?fields=id,name,email",
+    scopes: ["email", "pages_manage_posts", "pages_read_engagement"],
+    clientIdEnv: "FACEBOOK_APP_ID",
+    clientSecretEnv: "FACEBOOK_APP_SECRET",
+  },
+  instagram: {
+    authUrl: "https://api.instagram.com/oauth/authorize",
+    tokenUrl: "https://api.instagram.com/oauth/access_token",
+    profileUrl: "https://graph.instagram.com/me?fields=id,username",
+    scopes: ["instagram_business_basic", "instagram_business_content_publish"],
+    clientIdEnv: "FACEBOOK_APP_ID",
+    clientSecretEnv: "FACEBOOK_APP_SECRET",
+  },
+  tiktok: {
+    authUrl: "https://www.tiktok.com/v2/auth/authorize/",
+    tokenUrl: "https://open.tiktokapis.com/v2/oauth/token/",
+    profileUrl: "https://open.tiktokapis.com/v2/user/info/",
+    scopes: ["user.info.basic", "video.publish"],
+    clientIdEnv: "TIKTOK_CLIENT_KEY",
+    clientSecretEnv: "TIKTOK_CLIENT_SECRET",
+  },
+  linkedin: {
+    authUrl: "https://www.linkedin.com/oauth/v2/authorization",
+    tokenUrl: "https://www.linkedin.com/oauth/v2/accessToken",
+    profileUrl: "https://api.linkedin.com/v2/me",
+    scopes: ["r_liteprofile", "r_emailaddress", "w_member_social"],
+    clientIdEnv: "LINKEDIN_CLIENT_ID",
+    clientSecretEnv: "LINKEDIN_CLIENT_SECRET",
+  },
 };
 
 export interface CreateLinkSessionParams {

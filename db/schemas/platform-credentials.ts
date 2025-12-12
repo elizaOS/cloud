@@ -41,6 +41,13 @@ export const platformCredentialTypeEnum = pgEnum("platform_credential_type", [
   "slack",
   "github",
   "google",
+  "bluesky",
+  "reddit",
+  "facebook",
+  "instagram",
+  "tiktok",
+  "linkedin",
+  "mastodon",
 ]);
 
 export const platformCredentialStatusEnum = pgEnum("platform_credential_status", [

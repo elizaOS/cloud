@@ -15,7 +15,7 @@ import { conversationsService } from "@/lib/services/conversations";
 import { memoryService } from "@/lib/services/memory";
 import { charactersService } from "@/lib/services/characters/characters";
 import { containersService } from "@/lib/services/containers";
-import { agentService } from "@/lib/services/agents/agents";
+import { agentsService } from "@/lib/services/agents/agents";
 import { storageService, calculateUploadCost, formatPrice } from "@/lib/services/storage";
 import { ipfsService } from "@/lib/services/ipfs";
 import {
@@ -24,6 +24,9 @@ import {
   estimateRequestCost,
   IMAGE_GENERATION_COST,
 } from "@/lib/pricing";
+// Base URL for internal API calls
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
 import type {
   A2AContext,
   ChatCompletionResult,
@@ -270,7 +273,7 @@ export async function executeSkillGetX402TopupRequirements(
   }
 
   const network = getDefaultNetwork();
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const baseUrl = BASE_URL;
 
   return {
     x402: {
@@ -367,9 +370,9 @@ export async function executeSkillChatWithAgent(
   if (!agentId && !roomId) throw new Error("agentId or roomId required");
 
   // If we have a roomId, use it directly; otherwise create/get a room for the agent
-  const actualRoomId = roomId || (await agentService.getOrCreateRoom(entityId || ctx.user.id, agentId!));
+  const actualRoomId = roomId || (await agentsService.getOrCreateRoom(entityId || ctx.user.id, agentId!));
 
-  const response = await agentService.sendMessage({
+  const response = await agentsService.sendMessage({
     roomId: actualRoomId,
     entityId: entityId || ctx.user.id,
     message,
@@ -974,7 +977,7 @@ export async function executeSkillN8nGenerateWorkflow(
     globalVariables.map(v => [v.name, v.is_secret ? "***" : v.value])
   );
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const baseUrl = BASE_URL;
   const apiKey = process.env.ELIZA_CLOUD_API_KEY;
 
   if (!apiKey) {
@@ -1032,7 +1035,7 @@ export async function executeSkillFragmentGenerate(
     throw new Error("Prompt required");
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const baseUrl = BASE_URL;
   const apiKey = process.env.ELIZA_CLOUD_API_KEY;
 
   if (!apiKey) {
@@ -1122,7 +1125,7 @@ export async function executeSkillFragmentExecute(
     throw new Error("Fragment required");
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const baseUrl = BASE_URL;
   const apiKey = process.env.ELIZA_CLOUD_API_KEY;
 
   if (!apiKey) {
@@ -1163,7 +1166,7 @@ export async function executeSkillFragmentListProjects(
   dataContent: Record<string, unknown>,
   ctx: A2AContext
 ): Promise<FragmentProjectListResult> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const baseUrl = BASE_URL;
   const apiKey = process.env.ELIZA_CLOUD_API_KEY;
 
   if (!apiKey) {
@@ -1205,7 +1208,7 @@ export async function executeSkillFragmentCreateProject(
   dataContent: Record<string, unknown>,
   ctx: A2AContext
 ): Promise<FragmentProjectResult> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const baseUrl = BASE_URL;
   const apiKey = process.env.ELIZA_CLOUD_API_KEY;
 
   if (!apiKey) {
@@ -1253,7 +1256,7 @@ export async function executeSkillFragmentGetProject(
   dataContent: Record<string, unknown>,
   ctx: A2AContext
 ): Promise<FragmentProjectResult> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const baseUrl = BASE_URL;
   const apiKey = process.env.ELIZA_CLOUD_API_KEY;
 
   if (!apiKey) {
@@ -1293,7 +1296,7 @@ export async function executeSkillFragmentUpdateProject(
   dataContent: Record<string, unknown>,
   ctx: A2AContext
 ): Promise<FragmentProjectResult> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const baseUrl = BASE_URL;
   const apiKey = process.env.ELIZA_CLOUD_API_KEY;
 
   if (!apiKey) {
@@ -1345,7 +1348,7 @@ export async function executeSkillFragmentDeleteProject(
   dataContent: Record<string, unknown>,
   ctx: A2AContext
 ): Promise<{ success: boolean; message: string }> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const baseUrl = BASE_URL;
   const apiKey = process.env.ELIZA_CLOUD_API_KEY;
 
   if (!apiKey) {
@@ -1384,7 +1387,7 @@ export async function executeSkillFragmentDeployProject(
   dataContent: Record<string, unknown>,
   ctx: A2AContext
 ): Promise<FragmentDeploymentResult> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const baseUrl = BASE_URL;
   const apiKey = process.env.ELIZA_CLOUD_API_KEY;
 
   if (!apiKey) {
@@ -2131,7 +2134,7 @@ export async function executeSkillN8nCreateTrigger(
 
   // Include webhook URL and secret for webhook triggers (shown once)
   if (triggerType === "webhook") {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+    const baseUrl = BASE_URL;
     result.webhookUrl = `${baseUrl}/api/v1/n8n/webhooks/${trigger.trigger_key}`;
     result.webhookSecret = trigger.config.webhookSecret as string;
   }
@@ -2211,7 +2214,7 @@ export async function executeSkillCreateAppTrigger(
   };
 
   if (triggerType === "webhook") {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+    const baseUrl = BASE_URL;
     result.webhookUrl = `${baseUrl}/api/v1/triggers/webhooks/${trigger.trigger_key}`;
     result.webhookSecret = trigger.config.webhookSecret as string;
   }
@@ -2881,5 +2884,390 @@ export async function executeSkillGetPlatformStatus(
       serverCount: ((c.profile_data as Record<string, unknown>)?.servers as unknown[] || []).length,
     })),
   };
+}
+
+// =============================================================================
+// SOCIAL MEDIA SKILLS
+// =============================================================================
+
+/**
+ * Social media post result type
+ */
+export interface SocialMediaPostResult {
+  success: boolean;
+  results: Array<{
+    platform: string;
+    success: boolean;
+    postId?: string;
+    postUrl?: string;
+    error?: string;
+  }>;
+  summary: {
+    totalPlatforms: number;
+    successCount: number;
+    failureCount: number;
+  };
+}
+
+/**
+ * Social media analytics result type
+ */
+export interface SocialMediaAnalyticsResult {
+  analytics: {
+    platform: string;
+    postId?: string;
+    accountId?: string;
+    metrics: Record<string, number | undefined>;
+    fetchedAt: string;
+  } | null;
+}
+
+/**
+ * Create social media post across multiple platforms
+ */
+export async function executeSkillSocialMediaPost(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<SocialMediaPostResult> {
+  const { socialMediaService } = await import("@/lib/services/social-media");
+
+  const text = (dataContent.text as string) || textContent;
+  const platforms = dataContent.platforms as string[];
+  const media = dataContent.media as Array<{
+    type: "image" | "video" | "gif";
+    url?: string;
+    mimeType: string;
+    altText?: string;
+  }> | undefined;
+  const link = dataContent.link as string | undefined;
+  const platformOptions = dataContent.platformOptions as Record<string, unknown> | undefined;
+  const credentialIds = dataContent.credentialIds as Record<string, string> | undefined;
+
+  if (!text) throw new Error("Text content required");
+  if (!platforms?.length) throw new Error("At least one platform required");
+
+  const result = await socialMediaService.createPost({
+    organizationId: ctx.user.organization_id,
+    userId: ctx.user.id,
+    content: { text, media, link },
+    platforms: platforms as Array<"twitter" | "bluesky" | "discord" | "telegram" | "reddit" | "facebook" | "instagram" | "tiktok" | "linkedin">,
+    platformOptions,
+    credentialIds: credentialIds as Partial<Record<"twitter" | "bluesky" | "discord" | "telegram" | "reddit" | "facebook" | "instagram" | "tiktok" | "linkedin", string>>,
+  });
+
+  return {
+    success: result.successCount > 0,
+    results: result.results.map(r => ({
+      platform: r.platform,
+      success: r.success,
+      postId: r.postId,
+      postUrl: r.postUrl,
+      error: r.error,
+    })),
+    summary: {
+      totalPlatforms: result.totalPlatforms,
+      successCount: result.successCount,
+      failureCount: result.failureCount,
+    },
+  };
+}
+
+/**
+ * Post to a single social media platform
+ */
+export async function executeSkillSocialMediaPostToPlatform(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  platform: string;
+  success: boolean;
+  postId?: string;
+  postUrl?: string;
+  error?: string;
+}> {
+  const { socialMediaService } = await import("@/lib/services/social-media");
+
+  const text = (dataContent.text as string) || textContent;
+  const platform = dataContent.platform as string;
+  const media = dataContent.media as Array<{
+    type: "image" | "video" | "gif";
+    url?: string;
+    mimeType: string;
+    altText?: string;
+  }> | undefined;
+  const link = dataContent.link as string | undefined;
+  const platformOptions = dataContent.platformOptions as Record<string, unknown> | undefined;
+  const credentialId = dataContent.credentialId as string | undefined;
+
+  if (!text) throw new Error("Text content required");
+  if (!platform) throw new Error("Platform required");
+
+  const result = await socialMediaService.createPost({
+    organizationId: ctx.user.organization_id,
+    userId: ctx.user.id,
+    content: { text, media, link },
+    platforms: [platform as "twitter" | "bluesky" | "discord" | "telegram" | "reddit" | "facebook" | "instagram" | "tiktok" | "linkedin"],
+    platformOptions,
+    credentialIds: credentialId ? { [platform]: credentialId } : undefined,
+  });
+
+  return result.results[0];
+}
+
+/**
+ * Delete a social media post
+ */
+export async function executeSkillSocialMediaDeletePost(
+  _textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean; error?: string }> {
+  const { socialMediaService } = await import("@/lib/services/social-media");
+
+  const platform = dataContent.platform as string;
+  const postId = dataContent.postId as string;
+  const credentialId = dataContent.credentialId as string | undefined;
+
+  if (!platform) throw new Error("Platform required");
+  if (!postId) throw new Error("Post ID required");
+
+  return socialMediaService.deletePost(
+    ctx.user.organization_id,
+    platform as "twitter" | "bluesky" | "discord" | "telegram" | "reddit" | "facebook" | "instagram" | "tiktok" | "linkedin",
+    postId,
+    credentialId
+  );
+}
+
+/**
+ * Reply to a social media post
+ */
+export async function executeSkillSocialMediaReply(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  platform: string;
+  success: boolean;
+  postId?: string;
+  postUrl?: string;
+  error?: string;
+}> {
+  const { socialMediaService } = await import("@/lib/services/social-media");
+
+  const text = (dataContent.text as string) || textContent;
+  const platform = dataContent.platform as string;
+  const postId = dataContent.postId as string;
+  const platformOptions = dataContent.platformOptions as Record<string, unknown> | undefined;
+  const credentialId = dataContent.credentialId as string | undefined;
+
+  if (!text) throw new Error("Reply text required");
+  if (!platform) throw new Error("Platform required");
+  if (!postId) throw new Error("Post ID required");
+
+  return socialMediaService.replyToPost(
+    ctx.user.organization_id,
+    platform as "twitter" | "bluesky" | "discord" | "telegram" | "reddit" | "facebook" | "instagram" | "tiktok" | "linkedin",
+    postId,
+    { text },
+    platformOptions,
+    credentialId
+  );
+}
+
+/**
+ * Like a social media post
+ */
+export async function executeSkillSocialMediaLike(
+  _textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean; error?: string }> {
+  const { socialMediaService } = await import("@/lib/services/social-media");
+
+  const platform = dataContent.platform as string;
+  const postId = dataContent.postId as string;
+  const credentialId = dataContent.credentialId as string | undefined;
+
+  if (!platform) throw new Error("Platform required");
+  if (!postId) throw new Error("Post ID required");
+
+  return socialMediaService.likePost(
+    ctx.user.organization_id,
+    platform as "twitter" | "bluesky" | "discord" | "telegram" | "reddit" | "facebook" | "instagram" | "tiktok" | "linkedin",
+    postId,
+    credentialId
+  );
+}
+
+/**
+ * Repost/retweet a social media post
+ */
+export async function executeSkillSocialMediaRepost(
+  _textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  platform: string;
+  success: boolean;
+  postId?: string;
+  error?: string;
+}> {
+  const { socialMediaService } = await import("@/lib/services/social-media");
+
+  const platform = dataContent.platform as string;
+  const postId = dataContent.postId as string;
+  const credentialId = dataContent.credentialId as string | undefined;
+
+  if (!platform) throw new Error("Platform required");
+  if (!postId) throw new Error("Post ID required");
+
+  return socialMediaService.repost(
+    ctx.user.organization_id,
+    platform as "twitter" | "bluesky" | "discord" | "telegram" | "reddit" | "facebook" | "instagram" | "tiktok" | "linkedin",
+    postId,
+    credentialId
+  );
+}
+
+/**
+ * Get analytics for a social media post
+ */
+export async function executeSkillSocialMediaGetPostAnalytics(
+  _textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<SocialMediaAnalyticsResult> {
+  const { socialMediaService } = await import("@/lib/services/social-media");
+
+  const platform = dataContent.platform as string;
+  const postId = dataContent.postId as string;
+  const credentialId = dataContent.credentialId as string | undefined;
+
+  if (!platform) throw new Error("Platform required");
+  if (!postId) throw new Error("Post ID required");
+
+  const analytics = await socialMediaService.getPostAnalytics({
+    organizationId: ctx.user.organization_id,
+    platform: platform as "twitter" | "bluesky" | "discord" | "telegram" | "reddit" | "facebook" | "instagram" | "tiktok" | "linkedin",
+    postId,
+    credentialId,
+  });
+
+  return {
+    analytics: analytics ? {
+      platform: analytics.platform,
+      postId: analytics.postId,
+      metrics: analytics.metrics as Record<string, number | undefined>,
+      fetchedAt: analytics.fetchedAt.toISOString(),
+    } : null,
+  };
+}
+
+/**
+ * Get account-level analytics for a social media platform
+ */
+export async function executeSkillSocialMediaGetAccountAnalytics(
+  _textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<SocialMediaAnalyticsResult> {
+  const { socialMediaService } = await import("@/lib/services/social-media");
+
+  const platform = dataContent.platform as string;
+  const credentialId = dataContent.credentialId as string | undefined;
+
+  if (!platform) throw new Error("Platform required");
+
+  const analytics = await socialMediaService.getAccountAnalytics({
+    organizationId: ctx.user.organization_id,
+    platform: platform as "twitter" | "bluesky" | "discord" | "telegram" | "reddit" | "facebook" | "instagram" | "tiktok" | "linkedin",
+    credentialId,
+  });
+
+  return {
+    analytics: analytics ? {
+      platform: analytics.platform,
+      accountId: analytics.accountId,
+      metrics: analytics.metrics as Record<string, number | undefined>,
+      fetchedAt: analytics.fetchedAt.toISOString(),
+    } : null,
+  };
+}
+
+/**
+ * Get supported social media platforms
+ */
+export async function executeSkillSocialMediaGetPlatforms(): Promise<{
+  platforms: string[];
+  count: number;
+}> {
+  const { socialMediaService } = await import("@/lib/services/social-media");
+
+  const platforms = socialMediaService.getSupportedPlatforms();
+
+  return {
+    platforms,
+    count: platforms.length,
+  };
+}
+
+/**
+ * Store social media credentials
+ */
+export async function executeSkillSocialMediaStoreCredentials(
+  _textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean; platform: string }> {
+  const { socialMediaService } = await import("@/lib/services/social-media");
+
+  const platform = dataContent.platform as string;
+  const credentials = dataContent.credentials as Record<string, string>;
+
+  if (!platform) throw new Error("Platform required");
+  if (!credentials || Object.keys(credentials).length === 0) {
+    throw new Error("Credentials required");
+  }
+
+  await socialMediaService.storeCredentials(
+    ctx.user.organization_id,
+    ctx.user.id,
+    platform as "twitter" | "bluesky" | "discord" | "telegram" | "reddit" | "facebook" | "instagram" | "tiktok" | "linkedin",
+    credentials
+  );
+
+  return { success: true, platform };
+}
+
+/**
+ * Validate social media credentials
+ */
+export async function executeSkillSocialMediaValidateCredentials(
+  _textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{
+  valid: boolean;
+  accountId?: string;
+  username?: string;
+  displayName?: string;
+  avatarUrl?: string;
+  error?: string;
+}> {
+  const { socialMediaService } = await import("@/lib/services/social-media");
+
+  const platform = dataContent.platform as string;
+  const credentialId = dataContent.credentialId as string | undefined;
+
+  if (!platform) throw new Error("Platform required");
+
+  return socialMediaService.validateCredentials(
+    ctx.user.organization_id,
+    platform as "twitter" | "bluesky" | "discord" | "telegram" | "reddit" | "facebook" | "instagram" | "tiktok" | "linkedin",
+    credentialId
+  );
 }
 

@@ -1,0 +1,364 @@
+/**
+ * Discord Provider
+ *
+ * Posts to Discord channels via bot token or webhook.
+ * Supports embeds, attachments, and components.
+ */
+
+import { logger } from "@/lib/utils/logger";
+import type {
+  SocialMediaProvider,
+  SocialCredentials,
+  PostContent,
+  PostResult,
+  PlatformPostOptions,
+  MediaAttachment,
+} from "@/lib/types/social-media";
+
+const DISCORD_API_BASE = "https://discord.com/api/v10";
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+interface DiscordMessage {
+  id: string;
+  channel_id: string;
+  content: string;
+  embeds?: DiscordEmbed[];
+  attachments?: Array<{ url: string }>;
+}
+
+interface DiscordEmbed {
+  title?: string;
+  description?: string;
+  url?: string;
+  color?: number;
+  fields?: Array<{ name: string; value: string; inline?: boolean }>;
+  thumbnail?: { url: string };
+  image?: { url: string };
+  footer?: { text: string; icon_url?: string };
+}
+
+interface DiscordUser {
+  id: string;
+  username: string;
+  discriminator: string;
+  avatar: string | null;
+  bot?: boolean;
+}
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+async function discordApiRequest<T>(
+  endpoint: string,
+  botToken: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const response = await fetch(`${DISCORD_API_BASE}${endpoint}`, {
+    ...options,
+    headers: {
+      Authorization: `Bot ${botToken}`,
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || `Discord API error: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+async function webhookRequest<T>(
+  webhookUrl: string,
+  payload: Record<string, unknown>
+): Promise<T> {
+  // Append ?wait=true to get the message back
+  const url = webhookUrl.includes("?")
+    ? `${webhookUrl}&wait=true`
+    : `${webhookUrl}?wait=true`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || `Webhook error: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+// =============================================================================
+// PROVIDER
+// =============================================================================
+
+export const discordProvider: SocialMediaProvider = {
+  platform: "discord",
+
+  async validateCredentials(credentials: SocialCredentials) {
+    // Webhook validation
+    if (credentials.webhookUrl) {
+      try {
+        const response = await fetch(credentials.webhookUrl);
+        if (!response.ok) {
+          return { valid: false, error: "Invalid webhook URL" };
+        }
+        const data = await response.json();
+        return {
+          valid: true,
+          accountId: data.id,
+          username: data.name,
+        };
+      } catch (error) {
+        return {
+          valid: false,
+          error: error instanceof Error ? error.message : "Webhook validation failed",
+        };
+      }
+    }
+
+    // Bot token validation
+    if (!credentials.botToken) {
+      return { valid: false, error: "Bot token or webhook URL required" };
+    }
+
+    try {
+      const user = await discordApiRequest<DiscordUser>(
+        "/users/@me",
+        credentials.botToken
+      );
+
+      return {
+        valid: true,
+        accountId: user.id,
+        username: user.username,
+        displayName: user.username,
+        avatarUrl: user.avatar
+          ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`
+          : undefined,
+      };
+    } catch (error) {
+      return {
+        valid: false,
+        error: error instanceof Error ? error.message : "Validation failed",
+      };
+    }
+  },
+
+  async createPost(
+    credentials: SocialCredentials,
+    content: PostContent,
+    options?: PlatformPostOptions
+  ): Promise<PostResult> {
+    try {
+      // Build message payload
+      const payload: Record<string, unknown> = {
+        content: content.text,
+      };
+
+      // Add embed if provided
+      if (options?.discord?.embed) {
+        payload.embeds = [options.discord.embed];
+      }
+
+      // Add components if provided
+      if (options?.discord?.components) {
+        payload.components = options.discord.components;
+      }
+
+      // Handle media attachments
+      // For embeds with images from URLs
+      if (content.media?.length && !payload.embeds) {
+        const embeds: DiscordEmbed[] = [];
+        for (const media of content.media) {
+          if (media.url && media.type === "image") {
+            embeds.push({ image: { url: media.url } });
+          }
+        }
+        if (embeds.length > 0) {
+          payload.embeds = embeds;
+        }
+      }
+
+      logger.info("[Discord] Creating post", {
+        hasEmbed: !!payload.embeds,
+        hasComponents: !!payload.components,
+      });
+
+      let message: DiscordMessage;
+
+      // Use webhook if provided
+      if (credentials.webhookUrl) {
+        message = await webhookRequest<DiscordMessage>(
+          credentials.webhookUrl,
+          payload
+        );
+      } else if (credentials.botToken) {
+        // Use bot token with channel ID
+        const channelId = options?.discord?.channelId || credentials.channelId;
+        if (!channelId) {
+          return {
+            platform: "discord",
+            success: false,
+            error: "Channel ID required for bot posting",
+          };
+        }
+
+        message = await discordApiRequest<DiscordMessage>(
+          `/channels/${channelId}/messages`,
+          credentials.botToken,
+          {
+            method: "POST",
+            body: JSON.stringify(payload),
+          }
+        );
+      } else {
+        return {
+          platform: "discord",
+          success: false,
+          error: "Bot token or webhook URL required",
+        };
+      }
+
+      return {
+        platform: "discord",
+        success: true,
+        postId: message.id,
+        postUrl: `https://discord.com/channels/@me/${message.channel_id}/${message.id}`,
+      };
+    } catch (error) {
+      logger.error("[Discord] Post failed", { error });
+      return {
+        platform: "discord",
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  },
+
+  async deletePost(credentials: SocialCredentials, postId: string) {
+    if (!credentials.botToken) {
+      return { success: false, error: "Bot token required for deletion" };
+    }
+
+    // postId should be in format "channelId/messageId"
+    const [channelId, messageId] = postId.includes("/")
+      ? postId.split("/")
+      : [credentials.channelId, postId];
+
+    if (!channelId || !messageId) {
+      return { success: false, error: "Invalid post ID format (expected channelId/messageId)" };
+    }
+
+    try {
+      await discordApiRequest(
+        `/channels/${channelId}/messages/${messageId}`,
+        credentials.botToken,
+        { method: "DELETE" }
+      );
+
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Delete failed",
+      };
+    }
+  },
+
+  async replyToPost(
+    credentials: SocialCredentials,
+    postId: string,
+    content: PostContent,
+    options?: PlatformPostOptions
+  ): Promise<PostResult> {
+    if (!credentials.botToken) {
+      return { platform: "discord", success: false, error: "Bot token required for replies" };
+    }
+
+    const [channelId, messageId] = postId.includes("/")
+      ? postId.split("/")
+      : [credentials.channelId, postId];
+
+    if (!channelId || !messageId) {
+      return {
+        platform: "discord",
+        success: false,
+        error: "Invalid post ID format",
+      };
+    }
+
+    try {
+      const payload: Record<string, unknown> = {
+        content: content.text,
+        message_reference: { message_id: messageId },
+      };
+
+      if (options?.discord?.embed) {
+        payload.embeds = [options.discord.embed];
+      }
+
+      const message = await discordApiRequest<DiscordMessage>(
+        `/channels/${channelId}/messages`,
+        credentials.botToken,
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }
+      );
+
+      return {
+        platform: "discord",
+        success: true,
+        postId: message.id,
+        postUrl: `https://discord.com/channels/@me/${channelId}/${message.id}`,
+      };
+    } catch (error) {
+      return {
+        platform: "discord",
+        success: false,
+        error: error instanceof Error ? error.message : "Reply failed",
+      };
+    }
+  },
+
+  // Discord doesn't have public likes/reactions in the same way
+  async likePost(credentials: SocialCredentials, postId: string) {
+    if (!credentials.botToken) {
+      return { success: false, error: "Bot token required" };
+    }
+
+    const [channelId, messageId] = postId.includes("/")
+      ? postId.split("/")
+      : [credentials.channelId, postId];
+
+    if (!channelId || !messageId) {
+      return { success: false, error: "Invalid post ID format" };
+    }
+
+    try {
+      // Add a reaction (default: thumbs up)
+      await discordApiRequest(
+        `/channels/${channelId}/messages/${messageId}/reactions/%F0%9F%91%8D/@me`,
+        credentials.botToken,
+        { method: "PUT" }
+      );
+
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Reaction failed",
+      };
+    }
+  },
+};
