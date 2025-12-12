@@ -119,12 +119,6 @@ async function waitForPublish(
 export const tiktokProvider: SocialMediaProvider = {
   platform: "tiktok",
 
-  validateCredentialsFormat(credentials: Partial<SocialCredentials>) {
-    if (!credentials.accessToken) {
-      throw new Error("TikTok requires accessToken");
-    }
-  },
-
   async validateCredentials(credentials: SocialCredentials) {
     if (!credentials.accessToken) {
       return { valid: false, error: "Access token required" };

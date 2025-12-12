@@ -120,21 +120,6 @@ async function redditApiRequest<T>(
 export const redditProvider: SocialMediaProvider = {
   platform: "reddit",
 
-  validateCredentialsFormat(credentials: Partial<SocialCredentials>) {
-    if (!credentials.apiKey) {
-      throw new Error("Reddit requires apiKey (client_id)");
-    }
-    if (!credentials.apiSecret) {
-      throw new Error("Reddit requires apiSecret (client_secret)");
-    }
-    if (!credentials.username) {
-      throw new Error("Reddit requires username");
-    }
-    if (!credentials.password) {
-      throw new Error("Reddit requires password");
-    }
-  },
-
   async validateCredentials(credentials: SocialCredentials) {
     if (
       !credentials.apiKey ||

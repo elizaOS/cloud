@@ -164,15 +164,6 @@ function detectFacets(text: string): BskyFacet[] {
 export const blueskyProvider: SocialMediaProvider = {
   platform: "bluesky",
 
-  validateCredentialsFormat(credentials: Partial<SocialCredentials>) {
-    if (!credentials.handle) {
-      throw new Error("Bluesky requires handle");
-    }
-    if (!credentials.appPassword) {
-      throw new Error("Bluesky requires appPassword");
-    }
-  },
-
   async validateCredentials(credentials: SocialCredentials) {
     if (!credentials.handle || !credentials.appPassword) {
       return { valid: false, error: "Handle and app password required" };

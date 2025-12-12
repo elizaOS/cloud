@@ -296,14 +296,7 @@ export interface SocialCredentials {
 export interface SocialMediaProvider {
   platform: SocialPlatform;
 
-  /**
-   * Validate credentials format (sync, does not call API)
-   */
-  validateCredentialsFormat(credentials: Partial<SocialCredentials>): void;
-
-  /**
-   * Validate credentials and return account info
-   */
+  /** Validate credentials and return account info */
   validateCredentials(credentials: SocialCredentials): Promise<{
     valid: boolean;
     accountId?: string;

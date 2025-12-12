@@ -94,12 +94,6 @@ async function sendMediaGroup(
 export const telegramProvider: SocialMediaProvider = {
   platform: "telegram",
 
-  validateCredentialsFormat(credentials: Partial<SocialCredentials>) {
-    if (!credentials.botToken) {
-      throw new Error("Telegram requires botToken");
-    }
-  },
-
   async validateCredentials(credentials: SocialCredentials) {
     if (!credentials.botToken) {
       return { valid: false, error: "Bot token required" };

@@ -350,13 +350,7 @@ async function createInstagramPost(
 // =============================================================================
 
 export const metaProvider: SocialMediaProvider = {
-  platform: "facebook", // Default, but handles both
-
-  validateCredentialsFormat(credentials: Partial<SocialCredentials>) {
-    if (!credentials.accessToken) {
-      throw new Error("Facebook/Instagram requires accessToken");
-    }
-  },
+  platform: "facebook",
 
   async validateCredentials(credentials: SocialCredentials) {
     if (!credentials.accessToken) {

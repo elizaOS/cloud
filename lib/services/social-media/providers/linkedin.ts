@@ -103,12 +103,6 @@ async function getPersonUrn(accessToken: string): Promise<string> {
 export const linkedinProvider: SocialMediaProvider = {
   platform: "linkedin",
 
-  validateCredentialsFormat(credentials: Partial<SocialCredentials>) {
-    if (!credentials.accessToken) {
-      throw new Error("LinkedIn requires accessToken");
-    }
-  },
-
   async validateCredentials(credentials: SocialCredentials) {
     if (!credentials.accessToken) {
       return { valid: false, error: "Access token required" };

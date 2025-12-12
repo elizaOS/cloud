@@ -64,108 +64,49 @@ const providers: Record<SocialPlatform, SocialMediaProvider | null> = {
 // =============================================================================
 
 class SocialMediaService {
-  /**
-   * Get all supported platforms
-   */
   getSupportedPlatforms(): SocialPlatform[] {
     return Object.entries(providers)
       .filter(([_, provider]) => provider !== null)
       .map(([platform]) => platform as SocialPlatform);
   }
 
-  /**
-   * Get all registered provider names (alias for getSupportedPlatforms)
-   */
-  getRegisteredProviders(): SocialPlatform[] {
-    return this.getSupportedPlatforms();
-  }
-
-  /**
-   * Get capabilities for a platform
-   */
-  getPlatformCapabilities(platform: SocialPlatform) {
-    const { PLATFORM_CAPABILITIES } = require("@/lib/types/social-media");
-    return PLATFORM_CAPABILITIES[platform] || null;
-  }
-
-  /**
-   * Check if a platform is supported
-   */
   isPlatformSupported(platform: SocialPlatform): boolean {
     return providers[platform] !== null;
   }
 
-  /**
-   * Get provider for a platform
-   */
   getProvider(platform: SocialPlatform): SocialMediaProvider {
     const provider = providers[platform];
-    if (!provider) {
-      throw new Error(`Platform ${platform} is not currently supported`);
-    }
+    if (!provider) throw new Error(`Platform ${platform} is not supported`);
     return provider;
   }
 
-  /**
-   * Get credentials for a platform from platform_credentials table
-   */
   async getCredentialsForPlatform(
     organizationId: string,
     platform: SocialPlatform,
     credentialId?: string
   ): Promise<SocialCredentials | null> {
-    // Map our platform names to the credential types in the database
-    const platformMap: Record<SocialPlatform, string> = {
-      twitter: "twitter",
-      bluesky: "bluesky",
-      discord: "discord",
-      telegram: "telegram",
-      reddit: "reddit",
-      facebook: "facebook",
-      instagram: "instagram",
-      tiktok: "tiktok",
-      linkedin: "linkedin",
-      mastodon: "mastodon",
-    };
-
-    const dbPlatform = platformMap[platform];
-
-    // Build query conditions
     const conditions = [
       eq(platformCredentials.organization_id, organizationId),
       eq(platformCredentials.status, "active"),
     ];
+    if (credentialId) conditions.push(eq(platformCredentials.id, credentialId));
 
-    if (credentialId) {
-      conditions.push(eq(platformCredentials.id, credentialId));
-    }
-
-    // Query for matching credential
     const [credential] = await db
       .select()
       .from(platformCredentials)
       .where(and(...conditions))
       .limit(1);
 
-    if (!credential) {
-      // Try to get from secrets directly for platforms using direct secrets
-      return this.getCredentialsFromSecrets(organizationId, platform);
-    }
+    if (!credential) return this.getCredentialsFromSecrets(organizationId, platform);
 
-    // Get tokens from secrets
-    const accessToken = credential.access_token_secret_id
-      ? await secretsService.getDecryptedValue(
-          credential.access_token_secret_id,
-          organizationId
-        )
-      : undefined;
-
-    const refreshToken = credential.refresh_token_secret_id
-      ? await secretsService.getDecryptedValue(
-          credential.refresh_token_secret_id,
-          organizationId
-        )
-      : undefined;
+    const [accessToken, refreshToken] = await Promise.all([
+      credential.access_token_secret_id
+        ? secretsService.getDecryptedValue(credential.access_token_secret_id, organizationId)
+        : undefined,
+      credential.refresh_token_secret_id
+        ? secretsService.getDecryptedValue(credential.refresh_token_secret_id, organizationId)
+        : undefined,
+    ]);
 
     return {
       platform,
@@ -177,9 +118,6 @@ class SocialMediaService {
     };
   }
 
-  /**
-   * Get credentials from secrets store (for platforms not using OAuth)
-   */
   private async getCredentialsFromSecrets(
     organizationId: string,
     platform: SocialPlatform
@@ -251,9 +189,6 @@ class SocialMediaService {
     }
   }
 
-  /**
-   * Create a post to one or more platforms
-   */
   async createPost(input: CreatePostInput): Promise<MultiPlatformPostResult> {
     const {
       organizationId,
@@ -364,9 +299,6 @@ class SocialMediaService {
     };
   }
 
-  /**
-   * Delete a post from a platform
-   */
   async deletePost(
     organizationId: string,
     platform: SocialPlatform,
@@ -392,9 +324,6 @@ class SocialMediaService {
     return provider.deletePost(credentials, postId);
   }
 
-  /**
-   * Get analytics for a specific post
-   */
   async getPostAnalytics(input: GetAnalyticsInput): Promise<PostAnalytics | null> {
     const { organizationId, platform, postId, credentialId } = input;
 
@@ -421,9 +350,6 @@ class SocialMediaService {
     return provider.getPostAnalytics(credentials, postId);
   }
 
-  /**
-   * Get account-level analytics
-   */
   async getAccountAnalytics(
     input: Omit<GetAnalyticsInput, "postId">
   ): Promise<AccountAnalytics | null> {
@@ -448,9 +374,6 @@ class SocialMediaService {
     return provider.getAccountAnalytics(credentials);
   }
 
-  /**
-   * Upload media to a platform
-   */
   async uploadMedia(
     organizationId: string,
     platform: SocialPlatform,
@@ -476,9 +399,6 @@ class SocialMediaService {
     return provider.uploadMedia(credentials, media);
   }
 
-  /**
-   * Reply to a post on a platform
-   */
   async replyToPost(
     organizationId: string,
     platform: SocialPlatform,
@@ -541,9 +461,6 @@ class SocialMediaService {
     return result;
   }
 
-  /**
-   * Like a post on a platform
-   */
   async likePost(
     organizationId: string,
     platform: SocialPlatform,
@@ -569,9 +486,6 @@ class SocialMediaService {
     return provider.likePost(credentials, postId);
   }
 
-  /**
-   * Repost/retweet/share on a platform
-   */
   async repost(
     organizationId: string,
     platform: SocialPlatform,
@@ -605,9 +519,6 @@ class SocialMediaService {
     return provider.repost(credentials, postId);
   }
 
-  /**
-   * Validate credentials for a platform
-   */
   async validateCredentials(
     organizationId: string,
     platform: SocialPlatform,
@@ -635,9 +546,6 @@ class SocialMediaService {
     return provider.validateCredentials(credentials);
   }
 
-  /**
-   * Store credentials for a platform
-   */
   async storeCredentials(
     organizationId: string,
     userId: string,
@@ -645,123 +553,34 @@ class SocialMediaService {
     credentials: Partial<SocialCredentials>
   ): Promise<void> {
     const prefix = platform.toUpperCase();
+    const audit = { actorType: "user" as const, actorId: userId, source: "social-media-service" };
 
-    const audit = {
-      actorType: "user" as const,
-      actorId: userId,
-      source: "social-media-service",
+    const fieldMap: Record<string, string> = {
+      accessToken: "ACCESS_TOKEN",
+      refreshToken: "REFRESH_TOKEN",
+      botToken: "BOT_TOKEN",
+      apiKey: "CLIENT_ID",
+      apiSecret: "CLIENT_SECRET",
+      username: "USERNAME",
+      password: "PASSWORD",
+      email: "EMAIL",
+      handle: "HANDLE",
+      appPassword: "APP_PASSWORD",
+      webhookUrl: "WEBHOOK_URL",
     };
 
-    // Store each credential field as a secret
-    if (credentials.accessToken) {
-      await secretsService.create({
-        organizationId,
-        name: `${prefix}_ACCESS_TOKEN`,
-        value: credentials.accessToken,
-        scope: "organization",
-        createdBy: userId,
-      }, audit);
-    }
+    const entries = Object.entries(fieldMap)
+      .filter(([field]) => credentials[field as keyof SocialCredentials])
+      .map(([field, suffix]) => ({
+        name: `${prefix}_${suffix}`,
+        value: credentials[field as keyof SocialCredentials] as string,
+      }));
 
-    if (credentials.refreshToken) {
-      await secretsService.create({
-        organizationId,
-        name: `${prefix}_REFRESH_TOKEN`,
-        value: credentials.refreshToken,
-        scope: "organization",
-        createdBy: userId,
-      }, audit);
-    }
-
-    if (credentials.botToken) {
-      await secretsService.create({
-        organizationId,
-        name: `${prefix}_BOT_TOKEN`,
-        value: credentials.botToken,
-        scope: "organization",
-        createdBy: userId,
-      }, audit);
-    }
-
-    if (credentials.apiKey) {
-      await secretsService.create({
-        organizationId,
-        name: `${prefix}_CLIENT_ID`,
-        value: credentials.apiKey,
-        scope: "organization",
-        createdBy: userId,
-      }, audit);
-    }
-
-    if (credentials.apiSecret) {
-      await secretsService.create({
-        organizationId,
-        name: `${prefix}_CLIENT_SECRET`,
-        value: credentials.apiSecret,
-        scope: "organization",
-        createdBy: userId,
-      }, audit);
-    }
-
-    if (credentials.username) {
-      await secretsService.create({
-        organizationId,
-        name: `${prefix}_USERNAME`,
-        value: credentials.username,
-        scope: "organization",
-        createdBy: userId,
-      }, audit);
-    }
-
-    if (credentials.password) {
-      await secretsService.create({
-        organizationId,
-        name: `${prefix}_PASSWORD`,
-        value: credentials.password,
-        scope: "organization",
-        createdBy: userId,
-      }, audit);
-    }
-
-    if (credentials.email) {
-      await secretsService.create({
-        organizationId,
-        name: `${prefix}_EMAIL`,
-        value: credentials.email,
-        scope: "organization",
-        createdBy: userId,
-      }, audit);
-    }
-
-    if (credentials.handle) {
-      await secretsService.create({
-        organizationId,
-        name: `${prefix}_HANDLE`,
-        value: credentials.handle,
-        scope: "organization",
-        createdBy: userId,
-      }, audit);
-    }
-
-    if (credentials.appPassword) {
-      await secretsService.create({
-        organizationId,
-        name: `${prefix}_APP_PASSWORD`,
-        value: credentials.appPassword,
-        scope: "organization",
-        createdBy: userId,
-      }, audit);
-    }
-
-    if (credentials.webhookUrl) {
-      await secretsService.create({
-        organizationId,
-        name: `${prefix}_WEBHOOK_URL`,
-        value: credentials.webhookUrl,
-        scope: "organization",
-        createdBy: userId,
-      }, audit);
-    }
+    await Promise.all(
+      entries.map(({ name, value }) =>
+        secretsService.create({ organizationId, name, value, scope: "organization", createdBy: userId }, audit)
+      )
+    );
 
     logger.info("[SocialMedia] Credentials stored", { organizationId, platform });
   }
