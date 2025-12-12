@@ -268,3 +268,403 @@ describe("End-to-end encryption workflow", () => {
   });
 });
 
+// =============================================================================
+// EDGE CASE TESTS
+// =============================================================================
+
+describe("Edge Cases and Boundary Conditions", () => {
+  let service: SecretsEncryptionService;
+
+  beforeEach(() => {
+    const testKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    const kms = new LocalKMSProvider(testKey);
+    service = createEncryptionService(kms);
+  });
+
+  describe("Special Characters", () => {
+    it("handles null bytes in plaintext", async () => {
+      const plaintext = "before\x00after";
+      const encrypted = await service.encrypt(plaintext);
+      const decrypted = await service.decrypt(encrypted);
+
+      expect(decrypted).toBe(plaintext);
+      expect(decrypted.includes("\x00")).toBe(true);
+    });
+
+    it("handles newlines and tabs", async () => {
+      const plaintext = "line1\nline2\r\nline3\ttabbed";
+      const encrypted = await service.encrypt(plaintext);
+      const decrypted = await service.decrypt(encrypted);
+
+      expect(decrypted).toBe(plaintext);
+    });
+
+    it("handles backslashes and quotes", async () => {
+      const plaintext = 'path\\to\\file and "quoted" and \'single\'';
+      const encrypted = await service.encrypt(plaintext);
+      const decrypted = await service.decrypt(encrypted);
+
+      expect(decrypted).toBe(plaintext);
+    });
+
+    it("handles control characters", async () => {
+      const plaintext = "start\x01\x02\x03\x1Fend";
+      const encrypted = await service.encrypt(plaintext);
+      const decrypted = await service.decrypt(encrypted);
+
+      expect(decrypted).toBe(plaintext);
+    });
+
+    it("handles all printable ASCII", async () => {
+      let plaintext = "";
+      for (let i = 32; i < 127; i++) {
+        plaintext += String.fromCharCode(i);
+      }
+
+      const encrypted = await service.encrypt(plaintext);
+      const decrypted = await service.decrypt(encrypted);
+
+      expect(decrypted).toBe(plaintext);
+      expect(decrypted.length).toBe(95);
+    });
+  });
+
+  describe("Size Boundaries", () => {
+    it("handles single character", async () => {
+      const plaintext = "a";
+      const encrypted = await service.encrypt(plaintext);
+      const decrypted = await service.decrypt(encrypted);
+
+      expect(decrypted).toBe(plaintext);
+    });
+
+    it("handles exactly 1KB", async () => {
+      const plaintext = "x".repeat(1024);
+      const encrypted = await service.encrypt(plaintext);
+      const decrypted = await service.decrypt(encrypted);
+
+      expect(decrypted.length).toBe(1024);
+    });
+
+    it("handles exactly 64KB boundary", async () => {
+      const plaintext = "x".repeat(65536);
+      const encrypted = await service.encrypt(plaintext);
+      const decrypted = await service.decrypt(encrypted);
+
+      expect(decrypted.length).toBe(65536);
+    });
+
+    it("handles just under 64KB", async () => {
+      const plaintext = "x".repeat(65535);
+      const encrypted = await service.encrypt(plaintext);
+      const decrypted = await service.decrypt(encrypted);
+
+      expect(decrypted.length).toBe(65535);
+    });
+
+    it("handles just over 64KB", async () => {
+      const plaintext = "x".repeat(65537);
+      const encrypted = await service.encrypt(plaintext);
+      const decrypted = await service.decrypt(encrypted);
+
+      expect(decrypted.length).toBe(65537);
+    });
+  });
+
+  describe("Unicode and Internationalization", () => {
+    it("handles emoji sequences", async () => {
+      const plaintext = "👨‍👩‍👧‍👦 Family emoji and 🏳️‍🌈 flag";
+      const encrypted = await service.encrypt(plaintext);
+      const decrypted = await service.decrypt(encrypted);
+
+      expect(decrypted).toBe(plaintext);
+    });
+
+    it("handles RTL text", async () => {
+      const plaintext = "مرحبا بالعالم";
+      const encrypted = await service.encrypt(plaintext);
+      const decrypted = await service.decrypt(encrypted);
+
+      expect(decrypted).toBe(plaintext);
+    });
+
+    it("handles CJK characters", async () => {
+      const plaintext = "日本語 中文 한국어";
+      const encrypted = await service.encrypt(plaintext);
+      const decrypted = await service.decrypt(encrypted);
+
+      expect(decrypted).toBe(plaintext);
+    });
+
+    it("handles mixed scripts", async () => {
+      const plaintext = "Hello Мир 世界 مرحبا";
+      const encrypted = await service.encrypt(plaintext);
+      const decrypted = await service.decrypt(encrypted);
+
+      expect(decrypted).toBe(plaintext);
+    });
+
+    it("handles combining characters", async () => {
+      const plaintext = "café ñ ü ö";
+      const encrypted = await service.encrypt(plaintext);
+      const decrypted = await service.decrypt(encrypted);
+
+      expect(decrypted).toBe(plaintext);
+    });
+  });
+
+  describe("Tamper Detection", () => {
+    it("detects bit flip in encrypted value", async () => {
+      const plaintext = "sensitive-data";
+      const encrypted = await service.encrypt(plaintext);
+
+      // Flip a single bit in the middle
+      const buffer = Buffer.from(encrypted.encryptedValue, "base64");
+      buffer[Math.floor(buffer.length / 2)] ^= 0x01;
+      encrypted.encryptedValue = buffer.toString("base64");
+
+      await expect(service.decrypt(encrypted)).rejects.toThrow();
+    });
+
+    it("detects truncated ciphertext", async () => {
+      const plaintext = "sensitive-data";
+      const encrypted = await service.encrypt(plaintext);
+
+      // Truncate the ciphertext
+      const buffer = Buffer.from(encrypted.encryptedValue, "base64");
+      const truncated = buffer.subarray(0, buffer.length - 5);
+      encrypted.encryptedValue = truncated.toString("base64");
+
+      await expect(service.decrypt(encrypted)).rejects.toThrow();
+    });
+
+    it("detects appended data", async () => {
+      const plaintext = "sensitive-data";
+      const encrypted = await service.encrypt(plaintext);
+
+      // Append extra data
+      const buffer = Buffer.from(encrypted.encryptedValue, "base64");
+      const appended = Buffer.concat([buffer, Buffer.from("extra")]);
+      encrypted.encryptedValue = appended.toString("base64");
+
+      await expect(service.decrypt(encrypted)).rejects.toThrow();
+    });
+
+    it("detects swapped nonce", async () => {
+      const encrypted1 = await service.encrypt("secret1");
+      const encrypted2 = await service.encrypt("secret2");
+
+      // Use nonce from second encryption with ciphertext from first
+      encrypted1.nonce = encrypted2.nonce;
+
+      await expect(service.decrypt(encrypted1)).rejects.toThrow();
+    });
+
+    it("detects swapped auth tag", async () => {
+      const encrypted1 = await service.encrypt("secret1");
+      const encrypted2 = await service.encrypt("secret2");
+
+      // Use auth tag from second encryption with ciphertext from first
+      encrypted1.authTag = encrypted2.authTag;
+
+      await expect(service.decrypt(encrypted1)).rejects.toThrow();
+    });
+  });
+});
+
+// =============================================================================
+// CONCURRENT ACCESS TESTS
+// =============================================================================
+
+describe("Concurrent Access Patterns", () => {
+  let service: SecretsEncryptionService;
+
+  beforeEach(() => {
+    const testKey = "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210";
+    const kms = new LocalKMSProvider(testKey);
+    service = createEncryptionService(kms);
+  });
+
+  it("handles parallel encryptions", async () => {
+    const secrets = Array.from({ length: 20 }, (_, i) => `secret-${i}`);
+
+    const results = await Promise.all(
+      secrets.map(async (s) => {
+        const encrypted = await service.encrypt(s);
+        return { original: s, encrypted };
+      })
+    );
+
+    // All should succeed
+    expect(results.length).toBe(20);
+
+    // All encrypted values should be unique
+    const encryptedValues = new Set(results.map((r) => r.encrypted.encryptedValue));
+    expect(encryptedValues.size).toBe(20);
+
+    // All should decrypt correctly
+    for (const { original, encrypted } of results) {
+      const decrypted = await service.decrypt(encrypted);
+      expect(decrypted).toBe(original);
+    }
+  });
+
+  it("handles parallel decryptions", async () => {
+    // First encrypt all
+    const secrets = Array.from({ length: 20 }, (_, i) => `secret-${i}`);
+    const encrypted = await Promise.all(
+      secrets.map(async (s) => ({
+        original: s,
+        encrypted: await service.encrypt(s),
+      }))
+    );
+
+    // Then decrypt all in parallel
+    const decrypted = await Promise.all(
+      encrypted.map(async ({ original, encrypted: enc }) => ({
+        original,
+        decrypted: await service.decrypt(enc),
+      }))
+    );
+
+    // All should match
+    for (const { original, decrypted: dec } of decrypted) {
+      expect(dec).toBe(original);
+    }
+  });
+
+  it("handles mixed encrypt/decrypt operations", async () => {
+    const operations = [];
+
+    // Mix of operations
+    for (let i = 0; i < 10; i++) {
+      operations.push(service.encrypt(`encrypt-${i}`));
+    }
+
+    // Pre-encrypt some for decryption
+    const preEncrypted = await Promise.all(
+      Array.from({ length: 10 }, (_, i) => service.encrypt(`decrypt-${i}`))
+    );
+
+    // Add decryption operations
+    for (const enc of preEncrypted) {
+      operations.push(service.decrypt(enc));
+    }
+
+    // Run all mixed operations
+    const results = await Promise.allSettled(operations);
+
+    // All should succeed
+    const failures = results.filter((r) => r.status === "rejected");
+    expect(failures.length).toBe(0);
+  });
+});
+
+// =============================================================================
+// KEY ROTATION TESTS
+// =============================================================================
+
+describe("Key Rotation Scenarios", () => {
+  it("preserves data through rotation", async () => {
+    const testKey = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+    const kms = new LocalKMSProvider(testKey);
+    const service = createEncryptionService(kms);
+
+    const originalValue = "value-to-preserve";
+    const original = await service.encrypt(originalValue);
+
+    // Rotate the secret
+    const rotated = await service.rotate(original);
+
+    // Should decrypt to same value
+    const decrypted = await service.decrypt(rotated);
+    expect(decrypted).toBe(originalValue);
+  });
+
+  it("generates new DEK on rotation", async () => {
+    const testKey = "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
+    const kms = new LocalKMSProvider(testKey);
+    const service = createEncryptionService(kms);
+
+    const original = await service.encrypt("test-value");
+    const rotated = await service.rotate(original);
+
+    // DEK should be different
+    expect(rotated.encryptedDek).not.toBe(original.encryptedDek);
+
+    // Nonce should be different
+    expect(rotated.nonce).not.toBe(original.nonce);
+
+    // Auth tag should be different
+    expect(rotated.authTag).not.toBe(original.authTag);
+  });
+
+  it("handles multiple sequential rotations", async () => {
+    const testKey = "9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba";
+    const kms = new LocalKMSProvider(testKey);
+    const service = createEncryptionService(kms);
+
+    const originalValue = "rotate-multiple-times";
+    let current = await service.encrypt(originalValue);
+
+    // Rotate 5 times
+    for (let i = 0; i < 5; i++) {
+      current = await service.rotate(current);
+    }
+
+    // Should still decrypt correctly
+    const decrypted = await service.decrypt(current);
+    expect(decrypted).toBe(originalValue);
+  });
+});
+
+// =============================================================================
+// ERROR HANDLING TESTS
+// =============================================================================
+
+describe("Error Handling", () => {
+  it("provides meaningful error for invalid base64 in ciphertext", async () => {
+    const testKey = "0".repeat(64);
+    const kms = new LocalKMSProvider(testKey);
+    const service = createEncryptionService(kms);
+
+    const encrypted = await service.encrypt("test");
+    encrypted.encryptedValue = "not-valid-base64!!!";
+
+    await expect(service.decrypt(encrypted)).rejects.toThrow();
+  });
+
+  it("provides meaningful error for invalid base64 in DEK", async () => {
+    const testKey = "0".repeat(64);
+    const kms = new LocalKMSProvider(testKey);
+    const service = createEncryptionService(kms);
+
+    const encrypted = await service.encrypt("test");
+    encrypted.encryptedDek = "not-valid-base64!!!";
+
+    await expect(service.decrypt(encrypted)).rejects.toThrow();
+  });
+
+  it("provides meaningful error for invalid base64 in nonce", async () => {
+    const testKey = "0".repeat(64);
+    const kms = new LocalKMSProvider(testKey);
+    const service = createEncryptionService(kms);
+
+    const encrypted = await service.encrypt("test");
+    encrypted.nonce = "not-valid-base64!!!";
+
+    await expect(service.decrypt(encrypted)).rejects.toThrow();
+  });
+
+  it("provides meaningful error for invalid base64 in auth tag", async () => {
+    const testKey = "0".repeat(64);
+    const kms = new LocalKMSProvider(testKey);
+    const service = createEncryptionService(kms);
+
+    const encrypted = await service.encrypt("test");
+    encrypted.authTag = "not-valid-base64!!!";
+
+    await expect(service.decrypt(encrypted)).rejects.toThrow();
+  });
+});
+
