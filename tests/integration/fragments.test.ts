@@ -17,7 +17,7 @@
  */
 
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-
+import { requireServer, testContext } from "../test-utils";
 
 const SERVER_URL = process.env.TEST_SERVER_URL || "http://localhost:3000";
 const API_KEY = process.env.TEST_API_KEY;
@@ -32,9 +32,13 @@ const createdResources: {
   containers: [],
 };
 
-// Runtime state
-let serverAvailable = false;
+// Runtime state - use testContext for server, but keep local for API key
 let apiKeyValid = false;
+
+// Helper to check if server is available
+function isServerAvailable(): boolean {
+  return testContext.serverAvailable;
+}
 
 // ============================================================================
 // Helpers
@@ -56,17 +60,7 @@ async function fetchWithAuth(
   });
 }
 
-async function checkServerHealth(): Promise<boolean> {
-  try {
-    const response = await fetch(`${SERVER_URL}/api/v1/storage?stats=true`, {
-      method: "GET",
-      signal: AbortSignal.timeout(5000),
-    });
-    return response.ok || response.status === 402; // 402 is OK (x402 payment)
-  } catch {
-    return false;
-  }
-}
+// Server health is checked by requireServer() from test-utils
 
 async function checkApiKey(): Promise<boolean> {
   if (!API_KEY) return false;
@@ -85,9 +79,9 @@ async function checkApiKey(): Promise<boolean> {
 
 beforeAll(async () => {
   console.log("🔍 Checking server availability...");
-  serverAvailable = await checkServerHealth();
+  const serverOk = await requireServer(SERVER_URL);
   
-  if (!serverAvailable) {
+  if (!serverOk) {
     console.log("⚠️ Server not available - fragments tests will be skipped");
     return;
   }
@@ -125,7 +119,7 @@ afterAll(async () => {
 
 describe("Fragments Chat API", () => {
   test("POST /api/fragments/chat - generates fragment with real LLM", async () => {
-    if (!serverAvailable) {
+    if (!isServerAvailable()) {
       console.log("⚠️ Skipping - Server not available");
       return;
     }
@@ -205,6 +199,11 @@ describe("Fragments Chat API", () => {
   });
 
   test("POST /api/fragments/chat - requires authentication", async () => {
+    if (!isServerAvailable()) {
+      console.log("⚠️ Skipping - Server not available");
+      return;
+    }
+    
     const response = await fetch(`${SERVER_URL}/api/fragments/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -224,7 +223,7 @@ describe("Fragments Chat API", () => {
 
 describe("Fragments Sandbox API", () => {
   test("POST /api/fragments/sandbox - executes web app fragment", async () => {
-    if (!serverAvailable || !apiKeyValid) {
+    if (!isServerAvailable() || !apiKeyValid) {
       console.log("⚠️ Skipping - Server or API key not available");
       return;
     }
@@ -291,6 +290,11 @@ export default function Counter() {
   });
 
   test("POST /api/fragments/sandbox - requires authentication", async () => {
+    if (!isServerAvailable()) {
+      console.log("⚠️ Skipping - Server not available");
+      return;
+    }
+    
     const response = await fetch(`${SERVER_URL}/api/fragments/sandbox`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -313,7 +317,7 @@ export default function Counter() {
 
 describe("Fragments A2A Integration", () => {
   test("A2A generate_fragment skill works", async () => {
-    if (!serverAvailable || !apiKeyValid) {
+    if (!isServerAvailable() || !apiKeyValid) {
       console.log("⚠️ Skipping - Server or API key not available");
       return;
     }
@@ -392,7 +396,7 @@ describe("Fragments A2A Integration", () => {
 
 describe("Fragments MCP Integration", () => {
   test("MCP fragments_generate tool works", async () => {
-    if (!serverAvailable || !apiKeyValid) {
+    if (!isServerAvailable() || !apiKeyValid) {
       console.log("⚠️ Skipping - Server or API key not available");
       return;
     }
@@ -458,7 +462,7 @@ st.write("Hello, Streamlit!")`,
 
 describe("Fragments E2E Flow", () => {
   test("Complete flow: generate → execute → preview", async () => {
-    if (!serverAvailable || !apiKeyValid) {
+    if (!isServerAvailable() || !apiKeyValid) {
       console.log("⚠️ Skipping - Server or API key not available");
       return;
     }

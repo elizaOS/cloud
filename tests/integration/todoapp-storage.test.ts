@@ -10,10 +10,7 @@
  */
 
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { db } from "@/db/client";
-import { apps } from "@/db/schemas/apps";
-import { apiKeys } from "@/db/schemas/api-keys";
-import { eq, and } from "drizzle-orm";
+import { setupIntegrationTest, requireSchema, testContext } from "../test-utils";
 
 const TEST_APP_SLUG = "eliza-todo-test";
 
@@ -26,12 +23,42 @@ describe("Todo App Storage Service", () => {
   let storageTablesExist = false;
   let setupSuccessful = false;
 
+  // Lazy-loaded modules
+  let db: Awaited<typeof import("@/db/client")>["db"];
+  let apps: Awaited<typeof import("@/db/schemas/apps")>["apps"];
+  let apiKeys: Awaited<typeof import("@/db/schemas/api-keys")>["apiKeys"];
+  let eq: Awaited<typeof import("drizzle-orm")>["eq"];
+
   beforeAll(async () => {
+    // Check database availability first
+    const dbReady = await setupIntegrationTest({ requireDb: true });
+    if (!dbReady) {
+      console.log("[todoapp-storage.test.ts] Setup failed: database not available");
+      return;
+    }
+
+    // Lazy load modules after database check
+    const dbModule = await import("@/db/client");
+    const appsModule = await import("@/db/schemas/apps");
+    const apiKeysModule = await import("@/db/schemas/api-keys");
+    const drizzleModule = await import("drizzle-orm");
+    db = dbModule.db;
+    apps = appsModule.apps;
+    apiKeys = apiKeysModule.apiKeys;
+    eq = drizzleModule.eq;
+
+    // Check if apps schema is available
+    const appsAvailable = await requireSchema("apps");
+    if (!appsAvailable) {
+      console.log("[todoapp-storage.test.ts] Setup failed: apps schema not available");
+      return;
+    }
+
     try {
       // Find or create test app
       const existingApp = await db.query.apps.findFirst({
         where: eq(apps.slug, TEST_APP_SLUG),
-      }).catch(() => null);
+      });
 
       if (existingApp) {
         testAppId = existingApp.id;
@@ -40,7 +67,7 @@ describe("Todo App Storage Service", () => {
         // Use the seeded todoapp
         const todoApp = await db.query.apps.findFirst({
           where: eq(apps.slug, "eliza-todo"),
-        }).catch(() => null);
+        });
 
         if (todoApp) {
           testAppId = todoApp.id;
@@ -57,7 +84,7 @@ describe("Todo App Storage Service", () => {
       if (testOrgId) {
         await db.query.apiKeys.findFirst({
           where: eq(apiKeys.organization_id, testOrgId),
-        }).catch(() => null);
+        });
       }
       
       setupSuccessful = true;

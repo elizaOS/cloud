@@ -1,3 +1,12 @@
+# Bun Test Configuration
+# 
+# Run tests with: bun test or bun run test
+# Run specific tests with: bun test tests/unit
+# Run playwright tests separately with: bun run test:playwright
+
 [test]
+# Load environment variables before tests
 preload = ["./tests/setup.ts"]
 
+# Test timeout in milliseconds (30 seconds)
+timeout = 30000

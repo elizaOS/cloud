@@ -100,11 +100,51 @@ mock.module("viem/chains", () => ({
   bsc: { id: 56 },
 }));
 
+mock.module("viem/accounts", () => ({
+  privateKeyToAccount: mock((key: string) => ({
+    address: "0x742d35Cc6634C0532925a3b844Bc9e7595f6E2c3",
+    publicKey: key,
+  })),
+}));
+
+// Mock chain configs
+mock.module("@/lib/config/chains", () => ({
+  jeju: { id: 8880, name: "Jeju" },
+  jejuTestnet: { id: 8881, name: "Jeju Testnet" },
+}));
+
+// Mock tweetnacl for Solana key derivation
+mock.module("tweetnacl", () => ({
+  default: {
+    sign: {
+      keyPair: {
+        fromSecretKey: mock(() => ({
+          publicKey: new Uint8Array(32).fill(1),
+          secretKey: new Uint8Array(64).fill(1),
+        })),
+      },
+    },
+  },
+}));
+
+// Mock bs58
+mock.module("bs58", () => ({
+  default: {
+    decode: mock(() => new Uint8Array(64).fill(1)),
+    encode: mock(() => "DuMbhu7mvQvqQHGcnikDgb4XegXJRyhUBfdU22uELiZA"),
+  },
+}));
+
 // Mock Solana web3
 mock.module("@solana/web3.js", () => ({
   PublicKey: class {
     address: string;
-    constructor(address: string) {
+    constructor(address: string | Uint8Array) {
+      // Handle both base58 string and Uint8Array (from nacl keypair)
+      if (address instanceof Uint8Array) {
+        this.address = "DuMbhu7mvQvqQHGcnikDgb4XegXJRyhUBfdU22uELiZA";
+        return;
+      }
       const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
       if (!base58Regex.test(address)) {
         throw new Error("Invalid public key");
@@ -207,7 +247,10 @@ describe("TokenRedemptionService", () => {
       for (const network of validNetworks) {
         const result = await service.checkTokenAvailability(network as "ethereum" | "base" | "bnb" | "solana", 100);
         // Should not fail with "unsupported network" error
-        expect(result.error).not.toContain("Unsupported network");
+        // Error might be undefined (success) or contain a different error message
+        if (result.error) {
+          expect(result.error).not.toContain("Unsupported network");
+        }
       }
     });
 
