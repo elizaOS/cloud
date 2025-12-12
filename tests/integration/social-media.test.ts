@@ -268,16 +268,15 @@ describe("Bluesky Integration", () => {
     console.log(`[Bluesky] Validated: @${result.username}`);
   });
 
-  it("should return error for invalid credentials", async () => {
+  it("should return error for missing credentials", async () => {
     const { blueskyProvider } = await import("@/lib/services/social-media/providers/bluesky");
     const result = await blueskyProvider.validateCredentials({
       platform: "bluesky",
-      handle: "invalid.bsky.social",
-      appPassword: "wrong-password-1234",
+      // Missing handle and appPassword
     });
 
     expect(result.valid).toBe(false);
-    expect(result.error).toBeDefined();
+    expect(result.error?.toLowerCase()).toContain("handle and app password required");
   });
 });
 

@@ -9,8 +9,6 @@ export interface RateLimitError extends Error {
 
 export interface ApiResponse<T> {
   data: T;
-  rateLimitRemaining?: number;
-  rateLimitReset?: Date;
 }
 
 interface RetryOptions {
@@ -32,36 +30,15 @@ const PLATFORM_RATE_LIMITS: Record<SocialPlatform, { requestsPerWindow: number; 
   mastodon: { requestsPerWindow: 300, windowMs: 5 * 60 * 1000 },
 };
 
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 function parseRetryAfter(response: Response): number | undefined {
-  const retryAfter = response.headers.get("retry-after");
-  if (!retryAfter) return undefined;
-
-  const seconds = parseInt(retryAfter, 10);
+  const header = response.headers.get("retry-after");
+  if (!header) return undefined;
+  const seconds = parseInt(header, 10);
   if (!isNaN(seconds)) return seconds * 1000;
-
-  const date = new Date(retryAfter);
-  if (!isNaN(date.getTime())) return Math.max(0, date.getTime() - Date.now());
-
-  return undefined;
-}
-
-function extractRateLimitInfo(response: Response): { remaining?: number; reset?: Date } {
-  const remaining = response.headers.get("x-rate-limit-remaining") ||
-    response.headers.get("x-ratelimit-remaining") ||
-    response.headers.get("ratelimit-remaining");
-
-  const reset = response.headers.get("x-rate-limit-reset") ||
-    response.headers.get("x-ratelimit-reset") ||
-    response.headers.get("ratelimit-reset");
-
-  return {
-    remaining: remaining ? parseInt(remaining, 10) : undefined,
-    reset: reset ? new Date(parseInt(reset, 10) * 1000) : undefined,
-  };
+  const date = new Date(header);
+  return isNaN(date.getTime()) ? undefined : Math.max(0, date.getTime() - Date.now());
 }
 
 export function isRateLimitResponse(response: Response): boolean {
@@ -82,13 +59,11 @@ export async function withRetry<T>(
   options: RetryOptions
 ): Promise<ApiResponse<T>> {
   const { maxRetries = 3, baseDelayMs = 1000, platform } = options;
-
   let lastError: Error | undefined;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const response = await fn();
-      const rateLimitInfo = extractRateLimitInfo(response);
 
       if (isRateLimitResponse(response)) {
         const retryAfter = parseRetryAfter(response);
@@ -99,7 +74,6 @@ export async function withRetry<T>(
           await sleep(waitMs);
           continue;
         }
-
         throw createRateLimitError(platform, retryAfter ? retryAfter / 1000 : undefined);
       }
 
@@ -108,41 +82,20 @@ export async function withRetry<T>(
         throw new Error(`${platform} API error ${response.status}: ${errorBody}`);
       }
 
-      const data = await parser(response);
-
-      return {
-        data,
-        rateLimitRemaining: rateLimitInfo.remaining,
-        rateLimitReset: rateLimitInfo.reset,
-      };
+      return { data: await parser(response) };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-
       if ((error as RateLimitError).rateLimited) throw error;
 
       if (attempt < maxRetries) {
         const delayMs = baseDelayMs * Math.pow(2, attempt);
         logger.warn(`[${platform}] Request failed, retrying in ${delayMs}ms: ${lastError.message}`);
         await sleep(delayMs);
-        continue;
       }
     }
   }
 
   throw lastError || new Error(`${platform} request failed after ${maxRetries} retries`);
-}
-
-export async function fetchWithRetry<T>(
-  url: string,
-  init: RequestInit,
-  platform: SocialPlatform,
-  maxRetries = 3
-): Promise<ApiResponse<T>> {
-  return withRetry(
-    () => fetch(url, init),
-    response => response.json() as Promise<T>,
-    { platform, maxRetries }
-  );
 }
 
 export function getRateLimitConfig(platform: SocialPlatform) {

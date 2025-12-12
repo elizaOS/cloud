@@ -1,21 +1,12 @@
 import { logger } from "@/lib/utils/logger";
 
 type AlertSeverity = "critical" | "high" | "medium" | "low";
-type AlertChannel = "discord" | "slack" | "telegram" | "whatsapp";
 
 interface AlertPayload {
   severity: AlertSeverity;
   title: string;
   message: string;
-  details?: Record<string, unknown>;
   platforms?: string[];
-}
-
-interface AlertConfig {
-  discord?: { webhookUrl: string };
-  slack?: { webhookUrl: string };
-  telegram?: { botToken: string; chatId: string };
-  whatsapp?: { apiUrl: string; apiKey: string; to: string };
 }
 
 const SEVERITY_COLORS: Record<AlertSeverity, { hex: string; emoji: string }> = {
@@ -24,23 +15,6 @@ const SEVERITY_COLORS: Record<AlertSeverity, { hex: string; emoji: string }> = {
   medium: { hex: "#FFD700", emoji: "📊" },
   low: { hex: "#00CED1", emoji: "ℹ️" },
 };
-
-function getConfig(): AlertConfig {
-  return {
-    discord: process.env.SOCIAL_ALERTS_DISCORD_WEBHOOK
-      ? { webhookUrl: process.env.SOCIAL_ALERTS_DISCORD_WEBHOOK }
-      : undefined,
-    slack: process.env.SOCIAL_ALERTS_SLACK_WEBHOOK
-      ? { webhookUrl: process.env.SOCIAL_ALERTS_SLACK_WEBHOOK }
-      : undefined,
-    telegram: process.env.SOCIAL_ALERTS_TELEGRAM_BOT_TOKEN && process.env.SOCIAL_ALERTS_TELEGRAM_CHAT_ID
-      ? { botToken: process.env.SOCIAL_ALERTS_TELEGRAM_BOT_TOKEN, chatId: process.env.SOCIAL_ALERTS_TELEGRAM_CHAT_ID }
-      : undefined,
-    whatsapp: process.env.SOCIAL_ALERTS_WHATSAPP_API_URL && process.env.SOCIAL_ALERTS_WHATSAPP_API_KEY && process.env.SOCIAL_ALERTS_WHATSAPP_TO
-      ? { apiUrl: process.env.SOCIAL_ALERTS_WHATSAPP_API_URL, apiKey: process.env.SOCIAL_ALERTS_WHATSAPP_API_KEY, to: process.env.SOCIAL_ALERTS_WHATSAPP_TO }
-      : undefined,
-  };
-}
 
 async function sendDiscordAlert(webhookUrl: string, payload: AlertPayload): Promise<void> {
   const { hex, emoji } = SEVERITY_COLORS[payload.severity];
@@ -113,66 +87,51 @@ async function sendWhatsAppAlert(apiUrl: string, apiKey: string, to: string, pay
 }
 
 export async function sendSocialMediaAlert(payload: AlertPayload): Promise<void> {
-  const config = getConfig();
-  const enabledChannels: AlertChannel[] = [];
+  const sends: Promise<void>[] = [];
 
-  if (config.discord) enabledChannels.push("discord");
-  if (config.slack) enabledChannels.push("slack");
-  if (config.telegram) enabledChannels.push("telegram");
-  if (config.whatsapp) enabledChannels.push("whatsapp");
+  const discordWebhook = process.env.SOCIAL_ALERTS_DISCORD_WEBHOOK;
+  const slackWebhook = process.env.SOCIAL_ALERTS_SLACK_WEBHOOK;
+  const tgToken = process.env.SOCIAL_ALERTS_TELEGRAM_BOT_TOKEN;
+  const tgChat = process.env.SOCIAL_ALERTS_TELEGRAM_CHAT_ID;
+  const waUrl = process.env.SOCIAL_ALERTS_WHATSAPP_API_URL;
+  const waKey = process.env.SOCIAL_ALERTS_WHATSAPP_API_KEY;
+  const waTo = process.env.SOCIAL_ALERTS_WHATSAPP_TO;
 
-  if (enabledChannels.length === 0) {
+  if (discordWebhook) sends.push(sendDiscordAlert(discordWebhook, payload));
+  if (slackWebhook) sends.push(sendSlackAlert(slackWebhook, payload));
+  if (tgToken && tgChat) sends.push(sendTelegramAlert(tgToken, tgChat, payload));
+  if (waUrl && waKey && waTo) sends.push(sendWhatsAppAlert(waUrl, waKey, waTo, payload));
+
+  if (sends.length === 0) {
     logger.warn("[SocialMediaAlerts] No alert channels configured");
     return;
   }
 
-  const sends = enabledChannels.map(async (channel) => {
-    switch (channel) {
-      case "discord":
-        return sendDiscordAlert(config.discord!.webhookUrl, payload);
-      case "slack":
-        return sendSlackAlert(config.slack!.webhookUrl, payload);
-      case "telegram":
-        return sendTelegramAlert(config.telegram!.botToken, config.telegram!.chatId, payload);
-      case "whatsapp":
-        return sendWhatsAppAlert(config.whatsapp!.apiUrl, config.whatsapp!.apiKey, config.whatsapp!.to, payload);
-    }
-  });
-
   const results = await Promise.allSettled(sends);
-  const failures = results.filter(r => r.status === "rejected");
-
-  if (failures.length > 0) {
-    logger.error(`[SocialMediaAlerts] ${failures.length}/${results.length} channels failed`);
-  }
+  const failures = results.filter(r => r.status === "rejected").length;
+  if (failures > 0) logger.error(`[SocialMediaAlerts] ${failures}/${results.length} channels failed`);
 }
 
 export async function alertOnPostFailure(
   organizationId: string,
   platforms: string[],
-  errors: string[]
+  _errors: string[]
 ): Promise<void> {
-  const allFailed = errors.length === platforms.length;
-
+  const allFailed = _errors.length === platforms.length;
   await sendSocialMediaAlert({
     severity: allFailed ? "high" : "medium",
     title: allFailed ? "All Social Media Posts Failed" : "Partial Social Media Post Failure",
-    message: `${errors.length}/${platforms.length} posts failed for org ${organizationId.slice(0, 8)}...`,
+    message: `${_errors.length}/${platforms.length} posts failed for org ${organizationId.slice(0, 8)}...`,
     platforms,
-    details: { errors },
   });
 }
 
-export async function alertOnTokenExpiry(
-  organizationId: string,
-  platform: string
-): Promise<void> {
+export async function alertOnTokenExpiry(organizationId: string, platform: string): Promise<void> {
   await sendSocialMediaAlert({
     severity: "medium",
     title: "Social Media Token Expired",
-    message: `Token for ${platform} expired and could not be refreshed. Re-authentication required.`,
+    message: `Token for ${platform} expired (org ${organizationId.slice(0, 8)}...). Re-authentication required.`,
     platforms: [platform],
-    details: { organizationId },
   });
 }
 

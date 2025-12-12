@@ -147,30 +147,14 @@ export async function refreshToken(
 
   switch (platform) {
     case "twitter":
-      if (!credentials.refreshToken) return null;
-      return refreshTwitterToken(credentials.refreshToken);
-
+      return credentials.refreshToken ? refreshTwitterToken(credentials.refreshToken) : null;
     case "facebook":
     case "instagram":
-      if (!credentials.accessToken) return null;
-      return refreshMetaToken(credentials.accessToken);
-
+      return credentials.accessToken ? refreshMetaToken(credentials.accessToken) : null;
     case "linkedin":
-      if (!credentials.refreshToken) return null;
-      return refreshLinkedInToken(credentials.refreshToken);
-
+      return credentials.refreshToken ? refreshLinkedInToken(credentials.refreshToken) : null;
     case "tiktok":
-      if (!credentials.refreshToken) return null;
-      return refreshTikTokToken(credentials.refreshToken);
-
-    // These platforms don't use expiring OAuth tokens
-    case "bluesky":
-    case "discord":
-    case "telegram":
-    case "reddit":
-    case "mastodon":
-      return null;
-
+      return credentials.refreshToken ? refreshTikTokToken(credentials.refreshToken) : null;
     default:
       return null;
   }
