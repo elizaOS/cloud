@@ -28,7 +28,7 @@ import {
 } from "@/db/repositories/n8n-workflows";
 import { logger } from "@/lib/utils/logger";
 import { createHash, randomBytes } from "crypto";
-import { secretsService } from "@/lib/services/secrets";
+import { secretsService, loadWorkflowSecrets as loadSecretsHelper, isSecretsConfigured } from "@/lib/services/secrets";
 
 // =============================================================================
 // TYPES
@@ -838,38 +838,16 @@ class N8nWorkflowsService {
   }
 
   /**
-   * Load secrets for workflow execution from:
-   * 1. Secrets service (org-level and workflow-scoped)
-   * 2. Legacy workflow variables marked as is_secret
+   * Load secrets for workflow execution from secrets service (org + workflow-scoped).
    */
   private async loadWorkflowSecrets(
     organizationId: string,
     workflowId: string
   ): Promise<Record<string, string>> {
-    const secrets: Record<string, string> = {};
-
-    if (secretsService.isConfigured) {
-      const orgSecrets = await secretsService.getDecrypted({ organizationId });
-      Object.assign(secrets, orgSecrets);
-
-      const workflowSecrets = await secretsService.getDecrypted({
-        organizationId,
-        projectId: workflowId,
-      });
-      Object.assign(secrets, workflowSecrets);
+    if (!isSecretsConfigured()) {
+      return {};
     }
-
-    // Legacy workflow variables marked as secret
-    const workflowVars = await this.getWorkflowVariables(workflowId);
-    const globalVars = await this.getGlobalVariables(organizationId);
-    
-    for (const variable of [...globalVars, ...workflowVars]) {
-      if (variable.is_secret && variable.value) {
-        secrets[variable.name] = variable.value;
-      }
-    }
-
-    return secrets;
+    return loadSecretsHelper({ organizationId, workflowId });
   }
 
   /**

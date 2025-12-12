@@ -15,7 +15,7 @@ import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
 import { agentReputationService } from "@/lib/services/agent-reputation";
-import { secretsService } from "@/lib/services/secrets";
+import { loadOrgSecrets, isSecretsConfigured } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
 import {
   type A2AContext,
@@ -174,12 +174,9 @@ export async function POST(request: NextRequest) {
   }
 
   // Load secrets for this organization
-  let a2aSecrets: Record<string, string> = {};
-  if (secretsService.isConfigured) {
-    a2aSecrets = await secretsService.getDecrypted({
-      organizationId: authResult.user.organization_id,
-    });
-  }
+  const a2aSecrets = isSecretsConfigured()
+    ? await loadOrgSecrets(authResult.user.organization_id)
+    : {};
 
   // Execute
   logger.info(`[A2A] ${method}`, {

@@ -34,8 +34,9 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run lint
 
-  unit-tests:
-    name: Unit Tests
+  # Unit tests split into isolated groups to prevent mock.module contamination
+  unit-tests-secrets:
+    name: Unit Tests - Secrets
     runs-on: ubuntu-latest
     needs: lint
     timeout-minutes: 10
@@ -50,7 +51,68 @@ jobs:
           key: bun-${{ hashFiles('bun.lockb') }}
           restore-keys: bun-
       - run: bun install --frozen-lockfile
-      - run: bun run test:unit
+      - run: bun run test:unit:secrets
+        env:
+          NODE_ENV: test
+          SECRETS_MASTER_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+
+  unit-tests-domain:
+    name: Unit Tests - Domain
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ hashFiles('bun.lockb') }}
+          restore-keys: bun-
+      - run: bun install --frozen-lockfile
+      - run: bun run test:unit:domain
+        env:
+          NODE_ENV: test
+
+  unit-tests-services:
+    name: Unit Tests - Services
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ hashFiles('bun.lockb') }}
+          restore-keys: bun-
+      - run: bun install --frozen-lockfile
+      - run: bun run test:unit:services
+        env:
+          NODE_ENV: test
+
+  unit-tests-misc:
+    name: Unit Tests - Misc
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ hashFiles('bun.lockb') }}
+          restore-keys: bun-
+      - run: bun install --frozen-lockfile
+      - run: bun run test:unit:misc
         env:
           NODE_ENV: test
 
@@ -93,6 +155,8 @@ jobs:
       - run: bun run test:integration
         env:
           NODE_ENV: test
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SECRETS_MASTER_KEY: ${{ secrets.SECRETS_MASTER_KEY }}
 
   build:
     name: Build
@@ -276,11 +340,11 @@ jobs:
   ci-ok:
     name: CI OK
     runs-on: ubuntu-latest
-    needs: [lint, unit-tests, security-tests, integration-tests, build, e2e-ui, e2e-api, e2e-pages, e2e-miniapp]
+    needs: [lint, unit-tests-secrets, unit-tests-domain, unit-tests-services, unit-tests-misc, security-tests, integration-tests, build, e2e-ui, e2e-api, e2e-pages, e2e-miniapp]
     if: always()
     steps:
       - run: |
-          results="${{ needs.lint.result }},${{ needs.unit-tests.result }},${{ needs.security-tests.result }},${{ needs.integration-tests.result }},${{ needs.build.result }},${{ needs.e2e-ui.result }},${{ needs.e2e-api.result }},${{ needs.e2e-pages.result }},${{ needs.e2e-miniapp.result }}"
+          results="${{ needs.lint.result }},${{ needs.unit-tests-secrets.result }},${{ needs.unit-tests-domain.result }},${{ needs.unit-tests-services.result }},${{ needs.unit-tests-misc.result }},${{ needs.security-tests.result }},${{ needs.integration-tests.result }},${{ needs.build.result }},${{ needs.e2e-ui.result }},${{ needs.e2e-api.result }},${{ needs.e2e-pages.result }},${{ needs.e2e-miniapp.result }}"
           if echo "$results" | grep -qvE '^(success,)*success$'; then
             echo "❌ CI failed: $results"
             exit 1

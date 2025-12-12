@@ -1,7 +1,3 @@
-/**
- * Start OAuth flow for a platform
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuth } from "@/lib/middleware/app-auth";
@@ -11,13 +7,9 @@ import type { PlatformType } from "@/db/schemas/platform-credentials";
 const ConnectRequestSchema = z.object({
   callbackUrl: z.string().url().optional(),
   scopes: z.array(z.string()).optional(),
-  instanceUrl: z.string().optional(), // For Mastodon
+  instanceUrl: z.string().optional(),
 });
 
-/**
- * POST /api/v1/social-connections/connect/[platform]
- * Start OAuth flow for the specified platform
- */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ platform: string }> }

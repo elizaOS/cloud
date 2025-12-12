@@ -24,7 +24,7 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { userMcpsService } from "@/lib/services/user-mcps";
 import { creditsService } from "@/lib/services/credits";
 import { containersService } from "@/lib/services/containers";
-import { secretsService } from "@/lib/services/secrets";
+import { loadMcpSecrets, isSecretsConfigured } from "@/lib/services/secrets";
 import { X402_ENABLED, isX402Configured, CREDITS_PER_DOLLAR } from "@/lib/config/x402";
 import { logger } from "@/lib/utils/logger";
 
@@ -196,20 +196,13 @@ export async function POST(
     );
   }
 
-  // Load secrets for this MCP from the MCP creator's organization
-  let mcpSecrets: Record<string, string> = {};
-  if (secretsService.isConfigured) {
-    const orgSecrets = await secretsService.getDecrypted({
-      organizationId: mcp.organization_id,
-    });
-    Object.assign(mcpSecrets, orgSecrets);
-
-    const projectSecrets = await secretsService.getDecrypted({
-      organizationId: mcp.organization_id,
-      projectId: mcp.id,
-    });
-    Object.assign(mcpSecrets, projectSecrets);
-  }
+  // Load secrets for this MCP (org-level + MCP-scoped)
+  const mcpSecrets = isSecretsConfigured()
+    ? await loadMcpSecrets({
+        organizationId: mcp.organization_id,
+        mcpId: mcp.id,
+      })
+    : {};
 
   // Parse the request body to extract tool name
   let body: Record<string, unknown>;

@@ -12,8 +12,8 @@ import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Save, Rocket, FolderOpen, Zap, Layers, Server } from "lucide-react";
-import { useState, useEffect, SetStateAction } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, SetStateAction, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import type { LLMModelConfig } from "@/lib/fragments/models";
 import modelsList from "@/lib/fragments/models";
@@ -60,7 +60,19 @@ export default function FragmentsPage() {
   const [showFullAppDialog, setShowFullAppDialog] = useState(false);
   const [showServiceDialog, setShowServiceDialog] = useState(false);
 
+  const searchParams = useSearchParams();
+  const initialPromptUsedRef = useRef(false);
+
   const [chatInput, setChatInput] = useLocalStorage("fragments-chat", "");
+
+  // Handle initial prompt from URL
+  useEffect(() => {
+    const promptParam = searchParams.get("prompt");
+    if (promptParam && !initialPromptUsedRef.current) {
+      setChatInput(promptParam);
+      initialPromptUsedRef.current = true;
+    }
+  }, [searchParams, setChatInput]);
   const [files, setFiles] = useState<File[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("auto");
   const [languageModel, setLanguageModel] = useLocalStorage<LLMModelConfig>(

@@ -1,17 +1,9 @@
 /**
- * Code Interpreter Service
- *
- * Quick stateless code execution for fast evaluations.
- * Uses lightweight containers/workers for rapid execution.
- *
- * Features:
- * - Python, JavaScript, TypeScript, Shell execution
- * - Package installation support
- * - Timeout handling
- * - Cost tracking
+ * Code Interpreter Service - Quick stateless code execution
  */
 
 import { db } from "@/db";
+import { eq } from "drizzle-orm";
 import {
   interpreterExecutions,
   type NewInterpreterExecution,
@@ -21,17 +13,9 @@ import { usageService } from "@/lib/services/usage";
 import { logger } from "@/lib/utils/logger";
 import type { InterpreterParams, InterpreterResult } from "./types";
 
-// =============================================================================
-// CONSTANTS
-// =============================================================================
-
-const COST_PER_EXECUTION_CENTS = 0.1; // $0.001 per execution
-const DEFAULT_TIMEOUT_MS = 30000; // 30 seconds
-const MAX_OUTPUT_LENGTH = 100000; // 100KB
-
-// =============================================================================
-// PYTHON EXECUTION
-// =============================================================================
+const COST_PER_EXECUTION_CENTS = 0.1;
+const DEFAULT_TIMEOUT_MS = 30000;
+const MAX_OUTPUT_LENGTH = 100000;
 
 async function executePython(
   code: string,
@@ -103,15 +87,10 @@ async function executePython(
   });
 }
 
-// =============================================================================
-// JAVASCRIPT/TYPESCRIPT EXECUTION
-// =============================================================================
-
 async function executeJavaScript(
   code: string,
-  packages: string[],
-  timeout: number,
-  isTypeScript: boolean
+  _packages: string[],
+  timeout: number
 ): Promise<{ output: string; error: string | null; exitCode: number; durationMs: number }> {
   const startTime = Date.now();
 
@@ -215,10 +194,6 @@ async function executeJavaScript(
   });
 }
 
-// =============================================================================
-// SHELL EXECUTION
-// =============================================================================
-
 async function executeShell(
   code: string,
   timeout: number
@@ -297,10 +272,6 @@ async function executeShell(
   });
 }
 
-// =============================================================================
-// INTERPRETER SERVICE
-// =============================================================================
-
 class InterpreterService {
   async execute(params: InterpreterParams): Promise<InterpreterResult> {
     const {
@@ -334,15 +305,14 @@ class InterpreterService {
       metadata: { user_id: userId, language },
     });
 
-    // Create execution record
     const [execution] = await db
       .insert(interpreterExecutions)
       .values({
         organization_id: organizationId,
         user_id: userId,
         language,
-        code: code.substring(0, 10000), // Truncate for storage
-        packages,
+        code: code.substring(0, 10000),
+        packages: packages,
         status: "running",
       } satisfies NewInterpreterExecution)
       .returning();
@@ -356,11 +326,8 @@ class InterpreterService {
           break;
 
         case "javascript":
-          result = await executeJavaScript(code, packages, timeout, false);
-          break;
-
         case "typescript":
-          result = await executeJavaScript(code, packages, timeout, true);
+          result = await executeJavaScript(code, packages, timeout);
           break;
 
         case "shell":
@@ -467,7 +434,4 @@ class InterpreterService {
 }
 
 export const interpreterService = new InterpreterService();
-
-// Also export a helper function that wraps with drizzle query functions
-import { eq } from "drizzle-orm";
 

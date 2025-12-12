@@ -49,6 +49,7 @@ interface BuildModeAssistantProps {
   onRoomIdChange?: (roomId: string) => void;
   userId: string;
   isCreatorMode?: boolean;
+  initialPrompt?: string;
 }
 
 interface Message {
@@ -70,18 +71,28 @@ export function BuildModeAssistant({
   onRoomIdChange,
   userId,
   isCreatorMode = false,
+  initialPrompt,
 }: BuildModeAssistantProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const roomInitKeyRef = useRef<string | null>(null); // Track which room key we've initialized
   const messagesLoadedRef = useRef<string | null>(null); // Track which room we've loaded messages for
-  const [inputText, setInputText] = useState("");
+  const initialPromptUsedRef = useRef(false); // Track if initial prompt has been applied
+  const [inputText, setInputText] = useState(initialPrompt || "");
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true); // Loading state for initial welcome
   const [builderRoomId, setBuilderRoomId] = useState<string>("");
   const [lockedRoom, setLockedRoom] = useState<LockedRoomInfo | null>(null); // Track if room is locked after character creation
+
+  // Handle initial prompt from URL - only apply once
+  useEffect(() => {
+    if (initialPrompt && !initialPromptUsedRef.current) {
+      setInputText(initialPrompt);
+      initialPromptUsedRef.current = true;
+    }
+  }, [initialPrompt]);
 
   // Determine display info based on mode
   // Show Eliza until character is actually saved (has source from database)

@@ -482,92 +482,45 @@ class PlatformCredentialsService {
     return result.rowCount || 0;
   }
 
-  /**
-   * Store credentials for non-OAuth platforms (Bluesky app password, Telegram bot token)
-   */
   async storeManualCredentials(params: {
     organizationId: string;
     userId?: string;
     appId?: string;
     platform: PlatformType;
-    credentials: {
-      handle?: string;
-      appPassword?: string;
-      botToken?: string;
-      instanceUrl?: string;
-    };
+    credentials: { handle?: string; appPassword?: string; botToken?: string };
   }): Promise<PlatformCredential> {
     const { organizationId, userId, appId, platform, credentials } = params;
 
-    // Validate credentials based on platform
-    let platformUserId: string;
-    let platformUsername: string | undefined;
-    let platformDisplayName: string | undefined;
-    let platformAvatarUrl: string | undefined;
-    let secretValue: string;
-    let secretName: string;
+    const validated = platform === "bluesky"
+      ? await this.validateBluesky(credentials.handle!, credentials.appPassword!)
+      : platform === "telegram"
+        ? await this.validateTelegram(credentials.botToken!)
+        : null;
 
-    if (platform === "bluesky") {
-      if (!credentials.handle || !credentials.appPassword) {
-        throw new Error("Bluesky requires handle and app password");
-      }
+    if (!validated) throw new Error(`Manual credentials not supported for: ${platform}`);
 
-      // Validate Bluesky credentials by attempting login
-      const validation = await this.validateBlueskyCredentials(credentials.handle, credentials.appPassword);
-      if (!validation.valid) {
-        throw new Error(validation.error || "Invalid Bluesky credentials");
-      }
-
-      platformUserId = validation.did!;
-      platformUsername = credentials.handle;
-      platformDisplayName = validation.displayName;
-      platformAvatarUrl = validation.avatarUrl;
-      secretValue = credentials.appPassword;
-      secretName = `BLUESKY_APP_PASSWORD_${platformUserId}`;
-    } else if (platform === "telegram") {
-      if (!credentials.botToken) {
-        throw new Error("Telegram requires bot token");
-      }
-
-      // Validate Telegram bot token
-      const validation = await this.validateTelegramBotToken(credentials.botToken);
-      if (!validation.valid) {
-        throw new Error(validation.error || "Invalid Telegram bot token");
-      }
-
-      platformUserId = String(validation.botId!);
-      platformUsername = validation.botUsername;
-      platformDisplayName = validation.botName;
-      secretValue = credentials.botToken;
-      secretName = `TELEGRAM_BOT_TOKEN_${platformUserId}`;
-    } else {
-      throw new Error(`Manual credentials not supported for platform: ${platform}`);
-    }
-
-    // Store the secret
     const secret = await secretsService.create({
       organizationId,
-      name: secretName,
-      value: secretValue,
+      name: validated.secretName,
+      value: validated.secretValue,
       scope: appId ? "project" : "organization",
       projectId: appId,
       projectType: appId ? "app" : undefined,
       createdBy: userId || "system",
     }, SYSTEM_AUDIT);
 
-    // Check for existing credential
     const [existing] = await db.select().from(platformCredentials)
       .where(and(
         eq(platformCredentials.organization_id, organizationId),
         eq(platformCredentials.platform, platform),
-        eq(platformCredentials.platform_user_id, platformUserId)
+        eq(platformCredentials.platform_user_id, validated.userId)
       )).limit(1);
 
-    const credentialData = {
+    const data = {
       status: "active" as const,
-      platform_username: platformUsername,
-      platform_display_name: platformDisplayName,
-      platform_avatar_url: platformAvatarUrl,
+      platform_username: validated.username,
+      platform_display_name: validated.displayName,
+      platform_avatar_url: validated.avatarUrl,
       api_key_secret_id: secret.id,
       linked_at: new Date(),
       error_message: null,
@@ -575,32 +528,25 @@ class PlatformCredentialsService {
     };
 
     const [credential] = existing
-      ? await db.update(platformCredentials).set(credentialData).where(eq(platformCredentials.id, existing.id)).returning()
+      ? await db.update(platformCredentials).set(data).where(eq(platformCredentials.id, existing.id)).returning()
       : await db.insert(platformCredentials).values({
           organization_id: organizationId,
           user_id: userId,
           app_id: appId,
           platform,
-          platform_user_id: platformUserId,
+          platform_user_id: validated.userId,
           source_type: "manual",
-          ...credentialData,
+          ...data,
         }).returning();
 
     logger.info("[Credentials] Manual credentials stored", { platform, credentialId: credential.id });
     return credential;
   }
 
-  /**
-   * Validate Bluesky credentials
-   */
-  async validateBlueskyCredentials(handle: string, appPassword: string): Promise<{
-    valid: boolean;
-    did?: string;
-    displayName?: string;
-    avatarUrl?: string;
-    error?: string;
-  }> {
-    const normalizedHandle = handle.startsWith("@") ? handle.slice(1) : handle;
+  private async validateBluesky(handle: string, appPassword: string) {
+    if (!handle || !appPassword) throw new Error("Bluesky requires handle and app password");
+
+    const normalizedHandle = handle.replace(/^@/, "");
     const service = normalizedHandle.includes(".") && !normalizedHandle.endsWith(".bsky.social")
       ? `https://${normalizedHandle.split(".").slice(-2).join(".")}`
       : "https://bsky.social";
@@ -612,60 +558,45 @@ class PlatformCredentialsService {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      return { valid: false, error: error.message || "Authentication failed" };
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || "Bluesky authentication failed");
     }
 
     const session = await response.json();
-
-    // Fetch profile for display name and avatar
-    const profileResponse = await fetch(`${service}/xrpc/app.bsky.actor.getProfile?actor=${session.did}`, {
+    const profileRes = await fetch(`${service}/xrpc/app.bsky.actor.getProfile?actor=${session.did}`, {
       headers: { Authorization: `Bearer ${session.accessJwt}` },
     });
-
-    let displayName: string | undefined;
-    let avatarUrl: string | undefined;
-    if (profileResponse.ok) {
-      const profile = await profileResponse.json();
-      displayName = profile.displayName;
-      avatarUrl = profile.avatar;
-    }
-
-    return { valid: true, did: session.did, displayName, avatarUrl };
-  }
-
-  /**
-   * Validate Telegram bot token
-   */
-  async validateTelegramBotToken(botToken: string): Promise<{
-    valid: boolean;
-    botId?: number;
-    botUsername?: string;
-    botName?: string;
-    error?: string;
-  }> {
-    const response = await fetch(`https://api.telegram.org/bot${botToken}/getMe`);
-    const data = await response.json();
-
-    if (!data.ok) {
-      return { valid: false, error: data.description || "Invalid bot token" };
-    }
+    const profile = profileRes.ok ? await profileRes.json() : {};
 
     return {
-      valid: true,
-      botId: data.result.id,
-      botUsername: data.result.username,
-      botName: data.result.first_name,
+      userId: session.did,
+      username: handle,
+      displayName: profile.displayName,
+      avatarUrl: profile.avatar,
+      secretName: `BLUESKY_APP_PASSWORD_${session.did}`,
+      secretValue: appPassword,
     };
   }
 
-  /**
-   * Get manual credentials (Bluesky, Telegram)
-   */
-  async getManualCredentials(credentialId: string, organizationId: string): Promise<{
-    credential: PlatformCredential;
-    apiKey: string;
-  } | null> {
+  private async validateTelegram(botToken: string) {
+    if (!botToken) throw new Error("Telegram requires bot token");
+
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/getMe`);
+    const data = await response.json();
+
+    if (!data.ok) throw new Error(data.description || "Invalid Telegram bot token");
+
+    return {
+      userId: String(data.result.id),
+      username: data.result.username,
+      displayName: data.result.first_name,
+      avatarUrl: undefined,
+      secretName: `TELEGRAM_BOT_TOKEN_${data.result.id}`,
+      secretValue: botToken,
+    };
+  }
+
+  async getManualCredentials(credentialId: string, organizationId: string) {
     const [credential] = await db.select().from(platformCredentials)
       .where(and(
         eq(platformCredentials.id, credentialId),
@@ -673,66 +604,49 @@ class PlatformCredentialsService {
         eq(platformCredentials.status, "active")
       )).limit(1);
 
-    if (!credential || !credential.api_key_secret_id) return null;
+    if (!credential?.api_key_secret_id) return null;
 
     const secretName = credential.platform === "bluesky"
       ? `BLUESKY_APP_PASSWORD_${credential.platform_user_id}`
       : `TELEGRAM_BOT_TOKEN_${credential.platform_user_id}`;
 
-    const apiKey = await secretsService.get(
-      organizationId,
-      secretName,
-      credential.app_id || undefined
-    );
-
+    const apiKey = await secretsService.get(organizationId, secretName, credential.app_id || undefined);
     if (!apiKey) return null;
 
     await db.update(platformCredentials).set({ last_used_at: new Date() }).where(eq(platformCredentials.id, credentialId));
-
     return { credential, apiKey };
   }
 
-  /**
-   * Create Mastodon OAuth session (instance-based)
-   */
   async createMastodonLinkSession(params: CreateLinkSessionParams & { instanceUrl: string }) {
-    const { instanceUrl, ...rest } = params;
-    
-    // Validate instance URL
-    const normalizedUrl = instanceUrl.startsWith("http") ? instanceUrl : `https://${instanceUrl}`;
-    const instanceHost = new URL(normalizedUrl).origin;
+    const instanceHost = new URL(params.instanceUrl.startsWith("http") ? params.instanceUrl : `https://${params.instanceUrl}`).origin;
 
-    // Check if we have an app registered for this instance
-    let clientId = process.env.MASTODON_CLIENT_ID;
-    let clientSecret = process.env.MASTODON_CLIENT_SECRET;
-
-    // For production, you'd dynamically register apps per-instance
-    // For now, we support a single configured instance
+    const clientId = process.env.MASTODON_CLIENT_ID;
+    const clientSecret = process.env.MASTODON_CLIENT_SECRET;
     const configuredInstance = process.env.MASTODON_INSTANCE_URL;
-    if (!configuredInstance || !clientId || !clientSecret) {
-      throw new Error("Mastodon OAuth not configured. Set MASTODON_INSTANCE_URL, MASTODON_CLIENT_ID, and MASTODON_CLIENT_SECRET");
-    }
 
+    if (!configuredInstance || !clientId || !clientSecret) {
+      throw new Error("Mastodon OAuth not configured");
+    }
     if (!instanceHost.includes(new URL(configuredInstance).host)) {
-      throw new Error(`Instance ${instanceHost} not supported. Only ${configuredInstance} is configured.`);
+      throw new Error(`Instance ${instanceHost} not supported`);
     }
 
     const sessionId = nanoid(32);
     const oauthState = randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + SESSION_EXPIRY_MS);
-    const scopes = rest.requestedScopes?.length ? rest.requestedScopes : OAUTH_CONFIGS.mastodon.scopes;
+    const scopes = params.requestedScopes?.length ? params.requestedScopes : OAUTH_CONFIGS.mastodon.scopes;
 
     await db.insert(platformCredentialSessions).values({
       session_id: sessionId,
-      organization_id: rest.organizationId,
-      app_id: rest.appId,
-      requesting_user_id: rest.requestingUserId,
+      organization_id: params.organizationId,
+      app_id: params.appId,
+      requesting_user_id: params.requestingUserId,
       platform: "mastodon",
       requested_scopes: scopes,
       oauth_state: oauthState,
-      callback_url: rest.callbackUrl,
-      callback_type: rest.callbackType,
-      callback_context: { ...rest.callbackContext, instanceUrl: instanceHost },
+      callback_url: params.callbackUrl,
+      callback_type: params.callbackType,
+      callback_context: { ...params.callbackContext, instanceUrl: instanceHost },
       expires_at: expiresAt,
     });
 
@@ -746,13 +660,9 @@ class PlatformCredentialsService {
     });
 
     logger.info("[Credentials] Mastodon session created", { sessionId: sessionId.slice(0, 8), instance: instanceHost });
-
     return { sessionId, linkUrl: `${instanceHost}/oauth/authorize?${authParams}`, expiresAt };
   }
 
-  /**
-   * Get available platforms with their connection status for an organization
-   */
   async getAvailablePlatforms(organizationId: string) {
     const credentials = await this.listCredentials(organizationId, { status: "active" });
     const credentialMap = new Map(credentials.map(c => [c.platform, c]));

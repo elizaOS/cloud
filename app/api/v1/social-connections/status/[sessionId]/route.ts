@@ -1,14 +1,6 @@
-/**
- * Check OAuth session status
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { platformCredentialsService } from "@/lib/services/platform-credentials";
 
-/**
- * GET /api/v1/social-connections/status/[sessionId]
- * Check the status of an OAuth linking session
- */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }

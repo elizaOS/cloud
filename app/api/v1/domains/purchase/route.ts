@@ -4,7 +4,6 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { domainManagementService } from "@/lib/services/domain-management";
 import { domainModerationService } from "@/lib/services/domain-moderation";
 import { creditsService } from "@/lib/services/credits";
-import { isX402Configured, X402_RECIPIENT_ADDRESS, getDefaultNetwork, USDC_ADDRESSES } from "@/lib/config/x402";
 import { logger } from "@/lib/utils/logger";
 
 const PurchaseDomainSchema = z.object({
@@ -23,30 +22,13 @@ const PurchaseDomainSchema = z.object({
     phone: z.string().optional(),
     privacyEnabled: z.boolean().optional(),
   }),
-  paymentMethod: z.enum(["credits", "x402"]),
+  paymentMethod: z.literal("credits"), // x402 not yet supported
   autoRenew: z.boolean().default(true),
 });
 
 export async function POST(request: NextRequest) {
-  // Check for x402 payment header
-  const x402PaymentHeader = request.headers.get("X-PAYMENT");
-  const hasX402Payment = !!x402PaymentHeader;
-
-  // If x402 payment provided, we can proceed without auth for domain purchase
-  // Otherwise require auth
-  let organizationId: string;
-  let userId: string;
-
-  if (hasX402Payment && isX402Configured()) {
-    // TODO: Implement proper x402 payment verification
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
-    organizationId = user.organization_id;
-    userId = user.id;
-  } else {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
-    organizationId = user.organization_id;
-    userId = user.id;
-  }
+  const { user } = await requireAuthOrApiKeyWithOrg(request);
+  const organizationId = user.organization_id;
 
   let body: unknown;
   try {
@@ -103,67 +85,23 @@ export async function POST(request: NextRequest) {
   const priceInCents = availability.price.price;
   const priceInDollars = priceInCents / 100;
 
-  // Step 3: Process payment
-  if (paymentMethod === "credits") {
-    // Deduct credits (price is in dollars, credits are 1:1 with cents)
-    const deduction = await creditsService.deduct({
-      organizationId,
-      amount: priceInCents, // Credits are in cents
-      description: `Domain purchase: ${domain}`,
-      metadata: { domain, type: "domain_purchase" },
-    });
+  // Step 3: Process payment (credits only)
+  const deduction = await creditsService.deduct({
+    organizationId,
+    amount: priceInCents,
+    description: `Domain purchase: ${domain}`,
+    metadata: { domain, type: "domain_purchase" },
+  });
 
-    if (!deduction.success) {
-      return NextResponse.json(
-        {
-          error: "Insufficient credits",
-          required: priceInCents,
-          price: {
-            amount: priceInDollars,
-            currency: "USD",
-          },
-        },
-        { status: 402 }
-      );
-    }
-  } else if (paymentMethod === "x402") {
-    // x402 payment - verify the payment header
-    if (!hasX402Payment) {
-      // Return 402 with payment requirements
-      const network = getDefaultNetwork();
-      return NextResponse.json(
-        {
-          error: "x402_payment_required",
-          message: "x402 payment required for domain purchase",
-          x402: {
-            version: 1,
-            accepts: [
-              {
-                scheme: "exact",
-                network,
-                maxAmountRequired: (priceInCents * 10000).toString(), // Convert to USDC base units (6 decimals)
-                asset: USDC_ADDRESSES[network],
-                payTo: X402_RECIPIENT_ADDRESS,
-                resource: `/api/v1/domains/purchase`,
-                description: `Purchase domain: ${domain}`,
-              },
-            ],
-          },
-          domain,
-          price: {
-            amount: priceInDollars,
-            currency: "USD",
-          },
-        },
-        { status: 402 }
-      );
-    }
-
-    // TODO: Verify x402 payment cryptographically
-    logger.info("[Domain Purchase] x402 payment received", {
-      domain,
-      amount: priceInDollars,
-    });
+  if (!deduction.success) {
+    return NextResponse.json(
+      {
+        error: "Insufficient credits",
+        required: priceInCents,
+        price: { amount: priceInDollars, currency: "USD" },
+      },
+      { status: 402 }
+    );
   }
 
   // Step 4: Purchase domain through Vercel
@@ -176,15 +114,13 @@ export async function POST(request: NextRequest) {
   });
 
   if (!result.success) {
-    // Refund credits if purchase failed
-    if (paymentMethod === "credits") {
-      await creditsService.addCredits({
-        organizationId,
-        amount: priceInCents,
-        description: `Refund: Domain purchase failed for ${domain}`,
-        metadata: { domain, type: "domain_purchase_refund" },
-      });
-    }
+    // Refund credits
+    await creditsService.addCredits({
+      organizationId,
+      amount: priceInCents,
+      description: `Refund: Domain purchase failed for ${domain}`,
+      metadata: { domain, type: "domain_purchase_refund" },
+    });
 
     return NextResponse.json(
       { error: result.error || "Failed to purchase domain" },
@@ -251,26 +187,6 @@ export async function GET(request: NextRequest) {
   const priceInCents = availability.price?.price || 0;
   const priceInDollars = priceInCents / 100;
 
-  // Build x402 payment info if configured
-  let x402PaymentInfo = null;
-  if (isX402Configured()) {
-    const network = getDefaultNetwork();
-    x402PaymentInfo = {
-      version: 1,
-      accepts: [
-        {
-          scheme: "exact",
-          network,
-          maxAmountRequired: (priceInCents * 10000).toString(),
-          asset: USDC_ADDRESSES[network],
-          payTo: X402_RECIPIENT_ADDRESS,
-          resource: `/api/v1/domains/purchase`,
-          description: `Purchase domain: ${domain}`,
-        },
-      ],
-    };
-  }
-
   return NextResponse.json({
     success: true,
     domain,
@@ -281,8 +197,7 @@ export async function GET(request: NextRequest) {
       period: availability.price?.period || 1,
       renewalAmount: (availability.price?.renewalPrice || 0) / 100,
     },
-    paymentMethods: ["credits", ...(isX402Configured() ? ["x402"] : [])],
-    x402: x402PaymentInfo,
+    paymentMethods: ["credits"],
     moderationFlags: moderation.flags,
     requiresReview: moderation.requiresReview,
   });

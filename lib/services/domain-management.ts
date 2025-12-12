@@ -25,7 +25,7 @@ export interface DomainPurchaseParams {
   domain: string;
   organizationId: string;
   registrantInfo: ManagedDomain["registrantInfo"];
-  paymentMethod: "stripe" | "x402" | "credits";
+  paymentMethod: "credits"; // stripe/x402 not yet implemented
   stripePaymentIntentId?: string;
   autoRenew?: boolean;
 }

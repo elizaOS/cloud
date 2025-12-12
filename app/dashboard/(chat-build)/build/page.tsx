@@ -5,7 +5,7 @@ import { listCharacters } from "@/app/actions/characters";
 import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 
 interface PageProps {
-  searchParams: Promise<{ characterId?: string }>;
+  searchParams: Promise<{ characterId?: string; prompt?: string }>;
 }
 
 // Force dynamic rendering since we use server-side auth (cookies)
@@ -42,12 +42,14 @@ export default async function BuildPage({ searchParams }: PageProps) {
   // Get URL params
   const params = await searchParams;
   const initialCharacterId = params.characterId;
+  const initialPrompt = params.prompt;
 
   return (
     <BuildPageClient
       initialCharacters={characters}
       isAuthenticated={!isAnonymous}
       initialCharacterId={initialCharacterId}
+      initialPrompt={initialPrompt}
     />
   );
 }

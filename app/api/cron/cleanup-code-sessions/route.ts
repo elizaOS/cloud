@@ -11,7 +11,7 @@
  * {
  *   "crons": [{
  *     "path": "/api/cron/cleanup-code-sessions",
- *     "schedule": "*/15 * * * *"  // Every 15 minutes
+ *     "schedule": "0,15,30,45 * * * *"  // Every 15 minutes
  *   }]
  * }
  */

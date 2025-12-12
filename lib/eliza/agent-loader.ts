@@ -13,7 +13,7 @@ import type { UserCharacter } from "@/db/schemas/user-characters";
 import defaultAgent from "./agent";
 import { getElizaCloudApiUrl } from "./config";
 import { AgentMode, AGENT_MODE_PLUGINS } from "./agent-mode-types";
-import { secretsService } from "@/lib/services/secrets";
+import { loadAgentSecrets, isSecretsConfigured } from "@/lib/services/secrets";
 import { isOrgCharacter, getOrgCharacter, orgCharacters } from "./characters/org";
 import { agentLifecycleService } from "@/lib/services/agent-lifecycle";
 
@@ -205,11 +205,10 @@ export class AgentLoader {
   /**
    * Build Character with merged settings from multiple sources:
    * 1. Character settings from DB (elizaCharacter.settings)
-   * 2. Encrypted secrets from secrets service (project-scoped)
-   * 3. Legacy secrets from character record (elizaCharacter.secrets)
-   * 4. Environment variables (process.env)
-   * 
-   * Priority: Secrets service > DB secrets > Character settings > Env vars
+   * 2. Encrypted secrets from secrets service (org + project-scoped)
+   * 3. Environment variables (process.env)
+   *
+   * Priority: Secrets service > Character settings > Env vars
    */
   private async buildCharacter(
     elizaCharacter: ElizaCharacter,
@@ -220,24 +219,17 @@ export class AgentLoader {
     const getSetting = (key: string, fallback: string) =>
       (charSettings[key] as string) || process.env[key] || fallback;
 
-    // Load encrypted secrets from secrets service (project-scoped)
-    let encryptedSecrets: Record<string, string> = {};
-    if (secretsService.isConfigured) {
-      encryptedSecrets = await secretsService.getDecrypted({
-        organizationId: dbCharacter.organization_id,
-        projectId: dbCharacter.id,
-      });
-    }
+    // Load secrets from secrets service (org + character-scoped)
+    const secrets = isSecretsConfigured()
+      ? await loadAgentSecrets({
+          organizationId: dbCharacter.organization_id,
+          characterId: dbCharacter.id,
+        })
+      : {};
 
-    // Legacy secrets from character record (for backwards compatibility)
-    const legacySecrets = elizaCharacter.secrets || {};
-
-    // Merge all settings with proper priority
-    // Secrets service takes precedence over legacy secrets over character settings
+    // Merge settings - secrets take highest priority
     const settings: Record<string, unknown> = {
-      // Base character settings
       ...charSettings,
-      // Standard platform settings
       POSTGRES_URL: process.env.DATABASE_URL!,
       DATABASE_URL: process.env.DATABASE_URL!,
       ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
@@ -260,10 +252,7 @@ export class AgentLoader {
         : {}),
       ELEVENLABS_STT_TAG_AUDIO_EVENTS: getSetting("ELEVENLABS_STT_TAG_AUDIO_EVENTS", "false"),
       avatarUrl: elizaCharacter.avatarUrl || elizaCharacter.avatar_url,
-      // Legacy secrets (lower priority)
-      ...legacySecrets,
-      // Encrypted secrets from secrets service (highest priority)
-      ...encryptedSecrets,
+      ...secrets,
     };
 
     return {

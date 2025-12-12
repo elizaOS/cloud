@@ -35,11 +35,13 @@ import { useRouter } from "next/navigation";
 interface CharacterBuildModeProps {
   initialCharacters: ElizaCharacter[];
   onUnsavedChanges?: (hasChanges: boolean) => void;
+  initialPrompt?: string;
 }
 
 export function CharacterBuildMode({
   initialCharacters,
   onUnsavedChanges,
+  initialPrompt,
 }: CharacterBuildModeProps) {
   const { selectedCharacterId } = useChatStore();
   const { user } = usePrivy();
@@ -215,6 +217,7 @@ export function CharacterBuildMode({
               onRoomIdChange={handleRoomIdChange}
               userId={userId}
               isCreatorMode={isCreatorMode}
+              initialPrompt={initialPrompt}
             />
           </div>
         ) : (
@@ -241,6 +244,7 @@ export function CharacterBuildMode({
                 onRoomIdChange={handleRoomIdChange}
                 userId={userId}
                 isCreatorMode={isCreatorMode}
+                initialPrompt={initialPrompt}
               />
             </div>
           </ResizablePanel>

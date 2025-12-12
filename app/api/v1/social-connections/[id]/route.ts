@@ -1,7 +1,3 @@
-/**
- * Manage a specific social connection
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/middleware/app-auth";
 import { platformCredentialsService } from "@/lib/services/platform-credentials";
@@ -16,7 +12,6 @@ export async function GET(
 
   const { id } = await params;
   const credential = await platformCredentialsService.getCredential(id, authResult.user.organization_id);
-
   if (!credential) {
     return NextResponse.json({ success: false, error: "Connection not found" }, { status: 404 });
   }
@@ -37,34 +32,19 @@ export async function GET(
   });
 }
 
-/**
- * DELETE /api/v1/social-connections/[id]
- * Disconnect/revoke a platform connection
- */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const authResult = await requireAuth(request);
   if (authResult instanceof NextResponse) return authResult;
-  const { user } = authResult;
 
   const { id } = await params;
-
-  await platformCredentialsService.revokeCredential(id, user.organization_id);
-
-  logger.info("[SocialConnections] Connection revoked", { 
-    credentialId: id, 
-    userId: user.id 
-  });
-
-  return NextResponse.json({ success: true, message: "Connection revoked" });
+  await platformCredentialsService.revokeCredential(id, authResult.user.organization_id);
+  logger.info("[SocialConnections] Revoked", { credentialId: id, userId: authResult.user.id });
+  return NextResponse.json({ success: true });
 }
 
-/**
- * POST /api/v1/social-connections/[id]
- * Refresh token for a connection
- */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

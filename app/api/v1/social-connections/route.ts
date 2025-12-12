@@ -1,7 +1,3 @@
-/**
- * Social Connections API - List and manage platform credential connections.
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuth } from "@/lib/middleware/app-auth";
@@ -22,17 +18,12 @@ export async function GET(request: NextRequest) {
   if (authResult instanceof NextResponse) return authResult;
 
   const platforms = await platformCredentialsService.getAvailablePlatforms(authResult.user.organization_id);
-
   return NextResponse.json({
     success: true,
     platforms: platforms.filter(p => SOCIAL_PLATFORMS.includes(p.platform)),
   });
 }
 
-/**
- * POST /api/v1/social-connections
- * Store manual credentials (Bluesky app password, Telegram bot token)
- */
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth(request);
   if (authResult instanceof NextResponse) return authResult;

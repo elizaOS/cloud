@@ -1,7 +1,3 @@
-/**
- * Social Connections settings tab for managing platform OAuth connections.
- */
-
 "use client";
 
 import { BrandCard, CornerBrackets } from "@/components/brand";
@@ -71,7 +67,7 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
 
   const handleConnect = async (platform: string, authType: "oauth" | "manual") => {
     if (authType === "manual" || platform === "mastodon") {
-      const defaultForm = platform === "mastodon" ? { instanceUrl: "mastodon.social" } : {};
+      const defaultForm: Record<string, string> = platform === "mastodon" ? { instanceUrl: "mastodon.social" } : {};
       setModal({ platform, form: defaultForm });
       return;
     }

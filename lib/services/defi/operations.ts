@@ -49,11 +49,13 @@ export async function fetchTokenPrice(source: PriceSource, identifier: string, c
 }
 
 export async function fetchTrendingTokens(source: TrendingSource, limit = 20) {
-  const trending = source === "birdeye"
-    ? await getBirdeyeService().getTrendingTokens({ limit })
-    : source === "coingecko"
-    ? await getCoinGeckoService().getTrending()
-    : await getCoinMarketCapService().getTrending(limit);
+  let trending;
+  switch (source) {
+    case "birdeye": trending = await getBirdeyeService().getTrendingTokens({ limit }); break;
+    case "coingecko": trending = await getCoinGeckoService().getTrending(); break;
+    case "coinmarketcap": trending = await getCoinMarketCapService().getTrending(limit); break;
+    default: throw new Error(`Unsupported source: ${source}`);
+  }
 
   return {
     source,
@@ -230,7 +232,7 @@ const SERVICE_HEALTH_CHECKS = [
 ] as const;
 
 export async function checkServicesHealth(serviceNames?: string[]) {
-  const services = serviceNames?.length
+  const services = serviceNames !== undefined
     ? SERVICE_HEALTH_CHECKS.filter((s) => serviceNames.includes(s.name))
     : SERVICE_HEALTH_CHECKS;
 
