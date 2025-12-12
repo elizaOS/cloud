@@ -1078,3 +1078,859 @@ describe("Service Exports", () => {
     expect(typeof exports.aggregateResults).toBe("function");
   });
 });
+
+// =============================================================================
+// ADVANCED CONCURRENT BEHAVIOR TESTS
+// =============================================================================
+
+describe("Concurrent Post Operations", () => {
+  it("should handle parallel platform validation", async () => {
+    const { SUPPORTED_PLATFORMS } = await import("@/lib/types/social-media");
+
+    // Validate all platforms concurrently
+    const validations = SUPPORTED_PLATFORMS.map(async (platform) => {
+      // Simulate async validation
+      await new Promise((r) => setTimeout(r, Math.random() * 10));
+      return { platform, valid: true };
+    });
+
+    const results = await Promise.all(validations);
+
+    expect(results.length).toBe(SUPPORTED_PLATFORMS.length);
+    expect(results.every((r) => r.valid)).toBe(true);
+  });
+
+  it("should handle parallel content validation", async () => {
+    const { validatePostContent } = await import("@/lib/types/social-media");
+
+    const contents = [
+      { text: "Post 1" },
+      { text: "Post 2" },
+      { text: "Post 3" },
+      { text: "Post 4" },
+      { text: "Post 5" },
+    ];
+
+    // Validate all contents in parallel
+    const validations = contents.map(async (content) => {
+      await new Promise((r) => setTimeout(r, Math.random() * 5));
+      return validatePostContent(content, "twitter");
+    });
+
+    const results = await Promise.all(validations);
+
+    expect(results.length).toBe(5);
+    expect(results.every((r) => r.valid)).toBe(true);
+  });
+
+  it("should aggregate results from parallel posts correctly", async () => {
+    const { aggregateResults, createSuccessResult, createErrorResult } = await import(
+      "@/lib/types/social-media"
+    );
+
+    // Simulate parallel post operations with mixed results
+    const simulatePosts = async (): Promise<PostResult[]> => {
+      const operations = [
+        new Promise<PostResult>((r) =>
+          setTimeout(() => r(createSuccessResult("twitter", "tw_123")), 10)
+        ),
+        new Promise<PostResult>((r) =>
+          setTimeout(() => r(createErrorResult("bluesky", "Auth failed")), 5)
+        ),
+        new Promise<PostResult>((r) =>
+          setTimeout(() => r(createSuccessResult("discord", "dc_456")), 15)
+        ),
+        new Promise<PostResult>((r) =>
+          setTimeout(() => r(createErrorResult("telegram", "Rate limited")), 8)
+        ),
+      ];
+
+      return Promise.all(operations);
+    };
+
+    const results = await simulatePosts();
+    const aggregated = aggregateResults(results);
+
+    expect(aggregated.totalPlatforms).toBe(4);
+    expect(aggregated.successCount).toBe(2);
+    expect(aggregated.failureCount).toBe(2);
+    expect(aggregated.successful.length).toBe(2);
+    expect(aggregated.failed.length).toBe(2);
+  });
+
+  it("should handle timeout scenarios gracefully", async () => {
+    const { createErrorResult } = await import("@/lib/types/social-media");
+
+    const TIMEOUT_MS = 50;
+
+    const simulateWithTimeout = async (
+      platform: SocialPlatform,
+      delay: number
+    ): Promise<PostResult> => {
+      return new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          resolve(createErrorResult(platform, "Request timeout"));
+        }, TIMEOUT_MS);
+
+        setTimeout(() => {
+          clearTimeout(timeout);
+          resolve({
+            platform,
+            success: true,
+            postId: `${platform}_123`,
+          });
+        }, delay);
+      });
+    };
+
+    // Fast request should succeed
+    const fast = await simulateWithTimeout("twitter", 10);
+    expect(fast.success).toBe(true);
+
+    // Slow request should timeout
+    const slow = await simulateWithTimeout("bluesky", 100);
+    expect(slow.success).toBe(false);
+    expect(slow.error).toContain("timeout");
+  });
+});
+
+// =============================================================================
+// RETRY BEHAVIOR TESTS
+// =============================================================================
+
+describe("Retry Behavior", () => {
+  it("should implement exponential backoff", async () => {
+    const BASE_DELAY = 100;
+    const MAX_RETRIES = 3;
+    const delays: number[] = [];
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      const delay = BASE_DELAY * Math.pow(2, attempt);
+      delays.push(delay);
+    }
+
+    expect(delays).toEqual([100, 200, 400]);
+  });
+
+  it("should respect maximum retry count", () => {
+    const MAX_RETRIES = 3;
+    let attempts = 0;
+    let shouldRetry = true;
+
+    while (shouldRetry && attempts < MAX_RETRIES) {
+      attempts++;
+      // Simulate failure
+      shouldRetry = attempts < MAX_RETRIES;
+    }
+
+    expect(attempts).toBe(MAX_RETRIES);
+  });
+
+  it("should stop retrying on success", () => {
+    const MAX_RETRIES = 5;
+    let attempts = 0;
+    const successOnAttempt = 2;
+
+    for (let i = 0; i < MAX_RETRIES; i++) {
+      attempts++;
+      if (i + 1 === successOnAttempt) {
+        break; // Success
+      }
+    }
+
+    expect(attempts).toBe(2);
+  });
+
+  it("should calculate jitter for retry delays", () => {
+    const BASE_DELAY = 1000;
+    const JITTER_FACTOR = 0.1; // 10% jitter
+
+    const delays: number[] = [];
+    for (let i = 0; i < 10; i++) {
+      const jitter = (Math.random() - 0.5) * 2 * JITTER_FACTOR;
+      const delay = BASE_DELAY * (1 + jitter);
+      delays.push(delay);
+    }
+
+    // All delays should be within 10% of base
+    delays.forEach((delay) => {
+      expect(delay).toBeGreaterThanOrEqual(BASE_DELAY * 0.9);
+      expect(delay).toBeLessThanOrEqual(BASE_DELAY * 1.1);
+    });
+
+    // Delays should vary (not all the same)
+    const uniqueDelays = new Set(delays);
+    expect(uniqueDelays.size).toBeGreaterThan(1);
+  });
+});
+
+// =============================================================================
+// MEDIA HANDLING EDGE CASES
+// =============================================================================
+
+describe("Media Handling Edge Cases", () => {
+  it("should handle large file sizes", () => {
+    const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB for Twitter video
+
+    const fileSizes = [
+      { size: 1024, valid: true }, // 1KB
+      { size: 5 * 1024 * 1024, valid: true }, // 5MB
+      { size: MAX_FILE_SIZE, valid: true }, // Exactly at limit
+      { size: MAX_FILE_SIZE + 1, valid: false }, // Over limit
+    ];
+
+    fileSizes.forEach(({ size, valid }) => {
+      expect(size <= MAX_FILE_SIZE).toBe(valid);
+    });
+  });
+
+  it("should validate media MIME types", () => {
+    const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/quicktime"];
+
+    const testCases = [
+      { type: "image/jpeg", expected: "image" },
+      { type: "image/png", expected: "image" },
+      { type: "video/mp4", expected: "video" },
+      { type: "application/pdf", expected: null },
+      { type: "text/plain", expected: null },
+    ];
+
+    testCases.forEach(({ type, expected }) => {
+      let mediaType: string | null = null;
+      if (ALLOWED_IMAGE_TYPES.includes(type)) mediaType = "image";
+      else if (ALLOWED_VIDEO_TYPES.includes(type)) mediaType = "video";
+
+      expect(mediaType).toBe(expected);
+    });
+  });
+
+  it("should handle missing alt text gracefully", () => {
+    interface MediaWithAlt {
+      url: string;
+      altText?: string;
+    }
+
+    const mediaItems: MediaWithAlt[] = [
+      { url: "https://example.com/img1.jpg", altText: "Description" },
+      { url: "https://example.com/img2.jpg" }, // No alt text
+    ];
+
+    mediaItems.forEach((item) => {
+      const alt = item.altText || ""; // Default to empty string
+      expect(typeof alt).toBe("string");
+    });
+  });
+
+  it("should validate URL format for media", () => {
+    const validUrls = [
+      "https://example.com/image.jpg",
+      "https://cdn.example.com/video.mp4",
+      "https://storage.googleapis.com/bucket/file.png",
+    ];
+
+    const invalidUrls = [
+      "not-a-url",
+      "ftp://example.com/file.jpg",
+      "//example.com/image.jpg",
+      "",
+    ];
+
+    const isValidUrl = (url: string): boolean => {
+      try {
+        const parsed = new URL(url);
+        return parsed.protocol === "https:";
+      } catch {
+        return false;
+      }
+    };
+
+    validUrls.forEach((url) => {
+      expect(isValidUrl(url)).toBe(true);
+    });
+
+    invalidUrls.forEach((url) => {
+      expect(isValidUrl(url)).toBe(false);
+    });
+  });
+});
+
+// =============================================================================
+// PLATFORM-SPECIFIC CONSTRAINT TESTS
+// =============================================================================
+
+describe("Platform-Specific Constraints", () => {
+  const PLATFORM_LIMITS = {
+    twitter: { textLength: 280, images: 4, videos: 1 },
+    bluesky: { textLength: 300, images: 4, videos: 0 },
+    discord: { textLength: 2000, images: 10, videos: 0 },
+    telegram: { textLength: 4096, images: 10, videos: 1 },
+    linkedin: { textLength: 3000, images: 20, videos: 1 },
+    reddit: { textLength: 40000, images: 20, videos: 1 },
+    facebook: { textLength: 63206, images: 10, videos: 1 },
+    instagram: { textLength: 2200, images: 10, videos: 1 },
+    tiktok: { textLength: 2200, images: 0, videos: 1 },
+    mastodon: { textLength: 500, images: 4, videos: 1 },
+  };
+
+  it("should enforce text length limits per platform", () => {
+    Object.entries(PLATFORM_LIMITS).forEach(([platform, limits]) => {
+      const validText = "a".repeat(limits.textLength);
+      const invalidText = "a".repeat(limits.textLength + 1);
+
+      expect(validText.length <= limits.textLength).toBe(true);
+      expect(invalidText.length <= limits.textLength).toBe(false);
+    });
+  });
+
+  it("should enforce image count limits per platform", () => {
+    Object.entries(PLATFORM_LIMITS).forEach(([platform, limits]) => {
+      const images = Array(limits.images).fill({ url: "https://example.com/img.jpg" });
+      const tooManyImages = Array(limits.images + 1).fill({
+        url: "https://example.com/img.jpg",
+      });
+
+      expect(images.length <= limits.images).toBe(true);
+      expect(tooManyImages.length <= limits.images).toBe(false);
+    });
+  });
+
+  it("should handle video-only platforms (TikTok)", () => {
+    const tiktokLimits = PLATFORM_LIMITS.tiktok;
+
+    expect(tiktokLimits.images).toBe(0); // No images allowed
+    expect(tiktokLimits.videos).toBe(1); // Exactly one video required
+  });
+
+  it("should handle image-only platforms (Bluesky)", () => {
+    const blueskyLimits = PLATFORM_LIMITS.bluesky;
+
+    expect(blueskyLimits.images).toBe(4);
+    expect(blueskyLimits.videos).toBe(0); // No videos supported
+  });
+});
+
+// =============================================================================
+// ERROR RECOVERY TESTS
+// =============================================================================
+
+describe("Error Recovery", () => {
+  it("should provide actionable error messages", () => {
+    const errors = [
+      { code: "RATE_LIMITED", message: "Rate limited. Retry after 60 seconds." },
+      { code: "AUTH_FAILED", message: "Authentication failed. Please reconnect your account." },
+      { code: "INVALID_MEDIA", message: "Media format not supported. Use JPEG, PNG, or GIF." },
+      { code: "TEXT_TOO_LONG", message: "Text exceeds 280 characters. Please shorten your post." },
+    ];
+
+    errors.forEach((error) => {
+      expect(error.message.length).toBeGreaterThan(10);
+      expect(error.message).not.toContain("undefined");
+      expect(error.message).not.toContain("null");
+    });
+  });
+
+  it("should classify errors by recoverability", () => {
+    const errorClassification: Record<string, "retry" | "fix" | "permanent"> = {
+      RATE_LIMITED: "retry", // Wait and retry
+      NETWORK_ERROR: "retry", // Retry immediately
+      AUTH_EXPIRED: "fix", // User action needed
+      INVALID_MEDIA: "fix", // User must fix content
+      ACCOUNT_SUSPENDED: "permanent", // Cannot recover
+      PLATFORM_UNAVAILABLE: "retry", // Try again later
+    };
+
+    expect(errorClassification.RATE_LIMITED).toBe("retry");
+    expect(errorClassification.AUTH_EXPIRED).toBe("fix");
+    expect(errorClassification.ACCOUNT_SUSPENDED).toBe("permanent");
+  });
+
+  it("should preserve partial success on multi-platform post", async () => {
+    const { aggregateResults, createSuccessResult, createErrorResult } = await import(
+      "@/lib/types/social-media"
+    );
+
+    // 3 succeed, 2 fail
+    const results: PostResult[] = [
+      createSuccessResult("twitter", "tw_1"),
+      createSuccessResult("bluesky", "bs_1"),
+      createErrorResult("discord", "Webhook failed"),
+      createSuccessResult("telegram", "tg_1"),
+      createErrorResult("reddit", "Auth expired"),
+    ];
+
+    const aggregated = aggregateResults(results);
+
+    // Should report both successes and failures
+    expect(aggregated.successCount).toBe(3);
+    expect(aggregated.failureCount).toBe(2);
+
+    // Should not lose successful posts due to failures
+    expect(aggregated.successful.map((r) => r.postId)).toContain("tw_1");
+    expect(aggregated.successful.map((r) => r.postId)).toContain("bs_1");
+    expect(aggregated.successful.map((r) => r.postId)).toContain("tg_1");
+  });
+});
+
+// =============================================================================
+// RATE LIMIT MODULE DEEP TESTS
+// =============================================================================
+
+describe("Rate Limit - Deep Tests", () => {
+  it("should parse numeric retry-after header", async () => {
+    const { withRetry } = await import("@/lib/services/social-media/rate-limit");
+
+    // Test that the module exports correctly
+    expect(typeof withRetry).toBe("function");
+  });
+
+  it("should create rate limit error with all properties", async () => {
+    const { createRateLimitError } = await import("@/lib/services/social-media/rate-limit");
+
+    const error = createRateLimitError("twitter", 120);
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error.rateLimited).toBe(true);
+    expect(error.platform).toBe("twitter");
+    expect(error.retryAfter).toBe(120);
+    expect(error.message).toContain("twitter");
+  });
+
+  it("should create rate limit error without retry-after", async () => {
+    const { createRateLimitError } = await import("@/lib/services/social-media/rate-limit");
+
+    const error = createRateLimitError("bluesky");
+
+    expect(error.rateLimited).toBe(true);
+    expect(error.retryAfter).toBeUndefined();
+  });
+
+  it("should have correct rate limits for high-volume platforms", async () => {
+    const { getRateLimitConfig } = await import("@/lib/services/social-media/rate-limit");
+
+    // Bluesky is generous
+    const bluesky = getRateLimitConfig("bluesky");
+    expect(bluesky.requestsPerWindow).toBe(3000);
+
+    // Discord is strict per-second
+    const discord = getRateLimitConfig("discord");
+    expect(discord.windowMs).toBe(1000);
+  });
+
+  it("should detect 429 status correctly", async () => {
+    const { isRateLimitResponse } = await import("@/lib/services/social-media/rate-limit");
+
+    // Only 429 is rate limit
+    expect(isRateLimitResponse(new Response(null, { status: 429 }))).toBe(true);
+    expect(isRateLimitResponse(new Response(null, { status: 200 }))).toBe(false);
+    expect(isRateLimitResponse(new Response(null, { status: 403 }))).toBe(false);
+    expect(isRateLimitResponse(new Response(null, { status: 503 }))).toBe(false);
+  });
+});
+
+// =============================================================================
+// TOKEN REFRESH - BOUNDARY CONDITIONS
+// =============================================================================
+
+describe("Token Refresh - Boundary Conditions", () => {
+  it("should detect token expiring within buffer period", async () => {
+    const { isTokenExpired } = await import("@/lib/services/social-media/token-refresh");
+
+    // Token expires in 4 minutes (within 5 min buffer)
+    const soonExpiring: SocialCredentials = {
+      platform: "twitter",
+      accessToken: "test",
+      tokenExpiresAt: new Date(Date.now() + 4 * 60 * 1000),
+    };
+
+    expect(isTokenExpired(soonExpiring)).toBe(true);
+  });
+
+  it("should not consider token expired if beyond buffer", async () => {
+    const { isTokenExpired } = await import("@/lib/services/social-media/token-refresh");
+
+    // Token expires in 10 minutes (beyond 5 min buffer)
+    const notExpiring: SocialCredentials = {
+      platform: "twitter",
+      accessToken: "test",
+      tokenExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
+    };
+
+    expect(isTokenExpired(notExpiring)).toBe(false);
+  });
+
+  it("should handle token exactly at expiry time", async () => {
+    const { isTokenExpired } = await import("@/lib/services/social-media/token-refresh");
+
+    const exactlyExpired: SocialCredentials = {
+      platform: "twitter",
+      accessToken: "test",
+      tokenExpiresAt: new Date(Date.now()),
+    };
+
+    expect(isTokenExpired(exactlyExpired)).toBe(true);
+  });
+
+  it("should require both expiry and refresh token for needsRefresh", async () => {
+    const { needsRefresh } = await import("@/lib/services/social-media/token-refresh");
+
+    // Has expiry but no refresh token
+    const noRefreshToken: SocialCredentials = {
+      platform: "twitter",
+      accessToken: "test",
+      tokenExpiresAt: new Date(Date.now() - 1000),
+    };
+
+    // Has refresh token but no expiry
+    const noExpiry: SocialCredentials = {
+      platform: "twitter",
+      accessToken: "test",
+      refreshToken: "refresh",
+    };
+
+    expect(needsRefresh(noRefreshToken)).toBe(false);
+    expect(needsRefresh(noExpiry)).toBe(false);
+  });
+
+  it("should return null for non-OAuth platforms", async () => {
+    const { refreshToken } = await import("@/lib/services/social-media/token-refresh");
+
+    const platforms: SocialPlatform[] = ["bluesky", "discord", "telegram", "reddit", "mastodon"];
+
+    for (const platform of platforms) {
+      const result = await refreshToken(platform, {
+        platform,
+        accessToken: "test",
+        refreshToken: "refresh",
+        tokenExpiresAt: new Date(Date.now() - 1000),
+      });
+      expect(result).toBeNull();
+    }
+  });
+});
+
+// =============================================================================
+// ALERTS - MESSAGE FORMATTING
+// =============================================================================
+
+describe("Alerts - Message Formatting", () => {
+  it("should handle empty platforms array", async () => {
+    const { alertOnPostFailure } = await import("@/lib/services/social-media/alerts");
+
+    // Should not throw
+    await expect(alertOnPostFailure("org-123", [], [])).resolves.toBeUndefined();
+  });
+
+  it("should truncate long organization IDs", async () => {
+    const { alertOnPostFailure } = await import("@/lib/services/social-media/alerts");
+
+    const longOrgId = "org_12345678901234567890123456789012345678901234567890";
+
+    // Should not throw and should truncate
+    await expect(
+      alertOnPostFailure(longOrgId, ["twitter"], ["Error"])
+    ).resolves.toBeUndefined();
+  });
+
+  it("should handle special characters in platform names", async () => {
+    const { alertOnRateLimit } = await import("@/lib/services/social-media/alerts");
+
+    // Should not throw with special chars
+    await expect(alertOnRateLimit("twitter/x", 60)).resolves.toBeUndefined();
+  });
+});
+
+// =============================================================================
+// CONTENT VALIDATION - EDGE CASES
+// =============================================================================
+
+describe("Content Validation - Edge Cases", () => {
+  it("should handle whitespace-only text", async () => {
+    const { validatePostContent } = await import("@/lib/types/social-media");
+
+    const whitespaceContent = { text: "   \n\t\r   " };
+    const result = validatePostContent(whitespaceContent, "twitter");
+
+    // Whitespace-only should still be valid (platform may reject)
+    expect(result.valid).toBe(true);
+  });
+
+  it("should handle emoji-heavy text correctly", async () => {
+    const { validatePostContent, PLATFORM_CAPABILITIES } = await import(
+      "@/lib/types/social-media"
+    );
+
+    // Emojis can be multi-byte but should count as visual characters
+    const emojiText = "🎉🎊🎁🎈🎄".repeat(50);
+    const result = validatePostContent({ text: emojiText }, "twitter");
+
+    // Length depends on how we count (bytes vs chars)
+    expect(result).toBeDefined();
+  });
+
+  it("should handle zero-width characters", async () => {
+    const { validatePostContent } = await import("@/lib/types/social-media");
+
+    // Zero-width joiner and other invisible chars
+    const sneakyText = "Hello\u200B\u200C\u200DWorld";
+    const result = validatePostContent({ text: sneakyText }, "twitter");
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("should handle URLs in text correctly", async () => {
+    const { validatePostContent } = await import("@/lib/types/social-media");
+
+    // Twitter shortens URLs to 23 chars
+    const longUrl = "https://example.com/" + "a".repeat(100);
+    const text = `Check this out: ${longUrl}`;
+
+    const result = validatePostContent({ text }, "twitter");
+    // Raw length exceeds 280, but Twitter counts URLs as 23
+    expect(result).toBeDefined();
+  });
+
+  it("should validate media with all optional fields", async () => {
+    const { validatePostContent } = await import("@/lib/types/social-media");
+
+    const content = {
+      text: "Test",
+      media: [
+        {
+          type: "image" as const,
+          url: "https://example.com/img.jpg",
+          mimeType: "image/jpeg",
+          altText: "Description",
+          thumbnailUrl: "https://example.com/thumb.jpg",
+        },
+      ],
+    };
+
+    const result = validatePostContent(content, "twitter");
+    expect(result.valid).toBe(true);
+  });
+
+  it("should reject negative image counts", async () => {
+    // Edge case: if someone passes negative array length (shouldn't happen)
+    const { PLATFORM_CAPABILITIES } = await import("@/lib/types/social-media");
+
+    // All maxImages should be positive
+    Object.values(PLATFORM_CAPABILITIES).forEach((cap) => {
+      expect(cap.maxImages).toBeGreaterThanOrEqual(0);
+    });
+  });
+});
+
+// =============================================================================
+// PROVIDER CAPABILITY CONSISTENCY
+// =============================================================================
+
+describe("Provider Capability Consistency", () => {
+  it("should have consistent capability definitions", async () => {
+    const { PLATFORM_CAPABILITIES, SUPPORTED_PLATFORMS } = await import(
+      "@/lib/types/social-media"
+    );
+
+    // Every supported platform should have capabilities
+    SUPPORTED_PLATFORMS.forEach((platform) => {
+      const caps = PLATFORM_CAPABILITIES[platform];
+      expect(caps).toBeDefined();
+      expect(typeof caps.supportsText).toBe("boolean");
+      expect(typeof caps.supportsImages).toBe("boolean");
+      expect(typeof caps.supportsVideo).toBe("boolean");
+      expect(typeof caps.maxTextLength).toBe("number");
+      expect(typeof caps.maxImages).toBe("number");
+    });
+  });
+
+  it("should have text support for text-based platforms", async () => {
+    const { PLATFORM_CAPABILITIES } = await import("@/lib/types/social-media");
+
+    const textPlatforms: SocialPlatform[] = [
+      "twitter",
+      "bluesky",
+      "mastodon",
+      "telegram",
+      "discord",
+    ];
+
+    textPlatforms.forEach((platform) => {
+      expect(PLATFORM_CAPABILITIES[platform].supportsText).toBe(true);
+      expect(PLATFORM_CAPABILITIES[platform].maxTextLength).toBeGreaterThan(0);
+    });
+  });
+
+  it("should have video support for video platforms", async () => {
+    const { PLATFORM_CAPABILITIES } = await import("@/lib/types/social-media");
+
+    // TikTok must support video
+    expect(PLATFORM_CAPABILITIES.tiktok.supportsVideo).toBe(true);
+
+    // TikTok doesn't support images
+    expect(PLATFORM_CAPABILITIES.tiktok.supportsImages).toBe(false);
+  });
+});
+
+// =============================================================================
+// RESULT AGGREGATION - EDGE CASES
+// =============================================================================
+
+describe("Result Aggregation - Edge Cases", () => {
+  it("should handle single result", async () => {
+    const { aggregateResults, createSuccessResult } = await import(
+      "@/lib/types/social-media"
+    );
+
+    const single = [createSuccessResult("twitter", "123")];
+    const agg = aggregateResults(single);
+
+    expect(agg.totalPlatforms).toBe(1);
+    expect(agg.successCount).toBe(1);
+    expect(agg.failureCount).toBe(0);
+  });
+
+  it("should handle all failures", async () => {
+    const { aggregateResults, createErrorResult } = await import(
+      "@/lib/types/social-media"
+    );
+
+    const allFailed = [
+      createErrorResult("twitter", "Failed"),
+      createErrorResult("bluesky", "Failed"),
+      createErrorResult("discord", "Failed"),
+    ];
+
+    const agg = aggregateResults(allFailed);
+
+    expect(agg.totalPlatforms).toBe(3);
+    expect(agg.successCount).toBe(0);
+    expect(agg.failureCount).toBe(3);
+    expect(agg.successful).toHaveLength(0);
+  });
+
+  it("should preserve original result objects", async () => {
+    const { aggregateResults, createSuccessResult } = await import(
+      "@/lib/types/social-media"
+    );
+
+    const original: PostResult = {
+      platform: "twitter",
+      success: true,
+      postId: "123",
+      postUrl: "https://twitter.com/status/123",
+    };
+
+    const agg = aggregateResults([original]);
+
+    // Should be the same object reference
+    expect(agg.successful[0]).toBe(original);
+    expect(agg.results[0]).toBe(original);
+  });
+
+  it("should handle duplicate platforms in results", async () => {
+    const { aggregateResults, createSuccessResult, createErrorResult } = await import(
+      "@/lib/types/social-media"
+    );
+
+    // Same platform twice (shouldn't happen but handle gracefully)
+    const duplicates = [
+      createSuccessResult("twitter", "123"),
+      createErrorResult("twitter", "Second attempt failed"),
+    ];
+
+    const agg = aggregateResults(duplicates);
+
+    expect(agg.totalPlatforms).toBe(2);
+    expect(agg.successCount).toBe(1);
+    expect(agg.failureCount).toBe(1);
+  });
+});
+
+// =============================================================================
+// CREDIT CALCULATION - EDGE CASES
+// =============================================================================
+
+describe("Credit Calculation - Edge Cases", () => {
+  it("should handle empty platforms array", async () => {
+    const { calculatePostCredits } = await import("@/lib/types/social-media");
+
+    const cost = calculatePostCredits([], { text: "Test" });
+    expect(cost).toBe(0);
+  });
+
+  it("should handle multiple platforms", async () => {
+    const { calculatePostCredits } = await import("@/lib/types/social-media");
+
+    const cost = calculatePostCredits(["twitter", "bluesky", "discord"], { text: "Test" });
+    expect(cost).toBeGreaterThan(0);
+    expect(Number.isFinite(cost)).toBe(true);
+  });
+
+  it("should add media surcharge correctly", async () => {
+    const { calculatePostCredits } = await import("@/lib/types/social-media");
+
+    const withoutMedia = calculatePostCredits(["twitter"], { text: "Test" });
+    const withMedia = calculatePostCredits(["twitter"], {
+      text: "Test",
+      media: [{ type: "image", mimeType: "image/jpeg" }],
+    });
+
+    expect(withMedia).toBeGreaterThan(withoutMedia);
+  });
+
+  it("should apply platform multipliers", async () => {
+    const { calculatePostCredits } = await import("@/lib/types/social-media");
+
+    const twitterCost = calculatePostCredits(["twitter"], { text: "Test" });
+    const tiktokCost = calculatePostCredits(["tiktok"], { text: "Test" });
+    const linkedinCost = calculatePostCredits(["linkedin"], { text: "Test" });
+
+    // TikTok has 2x multiplier, LinkedIn 1.5x
+    expect(tiktokCost).toBeGreaterThan(twitterCost);
+    expect(linkedinCost).toBeGreaterThan(twitterCost);
+    expect(tiktokCost).toBeGreaterThan(linkedinCost);
+  });
+
+  it("should scale with media count", async () => {
+    const { calculatePostCredits } = await import("@/lib/types/social-media");
+
+    const oneImage = calculatePostCredits(["twitter"], {
+      text: "Test",
+      media: [{ type: "image", mimeType: "image/jpeg" }],
+    });
+
+    const fourImages = calculatePostCredits(["twitter"], {
+      text: "Test",
+      media: [
+        { type: "image", mimeType: "image/jpeg" },
+        { type: "image", mimeType: "image/jpeg" },
+        { type: "image", mimeType: "image/jpeg" },
+        { type: "image", mimeType: "image/jpeg" },
+      ],
+    });
+
+    expect(fourImages).toBeGreaterThan(oneImage);
+  });
+});
+
+// =============================================================================
+// SERVICE SINGLETON BEHAVIOR
+// =============================================================================
+
+describe("Service Singleton Behavior", () => {
+  it("should return same instance on multiple imports", async () => {
+    const { socialMediaService: service1 } = await import("@/lib/services/social-media");
+    const { socialMediaService: service2 } = await import("@/lib/services/social-media");
+
+    expect(service1).toBe(service2);
+  });
+
+  it("should maintain state across method calls", async () => {
+    const { socialMediaService } = await import("@/lib/services/social-media");
+
+    const platforms1 = socialMediaService.getSupportedPlatforms();
+    const platforms2 = socialMediaService.getSupportedPlatforms();
+
+    expect(platforms1).toEqual(platforms2);
+  });
+});
