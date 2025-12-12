@@ -42,7 +42,9 @@ const iconMap: Record<string, typeof Puzzle> = {
 };
 
 export function MCPsPageClient({ servers }: MCPsPageClientProps) {
-  const [selectedServer, setSelectedServer] = useState<McpRegistryEntry | null>(null);
+  const [selectedServer, setSelectedServer] = useState<McpRegistryEntry | null>(
+    null,
+  );
   const [copiedEndpoint, setCopiedEndpoint] = useState<string | null>(null);
   const [testingServer, setTestingServer] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<string | null>(null);

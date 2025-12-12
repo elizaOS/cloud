@@ -38,7 +38,7 @@ async function getSummaryHandler(request: NextRequest): Promise<Response> {
   if (!org) {
     return NextResponse.json(
       { error: "Organization not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -49,7 +49,7 @@ async function getSummaryHandler(request: NextRequest): Promise<Response> {
 
   // Get budgets for all agents
   const agentBudgets = await agentBudgetService.getOrgBudgets(
-    user.organization_id
+    user.organization_id,
   );
   const budgetMap = new Map(agentBudgets.map((b) => [b.agent_id, b]));
 
@@ -62,10 +62,11 @@ async function getSummaryHandler(request: NextRequest): Promise<Response> {
   const earnings = await redeemableEarningsService.getBalance(user.id);
 
   // Get recent transactions
-  const recentTransactions = await creditsService.listTransactionsByOrganization(
-    user.organization_id,
-    10
-  );
+  const recentTransactions =
+    await creditsService.listTransactionsByOrganization(
+      user.organization_id,
+      10,
+    );
 
   // Build response
   const response = {
@@ -76,7 +77,7 @@ async function getSummaryHandler(request: NextRequest): Promise<Response> {
       id: org.id,
       name: org.name,
       creditBalance: Number(org.credit_balance),
-      
+
       // Auto top-up settings
       autoTopUpEnabled: org.auto_top_up_enabled,
       autoTopUpThreshold: org.auto_top_up_threshold
@@ -110,7 +111,7 @@ async function getSummaryHandler(request: NextRequest): Promise<Response> {
         allocated,
         spent,
         available,
-        
+
         // Daily limits
         dailyLimit,
         dailySpent,
@@ -133,16 +134,15 @@ async function getSummaryHandler(request: NextRequest): Promise<Response> {
       paused: agentBudgets.filter((b) => b.is_paused).length,
       totalAllocated: agentBudgets.reduce(
         (sum, b) => sum + Number(b.allocated_budget),
-        0
+        0,
       ),
       totalSpent: agentBudgets.reduce(
         (sum, b) => sum + Number(b.spent_budget),
-        0
+        0,
       ),
       totalAvailable: agentBudgets.reduce(
-        (sum, b) =>
-          sum + (Number(b.allocated_budget) - Number(b.spent_budget)),
-        0
+        (sum, b) => sum + (Number(b.allocated_budget) - Number(b.spent_budget)),
+        0,
       ),
     },
 
@@ -214,4 +214,3 @@ export async function OPTIONS() {
     },
   });
 }
-

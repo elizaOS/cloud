@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 /**
  * API Keys Management Tests
- * 
+ *
  * Tests API key CRUD operations:
  * - List API keys
  * - Create API key
@@ -10,7 +10,7 @@ import { test, expect } from "@playwright/test";
  * - Regenerate API key
  * - Delete API key
  * - API Explorer endpoint
- * 
+ *
  * Prerequisites:
  * - TEST_API_KEY environment variable required
  * - Cloud running on port 3000
@@ -75,7 +75,9 @@ test.describe("API Keys Management", () => {
     }
   });
 
-  test("GET /api/v1/api-keys/[id] returns API key details", async ({ request }) => {
+  test("GET /api/v1/api-keys/[id] returns API key details", async ({
+    request,
+  }) => {
     // First create a key
     const createResponse = await request.post(`${CLOUD_URL}/api/v1/api-keys`, {
       headers: authHeaders(),
@@ -90,12 +92,20 @@ test.describe("API Keys Management", () => {
     }
 
     const createData = await createResponse.json();
-    const keyId = (createData.key || createData.apiKey || createData.data || createData).id;
+    const keyId = (
+      createData.key ||
+      createData.apiKey ||
+      createData.data ||
+      createData
+    ).id;
 
     // Get details
-    const response = await request.get(`${CLOUD_URL}/api/v1/api-keys/${keyId}`, {
-      headers: authHeaders(),
-    });
+    const response = await request.get(
+      `${CLOUD_URL}/api/v1/api-keys/${keyId}`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 404]).toContain(response.status());
 
@@ -113,7 +123,9 @@ test.describe("API Keys Management", () => {
     });
   });
 
-  test("POST /api/v1/api-keys/[id]/regenerate regenerates API key", async ({ request }) => {
+  test("POST /api/v1/api-keys/[id]/regenerate regenerates API key", async ({
+    request,
+  }) => {
     // First create a key
     const createResponse = await request.post(`${CLOUD_URL}/api/v1/api-keys`, {
       headers: authHeaders(),
@@ -128,13 +140,26 @@ test.describe("API Keys Management", () => {
     }
 
     const createData = await createResponse.json();
-    const keyId = (createData.key || createData.apiKey || createData.data || createData).id;
-    const originalKey = (createData.key || createData.apiKey || createData.data || createData).key;
+    const keyId = (
+      createData.key ||
+      createData.apiKey ||
+      createData.data ||
+      createData
+    ).id;
+    const originalKey = (
+      createData.key ||
+      createData.apiKey ||
+      createData.data ||
+      createData
+    ).key;
 
     // Regenerate
-    const response = await request.post(`${CLOUD_URL}/api/v1/api-keys/${keyId}/regenerate`, {
-      headers: authHeaders(),
-    });
+    const response = await request.post(
+      `${CLOUD_URL}/api/v1/api-keys/${keyId}/regenerate`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 201, 400, 404]).toContain(response.status());
 
@@ -169,12 +194,20 @@ test.describe("API Keys Management", () => {
     }
 
     const createData = await createResponse.json();
-    const keyId = (createData.key || createData.apiKey || createData.data || createData).id;
+    const keyId = (
+      createData.key ||
+      createData.apiKey ||
+      createData.data ||
+      createData
+    ).id;
 
     // Delete it
-    const deleteResponse = await request.delete(`${CLOUD_URL}/api/v1/api-keys/${keyId}`, {
-      headers: authHeaders(),
-    });
+    const deleteResponse = await request.delete(
+      `${CLOUD_URL}/api/v1/api-keys/${keyId}`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 204, 404]).toContain(deleteResponse.status());
 
@@ -197,10 +230,15 @@ test.describe("API Keys Management", () => {
 test.describe("API Explorer", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /api/v1/api-keys/explorer returns explorer data", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/v1/api-keys/explorer`, {
-      headers: authHeaders(),
-    });
+  test("GET /api/v1/api-keys/explorer returns explorer data", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      `${CLOUD_URL}/api/v1/api-keys/explorer`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 404, 501]).toContain(response.status());
 
@@ -213,4 +251,3 @@ test.describe("API Explorer", () => {
     }
   });
 });
-

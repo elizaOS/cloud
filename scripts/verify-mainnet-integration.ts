@@ -1,12 +1,18 @@
 /**
  * Mainnet Integration Verification
- * 
+ *
  * Verifies the complete payout system is properly integrated and working on mainnet.
- * 
+ *
  * Run: bun run scripts/verify-mainnet-integration.ts
  */
 
-import { createPublicClient, http, parseAbi, formatUnits, type Address } from "viem";
+import {
+  createPublicClient,
+  http,
+  parseAbi,
+  formatUnits,
+  type Address,
+} from "viem";
 import { mainnet, base, bsc } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 
@@ -51,7 +57,7 @@ interface NetworkCheck {
 
 async function checkNetwork(
   network: "ethereum" | "base" | "bnb",
-  walletAddress: Address
+  walletAddress: Address,
 ): Promise<NetworkCheck> {
   const chain = CHAINS[network];
   const tokenAddress = ELIZA_TOKEN_ADDRESSES[network];
@@ -84,21 +90,27 @@ async function checkNetwork(
 
   // Check token contract
   const [name, symbol, decimals] = await Promise.all([
-    publicClient.readContract({
-      address: tokenAddress,
-      abi: ERC20_ABI,
-      functionName: "name",
-    }).catch(() => null),
-    publicClient.readContract({
-      address: tokenAddress,
-      abi: ERC20_ABI,
-      functionName: "symbol",
-    }).catch(() => null),
-    publicClient.readContract({
-      address: tokenAddress,
-      abi: ERC20_ABI,
-      functionName: "decimals",
-    }).catch(() => null),
+    publicClient
+      .readContract({
+        address: tokenAddress,
+        abi: ERC20_ABI,
+        functionName: "name",
+      })
+      .catch(() => null),
+    publicClient
+      .readContract({
+        address: tokenAddress,
+        abi: ERC20_ABI,
+        functionName: "symbol",
+      })
+      .catch(() => null),
+    publicClient
+      .readContract({
+        address: tokenAddress,
+        abi: ERC20_ABI,
+        functionName: "decimals",
+      })
+      .catch(() => null),
   ]);
 
   result.tokenContract = {
@@ -111,18 +123,21 @@ async function checkNetwork(
   // Check wallet balances
   const [ethBalance, tokenBalance] = await Promise.all([
     publicClient.getBalance({ address: walletAddress }).catch(() => BigInt(0)),
-    publicClient.readContract({
-      address: tokenAddress,
-      abi: ERC20_ABI,
-      functionName: "balanceOf",
-      args: [walletAddress],
-    }).catch(() => BigInt(0)),
+    publicClient
+      .readContract({
+        address: tokenAddress,
+        abi: ERC20_ABI,
+        functionName: "balanceOf",
+        args: [walletAddress],
+      })
+      .catch(() => BigInt(0)),
   ]);
 
   const tokenDecimals = result.tokenContract.decimals ?? 9;
   result.wallet.ethBalance = formatUnits(ethBalance, 18);
   result.wallet.tokenBalance = formatUnits(tokenBalance, tokenDecimals);
-  result.wallet.canPayout = tokenBalance > BigInt(0) && ethBalance > BigInt(1e15);
+  result.wallet.canPayout =
+    tokenBalance > BigInt(0) && ethBalance > BigInt(1e15);
 
   return result;
 }
@@ -134,7 +149,8 @@ async function main() {
   console.log("");
 
   // Check environment
-  const privateKey = process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY;
+  const privateKey =
+    process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY;
   if (!privateKey) {
     console.error("❌ No EVM private key configured");
     console.log("");
@@ -158,15 +174,23 @@ async function main() {
     console.log(`Checking ${network.toUpperCase()}...`);
     const result = await checkNetwork(network, account.address);
     results.push(result);
-    
+
     if (result.error) {
       console.log(`  ❌ ${result.error}`);
     } else {
       console.log(`  ✅ Connected (Chain ID: ${result.chainId})`);
-      console.log(`  Token: ${result.tokenContract.symbol} (${result.tokenContract.decimals} decimals)`);
-      console.log(`  ETH: ${parseFloat(result.wallet.ethBalance).toFixed(6)} ETH`);
-      console.log(`  ${result.tokenContract.symbol}: ${result.wallet.tokenBalance} tokens`);
-      console.log(`  Can Payout: ${result.wallet.canPayout ? "✅ Yes" : "❌ No"}`);
+      console.log(
+        `  Token: ${result.tokenContract.symbol} (${result.tokenContract.decimals} decimals)`,
+      );
+      console.log(
+        `  ETH: ${parseFloat(result.wallet.ethBalance).toFixed(6)} ETH`,
+      );
+      console.log(
+        `  ${result.tokenContract.symbol}: ${result.wallet.tokenBalance} tokens`,
+      );
+      console.log(
+        `  Can Payout: ${result.wallet.canPayout ? "✅ Yes" : "❌ No"}`,
+      );
     }
     console.log("");
   }
@@ -177,23 +201,31 @@ async function main() {
   console.log("═".repeat(70));
   console.log("");
 
-  const workingNetworks = results.filter(r => r.wallet.canPayout);
-  const connectedNetworks = results.filter(r => r.connected);
+  const workingNetworks = results.filter((r) => r.wallet.canPayout);
+  const connectedNetworks = results.filter((r) => r.connected);
 
-  console.log(`Networks Connected: ${connectedNetworks.length}/${networks.length}`);
-  console.log(`Networks Ready for Payout: ${workingNetworks.length}/${networks.length}`);
+  console.log(
+    `Networks Connected: ${connectedNetworks.length}/${networks.length}`,
+  );
+  console.log(
+    `Networks Ready for Payout: ${workingNetworks.length}/${networks.length}`,
+  );
   console.log("");
 
   // Check crons
   console.log("Cron Jobs (from vercel.json):");
   console.log("  - /api/cron/sample-eliza-price: Every 5 min (TWAP sampling)");
-  console.log("  - /api/cron/process-redemptions: Every 5 min (payout processing)");
+  console.log(
+    "  - /api/cron/process-redemptions: Every 5 min (payout processing)",
+  );
   console.log("  - /api/cron/agent-budgets: Every 15 min (auto-refill)");
   console.log("");
 
   // Check API endpoints
   console.log("API Endpoints:");
-  console.log("  - GET  /api/v1/redemptions/status - Check payout availability");
+  console.log(
+    "  - GET  /api/v1/redemptions/status - Check payout availability",
+  );
   console.log("  - GET  /api/v1/redemptions/quote - Get TWAP price quote");
   console.log("  - POST /api/v1/redemptions - Create redemption request");
   console.log("  - GET  /api/v1/redemptions - List user redemptions");
@@ -203,8 +235,12 @@ async function main() {
   // Environment check
   console.log("Environment Variables:");
   console.log(`  - EVM_PRIVATE_KEY: ${privateKey ? "✅ Set" : "❌ Not set"}`);
-  console.log(`  - CRON_SECRET: ${process.env.CRON_SECRET ? "✅ Set" : "⚠️ Not set (crons won't work)"}`);
-  console.log(`  - DATABASE_URL: ${process.env.DATABASE_URL ? "✅ Set" : "⚠️ Not set"}`);
+  console.log(
+    `  - CRON_SECRET: ${process.env.CRON_SECRET ? "✅ Set" : "⚠️ Not set (crons won't work)"}`,
+  );
+  console.log(
+    `  - DATABASE_URL: ${process.env.DATABASE_URL ? "✅ Set" : "⚠️ Not set"}`,
+  );
   console.log("");
 
   // Final status
@@ -212,7 +248,9 @@ async function main() {
   if (workingNetworks.length > 0) {
     console.log("✅ MAINNET INTEGRATION READY");
     console.log("");
-    console.log(`Ready networks: ${workingNetworks.map(r => r.network).join(", ")}`);
+    console.log(
+      `Ready networks: ${workingNetworks.map((r) => r.network).join(", ")}`,
+    );
     console.log("");
     console.log("Total payout capacity:");
     for (const r of workingNetworks) {
@@ -236,4 +274,3 @@ async function main() {
 }
 
 main().catch(console.error);
-

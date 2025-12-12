@@ -1,12 +1,12 @@
 /**
  * Deduplicated data fetching hook that prevents duplicate API calls.
- * 
+ *
  * Features:
  * - Deduplicates concurrent requests to the same endpoint
  * - Caches responses with configurable TTL
  * - Stale-while-revalidate behavior
  * - Tracks in-flight requests to prevent race conditions
- * 
+ *
  * @example
  * ```ts
  * const { data, error, isLoading, refetch } = useDedupedFetch<MyType>(
@@ -81,7 +81,7 @@ function getCacheKey(url: string, options?: RequestInit): string {
 
 /**
  * Deduplicated fetch hook with caching and request deduplication.
- * 
+ *
  * @param url - The URL to fetch, or null to skip fetching.
  * @param options - Configuration options for caching and revalidation.
  * @returns Hook result with data, loading state, and control functions.
@@ -349,7 +349,7 @@ export function clearFetchCache(): void {
 
 /**
  * Invalidates a specific cache entry by URL and options.
- * 
+ *
  * @param url - The URL to invalidate.
  * @param options - Optional fetch options used to generate cache key.
  */
@@ -360,7 +360,7 @@ export function invalidateFetchCache(url: string, options?: RequestInit): void {
 
 /**
  * Prefetches a URL and caches the result.
- * 
+ *
  * @param url - The URL to prefetch.
  * @param options - Optional fetch options.
  * @param cacheTTL - Cache TTL in milliseconds.

@@ -13,7 +13,7 @@ import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
 /**
  * Credit packs table schema.
- * 
+ *
  * Stores purchasable credit packs with Stripe integration.
  */
 export const creditPacks = pgTable(

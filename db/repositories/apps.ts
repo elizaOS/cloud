@@ -16,7 +16,7 @@ export type { App, NewApp, AppUser, NewAppUser, AppAnalytics, NewAppAnalytics };
 
 /**
  * Repository for app database operations.
- * 
+ *
  * Handles CRUD operations for apps, app users, and app analytics.
  */
 export class AppsRepository {
@@ -212,7 +212,7 @@ export class AppsRepository {
 
   /**
    * Tracks app user activity, creating or updating the app user record as needed.
-   * 
+   *
    * Also increments the app's overall usage statistics.
    */
   async trackAppUserActivity(

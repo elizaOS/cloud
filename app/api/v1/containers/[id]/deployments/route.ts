@@ -64,7 +64,10 @@ export async function GET(
 
     const containerDeployments = deployments.filter((d) => {
       const metadata = (d.metadata as DeploymentMetadata | null) ?? {};
-      return metadata.container_id === id || metadata.container_name === container.name;
+      return (
+        metadata.container_id === id ||
+        metadata.container_name === container.name
+      );
     });
 
     // Enhance with container status snapshots

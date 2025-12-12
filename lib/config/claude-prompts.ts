@@ -175,7 +175,7 @@ Analytics endpoints:
  * Get the system prompt for a template type
  */
 export function getSystemPrompt(
-  templateType: keyof typeof TEMPLATE_PROMPTS = "blank"
+  templateType: keyof typeof TEMPLATE_PROMPTS = "blank",
 ): string {
   return TEMPLATE_PROMPTS[templateType] || BASE_SYSTEM_PROMPT;
 }

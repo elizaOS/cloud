@@ -45,7 +45,7 @@ class MiniappAuthSessionsRepository {
    * Gets an active (non-expired, pending) session by session ID.
    */
   async getActiveSession(
-    sessionId: string
+    sessionId: string,
   ): Promise<MiniappAuthSession | null> {
     const [session] = await db
       .select()
@@ -53,8 +53,8 @@ class MiniappAuthSessionsRepository {
       .where(
         and(
           eq(miniappAuthSessions.session_id, sessionId),
-          gt(miniappAuthSessions.expires_at, new Date())
-        )
+          gt(miniappAuthSessions.expires_at, new Date()),
+        ),
       )
       .limit(1);
     return session || null;
@@ -72,12 +72,12 @@ class MiniappAuthSessionsRepository {
     organizationId: string,
     authToken: string,
     authTokenHash: string,
-    tokenExpiresAt: Date
+    tokenExpiresAt: Date,
   ): Promise<MiniappAuthSession | null> {
     // Validate expiry date - maximum 30 days from now
     const MAX_TOKEN_EXPIRY_DAYS = 30;
     const maxExpiry = new Date(
-      Date.now() + MAX_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+      Date.now() + MAX_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
     );
 
     // If provided expiry is beyond max, cap it
@@ -104,8 +104,8 @@ class MiniappAuthSessionsRepository {
       .where(
         and(
           eq(miniappAuthSessions.session_id, sessionId),
-          eq(miniappAuthSessions.status, "pending")
-        )
+          eq(miniappAuthSessions.status, "pending"),
+        ),
       )
       .returning();
     return session || null;
@@ -136,8 +136,8 @@ class MiniappAuthSessionsRepository {
         and(
           eq(miniappAuthSessions.session_id, sessionId),
           eq(miniappAuthSessions.status, "authenticated"),
-          sql`${miniappAuthSessions.auth_token} IS NOT NULL`
-        )
+          sql`${miniappAuthSessions.auth_token} IS NOT NULL`,
+        ),
       )
       .limit(1);
 
@@ -164,8 +164,8 @@ class MiniappAuthSessionsRepository {
           eq(miniappAuthSessions.session_id, sessionId),
           eq(miniappAuthSessions.status, "authenticated"),
           // Only update if auth_token is not null (prevents double-use)
-          sql`${miniappAuthSessions.auth_token} IS NOT NULL`
-        )
+          sql`${miniappAuthSessions.auth_token} IS NOT NULL`,
+        ),
       );
 
     // If no rows were updated, another request got there first
@@ -188,7 +188,7 @@ class MiniappAuthSessionsRepository {
    * @returns User ID and organization ID if token is valid, null otherwise.
    */
   async verifyAuthToken(
-    authTokenHash: string
+    authTokenHash: string,
   ): Promise<{ userId: string; organizationId: string } | null> {
     const [session] = await db
       .select()
@@ -196,8 +196,8 @@ class MiniappAuthSessionsRepository {
       .where(
         and(
           eq(miniappAuthSessions.auth_token_hash, authTokenHash),
-          gt(miniappAuthSessions.expires_at, new Date())
-        )
+          gt(miniappAuthSessions.expires_at, new Date()),
+        ),
       )
       .limit(1);
 
@@ -222,8 +222,8 @@ class MiniappAuthSessionsRepository {
       .where(
         and(
           lt(miniappAuthSessions.expires_at, new Date()),
-          isNull(miniappAuthSessions.user_id)
-        )
+          isNull(miniappAuthSessions.user_id),
+        ),
       );
     return result.rowCount || 0;
   }

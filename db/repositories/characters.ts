@@ -25,14 +25,17 @@ export class UserCharactersRepository {
 
   /**
    * Lists characters for a user, including owned and interacted characters.
-   * 
+   *
    * Includes characters the user owns or has interacted with via chat rooms,
    * allowing affiliate-created characters to appear in the selector.
-   * 
+   *
    * @param userId - User ID to list characters for.
    * @param source - Filter by source type (default: "cloud").
    */
-  async listByUser(userId: string, source: "cloud" | "miniapp" = "cloud"): Promise<UserCharacter[]> {
+  async listByUser(
+    userId: string,
+    source: "cloud" | "miniapp" = "cloud",
+  ): Promise<UserCharacter[]> {
     const interactedCharacterIds = db
       .selectDistinct({ character_id: elizaRoomCharactersTable.character_id })
       .from(elizaRoomCharactersTable)
@@ -55,11 +58,14 @@ export class UserCharactersRepository {
 
   /**
    * Lists characters for an organization.
-   * 
+   *
    * @param organizationId - Organization ID.
    * @param source - Filter by source type (default: "cloud").
    */
-  async listByOrganization(organizationId: string, source: "cloud" | "miniapp" = "cloud"): Promise<UserCharacter[]> {
+  async listByOrganization(
+    organizationId: string,
+    source: "cloud" | "miniapp" = "cloud",
+  ): Promise<UserCharacter[]> {
     return await db.query.userCharacters.findMany({
       where: and(
         eq(userCharacters.organization_id, organizationId),
@@ -133,7 +139,7 @@ export class UserCharactersRepository {
 
   /**
    * Searches characters with filters and sorting.
-   * 
+   *
    * Includes characters the user owns or has interacted with via chat rooms.
    */
   async search(
@@ -342,7 +348,7 @@ export class UserCharactersRepository {
 
   /**
    * Gets featured characters (cloud source only).
-   * 
+   *
    * @param limit - Maximum number of characters to return (default: 10).
    */
   async getFeatured(limit: number = 10): Promise<UserCharacter[]> {
@@ -358,15 +364,15 @@ export class UserCharactersRepository {
 
   /**
    * Gets popular characters (cloud source only).
-   * 
+   *
    * @param limit - Maximum number of characters to return (default: 20).
    */
   async getPopular(limit: number = 20): Promise<UserCharacter[]> {
     return await db.query.userCharacters.findMany({
       where: and(
         or(
-        eq(userCharacters.is_template, true),
-        eq(userCharacters.is_public, true),
+          eq(userCharacters.is_template, true),
+          eq(userCharacters.is_public, true),
         ),
         eq(userCharacters.source, "cloud"),
       ),

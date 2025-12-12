@@ -44,7 +44,8 @@ function normalizeMessageExamples(raw: unknown): MessageExamples | null {
     const normalizedConversation: MessageExampleConversation = [];
 
     for (const message of conversation) {
-      if (!message || typeof message !== "object" || Array.isArray(message)) continue;
+      if (!message || typeof message !== "object" || Array.isArray(message))
+        continue;
 
       interface MessageShape {
         name?: unknown;
@@ -54,13 +55,19 @@ function normalizeMessageExamples(raw: unknown): MessageExamples | null {
       }
       const msg = message as MessageShape;
 
-      if (!("name" in msg) || typeof msg.name !== "string" || !msg.name) continue;
+      if (!("name" in msg) || typeof msg.name !== "string" || !msg.name)
+        continue;
 
       let content: { text: string; [key: string]: unknown };
 
-      if (msg.content && typeof msg.content === "object" && !Array.isArray(msg.content)) {
+      if (
+        msg.content &&
+        typeof msg.content === "object" &&
+        !Array.isArray(msg.content)
+      ) {
         const contentObj = msg.content as Record<string, unknown>;
-        if (!("text" in contentObj) || typeof contentObj.text !== "string") continue;
+        if (!("text" in contentObj) || typeof contentObj.text !== "string")
+          continue;
         content = { text: contentObj.text, ...contentObj };
       } else if (typeof msg.text === "string") {
         content = { text: msg.text };
@@ -165,9 +172,22 @@ function mapChangesToDbFormat(
   const dbUpdates: Record<string, unknown> = {};
 
   const directFields = [
-    "name", "username", "system", "bio", "topics", "adjectives",
-    "knowledge", "plugins", "settings", "secrets", "category",
-    "tags", "avatar_url", "is_public", "is_template", "featured",
+    "name",
+    "username",
+    "system",
+    "bio",
+    "topics",
+    "adjectives",
+    "knowledge",
+    "plugins",
+    "settings",
+    "secrets",
+    "category",
+    "tags",
+    "avatar_url",
+    "is_public",
+    "is_template",
+    "featured",
   ];
 
   for (const field of directFields) {
@@ -190,13 +210,22 @@ function mapChangesToDbFormat(
   }
 
   // Handle style.* nested updates
-  const hasStyleUpdate = "style.all" in changes || "style.chat" in changes || "style.post" in changes;
+  const hasStyleUpdate =
+    "style.all" in changes ||
+    "style.chat" in changes ||
+    "style.post" in changes;
 
   if (hasStyleUpdate) {
-    interface StyleShape { all?: unknown; chat?: unknown; post?: unknown; [key: string]: unknown }
-    const currentStyle: StyleShape = currentCharacter.style && typeof currentCharacter.style === "object"
-      ? (currentCharacter.style as StyleShape)
-      : {};
+    interface StyleShape {
+      all?: unknown;
+      chat?: unknown;
+      post?: unknown;
+      [key: string]: unknown;
+    }
+    const currentStyle: StyleShape =
+      currentCharacter.style && typeof currentCharacter.style === "object"
+        ? (currentCharacter.style as StyleShape)
+        : {};
     const styleUpdate: StyleShape = { ...currentStyle };
 
     if ("style.all" in changes) styleUpdate.all = changes["style.all"];
@@ -213,7 +242,11 @@ export const saveChangesAction = {
   name: "SAVE_CHANGES",
   description:
     "User has confirmed they want to save changes to their existing character. Use when user says: 'yes', 'save it', 'apply changes', 'looks good', 'do it', 'update it'. Only available in build mode when editing an EXISTING character.",
-  validate: async (runtime: IAgentRuntime, _message: Memory, _state?: State) => {
+  validate: async (
+    runtime: IAgentRuntime,
+    _message: Memory,
+    _state?: State,
+  ) => {
     return !isCreatorMode(runtime);
   },
   handler: async (
@@ -269,10 +302,16 @@ export const saveChangesAction = {
     const composedSystemPrompt = cleanPrompt(
       composePromptFromState({ state, template: extractSystemPrompt }),
     );
-    runtime.character.system = composedSystemPrompt + messageExamplesFormatInstructions;
+    runtime.character.system =
+      composedSystemPrompt + messageExamplesFormatInstructions;
 
-    const extractPrompt = composePromptFromState({ state, template: extractTemplate });
-    const extractionResponse = await runtime.useModel(ModelType.TEXT_LARGE, { prompt: extractPrompt });
+    const extractPrompt = composePromptFromState({
+      state,
+      template: extractTemplate,
+    });
+    const extractionResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
+      prompt: extractPrompt,
+    });
 
     runtime.character.system = originalSystemPrompt;
 
@@ -284,7 +323,9 @@ export const saveChangesAction = {
     } | null;
 
     if (!extraction?.changes) {
-      logger.error("[SAVE_CHANGES] Failed to extract changes from conversation");
+      logger.error(
+        "[SAVE_CHANGES] Failed to extract changes from conversation",
+      );
       await callback({
         text: "I couldn't determine what changes to save. Could you be more specific about what you'd like to update?",
         error: true,
@@ -294,7 +335,9 @@ export const saveChangesAction = {
 
     const changesObj: Record<string, unknown> = JSON.parse(extraction.changes);
 
-    logger.info(`[SAVE_CHANGES] Saving changes: ${Object.keys(changesObj).join(", ")}`);
+    logger.info(
+      `[SAVE_CHANGES] Saving changes: ${Object.keys(changesObj).join(", ")}`,
+    );
 
     // Merge changes with current character
     const updatedCharacter = { ...runtime.character };
@@ -303,26 +346,36 @@ export const saveChangesAction = {
       if (key.startsWith("style.")) {
         if (!updatedCharacter.style) updatedCharacter.style = {};
         const styleProp = key.split(".")[1];
-        if (styleProp === "all" || styleProp === "chat" || styleProp === "post") {
-          (updatedCharacter.style as Record<string, unknown>)[styleProp] = value;
+        if (
+          styleProp === "all" ||
+          styleProp === "chat" ||
+          styleProp === "post"
+        ) {
+          (updatedCharacter.style as Record<string, unknown>)[styleProp] =
+            value;
         }
       } else if (key === "messageExamples") {
         const normalized = normalizeMessageExamples(value);
-        (updatedCharacter as Record<string, unknown>).messageExamples = normalized || value;
+        (updatedCharacter as Record<string, unknown>).messageExamples =
+          normalized || value;
       } else {
         (updatedCharacter as Record<string, unknown>)[key] = value;
       }
     }
 
     // Map to DB format
-    interface CharacterAsRecord { [key: string]: unknown }
+    interface CharacterAsRecord {
+      [key: string]: unknown;
+    }
     const characterRecord: CharacterAsRecord = {};
     for (const [key, value] of Object.entries(runtime.character)) {
       characterRecord[key] = value;
     }
     const dbUpdates = mapChangesToDbFormat(changesObj, characterRecord);
 
-    logger.debug(`[SAVE_CHANGES] DB updates: ${JSON.stringify(dbUpdates, null, 2)}`);
+    logger.debug(
+      `[SAVE_CHANGES] DB updates: ${JSON.stringify(dbUpdates, null, 2)}`,
+    );
 
     // Save to database
     const savedCharacter = await charactersService.updateForUser(
@@ -332,7 +385,9 @@ export const saveChangesAction = {
     );
 
     if (!savedCharacter) {
-      logger.error(`[SAVE_CHANGES] Failed to save: access denied for user ${userId}`);
+      logger.error(
+        `[SAVE_CHANGES] Failed to save: access denied for user ${userId}`,
+      );
       await callback({
         text: "Unable to save: You may not have permission to update this character.",
         error: true,
@@ -345,12 +400,21 @@ export const saveChangesAction = {
     await runtime.updateAgent(runtime.agentId, updatedCharacter);
 
     const fieldsUpdated = Object.keys(changesObj);
-    logger.info(`[SAVE_CHANGES] Successfully updated: ${fieldsUpdated.join(", ")}`);
+    logger.info(
+      `[SAVE_CHANGES] Successfully updated: ${fieldsUpdated.join(", ")}`,
+    );
 
     // Generate confirmation in character's updated voice
     const originalSystemForConfirm = runtime.character.system;
 
-    const relevantFields = ["system", "bio", "adjectives", "topics", "style", "messageExamples"];
+    const relevantFields = [
+      "system",
+      "bio",
+      "adjectives",
+      "topics",
+      "style",
+      "messageExamples",
+    ];
     const updatedCharacterForConfirm: Record<string, unknown> = {};
     for (const field of relevantFields) {
       const value = (updatedCharacter as Record<string, unknown>)[field];
@@ -365,7 +429,11 @@ export const saveChangesAction = {
         values: {
           ...state.values,
           agentName: runtime.character.name,
-          updatedCharacterJson: JSON.stringify(updatedCharacterForConfirm, null, 2),
+          updatedCharacterJson: JSON.stringify(
+            updatedCharacterForConfirm,
+            null,
+            2,
+          ),
         },
       },
       template: confirmSystemPrompt,
@@ -379,8 +447,12 @@ export const saveChangesAction = {
 
     runtime.character.system = originalSystemForConfirm;
 
-    const parsed = parseKeyValueXml(confirmResponse) as { thought?: string; text?: string } | null;
-    const confirmText = parsed?.text || `Changes saved! Updated ${fieldsUpdated.join(", ")}.`;
+    const parsed = parseKeyValueXml(confirmResponse) as {
+      thought?: string;
+      text?: string;
+    } | null;
+    const confirmText =
+      parsed?.text || `Changes saved! Updated ${fieldsUpdated.join(", ")}.`;
 
     await callback({
       thought: parsed?.thought || "",

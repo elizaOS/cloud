@@ -199,9 +199,7 @@ export async function monitorAllContainers(
     .from(containers)
     .where(eq(containers.status, "running"));
 
-  logger.info(
-    `Found ${runningContainers.length} running containers to check`,
-  );
+  logger.info(`Found ${runningContainers.length} running containers to check`);
 
   // Check all containers in parallel for better performance
   const results: HealthCheckResult[] = await Promise.all(
@@ -285,4 +283,3 @@ export async function getContainerHealthStatus(
 
   return result;
 }
-

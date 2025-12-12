@@ -46,7 +46,7 @@ export const maxDuration = 60;
  */
 export async function POST(
   request: NextRequest,
-  ctx: { params: Promise<{ roomId: string }> }
+  ctx: { params: Promise<{ roomId: string }> },
 ) {
   const encoder = new TextEncoder();
 
@@ -73,8 +73,10 @@ export async function POST(
       const appIdValidation = z.string().uuid().safeParse(rawAppId);
       if (!appIdValidation.success) {
         return new Response(
-          JSON.stringify({ error: "Invalid appId format - must be a valid UUID" }),
-          { status: 400, headers: { "Content-Type": "application/json" } }
+          JSON.stringify({
+            error: "Invalid appId format - must be a valid UUID",
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
         );
       }
       appId = appIdValidation.data;
@@ -83,7 +85,7 @@ export async function POST(
     if (!roomId || !text?.trim()) {
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: { "Content-Type": "application/json" } },
       );
     }
 
@@ -206,7 +208,7 @@ export async function POST(
             error: "Invalid appPromptConfig format",
             details: validated.error.issues,
           }),
-          { status: 400, headers: { "Content-Type": "application/json" } }
+          { status: 400, headers: { "Content-Type": "application/json" } },
         );
       }
     }
@@ -217,7 +219,7 @@ export async function POST(
       if (!isValidAgentModeConfig(agentMode)) {
         return new Response(
           JSON.stringify({ error: "Invalid agent mode configuration" }),
-          { status: 400, headers: { "Content-Type": "application/json" } }
+          { status: 400, headers: { "Content-Type": "application/json" } },
         );
       }
       agentModeConfig = agentMode;
@@ -234,12 +236,12 @@ export async function POST(
 
     // Step 2: Authentication & Context Building
     logger.info(
-      `[Stream] 📊 Session token from body: ${sessionToken ? `${sessionToken.slice(0, 8)}...` : "N/A"}`
+      `[Stream] 📊 Session token from body: ${sessionToken ? `${sessionToken.slice(0, 8)}...` : "N/A"}`,
     );
     const userContext = await authenticateAndBuildContext(
       request,
       agentModeConfig.mode,
-      { sessionToken, appId, appPromptConfig }
+      { sessionToken, appId, appPromptConfig },
     );
 
     logger.info("[Stream] 📊 UserContext after auth:", {
@@ -259,7 +261,7 @@ export async function POST(
           error:
             "Your account has been suspended due to policy violations. Please contact support.",
         }),
-        { status: 403, headers: { "Content-Type": "application/json" } }
+        { status: 403, headers: { "Content-Type": "application/json" } },
       );
     }
 
@@ -269,7 +271,7 @@ export async function POST(
     const moderationCheck = contentModerationService.startModerationCheck(
       text,
       userContext.userId,
-      roomId
+      roomId,
     );
 
     // The moderation continues in background - violations are logged and tracked
@@ -309,7 +311,7 @@ export async function POST(
             requiresSignup: true,
             reason: limitCheck.reason,
           }),
-          { status: 429, headers: { "Content-Type": "application/json" } }
+          { status: 429, headers: { "Content-Type": "application/json" } },
         );
       }
     }
@@ -328,7 +330,7 @@ export async function POST(
         const balanceCheck = await appCreditsService.checkBalance(
           userContext.appId,
           userContext.userId,
-          MINIMUM_MESSAGE_COST
+          MINIMUM_MESSAGE_COST,
         );
 
         if (!balanceCheck.sufficient) {
@@ -345,7 +347,7 @@ export async function POST(
               details: `Your balance ($${balanceCheck.balance.toFixed(2)}) is too low. Please purchase more credits to continue.`,
               requiresPurchase: true,
             }),
-            { status: 402, headers: { "Content-Type": "application/json" } }
+            { status: 402, headers: { "Content-Type": "application/json" } },
           );
         }
       }
@@ -365,7 +367,7 @@ export async function POST(
           error: "This conversation has ended. Please start a new chat.",
           roomLocked: true,
         }),
-        { status: 403, headers: { "Content-Type": "application/json" } }
+        { status: 403, headers: { "Content-Type": "application/json" } },
       );
     }
 
@@ -401,7 +403,7 @@ export async function POST(
               {
                 hasAutoImage: affiliateData.autoImage,
                 hasImageUrls: !!(affiliateData.imageUrls as unknown[])?.length,
-              }
+              },
             );
             agentModeConfig = { mode: AgentMode.ASSISTANT };
             // CRITICAL: Also update userContext so runtime loads correct plugins
@@ -421,7 +423,7 @@ export async function POST(
     ) {
       characterId = String(agentModeConfig.metadata.targetCharacterId);
       logger.info(
-        `[Stream] BUILD mode - Using character from metadata: ${characterId}`
+        `[Stream] BUILD mode - Using character from metadata: ${characterId}`,
       );
 
       // Update room agentId for build mode (proper column, not metadata)
@@ -429,12 +431,12 @@ export async function POST(
         try {
           await roomsRepository.update(roomId, { agentId: characterId });
           logger.info(
-            `[Stream] BUILD mode - Updated room agentId: room ${roomId} → agent ${characterId}`
+            `[Stream] BUILD mode - Updated room agentId: room ${roomId} → agent ${characterId}`,
           );
         } catch (error) {
           logger.error(
             "[Stream] BUILD mode - Failed to update room agentId:",
-            error
+            error,
           );
         }
       }
@@ -442,7 +444,9 @@ export async function POST(
 
     logger.info(
       `[Stream] Room ${roomId} - Character lookup:`,
-      characterId ? `Using character ${characterId}` : "Using default character"
+      characterId
+        ? `Using character ${characterId}`
+        : "Using default character",
     );
 
     // Step 5: Apply model preferences if provided
@@ -454,7 +458,7 @@ export async function POST(
       logger.info(`[Stream] User selected model: ${model}`);
     } else if (userContext.modelPreferences) {
       logger.info(
-        `[Stream] Using stored model preferences: ${userContext.modelPreferences.smallModel} / ${userContext.modelPreferences.largeModel}`
+        `[Stream] Using stored model preferences: ${userContext.modelPreferences.smallModel} / ${userContext.modelPreferences.largeModel}`,
       );
     } else {
       logger.info("[Stream] No model preference set, using defaults");
@@ -487,7 +491,7 @@ export async function POST(
             error: "Your message was blocked due to content policy violations.",
             details: error.message,
           }),
-          { status: 403, headers: { "Content-Type": "application/json" } }
+          { status: 403, headers: { "Content-Type": "application/json" } },
         );
       }
       throw error;
@@ -587,7 +591,7 @@ export async function POST(
           if (result.usage && !userContext.isAnonymous) {
             // This is just for the warning event, actual credit deduction happened in MessageHandler
             const remainingCredits = await checkUserCredits(
-              userContext.organizationId
+              userContext.organizationId,
             );
             if (remainingCredits < 1.0) {
               sendEvent("warning", {
@@ -625,7 +629,7 @@ export async function POST(
       JSON.stringify({
         error: error instanceof Error ? error.message : "Request failed",
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
 }
@@ -649,7 +653,7 @@ async function authenticateAndBuildContext(
     sessionToken?: string;
     appId?: string;
     appPromptConfig?: Record<string, unknown>;
-  }
+  },
 ) {
   const headerToken = request.headers.get("X-Anonymous-Session");
   const bodyToken = body?.sessionToken;
@@ -673,13 +677,13 @@ async function authenticateAndBuildContext(
         userId: authResult.user.id,
         authMethod: authResult.authMethod,
         isAnonymous: authResult.user.is_anonymous,
-      }
+      },
     );
 
     // Double-check the user is not anonymous (migration should have set this to false)
     if (authResult.user.is_anonymous) {
       logger.warn(
-        "[Stream Auth] ⚠️ User is authenticated but still marked as anonymous - this may indicate incomplete migration"
+        "[Stream Auth] ⚠️ User is authenticated but still marked as anonymous - this may indicate incomplete migration",
       );
     }
 
@@ -693,7 +697,7 @@ async function authenticateAndBuildContext(
   } catch (error) {
     logger.info(
       "[Stream Auth] ❌ Privy auth failed, falling back to anonymous:",
-      error instanceof Error ? error.message : String(error)
+      error instanceof Error ? error.message : String(error),
     );
   }
 
@@ -706,7 +710,7 @@ async function authenticateAndBuildContext(
   // Try provided session token first
   if (providedToken) {
     logger.info(
-      `[Stream] 🔑 Session token provided in request: ${providedToken.slice(0, 8)}...`
+      `[Stream] 🔑 Session token provided in request: ${providedToken.slice(0, 8)}...`,
     );
 
     const session = await anonymousSessionsService.getByToken(providedToken);
@@ -729,7 +733,7 @@ async function authenticateAndBuildContext(
             sessionId: session.id,
             convertedAt: session.converted_at,
             isActive: session.is_active,
-          }
+          },
         );
         // This session was migrated - the user should authenticate via Privy
         // Don't use this session, fall through to create new anonymous or fail
@@ -760,17 +764,17 @@ async function authenticateAndBuildContext(
 
         logger.warn(
           "[Stream] ⚠️ User not found or not anonymous for session:",
-          session.id
+          session.id,
         );
       }
     } else {
       logger.warn(
-        `[Stream] ⚠️ Session not found for provided token: ${providedToken.slice(0, 8)}...`
+        `[Stream] ⚠️ Session not found for provided token: ${providedToken.slice(0, 8)}...`,
       );
     }
 
     logger.warn(
-      "[Stream] ⚠️ Provided session token invalid or converted, falling back to cookie"
+      "[Stream] ⚠️ Provided session token invalid or converted, falling back to cookie",
     );
   }
 

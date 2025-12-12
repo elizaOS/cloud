@@ -1,6 +1,6 @@
 /**
  * Schema exports index.
- * 
+ *
  * Central export point for all database table schemas.
  */
 export * from "./organizations";

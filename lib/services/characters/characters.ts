@@ -46,7 +46,7 @@ export class CharactersService {
     },
   ): Promise<UserCharacter[]> {
     const source = options?.source ?? "cloud";
-    
+
     // If templates are requested, get them separately
     if (options?.includeTemplates) {
       const [userChars, templates] = await Promise.all([
@@ -64,7 +64,10 @@ export class CharactersService {
     options?: { source?: "cloud" | "miniapp" },
   ): Promise<UserCharacter[]> {
     const source = options?.source ?? "cloud";
-    return await userCharactersRepository.listByOrganization(organizationId, source);
+    return await userCharactersRepository.listByOrganization(
+      organizationId,
+      source,
+    );
   }
 
   async listPublic(): Promise<UserCharacter[]> {
@@ -273,7 +276,6 @@ export class CharactersService {
     userId: string,
     organizationId: string,
   ): Promise<{ success: boolean; message: string }> {
-
     // Verify character is claimable
     const claimCheck = await this.isClaimableAffiliateCharacter(characterId);
 
@@ -313,29 +315,35 @@ export class CharactersService {
         .where(
           and(
             eq(elizaRoomCharactersTable.character_id, characterId),
-            eq(elizaRoomCharactersTable.user_id, previousOwnerId)
-          )
+            eq(elizaRoomCharactersTable.user_id, previousOwnerId),
+          ),
         )
         .returning({ room_id: elizaRoomCharactersTable.room_id });
 
       if (roomUpdateResult.length > 0) {
-        logger.info(`[Characters] Transferred ${roomUpdateResult.length} room association(s)`, {
-          characterId,
-          fromUserId: previousOwnerId,
-          toUserId: userId,
-        });
+        logger.info(
+          `[Characters] Transferred ${roomUpdateResult.length} room association(s)`,
+          {
+            characterId,
+            fromUserId: previousOwnerId,
+            toUserId: userId,
+          },
+        );
       }
     }
 
-    logger.info(`[Characters] ✅ Successfully claimed character ${characterId}`, {
-      characterName: updated.name,
-      newOwnerId: userId,
-      newOrgId: organizationId,
-    });
+    logger.info(
+      `[Characters] ✅ Successfully claimed character ${characterId}`,
+      {
+        characterName: updated.name,
+        newOwnerId: userId,
+        newOrgId: organizationId,
+      },
+    );
 
     return {
       success: true,
-      message: `Character "${updated.name}" has been added to your account`
+      message: `Character "${updated.name}" has been added to your account`,
     };
   }
 }

@@ -15,7 +15,7 @@ async function runMigration() {
 
   // Create enums
   console.log("Creating enums...");
-  
+
   await db.execute(sql`
     DO $$ BEGIN
         CREATE TYPE admin_role AS ENUM ('super_admin', 'moderator', 'viewer');
@@ -60,10 +60,18 @@ async function runMigration() {
     )
   `);
 
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS admin_users_wallet_address_idx ON admin_users(wallet_address)`);
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS admin_users_user_id_idx ON admin_users(user_id)`);
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS admin_users_role_idx ON admin_users(role)`);
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS admin_users_is_active_idx ON admin_users(is_active)`);
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS admin_users_wallet_address_idx ON admin_users(wallet_address)`,
+  );
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS admin_users_user_id_idx ON admin_users(user_id)`,
+  );
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS admin_users_role_idx ON admin_users(role)`,
+  );
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS admin_users_is_active_idx ON admin_users(is_active)`,
+  );
   console.log("✅ admin_users table created\n");
 
   // Create moderation_violations table
@@ -84,10 +92,18 @@ async function runMigration() {
     )
   `);
 
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS moderation_violations_user_id_idx ON moderation_violations(user_id)`);
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS moderation_violations_action_idx ON moderation_violations(action)`);
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS moderation_violations_created_at_idx ON moderation_violations(created_at)`);
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS moderation_violations_room_id_idx ON moderation_violations(room_id)`);
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS moderation_violations_user_id_idx ON moderation_violations(user_id)`,
+  );
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS moderation_violations_action_idx ON moderation_violations(action)`,
+  );
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS moderation_violations_created_at_idx ON moderation_violations(created_at)`,
+  );
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS moderation_violations_room_id_idx ON moderation_violations(room_id)`,
+  );
   console.log("✅ moderation_violations table created\n");
 
   // Create user_moderation_status table
@@ -110,10 +126,18 @@ async function runMigration() {
     )
   `);
 
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS user_moderation_status_user_id_idx ON user_moderation_status(user_id)`);
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS user_moderation_status_status_idx ON user_moderation_status(status)`);
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS user_moderation_status_risk_score_idx ON user_moderation_status(risk_score)`);
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS user_moderation_status_total_violations_idx ON user_moderation_status(total_violations)`);
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS user_moderation_status_user_id_idx ON user_moderation_status(user_id)`,
+  );
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS user_moderation_status_status_idx ON user_moderation_status(status)`,
+  );
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS user_moderation_status_risk_score_idx ON user_moderation_status(risk_score)`,
+  );
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS user_moderation_status_total_violations_idx ON user_moderation_status(total_violations)`,
+  );
   console.log("✅ user_moderation_status table created\n");
 
   console.log("🎉 Migration complete!");
@@ -124,4 +148,3 @@ runMigration().catch((error) => {
   console.error("❌ Migration failed:", error);
   process.exit(1);
 });
-

@@ -57,13 +57,16 @@ export function CharacterLibraryCard({
 
   const handleDuplicate = useCallback(async () => {
     toast.info("Duplicating character...");
-    
-    const response = await fetch(`/api/my-agents/characters/${character.id}/clone`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: `${character.name} (Copy)` }),
-    });
-    
+
+    const response = await fetch(
+      `/api/my-agents/characters/${character.id}/clone`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: `${character.name} (Copy)` }),
+      },
+    );
+
     if (response.ok) {
       const data = await response.json();
       toast.success(`Created "${data.data.character.name}"`);
@@ -98,11 +101,11 @@ export function CharacterLibraryCard({
     }
 
     setIsDeleting(true);
-    
+
     const response = await fetch(`/api/my-agents/characters/${character.id}`, {
       method: "DELETE",
     });
-    
+
     if (response.ok) {
       toast.success(`Deleted ${character.name}`);
       router.refresh();

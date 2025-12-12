@@ -34,13 +34,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           error: "Invalid request data",
           details: validationResult.error.format(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const result = await aiAppBuilderService.sendPrompt(
       sessionId,
-      validationResult.data.prompt
+      validationResult.data.prompt,
     );
 
     return NextResponse.json({
@@ -51,14 +51,19 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     logger.error("Failed to send prompt", { error });
-    const message = error instanceof Error ? error.message : "Failed to send prompt";
-    const status = message.includes("Unauthorized") ? 403 : message.includes("not found") ? 404 : 500;
+    const message =
+      error instanceof Error ? error.message : "Failed to send prompt";
+    const status = message.includes("Unauthorized")
+      ? 403
+      : message.includes("not found")
+        ? 404
+        : 500;
     return NextResponse.json(
       {
         success: false,
         error: message,
       },
-      { status }
+      { status },
     );
   }
 }

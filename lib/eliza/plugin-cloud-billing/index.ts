@@ -10,20 +10,15 @@
  * - Credit deduction tracking
  */
 
-import {
-  logger,
-  type Plugin,
-} from "@elizaos/core";
+import { logger, type Plugin } from "@elizaos/core";
 import { agentCreditsProvider } from "../providers/agent-credits-provider";
 
 export const cloudBillingPlugin: Plugin = {
   name: "eliza-cloud-billing",
   description: "Credit and budget awareness for Eliza Cloud agents",
-  
-  providers: [
-    agentCreditsProvider,
-  ],
-  
+
+  providers: [agentCreditsProvider],
+
   actions: [],
   evaluators: [],
 };
@@ -37,4 +32,3 @@ export {
   canAgentAfford,
   deductAgentBudget,
 } from "../providers/agent-credits-provider";
-

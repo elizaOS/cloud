@@ -1,6 +1,6 @@
 /**
  * AI App Builder Dialog
- * 
+ *
  * A full-screen dialog that provides:
  * - Live sandbox preview of the Next.js app
  * - Chat interface to prompt AI Assistant
@@ -11,10 +11,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Dialog,
-  DialogContent,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,8 +54,19 @@ interface AIAppBuilderDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type TemplateType = "chat" | "agent-dashboard" | "landing-page" | "analytics" | "blank";
-type SessionStatus = "idle" | "initializing" | "ready" | "generating" | "error" | "stopped";
+type TemplateType =
+  | "chat"
+  | "agent-dashboard"
+  | "landing-page"
+  | "analytics"
+  | "blank";
+type SessionStatus =
+  | "idle"
+  | "initializing"
+  | "ready"
+  | "generating"
+  | "error"
+  | "stopped";
 
 interface Message {
   role: "user" | "assistant";
@@ -78,9 +86,21 @@ interface SessionData {
 const TEMPLATE_OPTIONS = [
   { value: "blank", label: "Blank Project", description: "Start from scratch" },
   { value: "chat", label: "Chat App", description: "AI chat interface" },
-  { value: "agent-dashboard", label: "Agent Dashboard", description: "Manage AI agents" },
-  { value: "landing-page", label: "Landing Page", description: "Marketing page" },
-  { value: "analytics", label: "Analytics Dashboard", description: "Data visualization" },
+  {
+    value: "agent-dashboard",
+    label: "Agent Dashboard",
+    description: "Manage AI agents",
+  },
+  {
+    value: "landing-page",
+    label: "Landing Page",
+    description: "Marketing page",
+  },
+  {
+    value: "analytics",
+    label: "Analytics Dashboard",
+    description: "Data visualization",
+  },
 ];
 
 export function AIAppBuilderDialog({
@@ -162,69 +182,80 @@ What would you like to build?`,
     } catch (error) {
       setStatus("error");
       toast.error("Failed to start sandbox", {
-        description: error instanceof Error ? error.message : "Please try again",
+        description:
+          error instanceof Error ? error.message : "Please try again",
       });
     } finally {
       setIsLoading(false);
     }
-  }, [appName, appDescription, templateType, includeMonetization, includeAnalytics]);
+  }, [
+    appName,
+    appDescription,
+    templateType,
+    includeMonetization,
+    includeAnalytics,
+  ]);
 
   // Send a prompt
-  const sendPrompt = useCallback(async (prompt: string) => {
-    if (!session || !prompt.trim() || isLoading) return;
+  const sendPrompt = useCallback(
+    async (prompt: string) => {
+      if (!session || !prompt.trim() || isLoading) return;
 
-    setIsLoading(true);
-    setStatus("generating");
+      setIsLoading(true);
+      setStatus("generating");
 
-    // Add user message
-    const userMessage: Message = {
-      role: "user",
-      content: prompt,
-      timestamp: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-
-    try {
-      const response = await fetch(
-        `/api/v1/app-builder/sessions/${session.id}/prompts`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to send prompt");
-      }
-
-      // Add assistant message
-      const assistantMessage: Message = {
-        role: "assistant",
-        content: data.output,
-        filesAffected: data.filesAffected,
+      // Add user message
+      const userMessage: Message = {
+        role: "user",
+        content: prompt,
         timestamp: new Date().toISOString(),
       };
-      setMessages((prev) => [...prev, assistantMessage]);
+      setMessages((prev) => [...prev, userMessage]);
+      setInput("");
 
-      // Refresh iframe
-      if (iframeRef.current) {
-        iframeRef.current.src = session.sandboxUrl;
+      try {
+        const response = await fetch(
+          `/api/v1/app-builder/sessions/${session.id}/prompts`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt }),
+          },
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to send prompt");
+        }
+
+        // Add assistant message
+        const assistantMessage: Message = {
+          role: "assistant",
+          content: data.output,
+          filesAffected: data.filesAffected,
+          timestamp: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+
+        // Refresh iframe
+        if (iframeRef.current) {
+          iframeRef.current.src = session.sandboxUrl;
+        }
+
+        setStatus("ready");
+      } catch (error) {
+        setStatus("ready");
+        toast.error("Failed to process prompt", {
+          description:
+            error instanceof Error ? error.message : "Please try again",
+        });
+      } finally {
+        setIsLoading(false);
       }
-
-      setStatus("ready");
-    } catch (error) {
-      setStatus("ready");
-      toast.error("Failed to process prompt", {
-        description: error instanceof Error ? error.message : "Please try again",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [session, isLoading]);
+    },
+    [session, isLoading],
+  );
 
   // Stop the session
   const stopSession = useCallback(async () => {
@@ -244,7 +275,11 @@ What would you like to build?`,
   const handleClose = useCallback(() => {
     if (session && status !== "stopped") {
       // Confirm before closing active session
-      if (window.confirm("Stop the sandbox and close? You'll lose any unsaved work.")) {
+      if (
+        window.confirm(
+          "Stop the sandbox and close? You'll lose any unsaved work.",
+        )
+      ) {
         stopSession();
         onOpenChange(false);
       }
@@ -292,7 +327,9 @@ What would you like to build?`,
               {TEMPLATE_OPTIONS.map((template) => (
                 <div
                   key={template.value}
-                  onClick={() => setTemplateType(template.value as TemplateType)}
+                  onClick={() =>
+                    setTemplateType(template.value as TemplateType)
+                  }
                   className={`p-4 border rounded-lg cursor-pointer transition-all ${
                     templateType === template.value
                       ? "border-[#FF5800] bg-[#FF5800]/10"
@@ -300,7 +337,9 @@ What would you like to build?`,
                   }`}
                 >
                   <div className="font-medium text-white">{template.label}</div>
-                  <div className="text-sm text-white/60">{template.description}</div>
+                  <div className="text-sm text-white/60">
+                    {template.description}
+                  </div>
                 </div>
               ))}
             </div>
@@ -350,7 +389,9 @@ What would you like to build?`,
             <div className="space-y-3">
               <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
                 <div>
-                  <div className="font-medium text-white">Analytics Integration</div>
+                  <div className="font-medium text-white">
+                    Analytics Integration
+                  </div>
                   <div className="text-sm text-white/60">
                     Track usage and performance metrics
                   </div>
@@ -409,7 +450,9 @@ What would you like to build?`,
   const renderBuilding = () => (
     <div className="flex h-full">
       {/* Chat Panel */}
-      <div className={`flex flex-col border-r border-white/10 ${isFullscreen ? "hidden" : "w-[400px]"}`}>
+      <div
+        className={`flex flex-col border-r border-white/10 ${isFullscreen ? "hidden" : "w-[400px]"}`}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-white/10">
           <div className="flex items-center gap-2">
@@ -422,10 +465,10 @@ What would you like to build?`,
                 status === "ready"
                   ? "bg-green-500"
                   : status === "generating"
-                  ? "bg-yellow-500 animate-pulse"
-                  : status === "error"
-                  ? "bg-red-500"
-                  : "bg-gray-500"
+                    ? "bg-yellow-500 animate-pulse"
+                    : status === "error"
+                      ? "bg-red-500"
+                      : "bg-gray-500"
               }`}
             />
             <span className="text-xs text-white/60 capitalize">{status}</span>
@@ -433,7 +476,10 @@ What would you like to build?`,
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4" style={{ scrollBehavior: "smooth" }}>
+        <div
+          className="flex-1 overflow-y-auto p-4"
+          style={{ scrollBehavior: "smooth" }}
+        >
           <div className="space-y-4">
             {messages.map((message, index) => (
               <div
@@ -454,21 +500,24 @@ What would you like to build?`,
                       {message.content}
                     </ReactMarkdown>
                   </div>
-                  {message.filesAffected && message.filesAffected.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-white/10">
-                      <div className="text-xs text-white/40 mb-1">Files modified:</div>
-                      <div className="flex flex-wrap gap-1">
-                        {message.filesAffected.map((file, i) => (
-                          <span
-                            key={i}
-                            className="text-xs px-1.5 py-0.5 bg-white/10 rounded text-white/70"
-                          >
-                            {file}
-                          </span>
-                        ))}
+                  {message.filesAffected &&
+                    message.filesAffected.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-white/10">
+                        <div className="text-xs text-white/40 mb-1">
+                          Files modified:
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {message.filesAffected.map((file, i) => (
+                            <span
+                              key={i}
+                              className="text-xs px-1.5 py-0.5 bg-white/10 rounded text-white/70"
+                            >
+                              {file}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                 </div>
               </div>
             ))}
@@ -603,11 +652,7 @@ What would you like to build?`,
                 <Maximize2 className="h-4 w-4" />
               )}
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleClose}
-            >
+            <Button variant="ghost" size="icon" onClick={handleClose}>
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -659,7 +704,10 @@ What would you like to build?`,
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-[95vw] w-[95vw] h-[90vh] p-0 gap-0 overflow-hidden" showCloseButton={false}>
+      <DialogContent
+        className="max-w-[95vw] w-[95vw] h-[90vh] p-0 gap-0 overflow-hidden"
+        showCloseButton={false}
+      >
         {step === "setup" ? renderSetup() : renderBuilding()}
       </DialogContent>
     </Dialog>

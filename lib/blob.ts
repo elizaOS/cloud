@@ -38,7 +38,7 @@ export interface BlobUploadResult {
  */
 export async function uploadToBlob(
   content: Buffer | string,
-  options: BlobUploadOptions
+  options: BlobUploadOptions,
 ): Promise<BlobUploadResult> {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
@@ -83,7 +83,7 @@ export async function uploadToBlob(
 export async function uploadBase64Image(
   base64Data: string,
   options: Omit<BlobUploadOptions, "contentType">,
-  maxSizeMB: number = 10
+  maxSizeMB: number = 10,
 ): Promise<BlobUploadResult> {
   // Extract the base64 data and mime type
   const matches = base64Data.match(/^data:([^;]+);base64,(.+)$/);
@@ -98,11 +98,12 @@ export async function uploadBase64Image(
   const MAX_IMAGE_SIZE = maxSizeMB * 1024 * 1024;
   // Account for base64 padding characters when calculating size
   const paddingCount = (base64Content.match(/=/g) || []).length;
-  const estimatedSize = Math.ceil((base64Content.length * 3) / 4) - paddingCount;
+  const estimatedSize =
+    Math.ceil((base64Content.length * 3) / 4) - paddingCount;
 
   if (estimatedSize > MAX_IMAGE_SIZE) {
     throw new Error(
-      `Image too large (max ${maxSizeMB}MB). Got ${(estimatedSize / 1024 / 1024).toFixed(2)}MB`
+      `Image too large (max ${maxSizeMB}MB). Got ${(estimatedSize / 1024 / 1024).toFixed(2)}MB`,
     );
   }
 
@@ -116,7 +117,7 @@ export async function uploadBase64Image(
   ];
   if (!validImageTypes.includes(mimeType.toLowerCase())) {
     throw new Error(
-      `Invalid image type: ${mimeType}. Allowed: ${validImageTypes.join(", ")}`
+      `Invalid image type: ${mimeType}. Allowed: ${validImageTypes.join(", ")}`,
     );
   }
 
@@ -139,7 +140,7 @@ export async function uploadBase64Image(
 export async function uploadFromBuffer(
   buffer: Buffer,
   filename: string,
-  contentType: string
+  contentType: string,
 ): Promise<string> {
   const result = await uploadToBlob(buffer, {
     filename,
@@ -176,7 +177,7 @@ export function isFalAiUrl(url: string): boolean {
  */
 export async function uploadFromUrl(
   sourceUrl: string,
-  options: BlobUploadOptions
+  options: BlobUploadOptions,
 ): Promise<BlobUploadResult> {
   const response = await fetch(sourceUrl);
   if (!response.ok) {
@@ -206,7 +207,7 @@ export async function uploadFromUrl(
  */
 export async function ensureElizaCloudUrl(
   sourceUrl: string,
-  options: BlobUploadOptions & { fallbackToOriginal?: boolean }
+  options: BlobUploadOptions & { fallbackToOriginal?: boolean },
 ): Promise<string> {
   // If it's not a Fal.ai URL, return as-is
   if (!isFalAiUrl(sourceUrl)) {
@@ -220,7 +221,7 @@ export async function ensureElizaCloudUrl(
   } catch (error) {
     console.error(
       "[ensureElizaCloudUrl] Failed to upload Fal.ai URL to our storage:",
-      error
+      error,
     );
 
     // If fallback is allowed, return original URL

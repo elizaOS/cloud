@@ -49,7 +49,10 @@ export class AppSignupTrackingService {
     }
 
     // Create or update app user record
-    const existingAppUser = await appsRepository.findAppUser(appId, data.userId);
+    const existingAppUser = await appsRepository.findAppUser(
+      appId,
+      data.userId,
+    );
 
     if (existingAppUser) {
       // User already exists for this app, just update metadata
@@ -130,20 +133,20 @@ export class AppSignupTrackingService {
       if (app) return app.id;
     }
 
-      // Try matching origin/referrer to app URLs
-      if (origin || referrer) {
-        const urlToMatch = origin || referrer;
-        if (!urlToMatch) return null;
+    // Try matching origin/referrer to app URLs
+    if (origin || referrer) {
+      const urlToMatch = origin || referrer;
+      if (!urlToMatch) return null;
 
-        // Get all apps and try to match URL
-        // Note: This is not the most efficient approach for large numbers of apps
-        // In production, you might want to index apps by domain
-        const hostname = new URL(urlToMatch).hostname;
+      // Get all apps and try to match URL
+      // Note: This is not the most efficient approach for large numbers of apps
+      // In production, you might want to index apps by domain
+      const hostname = new URL(urlToMatch).hostname;
 
-        // For demo purposes, we'll skip the full lookup
-        // In production, implement proper URL matching
-        return null;
-      }
+      // For demo purposes, we'll skip the full lookup
+      // In production, implement proper URL matching
+      return null;
+    }
 
     return null;
   }

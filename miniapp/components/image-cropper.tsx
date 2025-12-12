@@ -19,7 +19,7 @@ export interface ImageCropperProps {
 async function getCroppedImg(
   imageSrc: string,
   pixelCrop: Area,
-  rotation = 0
+  rotation = 0,
 ): Promise<Blob> {
   const image = await createImage(imageSrc);
   const canvas = document.createElement("canvas");
@@ -42,7 +42,7 @@ async function getCroppedImg(
   ctx.drawImage(
     image,
     safeArea / 2 - image.width * 0.5,
-    safeArea / 2 - image.height * 0.5
+    safeArea / 2 - image.height * 0.5,
   );
 
   const data = ctx.getImageData(0, 0, safeArea, safeArea);
@@ -53,17 +53,21 @@ async function getCroppedImg(
   ctx.putImageData(
     data,
     Math.round(0 - safeArea / 2 + image.width * 0.5 - pixelCrop.x),
-    Math.round(0 - safeArea / 2 + image.height * 0.5 - pixelCrop.y)
+    Math.round(0 - safeArea / 2 + image.height * 0.5 - pixelCrop.y),
   );
 
   return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (blob) {
-        resolve(blob);
-      } else {
-        reject(new Error("Canvas is empty"));
-      }
-    }, "image/jpeg", 0.9);
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          resolve(blob);
+        } else {
+          reject(new Error("Canvas is empty"));
+        }
+      },
+      "image/jpeg",
+      0.9,
+    );
   });
 }
 
@@ -95,7 +99,7 @@ export function ImageCropper({
     (_croppedArea: Area, croppedAreaPixels: Area) => {
       setCroppedAreaPixels(croppedAreaPixels);
     },
-    []
+    [],
   );
 
   const handleCrop = async () => {
@@ -137,7 +141,7 @@ export function ImageCropper({
             type="button"
             onClick={handleCrop}
             disabled={isProcessing}
-            className="flex items-center gap-2 rounded-lg bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
+            className="bg-brand hover:bg-brand-600 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
             {isProcessing ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -187,7 +191,7 @@ export function ImageCropper({
               step={0.01}
               value={zoom}
               onChange={(e) => setZoom(Number(e.target.value))}
-              className="h-2 flex-1 cursor-pointer appearance-none rounded-full bg-white/20 accent-brand"
+              className="accent-brand h-2 flex-1 cursor-pointer appearance-none rounded-full bg-white/20"
             />
             <button
               type="button"
@@ -217,4 +221,3 @@ export function ImageCropper({
 }
 
 export default ImageCropper;
-

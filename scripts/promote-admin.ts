@@ -53,7 +53,7 @@ Special Commands:
   if (args[0] === "--list") {
     console.log("\n📋 Current Admins:\n");
     const admins = await adminService.listAdmins();
-    
+
     if (admins.length === 0) {
       console.log("  No admins found.");
     } else {
@@ -66,7 +66,7 @@ Special Commands:
         console.log();
       }
     }
-    
+
     process.exit(0);
   }
 
@@ -85,19 +85,24 @@ Special Commands:
 
   // Promote admin
   const walletAddress = args[0];
-  const role = (args[1] as "super_admin" | "moderator" | "viewer") || "moderator";
+  const role =
+    (args[1] as "super_admin" | "moderator" | "viewer") || "moderator";
   const notes = args.slice(2).join(" ") || undefined;
 
   // Validate wallet address format
   if (!walletAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
-    console.error("❌ Error: Invalid wallet address format. Must be 0x followed by 40 hex characters.");
+    console.error(
+      "❌ Error: Invalid wallet address format. Must be 0x followed by 40 hex characters.",
+    );
     process.exit(1);
   }
 
   // Validate role
   const validRoles = ["super_admin", "moderator", "viewer"];
   if (!validRoles.includes(role)) {
-    console.error(`❌ Error: Invalid role. Must be one of: ${validRoles.join(", ")}`);
+    console.error(
+      `❌ Error: Invalid role. Must be one of: ${validRoles.join(", ")}`,
+    );
     process.exit(1);
   }
 
@@ -127,4 +132,3 @@ main().catch((error) => {
   console.error("❌ Error:", error);
   process.exit(1);
 });
-

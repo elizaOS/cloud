@@ -45,10 +45,10 @@ interface SendMessageOptions {
 
 /**
  * Sends a message and streams the response via Server-Sent Events (SSE).
- * 
+ *
  * The entityId is derived from the authenticated user on the server.
  * Single endpoint handles everything - no cross-container issues!
- * 
+ *
  * @param options - Message sending options including callbacks.
  */
 export async function sendStreamingMessage({
@@ -79,7 +79,7 @@ export async function sendStreamingMessage({
   if (!response.ok) {
     let errorMessage = "Failed to send message";
     const contentType = response.headers.get("content-type");
-    
+
     // Try to parse JSON error response, but handle empty/invalid responses gracefully
     if (contentType?.includes("application/json")) {
       try {
@@ -107,7 +107,7 @@ export async function sendStreamingMessage({
         errorMessage = `Server returned ${response.status} ${response.statusText}`;
       }
     }
-    
+
     throw new Error(errorMessage);
   }
 
@@ -192,7 +192,9 @@ function processSSEMessage(
     data = JSON.parse(dataString);
   } catch (err) {
     console.error("[Stream] Failed to parse JSON data:", dataString, err);
-    throw new Error(`Invalid JSON in SSE data: ${err instanceof Error ? err.message : String(err)}`);
+    throw new Error(
+      `Invalid JSON in SSE data: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 
   // Handle different event types

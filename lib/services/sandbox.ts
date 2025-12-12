@@ -234,7 +234,7 @@ BUILD BEAUTIFUL UIs with standard Tailwind classes!`;
 async function writeFileViaSh(
   sandbox: SandboxInstance,
   filePath: string,
-  content: string
+  content: string,
 ): Promise<void> {
   const base64Content = Buffer.from(content, "utf-8").toString("base64");
   const dir = filePath.split("/").slice(0, -1).join("/");
@@ -256,7 +256,7 @@ async function writeFileViaSh(
 
 async function readFileViaSh(
   sandbox: SandboxInstance,
-  filePath: string
+  filePath: string,
 ): Promise<string | null> {
   const result = await sandbox.runCommand({ cmd: "cat", args: [filePath] });
   return result.exitCode === 0 ? await result.stdout() : null;
@@ -264,7 +264,7 @@ async function readFileViaSh(
 
 async function listFilesViaSh(
   sandbox: SandboxInstance,
-  dirPath: string
+  dirPath: string,
 ): Promise<string[]> {
   const result = await sandbox.runCommand({
     cmd: "sh",
@@ -280,7 +280,7 @@ async function listFilesViaSh(
  */
 async function installPackages(
   sandbox: SandboxInstance,
-  packages: string[]
+  packages: string[],
 ): Promise<string> {
   if (!packages || packages.length === 0) return "No packages specified";
 
@@ -405,7 +405,7 @@ export class SandboxService {
     if (!creds.hasOIDC && !creds.hasAccessToken) {
       throw new Error(
         "Vercel Sandbox credentials not configured. " +
-          "Set VERCEL_TOKEN, VERCEL_TEAM_ID, and VERCEL_PROJECT_ID."
+          "Set VERCEL_TOKEN, VERCEL_TEAM_ID, and VERCEL_PROJECT_ID.",
       );
     }
 
@@ -494,7 +494,7 @@ export class SandboxService {
   private async waitForDevServer(
     sandbox: SandboxInstance,
     port: number,
-    maxAttempts = 45
+    maxAttempts = 45,
   ): Promise<void> {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
@@ -526,7 +526,7 @@ export class SandboxService {
       systemPrompt?: string;
       onToolUse?: (tool: string, input: unknown, result: string) => void;
       onThinking?: (text: string) => void;
-    } = {}
+    } = {},
   ): Promise<{ output: string; filesAffected: string[]; success: boolean }> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
@@ -715,7 +715,7 @@ REMEMBER:
   async writeFile(
     sandboxId: string,
     path: string,
-    content: string
+    content: string,
   ): Promise<void> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
@@ -736,7 +736,7 @@ REMEMBER:
 
   async installPackages(
     sandboxId: string,
-    packages: string[]
+    packages: string[],
   ): Promise<string> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);

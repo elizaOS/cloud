@@ -93,7 +93,9 @@ export const userMcps = pgTable(
     color: text("color").default("#6366F1"),
 
     // Pricing configuration
-    pricing_type: mcpPricingTypeEnum("pricing_type").notNull().default("credits"),
+    pricing_type: mcpPricingTypeEnum("pricing_type")
+      .notNull()
+      .default("credits"),
     credits_per_request: numeric("credits_per_request", {
       precision: 10,
       scale: 4,
@@ -172,13 +174,13 @@ export const userMcps = pgTable(
   (table) => ({
     slug_org_idx: uniqueIndex("user_mcps_slug_org_idx").on(
       table.slug,
-      table.organization_id
+      table.organization_id,
     ),
     organization_idx: index("user_mcps_organization_idx").on(
-      table.organization_id
+      table.organization_id,
     ),
     created_by_idx: index("user_mcps_created_by_idx").on(
-      table.created_by_user_id
+      table.created_by_user_id,
     ),
     container_idx: index("user_mcps_container_idx").on(table.container_id),
     category_idx: index("user_mcps_category_idx").on(table.category),
@@ -186,9 +188,9 @@ export const userMcps = pgTable(
     is_public_idx: index("user_mcps_is_public_idx").on(table.is_public),
     created_at_idx: index("user_mcps_created_at_idx").on(table.created_at),
     erc8004_registered_idx: index("user_mcps_erc8004_registered_idx").on(
-      table.erc8004_registered
+      table.erc8004_registered,
     ),
-  })
+  }),
 );
 
 /**
@@ -254,15 +256,15 @@ export const mcpUsage = pgTable(
   (table) => ({
     mcp_id_idx: index("mcp_usage_mcp_id_idx").on(table.mcp_id),
     organization_idx: index("mcp_usage_organization_idx").on(
-      table.organization_id
+      table.organization_id,
     ),
     user_idx: index("mcp_usage_user_idx").on(table.user_id),
     created_at_idx: index("mcp_usage_created_at_idx").on(table.created_at),
     mcp_org_idx: index("mcp_usage_mcp_org_idx").on(
       table.mcp_id,
-      table.organization_id
+      table.organization_id,
     ),
-  })
+  }),
 );
 
 // Type inference
@@ -270,4 +272,3 @@ export type UserMcp = InferSelectModel<typeof userMcps>;
 export type NewUserMcp = InferInsertModel<typeof userMcps>;
 export type McpUsage = InferSelectModel<typeof mcpUsage>;
 export type NewMcpUsage = InferInsertModel<typeof mcpUsage>;
-

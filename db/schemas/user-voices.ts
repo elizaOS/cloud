@@ -16,7 +16,7 @@ import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
 /**
  * User voices table schema.
- * 
+ *
  * Stores ElevenLabs voice clones with usage tracking and cost information.
  */
 export const userVoices = pgTable(
@@ -94,7 +94,7 @@ export const userVoices = pgTable(
 
 /**
  * Voice cloning jobs table schema.
- * 
+ *
  * Tracks voice cloning job status and progress for instant and professional clones.
  */
 export const voiceCloningJobs = pgTable("voice_cloning_jobs", {
@@ -143,7 +143,7 @@ export const voiceCloningJobs = pgTable("voice_cloning_jobs", {
 
 /**
  * Voice samples table schema.
- * 
+ *
  * Stores audio samples used for voice cloning with quality metrics.
  */
 export const voiceSamples = pgTable("voice_samples", {

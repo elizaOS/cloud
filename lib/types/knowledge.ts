@@ -29,4 +29,3 @@ export interface QueryResult {
   similarity: number;
   metadata?: Record<string, unknown>;
 }
-

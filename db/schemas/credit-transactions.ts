@@ -15,7 +15,7 @@ import { users } from "./users";
 
 /**
  * Credit transactions table schema.
- * 
+ *
  * Tracks all credit-related transactions including purchases, deductions, and adjustments.
  */
 export const creditTransactions = pgTable(

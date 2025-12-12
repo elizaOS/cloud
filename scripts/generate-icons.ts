@@ -1,15 +1,15 @@
 #!/usr/bin/env bun
 /**
  * Icon Generation Script for Tauri Mobile App
- * 
+ *
  * Generates all required app icons for iOS and Android from a source image.
- * 
+ *
  * Usage:
  *   bun run scripts/generate-icons.ts [source-image]
- * 
+ *
  * The source image should be at least 1024x1024 pixels.
  * If no source image is provided, it uses public/favicon.ico.
- * 
+ *
  * Output:
  *   - src-tauri/icons/ - Icons for Tauri builds
  *   - src-tauri/gen/apple/Assets.xcassets/ - iOS app icons
@@ -82,7 +82,7 @@ function generatePlaceholderSvg(size: number): string {
 // Main script
 async function main() {
   console.log("🎨 Generating app icons...\n");
-  
+
   // Check if source image exists
   if (!existsSync(sourceImage)) {
     console.log(`⚠️  Source image not found: ${sourceImage}`);
@@ -90,10 +90,10 @@ async function main() {
   } else {
     console.log(`📷 Source image: ${sourceImage}\n`);
   }
-  
+
   // Create Tauri icons directory
   ensureDir(tauriIconsDir);
-  
+
   console.log("📱 Generating Tauri icons...");
   for (const icon of TAURI_ICONS) {
     const svgContent = generatePlaceholderSvg(icon.size);
@@ -101,7 +101,7 @@ async function main() {
     writeFileSync(outputPath, svgContent);
     console.log(`   ✅ ${icon.name} (${icon.size}x${icon.size})`);
   }
-  
+
   // Create a placeholder .icns file info for macOS
   const icnsInfo = `# macOS Icon Set
 # To generate icon.icns, use iconutil:
@@ -110,7 +110,7 @@ async function main() {
 # Or use the Tauri CLI which handles this automatically.
 `;
   writeFileSync(join(tauriIconsDir, "README.md"), icnsInfo);
-  
+
   console.log("\n" + "=".repeat(60) + "\n");
   console.log("✨ Icon generation complete!\n");
   console.log("Next steps:");
@@ -125,4 +125,3 @@ async function main() {
 }
 
 main().catch(console.error);
-

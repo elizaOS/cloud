@@ -45,7 +45,7 @@ export function CharacterBuildMode({
   const { user } = usePrivy();
   const userId = user?.id || "";
   const router = useRouter();
-  
+
   // Ref to get the builder room ID from BuildModeAssistant
   const builderRoomIdRef = useRef<string | null>(null);
 

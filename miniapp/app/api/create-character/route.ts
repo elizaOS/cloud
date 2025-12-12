@@ -46,10 +46,7 @@ function isValidImageUrl(url: string): boolean {
   }
 
   const parsedUrl = new URL(url);
-  const trustedDomains = [
-    "vercel-storage.com",
-    "blob.vercel-storage.com",
-  ];
+  const trustedDomains = ["vercel-storage.com", "blob.vercel-storage.com"];
 
   return trustedDomains.some((domain) => parsedUrl.hostname.includes(domain));
 }
@@ -147,8 +144,7 @@ export async function POST(request: NextRequest) {
 
     const finalAvatarUrl = avatarBase64 || avatarUrl;
 
-    const elizaCloudUrl =
-      getCloudUrl();
+    const elizaCloudUrl = getCloudUrl();
     const apiKey = process.env.ELIZA_CLOUD_API_KEY;
 
     if (!apiKey) {
@@ -176,7 +172,10 @@ export async function POST(request: NextRequest) {
         },
         body: JSON.stringify({
           name: sanitizedName,
-          bio: bioLines.length > 0 ? bioLines : `A companion named ${sanitizedName}`,
+          bio:
+            bioLines.length > 0
+              ? bioLines
+              : `A companion named ${sanitizedName}`,
           avatarUrl: finalAvatarUrl || null,
           style: {
             all: [
@@ -216,9 +215,12 @@ export async function POST(request: NextRequest) {
 
       const result: MiniappAgentResponse = await response.json();
 
-      console.log(`[Create-Character API] Character created for authenticated user:`, {
-        characterId: result.agent.id,
-      });
+      console.log(
+        `[Create-Character API] Character created for authenticated user:`,
+        {
+          characterId: result.agent.id,
+        },
+      );
 
       return NextResponse.json({
         success: true,
@@ -260,7 +262,10 @@ export async function POST(request: NextRequest) {
 
     const allImages = [
       ...imageUrls.map((url) => ({ type: "url" as const, data: url })),
-      ...imageBase64s.map((base64) => ({ type: "base64" as const, data: base64 })),
+      ...imageBase64s.map((base64) => ({
+        type: "base64" as const,
+        data: base64,
+      })),
     ];
 
     const response = await fetch(
@@ -303,7 +308,9 @@ export async function POST(request: NextRequest) {
           { status: 502 },
         );
       } else if (response.status === 403) {
-        console.error("[Create-Character API] API key lacks required permissions");
+        console.error(
+          "[Create-Character API] API key lacks required permissions",
+        );
         return NextResponse.json(
           { error: "Service configuration error. Please contact support." },
           { status: 502 },

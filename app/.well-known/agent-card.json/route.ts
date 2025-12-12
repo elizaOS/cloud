@@ -68,8 +68,22 @@ interface AgentCard {
     schemes: SecurityScheme[];
     credentials?: string;
   };
-  defaultInputModes?: ("text" | "image" | "audio" | "video" | "file" | "data")[];
-  defaultOutputModes?: ("text" | "image" | "audio" | "video" | "file" | "data")[];
+  defaultInputModes?: (
+    | "text"
+    | "image"
+    | "audio"
+    | "video"
+    | "file"
+    | "data"
+  )[];
+  defaultOutputModes?: (
+    | "text"
+    | "image"
+    | "audio"
+    | "video"
+    | "file"
+    | "data"
+  )[];
   skills: AgentSkill[];
 }
 
@@ -91,9 +105,7 @@ export async function GET() {
       "MCP protocol, and A2A protocol.",
     url: `${baseUrl}/api/a2a`,
     preferredTransport: "JSONRPC",
-    additionalInterfaces: [
-      { url: `${baseUrl}/api/a2a`, transport: "JSONRPC" },
-    ],
+    additionalInterfaces: [{ url: `${baseUrl}/api/a2a`, transport: "JSONRPC" }],
     provider: {
       organization: "Eliza Cloud",
       url: baseUrl,
@@ -106,16 +118,20 @@ export async function GET() {
       pushNotifications: false, // Planned: Webhook push notifications require endpoint verification and retry logic
       stateTransitionHistory: true,
       extensions: [
-        ...(X402_ENABLED ? [{
-          uri: "https://x402.org/extension/payment",
-          description: "x402 pay-per-request payment protocol support",
-          required: false,
-          params: {
-            networks: [X402_DEFAULT_NETWORK],
-            assets: ["USDC"],
-            topupEndpoint: "/api/v1/credits/topup",
-          },
-        }] : []),
+        ...(X402_ENABLED
+          ? [
+              {
+                uri: "https://x402.org/extension/payment",
+                description: "x402 pay-per-request payment protocol support",
+                required: false,
+                params: {
+                  networks: [X402_DEFAULT_NETWORK],
+                  assets: ["USDC"],
+                  topupEndpoint: "/api/v1/credits/topup",
+                },
+              },
+            ]
+          : []),
       ],
     },
 
@@ -123,7 +139,8 @@ export async function GET() {
       schemes: [
         {
           scheme: "bearer",
-          description: "API Key authentication via Authorization: Bearer <api_key>",
+          description:
+            "API Key authentication via Authorization: Bearer <api_key>",
         },
         {
           scheme: "apiKey",

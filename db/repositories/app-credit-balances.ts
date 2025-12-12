@@ -26,12 +26,12 @@ export class AppCreditBalancesRepository {
    */
   async findByAppAndUser(
     appId: string,
-    userId: string
+    userId: string,
   ): Promise<AppCreditBalance | undefined> {
     return await db.query.appCreditBalances.findFirst({
       where: and(
         eq(appCreditBalances.app_id, appId),
-        eq(appCreditBalances.user_id, userId)
+        eq(appCreditBalances.user_id, userId),
       ),
     });
   }
@@ -73,7 +73,7 @@ export class AppCreditBalancesRepository {
   async getOrCreate(
     appId: string,
     userId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<AppCreditBalance> {
     const existing = await this.findByAppAndUser(appId, userId);
     if (existing) {
@@ -89,14 +89,14 @@ export class AppCreditBalancesRepository {
 
   /**
    * Atomically adds credits to an app user's balance in a transaction.
-   * 
+   *
    * Creates balance record if it doesn't exist.
    */
   async addCredits(
     appId: string,
     userId: string,
     organizationId: string,
-    amount: number
+    amount: number,
   ): Promise<{
     balance: AppCreditBalance;
     newBalance: number;
@@ -105,7 +105,7 @@ export class AppCreditBalancesRepository {
       let balance = await tx.query.appCreditBalances.findFirst({
         where: and(
           eq(appCreditBalances.app_id, appId),
-          eq(appCreditBalances.user_id, userId)
+          eq(appCreditBalances.user_id, userId),
         ),
       });
 
@@ -137,8 +137,8 @@ export class AppCreditBalancesRepository {
         .where(
           and(
             eq(appCreditBalances.app_id, appId),
-            eq(appCreditBalances.user_id, userId)
-          )
+            eq(appCreditBalances.user_id, userId),
+          ),
         )
         .returning();
 
@@ -151,14 +151,14 @@ export class AppCreditBalancesRepository {
 
   /**
    * Atomically deducts credits from an app user's balance in a transaction.
-   * 
+   *
    * Uses row-level locking (FOR UPDATE) to prevent race conditions.
    * Returns success false if balance doesn't exist or is insufficient.
    */
   async deductCredits(
     appId: string,
     userId: string,
-    amount: number
+    amount: number,
   ): Promise<{
     success: boolean;
     balance: AppCreditBalance | null;
@@ -171,8 +171,8 @@ export class AppCreditBalancesRepository {
         .where(
           and(
             eq(appCreditBalances.app_id, appId),
-            eq(appCreditBalances.user_id, userId)
-          )
+            eq(appCreditBalances.user_id, userId),
+          ),
         )
         .for("update");
 
@@ -205,8 +205,8 @@ export class AppCreditBalancesRepository {
         .where(
           and(
             eq(appCreditBalances.app_id, appId),
-            eq(appCreditBalances.user_id, userId)
-          )
+            eq(appCreditBalances.user_id, userId),
+          ),
         )
         .returning();
 
@@ -220,7 +220,7 @@ export class AppCreditBalancesRepository {
 
   /**
    * Gets current credit balance for an app user.
-   * 
+   *
    * Returns 0 if balance record doesn't exist.
    */
   async getBalance(appId: string, userId: string): Promise<number> {
@@ -260,4 +260,3 @@ export class AppCreditBalancesRepository {
  * Singleton instance of AppCreditBalancesRepository.
  */
 export const appCreditBalancesRepository = new AppCreditBalancesRepository();
-

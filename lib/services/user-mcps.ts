@@ -132,7 +132,7 @@ class UserMcpsService {
     // Check slug uniqueness
     const existing = await userMcpsRepository.getBySlug(
       params.slug,
-      params.organizationId
+      params.organizationId,
     );
     if (existing) {
       throw new Error(`MCP with slug "${params.slug}" already exists`);
@@ -191,7 +191,7 @@ class UserMcpsService {
    */
   async getBySlug(
     slug: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<UserMcp | null> {
     return userMcpsRepository.getBySlug(slug, organizationId);
   }
@@ -205,7 +205,7 @@ class UserMcpsService {
       status?: UserMcp["status"];
       limit?: number;
       offset?: number;
-    }
+    },
   ): Promise<UserMcp[]> {
     return userMcpsRepository.listByOrganization(organizationId, options);
   }
@@ -228,7 +228,7 @@ class UserMcpsService {
   async update(
     id: string,
     organizationId: string,
-    params: UpdateMcpParams
+    params: UpdateMcpParams,
   ): Promise<UserMcp> {
     const mcp = await userMcpsRepository.getById(id);
     if (!mcp) {
@@ -299,7 +299,7 @@ class UserMcpsService {
     options?: {
       registerOnChain?: boolean;
       network?: ERC8004Network;
-    }
+    },
   ): Promise<UserMcp> {
     const mcp = await userMcpsRepository.getById(id);
     if (!mcp) {
@@ -316,16 +316,10 @@ class UserMcpsService {
     if (mcp.tools.length === 0) {
       throw new Error("MCP must have at least one tool defined");
     }
-    if (
-      mcp.endpoint_type === "container" &&
-      !mcp.container_id
-    ) {
+    if (mcp.endpoint_type === "container" && !mcp.container_id) {
       throw new Error("Container MCP must have a container assigned");
     }
-    if (
-      mcp.endpoint_type === "external" &&
-      !mcp.external_endpoint
-    ) {
+    if (mcp.endpoint_type === "external" && !mcp.external_endpoint) {
       throw new Error("External MCP must have an endpoint URL");
     }
 
@@ -372,10 +366,13 @@ class UserMcpsService {
           agentUri: registrationResult.agentUri,
         });
       } else {
-        logger.warn("[UserMcps] ERC-8004 registration failed, MCP still published", {
-          id,
-          name: mcp.name,
-        });
+        logger.warn(
+          "[UserMcps] ERC-8004 registration failed, MCP still published",
+          {
+            id,
+            name: mcp.name,
+          },
+        );
       }
     }
 
@@ -537,7 +534,7 @@ class UserMcpsService {
     await userMcpsRepository.incrementUsage(
       params.mcpId,
       creatorEarnings,
-      x402AmountUsd
+      x402AmountUsd,
     );
 
     logger.info("[UserMcps] Recorded usage", {
@@ -559,11 +556,13 @@ class UserMcpsService {
 
   /**
    * Record MCP usage WITHOUT deducting credits (for pre-paid requests)
-   * 
+   *
    * Use this when credits have already been deducted by the caller.
    * This only handles revenue distribution and usage tracking.
    */
-  async recordUsageWithoutDeduction(params: UseMcpWithoutDeductionParams): Promise<UseMcpResult> {
+  async recordUsageWithoutDeduction(
+    params: UseMcpWithoutDeductionParams,
+  ): Promise<UseMcpResult> {
     const mcp = await userMcpsRepository.getById(params.mcpId);
     if (!mcp) {
       throw new Error("MCP not found");
@@ -661,7 +660,7 @@ class UserMcpsService {
    */
   async getStats(
     mcpId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<{
     totalRequests: number;
     totalCreditsEarned: number;
@@ -701,7 +700,7 @@ class UserMcpsService {
    */
   toRegistryFormat(
     mcp: UserMcp,
-    baseUrl: string
+    baseUrl: string,
   ): {
     id: string;
     name: string;
@@ -787,4 +786,3 @@ class UserMcpsService {
 }
 
 export const userMcpsService = new UserMcpsService();
-

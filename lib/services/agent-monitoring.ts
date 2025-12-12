@@ -14,7 +14,13 @@ import { elizaRoomCharactersRepository } from "@/db/repositories/eliza-room-char
 import { eq, desc, and, gte, sql, or } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 
-export type AgentStatus = "running" | "deployed" | "idle" | "stopped" | "error" | "pending";
+export type AgentStatus =
+  | "running"
+  | "deployed"
+  | "idle"
+  | "stopped"
+  | "error"
+  | "pending";
 
 export interface AgentLogEntry {
   id: string;
@@ -65,7 +71,7 @@ class AgentMonitoringService {
       limit?: number;
       since?: Date;
       level?: AgentLogLevel;
-    }
+    },
   ): Promise<AgentLogEntry[]> {
     const limit = options?.limit || 50;
     const since = options?.since;
@@ -122,7 +128,7 @@ class AgentMonitoringService {
 
     logs.sort(
       (a, b) =>
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
     );
 
     return logs.slice(0, limit);
@@ -130,7 +136,7 @@ class AgentMonitoringService {
 
   async getAgentStatus(
     agentId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<AgentStatusResponse> {
     const character = await charactersService.getById(agentId);
     if (!character || character.organization_id !== organizationId) {
@@ -226,7 +232,7 @@ class AgentMonitoringService {
       limit?: number;
       since?: Date;
       types?: AgentEventType[];
-    }
+    },
   ): Promise<AgentEventResponse[]> {
     const limit = options?.limit || 50;
     const since = options?.since;
@@ -326,7 +332,7 @@ class AgentMonitoringService {
 
     events.sort(
       (a, b) =>
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
     );
 
     return events.slice(0, limit);
@@ -342,7 +348,7 @@ class AgentMonitoringService {
       metadata?: Record<string, unknown>;
       durationMs?: number;
       containerId?: string;
-    }
+    },
   ): Promise<AgentEvent> {
     return await agentEventsRepository.create({
       agent_id: agentId,
@@ -359,13 +365,13 @@ class AgentMonitoringService {
   private async getInferenceLogs(
     agentId: string,
     organizationId: string,
-    options: { limit: number; since?: Date }
+    options: { limit: number; since?: Date },
   ) {
     const conditions = [
       eq(usageRecords.organization_id, organizationId),
       or(
         sql`${usageRecords.metadata}->>'agentId' = ${agentId}`,
-        sql`${usageRecords.metadata}->>'characterId' = ${agentId}`
+        sql`${usageRecords.metadata}->>'characterId' = ${agentId}`,
       ),
     ];
 
@@ -393,9 +399,9 @@ class AgentMonitoringService {
           eq(usageRecords.organization_id, organizationId),
           or(
             sql`${usageRecords.metadata}->>'agentId' = ${agentId}`,
-            sql`${usageRecords.metadata}->>'characterId' = ${agentId}`
-          )
-        )
+            sql`${usageRecords.metadata}->>'characterId' = ${agentId}`,
+          ),
+        ),
       );
 
     return {
@@ -413,9 +419,9 @@ class AgentMonitoringService {
           eq(usageRecords.organization_id, organizationId),
           or(
             sql`${usageRecords.metadata}->>'agentId' = ${agentId}`,
-            sql`${usageRecords.metadata}->>'characterId' = ${agentId}`
-          )
-        )
+            sql`${usageRecords.metadata}->>'characterId' = ${agentId}`,
+          ),
+        ),
       )
       .orderBy(desc(usageRecords.created_at))
       .limit(1);
@@ -426,13 +432,13 @@ class AgentMonitoringService {
   private async getInferenceEvents(
     agentId: string,
     organizationId: string,
-    options: { limit: number; since?: Date }
+    options: { limit: number; since?: Date },
   ) {
     const conditions = [
       eq(usageRecords.organization_id, organizationId),
       or(
         sql`${usageRecords.metadata}->>'agentId' = ${agentId}`,
-        sql`${usageRecords.metadata}->>'characterId' = ${agentId}`
+        sql`${usageRecords.metadata}->>'characterId' = ${agentId}`,
       ),
     ];
 
@@ -451,7 +457,7 @@ class AgentMonitoringService {
   private async getDeployEvents(
     agentId: string,
     organizationId: string,
-    options: { since?: Date }
+    options: { since?: Date },
   ) {
     const conditions = [
       eq(containers.organization_id, organizationId),

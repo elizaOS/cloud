@@ -8,7 +8,9 @@ import type { KnowledgeService as KnowledgeServiceType } from "@elizaos/plugin-k
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
 
-export async function getKnowledgeService(runtime: AgentRuntime): Promise<KnowledgeServiceType | null> {
+export async function getKnowledgeService(
+  runtime: AgentRuntime,
+): Promise<KnowledgeServiceType | null> {
   let service = runtime.getService("knowledge") as KnowledgeServiceType | null;
   if (service) return service;
 
@@ -21,6 +23,8 @@ export async function getKnowledgeService(runtime: AgentRuntime): Promise<Knowle
   return null;
 }
 
-export async function hasKnowledgeService(runtime: AgentRuntime): Promise<boolean> {
+export async function hasKnowledgeService(
+  runtime: AgentRuntime,
+): Promise<boolean> {
   return (await getKnowledgeService(runtime)) !== null;
 }

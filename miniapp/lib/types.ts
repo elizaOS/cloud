@@ -1,6 +1,6 @@
 /**
  * Miniapp Type Definitions
- * 
+ *
  * All types for the miniapp are defined here to ensure complete separation
  * from the main app. The miniapp should NEVER import types from the parent app.
  */
@@ -71,13 +71,23 @@ export interface AgentDetails extends Agent {
     chat?: string[];
     post?: string[];
   };
-  settings: Record<string, string | number | boolean | Record<string, string | number | boolean>>;
+  settings: Record<
+    string,
+    string | number | boolean | Record<string, string | number | boolean>
+  >;
   knowledge: string[];
   messageExamples: MessageExampleConversation[];
   postExamples: string[];
   plugins: string[];
   isTemplate: boolean;
-  characterData: Record<string, string | number | boolean | string[] | Record<string, string | number | boolean>>;
+  characterData: Record<
+    string,
+    | string
+    | number
+    | boolean
+    | string[]
+    | Record<string, string | number | boolean>
+  >;
   imageSettings?: ImageGenerationSettings;
 }
 
@@ -216,7 +226,7 @@ export interface StreamCallbacks {
   onChunk?: (chunk: string) => void;
   onComplete?: (
     message: Message,
-    usage: { tokens: number; cost: number }
+    usage: { tokens: number; cost: number },
   ) => void;
   onError?: (error: string) => void;
 }
@@ -297,4 +307,3 @@ export interface AuthState {
   login: () => Promise<void>;
   logout: () => void;
 }
-

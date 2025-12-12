@@ -224,7 +224,7 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
             <Button
               onClick={() => {
                 router.push(
-                  `/dashboard/apps/${createdApp.appId}?tab=monetization`
+                  `/dashboard/apps/${createdApp.appId}?tab=monetization`,
                 );
                 onOpenChange(false);
               }}

@@ -16,7 +16,7 @@ import { users } from "./users";
 
 /**
  * Apps table schema.
- * 
+ *
  * Represents third-party applications that integrate with the Eliza Cloud platform.
  * Apps can embed agents, use the API, and track their usage and users.
  */
@@ -104,7 +104,7 @@ export const apps = pgTable(
     })
       .default("0.00")
       .notNull(),
-    
+
     // App features/permissions
     features_enabled: jsonb("features_enabled")
       .$type<{
@@ -161,7 +161,7 @@ export const apps = pgTable(
 
 /**
  * App users table schema.
- * 
+ *
  * Tracks users who have signed up or used the platform through a specific app.
  */
 export const appUsers = pgTable(
@@ -212,7 +212,7 @@ export const appUsers = pgTable(
 
 /**
  * App analytics table schema.
- * 
+ *
  * Daily/hourly aggregated analytics for each app.
  */
 export const appAnalytics = pgTable(

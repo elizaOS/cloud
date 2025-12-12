@@ -40,7 +40,7 @@ export function SidebarNavigationItem({ item }: SidebarNavigationItemProps) {
         className={cn(
           "relative flex w-full items-center gap-3 rounded-none px-3 py-2.5 transition-all duration-200",
           "hover:bg-white/5 hover:text-white/80",
-          "text-white/40 border-l-2 border-transparent cursor-pointer"
+          "text-white/40 border-l-2 border-transparent cursor-pointer",
         )}
         style={{
           fontFamily: "var(--font-roboto-mono)",
@@ -66,7 +66,7 @@ export function SidebarNavigationItem({ item }: SidebarNavigationItemProps) {
         "hover:bg-white/5 hover:text-white",
         isActive
           ? "bg-white/10 text-white border-l-2 border-[#FF5800]"
-          : "text-white/60 border-l-2 border-transparent"
+          : "text-white/60 border-l-2 border-transparent",
       )}
       style={{
         fontFamily: "var(--font-roboto-mono)",
@@ -79,7 +79,7 @@ export function SidebarNavigationItem({ item }: SidebarNavigationItemProps) {
       <Icon
         className={cn(
           "h-4 w-4 transition-colors",
-          isActive && "text-[#FF5800]"
+          isActive && "text-[#FF5800]",
         )}
       />
       <span className="flex-1">{item.label}</span>

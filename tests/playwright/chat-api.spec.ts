@@ -28,7 +28,9 @@ function authHeaders() {
 test.describe("Chat Completions API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("POST /api/v1/chat sends a message and gets response", async ({ request }) => {
+  test("POST /api/v1/chat sends a message and gets response", async ({
+    request,
+  }) => {
     const response = await request.post(`${CLOUD_URL}/api/v1/chat`, {
       headers: authHeaders(),
       data: {
@@ -47,18 +49,23 @@ test.describe("Chat Completions API", () => {
     }
   });
 
-  test("POST /api/v1/chat/completions OpenAI-compatible endpoint", async ({ request }) => {
-    const response = await request.post(`${CLOUD_URL}/api/v1/chat/completions`, {
-      headers: authHeaders(),
-      data: {
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: "You are a helpful assistant." },
-          { role: "user", content: "Say hello in 5 words or less." },
-        ],
-        max_tokens: 50,
+  test("POST /api/v1/chat/completions OpenAI-compatible endpoint", async ({
+    request,
+  }) => {
+    const response = await request.post(
+      `${CLOUD_URL}/api/v1/chat/completions`,
+      {
+        headers: authHeaders(),
+        data: {
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: "You are a helpful assistant." },
+            { role: "user", content: "Say hello in 5 words or less." },
+          ],
+          max_tokens: 50,
+        },
       },
-    });
+    );
 
     expect([200, 201, 400, 404, 500, 501]).toContain(response.status());
 
@@ -77,15 +84,18 @@ test.describe("Chat Completions API", () => {
   });
 
   test("POST /api/v1/chat/completions with streaming", async ({ request }) => {
-    const response = await request.post(`${CLOUD_URL}/api/v1/chat/completions`, {
-      headers: authHeaders(),
-      data: {
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: "Count to 3." }],
-        stream: true,
-        max_tokens: 50,
+    const response = await request.post(
+      `${CLOUD_URL}/api/v1/chat/completions`,
+      {
+        headers: authHeaders(),
+        data: {
+          model: "gpt-4o-mini",
+          messages: [{ role: "user", content: "Count to 3." }],
+          stream: true,
+          max_tokens: 50,
+        },
       },
-    });
+    );
 
     expect([200, 201, 400, 404, 500, 501]).toContain(response.status());
 
@@ -97,7 +107,9 @@ test.describe("Chat Completions API", () => {
       expect(isStream).toBe(true);
       console.log("✅ Chat completions streaming works");
     } else {
-      console.log(`ℹ️ Chat completions streaming returned ${response.status()}`);
+      console.log(
+        `ℹ️ Chat completions streaming returned ${response.status()}`,
+      );
     }
   });
 
@@ -125,17 +137,23 @@ test.describe("Chat Completions API", () => {
 test.describe("Character Assistant API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("POST /api/v1/character-assistant helps build character", async ({ request }) => {
-    const response = await request.post(`${CLOUD_URL}/api/v1/character-assistant`, {
-      headers: authHeaders(),
-      data: {
-        message: "Help me create a character named Luna who is a space explorer.",
-        context: {
-          name: "Luna",
-          personality: "",
+  test("POST /api/v1/character-assistant helps build character", async ({
+    request,
+  }) => {
+    const response = await request.post(
+      `${CLOUD_URL}/api/v1/character-assistant`,
+      {
+        headers: authHeaders(),
+        data: {
+          message:
+            "Help me create a character named Luna who is a space explorer.",
+          context: {
+            name: "Luna",
+            personality: "",
+          },
         },
       },
-    });
+    );
 
     expect([200, 201, 400, 404, 500, 501]).toContain(response.status());
 
@@ -144,7 +162,9 @@ test.describe("Character Assistant API", () => {
       expect(data).toBeDefined();
       console.log("✅ Character assistant endpoint works");
     } else {
-      console.log(`ℹ️ Character assistant endpoint returned ${response.status()}`);
+      console.log(
+        `ℹ️ Character assistant endpoint returned ${response.status()}`,
+      );
     }
   });
 });
@@ -220,9 +240,12 @@ test.describe("Eliza Rooms API", () => {
     testRoomId = room.id;
 
     // Get details
-    const response = await request.get(`${CLOUD_URL}/api/eliza/rooms/${testRoomId}`, {
-      headers: authHeaders(),
-    });
+    const response = await request.get(
+      `${CLOUD_URL}/api/eliza/rooms/${testRoomId}`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 404]).toContain(response.status());
 
@@ -253,9 +276,12 @@ test.describe("Eliza Rooms API", () => {
     const roomId = room.id;
 
     // Delete it
-    const deleteResponse = await request.delete(`${CLOUD_URL}/api/eliza/rooms/${roomId}`, {
-      headers: authHeaders(),
-    });
+    const deleteResponse = await request.delete(
+      `${CLOUD_URL}/api/eliza/rooms/${roomId}`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 204, 404]).toContain(deleteResponse.status());
 
@@ -298,14 +324,19 @@ test.describe("Eliza Room Messages API", () => {
     }
   });
 
-  test("GET /api/eliza/rooms/:roomId/messages lists messages", async ({ request }) => {
+  test("GET /api/eliza/rooms/:roomId/messages lists messages", async ({
+    request,
+  }) => {
     if (!testRoomId) {
       return;
     }
 
-    const response = await request.get(`${CLOUD_URL}/api/eliza/rooms/${testRoomId}/messages`, {
-      headers: authHeaders(),
-    });
+    const response = await request.get(
+      `${CLOUD_URL}/api/eliza/rooms/${testRoomId}/messages`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 404, 501]).toContain(response.status());
 
@@ -319,18 +350,23 @@ test.describe("Eliza Room Messages API", () => {
     }
   });
 
-  test("POST /api/eliza/rooms/:roomId/messages sends a message", async ({ request }) => {
+  test("POST /api/eliza/rooms/:roomId/messages sends a message", async ({
+    request,
+  }) => {
     if (!testRoomId) {
       return;
     }
 
-    const response = await request.post(`${CLOUD_URL}/api/eliza/rooms/${testRoomId}/messages`, {
-      headers: authHeaders(),
-      data: {
-        content: "Hello from E2E test!",
-        role: "user",
+    const response = await request.post(
+      `${CLOUD_URL}/api/eliza/rooms/${testRoomId}/messages`,
+      {
+        headers: authHeaders(),
+        data: {
+          content: "Hello from E2E test!",
+          role: "user",
+        },
       },
-    });
+    );
 
     expect([200, 201, 400, 404, 500, 501]).toContain(response.status());
 
@@ -352,7 +388,7 @@ test.describe("Eliza Room Messages API", () => {
       `${CLOUD_URL}/api/eliza/rooms/${testRoomId}/messages?limit=10&offset=0`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect([200, 404, 501]).toContain(response.status());
@@ -400,7 +436,7 @@ test.describe("Chat UI Integration", () => {
 
     // Look for character selector
     const characterSelector = page.locator(
-      'select, [role="combobox"], button:has-text("Character"), button:has-text("Select")'
+      'select, [role="combobox"], button:has-text("Character"), button:has-text("Select")',
     );
     const selectorCount = await characterSelector.count();
 
@@ -408,11 +444,11 @@ test.describe("Chat UI Integration", () => {
       console.log(`✅ Found ${selectorCount} character selection element(s)`);
     } else {
       // Check for character cards
-      const characterCards = page.locator('[class*="character"], [class*="agent"]');
+      const characterCards = page.locator(
+        '[class*="character"], [class*="agent"]',
+      );
       const cardCount = await characterCards.count();
       console.log(`ℹ️ Found ${cardCount} character cards instead`);
     }
   });
 });
-
-

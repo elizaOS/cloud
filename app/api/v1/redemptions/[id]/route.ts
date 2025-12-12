@@ -1,6 +1,6 @@
 /**
  * Single Redemption API Routes
- * 
+ *
  * GET /api/v1/redemptions/[id] - Get redemption details
  */
 
@@ -15,17 +15,20 @@ import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
  */
 async function getRedemptionHandler(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await context.params;
 
-  const redemption = await secureTokenRedemptionService.getRedemption(id, user.id);
+  const redemption = await secureTokenRedemptionService.getRedemption(
+    id,
+    user.id,
+  );
 
   if (!redemption) {
     return NextResponse.json(
       { success: false, error: "Redemption not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -54,7 +57,10 @@ async function getRedemptionHandler(
   });
 }
 
-export const GET = withRateLimit(getRedemptionHandler, RateLimitPresets.STANDARD);
+export const GET = withRateLimit(
+  getRedemptionHandler,
+  RateLimitPresets.STANDARD,
+);
 
 /**
  * OPTIONS - CORS preflight
@@ -69,4 +75,3 @@ export async function OPTIONS() {
     },
   });
 }
-

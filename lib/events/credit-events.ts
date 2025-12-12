@@ -104,8 +104,7 @@ class CreditEventEmitter {
     const useRedis = this.shouldUseRedis();
 
     if (useRedis) {
-      redisCreditEventEmitter
-        .subscribeToCreditUpdates(organizationId, handler)
+      redisCreditEventEmitter.subscribeToCreditUpdates(organizationId, handler);
 
       // Return sync unsubscribe function
       return () => {

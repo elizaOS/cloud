@@ -1,23 +1,13 @@
 "use client";
 
-import {
-  AlertCircle,
-  Bot,
-  Gift,
-  Loader2,
-  Plus,
-} from "lucide-react";
+import { AlertCircle, Bot, Gift, Loader2, Plus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { ShareModal, useShareStatus } from "@/components/share-modal";
-import {
-  type Agent,
-  createAgent,
-  listAgents,
-} from "@/lib/cloud-api";
+import { type Agent, createAgent, listAgents } from "@/lib/cloud-api";
 import { useAuth } from "@/lib/use-auth";
 
 export default function ChatsPage() {
@@ -71,7 +61,7 @@ export default function ChatsPage() {
   if (!ready || !authenticated) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-brand" />
+        <Loader2 className="text-brand h-8 w-8 animate-spin" />
       </div>
     );
   }
@@ -88,16 +78,20 @@ export default function ChatsPage() {
           {allClaimedToday !== true && (
             <button
               onClick={() => setShareModalOpen(true)}
-              className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-brand/20 to-accent-brand/20 border border-brand/30 px-4 py-2 text-sm font-medium text-brand-400 transition-colors hover:from-brand/30 hover:to-accent-brand/30"
+              className="from-brand/20 to-accent-brand/20 border-brand/30 text-brand-400 hover:from-brand/30 hover:to-accent-brand/30 flex items-center gap-2 rounded-lg border bg-gradient-to-r px-4 py-2 text-sm font-medium transition-colors"
             >
               <Gift className="h-4 w-4" />
-              <span>{availableToday > 0 ? `Earn ${Math.round(availableToday).toLocaleString()} credits` : "Share & Earn"}</span>
+              <span>
+                {availableToday > 0
+                  ? `Earn ${Math.round(availableToday).toLocaleString()} credits`
+                  : "Share & Earn"}
+              </span>
             </button>
           )}
           <button
             onClick={handleCreate}
             disabled={creating}
-            className="flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600 disabled:opacity-50"
+            className="bg-brand hover:bg-brand-600 flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
           >
             {creating ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -109,7 +103,10 @@ export default function ChatsPage() {
         </div>
       </div>
 
-      <ShareModal isOpen={shareModalOpen} onClose={() => setShareModalOpen(false)} />
+      <ShareModal
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+      />
 
       {/* Error */}
       {error && (
@@ -122,7 +119,7 @@ export default function ChatsPage() {
       {/* Loading */}
       {loading && (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-brand" />
+          <Loader2 className="text-brand h-8 w-8 animate-spin" />
         </div>
       )}
 
@@ -134,7 +131,7 @@ export default function ChatsPage() {
           <button
             onClick={handleCreate}
             disabled={creating}
-            className="mt-4 flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600 disabled:opacity-50"
+            className="bg-brand hover:bg-brand-600 mt-4 flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
           >
             {creating ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -153,49 +150,48 @@ export default function ChatsPage() {
             <Link
               key={agent.id}
               href={`/chats/${agent.id}`}
-              className="group relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] transition-all hover:border-brand/30 hover:shadow-lg hover:shadow-brand/5"
+              className="group hover:border-brand/30 hover:shadow-brand/5 relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] transition-all hover:shadow-lg"
             >
               {/* Agent Image */}
-              <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-brand/20 to-accent-brand/20">
-                  {agent.avatarUrl ? (
-                    agent.avatarUrl.startsWith("data:") ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={agent.avatarUrl}
-                        alt={agent.name}
-                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
-                    ) : (
-                      <Image
-                        src={agent.avatarUrl}
-                        alt={agent.name}
-                        fill
-                        className="object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
-                    )
+              <div className="from-brand/20 to-accent-brand/20 relative aspect-square w-full overflow-hidden bg-gradient-to-br">
+                {agent.avatarUrl ? (
+                  agent.avatarUrl.startsWith("data:") ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={agent.avatarUrl}
+                      alt={agent.name}
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center">
-                    <Bot className="h-16 w-16 text-brand-400/50" />
-                    </div>
-                  )}
+                    <Image
+                      src={agent.avatarUrl}
+                      alt={agent.name}
+                      fill
+                      className="object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                  )
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center">
+                    <Bot className="text-brand-400/50 h-16 w-16" />
+                  </div>
+                )}
                 {/* Gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                </div>
+              </div>
 
               {/* Content - overlaid on bottom */}
-              <div className="absolute bottom-0 left-0 right-0 p-4">
-                  <h3 className="truncate text-lg font-semibold text-white">
-                    {agent.name}
-                  </h3>
+              <div className="absolute right-0 bottom-0 left-0 p-4">
+                <h3 className="truncate text-lg font-semibold text-white">
+                  {agent.name}
+                </h3>
                 <p className="mt-1 line-clamp-2 text-sm text-white/70">
-                    {Array.isArray(agent.bio) ? agent.bio[0] : agent.bio}
-                  </p>
-                </div>
-              </Link>
+                  {Array.isArray(agent.bio) ? agent.bio[0] : agent.bio}
+                </p>
+              </div>
+            </Link>
           ))}
         </div>
       )}
-
     </div>
   );
 }

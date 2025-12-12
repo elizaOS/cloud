@@ -51,7 +51,7 @@ const ActionSchema = z.object({
  */
 async function getBudgetHandler(
   request: NextRequest,
-  { params }: { params: Promise<{ agentId: string }> }
+  { params }: { params: Promise<{ agentId: string }> },
 ): Promise<Response> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { agentId } = await params;
@@ -69,7 +69,10 @@ async function getBudgetHandler(
   // Get budget
   const budget = await agentBudgetService.getOrCreateBudget(agentId);
   if (!budget) {
-    return NextResponse.json({ error: "Failed to get budget" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to get budget" },
+      { status: 500 },
+    );
   }
 
   // Calculate derived values
@@ -145,7 +148,7 @@ async function getBudgetHandler(
  */
 async function allocateBudgetHandler(
   request: NextRequest,
-  { params }: { params: Promise<{ agentId: string }> }
+  { params }: { params: Promise<{ agentId: string }> },
 ): Promise<Response> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { agentId } = await params;
@@ -171,7 +174,7 @@ async function allocateBudgetHandler(
       case "pause":
         await agentBudgetService.pauseBudget(
           agentId,
-          reason || "Manually paused"
+          reason || "Manually paused",
         );
         return NextResponse.json({
           success: true,
@@ -189,7 +192,7 @@ async function allocateBudgetHandler(
         if (!amount) {
           return NextResponse.json(
             { error: "Amount required for refill action" },
-            { status: 400 }
+            { status: 400 },
           );
         }
 
@@ -202,7 +205,7 @@ async function allocateBudgetHandler(
               required: amount,
               available: org ? Number(org.credit_balance) : 0,
             },
-            { status: 402 }
+            { status: 402 },
           );
         }
 
@@ -215,7 +218,7 @@ async function allocateBudgetHandler(
         if (!refillResult.success) {
           return NextResponse.json(
             { error: refillResult.error },
-            { status: 400 }
+            { status: 400 },
           );
         }
 
@@ -232,7 +235,7 @@ async function allocateBudgetHandler(
   if (!validation.success) {
     return NextResponse.json(
       { error: "Invalid request", details: validation.error.errors },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -247,7 +250,7 @@ async function allocateBudgetHandler(
         required: amount,
         available: org ? Number(org.credit_balance) : 0,
       },
-      { status: 402 }
+      { status: 402 },
     );
   }
 
@@ -282,7 +285,7 @@ async function allocateBudgetHandler(
  */
 async function updateSettingsHandler(
   request: NextRequest,
-  { params }: { params: Promise<{ agentId: string }> }
+  { params }: { params: Promise<{ agentId: string }> },
 ): Promise<Response> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { agentId } = await params;
@@ -303,13 +306,13 @@ async function updateSettingsHandler(
   if (!validation.success) {
     return NextResponse.json(
       { error: "Invalid request", details: validation.error.errors },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   const result = await agentBudgetService.updateSettings(
     agentId,
-    validation.data
+    validation.data,
   );
 
   if (!result.success) {
@@ -333,8 +336,14 @@ async function updateSettingsHandler(
 // ============================================================================
 
 export const GET = withRateLimit(getBudgetHandler, RateLimitPresets.STANDARD);
-export const POST = withRateLimit(allocateBudgetHandler, RateLimitPresets.STRICT);
-export const PATCH = withRateLimit(updateSettingsHandler, RateLimitPresets.STRICT);
+export const POST = withRateLimit(
+  allocateBudgetHandler,
+  RateLimitPresets.STRICT,
+);
+export const PATCH = withRateLimit(
+  updateSettingsHandler,
+  RateLimitPresets.STRICT,
+);
 
 export async function OPTIONS() {
   return new NextResponse(null, {
@@ -346,4 +355,3 @@ export async function OPTIONS() {
     },
   });
 }
-
