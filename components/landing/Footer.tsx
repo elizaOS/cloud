@@ -10,27 +10,9 @@ import Image from "next/image";
 
 export default function Footer() {
   return (
-    <footer className="relative border-t border-white/10 bg-[#0A0A0A]">
+    <footer className="relative border-t border-white/10 bg-black ">
       {/* Faded footer image underlay */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden px-8 md:px-48 lg:px-64 xl:px-80 2xl:px-96">
-        <div className="relative w-full h-full">
-          <Image
-            src="/footer.png"
-            alt=""
-            fill
-            className="object-cover"
-            style={{
-              opacity: 0.55,
-              objectPosition: "center",
-              maskImage:
-                "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.4) 10%, rgba(0,0,0,1) 20%, rgba(0,0,0,1) 80%, rgba(0,0,0,0.4) 90%, transparent 100%), linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.6) 15%, rgba(0,0,0,1) 25%, rgba(0,0,0,1) 85%, rgba(0,0,0,0.6) 95%, transparent 100%)",
-              WebkitMaskImage:
-                "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.4) 10%, rgba(0,0,0,1) 20%, rgba(0,0,0,1) 80%, rgba(0,0,0,0.4) 90%, transparent 100%), linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.6) 15%, rgba(0,0,0,1) 25%, rgba(0,0,0,1) 85%, rgba(0,0,0,0.6) 95%, transparent 100%)",
-              maskComposite: "intersect",
-              WebkitMaskComposite: "source-in",
-            }}
-          />
-        </div>
+      <div className="absolute inset-0 pointer-events-none overflow-hidden px-8 md:px-48 lg:px-64 xl:px-80 2xl:px-96 ">
       </div>
 
       <div className="container mx-auto px-6 py-16 relative z-10">
