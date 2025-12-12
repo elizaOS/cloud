@@ -104,6 +104,16 @@ async function webhookRequest<T>(
 export const discordProvider: SocialMediaProvider = {
   platform: "discord",
 
+  validateCredentialsFormat(credentials: Partial<SocialCredentials>) {
+    // Either bot token + channel, or webhook URL
+    if (!credentials.webhookUrl && !credentials.botToken) {
+      throw new Error("Discord requires either webhookUrl or botToken");
+    }
+    if (credentials.botToken && !credentials.channelId) {
+      throw new Error("Discord bot token requires channelId");
+    }
+  },
+
   async validateCredentials(credentials: SocialCredentials) {
     // Webhook validation
     if (credentials.webhookUrl) {

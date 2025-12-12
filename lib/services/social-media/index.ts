@@ -74,6 +74,21 @@ class SocialMediaService {
   }
 
   /**
+   * Get all registered provider names (alias for getSupportedPlatforms)
+   */
+  getRegisteredProviders(): SocialPlatform[] {
+    return this.getSupportedPlatforms();
+  }
+
+  /**
+   * Get capabilities for a platform
+   */
+  getPlatformCapabilities(platform: SocialPlatform) {
+    const { PLATFORM_CAPABILITIES } = require("@/lib/types/social-media");
+    return PLATFORM_CAPABILITIES[platform] || null;
+  }
+
+  /**
    * Check if a platform is supported
    */
   isPlatformSupported(platform: SocialPlatform): boolean {

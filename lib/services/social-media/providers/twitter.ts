@@ -222,6 +222,21 @@ async function waitForProcessing(
 export const twitterProvider: SocialMediaProvider = {
   platform: "twitter",
 
+  validateCredentialsFormat(credentials: Partial<SocialCredentials>) {
+    if (!credentials.accessToken) {
+      throw new Error("Twitter requires accessToken");
+    }
+    if (!credentials.accessTokenSecret) {
+      throw new Error("Twitter requires accessTokenSecret");
+    }
+    if (!credentials.apiKey) {
+      throw new Error("Twitter requires apiKey");
+    }
+    if (!credentials.apiKeySecret) {
+      throw new Error("Twitter requires apiKeySecret");
+    }
+  },
+
   async validateCredentials(credentials: SocialCredentials) {
     if (!credentials.accessToken) {
       return { valid: false, error: "Access token required" };

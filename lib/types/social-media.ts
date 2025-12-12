@@ -297,6 +297,11 @@ export interface SocialMediaProvider {
   platform: SocialPlatform;
 
   /**
+   * Validate credentials format (sync, does not call API)
+   */
+  validateCredentialsFormat(credentials: Partial<SocialCredentials>): void;
+
+  /**
    * Validate credentials and return account info
    */
   validateCredentials(credentials: SocialCredentials): Promise<{
@@ -394,4 +399,326 @@ export interface GetAnalyticsInput {
   platform: SocialPlatform;
   postId?: string;
   credentialId?: string;
+}
+
+// =============================================================================
+// CONSTANTS
+// =============================================================================
+
+export const SUPPORTED_PLATFORMS: SocialPlatform[] = [
+  "twitter",
+  "bluesky",
+  "discord",
+  "telegram",
+  "reddit",
+  "facebook",
+  "instagram",
+  "tiktok",
+  "linkedin",
+  "mastodon",
+];
+
+export interface PlatformCapability {
+  supportsText: boolean;
+  supportsImages: boolean;
+  supportsVideo: boolean;
+  supportsLinks: boolean;
+  supportsPolls: boolean;
+  supportsScheduling: boolean;
+  supportsAnalytics: boolean;
+  maxTextLength: number;
+  maxImages: number;
+  maxVideoLength?: number;
+  maxVideoDuration?: number;
+}
+
+export const PLATFORM_CAPABILITIES: Record<SocialPlatform, PlatformCapability> = {
+  twitter: {
+    supportsText: true,
+    supportsImages: true,
+    supportsVideo: true,
+    supportsLinks: true,
+    supportsPolls: true,
+    supportsScheduling: true,
+    supportsAnalytics: true,
+    maxTextLength: 280,
+    maxImages: 4,
+    maxVideoDuration: 140,
+  },
+  bluesky: {
+    supportsText: true,
+    supportsImages: true,
+    supportsVideo: false,
+    supportsLinks: true,
+    supportsPolls: false,
+    supportsScheduling: false,
+    supportsAnalytics: true,
+    maxTextLength: 300,
+    maxImages: 4,
+  },
+  discord: {
+    supportsText: true,
+    supportsImages: true,
+    supportsVideo: true,
+    supportsLinks: true,
+    supportsPolls: false,
+    supportsScheduling: false,
+    supportsAnalytics: false,
+    maxTextLength: 2000,
+    maxImages: 10,
+  },
+  telegram: {
+    supportsText: true,
+    supportsImages: true,
+    supportsVideo: true,
+    supportsLinks: true,
+    supportsPolls: true,
+    supportsScheduling: false,
+    supportsAnalytics: false,
+    maxTextLength: 4096,
+    maxImages: 10,
+  },
+  reddit: {
+    supportsText: true,
+    supportsImages: true,
+    supportsVideo: true,
+    supportsLinks: true,
+    supportsPolls: true,
+    supportsScheduling: false,
+    supportsAnalytics: true,
+    maxTextLength: 40000,
+    maxImages: 20,
+  },
+  facebook: {
+    supportsText: true,
+    supportsImages: true,
+    supportsVideo: true,
+    supportsLinks: true,
+    supportsPolls: false,
+    supportsScheduling: true,
+    supportsAnalytics: true,
+    maxTextLength: 63206,
+    maxImages: 10,
+  },
+  instagram: {
+    supportsText: true,
+    supportsImages: true,
+    supportsVideo: true,
+    supportsLinks: false,
+    supportsPolls: false,
+    supportsScheduling: false,
+    supportsAnalytics: true,
+    maxTextLength: 2200,
+    maxImages: 10,
+    maxVideoDuration: 90,
+  },
+  tiktok: {
+    supportsText: false,
+    supportsImages: false,
+    supportsVideo: true,
+    supportsLinks: false,
+    supportsPolls: false,
+    supportsScheduling: false,
+    supportsAnalytics: true,
+    maxTextLength: 2200,
+    maxImages: 0,
+    maxVideoDuration: 600,
+  },
+  linkedin: {
+    supportsText: true,
+    supportsImages: true,
+    supportsVideo: true,
+    supportsLinks: true,
+    supportsPolls: true,
+    supportsScheduling: false,
+    supportsAnalytics: true,
+    maxTextLength: 3000,
+    maxImages: 9,
+  },
+  mastodon: {
+    supportsText: true,
+    supportsImages: true,
+    supportsVideo: true,
+    supportsLinks: true,
+    supportsPolls: true,
+    supportsScheduling: false,
+    supportsAnalytics: false,
+    maxTextLength: 500,
+    maxImages: 4,
+  },
+};
+
+// =============================================================================
+// VALIDATION HELPERS
+// =============================================================================
+
+export interface ValidationResult {
+  valid: boolean;
+  error?: string;
+}
+
+export function validatePostContent(
+  content: Partial<PostContent>,
+  platform: SocialPlatform
+): ValidationResult {
+  const capabilities = PLATFORM_CAPABILITIES[platform];
+
+  // Check if platform requires video (TikTok)
+  if (!capabilities.supportsText && !content.media?.some(m => m.type === "video")) {
+    return { valid: false, error: `${platform} requires video content` };
+  }
+
+  // Validate text length
+  if (content.text) {
+    if (content.text.length > capabilities.maxTextLength) {
+      return {
+        valid: false,
+        error: `Text length ${content.text.length} exceeds ${platform} limit of ${capabilities.maxTextLength}`,
+      };
+    }
+  }
+
+  // Validate media count
+  if (content.media) {
+    const imageCount = content.media.filter(m => m.type === "image").length;
+    if (imageCount > capabilities.maxImages) {
+      return {
+        valid: false,
+        error: `Number of images ${imageCount} exceeds ${platform} limit of ${capabilities.maxImages}`,
+      };
+    }
+  }
+
+  return { valid: true };
+}
+
+export function validatePlatformOptions(
+  platform: SocialPlatform,
+  options: Record<string, unknown>
+): ValidationResult {
+  // Platform-specific validation
+  switch (platform) {
+    case "reddit":
+      if (!options.subreddit) {
+        return { valid: false, error: "Reddit requires a subreddit" };
+      }
+      break;
+    case "discord":
+      if (!options.channelId && !options.webhookUrl) {
+        return { valid: false, error: "Discord requires channelId or webhookUrl" };
+      }
+      break;
+    case "telegram":
+      if (!options.chatId) {
+        return { valid: false, error: "Telegram requires chatId" };
+      }
+      break;
+  }
+
+  return { valid: true };
+}
+
+// =============================================================================
+// RESULT HELPERS
+// =============================================================================
+
+export function createSuccessResult(
+  platform: SocialPlatform,
+  postId: string,
+  url?: string,
+  metadata?: Record<string, unknown>
+): PostResult {
+  return {
+    platform,
+    success: true,
+    postId,
+    postUrl: url,
+    metadata,
+  };
+}
+
+export function createErrorResult(
+  platform: SocialPlatform,
+  error: string,
+  errorCode?: string,
+  rateLimited?: boolean,
+  retryAfter?: number
+): PostResult {
+  return {
+    platform,
+    success: false,
+    error,
+    errorCode,
+    rateLimited,
+    retryAfter,
+  };
+}
+
+export function aggregateResults(results: PostResult[]): MultiPlatformPostResult {
+  const successful = results.filter(r => r.success);
+  const failed = results.filter(r => !r.success);
+
+  return {
+    results,
+    successful,
+    failed,
+    totalPlatforms: results.length,
+    successCount: successful.length,
+    failureCount: failed.length,
+  };
+}
+
+// =============================================================================
+// ANALYTICS VALIDATION
+// =============================================================================
+
+export function isValidPostAnalytics(data: Record<string, unknown>): boolean {
+  return (
+    typeof data.postId === "string" &&
+    typeof data.platform === "string" &&
+    data.fetchedAt instanceof Date
+  );
+}
+
+export function isValidAccountAnalytics(data: Record<string, unknown>): boolean {
+  return (
+    typeof data.platform === "string" &&
+    data.fetchedAt instanceof Date
+  );
+}
+
+// =============================================================================
+// CREDIT CALCULATION
+// =============================================================================
+
+const BASE_POST_CREDITS = 10;
+const MEDIA_CREDITS_PER_ITEM = 5;
+const PLATFORM_MULTIPLIER: Partial<Record<SocialPlatform, number>> = {
+  tiktok: 2.0,
+  instagram: 1.5,
+  linkedin: 1.5,
+};
+
+export function calculatePostCredits(
+  platforms: SocialPlatform[],
+  content: Partial<PostContent>
+): number {
+  let totalCredits = 0;
+
+  for (const platform of platforms) {
+    let platformCredits = BASE_POST_CREDITS;
+
+    // Add media credits
+    if (content.media) {
+      platformCredits += content.media.length * MEDIA_CREDITS_PER_ITEM;
+    }
+
+    // Apply platform multiplier
+    const multiplier = PLATFORM_MULTIPLIER[platform] || 1.0;
+    platformCredits = Math.ceil(platformCredits * multiplier);
+
+    totalCredits += platformCredits;
+  }
+
+  return totalCredits;
 }
