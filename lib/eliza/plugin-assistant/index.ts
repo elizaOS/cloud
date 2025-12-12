@@ -6,7 +6,11 @@ import {
 } from "@elizaos/core";
 import { providersProvider } from "./providers/providers";
 import { actionsProvider } from "./providers/actions";
-import { characterProvider, recentMessagesProvider } from "../shared/providers";
+import {
+  characterProvider,
+  recentMessagesProvider,
+  appConfigProvider,
+} from "../shared/providers";
 import { generateImageAction } from "./actions/image-generation";
 import { affiliateContextProvider } from "./providers/affiliate-context";
 import { currentRunContextProvider } from "./providers/current-run-context";
@@ -20,7 +24,9 @@ export const assistantPlugin: Plugin = {
     [EventType.MESSAGE_RECEIVED]: [
       async (payload: MessagePayload) => {
         if (!payload.callback) return;
-        logger.info(`[Assistant] Message received in room ${payload.message.roomId}`);
+        logger.info(
+          `[Assistant] Message received in room ${payload.message.roomId}`
+        );
         await handleMessage({
           runtime: payload.runtime,
           message: payload.message,
@@ -36,6 +42,7 @@ export const assistantPlugin: Plugin = {
     affiliateContextProvider,
     currentRunContextProvider,
     recentMessagesProvider,
+    appConfigProvider,
   ],
   actions: [generateImageAction],
   evaluators: [roomTitleEvaluator],

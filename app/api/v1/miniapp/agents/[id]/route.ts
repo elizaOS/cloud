@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { uploadBase64Image } from "@/lib/blob";
 import { charactersService } from "@/lib/services/characters/characters";
 import {
   addCorsHeaders,
@@ -24,6 +25,80 @@ import {
 } from "@/lib/middleware/miniapp-rate-limit";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import {
+  IMAGE_GENERATION_VIBES,
+  DEFAULT_VIBE,
+  MAX_AVATAR_SIZE_MB,
+  MAX_AVATAR_SIZE_BYTES,
+} from "@/lib/constants/image-generation";
+
+// Custom validator for URL or base64 data URL
+const urlOrBase64 = z.string().refine(
+  (val) => {
+    if (!val) return true; // Allow empty
+    return (
+      val.startsWith("data:image/") ||
+      val.startsWith("http://") ||
+      val.startsWith("https://")
+    );
+  },
+  { message: "Must be a valid URL or base64 data URL" }
+);
+
+// Schema for image generation settings
+const ImageGenerationSettingsSchema = z.object({
+  enabled: z.boolean(),
+  autoGenerate: z.boolean(),
+  referenceImages: z.array(z.string()).default([]),
+  vibe: z.enum(IMAGE_GENERATION_VIBES).optional(),
+  appearanceDescription: z.string().optional(),
+});
+
+/**
+ * Convert imageSettings to affiliateData format for storage
+ */
+function imageSettingsToAffiliateData(
+  imageSettings: z.infer<typeof ImageGenerationSettingsSchema> | undefined
+): Record<string, unknown> | undefined {
+  if (!imageSettings) return undefined;
+
+  // If disabled, return undefined to clear affiliateData
+  if (!imageSettings.enabled) {
+    return undefined;
+  }
+
+  return {
+    source: "miniapp",
+    vibe: imageSettings.vibe || DEFAULT_VIBE,
+    imageUrls: imageSettings.referenceImages || [],
+    appearanceDescription: imageSettings.appearanceDescription,
+    autoImage: imageSettings.autoGenerate,
+  };
+}
+
+/**
+ * Convert affiliateData back to imageSettings format for API response
+ */
+function affiliateDataToImageSettings(
+  settings: Record<string, unknown> | undefined
+): {
+  enabled: boolean;
+  autoGenerate: boolean;
+  referenceImages: string[];
+  vibe?: string;
+  appearanceDescription?: string;
+} | undefined {
+  const affiliateData = settings?.affiliateData as Record<string, unknown> | undefined;
+  if (!affiliateData) return undefined;
+
+  return {
+    enabled: true,
+    autoGenerate: affiliateData.autoImage === true,
+    referenceImages: (affiliateData.imageUrls as string[]) || [],
+    vibe: affiliateData.vibe as string | undefined,
+    appearanceDescription: affiliateData.appearanceDescription as string | undefined,
+  };
+}
 
 /**
  * OPTIONS /api/v1/miniapp/agents/[id]
@@ -54,7 +129,7 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const corsResult = await validateOrigin(request);
   const { id } = await params;
@@ -62,12 +137,12 @@ export async function GET(
   // Rate limiting
   const rateLimitResult = await checkMiniappRateLimit(
     request,
-    MINIAPP_RATE_LIMITS,
+    MINIAPP_RATE_LIMITS
   );
   if (!rateLimitResult.allowed) {
     return createRateLimitErrorResponse(
       rateLimitResult,
-      corsResult.origin ?? undefined,
+      corsResult.origin ?? undefined
     );
   }
 
@@ -79,7 +154,7 @@ export async function GET(
     if (!character) {
       const response = NextResponse.json(
         { success: false, error: "Agent not found" },
-        { status: 404 },
+        { status: 404 }
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -88,7 +163,7 @@ export async function GET(
     if (character.source !== "miniapp") {
       const response = NextResponse.json(
         { success: false, error: "Agent not found" },
-        { status: 404 },
+        { status: 404 }
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -100,7 +175,7 @@ export async function GET(
     ) {
       const response = NextResponse.json(
         { success: false, error: "Access denied" },
-        { status: 403 },
+        { status: 403 }
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -125,6 +200,7 @@ export async function GET(
         createdAt: character.created_at,
         updatedAt: character.updated_at,
         characterData: character.character_data,
+        imageSettings: affiliateDataToImageSettings(character.settings as Record<string, unknown>),
       },
     });
 
@@ -141,7 +217,7 @@ export async function GET(
         success: false,
         error: error instanceof Error ? error.message : "Failed to get agent",
       },
-      { status },
+      { status }
     );
 
     return addCorsHeaders(response, corsResult.origin);
@@ -152,7 +228,7 @@ export async function GET(
 const UpdateAgentSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   bio: z.union([z.string(), z.array(z.string())]).optional(),
-  avatarUrl: z.string().url().optional().nullable(),
+  avatarUrl: urlOrBase64.optional().nullable(),
   topics: z.array(z.string()).optional(),
   adjectives: z.array(z.string()).optional(),
   style: z
@@ -170,7 +246,7 @@ const UpdateAgentSchema = z.object({
         z.number(),
         z.boolean(),
         z.record(z.string(), z.unknown()),
-      ]),
+      ])
     )
     .optional(),
   knowledge: z.array(z.string()).optional(),
@@ -181,6 +257,7 @@ const UpdateAgentSchema = z.object({
   plugins: z.array(z.string()).optional(),
   isPublic: z.boolean().optional(),
   characterData: z.record(z.string(), z.unknown()).optional(),
+  imageSettings: ImageGenerationSettingsSchema.optional(),
 });
 
 /**
@@ -209,7 +286,7 @@ const UpdateAgentSchema = z.object({
  */
 async function updateAgent(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const corsResult = await validateOrigin(request);
   const { id } = await params;
@@ -217,12 +294,12 @@ async function updateAgent(
   // Rate limiting (stricter for write operations)
   const rateLimitResult = await checkMiniappRateLimit(
     request,
-    MINIAPP_WRITE_LIMITS,
+    MINIAPP_WRITE_LIMITS
   );
   if (!rateLimitResult.allowed) {
     return createRateLimitErrorResponse(
       rateLimitResult,
-      corsResult.origin ?? undefined,
+      corsResult.origin ?? undefined
     );
   }
 
@@ -235,7 +312,7 @@ async function updateAgent(
     if (!character) {
       const response = NextResponse.json(
         { success: false, error: "Agent not found" },
-        { status: 404 },
+        { status: 404 }
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -244,7 +321,7 @@ async function updateAgent(
     if (character.source !== "miniapp") {
       const response = NextResponse.json(
         { success: false, error: "Agent not found" },
-        { status: 404 },
+        { status: 404 }
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -255,7 +332,7 @@ async function updateAgent(
     ) {
       const response = NextResponse.json(
         { success: false, error: "Access denied" },
-        { status: 403 },
+        { status: 403 }
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -270,7 +347,7 @@ async function updateAgent(
           error: "Invalid request data",
           details: validationResult.error.format(),
         },
-        { status: 400 },
+        { status: 400 }
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -281,7 +358,88 @@ async function updateAgent(
     const updateData: Record<string, unknown> = {};
     if (data.name !== undefined) updateData.name = data.name;
     if (data.bio !== undefined) updateData.bio = data.bio;
-    if (data.avatarUrl !== undefined) updateData.avatar_url = data.avatarUrl;
+
+    // Handle avatar URL - upload base64 to blob storage if needed
+    if (data.avatarUrl !== undefined) {
+      let finalAvatarUrl = data.avatarUrl;
+
+      if (data.avatarUrl && data.avatarUrl.startsWith("data:image/")) {
+        // Early size validation before creating buffer (5MB max for avatars)
+        const base64Match = data.avatarUrl.match(/^data:([^;]+);base64,(.+)$/);
+        if (!base64Match) {
+          const response = NextResponse.json(
+            { success: false, error: "Invalid base64 image format" },
+            { status: 400 }
+          );
+          return addCorsHeaders(response, corsResult.origin);
+        }
+
+        const base64Content = base64Match[2];
+        // Account for base64 padding characters when calculating size
+        const paddingCount = (base64Content.match(/=/g) || []).length;
+        const estimatedSize = Math.ceil((base64Content.length * 3) / 4) - paddingCount;
+
+        if (estimatedSize > MAX_AVATAR_SIZE_BYTES) {
+          const response = NextResponse.json(
+            {
+              success: false,
+              error: `Avatar too large (max ${MAX_AVATAR_SIZE_MB}MB). Got ${(estimatedSize / 1024 / 1024).toFixed(2)}MB`,
+            },
+            { status: 400 }
+          );
+          return addCorsHeaders(response, corsResult.origin);
+        }
+
+        try {
+          // Upload base64 image to blob storage (5MB limit for avatars)
+          const blobResult = await uploadBase64Image(
+            data.avatarUrl,
+            {
+              filename: `avatar-${id}-${Date.now()}.jpg`,
+            folder: "avatars",
+            userId: user.id,
+          },
+          MAX_AVATAR_SIZE_MB
+          );
+          finalAvatarUrl = blobResult.url;
+          logger.info("[Miniapp API] Uploaded avatar to blob storage", {
+            agentId: id,
+            blobUrl: blobResult.url,
+          });
+        } catch (uploadError) {
+          // Comprehensive error logging for debugging production issues
+          logger.error("[Miniapp API] Avatar upload failed", {
+            agentId: id,
+            userId: user.id,
+            organizationId: user.organization_id,
+            estimatedSize: estimatedSize,
+            estimatedSizeMB: (estimatedSize / 1024 / 1024).toFixed(2),
+            mimeType: base64Match[1],
+            base64Length: base64Content.length,
+            error:
+              uploadError instanceof Error
+                ? uploadError.message
+                : String(uploadError),
+            errorStack:
+              uploadError instanceof Error ? uploadError.stack : undefined,
+          });
+
+          // Return error to client instead of continuing with null avatar
+          const errorMessage =
+            uploadError instanceof Error
+              ? uploadError.message
+              : "Failed to upload avatar image";
+
+          const response = NextResponse.json(
+            { success: false, error: `Avatar upload failed: ${errorMessage}` },
+            { status: 400 }
+          );
+          return addCorsHeaders(response, corsResult.origin);
+        }
+      }
+
+      updateData.avatar_url = finalAvatarUrl;
+    }
     if (data.topics !== undefined) updateData.topics = data.topics;
     if (data.adjectives !== undefined) updateData.adjectives = data.adjectives;
     if (data.style !== undefined) updateData.style = data.style;
@@ -296,12 +454,34 @@ async function updateAgent(
     if (data.characterData !== undefined)
       updateData.character_data = data.characterData;
 
+    // Handle imageSettings - convert to affiliateData and merge with existing settings
+    if (data.imageSettings !== undefined) {
+      const currentSettings = (character.settings || {}) as Record<string, unknown>;
+      const affiliateData = imageSettingsToAffiliateData(data.imageSettings);
+
+      if (affiliateData) {
+        // Enable image generation - set affiliateData
+        updateData.settings = {
+          ...currentSettings,
+          ...(updateData.settings as Record<string, unknown> || {}),
+          affiliateData,
+        };
+      } else {
+        // Disable image generation - remove affiliateData
+        const { affiliateData: _, ...settingsWithoutAffiliate } = currentSettings;
+        updateData.settings = {
+          ...settingsWithoutAffiliate,
+          ...(updateData.settings as Record<string, unknown> || {}),
+        };
+      }
+    }
+
     const updated = await charactersService.update(id, updateData);
 
     if (!updated) {
       const response = NextResponse.json(
         { success: false, error: "Failed to update agent" },
-        { status: 500 },
+        { status: 500 }
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -324,6 +504,7 @@ async function updateAgent(
         settings: updated.settings,
         isPublic: updated.is_public,
         updatedAt: updated.updated_at,
+        imageSettings: affiliateDataToImageSettings(updated.settings as Record<string, unknown>),
       },
     });
 
@@ -341,7 +522,7 @@ async function updateAgent(
         error:
           error instanceof Error ? error.message : "Failed to update agent",
       },
-      { status },
+      { status }
     );
 
     return addCorsHeaders(response, corsResult.origin);
@@ -362,7 +543,7 @@ export { updateAgent as PUT, updateAgent as PATCH };
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const corsResult = await validateOrigin(request);
   const { id } = await params;
@@ -370,12 +551,12 @@ export async function DELETE(
   // Rate limiting (stricter for write operations)
   const rateLimitResult = await checkMiniappRateLimit(
     request,
-    MINIAPP_WRITE_LIMITS,
+    MINIAPP_WRITE_LIMITS
   );
   if (!rateLimitResult.allowed) {
     return createRateLimitErrorResponse(
       rateLimitResult,
-      corsResult.origin ?? undefined,
+      corsResult.origin ?? undefined
     );
   }
 
@@ -388,7 +569,7 @@ export async function DELETE(
     if (!character) {
       const response = NextResponse.json(
         { success: false, error: "Agent not found" },
-        { status: 404 },
+        { status: 404 }
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -397,7 +578,7 @@ export async function DELETE(
     if (character.source !== "miniapp") {
       const response = NextResponse.json(
         { success: false, error: "Agent not found" },
-        { status: 404 },
+        { status: 404 }
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -408,7 +589,7 @@ export async function DELETE(
     ) {
       const response = NextResponse.json(
         { success: false, error: "Access denied" },
-        { status: 403 },
+        { status: 403 }
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -439,7 +620,7 @@ export async function DELETE(
         error:
           error instanceof Error ? error.message : "Failed to delete agent",
       },
-      { status },
+      { status }
     );
 
     return addCorsHeaders(response, corsResult.origin);

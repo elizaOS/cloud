@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback, Suspense, useMemo } from "react";
+import {
+  useEffect,
+  useState,
+  useCallback,
+  Suspense,
+  useMemo,
+  useRef,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import {
@@ -28,7 +35,10 @@ function MiniappLoginContent() {
   // Compute initial status from props to avoid setState in effect
   const initialStatus = useMemo(() => {
     if (!sessionId) {
-      return { status: "error" as const, errorMessage: "Invalid authentication link. Missing session ID." };
+      return {
+        status: "error" as const,
+        errorMessage: "Invalid authentication link. Missing session ID.",
+      };
     }
     if (!authenticated) {
       return { status: "waiting_auth" as const, errorMessage: "" };
@@ -38,6 +48,15 @@ function MiniappLoginContent() {
 
   const [status, setStatus] = useState<Status>(initialStatus.status);
   const [errorMessage, setErrorMessage] = useState(initialStatus.errorMessage);
+
+  // Track if login has been triggered to prevent infinite loop
+  // Use sessionStorage for persistence across component remounts (e.g., React Strict Mode, hot reload)
+  const LOGIN_TRIGGERED_KEY = `miniapp_login_triggered_${sessionId}`;
+  const loginTriggeredRef = useRef(
+    typeof window !== "undefined"
+      ? sessionStorage.getItem(LOGIN_TRIGGERED_KEY) === "true"
+      : false
+  );
 
   const completeLogin = useCallback(async () => {
     if (!sessionId) {
@@ -54,15 +73,13 @@ function MiniappLoginContent() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-        },
+        }
       );
 
       if (!response.ok) {
         const errorData = await response.json();
         setStatus("error");
-        setErrorMessage(
-          errorData.error || "Failed to complete authentication",
-        );
+        setErrorMessage(errorData.error || "Failed to complete authentication");
         return;
       }
 
@@ -78,17 +95,16 @@ function MiniappLoginContent() {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Failed to complete authentication",
+          : "Failed to complete authentication"
       );
     }
-
   }, [sessionId]);
 
   // Update status when props change (avoiding synchronous setState)
   useEffect(() => {
     const nextStatus = initialStatus.status;
     const nextErrorMessage = initialStatus.errorMessage;
-    
+
     // Only update if status changed to avoid unnecessary renders
     if (status !== nextStatus || errorMessage !== nextErrorMessage) {
       // Use setTimeout to avoid synchronous setState in effect
@@ -112,11 +128,31 @@ function MiniappLoginContent() {
   }, [initialStatus.status, authenticated, sessionId, completeLogin]);
 
   // Auto-trigger login when ready and waiting for auth
+  // Use ref + sessionStorage to ensure login is only called once (persistent across remounts)
   useEffect(() => {
-    if (status === "waiting_auth" && ready && !authenticated) {
+    // Reset flag when authenticated (early return prevents race condition)
+    if (authenticated) {
+      loginTriggeredRef.current = false;
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem(LOGIN_TRIGGERED_KEY);
+      }
+      return;
+    }
+
+    // Trigger login when conditions are met
+    if (status === "waiting_auth" && ready && !loginTriggeredRef.current) {
+      loginTriggeredRef.current = true;
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(LOGIN_TRIGGERED_KEY, "true");
+      }
       login();
     }
-  }, [status, ready, authenticated, login]);
+
+    // NOTE: No cleanup function to clear the flag
+    // Cleanup would reset the flag during React Strict Mode's double-invoke,
+    // causing login to trigger multiple times. The flag is only cleared on
+    // successful authentication or component unmount (via dependency array change).
+  }, [status, ready, authenticated, login, LOGIN_TRIGGERED_KEY]);
 
   // Loading state
   if (status === "loading") {
