@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect } from "bun:test";
-import type { SocialPlatform, PostResult } from "@/lib/types/social-media";
+import type { SocialPlatform, PostResult, SocialCredentials } from "@/lib/types/social-media";
 
 describe("Social Media Types", () => {
   it("should have all supported platforms defined", async () => {
