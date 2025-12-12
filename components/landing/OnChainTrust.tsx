@@ -13,6 +13,53 @@ import Image from "next/image";
 import { ReactFlowProvider } from "@xyflow/react";
 
 export default function OnChainTrust() {
+  const mockCardData = [
+    {
+      name: "Eliza",
+      description: "Your default AI companion",
+      address: "0xA9E3...C14",
+    },
+    {
+      name: "Nova",
+      description: "Creative writing assistant",
+      address: "0xB2F4...A27",
+    },
+    {
+      name: "Atlas",
+      description: "Data analysis expert",
+      address: "0xC8D1...F93",
+    },
+    {
+      name: "echo",
+      description: "Voice interaction specialist",
+      address: "0xD4E2...B61",
+    },
+    {
+      name: "Sage",
+      description: "Knowledge base curator",
+      address: "0xE7A5...D48",
+    },
+    {
+      name: "Pixel",
+      description: "Image generation AI",
+      address: "0xF1B8...E52",
+    },
+    {
+      name: "Cipher",
+      description: "Code optimization tool",
+      address: "0xA3C9...F17",
+    },
+    {
+      name: "Muse",
+      description: "Music composition helper",
+      address: "0xB6D2...C83",
+    },
+    {
+      name: "Scout",
+      description: "Research aggregator",
+      address: "0xC9E4...A94",
+    },
+  ];
   return (
     <section className="relative bg-[#0A0A0A] py-12 md:py-16 lg:py-24 overflow-hidden">
       {/* Background skew image */}
@@ -108,7 +155,7 @@ export default function OnChainTrust() {
                   "radial-gradient(circle at center, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 25%, rgba(0,0,0,0.6) 50%, rgba(0,0,0,0.2) 75%, transparent 100%)",
               }}
             >
-              {[...Array(9)].map((_, index) => {
+              {mockCardData.map((agent, index) => {
                 return (
                   <div
                     key={index}
@@ -132,23 +179,26 @@ export default function OnChainTrust() {
                             src="/agent-wallet.png"
                             alt="Agent"
                             fill
-                            className="object-cover"
+                            className="object-cover select-none"
+                            draggable={false}
                           />
                         </div>
-                        <h3 className="text-xs font-semibold text-white">
-                          Eliza
+                        <h3 className="select-none text-xs font-semibold text-white">
+                          {agent.name}
                         </h3>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[10px] text-white/60 mb-1.5 line-clamp-1">
-                          Your default AI Companion
+                        <p className="text-[10px] select-none text-white/60 mb-1.5 line-clamp-1">
+                          {agent.description}
                         </p>
                         <div
                           className="flex items-center gap-1 mb-1"
                           style={{ color: "#FF5800" }}
                         >
                           <Check className="h-2.5 w-2.5" />
-                          <span className="text-[10px]">ERC-8004 Verified</span>
+                          <span className="text-[10px] select-none">
+                            ERC-8004 Verified
+                          </span>
                         </div>
                         <div className="flex items-center gap-1 text-white/40">
                           <svg
@@ -164,7 +214,7 @@ export default function OnChainTrust() {
                               d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1721 9z"
                             />
                           </svg>
-                          <span className="text-[10px] font-mono">
+                          <span className="text-[10px] font-mono select-none">
                             0xA9E3...C14
                           </span>
                         </div>

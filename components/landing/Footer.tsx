@@ -31,7 +31,7 @@ export default function Footer() {
                 >
                   START
                   <br />
-                  BUILDING
+                BUILDING
                 </h3>
               </div>
             </div>
