@@ -121,13 +121,11 @@ class TwitterPoller implements PlatformPoller {
       return { engagements, hasMore: false };
     }
 
-    // Build user lookup map
     const users = new Map<string, TwitterUser>();
     for (const user of data.includes?.users ?? []) {
       users.set(user.id, user);
     }
 
-    // Build referenced tweets map
     const referencedTweets = new Map<string, TwitterTweet>();
     for (const tweet of data.includes?.tweets ?? []) {
       referencedTweets.set(tweet.id, tweet);
@@ -142,7 +140,6 @@ class TwitterPoller implements PlatformPoller {
         ? referencedTweets.get(referencedTweet.id)
         : undefined;
 
-      // Determine event type
       let eventType: SocialEngagementType = "mention";
       if (referencedTweet?.type === "replied_to") {
         eventType = "reply";
@@ -177,7 +174,6 @@ class TwitterPoller implements PlatformPoller {
       });
     }
 
-    // Get newest ID for pagination
     const newestId = data.data[0]?.id;
 
     return {
@@ -321,16 +317,13 @@ class BlueskyPoller implements PlatformPoller {
       throw new Error("Bluesky handle and app password required");
     }
 
-    // Create session
     const session = await this.createSession(credentials.handle, credentials.appPassword);
     const engagements: PolledEngagement[] = [];
 
-    // Poll notifications (includes mentions, replies, quotes, likes, reposts)
     if (config.monitor_mentions || config.monitor_replies || config.monitor_quote_tweets) {
       const notifications = await this.fetchNotifications(session, sinceId);
       
       for (const notif of notifications.notifications) {
-        // Filter based on config
         if (notif.reason === "mention" && !config.monitor_mentions) continue;
         if (notif.reason === "reply" && !config.monitor_replies) continue;
         if (notif.reason === "quote" && !config.monitor_quote_tweets) continue;
@@ -416,7 +409,6 @@ class BlueskyPoller implements PlatformPoller {
   }
 
   private uriToUrl(uri: string): string {
-    // at://did:plc:xxx/app.bsky.feed.post/xxx -> https://bsky.app/profile/did/post/xxx
     const match = uri.match(/at:\/\/(.+)\/app\.bsky\.feed\.post\/(.+)/);
     if (match) {
       return `https://bsky.app/profile/${match[1]}/post/${match[2]}`;
@@ -454,7 +446,6 @@ class RedditPoller implements PlatformPoller {
 
     const engagements: PolledEngagement[] = [];
 
-    // Poll inbox for mentions and replies
     if (config.monitor_mentions || config.monitor_replies) {
       const messages = await this.fetchInbox(credentials.accessToken, sinceId);
       engagements.push(...messages.engagements);
@@ -534,10 +525,9 @@ class MastodonPoller implements PlatformPoller {
       throw new Error("Mastodon access token required");
     }
 
-    const instanceUrl = credentials.webhookUrl ?? "https://mastodon.social";
+    const instanceUrl = credentials.instanceUrl ?? credentials.webhookUrl ?? "https://mastodon.social";
     const engagements: PolledEngagement[] = [];
 
-    // Poll notifications
     const notifications = await this.fetchNotifications(
       instanceUrl.replace(/\/$/, ""),
       credentials.accessToken,
@@ -563,7 +553,6 @@ class MastodonPoller implements PlatformPoller {
     const params = new URLSearchParams({ limit: "40" });
     if (sinceId) params.set("since_id", sinceId);
 
-    // Build types filter based on config
     const types: string[] = [];
     if (config.monitor_mentions) types.push("mention");
     if (config.monitor_replies) types.push("mention"); // Mastodon treats replies as mentions
@@ -611,7 +600,6 @@ class MastodonPoller implements PlatformPoller {
       });
     }
 
-    // Mastodon returns newest first, so first item ID is the newest
     const newestId = notifications[0]?.id;
 
     return {
@@ -648,9 +636,6 @@ const pollers: Partial<Record<SocialPlatform, PlatformPoller>> = {
 };
 
 class FeedPollingService {
-  /**
-   * Poll a single feed configuration
-   */
   async pollFeed(config: OrgFeedConfig): Promise<{ newEngagements: number; errors: string[] }> {
     const errors: string[] = [];
     let newEngagements = 0;
@@ -673,7 +658,6 @@ class FeedPollingService {
       return { newEngagements: 0, errors: [error] };
     }
 
-    // Get credentials for this feed
     const credentials = await this.getCredentials(config);
     if (!credentials) {
       const error = "No valid credentials for feed";
@@ -694,13 +678,10 @@ class FeedPollingService {
         config.last_seen_id ?? undefined
       );
 
-      // Store new engagements
       for (const engagement of result.engagements) {
-        // Skip if already exists
         const exists = await engagementEventService.exists(config.id, engagement.sourcePostId);
         if (exists) continue;
 
-        // Apply filters
         if (!this.passesFilters(engagement, config)) continue;
 
         await engagementEventService.create({
@@ -728,7 +709,6 @@ class FeedPollingService {
         newEngagements++;
       }
 
-      // Update polling state
       await feedConfigService.updatePollingState(config.id, {
         lastPolledAt: new Date(),
         lastSeenId: result.lastSeenId,
@@ -756,9 +736,6 @@ class FeedPollingService {
     return { newEngagements, errors };
   }
 
-  /**
-   * Poll all feeds due for polling
-   */
   async pollDueFeeds(): Promise<{
     feedsPolled: number;
     totalNewEngagements: number;
@@ -786,11 +763,7 @@ class FeedPollingService {
     };
   }
 
-  /**
-   * Get credentials for a feed config
-   */
   private async getCredentials(config: OrgFeedConfig): Promise<SocialCredentials | null> {
-    // Use the social media service to get credentials
     return socialMediaService.getCredentialsForPlatform(
       config.organization_id,
       config.source_platform as SocialPlatform,
@@ -798,18 +771,13 @@ class FeedPollingService {
     );
   }
 
-  /**
-   * Check if an engagement passes the configured filters
-   */
   private passesFilters(engagement: PolledEngagement, config: OrgFeedConfig): boolean {
-    // Check minimum follower count
     if (config.min_follower_count !== null && config.min_follower_count !== undefined) {
       if (!engagement.authorFollowerCount || engagement.authorFollowerCount < config.min_follower_count) {
         return false;
       }
     }
 
-    // Check keyword filters
     const keywords = config.filter_keywords ?? [];
     if (keywords.length > 0 && engagement.content) {
       const contentLower = engagement.content.toLowerCase();

@@ -185,7 +185,13 @@ export const slackProvider: SocialMediaProvider = {
 
         await sendWebhook(credentials.webhookUrl, payload);
 
-        return { platform: "slack", success: true, postId: `webhook-${Date.now()}` };
+        // Webhook posts don't return message IDs - can't be deleted or referenced
+        return {
+          platform: "slack",
+          success: true,
+          postId: `webhook-${Date.now()}`,
+          metadata: { type: "webhook", deletable: false },
+        };
       }
 
       if (!credentials.botToken) {

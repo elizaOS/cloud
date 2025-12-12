@@ -236,15 +236,13 @@ class ReplyRouterService {
 
     const { event } = result;
 
-    // Get the feed config to determine target platform
     const config = await feedConfigService.get(event.feed_config_id, event.organization_id);
     if (!config) {
       logger.warn("[ReplyRouter] Feed config not found", { feedConfigId: event.feed_config_id });
       return null;
     }
 
-    // Create pending confirmation
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     const confirmation = await replyConfirmationService.create({
       organizationId: event.organization_id,
@@ -489,7 +487,6 @@ class ReplyRouterService {
       replyToId: confirmation.target_post_id,
     };
 
-    // Add media if present
     if (confirmation.reply_media_urls && confirmation.reply_media_urls.length > 0) {
       content.media = confirmation.reply_media_urls.map((url) => ({
         type: "image" as const,
@@ -541,11 +538,14 @@ class ReplyRouterService {
           const discordConnection = connections.find(
             (c) => c.platform === "discord" && c.status === "active"
           );
-          if (!discordConnection) return;
+          if (!discordConnection) {
+            logger.warn("[ReplyRouter] No Discord connection for feedback", { organizationId, confirmationId: confirmation.id });
+            return;
+          }
 
           const botToken = await botsService.getBotToken(discordConnection.id, organizationId);
 
-          await fetch(
+          const response = await fetch(
             `https://discord.com/api/v10/channels/${confirmation.source_channel_id}/messages`,
             {
               method: "POST",
@@ -555,12 +555,13 @@ class ReplyRouterService {
               },
               body: JSON.stringify({
                 content: message,
-                message_reference: {
-                  message_id: confirmation.confirmation_message_id,
-                },
+                message_reference: { message_id: confirmation.confirmation_message_id },
               }),
             }
           );
+          if (!response.ok) {
+            logger.warn("[ReplyRouter] Discord feedback failed", { status: response.status, confirmationId: confirmation.id });
+          }
           break;
         }
         case "telegram": {
@@ -568,7 +569,10 @@ class ReplyRouterService {
           const telegramConnection = connections.find(
             (c) => c.platform === "telegram" && c.status === "active"
           );
-          if (!telegramConnection) return;
+          if (!telegramConnection) {
+            logger.warn("[ReplyRouter] No Telegram connection for feedback", { organizationId, confirmationId: confirmation.id });
+            return;
+          }
 
           await telegramService.sendMessageViaConnection(
             telegramConnection.id,
@@ -585,9 +589,12 @@ class ReplyRouterService {
         }
         case "slack": {
           const botToken = await secretsService.get(organizationId, "SLACK_BOT_TOKEN");
-          if (!botToken) return;
+          if (!botToken) {
+            logger.warn("[ReplyRouter] No Slack bot token for feedback", { organizationId, confirmationId: confirmation.id });
+            return;
+          }
 
-          await fetch("https://slack.com/api/chat.postMessage", {
+          const response = await fetch("https://slack.com/api/chat.postMessage", {
             method: "POST",
             headers: {
               Authorization: `Bearer ${botToken}`,
@@ -599,11 +606,15 @@ class ReplyRouterService {
               thread_ts: confirmation.confirmation_message_id,
             }),
           });
+          const data = await response.json();
+          if (!data.ok) {
+            logger.warn("[ReplyRouter] Slack feedback failed", { error: data.error, confirmationId: confirmation.id });
+          }
           break;
         }
       }
     } catch (error) {
-      logger.error("[ReplyRouter] Failed to send feedback message", { error });
+      logger.error("[ReplyRouter] Failed to send feedback message", { error, confirmationId: confirmation.id });
     }
   }
 

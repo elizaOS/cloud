@@ -55,7 +55,8 @@ interface MastodonMedia {
 }
 
 function getInstanceUrl(credentials: SocialCredentials): string {
-  return (credentials.webhookUrl ?? "https://mastodon.social").replace(/\/$/, "");
+  const url = credentials.instanceUrl ?? credentials.webhookUrl ?? "https://mastodon.social";
+  return url.replace(/\/$/, "");
 }
 
 async function mastodonApiRequest<T>(

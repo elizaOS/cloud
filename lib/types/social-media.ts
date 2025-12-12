@@ -1,8 +1,22 @@
+/**
+ * Supported social media platforms.
+ *
+ * Not currently supported (require different API patterns or restricted access):
+ * - YouTube: Video-only platform requiring Google API OAuth and upload workflows
+ * - Pinterest: Pin-based content requiring Pinterest Business API access
+ * - Snapchat: Stories API requires Snapchat Business Manager approval
+ * - Tumblr: NPF format requires different content structure
+ * - Medium: Publication API deprecated, requires Partner Program access
+ * - DEV.to: Article API (not social posting, different use case)
+ * - Threads: API not publicly available
+ * - WhatsApp: Business API requires Meta verification, template-based messaging
+ */
 export type SocialPlatform =
   | "twitter"
   | "bluesky"
   | "discord"
   | "telegram"
+  | "slack"
   | "reddit"
   | "facebook"
   | "instagram"
@@ -128,11 +142,23 @@ export interface MastodonPostOptions {
   pollExpiresIn?: number;
 }
 
+export interface SlackPostOptions {
+  channelId: string;
+  threadTs?: string;
+  unfurlLinks?: boolean;
+  unfurlMedia?: boolean;
+  mrkdwn?: boolean;
+  username?: string;
+  iconEmoji?: string;
+  iconUrl?: string;
+}
+
 export type PlatformPostOptions = {
   twitter?: TwitterPostOptions;
   bluesky?: BlueskyPostOptions;
   discord?: DiscordPostOptions;
   telegram?: TelegramPostOptions;
+  slack?: SlackPostOptions;
   reddit?: RedditPostOptions;
   facebook?: FacebookPostOptions;
   instagram?: InstagramPostOptions;
@@ -196,7 +222,7 @@ export interface AccountAnalytics {
 }
 
 export interface SocialCredentials {
-  platform: SocialPlatform;
+  platform?: SocialPlatform;
   accessToken?: string;
   refreshToken?: string;
   tokenExpiresAt?: Date;
@@ -214,6 +240,8 @@ export interface SocialCredentials {
   accountId?: string;
   serverId?: string;
   channelId?: string;
+  /** Mastodon instance URL (e.g., https://mastodon.social) */
+  instanceUrl?: string;
 }
 
 export interface SocialMediaProvider {
@@ -257,7 +285,7 @@ export interface GetAnalyticsInput {
 }
 
 export const SUPPORTED_PLATFORMS: SocialPlatform[] = [
-  "twitter", "bluesky", "discord", "telegram", "reddit",
+  "twitter", "bluesky", "discord", "telegram", "slack", "reddit",
   "facebook", "instagram", "tiktok", "linkedin", "mastodon",
 ];
 
@@ -272,6 +300,7 @@ export const PLATFORM_CAPABILITIES: Record<SocialPlatform, {
   bluesky: { supportsText: true, supportsImages: true, supportsVideo: false, maxTextLength: 300, maxImages: 4 },
   discord: { supportsText: true, supportsImages: true, supportsVideo: true, maxTextLength: 2000, maxImages: 10 },
   telegram: { supportsText: true, supportsImages: true, supportsVideo: true, maxTextLength: 4096, maxImages: 10 },
+  slack: { supportsText: true, supportsImages: true, supportsVideo: true, maxTextLength: 40000, maxImages: 10 },
   reddit: { supportsText: true, supportsImages: true, supportsVideo: true, maxTextLength: 40000, maxImages: 20 },
   facebook: { supportsText: true, supportsImages: true, supportsVideo: true, maxTextLength: 63206, maxImages: 10 },
   instagram: { supportsText: true, supportsImages: true, supportsVideo: true, maxTextLength: 2200, maxImages: 10 },
@@ -316,6 +345,9 @@ export function validatePlatformOptions(
   }
   if (platform === "telegram" && !options.chatId) {
     return { valid: false, error: "Telegram requires chatId" };
+  }
+  if (platform === "slack" && !options.channelId && !options.webhookUrl) {
+    return { valid: false, error: "Slack requires channelId or webhookUrl" };
   }
   return { valid: true };
 }

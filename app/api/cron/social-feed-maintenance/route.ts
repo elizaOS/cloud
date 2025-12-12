@@ -87,10 +87,42 @@ export async function GET(request: NextRequest): Promise<Response> {
     replyConfirmationService.getPendingForExpiry(100),
   ]);
 
+  // Webhook configuration health check
+  const webhookConfig = {
+    slack: {
+      configured: !!process.env.SLACK_SIGNING_SECRET,
+      warning: !process.env.SLACK_SIGNING_SECRET ? "SLACK_SIGNING_SECRET not set - Slack webhooks will be rejected" : null,
+    },
+    telegram: {
+      configured: !!process.env.TELEGRAM_WEBHOOK_SECRET,
+      warning: !process.env.TELEGRAM_WEBHOOK_SECRET ? "TELEGRAM_WEBHOOK_SECRET not set - Telegram webhooks will be rejected" : null,
+    },
+    alerts: {
+      configured: !!(
+        process.env.SOCIAL_ALERTS_DISCORD_WEBHOOK ||
+        process.env.SOCIAL_ALERTS_SLACK_WEBHOOK ||
+        process.env.SOCIAL_ALERTS_TELEGRAM_BOT_TOKEN
+      ),
+      warning: !(
+        process.env.SOCIAL_ALERTS_DISCORD_WEBHOOK ||
+        process.env.SOCIAL_ALERTS_SLACK_WEBHOOK ||
+        process.env.SOCIAL_ALERTS_TELEGRAM_BOT_TOKEN
+      ) ? "No alert channels configured - failures will not be reported" : null,
+    },
+  };
+
+  const warnings = [
+    webhookConfig.slack.warning,
+    webhookConfig.telegram.warning,
+    webhookConfig.alerts.warning,
+  ].filter(Boolean);
+
   return NextResponse.json({
     success: true,
     unnotifiedEvents: unnotifiedEvents.length,
     expiredConfirmations: pendingConfirmations.length,
+    webhookConfig,
+    warnings,
     samples: {
       events: unnotifiedEvents.slice(0, 5).map((e) => ({
         id: e.id,
