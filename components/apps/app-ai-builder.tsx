@@ -47,6 +47,8 @@ interface Message {
   content: string;
   filesAffected?: string[];
   timestamp: string;
+  /** Internal tracking ID for thinking messages */
+  _thinkingId?: string;
 }
 
 interface SessionData {
@@ -280,7 +282,7 @@ Some ideas:
       
       setMessages((prev) => {
         const updated = [...prev];
-        const thinkingIdx = updated.findIndex(m => (m as any)._thinkingId === thinkingId);
+        const thinkingIdx = updated.findIndex(m => m._thinkingId === thinkingId);
         if (thinkingIdx >= 0) {
           updated[thinkingIdx] = {
             ...updated[thinkingIdx],
@@ -395,9 +397,9 @@ Some ideas:
       // Finalize thinking message and add final response
       setMessages((prev) => {
         const updated = prev.map(m => {
-          if ((m as any)._thinkingId === thinkingId) {
+          if (m._thinkingId === thinkingId) {
             // Finalize the thinking message - remove the _thinkingId and clean up content
-            const { _thinkingId, ...rest } = m as any;
+            const { _thinkingId: _, ...rest } = m;
             return {
               ...rest,
               content: actionsContent ? `**Progress:**\n${actionsContent}` : "🤔 *Processing...*",
@@ -428,8 +430,8 @@ Some ideas:
       // Finalize thinking message with error indicator and add error message
       setMessages((prev) => {
         const updated = prev.map(m => {
-          if ((m as any)._thinkingId === thinkingId) {
-            const { _thinkingId, ...rest } = m as any;
+          if (m._thinkingId === thinkingId) {
+            const { _thinkingId: _, ...rest } = m;
             return {
               ...rest,
               content: actionsContent ? `**Progress:**\n${actionsContent}\n\n⚠️ *Error occurred*` : "⚠️ *Error occurred*",

@@ -3,6 +3,7 @@ import { usersService } from "@/lib/services/users";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { userSessionsService } from "@/lib/services/user-sessions";
 import { syncUserFromPrivy } from "./privy-sync";
+import { logger } from "@/lib/utils/logger";
 import type { UserWithOrganization, ApiKey } from "@/lib/types";
 import type { Organization } from "@/db/schemas/organizations";
 import { cache } from "react";
@@ -28,12 +29,12 @@ async function ensureUserHasApiKey(
 ): Promise<void> {
   // Validate inputs
   if (!userId || userId.trim() === "") {
-    console.warn("[Auth] Invalid userId, skipping API key check");
+    logger.warn("[Auth] Invalid userId, skipping API key check");
     return;
   }
 
   if (!organizationId || organizationId.trim() === "") {
-    console.warn(
+    logger.warn(
       `[Auth] No organization for user ${userId}, skipping API key check`,
     );
     return;
@@ -100,7 +101,7 @@ export const getCurrentUser = cache(
       // Just-in-time sync: If user doesn't exist, fetch from Privy and create
       // This handles race conditions where webhooks haven't fired yet
       if (!user) {
-        console.log("[AUTH] User not in DB, starting JIT sync for:", verifiedClaims.userId);
+        logger.debug("[AUTH] User not in DB, starting JIT sync for:", verifiedClaims.userId);
         
         try {
           let privyUser = null;
@@ -108,28 +109,28 @@ export const getCurrentUser = cache(
           // Try efficient method first: use privy-id-token to avoid rate limits
           const idToken = cookieStore.get("privy-id-token");
           if (idToken?.value) {
-            console.log("[AUTH] Using privy-id-token for user lookup");
+            logger.debug("[AUTH] Using privy-id-token for user lookup");
             try {
               privyUser = await privyClient.getUser({ idToken: idToken.value });
-            } catch (idTokenError) {
-              console.warn("[AUTH] privy-id-token method failed, will fallback to userId");
+            } catch {
+              logger.debug("[AUTH] privy-id-token method failed, will fallback to userId");
             }
           }
           
           // Fallback: use userId directly (counts against rate limits)
           if (!privyUser) {
-            console.log("[AUTH] Using userId for user lookup (fallback)");
+            logger.debug("[AUTH] Using userId for user lookup (fallback)");
             privyUser = await privyClient.getUser(verifiedClaims.userId);
           }
           
           if (privyUser) {
             user = await syncUserFromPrivy(privyUser);
-            console.log("[AUTH] ✓ JIT sync complete:", { userId: user.id, orgId: user.organization_id });
+            logger.info("[AUTH] JIT sync complete", { userId: user.id, orgId: user.organization_id });
           } else {
-            console.error("[AUTH] ✗ Privy returned null for user");
+            logger.error("[AUTH] Privy returned null for user");
           }
         } catch (privyError) {
-          console.error("[AUTH] ✗ Failed to fetch user from Privy:", privyError instanceof Error ? privyError.message : privyError);
+          logger.error("[AUTH] Failed to fetch user from Privy:", privyError instanceof Error ? privyError.message : privyError);
         }
       }
 
@@ -145,12 +146,12 @@ export const getCurrentUser = cache(
         // This handles existing users who registered before API key auto-generation
         void ensureUserHasApiKey(user.id, user.organization_id);
       } else if (user && !user.organization_id) {
-        console.error("[AUTH] ✗ User missing organization_id:", user.id);
+        logger.error("[AUTH] User missing organization_id:", user.id);
       }
 
       return user ?? null;
     } catch (error) {
-      console.error("[AUTH] ✗ Error:", error instanceof Error ? error.message : error);
+      logger.error("[AUTH] Error:", error instanceof Error ? error.message : error);
       return null;
     }
   },

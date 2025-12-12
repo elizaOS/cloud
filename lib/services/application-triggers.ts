@@ -636,14 +636,138 @@ class ApplicationTriggersService {
     trigger: ApplicationTrigger,
     inputData?: Record<string, unknown>
   ): Promise<Record<string, unknown>> {
-    // TODO: Implement notification channels (email, Slack, Discord, etc.)
-    logger.info("[Application Triggers] Notification triggered", {
+    const channels = trigger.action_config?.notificationChannels as string[] | undefined;
+    
+    logger.info("[Application Triggers] Processing notification", {
       triggerId: trigger.id,
-      channels: trigger.action_config?.notificationChannels,
-      inputData,
+      channels,
     });
 
-    return { notified: true };
+    const results: Record<string, boolean> = {};
+
+    // Notification channels can be configured per-trigger in action_config.notificationChannels
+    // Supported: "slack", "email", "webhook"
+    // Future: "discord", "telegram", "sms"
+    
+    if (!channels || channels.length === 0) {
+      logger.warn("[Application Triggers] No notification channels configured", {
+        triggerId: trigger.id,
+      });
+      return { notified: false, reason: "No channels configured" };
+    }
+
+    for (const channel of channels) {
+      switch (channel) {
+        case "slack": {
+          // Slack notifications require SLACK_WEBHOOK_URL
+          const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+          if (webhookUrl) {
+            const sent = await this.sendSlackNotification(webhookUrl, trigger, inputData);
+            results.slack = sent;
+          } else {
+            logger.debug("[Application Triggers] Slack webhook not configured");
+            results.slack = false;
+          }
+          break;
+        }
+        case "webhook": {
+          // Custom webhook URL from action_config.webhookUrl
+          const webhookUrl = trigger.action_config?.webhookUrl as string | undefined;
+          if (webhookUrl) {
+            const sent = await this.sendWebhookNotification(webhookUrl, trigger, inputData);
+            results.webhook = sent;
+          } else {
+            results.webhook = false;
+          }
+          break;
+        }
+        case "email":
+          // Email notifications require future integration with email service
+          logger.info("[Application Triggers] Email notifications not yet implemented");
+          results.email = false;
+          break;
+        default:
+          logger.warn("[Application Triggers] Unknown notification channel", { channel });
+          results[channel] = false;
+      }
+    }
+
+    return { 
+      notified: Object.values(results).some(r => r), 
+      channels: results,
+    };
+  }
+
+  private async sendSlackNotification(
+    webhookUrl: string,
+    trigger: ApplicationTrigger,
+    inputData?: Record<string, unknown>
+  ): Promise<boolean> {
+    const payload = {
+      text: `🔔 Trigger Notification: ${trigger.name}`,
+      attachments: [
+        {
+          color: "#36a64f",
+          title: trigger.name,
+          text: trigger.description || "Trigger executed",
+          fields: inputData
+            ? Object.entries(inputData).slice(0, 5).map(([key, value]) => ({
+                title: key,
+                value: String(value).slice(0, 100),
+                short: true,
+              }))
+            : [],
+          ts: Math.floor(Date.now() / 1000),
+        },
+      ],
+    };
+
+    const response = await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      logger.error("[Application Triggers] Slack notification failed", {
+        triggerId: trigger.id,
+        status: response.status,
+      });
+      return false;
+    }
+
+    return true;
+  }
+
+  private async sendWebhookNotification(
+    webhookUrl: string,
+    trigger: ApplicationTrigger,
+    inputData?: Record<string, unknown>
+  ): Promise<boolean> {
+    const payload = {
+      triggerId: trigger.id,
+      triggerName: trigger.name,
+      triggerType: trigger.trigger_type,
+      timestamp: new Date().toISOString(),
+      data: inputData,
+    };
+
+    const response = await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      logger.error("[Application Triggers] Webhook notification failed", {
+        triggerId: trigger.id,
+        webhookUrl,
+        status: response.status,
+      });
+      return false;
+    }
+
+    return true;
   }
 }
 

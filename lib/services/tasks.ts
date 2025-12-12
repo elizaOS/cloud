@@ -550,6 +550,3 @@ class TasksService {
 
 export const tasksService = new TasksService();
 
-// Legacy alias for backwards compatibility
-export const orgTodosService = tasksService;
-

@@ -185,16 +185,18 @@ export function StoragePageClient() {
     const confirmed = window.confirm(`Delete ${item.pathname}?`);
     if (!confirmed) return;
     
+    // Use authenticated session for deletion (API accepts both wallet sig and auth)
     const response = await fetch(`/api/v1/storage/${item.id}?url=${encodeURIComponent(item.url)}`, {
       method: "DELETE",
-      headers: {
-        "X-Signer-Address": "0x0000000000000000000000000000000000000000", // TODO: Get from wallet
-        "X-Signature": "0x", // TODO: Sign with wallet
-      },
     });
     
     if (response.status === 401) {
-      toast.error("Wallet signature required to delete");
+      toast.error("Authentication required to delete files");
+      return;
+    }
+    
+    if (response.status === 403) {
+      toast.error("You can only delete files you uploaded");
       return;
     }
     

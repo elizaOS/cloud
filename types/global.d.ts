@@ -14,6 +14,10 @@
  */
 interface Window {
   webkitAudioContext: typeof AudioContext;
+  /** Tauri API object - present when running in Tauri */
+  __TAURI__?: Record<string, unknown>;
+  /** Tauri internal API object */
+  __TAURI_INTERNALS__?: Record<string, unknown>;
 }
 
 // =============================================================================

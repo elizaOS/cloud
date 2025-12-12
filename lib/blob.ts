@@ -1,4 +1,5 @@
 import { put, del, list } from "@vercel/blob";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Options for uploading a file to blob storage.
@@ -189,14 +190,11 @@ export async function ensureElizaCloudUrl(
     const result = await uploadFromUrl(sourceUrl, options);
     return result.url;
   } catch (error) {
-    console.error(
-      "[ensureElizaCloudUrl] Failed to upload Fal.ai URL to our storage:",
-      error,
-    );
+    logger.error("[ensureElizaCloudUrl] Failed to upload Fal.ai URL to our storage", { error });
 
     // If fallback is allowed, return original URL
     if (options.fallbackToOriginal !== false) {
-      console.warn("[ensureElizaCloudUrl] Falling back to original Fal.ai URL");
+      logger.warn("[ensureElizaCloudUrl] Falling back to original Fal.ai URL");
       return sourceUrl;
     }
 

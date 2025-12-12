@@ -256,4 +256,3 @@ class AgentsService {
 }
 
 export const agentsService = new AgentsService();
-export const agentService = agentsService;

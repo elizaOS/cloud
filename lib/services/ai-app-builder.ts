@@ -326,18 +326,20 @@ export class AIAppBuilderService {
     logger.info("Session stopped", { sessionId });
   }
 
+  /**
+   * Deploy a sandbox session to production
+   * 
+   * @experimental This feature is not yet available.
+   * Currently in development - use export/download instead.
+   */
   async deploySession(
-    sessionId: string,
-    userId: string,
-    config: { appName: string; appDescription?: string; appUrl?: string }
+    _sessionId: string,
+    _userId: string,
+    _config: { appName: string; appDescription?: string; appUrl?: string }
   ): Promise<{ appId: string; deploymentUrl: string }> {
-    const session = await this.verifyOwnership(sessionId, userId);
-
-    if (!session.sandbox_id) throw new Error("Sandbox not available");
-
-    logger.info("Deploying session", { sessionId, appName: config.appName });
-
-    throw new Error("Deployment not yet implemented");
+    throw new Error(
+      "Deployment is not yet available. Please use the export feature to download your app code, then deploy manually to your preferred hosting provider."
+    );
   }
 }
 

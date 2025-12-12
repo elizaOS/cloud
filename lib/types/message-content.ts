@@ -90,11 +90,9 @@ export function parseMessageContent(content: unknown): MessageContent {
 
 /**
  * Room metadata structure
+ * @deprecated Import from "@/db/repositories/agents/rooms" instead for the complete type
  */
-export interface RoomMetadata {
-  creatorUserId?: string;
-  [key: string]: unknown;
-}
+export type { RoomMetadata } from "@/db/repositories/agents/rooms";
 
 /**
  * Attachment structure for API responses

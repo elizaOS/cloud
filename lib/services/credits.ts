@@ -469,7 +469,7 @@ export class CreditsService {
 
       const recipientEmail = org.billing_email;
       if (!recipientEmail) {
-        console.warn("[CreditsService] No billing email for organization", {
+        logger.debug("[CreditsService] No billing email for organization", {
           organizationId,
         });
         return;

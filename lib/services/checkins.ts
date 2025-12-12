@@ -801,6 +801,3 @@ class CheckinsService {
 
 export const checkinsService = new CheckinsService();
 
-// Legacy alias for backwards compatibility
-export const orgCheckinsService = checkinsService;
-

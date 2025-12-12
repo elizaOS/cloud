@@ -15,7 +15,7 @@ import { getElizaCloudApiUrl } from "./config";
 import { AgentMode, AGENT_MODE_PLUGINS } from "./agent-mode-types";
 import { secretsService } from "@/lib/services/secrets";
 import { isOrgCharacter, getOrgCharacter, orgCharacters } from "./characters/org";
-import { orgAgentLifecycleService } from "@/lib/services/agent-lifecycle";
+import { agentLifecycleService } from "@/lib/services/agent-lifecycle";
 
 /**
  * Reasons why mode was upgraded to ASSISTANT.
@@ -153,11 +153,11 @@ export class AgentLoader {
     // If organization provided, try to load configured character
     if (organizationId) {
       const agentType = characterId as keyof typeof orgCharacters;
-      const instance = await orgAgentLifecycleService.getInstance(organizationId, agentType);
+      const instance = await agentLifecycleService.getInstance(organizationId, agentType);
       
       if (instance && instance.enabled) {
         // Load fully configured character with org-specific settings
-        character = await orgAgentLifecycleService.buildConfiguredCharacter(
+        character = await agentLifecycleService.buildConfiguredCharacter(
           organizationId,
           agentType,
         );

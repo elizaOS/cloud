@@ -5,7 +5,7 @@
 import { cache as cacheClient } from "./client";
 import { logger } from "@/lib/utils/logger";
 import type {
-  MarketplaceSearchResult,
+  CharacterSearchResult,
   ExtendedCharacter,
   CategoryInfo,
 } from "@/lib/types/marketplace";
@@ -31,10 +31,10 @@ export class MarketplaceCache {
   async getSearchResult(
     organizationId: string,
     filterHash: string,
-  ): Promise<MarketplaceSearchResult | null> {
+  ): Promise<CharacterSearchResult | null> {
     const key = this.createKey("search", organizationId, filterHash);
 
-    const cached = await cacheClient.get<MarketplaceSearchResult>(key);
+    const cached = await cacheClient.get<CharacterSearchResult>(key);
     if (cached) {
       logger.debug(
         `[Marketplace Cache] Cache hit for search: ${organizationId}:${filterHash}`,
@@ -46,7 +46,7 @@ export class MarketplaceCache {
   async setSearchResult(
     organizationId: string,
     filterHash: string,
-    result: MarketplaceSearchResult,
+    result: CharacterSearchResult,
     ttl: number = this.DEFAULT_TTL,
   ): Promise<void> {
     const key = this.createKey("search", organizationId, filterHash);

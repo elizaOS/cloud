@@ -17,6 +17,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { logger } from "@/lib/utils/logger";
 
 // Global request cache and in-flight tracking
 const requestCache = new Map<
@@ -126,7 +127,7 @@ export function useDedupedFetch<T>(
 
       // Check if we should dedupe this request
       if (!forceRevalidate && now - lastFetchRef.current < dedupingInterval) {
-        console.debug(`[useDedupedFetch] Deduping request to ${url}`);
+        logger.debug(`[useDedupedFetch] Deduping request to ${url}`);
         return;
       }
 
@@ -155,7 +156,7 @@ export function useDedupedFetch<T>(
       // Check for in-flight request (deduplication)
       const inFlight = inFlightRequests.get(cacheKey);
       if (inFlight && !forceRevalidate) {
-        console.debug(`[useDedupedFetch] Joining in-flight request to ${url}`);
+        logger.debug(`[useDedupedFetch] Joining in-flight request to ${url}`);
         try {
           const response = await inFlight;
           const responseData = await response.clone().json();

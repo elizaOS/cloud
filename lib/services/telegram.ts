@@ -310,7 +310,13 @@ class TelegramService {
     baseUrl: string
   ): Promise<void> {
     const token = await botsService.getBotToken(connectionId, organizationId);
-    const webhookUrl = `${baseUrl}/api/webhooks/telegram`;
+    
+    // Get the bot info to use bot ID in webhook URL
+    const botInfo = await this.getMe(token);
+    const botId = String(botInfo.id);
+    
+    // Use dynamic route with bot ID for proper routing
+    const webhookUrl = `${baseUrl}/api/webhooks/telegram/${botId}`;
     const secretToken = process.env.TELEGRAM_WEBHOOK_SECRET;
 
     await this.setWebhook(token, webhookUrl, {
@@ -318,7 +324,7 @@ class TelegramService {
       allowed_updates: ["message", "callback_query", "inline_query", "edited_message"],
     });
 
-    logger.info("[Telegram] Webhook configured", { connectionId, webhookUrl });
+    logger.info("[Telegram] Webhook configured", { connectionId, botId, webhookUrl });
   }
 
   /**

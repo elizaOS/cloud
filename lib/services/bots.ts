@@ -933,6 +933,3 @@ class BotsService {
 
 export const botsService = new BotsService();
 
-// Legacy alias for backwards compatibility
-export const orgPlatformsService = botsService;
-

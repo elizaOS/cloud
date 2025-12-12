@@ -2,7 +2,7 @@
  * Anonymous Session Creator Service
  * 
  * Shared logic for creating anonymous users and sessions.
- * Used by both the API route and lib/auth-anonymous.ts to avoid code duplication.
+ * Used by API routes and lib/session/session.ts for anonymous user creation.
  */
 
 import { db } from "@/db/client";

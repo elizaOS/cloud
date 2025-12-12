@@ -27,7 +27,7 @@ import type {
   SearchFilters,
   SortOptions,
   PaginationOptions,
-  MarketplaceSearchResult,
+  CharacterSearchResult,
   ExtendedCharacter,
   CloneCharacterOptions,
   CategoryInfo,
@@ -46,7 +46,7 @@ export class CharacterMarketplaceService {
     sortOptions: SortOptions;
     pagination: PaginationOptions;
     includeStats: boolean;
-  }): Promise<MarketplaceSearchResult> {
+  }): Promise<CharacterSearchResult> {
     const {
       userId,
       organizationId,
@@ -147,7 +147,7 @@ export class CharacterMarketplaceService {
       );
     }
 
-    const result: MarketplaceSearchResult = {
+    const result: CharacterSearchResult = {
       characters: paginatedCharacters,
       pagination: {
         page: pagination.page,
@@ -484,7 +484,7 @@ export class CharacterMarketplaceService {
     sortOptions: SortOptions;
     pagination: PaginationOptions;
     includeStats: boolean;
-  }): Promise<MarketplaceSearchResult> {
+  }): Promise<CharacterSearchResult> {
     const { filters, sortOptions, pagination, includeStats } = options;
 
     const organizationId = "public";
@@ -553,7 +553,7 @@ export class CharacterMarketplaceService {
       });
     }
 
-    const result: MarketplaceSearchResult = {
+    const result: CharacterSearchResult = {
       characters: enrichedCharacters,
       pagination: {
         page: pagination.page,

@@ -1,9 +1,10 @@
 /**
- * Marketplace type definitions.
+ * @deprecated This file is deprecated. Import from "./characters" instead.
+ * 
+ * Marketplace types have been consolidated into characters.ts.
  */
 
-// Re-export shared character types
-export type {
+export {
   CategoryId,
   SortBy,
   SortOrder,
@@ -17,35 +18,9 @@ export type {
   CategoryInfo,
   CloneCharacterOptions,
   TrackingResponse,
+  CharacterSearchResult,
+  CharacterListState,
+  // Deprecated aliases for backwards compatibility
+  MarketplaceSearchResult,
+  MarketplaceState,
 } from "./characters";
-
-/**
- * Result of a marketplace search query.
- */
-export interface MarketplaceSearchResult {
-  characters: ExtendedCharacter[];
-  pagination: PaginationResult;
-  filters: {
-    appliedFilters: SearchFilters;
-    availableCategories: CategoryInfo[];
-  };
-  cached: boolean;
-}
-
-
-/**
- * State for marketplace UI component.
- */
-export interface MarketplaceState {
-  characters: ExtendedCharacter[];
-  filteredCharacters: ExtendedCharacter[];
-  selectedCharacter: ExtendedCharacter | null;
-  view: "grid" | "list";
-  activeCategory: CategoryId | null;
-  searchQuery: string;
-  sortBy: SortBy;
-  filters: SearchFilters;
-  isLoading: boolean;
-  isLoadingStats: boolean;
-}
-

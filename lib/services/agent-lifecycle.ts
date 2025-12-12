@@ -749,6 +749,3 @@ class AgentLifecycleService {
 // Export singleton instance
 export const agentLifecycleService = new AgentLifecycleService();
 
-// Legacy alias for backwards compatibility
-export const orgAgentLifecycleService = agentLifecycleService;
-

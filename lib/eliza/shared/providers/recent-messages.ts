@@ -22,13 +22,22 @@ import { isVisibleDialogueMessage } from "@/lib/types/message-content";
  * 2. metadata.web.name
  * 3. names[0]
  */
+/** Entity with optional data field for backwards compatibility */
+interface EntityWithData extends Entity {
+  data?: string;
+}
+
 function getEntityDisplayName(entity: Entity): string {
-  try {
     // Parse metadata if it's stored in data field as string
     let metadata: Record<string, unknown> | undefined;
     
-    if (typeof (entity as any).data === 'string') {
-      metadata = JSON.parse((entity as any).data);
+  const entityWithData = entity as EntityWithData;
+  if (typeof entityWithData.data === 'string') {
+    try {
+      metadata = JSON.parse(entityWithData.data);
+    } catch {
+      // If parsing fails, fall through to other methods
+    }
     } else if (entity.metadata) {
       metadata = entity.metadata as Record<string, unknown>;
     }
@@ -43,9 +52,6 @@ function getEntityDisplayName(entity: Entity): string {
       if (webMetadata.name && typeof webMetadata.name === 'string') {
         return webMetadata.name;
       }
-    }
-  } catch (e) {
-    // If parsing fails, fall through to names[0]
   }
 
   // Final fallback to names[0]
@@ -87,9 +93,15 @@ export const recentMessagesProvider: Provider = {
 
   get: async (runtime: IAgentRuntime, message: Memory, _state: State) => {
     try {
-      const memoryService = runtime.getService(
-        "memory"
-      ) as any;
+      interface MemoryServiceConfig {
+        shortTermSummarizationThreshold: number;
+        shortTermRetainRecent: number;
+      }
+      interface MemoryService {
+        getConfig(): MemoryServiceConfig;
+        getCurrentSessionSummary(roomId: string): Promise<{ lastMessageOffset?: number } | null>;
+      }
+      const memoryService = runtime.getService("memory") as MemoryService | undefined;
       const { roomId } = message;
 
       // Get configuration

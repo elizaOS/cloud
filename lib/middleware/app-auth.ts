@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { appAuthSessionsService } from "@/lib/services/app-auth-sessions";
 import { usersService } from "@/lib/services/users";
+import { logger } from "@/lib/utils/logger";
 import type { UserWithOrganization } from "@/lib/types";
 
 type AppAuthResult =
@@ -75,7 +76,7 @@ export async function verifyAppToken(
       user,
     };
   } catch (error) {
-    console.error("[App Auth] Token verification failed:", error);
+    logger.error("[App Auth] Token verification failed", { error });
     return {
       success: false,
       error: "Authentication failed",

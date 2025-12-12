@@ -128,7 +128,7 @@ export function checkRateLimit(
     : Math.ceil((entry.resetAt - now) / 1000);
 
   if (!allowed) {
-    console.warn("Rate limit exceeded", {
+    logger.warn("Rate limit exceeded", {
       key,
       count: entry.count,
       max: config.maxRequests,
@@ -313,7 +313,7 @@ export async function checkCostBasedRateLimit(
     : Math.ceil((entry.resetAt - now) / 1000);
 
   if (!allowed) {
-    console.warn("Cost-based rate limit exceeded", {
+    logger.warn("Cost-based rate limit exceeded", {
       key,
       cost,
       totalCost: entry.totalCost,

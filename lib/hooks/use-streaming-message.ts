@@ -1,5 +1,7 @@
 "use client";
 
+import { logger } from "@/lib/utils/logger";
+
 /**
  * Streaming message structure from SSE events.
  */
@@ -128,7 +130,7 @@ export async function sendStreamingMessage({
         try {
           processSSEMessage(buffer.trim(), onMessage, onError, onComplete);
         } catch (err) {
-          console.error("[Stream] Error processing final buffer:", err);
+          logger.error("[Stream] Error processing final buffer:", err);
           onError?.("Stream ended unexpectedly");
         }
       }
@@ -147,7 +149,7 @@ export async function sendStreamingMessage({
       try {
         processSSEMessage(message.trim(), onMessage, onError, onComplete);
       } catch (err) {
-        console.error("[Stream] Error parsing SSE message:", err, message);
+        logger.error("[Stream] Error parsing SSE message:", err, message);
         // Continue processing other messages even if one fails
       }
     }
@@ -191,7 +193,7 @@ function processSSEMessage(
   try {
     data = JSON.parse(dataString);
   } catch (err) {
-    console.error("[Stream] Failed to parse JSON data:", dataString, err);
+    logger.error("[Stream] Failed to parse JSON data:", dataString, err);
     throw new Error(`Invalid JSON in SSE data: ${err instanceof Error ? err.message : String(err)}`);
   }
 
@@ -202,7 +204,7 @@ function processSSEMessage(
       if (isValidStreamingMessage(data)) {
         onMessage(data);
       } else {
-        console.warn("[Stream] Invalid message format:", data);
+        logger.warn("[Stream] Invalid message format:", data);
       }
       break;
     case "error":
@@ -216,16 +218,16 @@ function processSSEMessage(
       break;
     case "connected":
       // Connection confirmation - can be ignored or logged
-      console.debug("[Stream] Connected:", data);
+      logger.debug("[Stream] Connected:", data);
       break;
     case "warning":
       // Warning event - log but don't treat as error
       const warningData = data as SSEErrorData;
       const warningMessage = warningData?.message || "Warning received";
-      console.warn("[Stream] Warning:", warningMessage);
+      logger.warn("[Stream] Warning:", warningMessage);
       break;
     default:
-      console.debug(`[Stream] Unhandled event type: ${eventType}`, data);
+      logger.debug(`[Stream] Unhandled event type: ${eventType}`, data);
   }
 }
 

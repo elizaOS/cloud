@@ -143,30 +143,26 @@ export class FragmentProjectsService {
     };
   }
 
+  /**
+   * Deploy a fragment project as a container
+   * 
+   * @experimental Container deployment from fragments is not yet available.
+   * Use the standard container deployment API (/api/v1/containers) instead,
+   * or deploy as an app using deployAsApp().
+   */
   async deployAsContainer(
-    projectId: string,
-    options: {
+    _projectId: string,
+    _options: {
       name: string;
       project_name: string;
       port?: number;
     }
-  ) {
-    const project = await fragmentProjectsRepository.findById(projectId);
-    if (!project) {
-      throw new Error("Project not found");
-    }
-
-    logger.info(`Deployed fragment project as container (placeholder)`, {
-      projectId,
-    });
-
-    await fragmentProjectsRepository.update(projectId, {
-      deployed_container_id: "placeholder",
-      status: "deployed",
-      deployed_at: new Date(),
-    });
-
-    return { containerId: "placeholder" };
+  ): Promise<{ containerId: string }> {
+    throw new Error(
+      "Container deployment from fragments is not yet available. " +
+      "Please use the standard container deployment API (/api/v1/containers) " +
+      "or deploy as an app instead."
+    );
   }
 }
 

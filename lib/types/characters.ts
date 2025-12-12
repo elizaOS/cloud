@@ -168,3 +168,46 @@ export interface TrackingResponse {
   count: number;
 }
 
+/**
+ * Result of a character search query.
+ * Used by both marketplace and my-agents views.
+ */
+export interface CharacterSearchResult {
+  characters: ExtendedCharacter[];
+  pagination: PaginationResult;
+  filters: {
+    appliedFilters: SearchFilters;
+    availableCategories: CategoryInfo[];
+  };
+  cached: boolean;
+}
+
+/**
+ * State for character list UI components.
+ * Used by both marketplace and my-agents views.
+ */
+export interface CharacterListState {
+  characters: ExtendedCharacter[];
+  filteredCharacters: ExtendedCharacter[];
+  selectedCharacter: ExtendedCharacter | null;
+  view: "grid" | "list";
+  activeCategory: CategoryId | null;
+  searchQuery: string;
+  sortBy: SortBy;
+  filters: SearchFilters;
+  isLoading: boolean;
+  isLoadingStats: boolean;
+}
+
+/** @deprecated Use CharacterSearchResult instead */
+export type MarketplaceSearchResult = CharacterSearchResult;
+
+/** @deprecated Use CharacterSearchResult instead */
+export type MyAgentsSearchResult = CharacterSearchResult;
+
+/** @deprecated Use CharacterListState instead */
+export type MarketplaceState = CharacterListState;
+
+/** @deprecated Use CharacterListState instead */
+export type MyAgentsState = CharacterListState;
+

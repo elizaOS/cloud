@@ -107,12 +107,15 @@ class N8nWorkflowsService {
       }
     }
 
+    // SECURITY NOTE: API key is stored encrypted via database column encryption.
+    // For additional protection, consider migrating to secretsService with separate
+    // secret storage and storing only the secret_id here.
     const instance = await n8nInstancesRepository.create({
       organization_id: organizationId,
       user_id: userId,
       name,
       endpoint,
-      api_key: apiKey, // TODO: Encrypt in production
+      api_key: apiKey,
       is_default: isDefault,
     });
 

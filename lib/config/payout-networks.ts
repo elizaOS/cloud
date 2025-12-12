@@ -13,6 +13,7 @@
  */
 
 import type { Chain } from "viem";
+import { logger } from "@/lib/utils/logger";
 import { mainnet, base, bsc, sepolia, baseSepolia, bscTestnet } from "viem/chains";
 import { jeju, jejuTestnet } from "./chains";
 
@@ -306,7 +307,7 @@ export function resolveNetwork(network: PayoutNetwork): PayoutNetwork {
   
   // If we're in mainnet mode and given a testnet network, warn but allow
   if (!isTestnetMode() && config.isTestnet) {
-    console.warn(`[Payout] Warning: Using testnet network ${network} in mainnet mode`);
+    logger.warn("[Payout] Using testnet network in mainnet mode", { network });
   }
   
   return network;

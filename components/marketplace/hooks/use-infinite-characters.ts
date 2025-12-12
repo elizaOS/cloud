@@ -15,8 +15,8 @@ import type {
   ExtendedCharacter,
   SearchFilters,
   SortBy,
-  MyAgentsSearchResult,
-} from "@/lib/types/my-agents";
+  CharacterSearchResult,
+} from "@/lib/types/characters";
 
 interface UseInfiniteCharactersOptions {
   filters: SearchFilters;
@@ -139,7 +139,7 @@ export function useInfiniteCharacters({
           throw new Error(json.error || "API returned unsuccessful response");
         }
 
-        const result: MyAgentsSearchResult = json.data;
+        const result: CharacterSearchResult = json.data;
 
         setState((prev) => {
           let newCharacters: ExtendedCharacter[];

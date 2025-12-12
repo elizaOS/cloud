@@ -589,6 +589,73 @@ export class UserCharactersRepository {
       .orderBy(desc(userCharacters.erc8004_registered_at))
       .limit(limit);
   }
+
+  /**
+   * Records inference earnings for a character.
+   * Uses atomic SQL operations for safe concurrent updates.
+   */
+  async recordInferenceEarnings(
+    id: string,
+    creatorEarnings: string,
+    platformRevenue: string
+  ): Promise<void> {
+    await db
+      .update(userCharacters)
+      .set({
+        total_inference_requests: sql`${userCharacters.total_inference_requests} + 1`,
+        total_creator_earnings: sql`${userCharacters.total_creator_earnings} + ${creatorEarnings}::numeric`,
+        total_platform_revenue: sql`${userCharacters.total_platform_revenue} + ${platformRevenue}::numeric`,
+        updated_at: new Date(),
+      })
+      .where(eq(userCharacters.id, id));
+  }
+
+  /**
+   * Updates ERC-8004 registration status for a character.
+   */
+  async updateERC8004Registration(
+    id: string,
+    data: {
+      erc8004_registered: boolean;
+      erc8004_network?: string;
+      erc8004_agent_id?: number;
+      erc8004_agent_uri?: string;
+      erc8004_tx_hash?: string;
+    }
+  ): Promise<UserCharacter | undefined> {
+    const [character] = await db
+      .update(userCharacters)
+      .set({
+        ...data,
+        erc8004_registered_at: data.erc8004_registered ? new Date() : null,
+        updated_at: new Date(),
+      })
+      .where(eq(userCharacters.id, id))
+      .returning();
+    return character;
+  }
+
+  /**
+   * Updates monetization settings for a character.
+   */
+  async updateMonetization(
+    id: string,
+    data: {
+      monetization_enabled: boolean;
+      inference_markup_percentage?: string;
+      payout_wallet_address?: string;
+    }
+  ): Promise<UserCharacter | undefined> {
+    const [character] = await db
+      .update(userCharacters)
+      .set({
+        ...data,
+        updated_at: new Date(),
+      })
+      .where(eq(userCharacters.id, id))
+      .returning();
+    return character;
+  }
 }
 
 /**

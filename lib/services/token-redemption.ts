@@ -1,6 +1,9 @@
 /**
  * Token Redemption Service
  * 
+ * @deprecated Use SecureTokenRedemptionService from './token-redemption-secure.ts' instead.
+ * This version has known vulnerabilities that are fixed in the secure version.
+ * 
  * Handles secure conversion of points/credits to elizaOS tokens with multi-chain payout.
  * 
  * FLOW:
@@ -61,11 +64,14 @@ import { eq, and, sql, gte } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 import { elizaTokenPriceService, ELIZA_TOKEN_ADDRESSES, type SupportedNetwork } from "./eliza-token-price";
 import { isAddress, getAddress, createPublicClient, http, type Address } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import { ERC20_ABI } from "@/lib/utils/abis/erc20";
 import { mainnet, base, bsc } from "viem/chains";
 import { jeju, jejuTestnet } from "@/lib/config/chains";
 import { PublicKey, Connection } from "@solana/web3.js";
+import nacl from "tweetnacl";
 import { getAssociatedTokenAddress, getAccount } from "@solana/spl-token";
+import bs58 from "bs58";
 
 // Configuration
 const CONFIG = {
@@ -163,44 +169,49 @@ export class TokenRedemptionService {
     network: SupportedNetwork,
     requiredAmount: number
   ): Promise<{ available: boolean; balance: number; error?: string }> {
-    // Get hot wallet address from env
-    const hotWalletAddress = process.env.EVM_PAYOUT_WALLET_ADDRESS || 
-      ((process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY)
-        ? this.deriveEvmAddress(process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY!)
-        : null);
+    // Get hot wallet address - prefer explicit address, otherwise derive from private key
+    const evmPrivateKey = process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY;
+    const hotWalletAddress = process.env.EVM_PAYOUT_WALLET_ADDRESS ||
+      (evmPrivateKey ? this.deriveEvmAddress(evmPrivateKey) : null);
     
+    const solanaPrivateKey = process.env.SOLANA_PAYOUT_PRIVATE_KEY;
     const solanaWalletAddress = process.env.SOLANA_PAYOUT_WALLET_ADDRESS ||
-      (process.env.SOLANA_PAYOUT_PRIVATE_KEY
-        ? this.deriveSolanaAddress(process.env.SOLANA_PAYOUT_PRIVATE_KEY)
-        : null);
+      (solanaPrivateKey ? this.deriveSolanaAddress(solanaPrivateKey) : null);
 
     if (network === "solana") {
       if (!solanaWalletAddress) {
-        return { available: false, balance: 0, error: "Solana payouts not configured" };
+        return { available: false, balance: 0, error: "Solana payouts not configured - set SOLANA_PAYOUT_WALLET_ADDRESS or SOLANA_PAYOUT_PRIVATE_KEY" };
       }
       return await this.checkSolanaBalance(solanaWalletAddress, requiredAmount);
     } else {
       if (!hotWalletAddress) {
-        return { available: false, balance: 0, error: "EVM payouts not configured" };
+        return { available: false, balance: 0, error: "EVM payouts not configured - set EVM_PAYOUT_WALLET_ADDRESS or EVM_PAYOUT_PRIVATE_KEY" };
       }
       return await this.checkEvmBalance(network, hotWalletAddress, requiredAmount);
     }
   }
 
   /**
-   * Derive EVM address from private key (without importing full account logic)
+   * Derive EVM address from private key using viem.
+   * Returns the checksummed address.
    */
-  private deriveEvmAddress(privateKey: string): string | null {
-    // This is a simplified check - in practice, use proper key derivation
-    // For now, we'll just rely on the env var being set
-    return process.env.EVM_PAYOUT_WALLET_ADDRESS || null;
+  private deriveEvmAddress(privateKey: string): string {
+    const normalizedKey = privateKey.startsWith("0x")
+      ? (privateKey as `0x${string}`)
+      : (`0x${privateKey}` as `0x${string}`);
+    const account = privateKeyToAccount(normalizedKey);
+    return account.address;
   }
 
   /**
-   * Derive Solana address from private key
+   * Derive Solana address from base58-encoded private key.
+   * Returns the public key as a base58 string.
    */
-  private deriveSolanaAddress(privateKey: string): string | null {
-    return process.env.SOLANA_PAYOUT_WALLET_ADDRESS || null;
+  private deriveSolanaAddress(privateKey: string): string {
+    const decoded = bs58.decode(privateKey);
+    // Extract public key from secret key (last 32 bytes of 64-byte secret key, or use nacl)
+    const keypair = nacl.sign.keyPair.fromSecretKey(decoded);
+    return new PublicKey(keypair.publicKey).toBase58();
   }
 
   /**

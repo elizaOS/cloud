@@ -95,6 +95,65 @@ const ENV_VARS = {
     validate: (value: string) => value.startsWith("whsec_"),
     errorMessage: "Must start with 'whsec_'",
   },
+
+  // Token Redemption & Payouts (CRITICAL SECURITY)
+  EVM_PAYOUT_PRIVATE_KEY: {
+    required: false,
+    description: "Private key for EVM token payouts (NEVER log or expose)",
+    validate: (value: string) => {
+      // Validate hex format (with or without 0x prefix)
+      const normalized = value.startsWith("0x") ? value.slice(2) : value;
+      return /^[a-fA-F0-9]{64}$/.test(normalized);
+    },
+    errorMessage: "Must be a valid 32-byte hex private key",
+  },
+  EVM_PAYOUT_WALLET_ADDRESS: {
+    required: false,
+    description: "EVM wallet address for payouts (checksummed)",
+    validate: (value: string) => /^0x[a-fA-F0-9]{40}$/.test(value),
+    errorMessage: "Must be a valid Ethereum address (0x + 40 hex chars)",
+  },
+  SOLANA_PAYOUT_PRIVATE_KEY: {
+    required: false,
+    description: "Base58-encoded private key for Solana payouts (NEVER log or expose)",
+    validate: (value: string) => {
+      // Base58 validation (Solana keys are 64 bytes = ~88 base58 chars)
+      return /^[1-9A-HJ-NP-Za-km-z]{80,90}$/.test(value);
+    },
+    errorMessage: "Must be a valid base58-encoded Solana private key",
+  },
+  SOLANA_PAYOUT_WALLET_ADDRESS: {
+    required: false,
+    description: "Solana wallet address for payouts",
+    validate: (value: string) => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value),
+    errorMessage: "Must be a valid base58-encoded Solana address",
+  },
+  AGENT0_PRIVATE_KEY: {
+    required: false,
+    description: "Private key for decentralized x402 settlement (NEVER log or expose)",
+    validate: (value: string) => {
+      const normalized = value.startsWith("0x") ? value.slice(2) : value;
+      return /^[a-fA-F0-9]{64}$/.test(normalized);
+    },
+    errorMessage: "Must be a valid 32-byte hex private key",
+  },
+
+  // Encryption
+  KMS_KEY_ID: {
+    required: false,
+    description: "AWS KMS key ID for envelope encryption",
+    validate: (value: string) => value.length > 0,
+    errorMessage: "Must be a valid KMS key ID or ARN",
+  },
+  ENCRYPTION_KEY: {
+    required: false,
+    description: "Fallback encryption key when KMS unavailable (32 bytes hex)",
+    validate: (value: string) => {
+      const normalized = value.startsWith("0x") ? value.slice(2) : value;
+      return /^[a-fA-F0-9]{64}$/.test(normalized);
+    },
+    errorMessage: "Must be a valid 32-byte hex key",
+  },
 } as const;
 
 /**
@@ -227,6 +286,21 @@ export function isFeatureConfigured(feature: string): boolean {
       return !!process.env.BLOB_READ_WRITE_TOKEN;
     case "ai":
       return !!(process.env.OPENAI_API_KEY || process.env.AI_GATEWAY_API_KEY);
+    case "evm-payouts":
+      // Either private key (to derive address) or explicit address with key
+      return !!(
+        process.env.EVM_PAYOUT_PRIVATE_KEY ||
+        (process.env.EVM_PAYOUT_WALLET_ADDRESS && process.env.EVM_PRIVATE_KEY)
+      );
+    case "solana-payouts":
+      return !!(
+        process.env.SOLANA_PAYOUT_PRIVATE_KEY ||
+        process.env.SOLANA_PAYOUT_WALLET_ADDRESS
+      );
+    case "x402":
+      return !!process.env.AGENT0_PRIVATE_KEY;
+    case "encryption":
+      return !!(process.env.KMS_KEY_ID || process.env.ENCRYPTION_KEY);
     default:
       return false;
   }
@@ -255,6 +329,10 @@ export function logConfigurationStatus(): void {
     { name: "Stripe Payments", key: "stripe" },
     { name: "Blob Storage", key: "blob" },
     { name: "AI Services", key: "ai" },
+    { name: "EVM Token Payouts", key: "evm-payouts" },
+    { name: "Solana Token Payouts", key: "solana-payouts" },
+    { name: "x402 Decentralized Settlement", key: "x402" },
+    { name: "Secret Encryption", key: "encryption" },
   ];
 
   for (const feature of features) {

@@ -12,6 +12,7 @@
 import { useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { isMobileApp } from "@/lib/api/mobile-client";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Deep link event data
@@ -90,7 +91,7 @@ export function useDeepLink(handlers?: Record<string, DeepLinkHandler>): void {
   
   const handleDeepLink = useCallback((urlString: string) => {
     const event = parseDeepLink(urlString);
-    console.log("[DeepLink] Received:", event);
+    logger.debug("[DeepLink] Received:", event);
     
     // Check for custom handlers
     const customHandlers = handlersRef.current;
@@ -125,19 +126,19 @@ export function useDeepLink(handlers?: Record<string, DeepLinkHandler>): void {
       
       // Listen for auth callbacks
       const unlistenAuth = await listen("auth-callback", (event: { payload: string }) => {
-        console.log("[DeepLink] Auth callback:", event.payload);
+        logger.debug("[DeepLink] Auth callback:", event.payload);
         handleDeepLink(event.payload);
       });
       
       // Listen for billing success
       const unlistenBilling = await listen("billing-success", (event: { payload: string }) => {
-        console.log("[DeepLink] Billing success:", event.payload);
+        logger.debug("[DeepLink] Billing success:", event.payload);
         handleDeepLink(event.payload);
       });
       
       // Listen for generic deep links
       const unlistenGeneric = await listen("deep-link", (event: { payload: string }) => {
-        console.log("[DeepLink] Generic deep link:", event.payload);
+        logger.debug("[DeepLink] Generic deep link:", event.payload);
         handleDeepLink(event.payload);
       });
       
@@ -162,7 +163,7 @@ export function useDeepLink(handlers?: Record<string, DeepLinkHandler>): void {
 export function useAuthDeepLink(onCallback?: (params: Record<string, string>) => void): void {
   useDeepLink({
     "/auth/callback": (event) => {
-      console.log("[DeepLink] Auth callback received:", event.params);
+      logger.debug("[DeepLink] Auth callback received:", event.params);
       
       if (onCallback) {
         onCallback(event.params);
@@ -184,7 +185,7 @@ export function useAuthDeepLink(onCallback?: (params: Record<string, string>) =>
 export function useBillingDeepLink(onSuccess?: () => void): void {
   useDeepLink({
     "/billing/success": (event) => {
-      console.log("[DeepLink] Billing success:", event.params);
+      logger.debug("[DeepLink] Billing success:", event.params);
       
       if (onSuccess) {
         onSuccess();
