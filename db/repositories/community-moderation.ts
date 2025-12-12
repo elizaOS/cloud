@@ -77,11 +77,8 @@ export const tokenGatesRepository = {
     return updated ?? null;
   },
 
-  async delete(id: string): Promise<boolean> {
-    const result = await db
-      .delete(orgTokenGates)
-      .where(eq(orgTokenGates.id, id));
-    return true;
+  async delete(id: string): Promise<void> {
+    await db.delete(orgTokenGates).where(eq(orgTokenGates.id, id));
   },
 
   async setEnabled(id: string, enabled: boolean): Promise<OrgTokenGate | null> {

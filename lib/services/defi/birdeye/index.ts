@@ -1,10 +1,6 @@
 /**
- * Birdeye Service
- *
- * Provides Solana DeFi analytics including token prices, OHLCV data,
- * wallet portfolios, trending tokens, and transaction history.
- *
- * API Documentation: https://docs.birdeye.so/
+ * Birdeye Service - Solana DeFi analytics
+ * API: https://docs.birdeye.so/
  */
 
 import { logger } from "@/lib/utils/logger";
@@ -35,20 +31,12 @@ import type {
 export * from "./types";
 export * from "./schemas";
 
-/**
- * Birdeye service configuration
- */
 export interface BirdeyeConfig {
   apiKey: string;
   defaultChain?: BirdeyeChain;
   timeout?: number;
 }
 
-/**
- * Birdeye Service Class
- *
- * Comprehensive Solana DeFi analytics service.
- */
 export class BirdeyeService {
   private readonly client: BirdeyeClient;
   private readonly config: BirdeyeConfig;
@@ -61,83 +49,48 @@ export class BirdeyeService {
     );
   }
 
-  /**
-   * Initialize service from environment variables
-   */
   static fromEnv(): BirdeyeService {
     const apiKey = process.env.BIRDEYE_API_KEY;
-
-    if (!apiKey) {
-      throw new Error("BIRDEYE_API_KEY environment variable is required");
-    }
+    if (!apiKey) throw new Error("BIRDEYE_API_KEY environment variable is required");
 
     return new BirdeyeService({
       apiKey,
       defaultChain: (process.env.BIRDEYE_DEFAULT_CHAIN as BirdeyeChain) ?? "solana",
-      timeout: process.env.BIRDEYE_TIMEOUT
-        ? parseInt(process.env.BIRDEYE_TIMEOUT, 10)
-        : undefined,
+      timeout: process.env.BIRDEYE_TIMEOUT ? parseInt(process.env.BIRDEYE_TIMEOUT, 10) : undefined,
     });
   }
 
-  /**
-   * Get a client for a specific chain
-   */
   forChain(chain: BirdeyeChain): BirdeyeClient {
     return this.client.withChain(chain);
   }
 
-  /**
-   * Get current token price
-   */
-  async getTokenPrice(
-    address: string,
-    chain?: BirdeyeChain
-  ): Promise<TokenPrice> {
+  async getTokenPrice(address: string, chain?: BirdeyeChain): Promise<TokenPrice> {
     const client = chain ? this.client.withChain(chain) : this.client;
+    logger.info(`[Birdeye] Getting price for ${address}`);
 
-    logger.info(`[Birdeye] Getting price for ${address} on ${chain ?? this.config.defaultChain}`);
-
-    const response = await client.get<BirdeyeResponse<BirdeyePriceData>>(
-      "/defi/price",
-      { address }
-    );
-
-    if (!response.success) {
-      throw new Error("Failed to fetch token price from Birdeye");
-    }
+    const response = await client.get<BirdeyeResponse<BirdeyePriceData>>("/defi/price", { address });
+    if (!response.success) throw new Error("Failed to fetch token price from Birdeye");
 
     return {
       address,
-      symbol: "", // Price endpoint doesn't return symbol
+      symbol: "",
       priceUsd: response.data.value,
       priceChange24h: response.data.priceChange24h,
       lastUpdated: new Date(response.data.updateUnixTime * 1000),
     };
   }
 
-  /**
-   * Get prices for multiple tokens
-   */
-  async getMultiPrice(
-    addresses: string[],
-    chain?: BirdeyeChain
-  ): Promise<Map<string, TokenPrice>> {
+  async getMultiPrice(addresses: string[], chain?: BirdeyeChain): Promise<Map<string, TokenPrice>> {
     const client = chain ? this.client.withChain(chain) : this.client;
-
     logger.info(`[Birdeye] Getting prices for ${addresses.length} tokens`);
 
     const response = await client.get<BirdeyeResponse<Record<string, BirdeyePriceData>>>(
       "/defi/multi_price",
       { list_address: addresses.join(",") }
     );
-
-    if (!response.success) {
-      throw new Error("Failed to fetch multi-price from Birdeye");
-    }
+    if (!response.success) throw new Error("Failed to fetch multi-price from Birdeye");
 
     const prices = new Map<string, TokenPrice>();
-
     for (const [address, data] of Object.entries(response.data)) {
       prices.set(address, {
         address,
@@ -147,36 +100,19 @@ export class BirdeyeService {
         lastUpdated: new Date(data.updateUnixTime * 1000),
       });
     }
-
     return prices;
   }
 
-  /**
-   * Get detailed token overview
-   */
-  async getTokenOverview(
-    address: string,
-    chain?: BirdeyeChain
-  ): Promise<BirdeyeTokenOverview> {
+  async getTokenOverview(address: string, chain?: BirdeyeChain): Promise<BirdeyeTokenOverview> {
     const client = chain ? this.client.withChain(chain) : this.client;
-
     logger.info(`[Birdeye] Getting token overview for ${address}`);
 
-    const response = await client.get<BirdeyeResponse<BirdeyeTokenOverview>>(
-      "/defi/token_overview",
-      { address }
-    );
-
-    if (!response.success) {
-      throw new Error("Failed to fetch token overview from Birdeye");
-    }
+    const response = await client.get<BirdeyeResponse<BirdeyeTokenOverview>>("/defi/token_overview", { address });
+    if (!response.success) throw new Error("Failed to fetch token overview from Birdeye");
 
     return response.data;
   }
 
-  /**
-   * Get OHLCV (candlestick) data
-   */
   async getOHLCV(
     address: string,
     options: {
@@ -187,22 +123,15 @@ export class BirdeyeService {
     chain?: BirdeyeChain
   ): Promise<OHLCVDataPoint[]> {
     const client = chain ? this.client.withChain(chain) : this.client;
+    logger.info(`[Birdeye] Getting OHLCV for ${address}`);
 
-    logger.info(`[Birdeye] Getting OHLCV for ${address}, interval: ${options.interval ?? "1H"}`);
-
-    const response = await client.get<BirdeyeResponse<{ items: BirdeyeOHLCVItem[] }>>(
-      "/defi/ohlcv",
-      {
-        address,
-        type: options.interval ?? "1H",
-        time_from: options.timeFrom,
-        time_to: options.timeTo,
-      }
-    );
-
-    if (!response.success) {
-      throw new Error("Failed to fetch OHLCV data from Birdeye");
-    }
+    const response = await client.get<BirdeyeResponse<{ items: BirdeyeOHLCVItem[] }>>("/defi/ohlcv", {
+      address,
+      type: options.interval ?? "1H",
+      time_from: options.timeFrom,
+      time_to: options.timeTo,
+    });
+    if (!response.success) throw new Error("Failed to fetch OHLCV data from Birdeye");
 
     return response.data.items.map((item) => ({
       timestamp: item.unixTime,
@@ -214,86 +143,58 @@ export class BirdeyeService {
     }));
   }
 
-  /**
-   * Get token transactions
-   */
   async getTokenTransactions(
     address: string,
-    options: {
-      offset?: number;
-      limit?: number;
-      txType?: "swap" | "all";
-    } = {},
+    options: { offset?: number; limit?: number; txType?: "swap" | "all" } = {},
     chain?: BirdeyeChain
   ): Promise<{ transactions: TokenTransaction[]; hasMore: boolean }> {
     const client = chain ? this.client.withChain(chain) : this.client;
-
     logger.info(`[Birdeye] Getting transactions for ${address}`);
 
-    const response = await client.get<BirdeyeResponse<BirdeyeTransactionListData>>(
-      "/defi/txs/token",
-      {
-        address,
-        offset: options.offset ?? 0,
-        limit: options.limit ?? 50,
-        tx_type: options.txType ?? "swap",
-      }
-    );
-
-    if (!response.success) {
-      throw new Error("Failed to fetch transactions from Birdeye");
-    }
-
-    const transactions: TokenTransaction[] = response.data.items.map((tx: BirdeyeTokenTransaction) => ({
-      signature: tx.txHash,
-      blockTime: tx.blockUnixTime,
-      type: "swap" as const,
-      tokenAddress: address,
-      amount: String(tx.from.uiAmount),
-      priceUsd: tx.from.price ?? tx.from.nearestPrice,
-      from: tx.owner,
-      to: tx.source,
-    }));
+    const response = await client.get<BirdeyeResponse<BirdeyeTransactionListData>>("/defi/txs/token", {
+      address,
+      offset: options.offset ?? 0,
+      limit: options.limit ?? 50,
+      tx_type: options.txType ?? "swap",
+    });
+    if (!response.success) throw new Error("Failed to fetch transactions from Birdeye");
 
     return {
-      transactions,
+      transactions: response.data.items.map((tx: BirdeyeTokenTransaction) => ({
+        signature: tx.txHash,
+        blockTime: tx.blockUnixTime,
+        type: "swap" as const,
+        tokenAddress: address,
+        amount: String(tx.from.uiAmount),
+        priceUsd: tx.from.price ?? tx.from.nearestPrice,
+        from: tx.owner,
+        to: tx.source,
+      })),
       hasMore: response.data.hasNext,
     };
   }
 
-  /**
-   * Get trending tokens
-   */
   async getTrendingTokens(
-    options: {
-      offset?: number;
-      limit?: number;
-    } = {},
+    options: { offset?: number; limit?: number } = {},
     chain?: BirdeyeChain
   ): Promise<TrendingToken[]> {
     const client = chain ? this.client.withChain(chain) : this.client;
+    logger.info("[Birdeye] Getting trending tokens");
 
-    logger.info(`[Birdeye] Getting trending tokens`);
+    const response = await client.get<BirdeyeResponse<{ items: BirdeyeTrendingToken[] }>>("/defi/token_trending", {
+      offset: options.offset ?? 0,
+      limit: options.limit ?? 20,
+    });
+    if (!response.success) throw new Error("Failed to fetch trending tokens from Birdeye");
 
-    const response = await client.get<BirdeyeResponse<{ items: BirdeyeTrendingToken[] }>>(
-      "/defi/token_trending",
-      {
-        offset: options.offset ?? 0,
-        limit: options.limit ?? 20,
-      }
-    );
-
-    if (!response.success) {
-      throw new Error("Failed to fetch trending tokens from Birdeye");
-    }
-
+    const effectiveChain = chain ?? this.config.defaultChain ?? "solana";
     return response.data.items.map((token) => ({
       token: {
         address: token.address,
         symbol: token.symbol,
         name: token.name,
         decimals: token.decimals,
-        chainId: (chain ?? this.config.defaultChain ?? "solana") as "solana",
+        chainId: effectiveChain as "solana",
         logoUri: token.logoURI,
       },
       rank: token.rank,
@@ -303,25 +204,14 @@ export class BirdeyeService {
     }));
   }
 
-  /**
-   * Get wallet portfolio (token holdings)
-   */
-  async getWalletPortfolio(
-    walletAddress: string,
-    chain?: BirdeyeChain
-  ): Promise<WalletPortfolio> {
+  async getWalletPortfolio(walletAddress: string, chain?: BirdeyeChain): Promise<WalletPortfolio> {
     const client = chain ? this.client.withChain(chain) : this.client;
+    logger.info(`[Birdeye] Getting portfolio for ${walletAddress}`);
 
-    logger.info(`[Birdeye] Getting portfolio for wallet ${walletAddress}`);
-
-    const response = await client.get<BirdeyeResponse<BirdeyeWalletPortfolio>>(
-      "/v1/wallet/token_list",
-      { wallet: walletAddress }
-    );
-
-    if (!response.success) {
-      throw new Error("Failed to fetch wallet portfolio from Birdeye");
-    }
+    const response = await client.get<BirdeyeResponse<BirdeyeWalletPortfolio>>("/v1/wallet/token_list", {
+      wallet: walletAddress,
+    });
+    if (!response.success) throw new Error("Failed to fetch wallet portfolio from Birdeye");
 
     const totalValue = response.data.totalUsd;
     const effectiveChain = chain ?? this.config.defaultChain ?? "solana";
@@ -346,86 +236,44 @@ export class BirdeyeService {
     };
   }
 
-  /**
-   * Get token security information
-   */
-  async getTokenSecurity(
-    address: string,
-    chain?: BirdeyeChain
-  ): Promise<BirdeyeTokenSecurity> {
+  async getTokenSecurity(address: string, chain?: BirdeyeChain): Promise<BirdeyeTokenSecurity> {
     const client = chain ? this.client.withChain(chain) : this.client;
-
     logger.info(`[Birdeye] Getting security info for ${address}`);
 
-    const response = await client.get<BirdeyeResponse<BirdeyeTokenSecurity>>(
-      "/defi/token_security",
-      { address }
-    );
-
-    if (!response.success) {
-      throw new Error("Failed to fetch token security from Birdeye");
-    }
+    const response = await client.get<BirdeyeResponse<BirdeyeTokenSecurity>>("/defi/token_security", { address });
+    if (!response.success) throw new Error("Failed to fetch token security from Birdeye");
 
     return response.data;
   }
 
-  /**
-   * Get token creation info
-   */
-  async getTokenCreationInfo(
-    address: string,
-    chain?: BirdeyeChain
-  ): Promise<BirdeyeTokenCreationInfo> {
+  async getTokenCreationInfo(address: string, chain?: BirdeyeChain): Promise<BirdeyeTokenCreationInfo> {
     const client = chain ? this.client.withChain(chain) : this.client;
-
     logger.info(`[Birdeye] Getting creation info for ${address}`);
 
-    const response = await client.get<BirdeyeResponse<BirdeyeTokenCreationInfo>>(
-      "/defi/token_creation_info",
-      { address }
-    );
-
-    if (!response.success) {
-      throw new Error("Failed to fetch token creation info from Birdeye");
-    }
+    const response = await client.get<BirdeyeResponse<BirdeyeTokenCreationInfo>>("/defi/token_creation_info", { address });
+    if (!response.success) throw new Error("Failed to fetch token creation info from Birdeye");
 
     return response.data;
   }
 
-  /**
-   * Search tokens by keyword
-   */
   async searchTokens(
     keyword: string,
-    options: {
-      offset?: number;
-      limit?: number;
-      sortBy?: "volume24hUSD" | "liquidity" | "marketcap";
-      sortType?: "asc" | "desc";
-    } = {},
+    options: { offset?: number; limit?: number; sortBy?: "volume24hUSD" | "liquidity" | "marketcap"; sortType?: "asc" | "desc" } = {},
     chain?: BirdeyeChain
   ): Promise<TokenInfo[]> {
     const client = chain ? this.client.withChain(chain) : this.client;
-
     logger.info(`[Birdeye] Searching tokens: "${keyword}"`);
 
-    const response = await client.get<BirdeyeResponse<{ items: BirdeyeTokenSearchResult[] }>>(
-      "/defi/v3/search",
-      {
-        keyword,
-        offset: options.offset ?? 0,
-        limit: options.limit ?? 20,
-        sort_by: options.sortBy ?? "volume24hUSD",
-        sort_type: options.sortType ?? "desc",
-      }
-    );
-
-    if (!response.success) {
-      throw new Error("Failed to search tokens from Birdeye");
-    }
+    const response = await client.get<BirdeyeResponse<{ items: BirdeyeTokenSearchResult[] }>>("/defi/v3/search", {
+      keyword,
+      offset: options.offset ?? 0,
+      limit: options.limit ?? 20,
+      sort_by: options.sortBy ?? "volume24hUSD",
+      sort_type: options.sortType ?? "desc",
+    });
+    if (!response.success) throw new Error("Failed to search tokens from Birdeye");
 
     const effectiveChain = chain ?? this.config.defaultChain ?? "solana";
-
     return response.data.items.map((item) => ({
       address: item.address,
       symbol: item.symbol,
@@ -436,31 +284,18 @@ export class BirdeyeService {
     }));
   }
 
-  /**
-   * Health check
-   */
   async healthCheck(): Promise<{ healthy: boolean; latencyMs: number }> {
     return this.client.healthCheck();
   }
 }
 
-// Singleton instance
 let serviceInstance: BirdeyeService | null = null;
 
-/**
- * Get or create Birdeye service singleton
- */
 export function getBirdeyeService(): BirdeyeService {
-  if (!serviceInstance) {
-    serviceInstance = BirdeyeService.fromEnv();
-  }
+  if (!serviceInstance) serviceInstance = BirdeyeService.fromEnv();
   return serviceInstance;
 }
 
-/**
- * Reset service instance (for testing)
- */
 export function resetBirdeyeService(): void {
   serviceInstance = null;
 }
-

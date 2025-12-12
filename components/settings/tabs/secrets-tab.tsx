@@ -887,11 +887,11 @@ export function SecretsTab({ user }: SecretsTabProps) {
 
                 {formState.scope === "project" && (
                   <div className="space-y-2">
-                    <Label className="text-white font-mono text-sm">Project Type</Label>
+                    <Label className="text-white font-mono text-xs md:text-sm">Project Type</Label>
                     <select
                       value={formState.projectType}
                       onChange={(e) => updateForm({ projectType: e.target.value as FormState["projectType"] })}
-                      className="w-full bg-transparent border border-[#303030] text-white p-2 font-mono text-sm"
+                      className="w-full bg-transparent border border-[#303030] text-white h-11 px-3 font-mono text-sm appearance-none"
                     >
                       <option value="" className="bg-[#0a0a0a]">Select type...</option>
                       <option value="character" className="bg-[#0a0a0a]">Agent</option>
@@ -905,14 +905,14 @@ export function SecretsTab({ user }: SecretsTabProps) {
 
                 {formState.scope === "project" && formState.projectType && (
                   <div className="space-y-2">
-                    <Label className="text-white font-mono text-sm">Project ID</Label>
+                    <Label className="text-white font-mono text-xs md:text-sm">Project ID</Label>
                     <Input
                       value={formState.projectId}
                       onChange={(e) => updateForm({ projectId: e.target.value })}
                       placeholder="Enter UUID..."
-                      className="bg-transparent border-[#303030] text-white font-mono"
+                      className="bg-transparent border-[#303030] text-white font-mono h-11"
                     />
-                    <p className="text-xs text-white/40 font-mono">
+                    <p className="text-[10px] md:text-xs text-white/40 font-mono">
                       {formState.projectType === "character" && "Find agent IDs in My Agents → select agent → URL contains the ID"}
                       {formState.projectType === "mcp" && "Find MCP IDs in your MCP settings"}
                       {formState.projectType === "workflow" && "Find workflow IDs in your n8n workflows list"}
@@ -924,11 +924,11 @@ export function SecretsTab({ user }: SecretsTabProps) {
 
                 {formState.scope === "environment" && (
                   <div className="space-y-2">
-                    <Label className="text-white font-mono text-sm">Environment</Label>
+                    <Label className="text-white font-mono text-xs md:text-sm">Environment</Label>
                     <select
                       value={formState.environment}
                       onChange={(e) => updateForm({ environment: e.target.value as FormState["environment"] })}
-                      className="w-full bg-transparent border border-[#303030] text-white p-2 font-mono text-sm"
+                      className="w-full bg-transparent border border-[#303030] text-white h-11 px-3 font-mono text-sm appearance-none"
                     >
                       <option value="" className="bg-[#0a0a0a]">Select environment...</option>
                       <option value="development" className="bg-[#0a0a0a]">Development</option>
@@ -939,11 +939,11 @@ export function SecretsTab({ user }: SecretsTabProps) {
                 )}
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-end pt-4">
+              <div className="flex flex-col sm:flex-row gap-3 justify-end pt-4">
                 <button
                   type="button"
                   onClick={() => updateModal({ showCreateModal: false })}
-                  className="px-4 py-2.5 border border-[#303030] text-white hover:bg-white/5 transition-colors order-2 sm:order-1 w-full sm:w-auto"
+                  className="h-11 px-4 border border-[#303030] text-white hover:bg-white/5 active:bg-white/10 transition-colors order-2 sm:order-1 w-full sm:w-auto"
                   disabled={operationState.creating}
                 >
                   <span className="font-mono text-sm whitespace-nowrap">Cancel</span>
@@ -952,7 +952,7 @@ export function SecretsTab({ user }: SecretsTabProps) {
                   type="button"
                   onClick={handleCreateSubmit}
                   disabled={operationState.creating || !formState.name.trim() || !formState.value.trim()}
-                  className="relative bg-[#e1e1e1] px-4 py-2.5 overflow-hidden hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2 w-full sm:w-auto"
+                  className="relative h-11 bg-[#e1e1e1] px-6 overflow-hidden hover:bg-white active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2 w-full sm:w-auto"
                 >
                   <div
                     className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
@@ -1031,11 +1031,11 @@ export function SecretsTab({ user }: SecretsTabProps) {
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-end pt-4">
+              <div className="flex flex-col sm:flex-row gap-3 justify-end pt-4">
                 <button
                   type="button"
                   onClick={() => updateModal({ showEditModal: false, selectedSecret: null })}
-                  className="px-4 py-2.5 border border-[#303030] text-white hover:bg-white/5 transition-colors order-2 sm:order-1 w-full sm:w-auto"
+                  className="h-11 px-4 border border-[#303030] text-white hover:bg-white/5 active:bg-white/10 transition-colors order-2 sm:order-1 w-full sm:w-auto"
                   disabled={operationState.updating}
                 >
                   <span className="font-mono text-sm whitespace-nowrap">Cancel</span>
@@ -1044,7 +1044,7 @@ export function SecretsTab({ user }: SecretsTabProps) {
                   type="button"
                   onClick={handleUpdateSubmit}
                   disabled={operationState.updating}
-                  className="relative bg-[#e1e1e1] px-4 py-2.5 overflow-hidden hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2 w-full sm:w-auto"
+                  className="relative h-11 bg-[#e1e1e1] px-6 overflow-hidden hover:bg-white active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2 w-full sm:w-auto"
                 >
                   <div
                     className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
@@ -1190,11 +1190,11 @@ DISCORD_BOT_TOKEN=...`}
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-end pt-4">
+              <div className="flex flex-col sm:flex-row gap-3 justify-end pt-4">
                 <button
                   type="button"
                   onClick={() => updateModal({ showBulkImportModal: false })}
-                  className="px-4 py-2.5 border border-[#303030] text-white hover:bg-white/5 transition-colors order-2 sm:order-1 w-full sm:w-auto"
+                  className="h-11 px-4 border border-[#303030] text-white hover:bg-white/5 active:bg-white/10 transition-colors order-2 sm:order-1 w-full sm:w-auto"
                   disabled={bulkImportState.importing}
                 >
                   <span className="font-mono text-sm whitespace-nowrap">Cancel</span>
@@ -1203,7 +1203,7 @@ DISCORD_BOT_TOKEN=...`}
                   type="button"
                   onClick={handleBulkImportSubmit}
                   disabled={bulkImportState.importing || !bulkImportState.envContent.trim()}
-                  className="relative bg-[#e1e1e1] px-4 py-2.5 overflow-hidden hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2 w-full sm:w-auto"
+                  className="relative h-11 bg-[#e1e1e1] px-6 overflow-hidden hover:bg-white active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2 w-full sm:w-auto"
                 >
                   <div
                     className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
@@ -1286,11 +1286,11 @@ DISCORD_BOT_TOKEN=...`}
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-end pt-4">
+              <div className="flex flex-col sm:flex-row gap-3 justify-end pt-4">
                 <button
                   type="button"
                   onClick={() => updateModal({ showRotateModal: false, selectedSecret: null })}
-                  className="px-4 py-2.5 border border-[#303030] text-white hover:bg-white/5 transition-colors order-2 sm:order-1 w-full sm:w-auto"
+                  className="h-11 px-4 border border-[#303030] text-white hover:bg-white/5 active:bg-white/10 transition-colors order-2 sm:order-1 w-full sm:w-auto"
                   disabled={operationState.rotating}
                 >
                   <span className="font-mono text-sm whitespace-nowrap">Cancel</span>
@@ -1299,7 +1299,7 @@ DISCORD_BOT_TOKEN=...`}
                   type="button"
                   onClick={handleRotateSubmit}
                   disabled={operationState.rotating || !formState.value.trim()}
-                  className="relative bg-[#FF5800] px-4 py-2.5 overflow-hidden hover:bg-[#FF5800]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2 w-full sm:w-auto"
+                  className="relative h-11 bg-[#FF5800] px-6 overflow-hidden hover:bg-[#FF5800]/90 active:bg-[#FF5800]/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2 w-full sm:w-auto"
                 >
                   <span className="relative z-10 text-white font-mono font-medium text-sm flex items-center justify-center gap-2 whitespace-nowrap">
                     {operationState.rotating ? (

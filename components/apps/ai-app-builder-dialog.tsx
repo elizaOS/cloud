@@ -57,7 +57,7 @@ interface AIAppBuilderDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type TemplateType = "chat" | "agent-dashboard" | "landing-page" | "analytics" | "blank";
+type TemplateType = "chat" | "agent-dashboard" | "landing-page" | "analytics" | "blank" | "mcp-service" | "a2a-agent";
 type SessionStatus = "idle" | "initializing" | "ready" | "generating" | "error" | "stopped";
 
 interface Message {
@@ -78,6 +78,8 @@ interface SessionData {
 const TEMPLATE_OPTIONS = [
   { value: "blank", label: "Blank Project", description: "Start from scratch" },
   { value: "chat", label: "Chat App", description: "AI chat interface" },
+  { value: "mcp-service", label: "MCP Service", description: "Model Context Protocol server" },
+  { value: "a2a-agent", label: "A2A Agent", description: "Agent-to-Agent protocol endpoint" },
   { value: "agent-dashboard", label: "Agent Dashboard", description: "Manage AI agents" },
   { value: "landing-page", label: "Landing Page", description: "Marketing page" },
   { value: "analytics", label: "Analytics Dashboard", description: "Data visualization" },

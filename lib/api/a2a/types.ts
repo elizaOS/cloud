@@ -418,6 +418,73 @@ export interface DomainAssignResult {
   message: string;
 }
 
+// ============================================
+// Code Agent Types
+// ============================================
+
+/**
+ * Code agent session creation result
+ */
+export interface CodeAgentSessionResult {
+  sessionId: string;
+  name: string | null;
+  status: string;
+  runtimeUrl: string | null;
+  expiresAt: string | null;
+}
+
+/**
+ * Code execution result
+ */
+export interface CodeExecutionResult {
+  success: boolean;
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  durationMs: number;
+  filesAffected?: string[];
+}
+
+/**
+ * Code interpreter result
+ */
+export interface CodeInterpreterResult {
+  success: boolean;
+  executionId: string;
+  output: string;
+  error?: string;
+  exitCode: number;
+  durationMs: number;
+  costCents: number;
+}
+
+/**
+ * File operation result
+ */
+export interface FileOperationResult {
+  success: boolean;
+  path: string;
+  content?: string;
+  size?: number;
+  error?: string;
+}
+
+/**
+ * Git operation result
+ */
+export interface GitOperationResult {
+  success: boolean;
+  message: string;
+  gitState?: {
+    isRepo: boolean;
+    branch?: string;
+    commitHash?: string;
+    remoteUrl?: string;
+    hasUncommittedChanges?: boolean;
+  };
+  error?: string;
+}
+
 /**
  * A2A method handler type
  */

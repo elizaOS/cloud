@@ -97,6 +97,18 @@ export {
   executeSkillDomainsVerify,
   executeSkillDomainsAssign,
   executeSkillDomainsUnassign,
+  // Code Agent skills
+  executeSkillCodeAgentCreateSession,
+  executeSkillCodeAgentExecute,
+  executeSkillCodeAgentReadFile,
+  executeSkillCodeAgentWriteFile,
+  executeSkillCodeAgentListFiles,
+  executeSkillCodeAgentGitClone,
+  executeSkillCodeAgentInstallPackages,
+  executeSkillCodeAgentSnapshot,
+  executeSkillCodeAgentTerminate,
+  // Code Interpreter skill
+  executeSkillCodeInterpreter,
 } from "./skills";
 
 // Handlers

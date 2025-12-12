@@ -17,8 +17,8 @@ describe("OAUTH_CONFIGS Structure", () => {
   let OAUTH_CONFIGS: Record<string, { authUrl: string; tokenUrl: string; profileUrl: string; scopes: string[]; clientIdEnv: string; clientSecretEnv: string }>;
 
   beforeAll(async () => {
-    const module = await import("@/lib/services/platform-credentials");
-    OAUTH_CONFIGS = module.OAUTH_CONFIGS;
+    const platformCredentialsModule = await import("@/lib/services/platform-credentials");
+    OAUTH_CONFIGS = platformCredentialsModule.OAUTH_CONFIGS;
   });
 
   test("all OAuth platforms have required fields", () => {
@@ -88,8 +88,8 @@ describe("SOCIAL_PLATFORMS Constant", () => {
   let SOCIAL_PLATFORMS: readonly string[];
 
   beforeAll(async () => {
-    const module = await import("@/lib/services/platform-credentials");
-    SOCIAL_PLATFORMS = module.SOCIAL_PLATFORMS;
+    const platformCredentialsModule = await import("@/lib/services/platform-credentials");
+    SOCIAL_PLATFORMS = platformCredentialsModule.SOCIAL_PLATFORMS;
   });
 
   test("includes all 11 social platforms", () => {
@@ -129,8 +129,8 @@ describe("MANUAL_AUTH_PLATFORMS Constant", () => {
   let MANUAL_AUTH_PLATFORMS: readonly string[];
 
   beforeAll(async () => {
-    const module = await import("@/lib/services/platform-credentials");
-    MANUAL_AUTH_PLATFORMS = module.MANUAL_AUTH_PLATFORMS;
+    const platformCredentialsModule = await import("@/lib/services/platform-credentials");
+    MANUAL_AUTH_PLATFORMS = platformCredentialsModule.MANUAL_AUTH_PLATFORMS;
   });
 
   test("includes exactly bluesky and telegram", () => {
@@ -484,87 +484,6 @@ describe("Profile Normalization", () => {
   });
 });
 
-// Test Concurrent Session Handling
-describe("Concurrent Session Handling", () => {
-  test("multiple sessions for same org should be allowed", () => {
-    const sessions = [
-      { id: "session1", org_id: "org-123", platform: "twitter" },
-      { id: "session2", org_id: "org-123", platform: "discord" },
-      { id: "session3", org_id: "org-123", platform: "twitter" }, // Same platform, different session
-    ];
+// Note: Concurrent session handling and rate limiting are tested via integration tests
+// as they require actual service behavior verification
 
-    // Should allow multiple sessions
-    expect(sessions.length).toBe(3);
-
-    // Should allow multiple sessions for same platform (different link attempts)
-    const twitterSessions = sessions.filter(s => s.platform === "twitter");
-    expect(twitterSessions.length).toBe(2);
-  });
-
-  test("session cleanup removes only expired sessions", () => {
-    const now = Date.now();
-    const sessions = [
-      { id: "1", expires_at: new Date(now - 60000) }, // Expired
-      { id: "2", expires_at: new Date(now + 60000) }, // Valid
-      { id: "3", expires_at: new Date(now - 1000) }, // Just expired
-      { id: "4", expires_at: new Date(now + 3600000) }, // Valid
-    ];
-
-    const validSessions = sessions.filter(s => s.expires_at > new Date());
-    const expiredSessions = sessions.filter(s => s.expires_at <= new Date());
-
-    expect(validSessions.length).toBe(2);
-    expect(expiredSessions.length).toBe(2);
-  });
-});
-
-// Test Error Messages
-describe("Error Message Quality", () => {
-  test("missing credentials error is actionable", () => {
-    const createMissingCredsError = (platform: string) => 
-      `No credentials found for ${platform}. Connect your ${platform} account in Settings → Connections.`;
-
-    const error = createMissingCredsError("twitter");
-    expect(error).toContain("twitter");
-    expect(error).toContain("Settings");
-    expect(error).toContain("Connections");
-  });
-
-  test("expired token error includes guidance", () => {
-    const createExpiredTokenError = (platform: string) => 
-      `Token expired for ${platform}. Please reconnect your account.`;
-
-    const error = createExpiredTokenError("discord");
-    expect(error).toContain("expired");
-    expect(error).toContain("reconnect");
-  });
-
-  test("OAuth failure error is specific", () => {
-    const createOAuthError = (platform: string, details: string) => 
-      `OAuth authorization failed for ${platform}: ${details}`;
-
-    const error = createOAuthError("twitter", "access_denied");
-    expect(error).toContain("OAuth");
-    expect(error).toContain("twitter");
-    expect(error).toContain("access_denied");
-  });
-});
-
-// Test Rate Limit Considerations
-describe("Rate Limit Considerations", () => {
-  test("token refresh should be rate limited per credential", () => {
-    const MIN_REFRESH_INTERVAL_MS = 60 * 1000; // 1 minute
-    const lastRefresh = Date.now() - 30000; // 30 seconds ago
-    const now = Date.now();
-
-    const canRefresh = (now - lastRefresh) >= MIN_REFRESH_INTERVAL_MS;
-    expect(canRefresh).toBe(false); // Too soon
-  });
-
-  test("OAuth session creation should allow reasonable frequency", () => {
-    const MAX_SESSIONS_PER_HOUR = 10;
-    const sessionCount = 5;
-
-    expect(sessionCount).toBeLessThanOrEqual(MAX_SESSIONS_PER_HOUR);
-  });
-});

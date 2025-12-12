@@ -174,8 +174,23 @@ class WalletVerificationService {
     // Clear challenge
     this.challenges.delete(key);
 
-    // Store wallet link
+    // Store wallet link - get server to find org
+    const { db } = await import("@/db");
+    const { eq } = await import("drizzle-orm");
+    const { orgPlatformServers } = await import("@/db/schemas/org-platforms");
+    
+    const [server] = await db
+      .select({ organization_id: orgPlatformServers.organization_id })
+      .from(orgPlatformServers)
+      .where(eq(orgPlatformServers.id, serverId))
+      .limit(1);
+
+    if (!server) {
+      return { verified: false, error: "Server not found" };
+    }
+
     const walletData: NewOrgMemberWallet = {
+      organization_id: server.organization_id,
       server_id: serverId,
       platform,
       platform_user_id: platformUserId,
@@ -184,7 +199,7 @@ class WalletVerificationService {
       verification_method: "signature",
       verification_signature: signature,
       verified_at: new Date(),
-      is_primary: true, // First wallet is primary
+      is_primary: true,
     };
 
     await memberWalletsRepository.upsert(walletData);
@@ -254,65 +269,39 @@ class WalletVerificationService {
     tokenAddress: string,
     tokenType: OrgTokenGate["token_type"]
   ): Promise<TokenBalanceResult> {
-    const rpcUrl = RPC_ENDPOINTS.solana;
-    const connection = new Connection(rpcUrl);
+    const connection = new Connection(RPC_ENDPOINTS.solana);
+    const pubkey = new PublicKey(walletAddress);
 
-    if (tokenType === "native") {
-      // Check SOL balance
-      const balance = await connection.getBalance(new PublicKey(walletAddress));
-      return {
-        hasBalance: balance > 0,
-        balance: (balance / 1e9).toString(),
-        chain: "solana",
-      };
-    }
-
-    if (tokenType === "spl" || tokenType === "token") {
-      // Check SPL token balance
+    // For SPL tokens (token type)
+    if (tokenType === "token") {
       const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
-        new PublicKey(walletAddress),
+        pubkey,
         { mint: new PublicKey(tokenAddress) }
       );
 
       let totalBalance = BigInt(0);
       for (const account of tokenAccounts.value) {
-        const info = account.account.data.parsed?.info;
-        if (info?.tokenAmount?.amount) {
-          totalBalance += BigInt(info.tokenAmount.amount);
-        }
+        const amount = account.account.data.parsed?.info?.tokenAmount?.amount;
+        if (amount) totalBalance += BigInt(amount);
       }
 
-      return {
-        hasBalance: totalBalance > 0,
-        balance: totalBalance.toString(),
-        tokenAddress,
-        chain: "solana",
-      };
+      return { hasBalance: totalBalance > 0, balance: totalBalance.toString(), tokenAddress, chain: "solana" };
     }
 
-    if (tokenType === "nft") {
-      // Check NFT ownership (by collection)
-      // This is simplified - production would verify collection address
+    // For NFTs (single or collection)
+    if (tokenType === "nft" || tokenType === "nft_collection") {
       const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
-        new PublicKey(walletAddress),
+        pubkey,
         { programId: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA") }
       );
 
-      // Look for NFTs (amount = 1, decimals = 0)
-      const nfts = tokenAccounts.value.filter((account) => {
-        const info = account.account.data.parsed?.info;
-        return (
-          info?.tokenAmount?.amount === "1" &&
-          info?.tokenAmount?.decimals === 0
-        );
-      });
+      // NFTs have amount=1, decimals=0
+      const nftCount = tokenAccounts.value.filter((account) => {
+        const info = account.account.data.parsed?.info?.tokenAmount;
+        return info?.amount === "1" && info?.decimals === 0;
+      }).length;
 
-      return {
-        hasBalance: nfts.length > 0,
-        balance: nfts.length.toString(),
-        tokenAddress,
-        chain: "solana",
-      };
+      return { hasBalance: nftCount > 0, balance: nftCount.toString(), tokenAddress, chain: "solana" };
     }
 
     return { hasBalance: false, balance: "0", chain: "solana" };
@@ -324,57 +313,28 @@ class WalletVerificationService {
     chain: string,
     tokenType: OrgTokenGate["token_type"]
   ): Promise<TokenBalanceResult> {
-    const rpcUrl = RPC_ENDPOINTS[chain] ?? RPC_ENDPOINTS.ethereum;
-    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    const provider = new ethers.JsonRpcProvider(RPC_ENDPOINTS[chain] ?? RPC_ENDPOINTS.ethereum);
 
-    if (tokenType === "native") {
-      // Check ETH/native balance
-      const balance = await provider.getBalance(walletAddress);
-      return {
-        hasBalance: balance > 0n,
-        balance: ethers.formatEther(balance),
-        chain,
-      };
-    }
-
-    if (tokenType === "erc20" || tokenType === "token") {
-      // Check ERC20 balance
+    // ERC20 tokens
+    if (tokenType === "token") {
       const contract = new ethers.Contract(
         tokenAddress,
         ["function balanceOf(address) view returns (uint256)"],
         provider
       );
       const balance: bigint = await contract.balanceOf(walletAddress);
-
-      return {
-        hasBalance: balance > 0n,
-        balance: balance.toString(),
-        tokenAddress,
-        chain,
-      };
+      return { hasBalance: balance > 0n, balance: balance.toString(), tokenAddress, chain };
     }
 
-    if (tokenType === "erc721" || tokenType === "nft") {
-      // Check ERC721 ownership
+    // ERC721 NFTs
+    if (tokenType === "nft" || tokenType === "nft_collection") {
       const contract = new ethers.Contract(
         tokenAddress,
         ["function balanceOf(address) view returns (uint256)"],
         provider
       );
       const balance: bigint = await contract.balanceOf(walletAddress);
-
-      return {
-        hasBalance: balance > 0n,
-        balance: balance.toString(),
-        tokenAddress,
-        chain,
-      };
-    }
-
-    if (tokenType === "erc1155") {
-      // ERC1155 requires token ID
-      // This is simplified - production would need token ID support
-      return { hasBalance: false, balance: "0", chain };
+      return { hasBalance: balance > 0n, balance: balance.toString(), tokenAddress, chain };
     }
 
     return { hasBalance: false, balance: "0", chain };
@@ -405,7 +365,7 @@ class WalletVerificationService {
         gate.token_type
       );
 
-      const requiredBalance = BigInt(gate.minimum_balance);
+      const requiredBalance = BigInt(gate.min_balance);
       const actualBalance = BigInt(balance.balance);
       const eligible = actualBalance >= requiredBalance;
 
@@ -413,9 +373,9 @@ class WalletVerificationService {
         eligible,
         gateId: gate.id,
         gateName: gate.name,
-        roleId: gate.role_id,
+        roleId: gate.discord_role_id ?? "",
         balance: balance.balance,
-        requiredBalance: gate.minimum_balance,
+        requiredBalance: gate.min_balance,
       });
     }
 
@@ -450,7 +410,6 @@ class WalletVerificationService {
 
     // Check each wallet against each gate
     const eligibleRoles = new Set<string>();
-    const roleToGate = new Map<string, string>();
 
     for (const wallet of wallets) {
       for (const gate of gates) {
@@ -463,12 +422,11 @@ class WalletVerificationService {
           gate.token_type
         );
 
-        const required = BigInt(gate.minimum_balance);
+        const required = BigInt(gate.min_balance);
         const actual = BigInt(balance.balance);
 
-        if (actual >= required) {
-          eligibleRoles.add(gate.role_id);
-          roleToGate.set(gate.role_id, gate.id);
+        if (actual >= required && gate.discord_role_id) {
+          eligibleRoles.add(gate.discord_role_id);
         }
       }
     }
@@ -485,7 +443,7 @@ class WalletVerificationService {
     }
 
     const currentRoles = new Set(member.roles);
-    const gateRoleIds = new Set(gates.map((g) => g.role_id));
+    const gateRoleIds = new Set(gates.map((g) => g.discord_role_id).filter(Boolean));
 
     // Calculate role changes
     const added: string[] = [];
@@ -526,7 +484,7 @@ class WalletVerificationService {
     // Update wallet records with assigned roles
     for (const wallet of wallets) {
       const assignedRoles = Array.from(eligibleRoles).filter((roleId) => {
-        const gate = gates.find((g) => g.role_id === roleId);
+        const gate = gates.find((g) => g.discord_role_id === roleId);
         return gate?.chain === wallet.chain;
       });
       await memberWalletsRepository.updateAssignedRoles(wallet.id, assignedRoles);

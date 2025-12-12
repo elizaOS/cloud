@@ -4924,3 +4924,352 @@ export async function executeSkillDomainsUnassign(
   };
 }
 
+// ============================================
+// CODE AGENT SKILLS
+// ============================================
+
+import type {
+  CodeAgentSessionResult,
+  CodeExecutionResult,
+  CodeInterpreterResult,
+  FileOperationResult,
+  GitOperationResult,
+} from "./types";
+
+/**
+ * Create code agent session
+ */
+export async function executeSkillCodeAgentCreateSession(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<CodeAgentSessionResult> {
+  const { codeAgentService } = await import("@/lib/services/code-agent");
+
+  const name = dataContent.name as string | undefined;
+  const description = dataContent.description as string | undefined;
+  const templateUrl = dataContent.templateUrl as string | undefined;
+  const loadOrgSecrets = dataContent.loadOrgSecrets as boolean ?? true;
+  const expiresInSeconds = dataContent.expiresInSeconds as number ?? 1800;
+
+  const session = await codeAgentService.createSession({
+    organizationId: ctx.user.organization_id,
+    userId: ctx.user.id,
+    name,
+    description,
+    templateUrl,
+    loadOrgSecrets,
+    expiresInSeconds,
+  });
+
+  return {
+    sessionId: session.id,
+    name: session.name,
+    status: session.status,
+    runtimeUrl: session.runtimeUrl,
+    expiresAt: session.expiresAt?.toISOString() ?? null,
+  };
+}
+
+/**
+ * Execute code in session
+ */
+export async function executeSkillCodeAgentExecute(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<CodeExecutionResult> {
+  const { codeAgentService } = await import("@/lib/services/code-agent");
+
+  const sessionId = dataContent.sessionId as string;
+  const type = dataContent.type as "code" | "command";
+  const language = dataContent.language as "python" | "javascript" | "typescript" | "shell" | undefined;
+  const code = dataContent.code as string | undefined;
+  const command = dataContent.command as string | undefined;
+  const args = dataContent.args as string[] | undefined;
+  const workingDirectory = dataContent.workingDirectory as string | undefined;
+  const timeout = dataContent.timeout as number | undefined;
+
+  if (!sessionId) throw new Error("sessionId is required");
+  if (!type) throw new Error("type is required");
+
+  // Verify session belongs to org
+  const session = await codeAgentService.getSession(sessionId, ctx.user.organization_id);
+  if (!session) throw new Error("Session not found");
+
+  let result;
+  if (type === "code") {
+    if (!code || !language) throw new Error("code and language required for type=code");
+    result = await codeAgentService.executeCode({
+      sessionId,
+      language,
+      code,
+      options: { workingDirectory, timeout },
+    });
+  } else {
+    if (!command) throw new Error("command required for type=command");
+    result = await codeAgentService.runCommand({
+      sessionId,
+      command,
+      args,
+      options: { workingDirectory, timeout },
+    });
+  }
+
+  return {
+    success: result.success,
+    exitCode: result.exitCode,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    durationMs: result.durationMs,
+    filesAffected: result.filesAffected,
+  };
+}
+
+/**
+ * Read file from session
+ */
+export async function executeSkillCodeAgentReadFile(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<FileOperationResult> {
+  const { codeAgentService } = await import("@/lib/services/code-agent");
+
+  const sessionId = dataContent.sessionId as string;
+  const path = (dataContent.path as string) || textContent;
+
+  if (!sessionId) throw new Error("sessionId is required");
+  if (!path) throw new Error("path is required");
+
+  const session = await codeAgentService.getSession(sessionId, ctx.user.organization_id);
+  if (!session) throw new Error("Session not found");
+
+  const result = await codeAgentService.readFile({ sessionId, path });
+
+  return {
+    success: result.success,
+    path: result.path,
+    content: result.content,
+    size: result.size,
+    error: result.error,
+  };
+}
+
+/**
+ * Write file to session
+ */
+export async function executeSkillCodeAgentWriteFile(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<FileOperationResult> {
+  const { codeAgentService } = await import("@/lib/services/code-agent");
+
+  const sessionId = dataContent.sessionId as string;
+  const path = dataContent.path as string;
+  const content = (dataContent.content as string) || textContent;
+
+  if (!sessionId) throw new Error("sessionId is required");
+  if (!path) throw new Error("path is required");
+  if (!content) throw new Error("content is required");
+
+  const session = await codeAgentService.getSession(sessionId, ctx.user.organization_id);
+  if (!session) throw new Error("Session not found");
+
+  const result = await codeAgentService.writeFile({ sessionId, path, content });
+
+  return {
+    success: result.success,
+    path: result.path,
+    error: result.error,
+  };
+}
+
+/**
+ * List files in session
+ */
+export async function executeSkillCodeAgentListFiles(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean; path: string; entries: Array<{ path: string; type: string; size?: number }>; count: number }> {
+  const { codeAgentService } = await import("@/lib/services/code-agent");
+
+  const sessionId = dataContent.sessionId as string;
+  const path = (dataContent.path as string) || textContent || "/app";
+  const recursive = dataContent.recursive as boolean ?? true;
+  const maxDepth = dataContent.maxDepth as number ?? 3;
+
+  if (!sessionId) throw new Error("sessionId is required");
+
+  const session = await codeAgentService.getSession(sessionId, ctx.user.organization_id);
+  if (!session) throw new Error("Session not found");
+
+  const result = await codeAgentService.listFiles({ sessionId, path, recursive, maxDepth });
+
+  return {
+    success: result.success,
+    path: result.path,
+    entries: result.entries.map(e => ({ path: e.path, type: e.type, size: e.size })),
+    count: result.entries.length,
+  };
+}
+
+/**
+ * Git clone in session
+ */
+export async function executeSkillCodeAgentGitClone(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<GitOperationResult> {
+  const { codeAgentService } = await import("@/lib/services/code-agent");
+
+  const sessionId = dataContent.sessionId as string;
+  const url = (dataContent.url as string) || textContent;
+  const branch = dataContent.branch as string | undefined;
+  const depth = dataContent.depth as number | undefined;
+  const directory = dataContent.directory as string | undefined;
+
+  if (!sessionId) throw new Error("sessionId is required");
+  if (!url) throw new Error("url is required");
+
+  const session = await codeAgentService.getSession(sessionId, ctx.user.organization_id);
+  if (!session) throw new Error("Session not found");
+
+  const result = await codeAgentService.gitClone({ sessionId, url, branch, depth, directory });
+
+  return {
+    success: result.success,
+    message: result.message,
+    gitState: result.gitState,
+    error: result.error,
+  };
+}
+
+/**
+ * Install packages in session
+ */
+export async function executeSkillCodeAgentInstallPackages(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean; packages: string[]; installedCount: number; output: string; error?: string }> {
+  const { codeAgentService } = await import("@/lib/services/code-agent");
+
+  const sessionId = dataContent.sessionId as string;
+  const packages = dataContent.packages as string[];
+  const manager = (dataContent.manager as "npm" | "pip" | "bun" | "cargo") || "npm";
+  const dev = dataContent.dev as boolean ?? false;
+
+  if (!sessionId) throw new Error("sessionId is required");
+  if (!packages || packages.length === 0) throw new Error("packages is required");
+
+  const session = await codeAgentService.getSession(sessionId, ctx.user.organization_id);
+  if (!session) throw new Error("Session not found");
+
+  const result = await codeAgentService.installPackages({ sessionId, packages, manager, dev });
+
+  return {
+    success: result.success,
+    packages: result.packages,
+    installedCount: result.installedCount,
+    output: result.output,
+    error: result.error,
+  };
+}
+
+/**
+ * Create session snapshot
+ */
+export async function executeSkillCodeAgentSnapshot(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean; snapshotId?: string; name?: string; fileCount?: number; error?: string }> {
+  const { codeAgentService } = await import("@/lib/services/code-agent");
+
+  const sessionId = dataContent.sessionId as string;
+  const name = dataContent.name as string | undefined;
+  const description = dataContent.description as string | undefined;
+
+  if (!sessionId) throw new Error("sessionId is required");
+
+  const session = await codeAgentService.getSession(sessionId, ctx.user.organization_id);
+  if (!session) throw new Error("Session not found");
+
+  const result = await codeAgentService.createSnapshot({ sessionId, name, description });
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  return {
+    success: true,
+    snapshotId: result.snapshot!.id,
+    name: result.snapshot!.name ?? undefined,
+    fileCount: result.snapshot!.fileCount,
+  };
+}
+
+/**
+ * Terminate session
+ */
+export async function executeSkillCodeAgentTerminate(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<{ success: boolean; message: string }> {
+  const { codeAgentService } = await import("@/lib/services/code-agent");
+
+  const sessionId = (dataContent.sessionId as string) || textContent;
+
+  if (!sessionId) throw new Error("sessionId is required");
+
+  await codeAgentService.terminateSession(sessionId, ctx.user.organization_id);
+
+  return {
+    success: true,
+    message: "Session terminated",
+  };
+}
+
+/**
+ * Quick code interpreter (stateless execution)
+ */
+export async function executeSkillCodeInterpreter(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext
+): Promise<CodeInterpreterResult> {
+  const { interpreterService } = await import("@/lib/services/code-agent");
+
+  const language = dataContent.language as "python" | "javascript" | "typescript" | "shell";
+  const code = (dataContent.code as string) || textContent;
+  const packages = dataContent.packages as string[] | undefined;
+  const timeout = dataContent.timeout as number | undefined;
+
+  if (!language) throw new Error("language is required");
+  if (!code) throw new Error("code is required");
+
+  const result = await interpreterService.execute({
+    organizationId: ctx.user.organization_id,
+    userId: ctx.user.id,
+    language,
+    code,
+    packages,
+    timeout,
+  });
+
+  return {
+    success: result.success,
+    executionId: result.executionId,
+    output: result.output,
+    error: result.error,
+    exitCode: result.exitCode,
+    durationMs: result.durationMs,
+    costCents: result.costCents,
+  };
+}
+

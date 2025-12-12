@@ -170,9 +170,12 @@ describe("Bindings Endpoints", () => {
     });
 
     it("returns bindings for valid projectId", async () => {
-      mockSecretsService.listBindings.mockResolvedValue([
-        { id: "b1", secretId: "s1", secretName: "API_KEY", projectId: "p1", projectType: "app" },
-      ]);
+      mockSecretsService.listBindings.mockResolvedValue({
+        bindings: [
+          { id: "b1", secretId: "s1", secretName: "API_KEY", projectId: "p1", projectType: "app" },
+        ],
+        total: 1,
+      });
 
       const { GET } = await import("@/app/api/v1/secrets/bindings/route");
 
@@ -186,6 +189,7 @@ describe("Bindings Endpoints", () => {
       expect(response.status).toBe(200);
       expect(data.bindings).toHaveLength(1);
       expect(data.bindings[0].secretName).toBe("API_KEY");
+      expect(data.total).toBe(1);
     });
 
     it("returns bindings for secretId", async () => {
@@ -552,7 +556,8 @@ describe("Edge Cases and Error Handling", () => {
       body: "{invalid json",
     });
 
-    await expect(POST(request)).rejects.toThrow();
+    const response = await POST(request);
+    expect(response.status).toBe(500);
   });
 
   it("handles very long secret names in request", async () => {

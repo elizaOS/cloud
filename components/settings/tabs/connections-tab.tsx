@@ -64,7 +64,10 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchConnections(); }, [fetchConnections]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchConnections();
+  }, [fetchConnections]);
 
   const handleConnect = async (platform: string, authType: "oauth" | "manual") => {
     if (authType === "manual" || platform === "mastodon") {
@@ -86,7 +89,7 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
       return;
     }
 
-    window.location.href = (await response.json()).authUrl;
+    window.location.assign((await response.json()).authUrl);
   };
 
   const handleManualConnect = async () => {
@@ -106,7 +109,7 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
         setActionLoading(null);
         return;
       }
-      window.location.href = (await response.json()).authUrl;
+      window.location.assign((await response.json()).authUrl);
       return;
     }
 
@@ -434,3 +437,4 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
     </div>
   );
 }
+

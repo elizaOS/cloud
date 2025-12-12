@@ -125,68 +125,35 @@ class LinkSafetyService {
    * Check a single URL for threats.
    */
   async checkUrl(url: string): Promise<LinkSafetyResult> {
-    let domain: string;
-    try {
-      const parsed = new URL(url);
-      domain = parsed.hostname.toLowerCase();
-    } catch {
-      return {
-        url,
-        safe: false,
-        threats: ["phishing"],
-        source: "local",
-        confidence: 100,
-        domain: url,
-      };
+    const domain = this.parseDomain(url);
+    if (!domain) {
+      return { url, safe: false, threats: ["phishing"], source: "local", confidence: 100, domain: url };
     }
 
     // Check local patterns first (faster)
     const localResult = this.checkLocalPatterns(url, domain);
-    if (!localResult.safe) {
-      return localResult;
-    }
+    if (!localResult.safe) return localResult;
 
     // If Safe Browsing API is available, check with it
     if (this.apiKey) {
       const safeBrowsingResult = await this.checkSafeBrowsing(url, domain);
-      if (!safeBrowsingResult.safe) {
-        return safeBrowsingResult;
-      }
+      if (!safeBrowsingResult.safe) return safeBrowsingResult;
     }
 
-    // URL appears safe
-    return {
-      url,
-      safe: true,
-      threats: [],
-      source: this.apiKey ? "safe_browsing" : "local",
-      confidence: this.apiKey ? 95 : 70,
-      domain,
-    };
+    return { url, safe: true, threats: [], source: this.apiKey ? "safe_browsing" : "local", confidence: this.apiKey ? 95 : 70, domain };
   }
 
   /**
    * Check multiple URLs in batch.
    */
   async checkUrls(urls: string[]): Promise<LinkSafetyResult[]> {
-    // Check local patterns for all URLs first
     const results: LinkSafetyResult[] = [];
     const urlsToCheck: string[] = [];
 
     for (const url of urls) {
-      let domain: string;
-      try {
-        const parsed = new URL(url);
-        domain = parsed.hostname.toLowerCase();
-      } catch {
-        results.push({
-          url,
-          safe: false,
-          threats: ["phishing"],
-          source: "local",
-          confidence: 100,
-          domain: url,
-        });
+      const domain = this.parseDomain(url);
+      if (!domain) {
+        results.push({ url, safe: false, threats: ["phishing"], source: "local", confidence: 100, domain: url });
         continue;
       }
 
@@ -200,24 +167,22 @@ class LinkSafetyService {
 
     // Batch check remaining URLs with Safe Browsing if available
     if (this.apiKey && urlsToCheck.length > 0) {
-      const safeBrowsingResults = await this.checkSafeBrowsingBatch(urlsToCheck);
-      results.push(...safeBrowsingResults);
+      results.push(...await this.checkSafeBrowsingBatch(urlsToCheck));
     } else {
-      // Mark remaining as safe (local only)
       for (const url of urlsToCheck) {
-        const parsed = new URL(url);
-        results.push({
-          url,
-          safe: true,
-          threats: [],
-          source: "local",
-          confidence: 70,
-          domain: parsed.hostname.toLowerCase(),
-        });
+        results.push({ url, safe: true, threats: [], source: "local", confidence: 70, domain: this.parseDomain(url)! });
       }
     }
 
     return results;
+  }
+
+  private parseDomain(url: string): string | null {
+    try {
+      return new URL(url).hostname.toLowerCase();
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -306,25 +271,11 @@ class LinkSafetyService {
 
   private async checkSafeBrowsing(url: string, domain: string): Promise<LinkSafetyResult> {
     if (!this.apiKey) {
-      return {
-        url,
-        safe: true,
-        threats: [],
-        source: "local",
-        confidence: 70,
-        domain,
-      };
+      return { url, safe: true, threats: [], source: "local", confidence: 70, domain };
     }
 
-    const results = await this.checkSafeBrowsingBatch([url]);
-    return results[0] ?? {
-      url,
-      safe: true,
-      threats: [],
-      source: "unknown",
-      confidence: 50,
-      domain,
-    };
+    const [result] = await this.checkSafeBrowsingBatch([url]);
+    return result ?? { url, safe: true, threats: [], source: "unknown", confidence: 50, domain };
   }
 
   private async checkSafeBrowsingBatch(urls: string[]): Promise<LinkSafetyResult[]> {

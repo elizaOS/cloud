@@ -288,37 +288,11 @@ class ScamDetectionService {
     // Check default patterns first
     for (const pattern of DEFAULT_SCAM_PATTERNS) {
       const match = content.match(pattern);
-      if (match) {
-        return {
-          matched: true,
-          matchedText: match[0],
-        };
-      }
+      if (match) return { matched: true, matchedText: match[0] };
     }
 
     // Check org-specific patterns
-    const customPatterns = await this.getBlockedPatterns(organizationId, serverId, "scam");
-    for (const pattern of customPatterns) {
-      const matched = this.testPattern(content, pattern);
-      if (matched) {
-        // Increment match count
-        await db
-          .update(orgBlockedPatterns)
-          .set({
-            match_count: sql`${orgBlockedPatterns.match_count} + 1`,
-            updated_at: new Date(),
-          })
-          .where(eq(orgBlockedPatterns.id, pattern.id));
-
-        return {
-          matched: true,
-          pattern,
-          matchedText: matched,
-        };
-      }
-    }
-
-    return { matched: false };
+    return this.checkPatterns(content, organizationId, serverId, "scam");
   }
 
   async checkPhishing(
@@ -326,32 +300,16 @@ class ScamDetectionService {
     organizationId: string,
     serverId?: string
   ): Promise<PatternMatchResult> {
-    const customPatterns = await this.getBlockedPatterns(organizationId, serverId, "phishing");
-    
-    for (const pattern of customPatterns) {
-      const matched = this.testPattern(content, pattern);
-      if (matched) {
-        await db
-          .update(orgBlockedPatterns)
-          .set({
-            match_count: sql`${orgBlockedPatterns.match_count} + 1`,
-            updated_at: new Date(),
-          })
-          .where(eq(orgBlockedPatterns.id, pattern.id));
-
-        return { matched: true, pattern, matchedText: matched };
-      }
-    }
-
-    return { matched: false };
+    return this.checkPatterns(content, organizationId, serverId, "phishing");
   }
 
-  private async getBlockedPatterns(
+  private async checkPatterns(
+    content: string,
     organizationId: string,
-    serverId?: string,
+    serverId: string | undefined,
     category: string
-  ): Promise<OrgBlockedPattern[]> {
-    return await db
+  ): Promise<PatternMatchResult> {
+    const patterns = await db
       .select()
       .from(orgBlockedPatterns)
       .where(
@@ -364,23 +322,39 @@ class ScamDetectionService {
             : sql`${orgBlockedPatterns.server_id} IS NULL`
         )
       );
-  }
 
-  private testPattern(content: string, pattern: OrgBlockedPattern): string | null {
-    const lowerContent = content.toLowerCase();
-    
-    switch (pattern.pattern_type) {
-      case "exact":
-        return lowerContent === pattern.pattern.toLowerCase() ? pattern.pattern : null;
-      case "contains":
-        return lowerContent.includes(pattern.pattern.toLowerCase()) ? pattern.pattern : null;
-      case "regex":
-        const regex = new RegExp(pattern.pattern, "i");
-        const match = content.match(regex);
-        return match ? match[0] : null;
-      default:
-        return null;
+    for (const pattern of patterns) {
+      const matched = testPattern(content, pattern);
+      if (matched) {
+        // Increment match count
+        await db
+          .update(orgBlockedPatterns)
+          .set({ match_count: sql`${orgBlockedPatterns.match_count} + 1`, updated_at: new Date() })
+          .where(eq(orgBlockedPatterns.id, pattern.id));
+
+        return { matched: true, pattern, matchedText: matched };
+      }
     }
+
+    return { matched: false };
+  }
+}
+
+// Shared pattern testing utility
+function testPattern(content: string, pattern: OrgBlockedPattern): string | null {
+  const lowerContent = content.toLowerCase();
+  
+  switch (pattern.pattern_type) {
+    case "exact":
+      return lowerContent === pattern.pattern.toLowerCase() ? pattern.pattern : null;
+    case "contains":
+      return lowerContent.includes(pattern.pattern.toLowerCase()) ? pattern.pattern : null;
+    case "regex": {
+      const match = content.match(new RegExp(pattern.pattern, "i"));
+      return match ? match[0] : null;
+    }
+    default:
+      return null;
   }
 }
 
@@ -524,13 +498,10 @@ class WordFilterService {
   ): Promise<PatternMatchResult> {
     const lowerContent = content.toLowerCase();
 
-    // Check custom ban words first
+    // Check inline ban words first
     if (customBanWords?.length) {
-      for (const word of customBanWords) {
-        if (lowerContent.includes(word.toLowerCase())) {
-          return { matched: true, matchedText: word };
-        }
-      }
+      const matched = customBanWords.find((word) => lowerContent.includes(word.toLowerCase()));
+      if (matched) return { matched: true, matchedText: matched };
     }
 
     // Check org-specific banned word patterns
@@ -549,19 +520,8 @@ class WordFilterService {
       );
 
     for (const pattern of patterns) {
-      if (pattern.pattern_type === "exact" && lowerContent === pattern.pattern.toLowerCase()) {
-        return { matched: true, pattern, matchedText: pattern.pattern };
-      }
-      if (pattern.pattern_type === "contains" && lowerContent.includes(pattern.pattern.toLowerCase())) {
-        return { matched: true, pattern, matchedText: pattern.pattern };
-      }
-      if (pattern.pattern_type === "regex") {
-        const regex = new RegExp(pattern.pattern, "i");
-        const match = content.match(regex);
-        if (match) {
-          return { matched: true, pattern, matchedText: match[0] };
-        }
-      }
+      const matched = testPattern(content, pattern);
+      if (matched) return { matched: true, pattern, matchedText: matched };
     }
 
     return { matched: false };

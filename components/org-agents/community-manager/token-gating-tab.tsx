@@ -81,7 +81,7 @@ export function TokenGatingTab({
   const [formData, setFormData] = useState<TokenGateForm>(DEFAULT_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fetchTokenGates = async () => {
+  const fetchTokenGates = useCallback(async () => {
     if (!serverId) return;
     setIsLoadingGates(true);
     
@@ -94,11 +94,12 @@ export function TokenGatingTab({
     }
     
     setIsLoadingGates(false);
-  };
+  }, [serverId]);
 
   // Fetch token gates
   useEffect(() => {
     if (serverId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchTokenGates();
     }
   }, [serverId, fetchTokenGates]);

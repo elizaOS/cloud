@@ -753,82 +753,44 @@ class PlatformCredentialsService {
   /**
    * Get available platforms with their connection status for an organization
    */
-  async getAvailablePlatforms(organizationId: string): Promise<Array<{
-    platform: string;
-    authType: "oauth" | "manual";
-    configured: boolean;
-    connected: boolean;
-    connection?: {
-      id: string;
-      username: string;
-      displayName: string;
-      avatarUrl?: string;
-      status: string;
-      linkedAt: Date | null;
-    };
-  }>> {
+  async getAvailablePlatforms(organizationId: string) {
     const credentials = await this.listCredentials(organizationId, { status: "active" });
     const credentialMap = new Map(credentials.map(c => [c.platform, c]));
 
-    const platforms: Array<{
-      platform: string;
-      authType: "oauth" | "manual";
-      configured: boolean;
-      connected: boolean;
-      connection?: {
-        id: string;
-        username: string;
-        displayName: string;
-        avatarUrl?: string;
-        status: string;
-        linkedAt: Date | null;
+    const toConnection = (cred: PlatformCredential) => ({
+      id: cred.id,
+      username: cred.platform_username || cred.platform_user_id,
+      displayName: cred.platform_display_name || cred.platform_username || "",
+      avatarUrl: cred.platform_avatar_url || undefined,
+      status: cred.status,
+      linkedAt: cred.linked_at,
+    });
+
+    const oauthPlatforms = Object.entries(OAUTH_CONFIGS)
+      .filter(([platform]) => platform !== "twilio")
+      .map(([platform, config]) => {
+        const cred = credentialMap.get(platform as PlatformType);
+        return {
+          platform,
+          authType: "oauth" as const,
+          configured: !!process.env[config.clientIdEnv],
+          connected: !!cred,
+          connection: cred ? toConnection(cred) : undefined,
+        };
+      });
+
+    const manualPlatforms = MANUAL_AUTH_PLATFORMS.map(platform => {
+      const cred = credentialMap.get(platform as PlatformType);
+      return {
+        platform,
+        authType: "manual" as const,
+        configured: true,
+        connected: !!cred,
+        connection: cred ? toConnection(cred) : undefined,
       };
-    }> = [];
+    });
 
-    // OAuth platforms
-    for (const [platform, config] of Object.entries(OAUTH_CONFIGS)) {
-      if (platform === "twilio") continue; // Skip non-social platforms
-      
-      const clientId = process.env[config.clientIdEnv];
-      const configured = !!clientId;
-      const cred = credentialMap.get(platform as PlatformType);
-
-      platforms.push({
-        platform,
-        authType: "oauth",
-        configured,
-        connected: !!cred,
-        connection: cred ? {
-          id: cred.id,
-          username: cred.platform_username || cred.platform_user_id,
-          displayName: cred.platform_display_name || cred.platform_username || "",
-          avatarUrl: cred.platform_avatar_url || undefined,
-          status: cred.status,
-          linkedAt: cred.linked_at,
-        } : undefined,
-      });
-    }
-
-    // Manual platforms
-    for (const platform of MANUAL_AUTH_PLATFORMS) {
-      const cred = credentialMap.get(platform as PlatformType);
-      platforms.push({
-        platform,
-        authType: "manual",
-        configured: true, // Always available
-        connected: !!cred,
-        connection: cred ? {
-          id: cred.id,
-          username: cred.platform_username || cred.platform_user_id,
-          displayName: cred.platform_display_name || cred.platform_username || "",
-          avatarUrl: cred.platform_avatar_url || undefined,
-          status: cred.status,
-          linkedAt: cred.linked_at,
-        } : undefined,
-      });
-    }
-
-    return platforms;
+    return [...oauthPlatforms, ...manualPlatforms];
   }
 }
 

@@ -209,6 +209,18 @@ const SKILL_REGISTRY: Record<string, SkillEntry> = {
   defi_get_token_holders: { handler: defiSkills.executeSkillGetTokenHolders, description: "Get token holders", aliases: ["token_holders", "holder_analysis"] },
   defi_get_ohlcv: { handler: defiSkills.executeSkillGetOHLCV, description: "Get OHLCV candlestick data", aliases: ["get_ohlcv", "candles", "price_history"] },
   defi_health_check: { handler: defiSkills.executeSkillDeFiHealthCheck, description: "Check DeFi service health", aliases: ["defi_health", "check_defi_services"] },
+  // Code Agent skills - Full sandbox code execution
+  code_agent_create_session: { handler: skills.executeSkillCodeAgentCreateSession, description: "Create code agent session for writing/executing code", aliases: ["create_code_session", "start_sandbox"] },
+  code_agent_execute: { handler: skills.executeSkillCodeAgentExecute, description: "Execute code or commands in session", aliases: ["run_code", "execute_code"] },
+  code_agent_read_file: { handler: skills.executeSkillCodeAgentReadFile, description: "Read file from session", aliases: ["read_sandbox_file"] },
+  code_agent_write_file: { handler: skills.executeSkillCodeAgentWriteFile, description: "Write file to session", aliases: ["write_sandbox_file"] },
+  code_agent_list_files: { handler: skills.executeSkillCodeAgentListFiles, description: "List files in session", aliases: ["list_sandbox_files"] },
+  code_agent_git_clone: { handler: skills.executeSkillCodeAgentGitClone, description: "Clone git repo in session", aliases: ["sandbox_git_clone"] },
+  code_agent_install_packages: { handler: skills.executeSkillCodeAgentInstallPackages, description: "Install packages in session", aliases: ["sandbox_install"] },
+  code_agent_snapshot: { handler: skills.executeSkillCodeAgentSnapshot, description: "Create session snapshot", aliases: ["save_sandbox"] },
+  code_agent_terminate: { handler: skills.executeSkillCodeAgentTerminate, description: "Terminate session", aliases: ["end_code_session", "stop_sandbox"] },
+  // Quick code interpreter (stateless)
+  code_interpreter: { handler: skills.executeSkillCodeInterpreter, description: "Quick stateless code execution", aliases: ["run_python", "run_javascript", "run_shell", "eval"] },
 };
 
 // Build alias lookup

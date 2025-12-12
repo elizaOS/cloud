@@ -82,6 +82,7 @@ export function LogsTab({ organizationId, serverId }: LogsTabProps) {
 
   useEffect(() => {
     if (serverId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchEvents();
     }
   }, [serverId, fetchEvents]);

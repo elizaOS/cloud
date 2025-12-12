@@ -1,8 +1,5 @@
 /**
- * DeFi Operations
- *
- * Shared business logic for DeFi services.
- * Used by MCP tools, A2A skills, and REST routes.
+ * Shared business logic for DeFi services - used by MCP tools, A2A skills, and REST routes
  */
 
 import {
@@ -52,21 +49,11 @@ export async function fetchTokenPrice(source: PriceSource, identifier: string, c
 }
 
 export async function fetchTrendingTokens(source: TrendingSource, limit = 20) {
-  let trending;
-
-  switch (source) {
-    case "birdeye":
-      trending = await getBirdeyeService().getTrendingTokens({ limit });
-      break;
-    case "coingecko":
-      trending = await getCoinGeckoService().getTrending();
-      break;
-    case "coinmarketcap":
-      trending = await getCoinMarketCapService().getTrending(limit);
-      break;
-    default:
-      throw new Error(`Unsupported source: ${source}`);
-  }
+  const trending = source === "birdeye"
+    ? await getBirdeyeService().getTrendingTokens({ limit })
+    : source === "coingecko"
+    ? await getCoinGeckoService().getTrending()
+    : await getCoinMarketCapService().getTrending(limit);
 
   return {
     source,
@@ -175,18 +162,14 @@ export async function fetchZeroExQuote(params: {
   chain?: ZeroExChain;
   slippagePercentage?: number;
 }) {
+  const chain = params.chain ?? "ethereum";
   const quote = await getZeroExService().getQuote(
-    {
-      sellToken: params.sellToken,
-      buyToken: params.buyToken,
-      sellAmount: params.sellAmount,
-      slippagePercentage: params.slippagePercentage ?? 0.01,
-    },
-    params.chain ?? "ethereum"
+    { sellToken: params.sellToken, buyToken: params.buyToken, sellAmount: params.sellAmount, slippagePercentage: params.slippagePercentage ?? 0.01 },
+    chain
   );
 
   return {
-    chain: params.chain ?? "ethereum",
+    chain,
     sellToken: quote.inputToken.address,
     buyToken: quote.outputToken.address,
     sellAmount: quote.inputAmount,
@@ -203,12 +186,7 @@ export async function searchTokens(source: SearchSource, query: string, limit = 
     return {
       source,
       query,
-      tokens: tokens.map((t) => ({
-        address: t.address,
-        symbol: t.symbol,
-        name: t.name,
-        networkId: t.networkId,
-      })),
+      tokens: tokens.map((t) => ({ address: t.address, symbol: t.symbol, name: t.name, networkId: t.networkId })),
     };
   }
 
@@ -216,33 +194,20 @@ export async function searchTokens(source: SearchSource, query: string, limit = 
   return {
     source,
     query,
-    tokens: tokens.slice(0, limit).map((t) => ({
-      address: t.address,
-      symbol: t.symbol,
-      name: t.name,
-      chainId: t.chainId,
-    })),
+    tokens: tokens.slice(0, limit).map((t) => ({ address: t.address, symbol: t.symbol, name: t.name, chainId: t.chainId })),
   };
 }
 
 export async function fetchTokenHolders(address: string, networkId: number, limit = 20) {
-  const defined = getDefinedService();
-  const result = await defined.getTokenHolders(address, networkId, { limit });
+  const result = await getDefinedService().getTokenHolders(address, networkId, { limit });
   return {
     address,
     networkId,
-    holders: result.holders.map((h) => ({
-      address: h.address,
-      balance: h.balance,
-      sharePercent: h.share,
-    })),
+    holders: result.holders.map((h) => ({ address: h.address, balance: h.balance, sharePercent: h.share })),
   };
 }
 
-export async function fetchOHLCV(source: OHLCVSource, identifier: string, options: {
-  interval?: string;
-  days?: string;
-} = {}) {
+export async function fetchOHLCV(source: OHLCVSource, identifier: string, options: { interval?: string; days?: string } = {}) {
   const ohlcv = source === "birdeye"
     ? await getBirdeyeService().getOHLCV(identifier, { interval: (options.interval ?? "1H") as "1H" })
     : await getCoinGeckoService().getOHLC(identifier, { days: (options.days ?? "7") as "7" });
@@ -250,14 +215,7 @@ export async function fetchOHLCV(source: OHLCVSource, identifier: string, option
   return {
     source,
     identifier,
-    candles: ohlcv.slice(-100).map((c) => ({
-      timestamp: c.timestamp,
-      open: c.open,
-      high: c.high,
-      low: c.low,
-      close: c.close,
-      volume: c.volume,
-    })),
+    candles: ohlcv.slice(-100).map((c) => ({ timestamp: c.timestamp, open: c.open, high: c.high, low: c.low, close: c.close, volume: c.volume })),
   };
 }
 
@@ -272,7 +230,7 @@ const SERVICE_HEALTH_CHECKS = [
 ] as const;
 
 export async function checkServicesHealth(serviceNames?: string[]) {
-  const services = serviceNames
+  const services = serviceNames?.length
     ? SERVICE_HEALTH_CHECKS.filter((s) => serviceNames.includes(s.name))
     : SERVICE_HEALTH_CHECKS;
 
@@ -281,17 +239,13 @@ export async function checkServicesHealth(serviceNames?: string[]) {
 
   services.forEach((service, i) => {
     const result = results[i];
-    checks[service.name] = result.status === "fulfilled"
-      ? result.value
-      : { healthy: false, latencyMs: -1 };
+    checks[service.name] = result.status === "fulfilled" ? result.value : { healthy: false, latencyMs: -1 };
   });
 
   const healthyCount = Object.values(checks).filter((c) => c.healthy).length;
-
   return {
     status: healthyCount === services.length ? "healthy" as const : healthyCount > 0 ? "degraded" as const : "down" as const,
     services: checks,
     summary: { total: services.length, healthy: healthyCount, unhealthy: services.length - healthyCount },
   };
 }
-

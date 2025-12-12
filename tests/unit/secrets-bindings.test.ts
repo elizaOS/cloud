@@ -110,8 +110,8 @@ const resetMocks = () => {
     mockSecretsFindById, mockSecretsCreate, mockSecretsFindByName,
     mockSecretsFindByContext, mockSecretsListByOrganization, mockSecretsListByProject,
     mockSecretsListFiltered, mockSecretsUpdate, mockSecretsDelete, mockSecretsRecordAccess,
-    mockBindingsCreate, mockBindingsFindById, mockBindingsFindByProject,
-    mockBindingsFindBySecret, mockBindingsFindBySecretAndProject, mockBindingsDelete,
+    mockBindingsCreate, mockBindingsFindById, mockBindingsFindByIdAndOrg, mockBindingsFindByProject,
+    mockBindingsFindByOrgAndProject, mockBindingsFindBySecret, mockBindingsFindBySecretAndProject, mockBindingsDelete,
     mockAppReqsCreate, mockAppReqsFindById, mockAppReqsFindByAppAndName,
     mockAppReqsFindByApp, mockAppReqsFindApprovedByApp, mockAppReqsSyncRequirements,
     mockAppReqsApprove, mockAppReqsRevoke, mockAppReqsUpdate, mockAppReqsDelete,
@@ -306,18 +306,12 @@ describe("Secret Bindings", () => {
 
   describe("unbindSecret", () => {
     it("removes a binding", async () => {
-      mockBindingsFindById.mockResolvedValue({
+      mockBindingsFindByIdAndOrg.mockResolvedValue({
         id: "binding-123",
         secret_id: "secret-123",
         organization_id: ORG_ID,
         project_id: "project-1",
         project_type: "app",
-      } as never);
-
-      mockSecretsFindById.mockResolvedValue({
-        id: "secret-123",
-        organization_id: ORG_ID,
-        name: "KEY",
       } as never);
 
       await service.unbindSecret("binding-123", ORG_ID, auditCtx);
@@ -326,54 +320,47 @@ describe("Secret Bindings", () => {
     });
 
     it("throws when binding not found", async () => {
-      mockBindingsFindById.mockResolvedValue(undefined);
+      mockBindingsFindByIdAndOrg.mockResolvedValue(undefined);
 
       await expect(
         service.unbindSecret("nonexistent", ORG_ID, auditCtx)
       ).rejects.toThrow("Binding not found");
     });
 
-    it("throws when secret belongs to different org", async () => {
-      mockBindingsFindById.mockResolvedValue({
-        id: "binding-123",
-        secret_id: "secret-123",
-        organization_id: ORG_ID,
-      } as never);
-
-      mockSecretsFindById.mockResolvedValue({
-        id: "secret-123",
-        organization_id: "other-org", // Different org
-        name: "KEY",
-      } as never);
+    it("throws when binding belongs to different org", async () => {
+      mockBindingsFindByIdAndOrg.mockResolvedValue(undefined);
 
       await expect(
         service.unbindSecret("binding-123", ORG_ID, auditCtx)
-      ).rejects.toThrow("Secret not found");
+      ).rejects.toThrow("Binding not found");
     });
   });
 
   describe("listBindings", () => {
     it("returns bindings for a project", async () => {
-      mockBindingsFindByProject.mockResolvedValue([
-        {
-          id: "b1",
-          secret_id: "s1",
-          organization_id: ORG_ID,
-          project_id: "project-1",
-          project_type: "app",
-          created_by: USER_ID,
-          created_at: new Date(),
-        },
-        {
-          id: "b2",
-          secret_id: "s2",
-          organization_id: ORG_ID,
-          project_id: "project-1",
-          project_type: "app",
-          created_by: USER_ID,
-          created_at: new Date(),
-        },
-      ] as never[]);
+      mockBindingsFindByOrgAndProject.mockResolvedValue({
+        bindings: [
+          {
+            id: "b1",
+            secret_id: "s1",
+            organization_id: ORG_ID,
+            project_id: "project-1",
+            project_type: "app",
+            created_by: USER_ID,
+            created_at: new Date(),
+          },
+          {
+            id: "b2",
+            secret_id: "s2",
+            organization_id: ORG_ID,
+            project_id: "project-1",
+            project_type: "app",
+            created_by: USER_ID,
+            created_at: new Date(),
+          },
+        ],
+        total: 2,
+      } as never);
 
       mockSecretsFindById.mockImplementation(async (id) => ({
         id,
@@ -381,19 +368,20 @@ describe("Secret Bindings", () => {
         organization_id: ORG_ID,
       } as never));
 
-      const bindings = await service.listBindings("project-1");
+      const result = await service.listBindings(ORG_ID, "project-1");
 
-      expect(bindings.length).toBe(2);
-      expect(bindings[0].secretName).toBe("API_KEY");
-      expect(bindings[1].secretName).toBe("DATABASE_URL");
+      expect(result.bindings.length).toBe(2);
+      expect(result.bindings[0].secretName).toBe("API_KEY");
+      expect(result.bindings[1].secretName).toBe("DATABASE_URL");
+      expect(result.total).toBe(2);
     });
 
     it("filters by project type", async () => {
-      mockBindingsFindByProject.mockResolvedValue([]);
+      mockBindingsFindByOrgAndProject.mockResolvedValue({ bindings: [], total: 0 } as never);
 
-      await service.listBindings("project-1", "workflow");
+      await service.listBindings(ORG_ID, "project-1", "workflow");
 
-      expect(mockBindingsFindByProject).toHaveBeenCalledWith("project-1", "workflow");
+      expect(mockBindingsFindByOrgAndProject).toHaveBeenCalledWith(ORG_ID, "project-1", "workflow", 100, 0);
     });
   });
 });
@@ -798,7 +786,7 @@ describe("Concurrent Binding Operations", () => {
       created_at: new Date(),
     } as never);
 
-    mockBindingsFindById.mockResolvedValue({
+    mockBindingsFindByIdAndOrg.mockResolvedValue({
       id: "binding-old",
       organization_id: ORG_ID,
     } as never);

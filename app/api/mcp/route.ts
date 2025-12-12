@@ -7876,6 +7876,511 @@ const mcpHandler = createMcpHandler(
         }
       },
     );
+
+    // =========================================================================
+    // CODE AGENT TOOLS
+    // =========================================================================
+
+    // Tool: Create Code Agent Session
+    server.registerTool(
+      "code_agent_create_session",
+      {
+        description:
+          "Create a new code agent session for writing and executing code. " +
+          "Sessions provide an isolated environment with file system, git, and command execution. " +
+          "Cost: ~$0.01 to create, plus usage-based billing.",
+        inputSchema: {
+          name: z.string().max(200).optional().describe("Session name"),
+          description: z.string().max(1000).optional().describe("Session description"),
+          templateUrl: z.string().url().optional().describe("Git URL for template to clone"),
+          loadOrgSecrets: z.boolean().optional().default(true).describe("Load organization secrets into environment"),
+          expiresInSeconds: z.number().min(60).max(86400).optional().default(1800).describe("Session timeout in seconds (default: 30 min, max: 24h)"),
+        },
+      },
+      async ({ name, description, templateUrl, loadOrgSecrets, expiresInSeconds }) => {
+        try {
+          const { user } = getAuthContext();
+          const { codeAgentService } = await import("@/lib/services/code-agent");
+
+          const session = await codeAgentService.createSession({
+            organizationId: user.organization_id!,
+            userId: user.id,
+            name,
+            description,
+            templateUrl,
+            loadOrgSecrets,
+            expiresInSeconds,
+          });
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                success: true,
+                session: {
+                  id: session.id,
+                  name: session.name,
+                  status: session.status,
+                  runtimeUrl: session.runtimeUrl,
+                  expiresAt: session.expiresAt,
+                },
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to create session" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Execute Code in Session
+    server.registerTool(
+      "code_agent_execute",
+      {
+        description:
+          "Execute code or shell commands in a code agent session. " +
+          "Supports Python, JavaScript, TypeScript, and shell commands.",
+        inputSchema: {
+          sessionId: z.string().uuid().describe("Session ID"),
+          type: z.enum(["code", "command"]).describe("Execution type"),
+          language: z.enum(["python", "javascript", "typescript", "shell"]).optional().describe("Language for code execution"),
+          code: z.string().max(100000).optional().describe("Code to execute"),
+          command: z.string().max(10000).optional().describe("Shell command to run"),
+          args: z.array(z.string()).optional().describe("Command arguments"),
+          workingDirectory: z.string().optional().describe("Working directory"),
+          timeout: z.number().min(1000).max(300000).optional().default(60000).describe("Timeout in milliseconds"),
+        },
+      },
+      async ({ sessionId, type, language, code, command, args, workingDirectory, timeout }) => {
+        try {
+          const { user } = getAuthContext();
+          const { codeAgentService } = await import("@/lib/services/code-agent");
+
+          // Verify session ownership
+          const session = await codeAgentService.getSession(sessionId, user.organization_id!);
+          if (!session) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: "Session not found" }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          let result;
+          if (type === "code") {
+            if (!code || !language) {
+              return {
+                content: [{ type: "text" as const, text: JSON.stringify({ error: "code and language required for type=code" }, null, 2) }],
+                isError: true,
+              };
+            }
+            result = await codeAgentService.executeCode({
+              sessionId,
+              language,
+              code,
+              options: { workingDirectory, timeout },
+            });
+          } else {
+            if (!command) {
+              return {
+                content: [{ type: "text" as const, text: JSON.stringify({ error: "command required for type=command" }, null, 2) }],
+                isError: true,
+              };
+            }
+            result = await codeAgentService.runCommand({
+              sessionId,
+              command,
+              args,
+              options: { workingDirectory, timeout },
+            });
+          }
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                success: result.success,
+                exitCode: result.exitCode,
+                stdout: result.stdout,
+                stderr: result.stderr,
+                durationMs: result.durationMs,
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Execution failed" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Read File from Session
+    server.registerTool(
+      "code_agent_read_file",
+      {
+        description: "Read a file from a code agent session.",
+        inputSchema: {
+          sessionId: z.string().uuid().describe("Session ID"),
+          path: z.string().describe("File path to read"),
+        },
+      },
+      async ({ sessionId, path }) => {
+        try {
+          const { user } = getAuthContext();
+          const { codeAgentService } = await import("@/lib/services/code-agent");
+
+          const session = await codeAgentService.getSession(sessionId, user.organization_id!);
+          if (!session) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: "Session not found" }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          const result = await codeAgentService.readFile({ sessionId, path });
+
+          if (!result.success) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: result.error }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({ path, content: result.content, size: result.size }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to read file" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Write File to Session
+    server.registerTool(
+      "code_agent_write_file",
+      {
+        description: "Write a file to a code agent session. Creates directories as needed.",
+        inputSchema: {
+          sessionId: z.string().uuid().describe("Session ID"),
+          path: z.string().describe("File path to write"),
+          content: z.string().describe("File content"),
+        },
+      },
+      async ({ sessionId, path, content }) => {
+        try {
+          const { user } = getAuthContext();
+          const { codeAgentService } = await import("@/lib/services/code-agent");
+
+          const session = await codeAgentService.getSession(sessionId, user.organization_id!);
+          if (!session) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: "Session not found" }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          const result = await codeAgentService.writeFile({ sessionId, path, content });
+
+          if (!result.success) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: result.error }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, path }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to write file" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: List Files in Session
+    server.registerTool(
+      "code_agent_list_files",
+      {
+        description: "List files and directories in a code agent session.",
+        inputSchema: {
+          sessionId: z.string().uuid().describe("Session ID"),
+          path: z.string().describe("Directory path to list"),
+          recursive: z.boolean().optional().default(true).describe("List recursively"),
+          maxDepth: z.number().min(1).max(10).optional().default(3).describe("Max directory depth"),
+        },
+      },
+      async ({ sessionId, path, recursive, maxDepth }) => {
+        try {
+          const { user } = getAuthContext();
+          const { codeAgentService } = await import("@/lib/services/code-agent");
+
+          const session = await codeAgentService.getSession(sessionId, user.organization_id!);
+          if (!session) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: "Session not found" }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          const result = await codeAgentService.listFiles({ sessionId, path, recursive, maxDepth });
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({ path, entries: result.entries, count: result.entries.length }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list files" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Git Clone in Session
+    server.registerTool(
+      "code_agent_git_clone",
+      {
+        description: "Clone a git repository into a code agent session.",
+        inputSchema: {
+          sessionId: z.string().uuid().describe("Session ID"),
+          url: z.string().url().describe("Git repository URL"),
+          branch: z.string().optional().describe("Branch to clone"),
+          depth: z.number().min(1).optional().describe("Clone depth (shallow clone)"),
+          directory: z.string().optional().describe("Target directory"),
+        },
+      },
+      async ({ sessionId, url, branch, depth, directory }) => {
+        try {
+          const { user } = getAuthContext();
+          const { codeAgentService } = await import("@/lib/services/code-agent");
+
+          const session = await codeAgentService.getSession(sessionId, user.organization_id!);
+          if (!session) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: "Session not found" }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          const result = await codeAgentService.gitClone({ sessionId, url, branch, depth, directory });
+
+          if (!result.success) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: result.error }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({ success: true, message: result.message, gitState: result.gitState }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Git clone failed" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Install Packages in Session
+    server.registerTool(
+      "code_agent_install_packages",
+      {
+        description: "Install packages in a code agent session using npm, pip, bun, or cargo.",
+        inputSchema: {
+          sessionId: z.string().uuid().describe("Session ID"),
+          packages: z.array(z.string()).min(1).max(50).describe("Package names to install"),
+          manager: z.enum(["npm", "pip", "bun", "cargo"]).optional().default("npm").describe("Package manager"),
+          dev: z.boolean().optional().default(false).describe("Install as dev dependency"),
+        },
+      },
+      async ({ sessionId, packages, manager, dev }) => {
+        try {
+          const { user } = getAuthContext();
+          const { codeAgentService } = await import("@/lib/services/code-agent");
+
+          const session = await codeAgentService.getSession(sessionId, user.organization_id!);
+          if (!session) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: "Session not found" }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          const result = await codeAgentService.installPackages({ sessionId, packages, manager, dev });
+
+          if (!result.success) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: result.error, output: result.output }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({ success: true, packages: result.packages, installedCount: result.installedCount }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Package installation failed" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Create Session Snapshot
+    server.registerTool(
+      "code_agent_snapshot",
+      {
+        description: "Create a snapshot of a code agent session for later restoration.",
+        inputSchema: {
+          sessionId: z.string().uuid().describe("Session ID"),
+          name: z.string().max(200).optional().describe("Snapshot name"),
+          description: z.string().max(1000).optional().describe("Snapshot description"),
+        },
+      },
+      async ({ sessionId, name, description }) => {
+        try {
+          const { user } = getAuthContext();
+          const { codeAgentService } = await import("@/lib/services/code-agent");
+
+          const session = await codeAgentService.getSession(sessionId, user.organization_id!);
+          if (!session) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: "Session not found" }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          const result = await codeAgentService.createSnapshot({ sessionId, name, description });
+
+          if (!result.success) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: result.error }, null, 2) }],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({ success: true, snapshot: result.snapshot }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Snapshot creation failed" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Terminate Session
+    server.registerTool(
+      "code_agent_terminate",
+      {
+        description: "Terminate a code agent session. Creates a final snapshot before termination.",
+        inputSchema: {
+          sessionId: z.string().uuid().describe("Session ID to terminate"),
+        },
+      },
+      async ({ sessionId }) => {
+        try {
+          const { user } = getAuthContext();
+          const { codeAgentService } = await import("@/lib/services/code-agent");
+
+          await codeAgentService.terminateSession(sessionId, user.organization_id!);
+
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, message: "Session terminated" }, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to terminate session" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // =========================================================================
+    // CODE INTERPRETER TOOL (Quick Stateless Execution)
+    // =========================================================================
+
+    server.registerTool(
+      "code_interpreter",
+      {
+        description:
+          "Quick stateless code execution for fast evaluations. " +
+          "Supports Python, JavaScript, TypeScript, and shell. " +
+          "No session required - great for calculations, data processing, quick scripts. " +
+          "Cost: ~$0.001 per execution.",
+        inputSchema: {
+          language: z.enum(["python", "javascript", "typescript", "shell"]).describe("Programming language"),
+          code: z.string().min(1).max(50000).describe("Code to execute"),
+          packages: z.array(z.string()).max(20).optional().describe("Packages to install (Python/npm)"),
+          timeout: z.number().min(1000).max(60000).optional().default(30000).describe("Timeout in milliseconds"),
+        },
+      },
+      async ({ language, code, packages, timeout }) => {
+        try {
+          const { user } = getAuthContext();
+          const { interpreterService } = await import("@/lib/services/code-agent");
+
+          const result = await interpreterService.execute({
+            organizationId: user.organization_id!,
+            userId: user.id,
+            language,
+            code,
+            packages,
+            timeout,
+          });
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                success: result.success,
+                output: result.output,
+                error: result.error,
+                exitCode: result.exitCode,
+                durationMs: result.durationMs,
+                costCents: result.costCents,
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Execution failed" }, null, 2) }],
+            isError: true,
+          };
+        }
+      },
+    );
   },
   {},
   { basePath: "/api" },

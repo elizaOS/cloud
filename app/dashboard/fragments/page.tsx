@@ -6,10 +6,12 @@ import { ChatPicker } from "@/components/fragments/chat-picker";
 import { ChatSettings } from "@/components/fragments/chat-settings";
 import { Preview } from "@/components/fragments/preview";
 import { AIAppBuilderDialog } from "@/components/apps/ai-app-builder-dialog";
+import { ServiceBuilder } from "@/components/builders/service-builder";
 import { usePrivy } from "@privy-io/react-auth";
 import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
 import { Button } from "@/components/ui/button";
-import { Save, Rocket, FolderOpen, Zap, Layers } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Save, Rocket, FolderOpen, Zap, Layers, Server } from "lucide-react";
 import { useState, useEffect, SetStateAction } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -22,7 +24,7 @@ import { DeepPartial } from "ai";
 import { experimental_useObject as useObject } from "@ai-sdk/react";
 import { fragmentSchema } from "@/lib/fragments/schema";
 
-type BuilderMode = "quick" | "full_app";
+type BuilderMode = "quick" | "full_app" | "service";
 
 function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T) => void] {
   const [storedValue, setStoredValue] = useState<T>(() => {
@@ -56,6 +58,7 @@ export default function FragmentsPage() {
   // Builder mode state
   const [builderMode, setBuilderMode] = useLocalStorage<BuilderMode>("fragments-builder-mode", "quick");
   const [showFullAppDialog, setShowFullAppDialog] = useState(false);
+  const [showServiceDialog, setShowServiceDialog] = useState(false);
 
   const [chatInput, setChatInput] = useLocalStorage("fragments-chat", "");
   const [files, setFiles] = useState<File[]>([]);
@@ -408,6 +411,20 @@ export default function FragmentsPage() {
               <Layers className="h-4 w-4" />
               <span className="hidden sm:inline">Full App</span>
             </button>
+            <button
+              onClick={() => {
+                setBuilderMode("service");
+                setShowServiceDialog(true);
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                builderMode === "service"
+                  ? "bg-[#FF5800] text-white"
+                  : "text-white/60 hover:text-white"
+              }`}
+            >
+              <Server className="h-4 w-4" />
+              <span className="hidden sm:inline">Service</span>
+            </button>
           </div>
 
           {fragment && (
@@ -542,6 +559,32 @@ export default function FragmentsPage() {
         }
       }}
     />
+
+    {/* Service Builder Dialog */}
+    <Dialog
+      open={showServiceDialog}
+      onOpenChange={(open) => {
+        setShowServiceDialog(open);
+        if (!open) {
+          setBuilderMode("quick");
+        }
+      }}
+    >
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-bold text-white">
+            Create MCP/A2A Service
+          </DialogTitle>
+        </DialogHeader>
+        <ServiceBuilder
+          onSave={() => {
+            setShowServiceDialog(false);
+            setBuilderMode("quick");
+            toast.success("Service created successfully");
+          }}
+        />
+      </DialogContent>
+    </Dialog>
     </>
   );
 }

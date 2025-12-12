@@ -35,6 +35,14 @@
     {
       "path": "/api/cron/n8n-workflow-triggers",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/domain-health",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-code-sessions",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

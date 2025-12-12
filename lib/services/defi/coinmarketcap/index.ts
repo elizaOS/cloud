@@ -1,10 +1,6 @@
 /**
- * CoinMarketCap Service
- *
- * Provides cryptocurrency market data including prices, market caps,
- * trading volumes, and global metrics.
- *
- * API Documentation: https://coinmarketcap.com/api/documentation/v1/
+ * CoinMarketCap Service - Cryptocurrency market data
+ * API: https://coinmarketcap.com/api/documentation/v1/
  */
 
 import { logger } from "@/lib/utils/logger";
@@ -13,17 +9,11 @@ import type { TokenPrice, MarketOverview, TrendingToken } from "../types";
 
 const CMC_BASE_URL = "https://pro-api.coinmarketcap.com/v1";
 
-/**
- * CoinMarketCap service configuration
- */
 export interface CoinMarketCapConfig {
   apiKey: string;
   timeout?: number;
 }
 
-/**
- * CoinMarketCap quote data
- */
 export interface CMCQuote {
   price: number;
   volume_24h: number;
@@ -40,9 +30,6 @@ export interface CMCQuote {
   last_updated: string;
 }
 
-/**
- * CoinMarketCap cryptocurrency data
- */
 export interface CMCCryptocurrency {
   id: number;
   name: string;
@@ -54,13 +41,7 @@ export interface CMCCryptocurrency {
   max_supply: number | null;
   circulating_supply: number;
   total_supply: number;
-  platform: {
-    id: number;
-    name: string;
-    symbol: string;
-    slug: string;
-    token_address: string;
-  } | null;
+  platform: { id: number; name: string; symbol: string; slug: string; token_address: string } | null;
   cmc_rank: number;
   self_reported_circulating_supply: number | null;
   self_reported_market_cap: number | null;
@@ -68,9 +49,6 @@ export interface CMCCryptocurrency {
   quote: Record<string, CMCQuote>;
 }
 
-/**
- * CoinMarketCap global metrics
- */
 export interface CMCGlobalMetrics {
   active_cryptocurrencies: number;
   total_cryptocurrencies: number;
@@ -121,9 +99,6 @@ export interface CMCGlobalMetrics {
   last_updated: string;
 }
 
-/**
- * CoinMarketCap ID map entry
- */
 export interface CMCIdMapEntry {
   id: number;
   name: string;
@@ -133,32 +108,12 @@ export interface CMCIdMapEntry {
   is_active: number;
   first_historical_data: string;
   last_historical_data: string;
-  platform: {
-    id: number;
-    name: string;
-    symbol: string;
-    slug: string;
-    token_address: string;
-  } | null;
+  platform: { id: number; name: string; symbol: string; slug: string; token_address: string } | null;
 }
 
-/**
- * CoinMarketCap HTTP client
- */
 class CoinMarketCapClient extends BaseHttpClient {
   constructor(config: { apiKey: string; timeout?: number }) {
-    super(
-      {
-        baseUrl: CMC_BASE_URL,
-        apiKey: config.apiKey,
-        headers: {
-          "X-CMC_PRO_API_KEY": config.apiKey,
-          Accept: "application/json",
-        },
-        timeout: config.timeout,
-      },
-      "CoinMarketCap"
-    );
+    super({ baseUrl: CMC_BASE_URL, apiKey: config.apiKey, headers: { "X-CMC_PRO_API_KEY": config.apiKey, Accept: "application/json" }, timeout: config.timeout }, "CoinMarketCap");
   }
 
   async healthCheck(): Promise<{ healthy: boolean; latencyMs: number }> {
@@ -172,9 +127,6 @@ class CoinMarketCapClient extends BaseHttpClient {
   }
 }
 
-/**
- * CoinMarketCap Service Class
- */
 export class CoinMarketCapService {
   private readonly client: CoinMarketCapClient;
   private idMapCache: Map<string, number> = new Map();
@@ -182,28 +134,15 @@ export class CoinMarketCapService {
   private readonly ID_CACHE_TTL = 3600000; // 1 hour
 
   constructor(config: CoinMarketCapConfig) {
-    this.client = new CoinMarketCapClient({
-      apiKey: config.apiKey,
-      timeout: config.timeout,
-    });
+    this.client = new CoinMarketCapClient({ apiKey: config.apiKey, timeout: config.timeout });
   }
 
-  /**
-   * Initialize service from environment variables
-   */
   static fromEnv(): CoinMarketCapService {
     const apiKey = process.env.COINMARKETCAP_API_KEY;
-
-    if (!apiKey) {
-      throw new Error("COINMARKETCAP_API_KEY environment variable is required");
-    }
-
+    if (!apiKey) throw new Error("COINMARKETCAP_API_KEY environment variable is required");
     return new CoinMarketCapService({ apiKey });
   }
 
-  /**
-   * Get latest listings (top cryptocurrencies)
-   */
   async getLatestListings(
     options: {
       start?: number;
@@ -215,32 +154,21 @@ export class CoinMarketCapService {
   ): Promise<CMCCryptocurrency[]> {
     logger.info("[CoinMarketCap] Getting latest listings");
 
-    const response = await this.client.get<{ data: CMCCryptocurrency[] }>(
-      "/cryptocurrency/listings/latest",
-      {
-        start: options.start ?? 1,
-        limit: options.limit ?? 100,
-        convert: options.convert ?? "USD",
-        sort: options.sort ?? "market_cap",
-        sort_dir: options.sortDir ?? "desc",
-      }
-    );
+    const response = await this.client.get<{ data: CMCCryptocurrency[] }>("/cryptocurrency/listings/latest", {
+      start: options.start ?? 1,
+      limit: options.limit ?? 100,
+      convert: options.convert ?? "USD",
+      sort: options.sort ?? "market_cap",
+      sort_dir: options.sortDir ?? "desc",
+    });
 
     return response.data;
   }
 
-  /**
-   * Get quotes for specific cryptocurrencies
-   */
-  async getQuotes(
-    ids: number[],
-    convert: string = "USD"
-  ): Promise<Map<number, CMCCryptocurrency>> {
+  async getQuotes(ids: number[], convert: string = "USD"): Promise<Map<number, CMCCryptocurrency>> {
     logger.info(`[CoinMarketCap] Getting quotes for ${ids.length} cryptocurrencies`);
 
-    const response = await this.client.get<{
-      data: Record<string, CMCCryptocurrency>;
-    }>("/cryptocurrency/quotes/latest", {
+    const response = await this.client.get<{ data: Record<string, CMCCryptocurrency> }>("/cryptocurrency/quotes/latest", {
       id: ids.join(","),
       convert,
     });
@@ -249,49 +177,30 @@ export class CoinMarketCapService {
     for (const [id, data] of Object.entries(response.data)) {
       result.set(parseInt(id, 10), data);
     }
-
     return result;
   }
 
-  /**
-   * Get quotes by symbol
-   */
-  async getQuotesBySymbol(
-    symbols: string[],
-    convert: string = "USD"
-  ): Promise<Map<string, CMCCryptocurrency>> {
+  async getQuotesBySymbol(symbols: string[], convert: string = "USD"): Promise<Map<string, CMCCryptocurrency>> {
     logger.info(`[CoinMarketCap] Getting quotes for symbols: ${symbols.join(",")}`);
 
-    const response = await this.client.get<{
-      data: Record<string, CMCCryptocurrency[]>;
-    }>("/cryptocurrency/quotes/latest", {
+    const response = await this.client.get<{ data: Record<string, CMCCryptocurrency[]> }>("/cryptocurrency/quotes/latest", {
       symbol: symbols.join(","),
       convert,
     });
 
     const result = new Map<string, CMCCryptocurrency>();
     for (const [symbol, dataArray] of Object.entries(response.data)) {
-      if (dataArray.length > 0) {
-        result.set(symbol, dataArray[0]);
-      }
+      if (dataArray.length > 0) result.set(symbol, dataArray[0]);
     }
-
     return result;
   }
 
-  /**
-   * Get token price (normalized)
-   */
   async getTokenPrice(symbol: string): Promise<TokenPrice> {
     const quotes = await this.getQuotesBySymbol([symbol]);
     const data = quotes.get(symbol.toUpperCase());
-
-    if (!data) {
-      throw new Error(`Token not found: ${symbol}`);
-    }
+    if (!data) throw new Error(`Token not found: ${symbol}`);
 
     const quote = data.quote.USD;
-
     return {
       address: String(data.id),
       symbol: data.symbol,
@@ -303,23 +212,12 @@ export class CoinMarketCapService {
     };
   }
 
-  /**
-   * Get global market metrics
-   */
   async getGlobalMetrics(convert: string = "USD"): Promise<CMCGlobalMetrics> {
     logger.info("[CoinMarketCap] Getting global metrics");
-
-    const response = await this.client.get<{ data: CMCGlobalMetrics }>(
-      "/global-metrics/quotes/latest",
-      { convert }
-    );
-
+    const response = await this.client.get<{ data: CMCGlobalMetrics }>("/global-metrics/quotes/latest", { convert });
     return response.data;
   }
 
-  /**
-   * Get market overview (normalized)
-   */
   async getMarketOverview(): Promise<MarketOverview> {
     const metrics = await this.getGlobalMetrics();
     const usdQuote = metrics.quote.USD;
@@ -334,29 +232,15 @@ export class CoinMarketCapService {
     };
   }
 
-  /**
-   * Get trending/gainers
-   */
   async getTrending(limit: number = 20): Promise<TrendingToken[]> {
     logger.info("[CoinMarketCap] Getting trending (top gainers)");
 
-    const listings = await this.getLatestListings({
-      limit: 200,
-      sort: "percent_change_24h",
-      sortDir: "desc",
-    });
+    const listings = await this.getLatestListings({ limit: 200, sort: "percent_change_24h", sortDir: "desc" });
 
     return listings.slice(0, limit).map((coin, index) => {
       const quote = coin.quote.USD;
-
       return {
-        token: {
-          address: String(coin.id),
-          symbol: coin.symbol,
-          name: coin.name,
-          decimals: 18,
-          chainId: "ethereum" as const,
-        },
+        token: { address: String(coin.id), symbol: coin.symbol, name: coin.name, decimals: 18, chainId: "ethereum" as const },
         rank: index + 1,
         priceUsd: quote.price,
         priceChange24h: quote.percent_change_24h,
@@ -365,41 +249,25 @@ export class CoinMarketCapService {
     });
   }
 
-  /**
-   * Get ID map (symbol to CMC ID mapping)
-   */
-  async getIdMap(
-    options: { start?: number; limit?: number; symbol?: string } = {}
-  ): Promise<CMCIdMapEntry[]> {
+  async getIdMap(options: { start?: number; limit?: number; symbol?: string } = {}): Promise<CMCIdMapEntry[]> {
     logger.info("[CoinMarketCap] Getting ID map");
 
-    const response = await this.client.get<{ data: CMCIdMapEntry[] }>(
-      "/cryptocurrency/map",
-      {
-        start: options.start ?? 1,
-        limit: options.limit ?? 5000,
-        symbol: options.symbol,
-      }
-    );
+    const response = await this.client.get<{ data: CMCIdMapEntry[] }>("/cryptocurrency/map", {
+      start: options.start ?? 1,
+      limit: options.limit ?? 5000,
+      symbol: options.symbol,
+    });
 
     return response.data;
   }
 
-  /**
-   * Find CMC ID by symbol (cached)
-   */
   async findIdBySymbol(symbol: string): Promise<number | null> {
     const upperSymbol = symbol.toUpperCase();
 
-    // Check cache
-    if (
-      this.idMapCache.size > 0 &&
-      Date.now() - this.idMapCacheTime < this.ID_CACHE_TTL
-    ) {
+    if (this.idMapCache.size > 0 && Date.now() - this.idMapCacheTime < this.ID_CACHE_TTL) {
       return this.idMapCache.get(upperSymbol) ?? null;
     }
 
-    // Refresh cache
     const idMap = await this.getIdMap();
     this.idMapCache.clear();
     for (const entry of idMap) {
@@ -410,125 +278,44 @@ export class CoinMarketCapService {
     return this.idMapCache.get(upperSymbol) ?? null;
   }
 
-  /**
-   * Get cryptocurrency info/metadata
-   */
-  async getCryptocurrencyInfo(
-    ids: number[]
-  ): Promise<Record<number, {
-    id: number;
-    name: string;
-    symbol: string;
-    category: string;
-    description: string;
-    slug: string;
-    logo: string;
-    subreddit: string;
-    notice: string;
-    tags: string[];
-    urls: {
-      website: string[];
-      twitter: string[];
-      message_board: string[];
-      chat: string[];
-      facebook: string[];
-      explorer: string[];
-      reddit: string[];
-      technical_doc: string[];
-      source_code: string[];
-      announcement: string[];
-    };
-    platform: {
-      id: number;
-      name: string;
-      symbol: string;
-      slug: string;
-      token_address: string;
-    } | null;
-    date_added: string;
-    date_launched: string | null;
-    is_hidden: number;
-    self_reported_circulating_supply: number | null;
-    self_reported_market_cap: number | null;
-    self_reported_tags: string[] | null;
-    infinite_supply: boolean;
+  async getCryptocurrencyInfo(ids: number[]): Promise<Record<number, {
+    id: number; name: string; symbol: string; category: string; description: string; slug: string; logo: string;
+    subreddit: string; notice: string; tags: string[];
+    urls: { website: string[]; twitter: string[]; message_board: string[]; chat: string[]; facebook: string[]; explorer: string[]; reddit: string[]; technical_doc: string[]; source_code: string[]; announcement: string[] };
+    platform: { id: number; name: string; symbol: string; slug: string; token_address: string } | null;
+    date_added: string; date_launched: string | null; is_hidden: number;
+    self_reported_circulating_supply: number | null; self_reported_market_cap: number | null; self_reported_tags: string[] | null; infinite_supply: boolean;
   }>> {
     logger.info(`[CoinMarketCap] Getting info for ${ids.length} cryptocurrencies`);
 
-    const response = await this.client.get<{
-      data: Record<string, {
-        id: number;
-        name: string;
-        symbol: string;
-        category: string;
-        description: string;
-        slug: string;
-        logo: string;
-        subreddit: string;
-        notice: string;
-        tags: string[];
-        urls: {
-          website: string[];
-          twitter: string[];
-          message_board: string[];
-          chat: string[];
-          facebook: string[];
-          explorer: string[];
-          reddit: string[];
-          technical_doc: string[];
-          source_code: string[];
-          announcement: string[];
-        };
-        platform: {
-          id: number;
-          name: string;
-          symbol: string;
-          slug: string;
-          token_address: string;
-        } | null;
-        date_added: string;
-        date_launched: string | null;
-        is_hidden: number;
-        self_reported_circulating_supply: number | null;
-        self_reported_market_cap: number | null;
-        self_reported_tags: string[] | null;
-        infinite_supply: boolean;
-      }>;
-    }>("/cryptocurrency/info", { id: ids.join(",") });
+    const response = await this.client.get<{ data: Record<string, {
+      id: number; name: string; symbol: string; category: string; description: string; slug: string; logo: string;
+      subreddit: string; notice: string; tags: string[];
+      urls: { website: string[]; twitter: string[]; message_board: string[]; chat: string[]; facebook: string[]; explorer: string[]; reddit: string[]; technical_doc: string[]; source_code: string[]; announcement: string[] };
+      platform: { id: number; name: string; symbol: string; slug: string; token_address: string } | null;
+      date_added: string; date_launched: string | null; is_hidden: number;
+      self_reported_circulating_supply: number | null; self_reported_market_cap: number | null; self_reported_tags: string[] | null; infinite_supply: boolean;
+    }> }>("/cryptocurrency/info", { id: ids.join(",") });
 
     const result: Record<number, typeof response.data[string]> = {};
     for (const [id, data] of Object.entries(response.data)) {
       result[parseInt(id, 10)] = data;
     }
-
     return result;
   }
 
-  /**
-   * Health check
-   */
   async healthCheck(): Promise<{ healthy: boolean; latencyMs: number }> {
     return this.client.healthCheck();
   }
 }
 
-// Singleton instance
 let serviceInstance: CoinMarketCapService | null = null;
 
-/**
- * Get or create CoinMarketCap service singleton
- */
 export function getCoinMarketCapService(): CoinMarketCapService {
-  if (!serviceInstance) {
-    serviceInstance = CoinMarketCapService.fromEnv();
-  }
+  if (!serviceInstance) serviceInstance = CoinMarketCapService.fromEnv();
   return serviceInstance;
 }
 
-/**
- * Reset service instance (for testing)
- */
 export function resetCoinMarketCapService(): void {
   serviceInstance = null;
 }
-

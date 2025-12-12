@@ -47,7 +47,6 @@ interface CommandResultHandle {
 // =============================================================================
 
 declare global {
-  // eslint-disable-next-line no-var
   var __codeAgentSandboxes: Map<string, SandboxHandle> | undefined;
 }
 
