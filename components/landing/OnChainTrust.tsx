@@ -6,13 +6,13 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, Check, Framer } from "lucide-react";
+import { ArrowUpRight, Check } from "lucide-react";
 import { CornerBrackets, SectionLabel, BrandCard } from "@/components/brand";
 import MicropaymentNetwork from "./MicropaymentNetwork";
 import Image from "next/image";
 import { ReactFlowProvider } from "@xyflow/react";
 import { motion } from "framer-motion";
-import { agentFlagTypeEnum } from "@/db/schemas";
+
 
 export default function OnChainTrust() {
   const mockCardData = [
