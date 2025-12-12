@@ -20,46 +20,55 @@ export default function OnChainTrust() {
       name: "Sage",
       description: "Your default AI companion",
       address: "0xA9E3...C14",
+      image: "/avatars/amara.png",
     },
     {
       name: "Nova",
       description: "Creative writing assistant",
       address: "0xB2F4...A27",
+      image: "/avatars/codementor.png",
     },
     {
       name: "Atlas",
       description: "Data analysis expert",
       address: "0xC8D1...F93",
+      image: "/avatars/comedybot.png",
     },
     {
       name: "echo",
       description: "Voice interaction specialist",
       address: "0xD4E2...B61",
+      image: "/avatars/creativespark.png",
     },
     {
       name: "Eliza",
       description: "Knowledge base curator",
       address: "0xE7A5...D48",
+      image: "/agent-wallet.png",
     },
     {
       name: "Pixel",
       description: "Image generation AI",
       address: "0xF1B8...E52",
+      image: "/avatars/prof_ada.png",
     },
     {
       name: "Cipher",
       description: "Code optimization tool",
       address: "0xA3C9...F17",
+      image: "/avatars/gamemaster.png",
     },
     {
       name: "Muse",
       description: "Music composition helper",
       address: "0xB6D2...C83",
+      image: "/avatars/luna.png",
     },
     {
       name: "Scout",
       description: "Research aggregator",
       address: "0xC9E4...A94",
+      image: "/avatars/voiceai.png",
     },
   ];
   return (
@@ -215,7 +224,7 @@ export default function OnChainTrust() {
                       <div className="flex items-center gap-2">
                         <div className="h-10 w-10 rounded-sm flex-shrink-0 relative overflow-hidden">
                           <Image
-                            src="/agent-wallet.png"
+                            src={agent.image}
                             alt="Agent"
                             fill
                             className="object-cover select-none"
