@@ -148,10 +148,10 @@ export function CharacterCard({
 
   // Grid view - card layout
   return (
-    <Card className="group overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 p-0 gap-0 h-full">
+    <Card className="rounded-none group overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 p-0 gap-0 h-full">
       <CardContent className="p-0 h-full flex flex-col">
         {/* Character Avatar/Header */}
-        <div className="relative h-48 flex-shrink-0 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center rounded-t-xl overflow-hidden">
+        <div className="relative h-48 flex-shrink-0 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center overflow-hidden">
           <Image
             src={ensureAvatarUrl(character.avatarUrl)}
             alt={character.name}
