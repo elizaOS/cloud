@@ -45,7 +45,7 @@ function GalleryImageItem({
     <div
       className={`group relative aspect-square overflow-hidden rounded-lg border-2 transition-all ${
         isPrimary
-          ? "border-brand ring-2 ring-brand/30"
+          ? "border-brand ring-brand/30 ring-2"
           : isSelected
             ? "border-white/40"
             : "border-white/10 hover:border-white/20"
@@ -67,14 +67,14 @@ function GalleryImageItem({
 
       {/* Primary Badge */}
       {isPrimary && (
-        <div className="absolute left-1 top-1 rounded-full bg-brand px-1.5 py-0.5">
+        <div className="bg-brand absolute top-1 left-1 rounded-full px-1.5 py-0.5">
           <Star className="h-3 w-3 fill-white text-white" />
         </div>
       )}
 
       {/* Selected Check */}
       {isSelected && !isPrimary && (
-        <div className="absolute left-1 top-1 rounded-full bg-white/90 p-0.5">
+        <div className="absolute top-1 left-1 rounded-full bg-white/90 p-0.5">
           <Check className="h-3 w-3 text-black" />
         </div>
       )}
@@ -128,7 +128,7 @@ export function ImageGallery({
 
   const primaryImage = useMemo(
     () => images.find((img) => img.isPrimary) || images[0],
-    [images]
+    [images],
   );
 
   const canAddMore = images.length < maxImages;
@@ -140,6 +140,7 @@ export function ImageGallery({
   // Clear selection when images change
   useEffect(() => {
     if (selectedId && !images.find((img) => img.id === selectedId)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedId(null);
     }
   }, [images, selectedId]);
@@ -153,7 +154,7 @@ export function ImageGallery({
           type="button"
           onClick={onAddImage}
           disabled={disabled}
-          className="mt-4 rounded-lg bg-brand/20 px-4 py-2 text-sm font-medium text-brand hover:bg-brand/30 disabled:opacity-50"
+          className="bg-brand/20 text-brand hover:bg-brand/30 mt-4 rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
         >
           Add First Image
         </button>
@@ -172,7 +173,7 @@ export function ImageGallery({
             type="button"
             onClick={onAddImage}
             disabled={disabled}
-            className="flex items-center gap-1 text-xs text-brand hover:text-brand-400 disabled:opacity-50"
+            className="text-brand hover:text-brand-400 flex items-center gap-1 text-xs disabled:opacity-50"
           >
             <Plus className="h-3.5 w-3.5" />
             Add More
@@ -182,7 +183,7 @@ export function ImageGallery({
 
       {/* Primary Image Display */}
       {primaryImage && (
-        <div className="relative aspect-square w-full max-w-[200px] overflow-hidden rounded-xl border-2 border-brand bg-white/5">
+        <div className="border-brand relative aspect-square w-full max-w-[200px] overflow-hidden rounded-xl border-2 bg-white/5">
           <Image
             src={primaryImage.url}
             alt="Primary avatar"
@@ -190,7 +191,7 @@ export function ImageGallery({
             className="object-cover"
             sizes="200px"
           />
-          <div className="absolute bottom-2 left-2 flex items-center gap-1 rounded-full bg-brand/90 px-2 py-0.5 text-xs font-medium text-white">
+          <div className="bg-brand/90 absolute bottom-2 left-2 flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-white">
             <Star className="h-3 w-3 fill-white" />
             Primary
           </div>
@@ -279,8 +280,8 @@ export function CompactImageGallery({
               sizes="48px"
             />
             {isPrimary && (
-              <div className="absolute inset-0 flex items-center justify-center bg-brand/20">
-                <Star className="h-3 w-3 fill-brand text-brand" />
+              <div className="bg-brand/20 absolute inset-0 flex items-center justify-center">
+                <Star className="fill-brand text-brand h-3 w-3" />
               </div>
             )}
             <div className="absolute inset-0 flex items-center justify-center gap-1 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
@@ -313,4 +314,3 @@ export function CompactImageGallery({
 }
 
 export default ImageGallery;
-

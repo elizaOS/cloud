@@ -50,11 +50,13 @@ export function ConversationBuilder({
     setExpandedId(newExample.id);
   };
 
-  const updateExample = (id: string, field: "user" | "agent", value: string) => {
+  const updateExample = (
+    id: string,
+    field: "user" | "agent",
+    value: string,
+  ) => {
     onChange(
-      examples.map((ex) =>
-        ex.id === id ? { ...ex, [field]: value } : ex
-      )
+      examples.map((ex) => (ex.id === id ? { ...ex, [field]: value } : ex)),
     );
   };
 
@@ -83,7 +85,7 @@ export function ConversationBuilder({
             type="button"
             onClick={onGenerateExamples}
             disabled={isGenerating || !characterName}
-            className="flex items-center gap-1.5 rounded-lg border border-brand/30 bg-brand/10 px-3 py-1.5 text-xs font-medium text-brand transition-colors hover:bg-brand/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="border-brand/30 bg-brand/10 text-brand hover:bg-brand/20 flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isGenerating ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -125,8 +127,12 @@ export function ConversationBuilder({
               index={index}
               characterName={characterName}
               isExpanded={expandedId === example.id}
-              onToggle={() => setExpandedId(expandedId === example.id ? null : example.id)}
-              onUpdate={(field, value) => updateExample(example.id, field, value)}
+              onToggle={() =>
+                setExpandedId(expandedId === example.id ? null : example.id)
+              }
+              onUpdate={(field, value) =>
+                updateExample(example.id, field, value)
+              }
               onRemove={() => removeExample(example.id)}
               onMoveUp={() => moveExample(index, index - 1)}
               onMoveDown={() => moveExample(index, index + 1)}
@@ -138,7 +144,7 @@ export function ConversationBuilder({
       )}
 
       {examples.length > 0 && examples.length < 5 && (
-        <p className="text-xs text-white/40 text-center">
+        <p className="text-center text-xs text-white/40">
           💡 Tip: Add 3-5 examples for best results
         </p>
       )}
@@ -202,7 +208,7 @@ function ConversationCard({
               onMoveUp();
             }}
             disabled={!canMoveUp}
-            className="p-0.5 hover:text-white/60 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-0.5 hover:text-white/60 disabled:cursor-not-allowed disabled:opacity-30"
           >
             <GripVertical className="h-4 w-4" />
           </button>
@@ -212,8 +218,10 @@ function ConversationCard({
           {index + 1}
         </div>
 
-        <div className="flex-1 min-w-0">
-          <p className={`text-sm truncate ${hasContent ? "text-white/80" : "text-white/40 italic"}`}>
+        <div className="min-w-0 flex-1">
+          <p
+            className={`truncate text-sm ${hasContent ? "text-white/80" : "text-white/40 italic"}`}
+          >
             {preview}
           </p>
         </div>
@@ -224,7 +232,7 @@ function ConversationCard({
             e.stopPropagation();
             onRemove();
           }}
-          className="p-1.5 text-white/30 hover:text-red-400 transition-colors"
+          className="p-1.5 text-white/30 transition-colors hover:text-red-400"
         >
           <Trash2 className="h-4 w-4" />
         </button>
@@ -232,7 +240,7 @@ function ConversationCard({
 
       {/* Expanded content */}
       {isExpanded && (
-        <div className="border-t border-white/10 p-4 space-y-4">
+        <div className="space-y-4 border-t border-white/10 p-4">
           {/* User message */}
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-xs font-medium text-white/60">
@@ -246,15 +254,15 @@ function ConversationCard({
               value={example.user}
               onChange={(e) => onUpdate("user", e.target.value)}
               placeholder="What might a user say?"
-              className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/30 focus:border-brand focus:outline-none"
+              className="focus:border-brand w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none"
             />
           </div>
 
           {/* Agent response */}
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-xs font-medium text-white/60">
-              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-brand/20">
-                <Bot className="h-3 w-3 text-brand" />
+              <div className="bg-brand/20 flex h-5 w-5 items-center justify-center rounded-full">
+                <Bot className="text-brand h-3 w-3" />
               </div>
               {characterName || "Character"} responds:
             </div>
@@ -263,7 +271,7 @@ function ConversationCard({
               onChange={(e) => onUpdate("agent", e.target.value)}
               placeholder={`How would ${characterName || "your character"} respond?`}
               rows={3}
-              className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/30 focus:border-brand focus:outline-none"
+              className="focus:border-brand w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none"
             />
           </div>
         </div>
@@ -326,9 +334,9 @@ export function CharacterPreview({
   };
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-4">
+    <div className="space-y-4 rounded-xl border border-white/10 bg-white/[0.02] p-4">
       <div className="flex items-center gap-2 text-sm font-medium text-white/80">
-        <Sparkles className="h-4 w-4 text-brand" />
+        <Sparkles className="text-brand h-4 w-4" />
         Preview Response
       </div>
 
@@ -339,38 +347,35 @@ export function CharacterPreview({
           onChange={(e) => setTestMessage(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleTestResponse()}
           placeholder="Type a test message..."
-          className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-brand focus:outline-none"
+          className="focus:border-brand flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none"
         />
         <button
           type="button"
           onClick={handleTestResponse}
           disabled={isGenerating || !testMessage.trim() || !name}
-          className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-brand hover:bg-brand-600 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isGenerating ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            "Test"
-          )}
+          {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Test"}
         </button>
       </div>
 
       {previewResponse && (
-        <div className="rounded-lg border border-brand/20 bg-brand/5 p-3">
+        <div className="border-brand/20 bg-brand/5 rounded-lg border p-3">
           <div className="flex items-start gap-3">
             {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={avatarUrl}
                 alt={name}
                 className="h-8 w-8 rounded-full object-cover"
               />
             ) : (
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand/20">
-                <Bot className="h-4 w-4 text-brand" />
+              <div className="bg-brand/20 flex h-8 w-8 items-center justify-center rounded-full">
+                <Bot className="text-brand h-4 w-4" />
               </div>
             )}
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-brand">{name}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-brand text-xs font-medium">{name}</p>
               <p className="mt-1 text-sm text-white/80">{previewResponse}</p>
             </div>
           </div>
@@ -383,4 +388,3 @@ export function CharacterPreview({
     </div>
   );
 }
-
