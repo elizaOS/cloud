@@ -38,6 +38,7 @@ interface ChatState {
   createRoom: (characterId?: string | null) => Promise<string | null>;
   deleteRoom: (roomId: string) => Promise<void>;
   initializeEntityId: () => void;
+  clearChatData: () => void;
 }
 
 // Initialize entity ID from localStorage
@@ -184,5 +185,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch (error) {
       console.error("Error deleting room:", error);
     }
+  },
+
+  // Clear all chat data on logout
+  clearChatData: () => {
+    // Clear localStorage items
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("elizaEntityId");
+      window.localStorage.removeItem("elizaRoomId");
+      window.localStorage.removeItem("eliza-pending-message");
+    }
+
+    // Reset store state
+    set({
+      rooms: [],
+      roomId: null,
+      isLoadingRooms: false,
+      entityId: "",
+      availableCharacters: [],
+      selectedCharacterId: null,
+    });
   },
 }));

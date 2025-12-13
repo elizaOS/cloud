@@ -72,3 +72,4 @@ export const anonymousSessions = pgTable(
 // Type inference
 export type AnonymousSession = InferSelectModel<typeof anonymousSessions>;
 export type NewAnonymousSession = InferInsertModel<typeof anonymousSessions>;
+
