@@ -668,3 +668,10 @@ button:not(:disabled),
   background: rgba(255, 88, 0, 0.3) !important;
   border-color: rgba(255, 88, 0, 0.5) !important;
 }
+
+/* All buttons should have cursor pointer */
+button:not(:disabled),
+[role="button"]:not(:disabled),
+[data-slot="button"]:not(:disabled) {
+  cursor: pointer;
+}
