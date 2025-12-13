@@ -149,8 +149,83 @@ export async function GET(
 
     // Transform messages and extract attachments
     const transformedMessages = messages.map((msg) => {
-      const content = parseMessageContent(msg.content);
-      const textContent = content.text || "";
+      const rawContent = msg.content;
+      const content = parseMessageContent(rawContent);
+
+      // Extract text content - handle multiple possible structures
+      // ElizaOS stores content differently for user vs agent messages
+      let textContent = "";
+      if (typeof content === "object" && content !== null) {
+        const c = content as Record<string, unknown>;
+
+        // Try direct text field first (if non-empty)
+        if (typeof c.text === "string" && c.text.length > 0) {
+          textContent = c.text;
+        }
+        // Check thought field (ElizaOS sometimes stores response in thought)
+        else if (typeof c.thought === "string" && c.thought.length > 0) {
+          textContent = c.thought;
+        }
+        // Check response field
+        else if (typeof c.response === "string" && c.response.length > 0) {
+          textContent = c.response;
+        }
+        // Check body field
+        else if (typeof c.body === "string" && c.body.length > 0) {
+          textContent = c.body;
+        }
+        // Fallback: check if content itself is the text
+        else if (typeof c.content === "string" && c.content.length > 0) {
+          textContent = c.content;
+        }
+        // Fallback: nested content.text structure
+        else if (
+          typeof c.content === "object" &&
+          c.content !== null &&
+          typeof (c.content as Record<string, unknown>).text === "string" &&
+          ((c.content as Record<string, unknown>).text as string).length > 0
+        ) {
+          textContent = (c.content as Record<string, unknown>).text as string;
+        }
+        // Check message field
+        else if (typeof c.message === "string" && c.message.length > 0) {
+          textContent = c.message;
+        }
+        // Last resort: find ANY non-empty string field
+        else {
+          const stringFields = Object.entries(c)
+            .filter(([key, v]) => typeof v === "string" && (v as string).length > 0 && key !== "source" && key !== "action" && key !== "inReplyTo")
+            .sort((a, b) => (b[1] as string).length - (a[1] as string).length); // Prefer longer strings
+          if (stringFields.length > 0) {
+            textContent = stringFields[0][1] as string;
+          }
+        }
+      }
+
+      // Also check metadata for text (ElizaOS sometimes stores there)
+      if (!textContent && msg.metadata && typeof msg.metadata === "object") {
+        const meta = msg.metadata as Record<string, unknown>;
+        if (typeof meta.text === "string" && meta.text.length > 0) {
+          textContent = meta.text;
+        } else if (typeof meta.response === "string" && meta.response.length > 0) {
+          textContent = meta.response;
+        } else if (typeof meta.content === "string" && meta.content.length > 0) {
+          textContent = meta.content;
+        }
+      }
+
+      // Debug log to understand content structure
+      logger.info("[Miniapp API] Message content structure", {
+        msgId: msg.id,
+        entityId: msg.entityId,
+        agentIdFromUrl: agentId,
+        isAgent: msg.entityId === agentId,
+        rawContentType: typeof rawContent,
+        rawContentSample: JSON.stringify(rawContent)?.substring(0, 800),
+        metadataSample: JSON.stringify(msg.metadata)?.substring(0, 300),
+        parsedContentKeys: typeof content === "object" && content ? Object.keys(content) : [],
+        extractedText: textContent ? textContent.substring(0, 100) : "(EMPTY - extraction failed)",
+      });
 
       // Extract attachments from content if present
       const attachments: MessageAttachment[] | undefined =
