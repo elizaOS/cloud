@@ -207,17 +207,17 @@ const audio = await elevenlabs.textToSpeech({
 Track these metrics from day 1:
 
 ```typescript
-// Key metrics to monitor
-const metrics = {
+// Example: Key metrics to monitor (these are target/example values, not actual implementation)
+const exampleMetrics = {
   voicesCreated: {
-    instant: 0,
-    professional: 0,
+    instant: 0, // Count of instant clones created
+    professional: 0, // Count of professional clones created
   },
-  successRate: 0.98, // Should be >95%
-  averageProcessingTime: 25, // seconds for instant
-  creditsSpent: 0,
-  mostPopularVoices: [],
-  errorRate: 0.02, // Should be <5%
+  successRate: 0.98, // Target: >95% - Actual value should come from your analytics
+  averageProcessingTime: 25, // Target: ~25s for instant - Actual value varies
+  creditsSpent: 0, // Total credits consumed
+  mostPopularVoices: [], // Track which voices are used most
+  errorRate: 0.02, // Target: <5% - Actual value should come from your error logs
 };
 ```
 
