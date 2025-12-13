@@ -10,13 +10,6 @@ import {
 import { CornerBrackets } from "@/components/brand";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 
 interface AutoTopUpModalProps {
@@ -24,8 +17,8 @@ interface AutoTopUpModalProps {
   onOpenChange: (open: boolean) => void;
   currentAutoTopUp: boolean;
   currentAmount: number;
-  currentPeriodicity: string;
-  onUpdate: (enabled: boolean, amount: number, periodicity: string) => void;
+  currentThreshold: number;
+  onUpdate: (enabled: boolean, amount: number, threshold: number) => void;
 }
 
 export function AutoTopUpModal({
@@ -33,16 +26,17 @@ export function AutoTopUpModal({
   onOpenChange,
   currentAutoTopUp,
   currentAmount,
-  currentPeriodicity,
+  currentThreshold,
   onUpdate,
 }: AutoTopUpModalProps) {
   const [enabled, setEnabled] = useState(currentAutoTopUp);
   const [amount, setAmount] = useState(currentAmount.toString());
-  const [periodicity, setPeriodicity] = useState(currentPeriodicity);
+  const [threshold, setThreshold] = useState(currentThreshold.toString());
 
   const handleUpdate = () => {
     const amountValue = parseFloat(amount) || 0;
-    onUpdate(enabled, amountValue, periodicity);
+    const thresholdValue = parseFloat(threshold) || 0;
+    onUpdate(enabled, amountValue, thresholdValue);
     onOpenChange(false);
   };
 
@@ -50,7 +44,7 @@ export function AutoTopUpModal({
     // Reset to original values
     setEnabled(currentAutoTopUp);
     setAmount(currentAmount.toString());
-    setPeriodicity(currentPeriodicity);
+    setThreshold(currentThreshold.toString());
     onOpenChange(false);
   };
 
@@ -76,8 +70,7 @@ export function AutoTopUpModal({
                   Auto-top up
                 </p>
                 <p className="text-sm text-white/60">
-                  Auto-reload your balance when it hits 0, by the amount you set
-                  prior
+                  Auto-reload your balance when it falls below threshold
                 </p>
               </div>
 
@@ -98,29 +91,33 @@ export function AutoTopUpModal({
               <Input
                 type="number"
                 step="1"
-                min="0"
+                min="1"
+                max="1000"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 className="backdrop-blur-sm bg-[rgba(29,29,29,0.3)] border border-[rgba(255,255,255,0.15)] text-[#717171] h-11"
-                placeholder="$200"
+                placeholder="$50"
               />
             </div>
 
-            {/* Periodicity */}
+            {/* Balance Threshold */}
             <div className="flex flex-col gap-2 w-full">
               <Label className="text-base font-mono font-medium text-[#e1e1e1]">
-                Periodicity
+                Balance threshold
               </Label>
-              <Select value={periodicity} onValueChange={setPeriodicity}>
-                <SelectTrigger className="backdrop-blur-sm bg-[rgba(29,29,29,0.3)] border border-[rgba(255,255,255,0.15)] text-[#717171] h-11">
-                  <SelectValue placeholder="When credits hit 0" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#1a1a1a] border-[#303030]">
-                  <SelectItem value="when-hits-0">When credits hit 0</SelectItem>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                </SelectContent>
-              </Select>
+              <Input
+                type="number"
+                step="1"
+                min="0"
+                max="1000"
+                value={threshold}
+                onChange={(e) => setThreshold(e.target.value)}
+                className="backdrop-blur-sm bg-[rgba(29,29,29,0.3)] border border-[rgba(255,255,255,0.15)] text-[#717171] h-11"
+                placeholder="$10"
+              />
+              <p className="text-xs text-white/50 font-mono">
+                Auto-top up triggers when balance falls below this amount
+              </p>
             </div>
 
             {/* Action Buttons */}
@@ -130,7 +127,7 @@ export function AutoTopUpModal({
                 onClick={handleCancel}
                 className="relative bg-[rgba(255,88,0,0.25)] px-6 py-3 hover:bg-[rgba(255,88,0,0.35)] transition-colors"
               >
-                <CornerBrackets size="xs" className="opacity-70" />
+                <CornerBrackets size="sm" className="opacity-70" />
                 <span className="relative z-10 text-[#FF5800] font-mono font-medium text-base">
                   Cancel
                 </span>
