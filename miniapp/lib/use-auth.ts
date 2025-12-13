@@ -16,10 +16,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { getCloudUrl } from "./cloud-url";
 import type { AuthState, AuthUser } from "./types";
 
-const CLOUD_URL =
-  process.env.NEXT_PUBLIC_ELIZA_CLOUD_URL || "http://localhost:3000";
 const AUTH_TOKEN_KEY = "miniapp_auth_token";
 const USER_ID_KEY = "miniapp_user_id";
 const ORG_ID_KEY = "miniapp_org_id";
@@ -190,9 +189,12 @@ export function useAuth(): AuthState {
   const login = useCallback(async () => {
     // Get the callback URL for this miniapp
     const callbackUrl = `${window.location.origin}/auth/callback`;
+    const cloudUrl = getCloudUrl();
+
+    console.log("[useAuth] Login - using Cloud URL:", cloudUrl);
 
     // Create a session on Cloud
-    const response = await fetch(`${CLOUD_URL}/api/auth/miniapp-session`, {
+    const response = await fetch(`${cloudUrl}/api/auth/miniapp-session`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -213,7 +215,7 @@ export function useAuth(): AuthState {
     // The loginUrl might be relative - ensure it's absolute
     const absoluteLoginUrl = loginUrl.startsWith("http")
       ? loginUrl
-      : `${CLOUD_URL}${loginUrl}`;
+      : `${cloudUrl}${loginUrl}`;
     window.location.href = absoluteLoginUrl;
   }, []);
 

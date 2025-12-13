@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { getCloudUrl } from "@/lib/cloud-url";
 
 interface CreateCharacterRequest {
   name: string;
@@ -146,7 +147,7 @@ export async function POST(request: NextRequest) {
     const finalAvatarUrl = avatarBase64 || avatarUrl;
 
     const elizaCloudUrl =
-      process.env.NEXT_PUBLIC_ELIZA_CLOUD_URL || "http://localhost:3000";
+      getCloudUrl();
     const apiKey = process.env.ELIZA_CLOUD_API_KEY;
 
     if (!apiKey) {

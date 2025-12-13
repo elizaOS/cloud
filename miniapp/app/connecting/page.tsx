@@ -1,12 +1,11 @@
 "use client";
 
-import { Heart, MessageCircle, Sparkles, Zap } from "lucide-react";
-// import Image from "next/image";
-import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { Heart, MessageCircle, Sparkles, Zap } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+// import Image from "next/image";
 
-const CLOUD_URL =
-  process.env.NEXT_PUBLIC_ELIZA_CLOUD_URL || "http://localhost:3000";
+import { getCloudUrl } from "@/lib/cloud-url";
 
 function ConnectingContent() {
   const searchParams = useSearchParams();
@@ -61,7 +60,8 @@ function ConnectingContent() {
         // If we have a sessionId, this is an unauthenticated user
         // They need to go to the Cloud chat page where their session is valid
         if (sessionId) {
-          const cloudChatUrl = `${CLOUD_URL}/chat/${characterId}?session=${sessionId}`;
+          const cloudUrl = getCloudUrl();
+          const cloudChatUrl = `${cloudUrl}/chat/${characterId}?session=${sessionId}`;
           window.location.href = cloudChatUrl;
         } else {
           // Authenticated user - go to miniapp chat

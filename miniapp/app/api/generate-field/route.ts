@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const ELIZA_CLOUD_URL = process.env.NEXT_PUBLIC_ELIZA_CLOUD_URL || 'http://localhost:3000';
+import { getCloudUrl } from '@/lib/cloud-url';
 const ELIZA_CLOUD_API_KEY = process.env.ELIZA_CLOUD_API_KEY;
 
 interface ChatMessage {
@@ -40,7 +39,8 @@ export async function POST(req: NextRequest) {
 
   console.log(`[Generate Field] Calling Eliza Cloud for field: ${fieldName}`);
 
-  const response = await fetch(`${ELIZA_CLOUD_URL}/api/v1/chat/completions`, {
+  const cloudUrl = getCloudUrl();
+  const response = await fetch(`${cloudUrl}/api/v1/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
