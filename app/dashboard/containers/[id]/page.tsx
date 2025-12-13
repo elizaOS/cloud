@@ -22,6 +22,9 @@ import { generateContainerMetadata } from "@/lib/seo";
 // Force dynamic rendering since we use server-side auth (cookies)
 export const dynamic = "force-dynamic";
 
+// Force dynamic rendering since we use server-side auth (cookies)
+export const dynamic = 'force-dynamic';
+
 interface PageProps {
   params: Promise<{ id: string }>;
 }
