@@ -14,6 +14,7 @@ import {
   useState,
   useCallback,
   useRef,
+  useMemo,
   type ReactNode,
 } from "react";
 import { usePrivy } from "@privy-io/react-auth";
@@ -222,14 +223,17 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
     };
   }, [ready, authenticated, fetchBalance]);
 
-  const value: CreditsContextValue = {
-    creditBalance,
-    isConnected,
-    isLoading,
-    error,
-    lastUpdate,
-    refreshBalance: fetchBalance,
-  };
+  const value = useMemo<CreditsContextValue>(
+    () => ({
+      creditBalance,
+      isConnected,
+      isLoading,
+      error,
+      lastUpdate,
+      refreshBalance: fetchBalance,
+    }),
+    [creditBalance, isConnected, isLoading, error, lastUpdate, fetchBalance]
+  );
 
   return (
     <CreditsContext.Provider value={value}>{children}</CreditsContext.Provider>
