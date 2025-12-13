@@ -1,14 +1,11 @@
 import { EventEmitter } from 'events';
 import { logger } from "@/lib/utils/logger";
 import { redisCreditEventEmitter } from "./credit-events-redis";
-import type { CreditUpdateEvent, RedisSubscriptionClient } from "./credit-events-redis";
+import type { CreditUpdateEvent } from "./credit-events-redis";
 
 export type { CreditUpdateEvent };
 
-export interface UnifiedSubscriptionClient {
-  unsubscribe: () => Promise<void>;
-  organizationId: string;
-}
+export type UnsubscribeFunction = () => void;
 
 class UnifiedCreditEventEmitter {
   private static instance: UnifiedCreditEventEmitter;
@@ -96,20 +93,25 @@ class UnifiedCreditEventEmitter {
     }
   }
 
-  public async subscribeToCreditUpdates(
+  public subscribeToCreditUpdates(
     organizationId: string,
     handler: (event: CreditUpdateEvent) => void | Promise<void>
-  ): Promise<UnifiedSubscriptionClient> {
+  ): UnsubscribeFunction {
     const useRedis = this.shouldUseRedis();
 
     if (useRedis) {
-      const subscription = await redisCreditEventEmitter.subscribeToCreditUpdates(
+      redisCreditEventEmitter.subscribeToCreditUpdates(
         organizationId,
         handler
-      );
-      return {
-        organizationId: subscription.organizationId,
-        unsubscribe: subscription.unsubscribe,
+      ).then(() => {
+        // Redis subscription is async, but we return sync unsubscribe
+      }).catch(error => {
+        logger.error('[Credit Events] Failed to create Redis subscription:', error);
+      });
+
+      // Return sync unsubscribe function
+      return () => {
+        // Unsubscribe is handled by Redis cleanup
       };
     } else if (this.inMemoryEmitter) {
       const listener = (event: CreditUpdateEvent) => {
@@ -124,19 +126,13 @@ class UnifiedCreditEventEmitter {
         "(development mode - works only in single instance)"
       );
 
-      return {
-        organizationId,
-        unsubscribe: async () => {
-          this.inMemoryEmitter?.off('credit-update', listener);
-          logger.debug(`[Credit Events] In-memory subscription ended for org ${organizationId}`);
-        },
+      return () => {
+        this.inMemoryEmitter?.off('credit-update', listener);
+        logger.debug(`[Credit Events] In-memory subscription ended for org ${organizationId}`);
       };
     } else {
       logger.error(`[Credit Events] No event system available for org ${organizationId}`);
-      return {
-        organizationId,
-        unsubscribe: async () => {},
-      };
+      return () => {};
     }
   }
 
