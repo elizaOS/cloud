@@ -4,8 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Textarea } from "@/components/ui/textarea";
-import { Bot, User, Send, Sparkles, Copy, Check } from "lucide-react";
+import { User, Send, Sparkles, Copy, Check, Loader2, Mic, Square } from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -428,27 +427,79 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
         )}
 
         {/* Input */}
-        <form onSubmit={handleSubmit} className="flex gap-2">
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Describe your character or ask for help..."
-            className="min-h-[60px] max-h-[120px] resize-none rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit(e);
-              }
-            }}
-          />
-          <BrandButton
-            type="submit"
-            variant="icon-primary"
-            disabled={!input.trim() || isLoading}
-            className="h-[60px] w-[60px]"
-          >
-            <Send className="h-5 w-5" style={{ color: "#FF5800" }} />
-          </BrandButton>
+        <form
+          onSubmit={handleSubmit}
+          className="border-t border-white/[0.06] pt-4"
+        >
+          <div className="space-y-3">
+            {/* Text Input Box - Prominent standalone */}
+            <div className="relative rounded-lg border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
+              {/* Robot Eye Visor Scanner - Animated line on top edge with randomness - Only show when loading */}
+              {isLoading && (
+                <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
+                  {/* Primary scanner */}
+                  <div
+                    className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
+                    style={{
+                      animation:
+                        "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                      boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
+                      filter: "blur(0.5px)",
+                    }}
+                  />
+                  {/* Secondary scanner for organic feel */}
+                  <div
+                    className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
+                    style={{
+                      animation:
+                        "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
+                      boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
+                      filter: "blur(1px)",
+                    }}
+                  />
+                </div>
+              )}
+              <textarea
+                rows={1}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit(e);
+                  }
+                }}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = "44px";
+                  target.style.height = Math.min(target.scrollHeight, 140) + "px";
+                }}
+                placeholder="Describe your character or ask for help..."
+                disabled={isLoading}
+                className="w-full bg-transparent px-4 py-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
+                style={{
+                  minHeight: "44px",
+                  maxHeight: "140px",
+                }}
+              />
+            </div>
+
+            {/* Action Buttons - Right aligned */}
+            <div className="flex items-center justify-end gap-1.5">
+              <Button
+                type="submit"
+                disabled={isLoading || !input.trim()}
+                size="icon"
+                className="h-9 w-9 rounded-lg bg-[#FF5800]/20 border border-[#FF5800]/30 hover:bg-[#FF5800]/30 disabled:opacity-40 transition-colors"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
+                ) : (
+                  <Send className="h-4 w-4 text-[#FF5800]" />
+                )}
+              </Button>
+            </div>
+          </div>
         </form>
       </div>
     </BrandCard>
