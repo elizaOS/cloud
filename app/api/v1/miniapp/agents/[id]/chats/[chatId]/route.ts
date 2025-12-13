@@ -147,8 +147,44 @@ export async function GET(
       .orderBy(asc(memoryTable.createdAt))
       .limit(limit);
 
+    // Log raw message count and check for duplicates
+    logger.info("[Miniapp API] Raw messages from DB", {
+      count: messages.length,
+      ids: messages.map(m => m.id),
+      contentPreviews: messages.map(m => {
+        const c = m.content as Record<string, unknown>;
+        return { id: m.id, text: (c?.text as string)?.substring(0, 30), entityId: m.entityId };
+      }),
+    });
+
+    // Deduplicate messages by content hash (same text + same entityId within 5 seconds = duplicate)
+    const seenMessages = new Map<string, typeof messages[0]>();
+    const deduplicatedMessages = messages.filter((msg) => {
+      const content = msg.content as Record<string, unknown>;
+      const text = (content?.text as string) || "";
+      const createdAt = msg.createdAt ? new Date(msg.createdAt as string | number | Date).getTime() : 0;
+      const key = `${msg.entityId}-${text}-${Math.floor(createdAt / 5000)}`; // 5 second window
+
+      if (seenMessages.has(key)) {
+        logger.warn("[Miniapp API] Duplicate message detected", {
+          duplicateId: msg.id,
+          originalId: seenMessages.get(key)?.id,
+          text: text.substring(0, 50),
+        });
+        return false;
+      }
+      seenMessages.set(key, msg);
+      return true;
+    });
+
+    logger.info("[Miniapp API] After deduplication", {
+      before: messages.length,
+      after: deduplicatedMessages.length,
+      removed: messages.length - deduplicatedMessages.length,
+    });
+
     // Transform messages and extract attachments
-    const transformedMessages = messages.map((msg) => {
+    const transformedMessages = deduplicatedMessages.map((msg) => {
       const rawContent = msg.content;
       const content = parseMessageContent(rawContent);
 
