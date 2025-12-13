@@ -156,13 +156,52 @@ export default {
     config: DeploymentConfig,
     workerId: string,
   ): Promise<{ id: string }> {
+    // Prepare environment variables
+    // Start with user-provided vars, then add bootstrapper vars if needed
+    const environment: Record<string, string> = {
+      ...(config.environmentVars || {}),
+    };
+
+    // If using bootstrapper architecture, inject artifact download credentials
+    if (config.useBootstrapper && config.artifactUrl) {
+      // Import R2 credentials service
+      const { createArtifactDownloadCredentials } = await import("./r2-credentials");
+      
+      // Extract artifact details from URL
+      // URL format: https://.../artifacts/{org}/{project}/{version}/{artifactId}.tar.gz
+      const urlParts = config.artifactUrl.split("/");
+      const artifactFileName = urlParts[urlParts.length - 1];
+      const artifactId = artifactFileName.replace(".tar.gz", "");
+      const version = urlParts[urlParts.length - 2];
+      const projectId = urlParts[urlParts.length - 3];
+      const organizationId = urlParts[urlParts.length - 4];
+
+      // Generate temporary download credentials (read-only, 6 hours for container startup)
+      const downloadCreds = await createArtifactDownloadCredentials({
+        organizationId,
+        projectId,
+        version,
+        artifactId,
+        ttlSeconds: 21600, // 6 hours - enough time for container startup
+      });
+
+      // Inject artifact environment variables for bootstrapper
+      environment.R2_ARTIFACT_URL = config.artifactUrl;
+      environment.R2_ACCESS_KEY_ID = downloadCreds.accessKeyId;
+      environment.R2_SECRET_ACCESS_KEY = downloadCreds.secretAccessKey;
+      environment.R2_SESSION_TOKEN = downloadCreds.sessionToken;
+      environment.R2_ARTIFACT_CHECKSUM = config.artifactChecksum || "";
+      environment.R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || "eliza-artifacts";
+      environment.R2_ENDPOINT = process.env.R2_ENDPOINT || "";
+    }
+
     const bindingConfig = {
       containers: [
         {
           class_name: "ElizaContainer",
           image: config.imageTag,
           max_instances: config.maxInstances,
-          environment: config.environmentVars || {},
+          environment,
         },
       ],
       durable_objects: {
