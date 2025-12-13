@@ -17,7 +17,7 @@ Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
 <div className="docs-hero">
 
 <div className="relative z-10">
-  <h1>Build Agents <br/> Make Bank</h1>
+  <h1><strong>Build</strong> Agents <br/> <strong>Make</strong> Bank</h1>
   
   <p>
     The complete platform for building, deploying, and scaling intelligent AI agents. 
@@ -33,8 +33,12 @@ Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
 
 ### Quick Start
 
-<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6 mb-8">
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mt-6 mb-8">
   <a href="/docs/quickstart#using-the-agent-creator" className="docs-quickstart-card no-underline group" style={{"--card-accent-color": "#ff5800"}}>
+    <span className="corner-tl" aria-hidden="true"></span>
+    <span className="corner-tr" aria-hidden="true"></span>
+    <span className="corner-bl" aria-hidden="true"></span>
+    <span className="corner-br" aria-hidden="true"></span>
     <div className="relative z-10">
       <div className="docs-quickstart-icon" aria-hidden="true">🎨</div>
       <div className="docs-quickstart-title">Visual Builder</div>
@@ -43,6 +47,10 @@ Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
     </div>
   </a>
   <a href="/docs/quickstart#using-the-api" className="docs-quickstart-card no-underline group" style={{"--card-accent-color": "#0b35f1"}}>
+    <span className="corner-tl" aria-hidden="true"></span>
+    <span className="corner-tr" aria-hidden="true"></span>
+    <span className="corner-bl" aria-hidden="true"></span>
+    <span className="corner-br" aria-hidden="true"></span>
     <div className="relative z-10">
       <div className="docs-quickstart-icon" aria-hidden="true">⚡</div>
       <div className="docs-quickstart-title">REST API</div>
@@ -51,6 +59,10 @@ Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
     </div>
   </a>
   <a href="/docs/quickstart#using-the-cli" className="docs-quickstart-card no-underline group" style={{"--card-accent-color": "#22c55e"}}>
+    <span className="corner-tl" aria-hidden="true"></span>
+    <span className="corner-tr" aria-hidden="true"></span>
+    <span className="corner-bl" aria-hidden="true"></span>
+    <span className="corner-br" aria-hidden="true"></span>
     <div className="relative z-10">
       <div className="docs-quickstart-icon" aria-hidden="true">💻</div>
       <div className="docs-quickstart-title">CLI Deployment</div>
@@ -59,6 +71,10 @@ Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
     </div>
   </a>
   <a href="/docs/mcp" className="docs-quickstart-card no-underline group" style={{"--card-accent-color": "#a855f7"}}>
+    <span className="corner-tl" aria-hidden="true"></span>
+    <span className="corner-tr" aria-hidden="true"></span>
+    <span className="corner-bl" aria-hidden="true"></span>
+    <span className="corner-br" aria-hidden="true"></span>
     <div className="relative z-10">
       <div className="docs-quickstart-icon" aria-hidden="true">🔌</div>
       <div className="docs-quickstart-title">MCP Protocol</div>

@@ -688,16 +688,17 @@ blockquote p,
 
 .docs-hero h1::before {
   content: '';
-  position: absolute;
-  left: 50%;
-  top: -1.5rem;
-  transform: translateX(-50%);
-  width: 8px;
-  height: 8px;
+  display: inline-block;
+  width: 10px;
+  height: 10px;
   background: var(--brand-orange);
   border-radius: 50%;
   box-shadow: 0 0 20px rgba(255, 88, 0, 0.5);
   animation: dotPulse 2s ease-in-out infinite;
+  margin-right: 0.75rem;
+  vertical-align: middle;
+  position: relative;
+  top: -0.1em;
 }
 
 @keyframes dotPulse {
@@ -874,6 +875,17 @@ a.hero-btn-secondary:hover {
   flex-shrink: 0;
   box-shadow: 0 0 12px rgba(255, 88, 0, 0.5);
   animation: dotPulse 2s ease-in-out infinite;
+}
+
+/* Remove decorations from help box heading */
+.docs-help-box h3::after,
+.docs-help-box h3::before {
+  display: none !important;
+}
+
+.docs-help-box h3 {
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1297,16 +1309,6 @@ a.hero-btn-secondary:hover {
   overflow: hidden;
 }
 
-/* Top gradient line */
-.docs-help-box::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--brand-orange), var(--brand-blue), var(--brand-purple));
-}
 
 /* Decorative glow */
 .docs-help-box::after {
@@ -1765,4 +1767,126 @@ aside.nextra-toc {
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Premium Footer Styling
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Override Nextra's default footer background */
+footer.nextra-footer-container,
+.nextra-footer-container {
+  background: linear-gradient(180deg, #0a0a0a 0%, #050505 100%) !important;
+  border-top: none !important;
+  padding: 4rem 0 2rem !important;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Animated gradient orb in footer */
+footer.nextra-footer-container::before {
+  content: '';
+  position: absolute;
+  bottom: -50%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120%;
+  height: 100%;
+  background: radial-gradient(ellipse at center, rgba(255, 88, 0, 0.06) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+/* Footer link hover animations */
+footer.nextra-footer-container nav a {
+  position: relative;
+}
+
+footer.nextra-footer-container nav a::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: linear-gradient(90deg, #ff5800, #ff7a33);
+  transition: width 0.3s ease;
+}
+
+footer.nextra-footer-container nav a:hover::after {
+  width: 100%;
+}
+
+/* Status indicator pulse animation */
+@keyframes statusPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(52, 211, 153, 0);
+  }
+}
+
+/* Social icons glow on hover */
+footer.nextra-footer-container a[aria-label] {
+  position: relative;
+}
+
+footer.nextra-footer-container a[aria-label]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 0.5rem;
+  opacity: 0;
+  background: radial-gradient(circle at center, currentColor 0%, transparent 70%);
+  filter: blur(12px);
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+footer.nextra-footer-container a[aria-label]:hover::before {
+  opacity: 0.15;
+}
+
+/* Footer column stagger animation on page load */
+@keyframes footerFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+footer.nextra-footer-container > div > div > div {
+  animation: footerFadeIn 0.6s ease-out both;
+}
+
+footer.nextra-footer-container > div > div > div:nth-child(1) { animation-delay: 0s; }
+footer.nextra-footer-container > div > div > div:nth-child(2) { animation-delay: 0.1s; }
+footer.nextra-footer-container > div > div > div:nth-child(3) { animation-delay: 0.15s; }
+footer.nextra-footer-container > div > div > div:nth-child(4) { animation-delay: 0.2s; }
+footer.nextra-footer-container > div > div > div:nth-child(5) { animation-delay: 0.25s; }
+
+/* Improve footer grid on larger screens */
+@media (min-width: 1280px) {
+  footer.nextra-footer-container {
+    padding: 5rem 0 2.5rem !important;
+  }
+}
+
+/* Footer bottom bar separator glow */
+footer.nextra-footer-container [class*="border-t"] {
+  position: relative;
+}
+
+footer.nextra-footer-container [class*="border-t"]::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 20%;
+  right: 20%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 88, 0, 0.3), transparent);
 }
