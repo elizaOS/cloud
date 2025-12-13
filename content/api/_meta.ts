@@ -2,72 +2,75 @@
  * API Reference - Navigation Structure
  */
 export default {
+  overview: {
+    title: "API Explorer",
+  },
   index: {
-    title: 'Overview',
+    title: "API Reference",
   },
   
-  '-- core': {
-    type: 'separator',
-    title: 'Core APIs',
+  "-- core": {
+    type: "separator",
+    title: "Core APIs",
   },
   chat: {
-    title: 'Chat Completions',
+    title: "Chat Completions",
   },
   embeddings: {
-    title: 'Embeddings',
+    title: "Embeddings",
   },
   models: {
-    title: 'Models',
+    title: "Models",
   },
   
-  '-- generation': {
-    type: 'separator',
-    title: 'Generation',
+  "-- generation": {
+    type: "separator",
+    title: "Generation",
   },
   images: {
-    title: 'Image Generation',
+    title: "Image Generation",
   },
   video: {
-    title: 'Video Generation',
+    title: "Video Generation",
   },
   voice: {
-    title: 'Voice & TTS',
+    title: "Voice & TTS",
   },
   
-  '-- resources': {
-    type: 'separator',
-    title: 'Resources',
+  "-- resources": {
+    type: "separator",
+    title: "Resources",
   },
   agents: {
-    title: 'Agents',
+    title: "Agents",
   },
   knowledge: {
-    title: 'Knowledge',
+    title: "Knowledge",
   },
   apps: {
-    title: 'Apps',
+    title: "Apps",
   },
   containers: {
-    title: 'Containers',
+    title: "Containers",
   },
   mcps: {
-    title: 'MCPs',
+    title: "MCPs",
   },
   gallery: {
-    title: 'Gallery',
+    title: "Gallery",
   },
   
-  '-- account': {
-    type: 'separator',
-    title: 'Account',
+  "-- account": {
+    type: "separator",
+    title: "Account",
   },
-  'api-keys': {
-    title: 'API Keys',
+  "api-keys": {
+    title: "API Keys",
   },
   credits: {
-    title: 'Credits & Billing',
+    title: "Credits & Billing",
   },
   redemptions: {
-    title: 'Redemptions',
+    title: "Redemptions",
   },
 }
