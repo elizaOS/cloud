@@ -113,6 +113,13 @@
       "when": 1761581819368,
       "tag": "0001_fluffy_proteus",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1761718423868,
+      "tag": "0002_cuddly_firebrand",
+      "breakpoints": true
     }
   ]
 }

@@ -31,16 +31,23 @@ export default function PrivyProvider({
       appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID!}
       clientId={process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID!}
       config={{
+        loginMethods: ["wallet", "email"],
         embeddedWallets: {
           ethereum: {
-            createOnLogin: "users-without-wallets",
+            createOnLogin: "all-users",
           },
           solana: {
-            createOnLogin: "users-without-wallets",
+            createOnLogin: "all-users",
           },
         },
-        appearance: { walletChainType: "ethereum-and-solana" },
-        externalWallets: { solana: { connectors: toSolanaWalletConnectors() } },
+        appearance: {
+          walletChainType: "ethereum-and-solana",
+          theme: "dark",
+          accentColor: "#6366F1",
+        },
+        externalWallets: {
+          solana: { connectors: toSolanaWalletConnectors() },
+        },
       }}
     >
       {children}
