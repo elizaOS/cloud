@@ -19,3 +19,6 @@ export * from "./agent-discovery";
 export * from "./ecr";
 export * from "./cloudformation";
 export * from "./alb-priority-manager";
+
+// Voice services
+export { voiceCloningService } from "./voice-cloning";
