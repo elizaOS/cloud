@@ -15,6 +15,7 @@ import { organizationsService } from "@/lib/services/organizations";
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
 import { z } from "zod";
+import { IMAGE_GENERATION_VIBES, DEFAULT_VIBE } from "@/lib/constants/image-generation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";

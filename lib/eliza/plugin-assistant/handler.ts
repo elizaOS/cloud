@@ -44,6 +44,33 @@ import {
 } from "../shared/utils/parsers";
 import type { MessageReceivedHandlerParams } from "../shared/types";
 
+// Rate limiting for auto-image generation (prevents cost abuse)
+const imageGenerationTimestamps = new Map<string, number>();
+const MIN_IMAGE_INTERVAL_MS = 60 * 1000; // 1 minute between auto-generated images
+
+function canGenerateImage(roomId: string): boolean {
+  const lastGenerated = imageGenerationTimestamps.get(roomId);
+  const now = Date.now();
+  
+  if (!lastGenerated || now - lastGenerated > MIN_IMAGE_INTERVAL_MS) {
+    imageGenerationTimestamps.set(roomId, now);
+    return true;
+  }
+  
+  return false;
+}
+
+// Intent detection for explicit image requests
+function hasImageIntent(userMessage: string): boolean {
+  const imageKeywords = [
+    'pic', 'picture', 'photo', 'image', 'selfie', 'show me',
+    'send me', 'what do you look like', 'appearance', 'wearing'
+  ];
+  
+  const lowerMessage = userMessage.toLowerCase();
+  return imageKeywords.some(keyword => lowerMessage.includes(keyword));
+}
+
 /**
  * Planning-based message handler with action execution.
  */
@@ -138,23 +165,41 @@ export async function handleMessage({
     let plan = parseKeyValueXml(planningResponse) as ParsedPlan | null;
     let shouldRespondNow = canRespondImmediately(plan);
 
-    // Auto-generate images when autoImage is enabled (requires reference images)
+    // Auto-generate images when autoImage is enabled
+    // Rate limited to prevent cost abuse (1 image per minute OR explicit user request)
     if (shouldAutoGenerateImages) {
-      shouldRespondNow = false;
-      if (!plan) {
-        plan = {
-          thought: "Generating image with character appearance",
-          canRespondNow: "NO",
-          actions: "GENERATE_IMAGE",
-        };
-      } else {
-        const existingActions = plan.actions || "";
-        if (!existingActions.includes("GENERATE_IMAGE")) {
-          plan.actions = existingActions
-            ? `${existingActions}, GENERATE_IMAGE`
-            : "GENERATE_IMAGE";
+      const userText = (message.content?.text || "").trim();
+      const hasExplicitRequest = hasImageIntent(userText);
+      const rateLimitAllows = canGenerateImage(message.roomId.toString());
+      
+      // Only force image generation if:
+      // 1. User explicitly requested an image, OR
+      // 2. Rate limit allows it (hasn't generated in last minute)
+      if (hasExplicitRequest || rateLimitAllows) {
+        logger.info(
+          `[Assistant] Auto-generating image - explicit: ${hasExplicitRequest}, rateLimit: ${rateLimitAllows}`
+        );
+        
+        shouldRespondNow = false;
+        if (!plan) {
+          plan = {
+            thought: "Generating image with character appearance",
+            canRespondNow: "NO",
+            actions: "GENERATE_IMAGE",
+          };
+        } else {
+          const existingActions = plan.actions || "";
+          if (!existingActions.includes("GENERATE_IMAGE")) {
+            plan.actions = existingActions
+              ? `${existingActions}, GENERATE_IMAGE`
+              : "GENERATE_IMAGE";
+          }
+          plan.canRespondNow = "NO";
         }
-        plan.canRespondNow = "NO";
+      } else {
+        logger.info(
+          `[Assistant] Skipping auto-image (rate limited) - last generated < 1 min ago`
+        );
       }
     }
 
