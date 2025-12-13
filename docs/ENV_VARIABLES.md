@@ -15,6 +15,7 @@ Complete guide to environment variables for ElizaOS Cloud with AWS ECS deploymen
 **Configuration Options:**
 
 1. **Development**: Single PostgreSQL database
+
    ```env
    DATABASE_URL=postgresql://localhost:5432/eliza_dev
    ```
@@ -59,6 +60,7 @@ No additional configuration required - uses AWS credentials above.
 - `AWS_SECURITY_GROUP_IDS` - Comma-separated security group IDs (e.g., `sg-abc123,sg-def456`)
 
 **Security Group Requirements:**
+
 - Inbound: Port 80 (HTTP) from 0.0.0.0/0
 - Inbound: Container port from ALB security group
 - Outbound: All traffic (for pulling images and external API calls)
@@ -264,6 +266,7 @@ psql $DATABASE_URL -c "SELECT 1;"
 ## Getting Help
 
 For issues:
+
 - Documentation: https://elizacloud.ai/docs
 - Support: support@elizacloud.ai
 - Discord: https://discord.gg/elizaos

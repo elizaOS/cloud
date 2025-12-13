@@ -436,18 +436,18 @@ Get information about the authenticated user.
 
 ## Error Codes
 
-| Code                     | Status | Description                       |
-| ------------------------ | ------ | --------------------------------- |
-| `UNAUTHORIZED`           | 401    | Missing or invalid API key        |
-| `FORBIDDEN`              | 403    | Access denied                     |
-| `NOT_FOUND`              | 404    | Resource not found                |
-| `VALIDATION_ERROR`       | 400    | Invalid request data              |
-| `QUOTA_EXCEEDED`         | 403    | Container limit reached           |
-| `INSUFFICIENT_CREDITS`   | 402    | Not enough credits                |
-| `RATE_LIMIT_EXCEEDED`    | 429    | Too many requests                 |
-| `AWS_API_ERROR`          | 502    | AWS API failure                   |
-| `DEPLOYMENT_FAILED`      | 500    | Container deployment failed       |
-| `TIMEOUT`                | 504    | Operation timed out               |
+| Code                   | Status | Description                 |
+| ---------------------- | ------ | --------------------------- |
+| `UNAUTHORIZED`         | 401    | Missing or invalid API key  |
+| `FORBIDDEN`            | 403    | Access denied               |
+| `NOT_FOUND`            | 404    | Resource not found          |
+| `VALIDATION_ERROR`     | 400    | Invalid request data        |
+| `QUOTA_EXCEEDED`       | 403    | Container limit reached     |
+| `INSUFFICIENT_CREDITS` | 402    | Not enough credits          |
+| `RATE_LIMIT_EXCEEDED`  | 429    | Too many requests           |
+| `AWS_API_ERROR`        | 502    | AWS API failure             |
+| `DEPLOYMENT_FAILED`    | 500    | Container deployment failed |
+| `TIMEOUT`              | 504    | Operation timed out         |
 
 ---
 
@@ -509,27 +509,27 @@ curl -X GET "$BASE_URL/api/v1/containers/$CONTAINER_ID" \
 ### TypeScript/JavaScript
 
 ```typescript
-import { CloudApiClient } from '@elizaos/api-client';
+import { CloudApiClient } from "@elizaos/api-client";
 
 const client = new CloudApiClient({
   apiKey: process.env.ELIZAOS_API_KEY,
-  apiUrl: 'https://elizacloud.ai'
+  apiUrl: "https://elizacloud.ai",
 });
 
 // Request ECR credentials
 const credentials = await client.requestImageBuild({
-  projectId: 'my-project',
-  version: '1.0.0'
+  projectId: "my-project",
+  version: "1.0.0",
 });
 
 // Create container
 const container = await client.createContainer({
-  name: 'my-agent',
+  name: "my-agent",
   ecr_image_uri: credentials.ecrImageUri,
   port: 3000,
   desired_count: 1,
   cpu: 256,
-  memory: 512
+  memory: 512,
 });
 
 // Wait for deployment
@@ -554,6 +554,7 @@ console.log(`Deployed to: ${deployment.load_balancer_url}`);
 ## Support
 
 For issues or questions:
+
 - Documentation: https://elizacloud.ai/docs
 - Support: support@elizacloud.ai
 - Status Page: https://status.elizacloud.ai

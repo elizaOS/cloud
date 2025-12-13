@@ -5,6 +5,7 @@ Production-ready container deployment infrastructure using AWS CloudFormation, E
 ## Architecture
 
 ### Core Principle
+
 **1 User = 1 EC2 Instance + 1 ECS Container**
 
 - No Fargate (EC2 launch type only)
@@ -65,6 +66,7 @@ cd infrastructure/cloudformation
 ```
 
 This creates:
+
 - VPC and subnets
 - Application Load Balancer
 - HTTPS listener with your certificate
@@ -148,6 +150,7 @@ crontab -e
 ```
 
 This will:
+
 - Delete orphaned CloudFormation stacks
 - Clean up expired ALB priorities
 - Maintain database hygiene
@@ -189,10 +192,10 @@ SELECT COUNT(*) FROM alb_priorities WHERE expires_at IS NULL;
 SELECT * FROM alb_priorities WHERE expires_at < NOW();
 
 -- Priority distribution
-SELECT 
+SELECT
   FLOOR(priority / 10000) * 10000 AS range,
-  COUNT(*) 
-FROM alb_priorities 
+  COUNT(*)
+FROM alb_priorities
 WHERE expires_at IS NULL
 GROUP BY range;
 ```
@@ -217,6 +220,7 @@ aws logs tail /ecs/elizaos-user-<userId> --follow
 ### Stack Creation Fails
 
 1. **Check CloudFormation events:**
+
    ```bash
    aws cloudformation describe-stack-events \
      --stack-name elizaos-user-<userId> \
@@ -245,12 +249,14 @@ bun run scripts/cleanup-orphaned-stacks.ts
 ### Container Not Accessible
 
 1. **Check ALB target health:**
+
    ```bash
    aws elbv2 describe-target-health \
      --target-group-arn <target-group-arn>
    ```
 
 2. **Check security group rules:**
+
    ```bash
    aws ec2 describe-security-groups \
      --filters "Name=tag:UserId,Values=<userId>"
@@ -264,17 +270,20 @@ bun run scripts/cleanup-orphaned-stacks.ts
 ## Cost Breakdown
 
 ### Shared Infrastructure
+
 - Application Load Balancer: $16.20/month
 - Data transfer: $5-20/month
 - **Total: $21-36/month** (fixed)
 
 ### Per User
+
 - EC2 t3g.small (ARM): $12.41/month
 - EBS 20GB gp3: $1.60/month
 - CloudWatch Logs (7 days): $0.50/month
 - **Total: $14.51/month per user**
 
 ### Break-Even
+
 - 1 user: $35.71/month
 - 10 users: $166.30/month ($16.63/user)
 - 100 users: $1,472/month ($14.72/user)
@@ -282,17 +291,20 @@ bun run scripts/cleanup-orphaned-stacks.ts
 ## Security
 
 ### Network
+
 - ✅ VPC isolation (10.0.0.0/16)
 - ✅ Security groups restrict traffic to ALB only
 - ✅ HTTPS with ACM certificate
 - ✅ HTTP→HTTPS redirect
 
 ### Storage
+
 - ✅ EBS encryption at rest
 - ✅ Encrypted CloudWatch logs
 - ✅ No sensitive data in tags
 
 ### Access
+
 - ✅ IAM roles (least privilege)
 - ✅ Instance profiles for EC2
 - ✅ Task execution roles for ECS
@@ -301,20 +313,24 @@ bun run scripts/cleanup-orphaned-stacks.ts
 ## Files
 
 ### CloudFormation Templates
+
 - `shared-infrastructure.json` - VPC, ALB, IAM (deploy once)
 - `per-user-stack.json` - EC2 + ECS per user
 
 ### Scripts
+
 - `deploy-shared.sh` - Deploy shared infrastructure
 - `teardown-user-stack.sh` - Delete single user
 - `teardown-all-user-stacks.sh` - Delete all users (dangerous)
 - `../scripts/cleanup-orphaned-stacks.ts` - Automated cleanup
 
 ### Database
+
 - `../db/schemas/alb-priorities.ts` - Priority schema
 - `../db/migrations/0005_alb_priorities.sql` - Migration
 
 ### Services
+
 - `../lib/services/cloudformation.ts` - Stack management
 - `../lib/services/alb-priority-manager.ts` - Priority allocation
 
@@ -336,6 +352,7 @@ Before going live:
 ## Support
 
 See `INFRASTRUCTURE_REVIEW.md` for:
+
 - Detailed architecture analysis
 - Cost optimization strategies
 - Incident response runbooks
@@ -343,6 +360,7 @@ See `INFRASTRUCTURE_REVIEW.md` for:
 - Sprint planning
 
 See `FIXES_IMPLEMENTED.md` for:
+
 - Recent production-readiness fixes
 - Database schema changes
 - Security improvements

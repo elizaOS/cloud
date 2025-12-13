@@ -195,7 +195,6 @@ Setup:
 3. **Create IAM Roles**:
    - Create `ecsTaskExecutionRole` with `AmazonECSTaskExecutionRolePolicy`
    - Create `ecsTaskRole` for task-specific permissions
-   
 4. **Optional: Create Shared ALB** (saves $20/month per container):
    - Create Application Load Balancer in ECS console
    - Configure HTTPS listener with ACM certificate for `*.elizacloud.ai`
