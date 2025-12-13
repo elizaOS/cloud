@@ -12,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { createCharacter, updateCharacter } from "@/app/actions/characters";
 import type { ElizaCharacter } from "@/lib/types";
@@ -28,7 +27,6 @@ import {
   CornerBrackets,
 } from "@/components/brand";
 import { BuildModeAssistant } from "@/components/chat/build-mode-assistant";
-import { requireAuth } from "@/lib/auth";
 
 interface CharacterCreatorClientProps {
   initialCharacters: ElizaCharacter[];

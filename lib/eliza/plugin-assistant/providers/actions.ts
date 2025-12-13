@@ -26,8 +26,6 @@ export const actionsProvider: Provider = {
 
     const resolvedActions = await Promise.all(actionPromises);
 
-    console.log("#### ACTIONS RESOLVED ACTIONS RAW resolvedActions", resolvedActions);
-
     const actionsData = resolvedActions.filter(Boolean) as Action[];
 
     console.log("#### ACTIONS DATA RAW actionsData", actionsData);
