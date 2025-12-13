@@ -2,7 +2,7 @@
 
 import { Check, Plus, Star, Trash2, X } from "lucide-react";
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 export interface GalleryImage {
   id: string;
@@ -133,7 +133,10 @@ export function ImageGallery({
 
   // Derive effective selectedId - automatically clears when image is removed
   const selectedId = useMemo(
-    () => (rawSelectedId && images.find((img) => img.id === rawSelectedId) ? rawSelectedId : null),
+    () =>
+      rawSelectedId && images.find((img) => img.id === rawSelectedId)
+        ? rawSelectedId
+        : null,
     [rawSelectedId, images],
   );
 
