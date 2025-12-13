@@ -259,13 +259,13 @@ Get quota and pricing information.
 
 ---
 
-## Artifacts
+## ECR Image Building
 
-### Request Artifact Upload
+### Request ECR Credentials
 
-`POST /api/v1/artifacts/upload`
+`POST /api/v1/containers/credentials`
 
-Request presigned URLs for uploading an artifact.
+Request ECR repository and authentication credentials for building and pushing Docker images.
 
 **Rate Limit:** 10 requests per minute
 
@@ -275,8 +275,6 @@ Request presigned URLs for uploading an artifact.
 {
   "projectId": "my-project",
   "version": "1.0.0",
-  "checksum": "sha256_hash_of_artifact",
-  "size": 10485760,
   "metadata": {
     "elizaVersion": "1.6.1",
     "nodeVersion": "v20.11.0"
@@ -290,48 +288,57 @@ Request presigned URLs for uploading an artifact.
 {
   "success": true,
   "data": {
-    "artifactId": "artifact-uuid",
-    "upload": {
-      "url": "https://presigned-upload-url",
-      "method": "PUT",
-      "expiresAt": "2025-10-12T10:20:00.000Z"
-    },
-    "download": {
-      "url": "https://presigned-download-url",
-      "method": "GET",
-      "expiresAt": "2025-10-12T11:00:00.000Z"
-    },
-    "credentials": {
-      "upload": {
-        "accessKeyId": "...",
-        "secretAccessKey": "...",
-        "sessionToken": "..."
-      },
-      "download": { ... }
-    },
-    "artifact": {
-      "id": "artifact-uuid",
-      "version": "1.0.0",
-      "checksum": "sha256_hash",
-      "size": 10485760,
-      "r2Key": "artifacts/org/project/version/id.tar.gz",
-      "r2Url": "https://endpoint/bucket/key"
-    }
+    "ecrRepositoryUri": "123456789.dkr.ecr.us-east-1.amazonaws.com/elizaos/org-id/my-project",
+    "ecrImageUri": "123456789.dkr.ecr.us-east-1.amazonaws.com/elizaos/org-id/my-project:1.0.0-1729080000000",
+    "ecrImageTag": "1.0.0-1729080000000",
+    "authToken": "BASE64_ENCODED_TOKEN",
+    "authTokenExpiresAt": "2025-10-16T12:00:00.000Z",
+    "registryEndpoint": "123456789.dkr.ecr.us-east-1.amazonaws.com"
   }
 }
 ```
 
 **Usage:**
 
+The `elizaos deploy` CLI command handles this automatically:
+
 ```bash
-# 1. Request upload URL
-RESPONSE=$(curl -X POST https://your-app.com/api/v1/artifacts/upload \
+elizaos deploy
+```
+
+Or manually:
+
+```bash
+# 1. Request ECR credentials
+RESPONSE=$(curl -X POST https://elizacloud.ai/api/v1/containers/credentials \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"projectId":"my-project","version":"1.0.0","checksum":"abc123","size":1024}')
+  -d '{"projectId":"my-project","version":"1.0.0"}')
 
-# 2. Extract upload URL
-UPLOAD_URL=$(echo $RESPONSE | jq -r '.data.upload.url')
+# 2. Extract ECR credentials
+ECR_IMAGE_URI=$(echo $RESPONSE | jq -r '.data.ecrImageUri')
+AUTH_TOKEN=$(echo $RESPONSE | jq -r '.data.authToken')
+REGISTRY=$(echo $RESPONSE | jq -r '.data.registryEndpoint')
+
+# 3. Docker login to ECR
+echo $AUTH_TOKEN | docker login --username AWS --password-stdin $REGISTRY
+
+# 4. Build and push Docker image
+docker build -t $ECR_IMAGE_URI .
+docker push $ECR_IMAGE_URI
+
+# 5. Create container deployment
+curl -X POST https://elizacloud.ai/api/v1/containers \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"name\": \"my-project\",
+    \"ecr_image_uri\": \"$ECR_IMAGE_URI\",
+    \"port\": 3000,
+    \"desired_count\": 1,
+    \"cpu\": 256,
+    \"memory\": 512
+  }"
 
 # 3. Upload artifact
 curl -X PUT "$UPLOAD_URL" \
