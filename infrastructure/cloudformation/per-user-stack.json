@@ -117,6 +117,20 @@
             "ToPort": 80,
             "CidrIp": "0.0.0.0/0",
             "Description": "HTTP for package downloads"
+          },
+          {
+            "IpProtocol": "udp",
+            "FromPort": 53,
+            "ToPort": 53,
+            "CidrIp": "0.0.0.0/0",
+            "Description": "DNS (UDP) for name resolution"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 53,
+            "ToPort": 53,
+            "CidrIp": "0.0.0.0/0",
+            "Description": "DNS (TCP) for large responses/fallback"
           }
         ],
         "Tags": [
