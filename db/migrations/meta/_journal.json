@@ -169,6 +169,13 @@
       "when": 1762448708437,
       "tag": "0006_pretty_stephen_strange",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1764940817940,
+      "tag": "0002_chemical_dragon_lord",
+      "breakpoints": true
     }
   ]
 }
