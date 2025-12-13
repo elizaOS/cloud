@@ -17,7 +17,7 @@ import { creditsService } from "@/lib/services/credits";
 import { invoicesService } from "@/lib/services/invoices";
 
 // Force dynamic rendering since we use server-side auth (cookies)
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Purchase Successful",
