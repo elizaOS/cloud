@@ -144,7 +144,17 @@ export async function getOrCreateAnonymousUser(): Promise<{
     messages_limit: ANON_MESSAGE_LIMIT,
   });
 
-  logger.info("auth-anonymous", "Created new anonymous session", {
+  // Set the cookie so subsequent requests are authenticated
+  // This is valid because getOrCreateAnonymousUser is called from Route Handlers
+  cookieStore.set(ANON_SESSION_COOKIE, newSessionToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    expires: expiresAt,
+  });
+
+  logger.info("auth-anonymous", "Created new anonymous session and set cookie", {
     userId: newUser.id,
     sessionId: newSession.id,
     expiresAt,
@@ -368,21 +378,42 @@ export async function getAnonymousUser(): Promise<{
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get(ANON_SESSION_COOKIE)?.value;
 
+  logger.debug("[getAnonymousUser] Checking for anonymous session cookie:", {
+    hasCookie: !!sessionToken,
+    cookieName: ANON_SESSION_COOKIE,
+    tokenPreview: sessionToken ? sessionToken.slice(0, 8) + "..." : "N/A",
+  });
+
   if (!sessionToken) {
+    logger.debug("[getAnonymousUser] No session cookie found");
     return null;
   }
 
   const session = await anonymousSessionsService.getByToken(sessionToken);
 
   if (!session) {
+    logger.debug("[getAnonymousUser] Session not found in DB for token:", sessionToken.slice(0, 8));
     return null;
   }
+
+  logger.debug("[getAnonymousUser] Session found:", {
+    sessionId: session.id,
+    userId: session.user_id,
+  });
 
   const user = await usersService.getById(session.user_id);
 
-  if (!user || !user.is_anonymous) {
+  if (!user) {
+    logger.debug("[getAnonymousUser] User not found for ID:", session.user_id);
     return null;
   }
+
+  if (!user.is_anonymous) {
+    logger.debug("[getAnonymousUser] User is not anonymous:", user.id);
+    return null;
+  }
+
+  logger.debug("[getAnonymousUser] Anonymous user found:", user.id);
 
   return {
     user: {
