@@ -6,6 +6,10 @@
       "Type": "String",
       "Description": "Unique user ID for this deployment"
     },
+    "ProjectName": {
+      "Type": "String",
+      "Description": "Project name for multi-project support"
+    },
     "UserEmail": {
       "Type": "String",
       "Description": "User email for tagging",
@@ -384,7 +388,12 @@
           {
             "Field": "host-header",
             "HostHeaderConfig": {
-              "Values": [{ "Fn::Sub": "${UserId}.containers.elizacloud.ai" }]
+              "Values": [{ "Fn::Join": ["", [
+                { "Fn::Select": ["0", { "Fn::Split": ["-", { "Ref": "UserId" }] }] },
+                "-",
+                { "Ref": "ProjectName" },
+                ".containers.elizacloud.ai"
+              ]] }]
             }
           }
         ],
@@ -545,7 +554,13 @@
     },
     "ContainerUrl": {
       "Description": "Container URL",
-      "Value": { "Fn::Sub": "https://${UserId}.containers.elizacloud.ai" }
+      "Value": { "Fn::Join": ["", [
+        "https://",
+        { "Fn::Select": ["0", { "Fn::Split": ["-", { "Ref": "UserId" }] }] },
+        "-",
+        { "Ref": "ProjectName" },
+        ".containers.elizacloud.ai"
+      ]] }
     }
   }
 }
