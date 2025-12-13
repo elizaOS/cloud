@@ -53,9 +53,6 @@ async function forwardRequest(
   // Build headers
   const headers = new Headers();
 
-  // Add ngrok-skip-browser-warning header to bypass ngrok's interstitial page
-  headers.set("ngrok-skip-browser-warning", "true");
-
   // Forward essential headers
   const headersToForward = [
     "content-type",
