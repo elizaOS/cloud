@@ -240,6 +240,12 @@ export function withRateLimit<T = Record<string, string>>(
 const isDevelopment = process.env.NODE_ENV !== "production";
 
 export const RateLimitPresets = {
+  // Relaxed limits for read-heavy operations
+  RELAXED: {
+    windowMs: 60000, // 1 minute
+    maxRequests: isDevelopment ? 10000 : 200, // Dev: virtually unlimited, Prod: 200/min
+  },
+
   // Generous limits for general API usage
   STANDARD: {
     windowMs: 60000, // 1 minute

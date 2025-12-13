@@ -5,6 +5,8 @@
  * Provides moderation, token gating, raid protection, and logs.
  */
 
+export const dynamic = "force-dynamic";
+
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { requireAuth } from "@/lib/auth";

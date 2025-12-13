@@ -15,6 +15,9 @@
 import { Redis } from "@upstash/redis";
 import { logger } from "@/lib/utils/logger";
 
+// Re-export from rate-limit for convenience
+export { withRateLimit, RateLimitPresets } from "./rate-limit";
+
 let redis: Redis | null = null;
 
 function getRedisClient(): Redis | null {

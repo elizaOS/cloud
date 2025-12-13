@@ -3,6 +3,7 @@
  */
 
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { withRetry } from "../rate-limit";
 import type {
   SocialMediaProvider,
@@ -120,7 +121,7 @@ export const tiktokProvider: SocialMediaProvider = {
     } catch (error) {
       return {
         valid: false,
-        error: error instanceof Error ? error.message : "Validation failed",
+        error: extractErrorMessage(error),
       };
     }
   },
@@ -266,7 +267,7 @@ export const tiktokProvider: SocialMediaProvider = {
       return {
         platform: "tiktok",
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: extractErrorMessage(error),
       };
     }
   },

@@ -201,7 +201,7 @@ export const twitterProvider: SocialMediaProvider = {
     } catch (error) {
       return {
         valid: false,
-        error: error instanceof Error ? error.message : "Validation failed",
+        error: extractErrorMessage(error),
       };
     }
   },
@@ -276,7 +276,7 @@ export const twitterProvider: SocialMediaProvider = {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Delete failed",
+        error: extractErrorMessage(error),
       };
     }
   },
@@ -392,7 +392,7 @@ export const twitterProvider: SocialMediaProvider = {
       });
       return { success: true };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : "Like failed" };
+      return { success: false, error: extractErrorMessage(error) };
     }
   },
 
@@ -407,7 +407,7 @@ export const twitterProvider: SocialMediaProvider = {
       });
       return { platform: "twitter", success: true, postId };
     } catch (error) {
-      return { platform: "twitter", success: false, error: error instanceof Error ? error.message : "Retweet failed" };
+      return { platform: "twitter", success: false, error: extractErrorMessage(error) };
     }
   },
 };

@@ -1,4 +1,5 @@
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { withRetry } from "../rate-limit";
 import type {
   SocialMediaProvider,
@@ -160,7 +161,7 @@ export const slackProvider: SocialMediaProvider = {
     } catch (error) {
       return {
         valid: false,
-        error: error instanceof Error ? error.message : "Validation failed",
+        error: extractErrorMessage(error),
       };
     }
   },
@@ -226,7 +227,7 @@ export const slackProvider: SocialMediaProvider = {
       return {
         platform: "slack",
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: extractErrorMessage(error),
       };
     }
   },
@@ -247,7 +248,7 @@ export const slackProvider: SocialMediaProvider = {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Delete failed",
+        error: extractErrorMessage(error),
       };
     }
   },
@@ -292,7 +293,7 @@ export const slackProvider: SocialMediaProvider = {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Reaction failed",
+        error: extractErrorMessage(error),
       };
     }
   },

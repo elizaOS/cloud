@@ -3,7 +3,7 @@
  * Prefers Jeju facilitator when available, falls back to Coinbase CDP
  */
 
-import { discoverHttpFacilitator, verifyPaymentViaHttp, settlePaymentViaHttp, type HttpFacilitatorConfig } from '../../../scripts/shared/x402-client';
+import { discoverHttpFacilitator, verifyPaymentViaHttp, settlePaymentViaHttp, type HttpFacilitatorConfig } from '@/scripts/shared/x402-client';
 import type { Address } from 'viem';
 
 export interface PaymentRequirement {
@@ -61,7 +61,7 @@ class FacilitatorServiceImpl implements FacilitatorService {
       });
       return { isValid: result.isValid, invalidReason: result.invalidReason, payer: result.payer };
     } catch (e) {
-      return { isValid: false, invalidReason: e instanceof Error ? e.message : 'Verification failed', payer: null };
+      return { isValid: false, invalidReason: extractErrorMessage(e), payer: null };
     }
   }
 
@@ -82,7 +82,7 @@ class FacilitatorServiceImpl implements FacilitatorService {
       });
       return { success: result.success, txHash: result.txHash, error: result.error };
     } catch (e) {
-      return { success: false, txHash: null, error: e instanceof Error ? e.message : 'Settlement failed' };
+      return { success: false, txHash: null, error: extractErrorMessage(e) };
     }
   }
 }

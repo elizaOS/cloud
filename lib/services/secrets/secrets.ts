@@ -163,10 +163,6 @@ class SecretsService {
       createdBy,
     } = params;
 
-    if (Buffer.byteLength(value, "utf8") > MAX_SECRET_VALUE_BYTES) {
-      throw new Error(`Secret value exceeds maximum size of ${MAX_SECRET_VALUE_BYTES} bytes`);
-    }
-
     const existing = await secretsRepository.findByName(
       organizationId,
       name,
@@ -180,8 +176,8 @@ class SecretsService {
       );
     }
 
-    const { encryptedValue, encryptedDek, nonce, authTag, keyId } =
-      await this.encryption.encrypt(value);
+    const { encrypted_value, encrypted_dek, nonce, auth_tag, encryption_key_id } =
+      await this.encryptValue(value);
 
     const secret = await secretsRepository.create({
       organization_id: organizationId,

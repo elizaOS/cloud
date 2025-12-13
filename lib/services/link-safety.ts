@@ -3,6 +3,7 @@
  */
 
 import { logger } from "@/lib/utils/logger";
+import { parseDomain } from "./community-moderation";
 
 export interface LinkSafetyResult {
   url: string;
@@ -58,7 +59,7 @@ class LinkSafetyService {
   }
 
   async checkUrl(url: string): Promise<LinkSafetyResult> {
-    const domain = this.parseDomain(url);
+    const domain = parseDomain(url);
     if (!domain) {
       return { url, safe: false, threats: ["phishing"], source: "local", confidence: 100, domain: url };
     }
@@ -79,7 +80,7 @@ class LinkSafetyService {
     const urlsToCheck: string[] = [];
 
     for (const url of urls) {
-      const domain = this.parseDomain(url);
+      const domain = parseDomain(url);
       if (!domain) {
         results.push({ url, safe: false, threats: ["phishing"], source: "local", confidence: 100, domain: url });
         continue;
@@ -105,20 +106,12 @@ class LinkSafetyService {
   }
 
   isUrlShortener(url: string): boolean {
-    const domain = this.parseDomain(url);
+    const domain = parseDomain(url);
     return domain ? URL_SHORTENERS.has(domain) : false;
   }
 
   extractUrls(text: string): string[] {
     return text.match(/https?:\/\/[^\s<>)"']+/gi) ?? [];
-  }
-
-  private parseDomain(url: string): string | null {
-    try {
-      return new URL(url).hostname.toLowerCase();
-    } catch {
-      return null;
-    }
   }
 
   private checkLocalPatterns(url: string, domain: string): LinkSafetyResult {

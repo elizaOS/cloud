@@ -110,6 +110,56 @@ export async function getServerSettings(connectionId: string, serverId: string):
   return { serverId: server.id, organizationId: server.organization_id, settings };
 }
 
+/** Shared spam check wrapper */
+export async function checkSpamViolation(ctx: ModerationContext, content: string, settings: CommunityModerationSettings): Promise<ViolationResult | null> {
+  const result = await communityModerationService.spam.checkSpam(ctx, content, {
+    maxMessagesPerMinute: settings.maxMessagesPerMinute ?? 10,
+    duplicateThreshold: settings.duplicateMessageThreshold ?? 3,
+  });
+  if (!result.isSpam) return null;
+  return { violation: true, type: result.reason ?? "spam", severity: result.reason === "rate_limit" ? 2 : 3 };
+}
+
+/** Shared link check wrapper */
+export async function checkLinksViolation(content: string, settings: CommunityModerationSettings): Promise<ViolationResult | null> {
+  const urls = linkSafetyService.extractUrls(content);
+  if (urls.length === 0) return null;
+
+  if (settings.blockedDomains?.length) {
+    for (const url of urls) {
+      const domain = parseDomain(url);
+      if (domain && settings.blockedDomains.some((b) => domain.endsWith(b))) {
+        return { violation: true, type: "blocked_domain", severity: 3 };
+      }
+    }
+  }
+
+  if (settings.checkLinksWithSafeBrowsing) {
+    const results = await linkSafetyService.checkUrls(urls);
+    const threat = results.find((r) => !r.safe);
+    if (threat) return { violation: true, type: threat.threats[0] ?? "unsafe_link", severity: 5 };
+  }
+
+  return null;
+}
+
+/** Shared bad words check wrapper */
+export function checkBadWordsViolation(content: string, settings: CommunityModerationSettings): ViolationResult | null {
+  const banWords = settings.banWords ?? [];
+  if (banWords.length === 0) return null;
+
+  const lowerContent = content.toLowerCase();
+  const matched = banWords.find((word) => lowerContent.includes(word.toLowerCase()));
+  if (!matched) return null;
+
+  return { violation: true, type: "bad_word", severity: 3 };
+}
+
+/** Shared domain parser */
+export function parseDomain(url: string): string | null {
+  try { return new URL(url).hostname.toLowerCase(); } catch { return null; }
+}
+
 class SpamDetectionService {
   private readonly MESSAGE_WINDOW_MS = 60_000;
 
@@ -340,7 +390,7 @@ class CommunityModerationService {
     if (urls.length === 0) return { hasThreat: false, threats: [] };
 
     for (const url of urls) {
-      const domain = this.parseDomain(url);
+      const domain = parseDomain(url);
       if (!domain) continue;
 
       if (settings.allowedDomains?.some((d) => domain === d.toLowerCase() || domain.endsWith(`.${d.toLowerCase()}`))) continue;
@@ -352,10 +402,6 @@ class CommunityModerationService {
     const results = await linkSafetyService.checkUrls(urls);
     const threat = results.find((r) => !r.safe);
     return threat ? { hasThreat: true, threats: threat.threats, url: threat.url, domain: threat.domain } : { hasThreat: false, threats: [] };
-  }
-
-  private parseDomain(url: string): string | null {
-    try { return new URL(url).hostname.toLowerCase(); } catch { return null; }
   }
 
   async moderateMessage(ctx: ModerationContext, content: string, settings: {

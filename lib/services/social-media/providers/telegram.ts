@@ -89,7 +89,7 @@ export const telegramProvider: SocialMediaProvider = {
     } catch (error) {
       return {
         valid: false,
-        error: error instanceof Error ? error.message : "Validation failed",
+        error: extractErrorMessage(error),
       };
     }
   },
@@ -222,7 +222,7 @@ export const telegramProvider: SocialMediaProvider = {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Delete failed",
+        error: extractErrorMessage(error),
       };
     }
   },

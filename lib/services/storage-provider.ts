@@ -15,6 +15,7 @@
 import { storageService, calculateUploadCost, formatPrice } from './storage';
 import { ipfsService } from './ipfs';
 import { logger } from '@/lib/utils/logger';
+import { extractErrorMessage } from '@/lib/utils/error-handling';
 import configJson from '@/config/x402.json';
 
 // Storage pricing from x402 config
@@ -410,7 +411,10 @@ export const storageProviderService = {
     
     // Check IPFS
     if (deal.ipfsCid) {
-      const ipfsHealth = await ipfsService.health().catch(() => null);
+      const ipfsHealth = await ipfsService.health().catch((error) => {
+        logger.debug("[StorageProvider] IPFS health check failed", { error: extractErrorMessage(error) });
+        return null;
+      });
       backends.push({ name: 'ipfs', available: !!ipfsHealth });
     }
     

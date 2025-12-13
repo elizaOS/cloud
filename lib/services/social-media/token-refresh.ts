@@ -1,4 +1,5 @@
 import { logger } from "@/lib/utils/logger";
+import { safeJsonParse } from "@/lib/utils/json-parsing";
 import type { SocialPlatform, SocialCredentials } from "@/lib/types/social-media";
 
 const TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000; // Refresh 5 minutes before expiry
@@ -39,7 +40,7 @@ async function refreshTwitterToken(refreshToken: string): Promise<RefreshResult>
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
+    const error = await safeJsonParse<{ error_description?: string }>(response);
     throw new Error(error.error_description || `Twitter token refresh failed: ${response.status}`);
   }
 
@@ -68,7 +69,7 @@ async function refreshMetaToken(accessToken: string): Promise<RefreshResult> {
   );
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
+    const error = await safeJsonParse<{ error?: { message?: string } }>(response);
     throw new Error(error.error?.message || `Meta token refresh failed: ${response.status}`);
   }
 
@@ -97,7 +98,7 @@ async function refreshLinkedInToken(refreshToken: string): Promise<RefreshResult
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
+    const error = await safeJsonParse<{ error_description?: string }>(response);
     throw new Error(error.error_description || `LinkedIn token refresh failed: ${response.status}`);
   }
 
@@ -127,7 +128,7 @@ async function refreshTikTokToken(refreshToken: string): Promise<RefreshResult> 
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
+    const error = await safeJsonParse<{ error_description?: string }>(response);
     throw new Error(error.error_description || `TikTok token refresh failed: ${response.status}`);
   }
 

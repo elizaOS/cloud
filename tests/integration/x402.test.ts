@@ -5,7 +5,7 @@
 
 import { describe, test, expect, beforeAll } from 'bun:test';
 import { facilitatorService } from '../../lib/services/facilitator';
-import { discoverHttpFacilitator } from '../../../scripts/shared/x402-client';
+import { discoverHttpFacilitator } from '@/scripts/shared/x402-client';
 import type { Address } from 'viem';
 
 describe('x402 Facilitator Integration', () => {

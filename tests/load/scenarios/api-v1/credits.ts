@@ -1,54 +1,31 @@
-import http from "k6/http";
-import { check, group, sleep } from "k6";
-import { getBaseUrl } from "../../config/environments";
-import { getAuthHeaders } from "../../helpers/auth";
-import { parseBody } from "../../helpers/assertions";
-import { creditsChecked, creditBalance, recordHttpError } from "../../helpers/metrics";
-
-const baseUrl = getBaseUrl();
-const headers = getAuthHeaders();
+import { group, sleep } from "k6";
+import { httpGet, httpPost } from "../../helpers/http";
+import { creditsChecked, creditBalance } from "../../helpers/metrics";
 
 export function getBalance(): number {
-  const res = http.get(`${baseUrl}/api/credits/balance`, { headers, tags: { endpoint: "credits", critical: "true" } });
-  if (!check(res, { "balance 200": (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return -1;
-  }
+  const body = httpGet<{ balance: number }>("/api/credits/balance", { tags: { endpoint: "credits", critical: "true" } });
+  if (!body?.balance) return -1;
   creditsChecked.add(1);
-  const balance = parseBody<{ balance: number }>(res).balance;
-  creditBalance.add(balance);
-  return balance;
+  creditBalance.add(body.balance);
+  return body.balance;
 }
 
 export function listTransactions(limit = 10): unknown[] {
-  const res = http.get(`${baseUrl}/api/credits/transactions?limit=${limit}`, { headers, tags: { endpoint: "credits" } });
-  if (!check(res, { "transactions 200": (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return [];
-  }
-  return parseBody<{ transactions: unknown[] }>(res).transactions || [];
+  const body = httpGet<{ transactions: unknown[] }>(`/api/credits/transactions?limit=${limit}`, { tags: { endpoint: "credits" } });
+  return body?.transactions ?? [];
 }
 
 export function getBillingUsage(days = 7): Record<string, unknown> | null {
-  const res = http.get(`${baseUrl}/api/billing/usage?days=${days}`, { headers, tags: { endpoint: "credits" } });
-  if (!check(res, { "billing 200": (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return null;
-  }
-  return parseBody<Record<string, unknown>>(res);
+  return httpGet<Record<string, unknown>>(`/api/billing/usage?days=${days}`, { tags: { endpoint: "credits" } });
 }
 
 export function getCreditSummary(): Record<string, unknown> | null {
-  const res = http.post(
-    `${baseUrl}/api/a2a`,
-    JSON.stringify({ jsonrpc: "2.0", method: "a2a.getCreditSummary", params: {}, id: Date.now() }),
-    { headers, tags: { endpoint: "credits" } }
+  const body = httpPost<{ result: { summary: Record<string, unknown> } }>(
+    "/api/a2a",
+    { jsonrpc: "2.0", method: "a2a.getCreditSummary", params: {}, id: Date.now() },
+    { tags: { endpoint: "credits" } }
   );
-  if (!check(res, { "summary 200": (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return null;
-  }
-  return parseBody<{ result?: { summary: Record<string, unknown> } }>(res).result?.summary || null;
+  return body?.result?.summary ?? null;
 }
 
 export function creditOperationsCycle() {

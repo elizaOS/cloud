@@ -2,7 +2,7 @@
  * Slack Community Moderation Handler
  */
 
-import { communityModerationService, getServerSettings, pickMostSevereViolation, type ViolationResult } from "../community-moderation";
+import { communityModerationService, getServerSettings, pickMostSevereViolation, parseDomain, type ViolationResult } from "../community-moderation";
 import { linkSafetyService } from "../link-safety";
 import { moderationEventsRepository } from "@/db/repositories/community-moderation";
 import type { CommunityModerationSettings } from "@/db/schemas/org-agents";
@@ -114,10 +114,6 @@ export class SlackModerationHandler {
       detected_by: "auto",
       confidence_score: 90,
     });
-  }
-
-  private parseDomain(url: string): string | null {
-    try { return new URL(url).hostname.toLowerCase(); } catch { return null; }
   }
 }
 

@@ -265,19 +265,33 @@ export const db = new Proxy({} as Database, {
         let sqlText = "[execute]";
         
         if (typeof sqlArg === "object" && sqlArg !== null) {
-          // Drizzle SQL template object
-          if ("queryChunks" in sqlArg) {
-            const chunks = (sqlArg as { queryChunks: unknown[] }).queryChunks;
-            sqlText = chunks
-              .map(c => {
+          // Try to extract SQL from Drizzle's SQL object
+          // Drizzle SQL has: { queryChunks: [...], sql: string, params: [...] }
+          const sqlObj = sqlArg as Record<string, unknown>;
+          
+          if (typeof sqlObj.sql === "string") {
+            // Direct sql property (Drizzle SQL template)
+            sqlText = sqlObj.sql;
+          } else if (Array.isArray(sqlObj.queryChunks)) {
+            // Fall back to queryChunks if sql not available
+            sqlText = sqlObj.queryChunks
+              .map((c: unknown) => {
                 if (c === null || c === undefined) return "?";
                 if (typeof c === "string") return c;
-                if (typeof c === "object" && "value" in c) return String((c as { value: unknown }).value ?? "?");
+                if (typeof c === "object" && c !== null) {
+                  const chunk = c as Record<string, unknown>;
+                  if (typeof chunk.value === "string") return chunk.value;
+                  if ("sql" in chunk) return String(chunk.sql);
+                }
                 return "?";
               })
               .join("");
-          } else if ("sql" in sqlArg) {
-            sqlText = String((sqlArg as { sql: string }).sql);
+          } else if ("toSQL" in sqlObj && typeof sqlObj.toSQL === "function") {
+            // Try toSQL method if available
+            const sqlResult = (sqlObj.toSQL as () => { sql: string })();
+            if (sqlResult && typeof sqlResult.sql === "string") {
+              sqlText = sqlResult.sql;
+            }
           }
         }
         

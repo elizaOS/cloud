@@ -12,6 +12,7 @@ import { adminService } from "@/lib/services/admin";
 import { domainModerationService } from "@/lib/services/domain-moderation";
 import { domainHealthMonitorService } from "@/lib/services/domain-health-monitor";
 import { managedDomainsRepository } from "@/db/repositories/managed-domains";
+import { parseJsonBody } from "@/lib/types/domains";
 import { logger } from "@/lib/utils/logger";
 
 // Admin check helper
@@ -150,22 +151,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  const parseResult = await parseJsonBody(request, ModerationActionSchema);
+  if (!parseResult.success) return parseResult.response;
 
-  const parsed = ModerationActionSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Invalid request", details: parsed.error.issues },
-      { status: 400 }
-    );
-  }
-
-  const { action, domainId, reason, severity, eventId } = parsed.data;
+  const { action, domainId, reason, severity, eventId } = parseResult.data;
 
   logger.info("[AdminDomains] Moderation action", {
     action,

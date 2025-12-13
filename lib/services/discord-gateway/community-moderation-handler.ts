@@ -4,7 +4,7 @@
 
 import { logger } from "@/lib/utils/logger";
 import { discordMessageSender } from "./message-sender";
-import { communityModerationService, getServerSettings, pickMostSevereViolation, type ViolationResult } from "../community-moderation";
+import { communityModerationService, getServerSettings, pickMostSevereViolation, parseDomain, type ViolationResult } from "../community-moderation";
 import { linkSafetyService } from "../link-safety";
 import { moderationEventsRepository } from "@/db/repositories/community-moderation";
 import type { CommunityModerationSettings } from "@/db/schemas/org-agents";
@@ -83,7 +83,7 @@ export class CommunityModerationHandler {
 
     if (settings.blockedDomains?.length) {
       for (const url of urls) {
-        const domain = this.parseDomain(url);
+        const domain = parseDomain(url);
         if (domain && settings.blockedDomains.some((b) => domain.endsWith(b))) {
           return { violation: true, type: "blocked_domain", severity: 3 };
         }
@@ -206,10 +206,6 @@ export class CommunityModerationHandler {
     }
 
     return { handled: true, action: "log_leave" };
-  }
-
-  private parseDomain(url: string): string | null {
-    try { return new URL(url).hostname.toLowerCase(); } catch { return null; }
   }
 }
 

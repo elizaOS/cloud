@@ -15,6 +15,7 @@ import { db } from "@/db";
 import { appDomains, type DomainVerificationRecord } from "@/db/schemas/app-domains";
 import { eq, and, ne } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { buildVercelUrl, vercelApiRequest } from "@/lib/utils/vercel-api";
 
 // Vercel API configuration
@@ -250,13 +251,22 @@ export async function getDomainStatus(domain: string): Promise<DomainStatusResul
   const [domainInfo, configInfo, certInfo] = await Promise.all([
     vercelFetch<VercelDomainResponse>(
       `/v9/projects/${VERCEL_PROJECT_ID}/domains/${normalizedDomain}`
-    ).catch(() => null),
+    ).catch((error) => {
+      logger.debug("[VercelDomains] Failed to fetch domain info", { domain: normalizedDomain, error: extractErrorMessage(error) });
+      return null;
+    }),
     vercelFetch<VercelDomainConfigResponse>(
       `/v6/domains/${normalizedDomain}/config`
-    ).catch(() => null),
+    ).catch((error) => {
+      logger.debug("[VercelDomains] Failed to fetch domain config", { domain: normalizedDomain, error: extractErrorMessage(error) });
+      return null;
+    }),
     vercelFetch<VercelCertificateResponse[]>(
       `/v7/certs?domain=${normalizedDomain}`
-    ).catch(() => [] as VercelCertificateResponse[]),
+    ).catch((error) => {
+      logger.debug("[VercelDomains] Failed to fetch certificates", { domain: normalizedDomain, error: extractErrorMessage(error) });
+      return [] as VercelCertificateResponse[];
+    }),
   ]);
 
   if (!domainInfo) {

@@ -25,6 +25,7 @@ import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import { CacheInvalidation } from "@/lib/cache/invalidation";
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { put, del } from "@vercel/blob";
 import { vercelSandboxRuntime } from "./runtimes/vercel-sandbox";
 import { dispatchWebhook, generateWebhookSecret } from "./webhooks";
@@ -164,7 +165,7 @@ class CodeAgentService {
       await this.emitWithWebhook({ type: "session_ready", sessionId: session.id, url: instance.url }, updated);
       logger.info("[CodeAgentService] Session ready", { sessionId: session.id });
     } catch (error) {
-      const msg = error instanceof Error ? error.message : "Unknown";
+      const msg = extractErrorMessage(error);
       await db.update(codeAgentSessions).set({ status: "error", status_message: msg, updated_at: new Date() }).where(eq(codeAgentSessions.id, session.id));
       await CacheInvalidation.onCodeAgentSessionMutation(session.id, organizationId);
       await this.emitWithWebhook({ type: "session_error", sessionId: session.id, error: msg }, await this.refreshSession(session.id));
@@ -278,7 +279,7 @@ class CodeAgentService {
     } catch (error) {
       await db.update(codeAgentCommands).set({
         status: "error",
-        error_message: error instanceof Error ? error.message : "Unknown error",
+        error_message: extractErrorMessage(error),
         completed_at: new Date(),
       }).where(eq(codeAgentCommands.id, rec.id));
       throw error;
@@ -352,7 +353,7 @@ class CodeAgentService {
     } catch (error) {
       await db.update(codeAgentCommands).set({
         status: "error",
-        error_message: error instanceof Error ? error.message : "Unknown error",
+        error_message: extractErrorMessage(error),
         completed_at: new Date(),
       }).where(eq(codeAgentCommands.id, rec.id));
       throw error;
@@ -581,7 +582,7 @@ class CodeAgentService {
       return { success: true, snapshot: this.formatSnapshotInfo(snapshot) };
     } catch (error) {
       logger.error("[CodeAgentService] Snapshot failed", { sessionId, error });
-      return { success: false, error: error instanceof Error ? error.message : "Unknown" };
+      return { success: false, error: extractErrorMessage(error) };
     }
   }
 
@@ -624,7 +625,7 @@ class CodeAgentService {
       this.emit({ type: "snapshot_restored", sessionId, snapshotId });
       return { success: true, snapshot: this.formatSnapshotInfo(snapshot) };
     } catch (error) {
-      const msg = error instanceof Error ? error.message : "Unknown";
+      const msg = extractErrorMessage(error);
       await db.update(codeAgentSessions).set({ status: "error", status_message: `Restore failed: ${msg}`, updated_at: new Date() }).where(eq(codeAgentSessions.id, sessionId));
       return { success: false, error: msg };
     }

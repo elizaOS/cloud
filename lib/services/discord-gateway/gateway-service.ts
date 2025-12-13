@@ -13,14 +13,15 @@ import {
 import { secretsService, loadSecrets, isSecretsConfigured } from "@/lib/services/secrets";
 import { cache } from "@/lib/cache/client";
 import { DISCORD_API_BASE, discordBotHeaders } from "@/lib/utils/discord-api";
-import type {
-  BotRegistrationRequest,
-  BotRegistrationResult,
-  BotStatus,
-  GatewayHealth,
-  ShardStatus,
-  DiscordUser,
-  DiscordGuild,
+import {
+  DEFAULT_INTENTS,
+  type BotRegistrationRequest,
+  type BotRegistrationResult,
+  type BotStatus,
+  type GatewayHealth,
+  type ShardStatus,
+  type DiscordUser,
+  type DiscordGuild,
 } from "./types";
 import type {
   DiscordBotConnection,
@@ -105,7 +106,7 @@ export class DiscordGatewayService {
       shard_id: 0,
       shard_count: 1,
       status: "disconnected",
-      intents: intents ?? 3276799, // Default intents
+      intents: intents ?? DEFAULT_INTENTS,
     };
 
     const connection = await discordBotConnectionsRepository.create(newConnection);

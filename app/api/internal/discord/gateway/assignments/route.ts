@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
-import { discordGatewayService } from "@/lib/services/discord-gateway";
+import { discordGatewayService, DEFAULT_INTENTS } from "@/lib/services/discord-gateway";
 
 export const dynamic = "force-dynamic";
 
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
           organizationId: conn.organization_id,
           applicationId: conn.application_id,
           botToken: token,
-          intents: conn.intents ?? 3276799,
+          intents: conn.intents ?? DEFAULT_INTENTS,
         });
       }
     }
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
           organizationId: conn.organization_id,
           applicationId: conn.application_id,
           botToken: token,
-          intents: conn.intents ?? 3276799,
+          intents: conn.intents ?? DEFAULT_INTENTS,
         });
       }
     }

@@ -197,6 +197,7 @@
     "@xyflow/react": "^12.9.3",
     "agent0-sdk": "^0.31.0",
     "ai": "^5.0.106",
+    "bs58": "^6.0.0",
     "canvas": "^3.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

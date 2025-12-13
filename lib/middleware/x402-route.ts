@@ -6,7 +6,7 @@
 import { facilitatorService, type PaymentRequirement } from '../services/facilitator';
 import { verifyX402Payment } from './x402-handler';
 import type { Address } from 'viem';
-import x402Config from '../../../config/x402.json';
+import x402Config from '@/config/x402.json';
 
 export interface X402PaymentContext {
   payer: Address;

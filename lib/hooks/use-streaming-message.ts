@@ -1,6 +1,7 @@
 "use client";
 
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 
 /**
  * Streaming message structure from SSE events.
@@ -194,7 +195,7 @@ function processSSEMessage(
     data = JSON.parse(dataString);
   } catch (err) {
     logger.error("[Stream] Failed to parse JSON data:", dataString, err);
-    throw new Error(`Invalid JSON in SSE data: ${err instanceof Error ? err.message : String(err)}`);
+    throw new Error(`Invalid JSON in SSE data: ${extractErrorMessage(err)}`);
   }
 
   // Handle different event types

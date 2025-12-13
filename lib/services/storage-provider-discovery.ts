@@ -10,6 +10,7 @@
  */
 
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 
 // ============================================================================
 // Types
@@ -262,7 +263,10 @@ export const storageProviderDiscoveryService = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query: STORAGE_STATS_QUERY }),
-    }).catch(() => null);
+    }).catch((error) => {
+      logger.debug("[StorageProviderDiscovery] Indexer fetch failed", { error: extractErrorMessage(error) });
+      return null;
+    });
     
     if (response?.ok) {
       const data = await response.json();

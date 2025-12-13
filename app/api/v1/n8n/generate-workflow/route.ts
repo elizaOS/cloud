@@ -236,36 +236,28 @@ export async function POST(request: NextRequest) {
 
     // Auto-save workflow if requested
     let savedWorkflow = null;
+    let saveError: string | null = null;
     if (autoSave) {
       if (!workflowName) {
         return NextResponse.json(
-          {
-            error: "workflowName is required when autoSave is true",
-          },
+          { error: "workflowName is required when autoSave is true" },
           { status: 400 }
         );
       }
 
-      try {
-        savedWorkflow = await n8nWorkflowsService.createWorkflow({
-          organizationId: user.organization_id,
-          userId: user.id,
-          name: workflowName,
-          description: `AI-generated workflow: ${prompt.substring(0, 100)}`,
-          workflowData,
-          tags: tags || [],
-        });
+      savedWorkflow = await n8nWorkflowsService.createWorkflow({
+        organizationId: user.organization_id,
+        userId: user.id,
+        name: workflowName,
+        description: `AI-generated workflow: ${prompt.substring(0, 100)}`,
+        workflowData,
+        tags: tags || [],
+      });
 
-        logger.info("[N8N Workflow Generation] Auto-saved workflow", {
-          workflowId: savedWorkflow.id,
-          workflowName,
-        });
-      } catch (saveError) {
-        logger.error("[N8N Workflow Generation] Failed to auto-save workflow", {
-          error: saveError instanceof Error ? saveError.message : String(saveError),
-        });
-        // Continue - return generated workflow even if save fails
-      }
+      logger.info("[N8N Workflow Generation] Auto-saved workflow", {
+        workflowId: savedWorkflow.id,
+        workflowName,
+      });
     }
 
     logger.info("[N8N Workflow Generation] Success", {

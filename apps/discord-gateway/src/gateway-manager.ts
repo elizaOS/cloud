@@ -165,7 +165,7 @@ export class GatewayManager {
 
     this.connections.set(assignment.connectionId, conn);
 
-    client.on(Events.ClientReady, () => {
+    client.on(Events.ClientReady, async () => {
       conn.status = "connected";
       conn.connectedAt = new Date();
       conn.guildCount = client.guilds.cache.size;
@@ -174,18 +174,18 @@ export class GatewayManager {
         guildCount: conn.guildCount,
         username: client.user?.username,
       });
-      this.updateConnectionStatus(assignment.connectionId, "connected");
+      await this.updateConnectionStatus(assignment.connectionId, "connected");
     });
 
-    client.on(Events.MessageCreate, (message) => {
+    client.on(Events.MessageCreate, async (message) => {
       conn.eventsReceived++;
-      this.handleMessage(assignment.connectionId, message);
+      await this.handleMessage(assignment.connectionId, message);
     });
 
-    client.on(Events.MessageUpdate, (_oldMessage, newMessage) => {
+    client.on(Events.MessageUpdate, async (_oldMessage, newMessage) => {
       conn.eventsReceived++;
       if (newMessage.partial) return;
-      this.forwardEvent(assignment.connectionId, conn, "MESSAGE_UPDATE", {
+      await this.forwardEvent(assignment.connectionId, conn, "MESSAGE_UPDATE", {
         id: newMessage.id,
         channel_id: newMessage.channelId,
         guild_id: newMessage.guildId,
@@ -199,18 +199,18 @@ export class GatewayManager {
       });
     });
 
-    client.on(Events.MessageDelete, (message) => {
+    client.on(Events.MessageDelete, async (message) => {
       conn.eventsReceived++;
-      this.forwardEvent(assignment.connectionId, conn, "MESSAGE_DELETE", {
+      await this.forwardEvent(assignment.connectionId, conn, "MESSAGE_DELETE", {
         id: message.id,
         channel_id: message.channelId,
         guild_id: message.guildId,
       });
     });
 
-    client.on(Events.MessageReactionAdd, (reaction, user) => {
+    client.on(Events.MessageReactionAdd, async (reaction, user) => {
       conn.eventsReceived++;
-      this.forwardEvent(assignment.connectionId, conn, "MESSAGE_REACTION_ADD", {
+      await this.forwardEvent(assignment.connectionId, conn, "MESSAGE_REACTION_ADD", {
         message_id: reaction.message.id,
         channel_id: reaction.message.channelId,
         guild_id: reaction.message.guildId,
@@ -219,9 +219,9 @@ export class GatewayManager {
       });
     });
 
-    client.on(Events.GuildMemberAdd, (member) => {
+    client.on(Events.GuildMemberAdd, async (member) => {
       conn.eventsReceived++;
-      this.forwardEvent(assignment.connectionId, conn, "GUILD_MEMBER_ADD", {
+      await this.forwardEvent(assignment.connectionId, conn, "GUILD_MEMBER_ADD", {
         guild_id: member.guild.id,
         user: {
           id: member.user.id,
@@ -236,9 +236,9 @@ export class GatewayManager {
       });
     });
 
-    client.on(Events.GuildMemberRemove, (member) => {
+    client.on(Events.GuildMemberRemove, async (member) => {
       conn.eventsReceived++;
-      this.forwardEvent(assignment.connectionId, conn, "GUILD_MEMBER_REMOVE", {
+      await this.forwardEvent(assignment.connectionId, conn, "GUILD_MEMBER_REMOVE", {
         guild_id: member.guild.id,
         user: {
           id: member.user.id,
@@ -248,9 +248,9 @@ export class GatewayManager {
       });
     });
 
-    client.on(Events.InteractionCreate, (interaction) => {
+    client.on(Events.InteractionCreate, async (interaction) => {
       conn.eventsReceived++;
-      this.forwardEvent(assignment.connectionId, conn, "INTERACTION_CREATE", {
+      await this.forwardEvent(assignment.connectionId, conn, "INTERACTION_CREATE", {
         id: interaction.id,
         type: interaction.type,
         channel_id: interaction.channelId,
@@ -260,7 +260,6 @@ export class GatewayManager {
           username: interaction.user.username,
           bot: interaction.user.bot,
         },
-        // Include command data if available
         data: "commandName" in interaction ? {
           name: interaction.commandName,
           options: "options" in interaction ? interaction.options.data : undefined,
@@ -268,17 +267,17 @@ export class GatewayManager {
       });
     });
 
-    client.on(Events.Error, (error) => {
+    client.on(Events.Error, async (error) => {
       conn.status = "error";
       conn.error = error.message;
       logger.error("Bot error", { connectionId: assignment.connectionId, error: error.message });
-      this.updateConnectionStatus(assignment.connectionId, "error", error.message);
+      await this.updateConnectionStatus(assignment.connectionId, "error", error.message);
     });
 
-    client.on(Events.ShardDisconnect, () => {
+    client.on(Events.ShardDisconnect, async () => {
       conn.status = "disconnected";
       logger.warn("Bot disconnected", { connectionId: assignment.connectionId });
-      this.updateConnectionStatus(assignment.connectionId, "disconnected");
+      await this.updateConnectionStatus(assignment.connectionId, "disconnected");
     });
 
     client.on(Events.ShardReconnecting, () => {
@@ -297,16 +296,16 @@ export class GatewayManager {
     await this.saveSessionState(connectionId, conn);
     conn.client.destroy();
     this.connections.delete(connectionId);
-    this.updateConnectionStatus(connectionId, "disconnected");
+    await this.updateConnectionStatus(connectionId, "disconnected");
   }
 
-  private handleMessage(connectionId: string, message: Message): void {
+  private async handleMessage(connectionId: string, message: Message): Promise<void> {
     if (message.author.bot) return;
 
     const conn = this.connections.get(connectionId);
     if (!conn) return;
 
-    this.forwardEvent(connectionId, conn, "MESSAGE_CREATE", {
+    await this.forwardEvent(connectionId, conn, "MESSAGE_CREATE", {
       id: message.id,
       channel_id: message.channelId,
       guild_id: message.guildId,

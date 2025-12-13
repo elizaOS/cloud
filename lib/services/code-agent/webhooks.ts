@@ -3,6 +3,7 @@
  */
 import crypto from "crypto";
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import type { CodeAgentEvent } from "./types";
 import type { CodeAgentSession } from "@/db/schemas/code-agent-sessions";
 
@@ -52,7 +53,7 @@ async function sendWithRetry(url: string, payload: WebhookPayload, attempt = 0):
     return false;
   } catch (e) {
     clearTimeout(timer);
-    logger.error("[Webhook] Error", { url, error: e instanceof Error ? e.message : String(e), attempt });
+    logger.error("[Webhook] Error", { url, error: extractErrorMessage(e), attempt });
     if (attempt < RETRIES.length) {
       await new Promise((r) => setTimeout(r, RETRIES[attempt]));
       return sendWithRetry(url, payload, attempt + 1);
@@ -75,8 +76,14 @@ export async function dispatchWebhook(session: CodeAgentSession, event: CodeAgen
   const base = { eventType: event.type, sessionId: session.id, organizationId: session.organization_id, timestamp, data: { ...event } };
   const signature = sign(JSON.stringify(base), session.webhook_secret!);
 
-  // Fire-and-forget
-  sendWithRetry(session.webhook_url!, { ...base, signature }).catch(() => {});
+  // Fire-and-forget - log errors but don't block
+  sendWithRetry(session.webhook_url!, { ...base, signature }).catch((error) => {
+    logger.error("[Webhook] Failed to dispatch webhook", {
+      sessionId: session.id,
+      eventType: event.type,
+      error: extractErrorMessage(error),
+    });
+  });
 }
 
 export const generateWebhookSecret = () => crypto.randomBytes(32).toString("hex");

@@ -84,7 +84,10 @@ window.__ELIZA_CLOUD__={
   async getCredential(p){return(await this.getCredentials()).find(c=>c.platform===p&&c.status==="active")||null},
   async connectPlatform(platform,opts={}){
     const r=await fetch(this.apiUrl+"/credentials",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({platform,scopes:opts.scopes})});
-    if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||"Failed to connect");
+    if(!r.ok){
+      const err=await r.json().catch(()=>({error:"Failed to connect"}));
+      throw new Error(err.error||"Failed to connect");
+    }
     const{sessionId,hostedLinkUrl}=await r.json();
     const popup=window.open(hostedLinkUrl,"ElizaOAuth","width=600,height=700,scrollbars=yes");
     if(!popup)throw new Error("Popup blocked");
@@ -99,7 +102,16 @@ window.__ELIZA_CLOUD__={
     });
   },
   async disconnectPlatform(p){const c=await this.getCredential(p);if(!c)return true;return(await fetch(this.apiUrl+"/credentials/"+c.id,{method:"DELETE",credentials:"include"})).ok},
-  async getPlatformToken(p){const c=await this.getCredential(p);if(!c)throw new Error(p+" not connected");const r=await fetch(this.apiUrl+"/credentials/"+c.id+"/token",{credentials:"include"});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||"Failed");return r.json()},
+  async getPlatformToken(p){
+    const c=await this.getCredential(p);
+    if(!c)throw new Error(p+" not connected");
+    const r=await fetch(this.apiUrl+"/credentials/"+c.id+"/token",{credentials:"include"});
+    if(!r.ok){
+      const err=await r.json().catch(()=>({error:"Failed"}));
+      throw new Error(err.error||"Failed");
+    }
+    return r.json();
+  },
   async _checkSession(id){const r=await fetch(this.apiUrl+"/credentials/session/"+id,{credentials:"include"});return r.ok?r.json():{status:"error"}},
   
   // Secrets (uses /app/secrets with X-App-Id for approval-gated access)
@@ -116,7 +128,14 @@ window.__ELIZA_CLOUD__={
   // Bot Connections (Discord/Telegram/Twitter bots)
   async getBots(){const r=await fetch(this.apiUrl+"/bots",{credentials:"include"});return r.ok?(await r.json()).bots||[]:[]},
   async getBot(id){const r=await fetch(this.apiUrl+"/bots/"+id,{credentials:"include"});return r.ok?(await r.json()).bot:null},
-  async connectBot(platform,token){const r=await fetch(this.apiUrl+"/bots",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({platform,botToken:token})});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||"Failed");return r.json()},
+  async connectBot(platform,token){
+    const r=await fetch(this.apiUrl+"/bots",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({platform,botToken:token})});
+    if(!r.ok){
+      const err=await r.json().catch(()=>({error:"Failed"}));
+      throw new Error(err.error||"Failed");
+    }
+    return r.json();
+  },
   async disconnectBot(id){return(await fetch(this.apiUrl+"/bots/"+id,{method:"DELETE",credentials:"include"})).ok},
   
   // API proxy

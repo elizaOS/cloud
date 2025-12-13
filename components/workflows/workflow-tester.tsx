@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import type { Workflow, TestResult } from "./types";
+import { getStatusColor } from "./types";
 
 interface WorkflowTesterProps {
   workflow: Workflow;
@@ -197,15 +198,7 @@ export function WorkflowTester({ workflow, onBack }: WorkflowTesterProps) {
                 <div className="flex flex-wrap gap-4 text-sm">
                   <div className="flex items-center gap-2">
                     <span className="text-white/40">Status:</span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs ${
-                        testResult.status === "completed"
-                          ? "bg-green-500/20 text-green-400"
-                          : testResult.status === "running"
-                          ? "bg-yellow-500/20 text-yellow-400"
-                          : "bg-red-500/20 text-red-400"
-                      }`}
-                    >
+                    <span className={`px-2 py-0.5 rounded-full text-xs ${getStatusColor(testResult.status)}`}>
                       {testResult.status}
                     </span>
                   </div>

@@ -87,6 +87,9 @@ const nextConfig: NextConfig = {
     "pino-pretty",
     "thread-stream",
     "sonic-boom",
+    // DOMPurify uses jsdom which has browser-specific dependencies
+    "isomorphic-dompurify",
+    "jsdom",
   ],
 
   webpack: (config, { isServer }) => {

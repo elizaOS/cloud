@@ -22,6 +22,7 @@ import { WorkflowTriggers } from "./workflow-triggers";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import type { Workflow, WorkflowVersion, WorkflowExecution } from "./types";
+import { getStatusColor } from "./types";
 
 interface WorkflowViewerProps {
   workflowId: string;
@@ -137,16 +138,7 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
           <div>
             <div className="flex items-center gap-3">
               <h2 className="text-xl font-semibold text-white">{workflow.name}</h2>
-              <Badge
-                variant="outline"
-                className={`text-xs ${
-                  workflow.status === "active"
-                    ? "bg-green-500/20 text-green-400 border-green-500/30"
-                    : workflow.status === "archived"
-                    ? "bg-gray-500/20 text-gray-400 border-gray-500/30"
-                    : "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
-                }`}
-              >
+              <Badge variant="outline" className={`text-xs ${getStatusColor(workflow.status)}`}>
                 {workflow.status}
               </Badge>
               <span className="text-xs text-white/40">v{workflow.version}</span>

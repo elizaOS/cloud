@@ -27,6 +27,7 @@ import {
   type N8nWorkflowTrigger,
 } from "@/db/repositories/n8n-workflows";
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { createHash, randomBytes } from "crypto";
 import { secretsService, loadWorkflowSecrets as loadSecretsHelper, isSecretsConfigured } from "@/lib/services/secrets";
 

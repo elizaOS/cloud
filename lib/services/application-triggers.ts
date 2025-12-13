@@ -24,6 +24,7 @@ import { organizations } from "@/db/schemas/organizations";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { logger } from "@/lib/utils/logger";
+import { safeJsonParse } from "@/lib/utils/json-parsing";
 import { generateWebhookSecret } from "@/lib/utils/webhook-signature";
 
 // =============================================================================
@@ -597,7 +598,7 @@ class ApplicationTriggersService {
         signal: controller.signal,
       });
 
-      const responseData = await response.json().catch(() => ({}));
+      const responseData = await safeJsonParse<{ error?: string }>(response);
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${responseData.error || response.statusText}`);

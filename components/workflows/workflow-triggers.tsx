@@ -39,6 +39,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import type { Trigger, TriggerType } from "./types";
+import { STATUS_COLORS } from "./types";
 
 interface WorkflowTriggersProps {
   workflowId: string;
@@ -291,9 +292,7 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
                             variant="outline"
                             className={cn(
                               "text-xs",
-                              trigger.isActive
-                                ? "bg-green-500/20 text-green-400 border-green-500/30"
-                                : "bg-gray-500/20 text-gray-400 border-gray-500/30"
+                              trigger.isActive ? STATUS_COLORS.active : STATUS_COLORS.archived
                             )}
                           >
                             {trigger.isActive ? "Active" : "Inactive"}

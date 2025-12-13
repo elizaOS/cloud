@@ -3,6 +3,8 @@
  */
 
 import { logger } from "@/lib/utils/logger";
+import { safeJsonParse } from "@/lib/utils/json-parsing";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { withRetry } from "../rate-limit";
 import type {
   SocialMediaProvider,
@@ -112,7 +114,7 @@ async function redditApiRequestLegacy<T>(endpoint: string, accessToken: string, 
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
+    const error = await safeJsonParse<{ message?: string }>(response);
     throw new Error(error.message || `Reddit API error: ${response.status}`);
   }
 
@@ -160,7 +162,7 @@ export const redditProvider: SocialMediaProvider = {
     } catch (error) {
       return {
         valid: false,
-        error: error instanceof Error ? error.message : "Validation failed",
+        error: extractErrorMessage(error),
       };
     }
   },
@@ -286,7 +288,7 @@ export const redditProvider: SocialMediaProvider = {
       return {
         platform: "reddit",
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: extractErrorMessage(error),
       };
     }
   },
@@ -321,7 +323,7 @@ export const redditProvider: SocialMediaProvider = {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Delete failed",
+        error: extractErrorMessage(error),
       };
     }
   },
@@ -469,7 +471,7 @@ export const redditProvider: SocialMediaProvider = {
       return {
         platform: "reddit",
         success: false,
-        error: error instanceof Error ? error.message : "Reply failed",
+        error: extractErrorMessage(error),
       };
     }
   },
@@ -506,7 +508,7 @@ export const redditProvider: SocialMediaProvider = {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Upvote failed",
+        error: extractErrorMessage(error),
       };
     }
   },

@@ -338,7 +338,7 @@ export class DiscordEventRouter {
 
       // Check mention_only filter
       if (route.mention_only) {
-        const mentionsBot = this.messageContainsBotMention(message, route);
+        const mentionsBot = await this.messageContainsBotMention(message, event.platformConnectionId);
         if (!mentionsBot) {
           return { route, shouldRoute: false, reason: "Not mentioned" };
         }
@@ -428,7 +428,7 @@ export class DiscordEventRouter {
             message_id: message?.id ?? event.eventId,
             author_id: message?.author.id ?? "",
             author_username: message?.author.username ?? "",
-            mentions_bot: this.messageContainsBotMention(message, route),
+            mentions_bot: await this.messageContainsBotMention(message, event.platformConnectionId),
             reply_to: message?.referenced_message?.id,
             attachments: message?.attachments.map((a) => ({
               url: a.url,
@@ -611,20 +611,24 @@ export class DiscordEventRouter {
   }
 
   /**
-   * Dispatch to internal handler (for testing/development).
+   * Dispatch to internal handler.
+   * Queues events for later processing by background workers or other internal systems.
    */
   private async dispatchToInternal(
     route: DiscordEventRoute,
     event: RoutableEvent
   ): Promise<boolean> {
-    logger.info("[Discord Event Router] Internal dispatch", {
+    // Queue the event for internal processing
+    const queueId = await this.queueEvent(event, route.id);
+
+    logger.info("[Discord Event Router] Internal dispatch queued", {
       routeId: route.id,
       routeTarget: route.route_target,
       eventType: event.eventType,
       guildId: event.guildId,
+      queueId,
     });
 
-    // Internal routes are just logged, not dispatched
     return true;
   }
 
@@ -666,15 +670,25 @@ export class DiscordEventRouter {
 
   /**
    * Check if a message mentions the bot.
+   * Uses cached bot user ID when available, falls back to checking any bot mention.
    */
-  private messageContainsBotMention(
+  private async messageContainsBotMention(
     message: DiscordMessage | undefined,
-    _route: DiscordEventRoute
-  ): boolean {
+    platformConnectionId: string
+  ): Promise<boolean> {
     if (!message) return false;
 
-    // Check if any mentioned user is a bot
-    // In production, we'd check against the specific bot user ID
+    // Look up the bot's user ID from the connection
+    const connection = await discordBotConnectionsRepository.getByPlatformConnection(platformConnectionId);
+    if (connection?.bot_user_id) {
+      // Check if the specific bot is mentioned
+      return message.mentions.some((m) => m.id === connection.bot_user_id);
+    }
+
+    // Fallback: check if any bot is mentioned (less accurate but works without connection data)
+    logger.warn("[Discord Event Router] No bot_user_id found, using fallback bot mention check", {
+      platformConnectionId,
+    });
     return message.mentions.some((m) => m.bot);
   }
 

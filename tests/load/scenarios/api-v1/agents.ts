@@ -1,69 +1,42 @@
-import http from "k6/http";
-import { check, group, sleep } from "k6";
+import { group, sleep } from "k6";
 import { getBaseUrl } from "../../config/environments";
-import { getAuthHeaders } from "../../helpers/auth";
-import { parseBody } from "../../helpers/assertions";
+import { httpGet, httpPost, httpPatch, httpDelete } from "../../helpers/http";
 import { generateAgentPayload, generateAgentName } from "../../helpers/data-generators";
-import { agentsCreated, agentsDeleted, agentCreationTime, recordHttpError } from "../../helpers/metrics";
+import { agentsCreated, agentsDeleted, agentCreationTime } from "../../helpers/metrics";
 
 const baseUrl = getBaseUrl();
-const headers = getAuthHeaders();
 
 interface Agent { id: string; name: string }
 
 export function listAgents(): Agent[] {
-  const res = http.get(`${baseUrl}/api/v1/app/agents`, { headers, tags: { endpoint: "agents" } });
-  if (!check(res, { "list 200": (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return [];
-  }
-  return parseBody<{ agents: Agent[] }>(res).agents || [];
+  const body = httpGet<{ agents: Agent[] }>("/api/v1/app/agents", { tags: { endpoint: "agents" } });
+  return body?.agents ?? [];
 }
 
 export function createAgent(): string | null {
   const start = Date.now();
-  const res = http.post(`${baseUrl}/api/v1/app/agents`, JSON.stringify(generateAgentPayload()), {
-    headers, tags: { endpoint: "agents" },
+  const body = httpPost<{ agent: { id: string } }>("/api/v1/app/agents", generateAgentPayload(), {
+    expectedStatus: 201, tags: { endpoint: "agents" },
   });
   agentCreationTime.add(Date.now() - start);
-
-  // API returns 201 for creation
-  if (!check(res, { "create 201": (r) => r.status === 201 })) {
-    recordHttpError(res.status);
-    return null;
-  }
+  if (!body?.agent?.id) return null;
   agentsCreated.add(1);
-  return parseBody<{ agent: { id: string } }>(res).agent?.id || null;
+  return body.agent.id;
 }
 
 export function getAgent(agentId: string): Agent | null {
-  const res = http.get(`${baseUrl}/api/v1/app/agents/${agentId}`, { headers, tags: { endpoint: "agents" } });
-  if (!check(res, { "get 200": (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return null;
-  }
-  return parseBody<{ agent: Agent }>(res).agent || null;
+  const body = httpGet<{ agent: Agent }>(`/api/v1/app/agents/${agentId}`, { tags: { endpoint: "agents" } });
+  return body?.agent ?? null;
 }
 
 export function updateAgent(agentId: string): boolean {
-  const res = http.patch(`${baseUrl}/api/v1/app/agents/${agentId}`, JSON.stringify({ name: generateAgentName() }), {
-    headers, tags: { endpoint: "agents" },
-  });
-  if (!check(res, { "update 200": (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return false;
-  }
-  return true;
+  return httpPatch(`/api/v1/app/agents/${agentId}`, { name: generateAgentName() }, { tags: { endpoint: "agents" } }) !== null;
 }
 
 export function deleteAgent(agentId: string): boolean {
-  const res = http.del(`${baseUrl}/api/v1/app/agents/${agentId}`, null, { headers, tags: { endpoint: "agents" } });
-  if (!check(res, { "delete 2xx": (r) => r.status >= 200 && r.status < 300 })) {
-    recordHttpError(res.status);
-    return false;
-  }
-  agentsDeleted.add(1);
-  return true;
+  const deleted = httpDelete(`/api/v1/app/agents/${agentId}`, { tags: { endpoint: "agents" } });
+  if (deleted) agentsDeleted.add(1);
+  return deleted;
 }
 
 export function agentCrudCycle() {

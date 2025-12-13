@@ -3,6 +3,7 @@
  */
 
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { withRetry } from "../rate-limit";
 import type {
   SocialMediaProvider,
@@ -170,7 +171,7 @@ async function createFacebookPost(
     return {
       platform: "facebook",
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: extractErrorMessage(error),
     };
   }
 }
@@ -313,7 +314,7 @@ async function createInstagramPost(
     return {
       platform: "instagram",
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: extractErrorMessage(error),
     };
   }
 }
@@ -343,7 +344,7 @@ export const metaProvider: SocialMediaProvider = {
     } catch (error) {
       return {
         valid: false,
-        error: error instanceof Error ? error.message : "Validation failed",
+        error: extractErrorMessage(error),
       };
     }
   },
@@ -377,7 +378,7 @@ export const metaProvider: SocialMediaProvider = {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Delete failed",
+        error: extractErrorMessage(error),
       };
     }
   },
@@ -537,7 +538,7 @@ export const metaProvider: SocialMediaProvider = {
       return {
         platform: "facebook",
         success: false,
-        error: error instanceof Error ? error.message : "Reply failed",
+        error: extractErrorMessage(error),
       };
     }
   },
@@ -558,7 +559,7 @@ export const metaProvider: SocialMediaProvider = {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Like failed",
+        error: extractErrorMessage(error),
       };
     }
   },

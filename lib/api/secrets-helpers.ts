@@ -7,7 +7,12 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services/apps";
 import { logger } from "@/lib/utils/logger";
 import type { AuditContext, SecretMetadata } from "@/lib/services/secrets";
-import type { AppSecretRequirement } from "@/db/schemas/secrets";
+import type { AppSecretRequirement, SecretAuditLog } from "@/db/schemas/secrets";
+import { secretProviderEnum, secretProjectTypeEnum, secretEnvironmentEnum } from "@/db/schemas/secrets";
+
+export const PROVIDERS = secretProviderEnum.enumValues;
+export const PROJECT_TYPES = secretProjectTypeEnum.enumValues;
+export const ENVIRONMENTS = secretEnvironmentEnum.enumValues;
 
 export type AuthResult = Awaited<ReturnType<typeof requireAuthOrApiKeyWithOrg>>;
 

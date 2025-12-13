@@ -16,6 +16,7 @@ import {
 } from "@/db/schemas/platform-credentials";
 import { secretsService, type AuditContext } from "./secrets";
 import { logger } from "@/lib/utils/logger";
+import { safeJsonParse } from "@/lib/utils/json-parsing";
 
 const SYSTEM_AUDIT: AuditContext = {
   actorType: "system",
@@ -587,7 +588,7 @@ class PlatformCredentialsService {
     });
 
     if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
+      const err = await safeJsonParse<{ message?: string }>(response);
       throw new Error(err.message || "Bluesky authentication failed");
     }
 

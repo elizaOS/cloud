@@ -252,6 +252,11 @@ export class DiscordStateManager {
     windowMs: number
   ): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
     if (!this.redis) {
+      logger.warn("[Discord State Manager] Rate limiting bypassed - Redis unavailable", {
+        connectionId,
+        route,
+        limit,
+      });
       return { allowed: true, remaining: limit, resetAt: Date.now() + windowMs };
     }
 
