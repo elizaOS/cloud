@@ -7,6 +7,7 @@ import {
 import { characterProvider, recentMessagesProvider } from "../shared/providers";
 import { handleMessage } from "./handler";
 import { roomTitleEvaluator } from "../shared/evaluators";
+import { recentMessagesProvider } from "../shared/providers";
 
 export const chatPlaygroundPlugin: Plugin = {
   name: "eliza-chat-playground",
