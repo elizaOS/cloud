@@ -190,6 +190,11 @@
     },
     "EC2Instance": {
       "Type": "AWS::EC2::Instance",
+      "CreationPolicy": {
+        "ResourceSignal": {
+          "Timeout": "PT10M"
+        }
+      },
       "Properties": {
         "ImageId": {
           "Fn::Sub": "{{resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id}}"
@@ -219,7 +224,7 @@
         ],
         "UserData": {
           "Fn::Base64": {
-            "Fn::Sub": "#!/bin/bash\necho ECS_CLUSTER=elizaos-user-${UserId} >> /etc/ecs/ecs.config\necho ECS_ENABLE_CONTAINER_METADATA=true >> /etc/ecs/ecs.config\nsystemctl enable --now ecs\n"
+            "Fn::Sub": "#!/bin/bash -xe\necho ECS_CLUSTER=elizaos-user-${UserId} >> /etc/ecs/ecs.config\necho ECS_ENABLE_CONTAINER_METADATA=true >> /etc/ecs/ecs.config\necho ECS_AVAILABLE_LOGGING_DRIVERS='[\"json-file\",\"awslogs\"]' >> /etc/ecs/ecs.config\nyum install -y aws-cfn-bootstrap\n/opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EC2Instance --region ${AWS::Region}\n"
           }
         },
         "Tags": [
@@ -415,7 +420,7 @@
             "PortMappings": [
               {
                 "ContainerPort": { "Ref": "ContainerPort" },
-                "HostPort": { "Ref": "ContainerPort" },
+                "HostPort": 0,
                 "Protocol": "tcp"
               }
             ],
