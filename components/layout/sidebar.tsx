@@ -24,12 +24,14 @@ interface SidebarProps {
   className?: string;
   isOpen?: boolean;
   onToggle?: () => void;
+  isAnonymous?: boolean;
 }
 
 function SidebarComponent({
   className,
   isOpen = false,
   onToggle,
+  isAnonymous = false,
 }: SidebarProps) {
   const [isMobile, setIsMobile] = useState(false);
 
