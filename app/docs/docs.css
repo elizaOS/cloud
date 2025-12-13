@@ -178,20 +178,32 @@ aside.nextra-sidebar-container {
    ═══════════════════════════════════════════════════════════════════════════ */
 main {
   background: var(--surface-bg) !important;
-  padding: 0 2rem !important;
+  /* Only control horizontal padding so we don't wipe out Nextra's vertical spacing */
+  padding-inline: 1.25rem !important;
+}
+
+/* The docs landing page has its own spacing; avoid double-padding it */
+main.nextra-content-container.docs-landing {
+  padding-inline: 0 !important;
 }
 
 .nextra-body-typesetting-article,
 .nextra-body-full,
 .nextra-content-container {
-  padding: 0 1.5rem !important;
+  /* Provide consistent horizontal gutters even when Nextra's wrapper isn't present */
+  padding-inline: 1.25rem !important;
+}
+
+/* Prevent `.nextra-content-container` rule from re-adding padding on the landing page */
+main.nextra-content-container.docs-landing.nextra-content-container {
+  padding-inline: 0 !important;
 }
 
 article.nextra-content {
   color: var(--text-secondary) !important;
   max-width: 80ch;
   margin: 0 auto;
-  padding: 2.5rem 2rem;
+  padding: 2rem 1.25rem;
 }
 
 /* Headings */
@@ -278,7 +290,9 @@ pre {
   padding: 1.5rem !important;
   margin: 1.75rem 0 !important;
   position: relative;
-  overflow: hidden;
+  /* Don't clip long lines; allow horizontal scroll */
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 pre::before {
@@ -328,7 +342,8 @@ table {
   border-spacing: 0 !important;
   margin: 2.5rem 0 !important;
   border: 1px solid var(--border-default) !important;
-  overflow: hidden;
+  /* Tables can overflow on small screens; allow scroll instead of clipping */
+  overflow-x: auto;
 }
 
 thead {
@@ -1108,7 +1123,13 @@ footer.nextra-footer {
    ═══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 1024px) {
   main {
-    padding: 0 1.5rem !important;
+    padding-inline: 1.5rem !important;
+  }
+
+  .nextra-body-typesetting-article,
+  .nextra-body-full,
+  .nextra-content-container {
+    padding-inline: 1.5rem !important;
   }
   
   article.nextra-content {
@@ -1135,7 +1156,13 @@ footer.nextra-footer {
 
 @media (max-width: 768px) {
   main {
-    padding: 0 1rem !important;
+    padding-inline: 1rem !important;
+  }
+
+  .nextra-body-typesetting-article,
+  .nextra-body-full,
+  .nextra-content-container {
+    padding-inline: 1rem !important;
   }
   
   .nextra-sidebar-container {
@@ -1187,7 +1214,8 @@ aside.nextra-toc {
 }
 
 .nextra-body > div:first-child {
-  padding: 0 1rem !important;
+  /* Avoid removing vertical spacing by using inline-only padding */
+  padding-inline: 1rem !important;
 }
 
 .nextra-content > div,
