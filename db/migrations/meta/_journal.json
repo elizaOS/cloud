@@ -71,6 +71,13 @@
       "when": 1759756277947,
       "tag": "0002_curvy_daimon_hellstrom",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1759815675792,
+      "tag": "0003_mixed_wendell_vaughn",
+      "breakpoints": true
     }
   ]
 }
