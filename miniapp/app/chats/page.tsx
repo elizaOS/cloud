@@ -190,12 +190,6 @@ export default function ChatsPage() {
         </div>
       )}
 
-      {/* Pagination info */}
-      {pagination && pagination.totalCount > 0 && (
-        <p className="mt-6 text-center text-sm text-white/40">
-          Showing {agents.length} of {pagination.totalCount} friends
-        </p>
-      )}
     </div>
   );
 }

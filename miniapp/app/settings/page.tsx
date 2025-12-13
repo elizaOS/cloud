@@ -137,7 +137,6 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white">Settings</h1>
-        <p className="mt-1 text-sm text-white/60">Manage your account</p>
       </div>
 
       {/* Error */}
@@ -164,25 +163,14 @@ export default function SettingsPage() {
           {displayName && (
             <div className="flex items-center gap-3">
               <User className="h-4 w-4 text-white/40" />
-              <div>
-                <p className="text-xs text-white/40">Name</p>
-                <p className="text-sm text-white">{displayName}</p>
-              </div>
+              <p className="text-sm text-white">{displayName}</p>
             </div>
           )}
           {displayEmail && (
             <div className="flex items-center gap-3">
               <Mail className="h-4 w-4 text-white/40" />
-              <div>
-                <p className="text-xs text-white/40">Email</p>
-                <p className="text-sm text-white">{displayEmail}</p>
-              </div>
+              <p className="text-sm text-white">{displayEmail}</p>
             </div>
-          )}
-          {!displayEmail && !displayName && (
-            <p className="text-sm text-white/60">
-              No account details available
-            </p>
           )}
           <button
             onClick={logout}
@@ -212,11 +200,7 @@ export default function SettingsPage() {
                 <p className="text-3xl font-bold text-white">
                   {creditBalance.toLocaleString()}
                 </p>
-                <p className="text-sm text-white/40">
-                  {appBilling?.monetizationEnabled 
-                    ? `${appBilling.appName || 'App'} credits` 
-                    : 'credits available'}
-                </p>
+                <p className="text-sm text-white/40">credits</p>
               </div>
               <button
                 onClick={handleOpenCreditPacks}
@@ -316,7 +300,6 @@ export default function SettingsPage() {
 
                 {/* Custom Amount */}
                 <div className="border-t border-white/10 pt-4">
-                  <p className="mb-3 text-sm text-white/60">Custom Amount</p>
                   <div className="flex gap-3">
                     <div className="relative flex-1">
                       <input
@@ -346,7 +329,7 @@ export default function SettingsPage() {
                     </button>
                   </div>
                   <p className="mt-2 text-xs text-white/40">
-                    Enter credits between 500 and 100,000 (100 credits = $1)
+                    Min 500, max 100,000
                   </p>
                 </div>
               </>

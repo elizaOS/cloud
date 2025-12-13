@@ -23,18 +23,13 @@ export function OutOfCreditsPrompt({
 
   const content = (
     <div className={`${inline ? "" : "p-6"} space-y-4`}>
-      <div className="flex items-start gap-3">
+      <div className="flex items-center gap-3">
         <div className="p-2 rounded-xl bg-amber-500/10">
           <AlertCircle className="h-5 w-5 text-amber-500" />
         </div>
-        <div className="flex-1">
-          <h3 className="font-semibold text-white">Low on credits</h3>
-          <p className="text-sm text-white/60 mt-1">
-            {currentBalance <= 0
-              ? "You've run out of credits."
-              : `You have ${Math.round(currentBalance * 100).toLocaleString()} credits remaining.`}
-          </p>
-        </div>
+        <h3 className="font-semibold text-white">
+          {currentBalance <= 0 ? "Out of credits" : `${Math.round(currentBalance * 100).toLocaleString()} credits left`}
+        </h3>
       </div>
 
       {allClaimedToday === true ? (
@@ -72,9 +67,6 @@ export function OutOfCreditsPrompt({
             </Link>
           </div>
 
-          <p className="text-xs text-white/40 text-center">
-            Share with friends to earn credits • Get 5% of their purchases forever
-          </p>
         </>
       )}
 

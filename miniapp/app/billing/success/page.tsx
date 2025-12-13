@@ -33,19 +33,13 @@ function BillingSuccessContent() {
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/20">
           <CheckCircle2 className="h-8 w-8 text-green-400" />
         </div>
-        <h1 className="text-2xl font-bold text-white">Payment Successful!</h1>
+        <h1 className="text-2xl font-bold text-white">Payment Successful</h1>
         <p className="mt-3 text-white/60">
-          Your credits have been added to your account.
+          Credits added to your account.
         </p>
 
-        {sessionId && (
-          <p className="mt-2 text-xs text-white/40">
-            Transaction ID: {sessionId.slice(0, 20)}...
-          </p>
-        )}
-
-        <div className="mt-6 text-sm text-white/50">
-          Redirecting to settings in {countdown}...
+        <div className="mt-6 text-sm text-white/40">
+          Redirecting in {countdown}s
         </div>
 
         <button
