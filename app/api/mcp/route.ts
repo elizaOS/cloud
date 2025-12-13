@@ -10,6 +10,7 @@ import DOMPurify from "isomorphic-dompurify";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import type { AuthResult, Organization } from "@/lib/auth";
 import type { UserWithOrganization } from "@/lib/types";
+import { waitUntil } from "@vercel/functions";
 
 // Type for authenticated context with guaranteed organization
 type AuthResultWithOrg = AuthResult & {
@@ -2920,6 +2921,7 @@ const mcpHandler = createMcpHandler(
             message,
             organizationId: user.organization_id!!,
             streaming,
+            waitUntil,
           });
 
           const actualCost = Math.ceil(
