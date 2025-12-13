@@ -43,10 +43,10 @@ import {
   type ParsedPlan,
 } from "../shared/utils/parsers";
 import type { MessageReceivedHandlerParams } from "../shared/types";
+import { MIN_IMAGE_INTERVAL_MS } from "@/lib/constants/image-generation";
 
 // Rate limiting for auto-image generation (prevents cost abuse)
 const imageGenerationTimestamps = new Map<string, number>();
-const MIN_IMAGE_INTERVAL_MS = 60 * 1000; // 1 minute between auto-generated images
 
 function canGenerateImage(roomId: string): boolean {
   const lastGenerated = imageGenerationTimestamps.get(roomId);

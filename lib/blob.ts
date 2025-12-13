@@ -97,7 +97,9 @@ export async function uploadBase64Image(
 
   // Validate file size before converting to buffer
   const MAX_IMAGE_SIZE = maxSizeMB * 1024 * 1024;
-  const estimatedSize = Math.ceil((base64Content.length * 3) / 4);
+  // Account for base64 padding characters when calculating size
+  const paddingCount = (base64Content.match(/=/g) || []).length;
+  const estimatedSize = Math.ceil((base64Content.length * 3) / 4) - paddingCount;
 
   if (estimatedSize > MAX_IMAGE_SIZE) {
     throw new Error(

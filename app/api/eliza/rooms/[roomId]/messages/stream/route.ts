@@ -18,6 +18,8 @@ import { z } from "zod";
 import {
   IMAGE_GENERATION_VIBES,
   DEFAULT_VIBE,
+  MAX_PROMPT_LENGTH,
+  MAX_RESPONSE_STYLE_LENGTH,
 } from "@/lib/constants/image-generation";
 
 export const dynamic = "force-dynamic";
@@ -55,7 +57,20 @@ export async function POST(
     } = body;
 
     // App ID can come from body OR X-App-Id header (app proxy uses header)
-    const appId = bodyAppId || request.headers.get("X-App-Id");
+    const rawAppId = bodyAppId || request.headers.get("X-App-Id");
+
+    // Validate appId format if provided (must be UUID)
+    let appId: string | undefined;
+    if (rawAppId) {
+      const appIdValidation = z.string().uuid().safeParse(rawAppId);
+      if (!appIdValidation.success) {
+        return new Response(
+          JSON.stringify({ error: "Invalid appId format - must be a valid UUID" }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      appId = appIdValidation.data;
+    }
 
     if (!roomId || !text?.trim()) {
       return new Response(
@@ -68,8 +83,21 @@ export async function POST(
     if (appPromptConfig) {
       // Sanitization helper to prevent prompt injection
       const sanitizePromptString = (val: string) => {
+        // Normalize Unicode before any checks to prevent bypass via different encodings
+        val = val.normalize("NFC");
+
         // Check length - reject suspiciously long prompts
-        if (val.length > 2000) {
+        if (val.length > MAX_PROMPT_LENGTH) {
+          return false;
+        }
+
+        // Block RTL override and bidirectional control characters (can hide malicious content)
+        if (/[\u202A-\u202E\u2066-\u2069\u200E\u200F]/.test(val)) {
+          return false;
+        }
+
+        // Block zero-width characters that can hide content
+        if (/[\u200B-\u200D\uFEFF]/.test(val)) {
           return false;
         }
 
@@ -121,21 +149,21 @@ export async function POST(
         .object({
           systemPrefix: z
             .string()
-            .max(2000)
+            .max(MAX_PROMPT_LENGTH)
             .refine(sanitizePromptString, {
               message: "Invalid characters or patterns in systemPrefix",
             })
             .optional(),
           systemSuffix: z
             .string()
-            .max(2000)
+            .max(MAX_PROMPT_LENGTH)
             .refine(sanitizePromptString, {
               message: "Invalid characters or patterns in systemSuffix",
             })
             .optional(),
           responseStyle: z
             .string()
-            .max(1000)
+            .max(MAX_RESPONSE_STYLE_LENGTH)
             .refine(sanitizePromptString, {
               message: "Invalid characters or patterns in responseStyle",
             })
