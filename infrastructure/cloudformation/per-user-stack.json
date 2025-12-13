@@ -93,13 +93,6 @@
             "ToPort": {"Ref": "ContainerPort"},
             "SourceSecurityGroupId": {"Ref": "SharedALBSecurityGroupId"},
             "Description": "Allow traffic from ALB only"
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": 22,
-            "ToPort": 22,
-            "CidrIp": "0.0.0.0/0",
-            "Description": "SSH access for debugging"
           }
         ],
         "SecurityGroupEgress": [
