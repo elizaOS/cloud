@@ -178,9 +178,6 @@ export class DiscordEventRouter {
     return item.id;
   }
 
-  /**
-   * Process queued events.
-   */
   async processQueue(limit = 100): Promise<{ processed: number; failed: number }> {
     const items = await discordEventQueueRepository.getPending(limit);
     let processed = 0;
