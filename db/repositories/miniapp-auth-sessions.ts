@@ -95,9 +95,36 @@ class MiniappAuthSessionsRepository {
     userId: string;
     organizationId: string;
   } | null> {
+    // First, get the session with the token (before we clear it)
+    const [existingSession] = await db
+      .select({
+        auth_token: miniappAuthSessions.auth_token,
+        user_id: miniappAuthSessions.user_id,
+        organization_id: miniappAuthSessions.organization_id,
+        status: miniappAuthSessions.status,
+      })
+      .from(miniappAuthSessions)
+      .where(
+        and(
+          eq(miniappAuthSessions.session_id, sessionId),
+          eq(miniappAuthSessions.status, "authenticated"),
+          sql`${miniappAuthSessions.auth_token} IS NOT NULL`
+        )
+      )
+      .limit(1);
+
+    if (
+      !existingSession ||
+      !existingSession.auth_token ||
+      !existingSession.user_id ||
+      !existingSession.organization_id
+    ) {
+      return null;
+    }
+
     // Atomic update to prevent TOCTOU race condition
     // This ensures only one request can retrieve the token, even with concurrent calls
-    const [session] = await db
+    const result = await db
       .update(miniappAuthSessions)
       .set({
         auth_token: null,
@@ -110,22 +137,17 @@ class MiniappAuthSessionsRepository {
           eq(miniappAuthSessions.status, "authenticated"),
           sql`${miniappAuthSessions.auth_token} IS NOT NULL`
         )
-      )
-      .returning();
+      );
 
-    if (
-      !session ||
-      !session.auth_token ||
-      !session.user_id ||
-      !session.organization_id
-    ) {
+    // If no rows were updated, another request got there first
+    if (result.rowCount === 0) {
       return null;
     }
 
     return {
-      authToken: session.auth_token,
-      userId: session.user_id,
-      organizationId: session.organization_id,
+      authToken: existingSession.auth_token,
+      userId: existingSession.user_id,
+      organizationId: existingSession.organization_id,
     };
   }
 
