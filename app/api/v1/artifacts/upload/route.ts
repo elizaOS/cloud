@@ -49,22 +49,8 @@ export async function POST(request: NextRequest) {
     // Create R2 key
     const r2Key = `artifacts/${user.organization_id}/${projectId}/${version}/${artifactId}.tar.gz`;
 
-    // Store artifact metadata in database FIRST
-    await db.insert(artifacts).values({
-      id: artifactId,
-      organization_id: user.organization_id,
-      project_id: projectId,
-      version,
-      checksum,
-      size,
-      r2_key: r2Key,
-      r2_url: `https://${process.env.R2_PUBLIC_DOMAIN || process.env.R2_ACCOUNT_ID + '.r2.cloudflarestorage.com'}/${R2_BUCKET}/${r2Key}`,
-      metadata: metadata || {},
-      created_by: user.id,
-      created_at: new Date(),
-    });
-
-    // Generate Cloudflare temporary credentials for UPLOAD (scoped, write-only)
+    // Generate Cloudflare temporary credentials FIRST (scoped, write-only)
+    // This validates that we can create credentials before writing to DB
     const uploadCredentials = await createArtifactUploadCredentials({
       organizationId: user.organization_id,
       projectId,
@@ -80,6 +66,22 @@ export async function POST(request: NextRequest) {
       version,
       artifactId,
       ttlSeconds: 3600, // 1 hour (containers may take time to start)
+    });
+
+    // Only insert into database after credentials are successfully generated
+    // This prevents orphaned database records if credential generation fails
+    await db.insert(artifacts).values({
+      id: artifactId,
+      organization_id: user.organization_id,
+      project_id: projectId,
+      version,
+      checksum,
+      size,
+      r2_key: r2Key,
+      r2_url: `https://${process.env.R2_PUBLIC_DOMAIN || process.env.R2_ACCOUNT_ID + '.r2.cloudflarestorage.com'}/${R2_BUCKET}/${r2Key}`,
+      metadata: metadata || {},
+      created_by: user.id,
+      created_at: new Date(),
     });
 
     // Construct R2 URLs
