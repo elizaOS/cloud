@@ -94,7 +94,7 @@ export default function ChatsPage() {
               className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 px-4 py-2 text-sm font-medium text-pink-400 transition-colors hover:from-pink-500/30 hover:to-purple-500/30"
             >
               <Gift className="h-4 w-4" />
-              <span>{availableToday > 0 ? `Earn $${availableToday.toFixed(2)}` : "Share & Earn"}</span>
+              <span>{availableToday > 0 ? `Earn ${Math.round(availableToday).toLocaleString()} credits` : "Share & Earn"}</span>
             </button>
           )}
           <button

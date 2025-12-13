@@ -24,6 +24,7 @@ import { db } from "@/db/client";
 import { roomTable, memoryTable, participantTable } from "@/db/schemas/eliza";
 import { eq, and, desc, sql } from "drizzle-orm";
 import type { UUID } from "@elizaos/core";
+import { parseMessageContent } from "@/lib/types/message-content";
 
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
@@ -164,6 +165,10 @@ export async function GET(
             ),
           );
 
+        const lastMessageContent = lastMessage
+          ? parseMessageContent(lastMessage.content)
+          : null;
+
         return {
           id: room.id,
           agentId,
@@ -171,12 +176,9 @@ export async function GET(
           createdAt: room.createdAt,
           // Use last message time as updatedAt if available, otherwise use createdAt
           updatedAt: lastMessage?.createdAt || room.createdAt,
-          lastMessage: lastMessage
+          lastMessage: lastMessage && lastMessageContent
             ? {
-                content:
-                  typeof lastMessage.content === "string"
-                    ? lastMessage.content
-                    : (lastMessage.content as { text?: string })?.text || "",
+                content: lastMessageContent.text || "",
                 role: lastMessage.entityId === agentId ? "assistant" : "user",
                 createdAt: lastMessage.createdAt,
               }

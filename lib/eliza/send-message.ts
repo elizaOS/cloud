@@ -20,7 +20,7 @@ import { executeSideEffects } from "./side-effects";
  * Send a message using the core ElizaOS.sendMessage() with cloud-specific side effects.
  *
  * This function:
- * 1. Calls elizaOS.sendMessage(runtime, ...)
+ * 1. Calls elizaOS.sendMessage(runtime.agentId, ...)
  * 2. Executes side effects (Discord, room title, anonymous tracking)
  * 3. Returns the core SendMessageResult
  *
@@ -45,7 +45,7 @@ export async function sendMessageWithSideEffects(
     `[sendMessage] Sending message to room ${roomId} from entity ${entityId}`,
   );
 
-  const result = await elizaOS.sendMessage(runtime, {
+  const result = await elizaOS.sendMessage(runtime.agentId, {
     entityId,
     roomId,
     content: {
@@ -54,7 +54,7 @@ export async function sendMessageWithSideEffects(
     },
   });
 
-  const responseText = result.processing?.responseContent?.text || "";
+  const responseText = result.result?.responseContent?.text || "";
   const userText = content.text || "";
 
   elizaLogger.info(

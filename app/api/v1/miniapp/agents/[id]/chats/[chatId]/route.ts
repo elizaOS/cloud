@@ -24,6 +24,8 @@ import { db } from "@/db/client";
 import { roomTable, memoryTable, participantTable } from "@/db/schemas/eliza";
 import { eq, and, asc } from "drizzle-orm";
 import type { UUID } from "@elizaos/core";
+import type { RoomMetadata } from "@/lib/types/message-content";
+import { parseMessageContent, type MessageAttachment } from "@/lib/types/message-content";
 
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
@@ -72,9 +74,8 @@ async function verifyAccess(
   });
 
   // Check if user is the room creator (stored in metadata)
-  const isCreator =
-    (room.metadata as { creatorUserId?: string } | null)?.creatorUserId ===
-    userId;
+  const metadata = (room.metadata as RoomMetadata | null) ?? {};
+  const isCreator = metadata.creatorUserId === userId;
 
   if (!userParticipant && !isCreator) {
     return { allowed: false, error: "Access denied", status: 403 };
@@ -148,27 +149,28 @@ export async function GET(
 
     // Transform messages and extract attachments
     const transformedMessages = messages.map((msg) => {
-      const content = msg.content as
-        | {
-            text?: string;
-            attachments?: Array<{
-              id: string;
-              url: string;
-              title?: string;
-              contentType?: string;
-            }>;
-          }
-        | string;
-
-      const textContent =
-        typeof content === "string" ? content : content?.text || "";
+      const content = parseMessageContent(msg.content);
+      const textContent = content.text || "";
 
       // Extract attachments from content if present
-      const attachments =
-        typeof content === "object" && content?.attachments
-          ? content.attachments.filter(
-              (att) => att.url && typeof att.url === "string",
-            )
+      const attachments: MessageAttachment[] | undefined =
+        Array.isArray(content.attachments) && content.attachments.length > 0
+          ? content.attachments
+              .filter((att): att is MessageAttachment => {
+                return (
+                  typeof att === "object" &&
+                  att !== null &&
+                  "id" in att &&
+                  "url" in att &&
+                  typeof (att as MessageAttachment).url === "string"
+                );
+              })
+              .map((att) => ({
+                id: att.id,
+                url: att.url,
+                title: att.title,
+                contentType: att.contentType,
+              }))
           : undefined;
 
       return {

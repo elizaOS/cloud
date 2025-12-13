@@ -162,7 +162,7 @@ function AuthCallbackContent() {
             <div className="mt-3 flex items-center justify-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2">
               <Gift className="h-4 w-4 text-emerald-400" />
               <span className="text-sm text-emerald-400">
-                You received ${referralBonus.toFixed(2)} bonus credits!
+                You received {Math.round(referralBonus * 100).toLocaleString()} bonus credits!
               </span>
             </div>
           ) : (

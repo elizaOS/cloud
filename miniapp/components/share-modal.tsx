@@ -71,9 +71,9 @@ export function useShareStatus() {
   // While loading, use undefined to avoid showing wrong values
   const allClaimedToday = loading ? undefined : (shareStatus?.x.claimed && shareStatus?.farcaster.claimed);
   const anyClaimedToday = loading ? undefined : (shareStatus?.x.claimed || shareStatus?.farcaster.claimed);
-  const availableToday = loading ? 0.50 : // Show reasonable default while loading
-    (shareStatus?.x.claimed ? 0 : shareStatus?.x.amount || 0) +
-    (shareStatus?.farcaster.claimed ? 0 : shareStatus?.farcaster.amount || 0);
+  const availableToday = loading ? 50 : // Show reasonable default while loading (50 credits)
+    (shareStatus?.x.claimed ? 0 : (shareStatus?.x.amount || 0) * 100) +
+    (shareStatus?.farcaster.claimed ? 0 : (shareStatus?.farcaster.amount || 0) * 100);
 
   return { shareStatus, loading, allClaimedToday, anyClaimedToday, availableToday };
 }
@@ -165,7 +165,7 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
     setClaiming("x");
     const result = await claimShareReward("x", "app_share", url);
     if (result.success) {
-      toast.success(`🎉 +$${result.amount?.toFixed(2)} earned!`, {
+      toast.success(`🎉 +${Math.round((result.amount || 0) * 100)} credits earned!`, {
         description: "Thanks for sharing on X!",
       });
       setShareStatus(prev => prev ? { ...prev, x: { ...prev.x, claimed: true } } : null);
@@ -197,7 +197,7 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
     setClaiming("farcaster");
     const result = await claimShareReward("farcaster", "app_share", url);
     if (result.success) {
-      toast.success(`🎉 +$${result.amount?.toFixed(2)} earned!`, {
+      toast.success(`🎉 +${Math.round((result.amount || 0) * 100)} credits earned!`, {
         description: "Thanks for sharing on Farcaster!",
       });
       setShareStatus(prev => prev ? { ...prev, farcaster: { ...prev.farcaster, claimed: true } } : null);
@@ -271,8 +271,8 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
               </div>
               <div className="h-8 w-px bg-white/20" />
               <div className="text-center">
-                <p className="text-2xl font-bold text-emerald-400">${(stats?.totalEarnings || 0).toFixed(2)}</p>
-                <p className="text-xs text-white/60">Total Earned</p>
+                <p className="text-2xl font-bold text-emerald-400">{Math.round((stats?.totalEarnings || 0) * 100).toLocaleString()}</p>
+                <p className="text-xs text-white/60">Credits Earned</p>
               </div>
             </div>
 
@@ -287,7 +287,7 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
                   </span>
                 </div>
                 <p className="text-xs text-white/40 text-center">
-                  Come back tomorrow for $0.50 more. Your referral link always works!
+                  Come back tomorrow for 50 credits more. Your referral link always works!
                 </p>
               </div>
             ) : (
@@ -296,10 +296,10 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-white/60">Share to earn</p>
                   <span className="text-xs font-medium px-2 py-1 rounded-full bg-emerald-500/20 text-emerald-400">
-                    ${(
-                      (shareStatus?.x.claimed ? 0 : shareStatus?.x.amount || 0) +
-                      (shareStatus?.farcaster.claimed ? 0 : shareStatus?.farcaster.amount || 0)
-                    ).toFixed(2)} available
+                    {(
+                      (shareStatus?.x.claimed ? 0 : (shareStatus?.x.amount || 0) * 100) +
+                      (shareStatus?.farcaster.claimed ? 0 : (shareStatus?.farcaster.amount || 0) * 100)
+                    )} credits available
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -330,7 +330,7 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
                         <XIcon className="h-6 w-6 text-white" />
                         <div className="flex items-center gap-1">
                           <span className="text-xs text-white/60">X</span>
-                          <span className="text-xs font-semibold text-emerald-400">+${shareStatus?.x.amount.toFixed(2)}</span>
+                          <span className="text-xs font-semibold text-emerald-400">+{Math.round((shareStatus?.x.amount || 0) * 100)} credits</span>
                         </div>
                       </>
                     )}
@@ -363,7 +363,7 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
                         <FarcasterIcon className="h-6 w-6 text-white" />
                         <div className="flex items-center gap-1">
                           <span className="text-xs text-white/60">Farcaster</span>
-                          <span className="text-xs font-semibold text-emerald-400">+${shareStatus?.farcaster.amount.toFixed(2)}</span>
+                          <span className="text-xs font-semibold text-emerald-400">+{Math.round((shareStatus?.farcaster.amount || 0) * 100)} credits</span>
                         </div>
                       </>
                     )}
@@ -397,9 +397,9 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
                   )}
                 </button>
               </div>
-              <p className="text-xs text-white/40 text-center">
-                Friends get $0.50 • You get $1.00 (+$0.50 when they link) + 5% forever
-              </p>
+            <p className="text-xs text-white/40 text-center">
+              Friends get 50 credits • You get 100 credits (+50 when they link) + 5% forever
+            </p>
             </div>
 
             {/* Copy Link - Primary CTA */}

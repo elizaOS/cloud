@@ -23,6 +23,7 @@ import { roomTable, participantTable } from "@/db/schemas/eliza";
 import { eq, and } from "drizzle-orm";
 import type { UUID } from "@elizaos/core";
 import { z } from "zod";
+import type { RoomMetadata } from "@/lib/types/message-content";
 
 export const maxDuration = 60;
 
@@ -115,9 +116,8 @@ export async function POST(
     });
 
     // Check if user is the room creator (stored in metadata)
-    const isCreator =
-      (room.metadata as { creatorUserId?: string } | null)?.creatorUserId ===
-      user.id;
+    const metadata = (room.metadata as RoomMetadata | null) ?? {};
+    const isCreator = metadata.creatorUserId === user.id;
 
     if (!userParticipant && !isCreator) {
       const response = NextResponse.json(
