@@ -19,12 +19,21 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 
+/**
+ * Return value from useCreditsStream hook.
+ */
 interface UseCreditsStreamResult {
+  /** Current credit balance or null if not loaded. */
   creditBalance: number | null;
+  /** Whether the connection is active. */
   isConnected: boolean;
+  /** Whether the initial balance fetch is in progress. */
   isLoading: boolean;
+  /** Error message if fetch failed. */
   error: string | null;
+  /** Timestamp of last successful balance update. */
   lastUpdate: Date | null;
+  /** Function to manually refresh the balance. */
   refreshBalance: () => Promise<void>;
 }
 

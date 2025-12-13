@@ -4,11 +4,26 @@ import { referralsService, REWARDS } from "@/lib/services";
 import { addCorsHeaders, validateOrigin, createPreflightResponse } from "@/lib/middleware/cors-apps";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * OPTIONS /api/v1/miniapp/referral
+ * CORS preflight handler for miniapp referral endpoint.
+ *
+ * @param request - The Next.js request object.
+ * @returns Preflight response with CORS headers.
+ */
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
   return createPreflightResponse(origin, ["GET", "OPTIONS"]);
 }
 
+/**
+ * GET /api/v1/miniapp/referral
+ * Gets the authenticated user's referral code and statistics.
+ * Includes share URL, earnings breakdown, and reward rates.
+ *
+ * @param request - The Next.js request object.
+ * @returns Referral code, share URL, statistics, and reward information.
+ */
 export async function GET(request: NextRequest) {
   const corsResult = await validateOrigin(request);
 

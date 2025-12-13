@@ -1,10 +1,3 @@
-/**
- * /api/v1/miniapp/billing/checkout
- *
- * POST - Create a Stripe checkout session for miniapp users
- * Returns a checkout URL that redirects back to the miniapp after payment
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
@@ -56,11 +49,33 @@ const checkoutRequestSchema = z
     message: "Either creditPackId or amount must be provided",
   });
 
+/**
+ * OPTIONS /api/v1/miniapp/billing/checkout
+ * CORS preflight handler for miniapp checkout endpoint.
+ *
+ * @param request - The Next.js request object.
+ * @returns Preflight response with CORS headers.
+ */
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
   return createPreflightResponse(origin, ["POST", "OPTIONS"]);
 }
 
+/**
+ * POST /api/v1/miniapp/billing/checkout
+ * Creates a Stripe checkout session for miniapp users to purchase credits.
+ * Supports both credit packs and custom amounts. Returns a checkout URL that redirects back to the miniapp after payment.
+ *
+ * Request Body:
+ * - `creditPackId` (optional): UUID of a credit pack to purchase.
+ * - `amount` (optional): Custom amount in dollars ($5-$1000).
+ * - `successUrl`: URL to redirect to after successful payment.
+ * - `cancelUrl`: URL to redirect to if payment is cancelled.
+ * - `appId` (optional): App ID for app-specific credit purchases (monetization).
+ *
+ * @param request - Request body with checkout details.
+ * @returns Checkout session ID and URL.
+ */
 export async function POST(request: NextRequest) {
   const corsResult = await validateOrigin(request);
 

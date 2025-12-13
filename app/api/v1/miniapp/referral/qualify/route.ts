@@ -5,17 +5,26 @@ import { addCorsHeaders, validateOrigin, createPreflightResponse } from "@/lib/m
 import { logger } from "@/lib/utils/logger";
 
 /**
- * POST /api/v1/miniapp/referral/qualify
- * 
- * Called when a user links a social account (Farcaster, Twitter, wallet).
- * Awards the referrer their qualified bonus if the user was referred.
- * Note: Qualified bonus always goes to referrer's org balance (they're an app creator).
+ * OPTIONS /api/v1/miniapp/referral/qualify
+ * CORS preflight handler for miniapp referral qualification endpoint.
+ *
+ * @param request - The Next.js request object.
+ * @returns Preflight response with CORS headers.
  */
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
   return createPreflightResponse(origin, ["POST", "OPTIONS"]);
 }
 
+/**
+ * POST /api/v1/miniapp/referral/qualify
+ * Called when a user links a social account (Farcaster, Twitter, wallet).
+ * Checks if the user was referred and awards the referrer their qualified bonus.
+ * Note: Qualified bonus always goes to referrer's organization balance (they're an app creator).
+ *
+ * @param request - The Next.js request object.
+ * @returns Qualification result indicating if bonus was awarded.
+ */
 export async function POST(request: NextRequest) {
   const corsResult = await validateOrigin(request);
 

@@ -328,8 +328,7 @@ export const applyCharacterChangesAction = {
     _options: Record<string, unknown>,
     callback: HandlerCallback,
   ): Promise<void> => {
-    try {
-      logger.info("[APPLY_CHARACTER_CHANGES] 💾 Extracting and saving changes");
+    logger.info("[APPLY_CHARACTER_CHANGES] 💾 Extracting and saving changes");
 
       const originalSystemPrompt = runtime.character.system;
 
@@ -382,22 +381,7 @@ export const applyCharacterChangesAction = {
       }
 
       // Parse the changes JSON
-      let changesObj: Record<string, unknown> = {};
-      try {
-        changesObj = JSON.parse(extraction.changes);
-      } catch (parseError) {
-        const errorMsg =
-          parseError instanceof Error ? parseError.message : String(parseError);
-        logger.error(
-          "[APPLY_CHARACTER_CHANGES] Failed to parse changes JSON:",
-          errorMsg,
-        );
-        await callback({
-          text: `Failed to parse extracted changes as JSON: ${errorMsg}`,
-          error: true,
-        });
-        return;
-      }
+      const changesObj: Record<string, unknown> = JSON.parse(extraction.changes);
 
       logger.info(
         `[APPLY_CHARACTER_CHANGES] Extracted changes for fields: ${extraction.fieldsChanged}`,
@@ -458,163 +442,134 @@ export const applyCharacterChangesAction = {
         `[APPLY_CHARACTER_CHANGES] Saving changes to database for character ${runtime.character.id}`,
       );
 
-      try {
-        // Map ElizaOS format to database format, passing current character for style merging
-        const dbUpdates = mapChangesToDbFormat(
-          changesObj,
-          runtime.character as unknown as Record<string, unknown>,
-        );
+      // Map ElizaOS format to database format, passing current character for style merging
+      const dbUpdates = mapChangesToDbFormat(
+        changesObj,
+        runtime.character as unknown as Record<string, unknown>,
+      );
 
-        logger.debug(
-          `[APPLY_CHARACTER_CHANGES] DB updates: ${JSON.stringify(dbUpdates, null, 2)}`,
-        );
+      logger.debug(
+        `[APPLY_CHARACTER_CHANGES] DB updates: ${JSON.stringify(dbUpdates, null, 2)}`,
+      );
 
-        // Use charactersService to update with ownership verification
-        const savedCharacter = await charactersService.updateForUser(
-          runtime.character.id as string,
-          userId,
-          dbUpdates,
-        );
+      // Use charactersService to update with ownership verification
+      const savedCharacter = await charactersService.updateForUser(
+        runtime.character.id as string,
+        userId,
+        dbUpdates,
+      );
 
-        if (!savedCharacter) {
-          logger.error(
-            `[APPLY_CHARACTER_CHANGES] Failed to save: character not found or access denied for user ${userId}`,
-          );
-          await callback({
-            text: `Failed to save: Character not found or access denied for user ${userId}. You may not have permission to update this character.`,
-            error: true,
-          });
-          return;
-        }
-
-        // Update in-memory character with saved data
-        runtime.character = updatedCharacter;
-        await runtime.updateAgent(runtime.agentId, updatedCharacter);
-
-        const fieldsUpdated =
-          extraction.fieldsChanged?.split(",").map((f) => f.trim()) || [];
-        logger.info(
-          `[APPLY_CHARACTER_CHANGES] ✅ Successfully updated fields in database: ${fieldsUpdated.join(", ")}`,
-        );
-        logger.debug(
-          `[APPLY_CHARACTER_CHANGES] Saved character ID: ${savedCharacter.id}`,
-        );
-
-        // Save original for confirmation generation
-        const originalSystemForConfirm = runtime.character.system;
-
-        // Prepare updated character JSON for confirmation (only relevant fields)
-        const relevantFields = [
-          "system",
-          "bio",
-          "adjectives",
-          "topics",
-          "style",
-          "messageExamples",
-        ];
-        const updatedCharacterForConfirm: Record<string, unknown> = {};
-        const characterAsRecord = updatedCharacter as Record<string, unknown>;
-        for (const field of relevantFields) {
-          if (field in characterAsRecord) {
-            updatedCharacterForConfirm[field] = characterAsRecord[field];
-          }
-        }
-
-        // Compose confirmation system prompt
-        const confirmSystem = composePromptFromState({
-          state: {
-            ...state,
-            values: {
-              ...state.values,
-              agentName: runtime.character.name,
-              fieldsUpdated: fieldsUpdated.join(", "),
-              changesApplied: JSON.stringify(changesObj, null, 2),
-              updatedCharacterJson: JSON.stringify(
-                updatedCharacterForConfirm,
-                null,
-                2,
-              ),
-            },
-          },
-          template: confirmSystemPrompt,
-        });
-
-        runtime.character.system = confirmSystem;
-
-        // Compose confirmation prompt
-        const confirmPrompt = composePromptFromState({
-          state: {
-            ...state,
-            values: {
-              ...state.values,
-              agentName: runtime.character.name,
-              fieldsUpdated: fieldsUpdated.join(", "),
-              changesApplied: JSON.stringify(changesObj, null, 2),
-              updatedCharacterJson: JSON.stringify(
-                updatedCharacterForConfirm,
-                null,
-                2,
-              ),
-            },
-          },
-          template: confirmTemplate,
-        });
-
-        const confirmResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
-          prompt: confirmPrompt,
-        });
-
-        logger.debug(
-          "*** RAW LLM RESPONSE (CONFIRMATION) ***\n",
-          confirmResponse,
-        );
-
-        // Restore original system prompt
-        runtime.character.system = originalSystemForConfirm;
-
-        const parsed = parseKeyValueXml(confirmResponse) as {
-          thought?: string;
-          text?: string;
-        } | null;
-
-        const confirmText =
-          parsed?.text ||
-          `✓ Changes saved! Updated ${fieldsUpdated.join(", ")}.`;
-
-        // Callback to frontend with success and mode switch signal
-        await callback({
-          thought: parsed?.thought || "",
-          text: confirmText,
-          actions: ["APPLY_CHARACTER_CHANGES"],
-        });
-      } catch (dbError) {
-        const err = dbError as Error;
+      if (!savedCharacter) {
         logger.error(
-          {
-            message: err.message,
-            stack: err.stack,
-          },
-          "[APPLY_CHARACTER_CHANGES] Database save error",
+          `[APPLY_CHARACTER_CHANGES] Failed to save: character not found or access denied for user ${userId}`,
         );
         await callback({
-          text: `Database error while saving changes: ${err.message}`,
+          text: `Failed to save: Character not found or access denied for user ${userId}. You may not have permission to update this character.`,
           error: true,
         });
+        return;
       }
-    } catch (error) {
-      const err = error as Error;
-      logger.error(
-        {
-          message: err.message,
-          stack: err.stack,
-        },
-        "[APPLY_CHARACTER_CHANGES] Exception during save",
+
+      // Update in-memory character with saved data
+      runtime.character = updatedCharacter;
+      await runtime.updateAgent(runtime.agentId, updatedCharacter);
+
+      const fieldsUpdated =
+        extraction.fieldsChanged?.split(",").map((f) => f.trim()) || [];
+      logger.info(
+        `[APPLY_CHARACTER_CHANGES] ✅ Successfully updated fields in database: ${fieldsUpdated.join(", ")}`,
       );
-      await callback({
-        text: `Exception during character save: ${err.message}`,
-        error: true,
+      logger.debug(
+        `[APPLY_CHARACTER_CHANGES] Saved character ID: ${savedCharacter.id}`,
+      );
+
+      // Save original for confirmation generation
+      const originalSystemForConfirm = runtime.character.system;
+
+      // Prepare updated character JSON for confirmation (only relevant fields)
+      const relevantFields = [
+        "system",
+        "bio",
+        "adjectives",
+        "topics",
+        "style",
+        "messageExamples",
+      ];
+      const updatedCharacterForConfirm: Record<string, unknown> = {};
+      const characterAsRecord = updatedCharacter as Record<string, unknown>;
+      for (const field of relevantFields) {
+        if (field in characterAsRecord) {
+          updatedCharacterForConfirm[field] = characterAsRecord[field];
+        }
+      }
+
+      // Compose confirmation system prompt
+      const confirmSystem = composePromptFromState({
+        state: {
+          ...state,
+          values: {
+            ...state.values,
+            agentName: runtime.character.name,
+            fieldsUpdated: fieldsUpdated.join(", "),
+            changesApplied: JSON.stringify(changesObj, null, 2),
+            updatedCharacterJson: JSON.stringify(
+              updatedCharacterForConfirm,
+              null,
+              2,
+            ),
+          },
+        },
+        template: confirmSystemPrompt,
       });
-    }
+
+      runtime.character.system = confirmSystem;
+
+      // Compose confirmation prompt
+      const confirmPrompt = composePromptFromState({
+        state: {
+          ...state,
+          values: {
+            ...state.values,
+            agentName: runtime.character.name,
+            fieldsUpdated: fieldsUpdated.join(", "),
+            changesApplied: JSON.stringify(changesObj, null, 2),
+            updatedCharacterJson: JSON.stringify(
+              updatedCharacterForConfirm,
+              null,
+              2,
+            ),
+          },
+        },
+        template: confirmTemplate,
+      });
+
+      const confirmResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
+        prompt: confirmPrompt,
+      });
+
+      logger.debug(
+        "*** RAW LLM RESPONSE (CONFIRMATION) ***\n",
+        confirmResponse,
+      );
+
+      // Restore original system prompt
+      runtime.character.system = originalSystemForConfirm;
+
+      const parsed = parseKeyValueXml(confirmResponse) as {
+        thought?: string;
+        text?: string;
+      } | null;
+
+      const confirmText =
+        parsed?.text ||
+        `✓ Changes saved! Updated ${fieldsUpdated.join(", ")}.`;
+
+      // Callback to frontend with success and mode switch signal
+      await callback({
+        thought: parsed?.thought || "",
+        text: confirmText,
+        actions: ["APPLY_CHARACTER_CHANGES"],
+      });
   },
   examples: [
     [

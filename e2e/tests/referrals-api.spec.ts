@@ -228,6 +228,67 @@ test.describe("Referrals & Rewards API", () => {
 
       expect(response.status()).toBe(400);
     });
+
+    test("POST /api/v1/miniapp/rewards/share - should handle concurrent requests (race condition protection)", async ({
+      request,
+    }) => {
+      // Send 5 concurrent requests for telegram platform (less likely to be already claimed)
+      const promises = Array.from({ length: 5 }, () =>
+        request.post(`${CLOUD_URL}/api/v1/miniapp/rewards/share`, {
+          headers: authHeaders(),
+          data: {
+            platform: "telegram",
+            shareType: "app_share",
+          },
+        })
+      );
+
+      const responses = await Promise.all(promises);
+      const results = await Promise.all(responses.map((r) => r.json()));
+
+      // Count successful claims
+      const successCount = results.filter((r) => r.success === true).length;
+      const alreadyAwardedCount = results.filter((r) => r.alreadyAwarded === true).length;
+
+      // At most ONE should succeed, rest should be rejected as already awarded
+      // (Unless already claimed from a previous test run, then 0 succeed)
+      expect(successCount).toBeLessThanOrEqual(1);
+
+      // All responses should either be success or already awarded
+      for (const result of results) {
+        expect(result.success === true || result.alreadyAwarded === true).toBe(true);
+      }
+
+      console.log(
+        `✅ Race condition test: ${successCount} success, ${alreadyAwardedCount} already awarded`
+      );
+    });
+
+    test("GET /api/v1/miniapp/rewards - should reflect claimed status after share", async ({
+      request,
+    }) => {
+      // First claim discord (least likely to be used in other tests)
+      await request.post(`${CLOUD_URL}/api/v1/miniapp/rewards/share`, {
+        headers: authHeaders(),
+        data: {
+          platform: "discord",
+          shareType: "app_share",
+        },
+      });
+
+      // Get rewards status
+      const response = await request.get(`${CLOUD_URL}/api/v1/miniapp/rewards`, {
+        headers: authHeaders(),
+      });
+
+      expect(response.status()).toBe(200);
+      const data = await response.json();
+
+      // Discord should show as claimed
+      expect(data.rewards.sharing.status.discord.claimed).toBe(true);
+      
+      console.log("✅ Rewards status correctly reflects claimed share");
+    });
   });
 
   test.describe("Authentication", () => {

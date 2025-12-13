@@ -12,7 +12,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import { ShareModal } from "@/components/share-modal";
+import { ShareModal, useShareStatus } from "@/components/share-modal";
 import {
   type Agent,
   createAgent,
@@ -24,6 +24,7 @@ import { useAuth } from "@/lib/use-auth";
 export default function ChatsPage() {
   const router = useRouter();
   const { ready, authenticated } = useAuth();
+  const { allClaimedToday, availableToday } = useShareStatus();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
@@ -83,13 +84,16 @@ export default function ChatsPage() {
           <h1 className="text-2xl font-bold text-white">My Friends</h1>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShareModalOpen(true)}
-            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 px-4 py-2 text-sm font-medium text-pink-400 transition-colors hover:from-pink-500/30 hover:to-purple-500/30"
-          >
-            <Gift className="h-4 w-4" />
-            <span>Earn Credits</span>
-          </button>
+          {/* Show Earn Credits button - hide only when definitely all claimed */}
+          {allClaimedToday !== true && (
+            <button
+              onClick={() => setShareModalOpen(true)}
+              className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 px-4 py-2 text-sm font-medium text-pink-400 transition-colors hover:from-pink-500/30 hover:to-purple-500/30"
+            >
+              <Gift className="h-4 w-4" />
+              <span>{availableToday > 0 ? `Earn $${availableToday.toFixed(2)}` : "Share & Earn"}</span>
+            </button>
+          )}
           <button
             onClick={handleCreate}
             disabled={creating}

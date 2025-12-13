@@ -7,34 +7,20 @@
  * 2. User logs in via Privy on Cloud
  * 3. Cloud generates auth token and redirects back
  * 4. Miniapp stores token and uses it for API calls
+ * 
+ * IMPORTANT: This file imports types from ./types.ts to ensure complete
+ * separation from the main app. Never import types from the parent app.
  */
 
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { AuthUser, AuthState } from "./types";
 
 const CLOUD_URL = process.env.NEXT_PUBLIC_ELIZA_CLOUD_URL || "http://localhost:3000";
 const AUTH_TOKEN_KEY = "miniapp_auth_token";
 const USER_ID_KEY = "miniapp_user_id";
 const ORG_ID_KEY = "miniapp_org_id";
-
-interface User {
-  id: string;
-  email: string | null;
-  name: string | null;
-  avatar: string | null;
-}
-
-interface AuthState {
-  ready: boolean;
-  authenticated: boolean;
-  user: User | null;
-  userId: string | null;
-  organizationId: string | null;
-  authToken: string | null;
-  login: () => Promise<void>;
-  logout: () => void;
-}
 
 /**
  * Auth hook that manages token-based authentication
@@ -44,7 +30,7 @@ export function useAuth(): AuthState {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
 
   // Clear auth state - defined first since it's used by other callbacks
   const clearAuth = useCallback(() => {

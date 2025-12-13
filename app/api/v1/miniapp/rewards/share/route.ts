@@ -11,11 +11,32 @@ const ClaimShareSchema = z.object({
   shareUrl: z.string().url().optional(),
 });
 
+/**
+ * OPTIONS /api/v1/miniapp/rewards/share
+ * CORS preflight handler for miniapp share rewards endpoint.
+ *
+ * @param request - The Next.js request object.
+ * @returns Preflight response with CORS headers.
+ */
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
   return createPreflightResponse(origin, ["POST", "OPTIONS"]);
 }
 
+/**
+ * POST /api/v1/miniapp/rewards/share
+ * Claims a reward for sharing content on social platforms.
+ * Supports X (Twitter), Farcaster, Telegram, and Discord.
+ * If X-App-Id header is present, credits go to app balance (for monetized apps).
+ *
+ * Request Body:
+ * - `platform`: Social platform - "x" | "farcaster" | "telegram" | "discord" (required).
+ * - `shareType`: Type of share - "app_share" | "character_share" | "invite_share" (required).
+ * - `shareUrl`: Optional URL of the shared content.
+ *
+ * @param request - Request body with platform, share type, and optional URL, plus optional X-App-Id header.
+ * @returns Reward claim result with amount awarded and success status.
+ */
 export async function POST(request: NextRequest) {
   const corsResult = await validateOrigin(request);
 

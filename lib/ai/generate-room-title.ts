@@ -7,6 +7,12 @@ import { generateText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * Generates a concise room title from the first user message.
+ *
+ * @param firstUserMessage - The first message in the conversation.
+ * @returns A 4-6 word Title Case summary of the conversation topic.
+ */
 export async function generateRoomTitle(
   firstUserMessage: string,
 ): Promise<string> {
