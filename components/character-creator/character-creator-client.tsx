@@ -217,6 +217,7 @@ export function CharacterCreatorClient({
             <CornerBrackets size="sm" className="opacity-50" />
 
             <BrandTabs
+              id="character-editor-tabs"
               defaultValue="json"
               className="flex h-full flex-col relative z-10"
             >

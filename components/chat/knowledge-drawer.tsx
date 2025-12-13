@@ -104,7 +104,7 @@ export function KnowledgeDrawer() {
         </SheetHeader>
 
         <div className="mt-6">
-          <Tabs defaultValue="upload" className="w-full">
+          <Tabs id="knowledge-drawer-tabs" defaultValue="upload" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="upload">Upload</TabsTrigger>
               <TabsTrigger value="documents">Documents</TabsTrigger>
