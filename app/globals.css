@@ -674,4 +674,3 @@ button:not(:disabled),
 [data-slot="button"]:not(:disabled) {
   cursor: pointer;
 }
-

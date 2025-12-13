@@ -451,4 +451,3 @@ export function CharacterFormClean({
     </div>
   );
 }
-

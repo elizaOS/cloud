@@ -53,4 +53,3 @@ export default async function BuildPage({ searchParams }: PageProps) {
     />
   );
 }
-
