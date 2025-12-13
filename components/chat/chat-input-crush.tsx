@@ -47,12 +47,12 @@ export function ChatInputCrush({
         {isLoading && (
           <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-pink-500 opacity-50 blur-sm animate-pulse" />
         )}
-        
+
         <div
           className={cn(
             "relative flex items-end gap-3 p-4 rounded-2xl border backdrop-blur-xl transition-all",
             "bg-white/[0.03] border-white/10",
-            isLoading && "border-pink-500/30"
+            isLoading && "border-pink-500/30",
           )}
         >
           {/* Subtle inner glow */}
@@ -70,7 +70,7 @@ export function ChatInputCrush({
                 "flex-shrink-0 h-10 w-10 rounded-full transition-all relative z-10",
                 isRecording
                   ? "bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-400 hover:to-pink-500 text-white shadow-lg shadow-pink-500/30"
-                  : "hover:bg-pink-500/10 text-pink-400 hover:text-pink-300"
+                  : "hover:bg-pink-500/10 text-pink-400 hover:text-pink-300",
               )}
             >
               {isRecording ? (
@@ -138,4 +138,3 @@ export function ChatInputCrush({
     </form>
   );
 }
-

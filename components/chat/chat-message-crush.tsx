@@ -116,9 +116,18 @@ export function ChatMessageCrush({
         {isThinking ? (
           <div className="flex items-center gap-3">
             <div className="flex gap-1">
-              <div className="h-2 w-2 rounded-full bg-pink-400 animate-bounce" style={{ animationDelay: "0ms" }} />
-              <div className="h-2 w-2 rounded-full bg-pink-400 animate-bounce" style={{ animationDelay: "150ms" }} />
-              <div className="h-2 w-2 rounded-full bg-pink-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+              <div
+                className="h-2 w-2 rounded-full bg-pink-400 animate-bounce"
+                style={{ animationDelay: "0ms" }}
+              />
+              <div
+                className="h-2 w-2 rounded-full bg-pink-400 animate-bounce"
+                style={{ animationDelay: "150ms" }}
+              />
+              <div
+                className="h-2 w-2 rounded-full bg-pink-400 animate-bounce"
+                style={{ animationDelay: "300ms" }}
+              />
             </div>
             <p className="text-sm text-white/70">Typing...</p>
           </div>
@@ -145,7 +154,9 @@ export function ChatMessageCrush({
                   variant="ghost"
                   className={cn(
                     "h-6 w-6 p-0 hover:bg-white/10",
-                    message.isAgent ? "text-white/70 hover:text-white" : "text-white/90 hover:text-white"
+                    message.isAgent
+                      ? "text-white/70 hover:text-white"
+                      : "text-white/90 hover:text-white",
                   )}
                   onClick={copyToClipboard}
                   title="Copy message"
@@ -207,4 +218,3 @@ export function ChatEmptyStateCrush({
     </div>
   );
 }
-
