@@ -20,6 +20,7 @@ import { Loader2 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { usePlatform } from "@/lib/hooks/use-platform";
 
+
 export function LandingPage() {
   const { ready, authenticated } = usePrivy();
   const { isTauri, isLoading: platformLoading } = usePlatform();
