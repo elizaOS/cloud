@@ -1,9 +1,8 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
 import { Heart, MessageCircle, Sparkles, Zap } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-// import Image from "next/image";
+import { Suspense, useEffect, useState } from "react";
 
 import { getCloudUrl } from "@/lib/cloud-url";
 
