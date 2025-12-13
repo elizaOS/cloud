@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { AiAssistant } from "./ai-assistant";
 import { JsonEditor } from "./json-editor";
 import { CharacterForm } from "./character-form";
@@ -11,10 +12,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { createCharacter, updateCharacter } from "@/app/actions/characters";
 import type { ElizaCharacter } from "@/lib/types";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, MessageSquare } from "lucide-react";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import {
   BrandTabs,
@@ -28,6 +30,7 @@ import {
 
 interface CharacterCreatorClientProps {
   initialCharacters: ElizaCharacter[];
+  initialCharacterId?: string;
 }
 
 const defaultCharacter: ElizaCharacter = {
@@ -46,10 +49,24 @@ const defaultCharacter: ElizaCharacter = {
 
 export function CharacterCreatorClient({
   initialCharacters,
+  initialCharacterId,
 }: CharacterCreatorClientProps) {
+  const router = useRouter();
   const [character, setCharacter] = useState<ElizaCharacter>(defaultCharacter);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showAssistant, setShowAssistant] = useState(true);
+
+  // Load character from URL parameter on mount
+  useEffect(() => {
+    if (initialCharacterId) {
+      const char = initialCharacters.find((c) => c.id === initialCharacterId);
+      if (char) {
+        setCharacter(char);
+        setSelectedId(initialCharacterId);
+        console.log("[Character Creator] Loaded character from URL:", char.name);
+      }
+    }
+  }, [initialCharacterId, initialCharacters]);
 
   const handleCharacterUpdate = useCallback(
     (updates: Partial<ElizaCharacter>) => {
@@ -70,16 +87,53 @@ export function CharacterCreatorClient({
     }
 
     try {
+      let savedCharacterId: string | null = selectedId;
+
       if (selectedId) {
         await updateCharacter(selectedId, character);
+        toast.success("Character updated successfully!");
       } else {
         const saved = await createCharacter(character);
-        setSelectedId(saved.id || null);
+        savedCharacterId = saved.id || null;
+        setSelectedId(savedCharacterId);
+
+        // Show enhanced success toast with actions
+        toast.success(
+          <div className="flex flex-col gap-3">
+            <p className="font-medium">Character created successfully!</p>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="default"
+                className="h-8 text-xs"
+                onClick={() => {
+                  if (savedCharacterId) {
+                    router.push(`/dashboard/eliza?characterId=${savedCharacterId}`);
+                  }
+                }}
+              >
+                <MessageSquare className="h-3 w-3 mr-1" />
+                Test in Chat
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs"
+                onClick={() => {
+                  toast.dismiss();
+                }}
+              >
+                Continue Editing
+              </Button>
+            </div>
+          </div>,
+          { duration: 6000 }
+        );
       }
     } catch (error) {
       throw error;
     }
-  }, [character, selectedId]);
+  }, [character, selectedId, router]);
 
   const handleLoadCharacter = useCallback(
     (characterId: string) => {
