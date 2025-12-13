@@ -74,6 +74,7 @@ export async function updateContainerStatus(
     deploymentLog?: string;
     cloudflareWorkerId?: string;
     cloudflareContainerId?: string;
+    cloudflareUrl?: string;
   },
 ): Promise<Container> {
   const updateData: Partial<Container> = {
@@ -95,6 +96,10 @@ export async function updateContainerStatus(
 
   if (options?.cloudflareContainerId) {
     updateData.cloudflare_container_id = options.cloudflareContainerId;
+  }
+
+  if (options?.cloudflareUrl) {
+    updateData.cloudflare_url = options.cloudflareUrl;
   }
 
   if (status === "running") {

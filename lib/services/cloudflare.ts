@@ -25,6 +25,12 @@ export interface DeploymentResult {
   status: string;
 }
 
+export interface ImageUploadResult {
+  imageId: string;
+  digest: string;
+  size: number;
+}
+
 export class CloudflareService {
   private config: CloudflareConfig;
   private baseUrl = "https://api.cloudflare.com/client/v4";
@@ -34,17 +40,77 @@ export class CloudflareService {
   }
 
   /**
+   * Upload Docker image to Cloudflare
+   * Accepts image tarball and uploads it to Cloudflare's container registry
+   */
+  async uploadImage(
+    imageName: string,
+    imageTarball: Buffer,
+  ): Promise<ImageUploadResult> {
+    try {
+      console.log(`📤 Uploading image ${imageName} to Cloudflare (${(imageTarball.length / 1024 / 1024).toFixed(2)} MB)...`);
+
+      // Cloudflare Container Registry API endpoint
+      // Note: Buffer is compatible with fetch body in Node.js/Next.js runtime
+      const response = await fetch(
+        `${this.baseUrl}/accounts/${this.config.accountId}/images/v1`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${this.config.apiToken}`,
+            "Content-Type": "application/x-tar",
+            "X-Image-Name": imageName,
+          },
+          // @ts-expect-error - Buffer is valid in Node.js fetch but TypeScript types don't reflect it
+          body: imageTarball,
+        },
+      );
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Image upload failed: ${error}`);
+      }
+
+      const data = await response.json();
+
+      console.log(`✅ Image uploaded successfully: ${data.result.digest}`);
+
+      return {
+        imageId: data.result.id || imageName,
+        digest: data.result.digest,
+        size: imageTarball.length,
+      };
+    } catch (error) {
+      console.error("Image upload failed:", error);
+      throw new Error(
+        `Failed to upload image: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  /**
    * Deploy a container to Cloudflare Workers
+   * Now supports deployed images from Cloudflare registry
    */
   async deployContainer(
     config: DeploymentConfig,
+    imageId?: string,
   ): Promise<DeploymentResult> {
     try {
+      // Use imageId if provided (from upload), otherwise use imageTag
+      const finalImageTag = imageId || config.imageTag;
+
       // Step 1: Create Worker script
-      const worker = await this.createWorkerScript(config);
+      const worker = await this.createWorkerScript({
+        ...config,
+        imageTag: finalImageTag,
+      });
 
       // Step 2: Deploy container binding
-      const container = await this.deployContainerBinding(config, worker.id);
+      const container = await this.deployContainerBinding(
+        { ...config, imageTag: finalImageTag },
+        worker.id,
+      );
 
       // Step 3: Create route for the worker
       const route = await this.createWorkerRoute(worker.id, config.name);
