@@ -167,16 +167,6 @@
             "Value": "enabled"
           }
         ],
-        "CapacityProviders": [
-          { "Ref": "CapacityProvider" }
-        ],
-        "DefaultCapacityProviderStrategy": [
-          {
-            "CapacityProvider": { "Ref": "CapacityProvider" },
-            "Weight": 1,
-            "Base": 0
-          }
-        ],
         "Tags": [
           { "Key": "Name", "Value": { "Fn::Sub": "elizaos-user-${UserId}" } },
           { "Key": "UserId", "Value": { "Ref": "UserId" } },
@@ -343,29 +333,7 @@
         ]
       }
     },
-    "CapacityProvider": {
-      "Type": "AWS::ECS::CapacityProvider",
-      "Properties": {
-        "Name": {
-          "Fn::Sub": "elizaos-user-${UserId}-cp"
-        },
-        "AutoScalingGroupProvider": {
-          "AutoScalingGroupArn": { "Ref": "AutoScalingGroup" },
-          "ManagedScaling": {
-            "Status": "DISABLED",
-            "TargetCapacity": 100
-          },
-          "ManagedTerminationProtection": "DISABLED"
-        },
-        "Tags": [
-          { "Key": "UserId", "Value": { "Ref": "UserId" } },
-          { "Key": "Project", "Value": "ElizaOS" },
-          { "Key": "BillingEntity", "Value": "ElizaOS" },
-          { "Key": "CostCenter", "Value": { "Ref": "UserId" } },
-          { "Key": "ManagedBy", "Value": "CloudFormation" }
-        ]
-      }
-    },
+    
     "TargetGroup": {
       "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
       "Properties": {
@@ -527,6 +495,10 @@
         },
         "NetworkMode": "bridge",
         "RequiresCompatibilities": ["EC2"],
+        "RuntimePlatform": {
+          "CpuArchitecture": "ARM64",
+          "OperatingSystemFamily": "LINUX"
+        },
         "Cpu": { "Ref": "ContainerCpu" },
         "Memory": { "Ref": "ContainerMemory" },
         "ExecutionRoleArn": { "Ref": "ECSExecutionRoleArn" },
@@ -582,13 +554,7 @@
         "Cluster": { "Ref": "ECSCluster" },
         "TaskDefinition": { "Ref": "TaskDefinition" },
         "DesiredCount": 1,
-        "CapacityProviderStrategy": [
-          {
-            "CapacityProvider": { "Ref": "CapacityProvider" },
-            "Weight": 1,
-            "Base": 0
-          }
-        ],
+        "LaunchType": "EC2",
         "LoadBalancers": [
           {
             "TargetGroupArn": { "Ref": "TargetGroup" },
@@ -633,10 +599,6 @@
     "AutoScalingGroupName": {
       "Description": "Auto Scaling Group Name",
       "Value": { "Ref": "AutoScalingGroup" }
-    },
-    "CapacityProviderName": {
-      "Description": "ECS Capacity Provider Name",
-      "Value": { "Ref": "CapacityProvider" }
     },
     "ServiceArn": {
       "Description": "ECS Service ARN",
