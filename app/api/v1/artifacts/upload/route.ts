@@ -56,45 +56,61 @@ async function handleArtifactUpload(request: NextRequest) {
     // Create R2 key
     const r2Key = `artifacts/${user.organization_id}/${projectId}/${version}/${artifactId}.tar.gz`;
 
-    // Generate both credentials in parallel (independent operations)
-    // This validates that we can create credentials before writing to DB
-    const [uploadCredentials, downloadCredentials] = await Promise.all([
-      createArtifactUploadCredentials({
-        organizationId: user.organization_id,
-        projectId,
-        version,
-        artifactId,
-        ttlSeconds: 600, // 10 minutes (write-only)
-      }),
-      createArtifactDownloadCredentials({
-        organizationId: user.organization_id,
-        projectId,
-        version,
-        artifactId,
-        ttlSeconds: 3600, // 1 hour (read-only, for containers)
-      }),
-    ]);
+    // CRITICAL: Generate credentials and presigned URLs BEFORE database insert
+    // This prevents orphaned DB records if any generation step fails
+    let uploadCredentials;
+    let downloadCredentials;
+    let uploadPresignedUrl;
+    let downloadPresignedUrl;
 
-    // Generate presigned URLs for direct upload/download
-    const bucketName = R2_BUCKET;
-    const [uploadPresignedUrl, downloadPresignedUrl] = await Promise.all([
-      generatePresignedUrl(uploadCredentials, {
-        bucket: bucketName,
-        key: r2Key,
-        method: "PUT",
-        expiresIn: 600,
-        contentType: "application/gzip",
-      }),
-      generatePresignedUrl(downloadCredentials, {
-        bucket: bucketName,
-        key: r2Key,
-        method: "GET",
-        expiresIn: 3600,
-      }),
-    ]);
+    try {
+      // Generate both credentials in parallel (independent operations)
+      [uploadCredentials, downloadCredentials] = await Promise.all([
+        createArtifactUploadCredentials({
+          organizationId: user.organization_id,
+          projectId,
+          version,
+          artifactId,
+          ttlSeconds: 600, // 10 minutes (write-only)
+        }),
+        createArtifactDownloadCredentials({
+          organizationId: user.organization_id,
+          projectId,
+          version,
+          artifactId,
+          ttlSeconds: 3600, // 1 hour (read-only, for containers)
+        }),
+      ]);
+    } catch (credError) {
+      const errorMsg = credError instanceof Error ? credError.message : "Unknown error";
+      throw new Error(`Failed to create R2 credentials: ${errorMsg}`);
+    }
 
-    // Only insert into database after credentials are successfully generated
-    // This prevents orphaned database records if credential generation fails
+    try {
+      // Generate presigned URLs for direct upload/download
+      const bucketName = R2_BUCKET;
+      [uploadPresignedUrl, downloadPresignedUrl] = await Promise.all([
+        generatePresignedUrl(uploadCredentials, {
+          bucket: bucketName,
+          key: r2Key,
+          method: "PUT",
+          expiresIn: 600,
+          contentType: "application/gzip",
+        }),
+        generatePresignedUrl(downloadCredentials, {
+          bucket: bucketName,
+          key: r2Key,
+          method: "GET",
+          expiresIn: 3600,
+        }),
+      ]);
+    } catch (urlError) {
+      const errorMsg = urlError instanceof Error ? urlError.message : "Unknown error";
+      throw new Error(`Failed to generate presigned URLs: ${errorMsg}`);
+    }
+
+    // Only insert into database after ALL prerequisites are successfully generated
+    // This prevents orphaned database records
     await db.insert(artifacts).values({
       id: artifactId,
       organization_id: user.organization_id,
