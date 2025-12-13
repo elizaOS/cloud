@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { miniappAuthSessionsService } from "@/lib/services/miniapp-auth-sessions";
-import { usersService } from "@/lib/services";
+import { usersService } from "@/lib/services/users";
 import type { UserWithOrganization } from "@/lib/types";
 
 type MiniappAuthResult =

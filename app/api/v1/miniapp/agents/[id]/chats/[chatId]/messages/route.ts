@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { charactersService } from "@/lib/services";
+import { charactersService } from "@/lib/services/characters/characters";
 import {
   addCorsHeaders,
   validateOrigin,
