@@ -43,9 +43,6 @@ function isIpAllowed(clientIp: string, allowedIps?: string[]): boolean {
   return allowedIps.includes(clientIp) || allowedIps.includes("*");
 }
 
-/**
- * Create a safe error response that doesn't leak information.
- */
 function webhookError(
   message: string,
   status: number,
@@ -66,14 +63,6 @@ function webhookError(
   );
 }
 
-// =============================================================================
-// HANDLER
-// =============================================================================
-
-/**
- * POST /api/v1/n8n/webhooks/:key
- * Triggers a workflow via webhook with security validation.
- */
 async function handleWebhook(
   request: NextRequest,
   ctx: { params: Promise<{ key: string }> }

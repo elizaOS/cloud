@@ -1,12 +1,7 @@
-import http from "k6/http";
-import { check, group, sleep } from "k6";
-import { getBaseUrl } from "../../config/environments";
-import { getInternalHeaders } from "../../helpers/auth";
-import { recordHttpError } from "../../helpers/metrics";
+import { group, sleep } from "k6";
+import { httpPost } from "../../helpers/http";
 import { Counter, Trend } from "k6/metrics";
 
-const baseUrl = getBaseUrl();
-const headers = getInternalHeaders();
 const webhooksProcessed = new Counter("discord_webhooks_processed");
 const webhookLatency = new Trend("discord_webhook_latency");
 
@@ -48,15 +43,12 @@ function createMemberJoinEvent(guildId: string): DiscordEvent {
 
 export function sendDiscordEvent(event: DiscordEvent): boolean {
   const start = Date.now();
-  const res = http.post(`${baseUrl}/api/internal/discord/events`, JSON.stringify(event), {
-    headers, tags: { endpoint: "discord" },
+  const body = httpPost("/api/internal/discord/events", event, {
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${__ENV.INTERNAL_API_KEY || "local-dev-internal-key"}` },
+    tags: { endpoint: "discord" },
   });
   webhookLatency.add(Date.now() - start);
-
-  if (!check(res, { "discord 2xx": (r) => r.status >= 200 && r.status < 300 })) {
-    recordHttpError(res.status);
-    return false;
-  }
+  if (!body) return false;
   webhooksProcessed.add(1);
   return true;
 }

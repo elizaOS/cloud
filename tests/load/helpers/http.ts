@@ -23,11 +23,12 @@ interface HttpOptions {
   expectedStatus?: number;
   tags?: Record<string, string>;
   timeout?: string;
+  headers?: Record<string, string>;
 }
 
 export function httpGet<T>(path: string, options?: HttpOptions): T | null {
   const res = http.get(`${baseUrl}${path}`, {
-    headers: options?.public ? publicHeaders : headers,
+    headers: options?.headers || (options?.public ? publicHeaders : headers),
     tags: options?.tags || {},
     timeout: options?.timeout,
   });
@@ -38,7 +39,7 @@ export function httpGet<T>(path: string, options?: HttpOptions): T | null {
 
 export function httpPost<T>(path: string, body: string | Record<string, unknown>, options?: HttpOptions): T | null {
   const res = http.post(`${baseUrl}${path}`, typeof body === "string" ? body : JSON.stringify(body), {
-    headers, tags: options?.tags || {}, timeout: options?.timeout,
+    headers: options?.headers || headers, tags: options?.tags || {}, timeout: options?.timeout,
   });
   const expected = options?.expectedStatus ?? 200;
   if (!checkStatus(res, expected, `POST ${path}`)) return null;
@@ -46,19 +47,19 @@ export function httpPost<T>(path: string, body: string | Record<string, unknown>
 }
 
 export function httpPatch<T>(path: string, body: Record<string, unknown>, options?: HttpOptions): T | null {
-  const res = http.patch(`${baseUrl}${path}`, JSON.stringify(body), { headers, tags: options?.tags || {} });
+  const res = http.patch(`${baseUrl}${path}`, JSON.stringify(body), { headers: options?.headers || headers, tags: options?.tags || {} });
   if (!checkStatus(res, 200, `PATCH ${path}`)) return null;
   return parseBody<T>(res);
 }
 
 export function httpDelete(path: string, options?: HttpOptions): boolean {
-  const res = http.del(`${baseUrl}${path}`, null, { headers, tags: options?.tags || {} });
+  const res = http.del(`${baseUrl}${path}`, null, { headers: options?.headers || headers, tags: options?.tags || {} });
   return checkStatus(res, (s) => s >= 200 && s < 300, `DELETE ${path}`);
 }
 
 export function httpPostFile<T>(path: string, file: { content: string; name: string; mimeType: string }, options?: HttpOptions): T | null {
   const res = http.post(`${baseUrl}${path}`, { file: http.file(file.content, file.name, file.mimeType) }, {
-    headers: { Authorization: headers.Authorization }, tags: options?.tags || {},
+    headers: { Authorization: (options?.headers || headers).Authorization }, tags: options?.tags || {},
   });
   if (!checkStatus(res, 200, `POST ${path}`)) return null;
   return parseBody<T>(res);

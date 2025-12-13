@@ -12,10 +12,6 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { n8nWorkflowsService } from "@/lib/services/n8n-workflows";
 import { logger } from "@/lib/utils/logger";
 
-/**
- * POST /api/v1/n8n/triggers/:id/regenerate-secret
- * Regenerate the webhook secret for a trigger.
- */
 export async function POST(
   request: NextRequest,
   ctx: { params: Promise<{ id: string }> }

@@ -186,6 +186,7 @@
     "@tsparticles/engine": "^3.9.1",
     "@tsparticles/react": "^3.0.0",
     "@tsparticles/slim": "^3.9.1",
+    "@types/k6": "^1.4.0",
     "@types/ms": "^2.1.0",
     "@types/nodemailer": "^7.0.4",
     "@types/prismjs": "^1.26.5",

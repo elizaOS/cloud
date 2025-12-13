@@ -1,10 +1,7 @@
-import http from "k6/http";
-import { check, group, sleep } from "k6";
-import { getBaseUrl } from "../../config/environments";
-import { recordHttpError } from "../../helpers/metrics";
+import { group, sleep } from "k6";
+import { httpGet } from "../../helpers/http";
 import { Counter, Trend } from "k6/metrics";
 
-const baseUrl = getBaseUrl();
 const cronJobsTriggered = new Counter("cron_jobs_triggered");
 const cronJobLatency = new Trend("cron_job_latency");
 
@@ -17,22 +14,20 @@ const CRON_ENDPOINTS = [
 ];
 
 function getCronHeaders() {
-  return { "Content-Type": "application/json", Authorization: `Bearer ${__ENV.CRON_SECRET || "test-cron-secret"}` };
+  const key = __ENV.CRON_SECRET;
+  if (!key && __ENV.LOAD_TEST_ENV !== "local") throw new Error("CRON_SECRET required");
+  return { "Content-Type": "application/json", Authorization: `Bearer ${key || "test-cron-secret"}` };
 }
 
 export function triggerCronEndpoint(ep: { name: string; path: string; timeout: number }): boolean {
   const start = Date.now();
-  const res = http.get(`${baseUrl}${ep.path}`, {
+  const body = httpGet(ep.path, {
     headers: getCronHeaders(),
     tags: { endpoint: "cron", job: ep.name },
     timeout: `${ep.timeout * 2}ms`,
   });
   cronJobLatency.add(Date.now() - start);
-
-  if (!check(res, { [`${ep.name} ok`]: (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return false;
-  }
+  if (!body) return false;
   cronJobsTriggered.add(1);
   return true;
 }

@@ -19,6 +19,7 @@ import {
   type StackStatus,
 } from "@aws-sdk/client-cloudformation";
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { dbPriorityManager } from "./alb-priority-manager";
@@ -194,7 +195,7 @@ export class CloudFormationService {
         }
 
         const errorMessage =
-          error instanceof Error ? error.message : String(error);
+          extractErrorMessage(error);
         logger.error(
           `[CloudFormation withRetry] Attempt ${attempt}/${maxRetries} failed:`,
           errorMessage,

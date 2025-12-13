@@ -391,7 +391,7 @@ class OIFRouterService {
     } catch (error) {
       logger.warn("[OIF] Chain availability check failed", {
         chain,
-        error: error instanceof Error ? error.message : String(error),
+        error: extractErrorMessage(error),
       });
       return null;
     }

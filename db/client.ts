@@ -87,43 +87,67 @@ function wrapWithTiming<T>(fn: () => Promise<T>, getSql: () => string): Promise<
 }
 
 /**
- * Extracts SQL text from Drizzle's SQL template object.
+ * Extracts SQL text from Drizzle objects (sql templates and query builders).
  */
-function extractSql(sqlArg: unknown): string {
-  if (typeof sqlArg !== "object" || sqlArg === null) return "[execute]";
+function extractSql(sqlArg: unknown, fallback = "[unknown]"): string {
+  if (typeof sqlArg !== "object" || sqlArg === null) return fallback;
 
   const obj = sqlArg as Record<string, unknown>;
 
-  // Try direct sql property first
+  // 1. Direct sql string property (from toSQL result)
   if (typeof obj.sql === "string") return obj.sql;
 
-  // Try queryChunks
-  if (Array.isArray(obj.queryChunks)) {
-    return obj.queryChunks
-      .map((c) => {
-        if (c == null) return "?";
-        if (typeof c === "string") return c;
-        if (typeof c === "object") {
-          const chunk = c as Record<string, unknown>;
-          if (typeof chunk.value === "string") return chunk.value;
-          if (typeof chunk.sql === "string") return chunk.sql;
-        }
-        return "?";
-      })
-      .join("");
-  }
-
-  // Try toSQL method
+  // 2. toSQL() method - query builders (select, insert, update, delete)
   if (typeof obj.toSQL === "function") {
-    const result = (obj.toSQL as () => { sql?: string })();
-    if (result?.sql) return result.sql;
+    try {
+      const result = (obj.toSQL as () => { sql?: string })();
+      if (result?.sql) return result.sql;
+    } catch {
+      // toSQL can throw if query is incomplete
+    }
   }
 
-  return "[execute]";
+  // 3. getSQL() method - returns SQL object with queryChunks
+  if (typeof obj.getSQL === "function") {
+    try {
+      const sqlObj = (obj.getSQL as () => Record<string, unknown>)();
+      if (sqlObj) return extractSql(sqlObj, fallback);
+    } catch {
+      // getSQL can throw
+    }
+  }
+
+  // 4. queryChunks array - sql template literals
+  if (Array.isArray(obj.queryChunks)) {
+    const parts: string[] = [];
+    for (const c of obj.queryChunks) {
+      if (c == null) {
+        parts.push("?");
+      } else if (typeof c === "string") {
+        parts.push("?"); // String parameter
+      } else if (typeof c === "number" || typeof c === "boolean") {
+        parts.push("?"); // Numeric/boolean parameter
+      } else if (typeof c === "object") {
+        const chunk = c as Record<string, unknown>;
+        // value can be a string or array of strings
+        if (Array.isArray(chunk.value)) {
+          parts.push(chunk.value.join(""));
+        } else if (typeof chunk.value === "string") {
+          parts.push(chunk.value);
+        } else if (chunk.value !== undefined) {
+          parts.push("?");
+        }
+      }
+    }
+    if (parts.length > 0) return parts.join("");
+  }
+
+  return fallback;
 }
 
 /**
  * Creates an instrumented proxy for query builders.
+ * Extracts SQL when the query executes (on .then() or await).
  */
 function instrumentQueryBuilder<T extends object>(target: T, methodName: string): T {
   if (!isInstrumentationEnabled()) return target;
@@ -137,10 +161,13 @@ function instrumentQueryBuilder<T extends object>(target: T, methodName: string)
         const result = Reflect.apply(value, obj, args);
 
         if (result instanceof Promise) {
-          return wrapWithTiming(() => result, () => `[${methodName}]`);
+          // Query is executing - extract SQL from current builder state (obj)
+          const sqlText = extractSql(obj, `[${methodName}]`);
+          return wrapWithTiming(() => result, () => sqlText);
         }
 
         if (result && typeof result === "object") {
+          // Still building - wrap the result for continued chaining
           return instrumentQueryBuilder(result as object, methodName);
         }
 
