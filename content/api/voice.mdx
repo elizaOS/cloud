@@ -50,7 +50,7 @@ Transcribe audio to text.
 Upload audio as `multipart/form-data`:
 
 ```bash
-curl -X POST "https://cloud.eliza.ai/api/elevenlabs/stt" \
+curl -X POST "https://elizacloud.ai/api/elevenlabs/stt" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -F "audio=@recording.mp3"
 ```
@@ -121,7 +121,7 @@ Create a voice clone from audio samples.
 Upload audio samples as `multipart/form-data`:
 
 ```bash
-curl -X POST "https://cloud.eliza.ai/api/elevenlabs/voices/clone" \
+curl -X POST "https://elizacloud.ai/api/elevenlabs/voices/clone" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -F "name=My Voice" \
   -F "files=@sample1.mp3" \

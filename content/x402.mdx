@@ -39,7 +39,7 @@ x402 enables:
 ### 1. Initial Request (No Payment)
 
 ```bash
-curl -X POST "https://cloud.eliza.ai/api/v1/chat/completions" \
+curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "gpt-4o",
@@ -65,7 +65,7 @@ X-Payment-Requirement: {
     "scheme": "exact",
     "network": "base",
     "maxAmountRequired": "10000",
-    "resource": "https://cloud.eliza.ai/api/v1/chat/completions",
+    "resource": "https://elizacloud.ai/api/v1/chat/completions",
     "payTo": "0x...",
     "extra": {
       "name": "elizaOS Cloud",
@@ -80,7 +80,7 @@ X-Payment-Requirement: {
 Create and sign a payment transaction, then include proof:
 
 ```bash
-curl -X POST "https://cloud.eliza.ai/api/v1/chat/completions" \
+curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
   -H "Content-Type: application/json" \
   -H "X-PAYMENT: <payment-header>" \
   -d '{
@@ -94,7 +94,7 @@ curl -X POST "https://cloud.eliza.ai/api/v1/chat/completions" \
 ### Get Top-Up Info
 
 ```bash
-curl -X GET "https://cloud.eliza.ai/api/v1/credits/topup" \
+curl -X GET "https://elizacloud.ai/api/v1/credits/topup" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -114,7 +114,7 @@ curl -X GET "https://cloud.eliza.ai/api/v1/credits/topup" \
 ### Top Up with x402
 
 ```bash
-curl -X POST "https://cloud.eliza.ai/api/v1/credits/topup" \
+curl -X POST "https://elizacloud.ai/api/v1/credits/topup" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "X-PAYMENT: <payment-header>"
 ```
@@ -152,7 +152,7 @@ const wallet = createWalletClient({
 const x402Fetch = wrapFetch(fetch, wallet);
 
 // Make request - payment handled automatically
-const response = await x402Fetch('https://cloud.eliza.ai/api/v1/chat/completions', {
+const response = await x402Fetch('https://elizacloud.ai/api/v1/chat/completions', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
@@ -191,7 +191,7 @@ Minimum payment: $1 USDC (100 credits)
 ## Check x402 Status
 
 ```bash
-curl -X GET "https://cloud.eliza.ai/api/v1/x402/status" \
+curl -X GET "https://elizacloud.ai/api/v1/x402/status" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -210,14 +210,14 @@ curl -X GET "https://cloud.eliza.ai/api/v1/x402/status" \
 elizaOS Cloud implements ERC-8004 for service discovery:
 
 ```bash
-curl -X GET "https://cloud.eliza.ai/api/v1/erc8004/status"
+curl -X GET "https://elizacloud.ai/api/v1/erc8004/status"
 ```
 
 ```json
 {
   "registered": true,
-  "openApiUrl": "https://cloud.eliza.ai/api/openapi.json",
-  "agentCardUrl": "https://cloud.eliza.ai/.well-known/agent-card.json",
+  "openApiUrl": "https://elizacloud.ai/api/openapi.json",
+  "agentCardUrl": "https://elizacloud.ai/.well-known/agent-card.json",
   "x402Support": true
 }
 ```

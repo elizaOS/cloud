@@ -101,7 +101,7 @@ import OpenAI from 'openai';
 
 const client = new OpenAI({
   apiKey: process.env.ELIZA_API_KEY,
-  baseURL: 'https://cloud.eliza.ai/api/v1',
+  baseURL: 'https://elizacloud.ai/api/v1',
 });
 
 const response = await client.chat.completions.create({
@@ -117,7 +117,7 @@ from openai import OpenAI
 
 client = OpenAI(
     api_key="ek_xxx",
-    base_url="https://cloud.eliza.ai/api/v1"
+    base_url="https://elizacloud.ai/api/v1"
 )
 
 response = client.chat.completions.create(
@@ -129,7 +129,7 @@ response = client.chat.completions.create(
 ### cURL
 
 ```bash
-curl -X POST "https://cloud.eliza.ai/api/v1/chat/completions" \
+curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
   -H "Authorization: Bearer $ELIZA_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -148,7 +148,7 @@ import { ChatOpenAI } from '@langchain/openai';
 const model = new ChatOpenAI({
   openAIApiKey: process.env.ELIZA_API_KEY,
   configuration: {
-    baseURL: 'https://cloud.eliza.ai/api/v1',
+    baseURL: 'https://elizacloud.ai/api/v1',
   },
   modelName: 'gpt-4o',
 });
@@ -164,7 +164,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 
 const openai = createOpenAI({
   apiKey: process.env.ELIZA_API_KEY,
-  baseURL: 'https://cloud.eliza.ai/api/v1',
+  baseURL: 'https://elizacloud.ai/api/v1',
 });
 
 const { text } = await generateText({
@@ -180,7 +180,7 @@ from llama_index.llms.openai import OpenAI
 
 llm = OpenAI(
     api_key="ek_xxx",
-    api_base="https://cloud.eliza.ai/api/v1",
+    api_base="https://elizacloud.ai/api/v1",
     model="gpt-4o"
 )
 
@@ -195,7 +195,7 @@ Connect to elizaOS Cloud MCP endpoint:
 import { Client } from '@modelcontextprotocol/sdk';
 
 const client = new Client({
-  url: 'https://cloud.eliza.ai/api/mcp',
+  url: 'https://elizacloud.ai/api/mcp',
   headers: {
     'Authorization': `Bearer ${process.env.ELIZA_API_KEY}`,
   },

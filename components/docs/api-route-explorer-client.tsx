@@ -248,7 +248,7 @@ export function ApiRouteExplorerClient({
                 </div>
                 <pre className="mt-2 overflow-auto border border-white/10 bg-black/60 p-3 text-xs text-white/80">
                   <code>
-                    {`curl -X ${selected.methods[0] ?? "GET"} "https://cloud.eliza.ai${selected.path}" \\\n  -H "Authorization: Bearer YOUR_API_KEY"`}
+                    {`curl -X ${selected.methods[0] ?? "GET"} "https://elizacloud.ai${selected.path}" \\\n  -H "Authorization: Bearer YOUR_API_KEY"`}
                   </code>
                 </pre>
                 <div className="mt-2 text-xs text-white/40">

@@ -90,7 +90,7 @@ View your balance at [Dashboard → Billing](/dashboard/billing).
 ### API
 
 ```bash
-curl -X GET "https://cloud.eliza.ai/api/v1/credits/summary" \
+curl -X GET "https://elizacloud.ai/api/v1/credits/summary" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -110,7 +110,7 @@ curl -X GET "https://cloud.eliza.ai/api/v1/credits/summary" \
 ### Stripe Checkout
 
 ```bash
-curl -X POST "https://cloud.eliza.ai/api/stripe/create-checkout-session" \
+curl -X POST "https://elizacloud.ai/api/stripe/create-checkout-session" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -125,7 +125,7 @@ curl -X POST "https://cloud.eliza.ai/api/stripe/create-checkout-session" \
 Pay with USDC via x402 protocol:
 
 ```bash
-curl -X POST "https://cloud.eliza.ai/api/v1/credits/topup" \
+curl -X POST "https://elizacloud.ai/api/v1/credits/topup" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "X-PAYMENT: <x402-payment-header>"
 ```
@@ -139,7 +139,7 @@ See [x402 Payments](/docs/x402) for details on crypto payments.
 Configure automatic credit refills:
 
 ```bash
-curl -X POST "https://cloud.eliza.ai/api/auto-top-up/settings" \
+curl -X POST "https://elizacloud.ai/api/auto-top-up/settings" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -160,7 +160,7 @@ curl -X POST "https://cloud.eliza.ai/api/auto-top-up/settings" \
 Track your spending:
 
 ```bash
-curl -X GET "https://cloud.eliza.ai/api/billing/usage?period=month" \
+curl -X GET "https://elizacloud.ai/api/billing/usage?period=month" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -187,14 +187,14 @@ curl -X GET "https://cloud.eliza.ai/api/billing/usage?period=month" \
 ### List Invoices
 
 ```bash
-curl -X GET "https://cloud.eliza.ai/api/invoices/list" \
+curl -X GET "https://elizacloud.ai/api/invoices/list" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 ### Download Invoice
 
 ```bash
-curl -X GET "https://cloud.eliza.ai/api/invoices/{id}" \
+curl -X GET "https://elizacloud.ai/api/invoices/{id}" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -203,7 +203,7 @@ curl -X GET "https://cloud.eliza.ai/api/invoices/{id}" \
 ### Add Card
 
 ```bash
-curl -X POST "https://cloud.eliza.ai/api/payment-methods/attach" \
+curl -X POST "https://elizacloud.ai/api/payment-methods/attach" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -214,7 +214,7 @@ curl -X POST "https://cloud.eliza.ai/api/payment-methods/attach" \
 ### Set Default
 
 ```bash
-curl -X POST "https://cloud.eliza.ai/api/payment-methods/set-default" \
+curl -X POST "https://elizacloud.ai/api/payment-methods/set-default" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -227,7 +227,7 @@ curl -X POST "https://cloud.eliza.ai/api/payment-methods/set-default" \
 Set up alerts for spending thresholds:
 
 ```bash
-curl -X POST "https://cloud.eliza.ai/api/analytics/config" \
+curl -X POST "https://elizacloud.ai/api/analytics/config" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{

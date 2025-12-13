@@ -30,7 +30,7 @@ Navigate to [Dashboard → Containers](/dashboard/containers) for the visual int
 ### API
 
 ```bash
-curl -X POST "https://cloud.eliza.ai/api/v1/containers" \
+curl -X POST "https://elizacloud.ai/api/v1/containers" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -122,7 +122,7 @@ Use `{{secrets.NAME}}` to reference secrets stored in elizaOS Cloud.
 ### Add Credentials
 
 ```bash
-curl -X POST "https://cloud.eliza.ai/api/v1/containers/credentials" \
+curl -X POST "https://elizacloud.ai/api/v1/containers/credentials" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -171,14 +171,14 @@ Configure health monitoring:
 ### View Logs
 
 ```bash
-curl -X GET "https://cloud.eliza.ai/api/v1/containers/{id}/logs?lines=100" \
+curl -X GET "https://elizacloud.ai/api/v1/containers/{id}/logs?lines=100" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 ### Stream Logs
 
 ```bash
-curl -X GET "https://cloud.eliza.ai/api/v1/containers/{id}/logs/stream" \
+curl -X GET "https://elizacloud.ai/api/v1/containers/{id}/logs/stream" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Accept: text/event-stream"
 ```
@@ -186,7 +186,7 @@ curl -X GET "https://cloud.eliza.ai/api/v1/containers/{id}/logs/stream" \
 ### Get Metrics
 
 ```bash
-curl -X GET "https://cloud.eliza.ai/api/v1/containers/{id}/metrics" \
+curl -X GET "https://elizacloud.ai/api/v1/containers/{id}/metrics" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -216,14 +216,14 @@ curl -X GET "https://cloud.eliza.ai/api/v1/containers/{id}/metrics" \
 ### List Deployments
 
 ```bash
-curl -X GET "https://cloud.eliza.ai/api/v1/containers/{id}/deployments" \
+curl -X GET "https://elizacloud.ai/api/v1/containers/{id}/deployments" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 ### Rollback
 
 ```bash
-curl -X POST "https://cloud.eliza.ai/api/v1/containers/{id}/deployments/{deploymentId}/rollback" \
+curl -X POST "https://elizacloud.ai/api/v1/containers/{id}/deployments/{deploymentId}/rollback" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -232,7 +232,7 @@ curl -X POST "https://cloud.eliza.ai/api/v1/containers/{id}/deployments/{deploym
 ### Manual Scaling
 
 ```bash
-curl -X PATCH "https://cloud.eliza.ai/api/v1/containers/{id}" \
+curl -X PATCH "https://elizacloud.ai/api/v1/containers/{id}" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"replicas": 5}'
@@ -257,7 +257,7 @@ curl -X PATCH "https://cloud.eliza.ai/api/v1/containers/{id}" \
 Check your container quota:
 
 ```bash
-curl -X GET "https://cloud.eliza.ai/api/v1/containers/quota" \
+curl -X GET "https://elizacloud.ai/api/v1/containers/quota" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 

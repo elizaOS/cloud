@@ -40,7 +40,7 @@ Convert earned credits to USDC or other currencies.
 ### Publish via API
 
 ```bash
-curl -X POST "https://cloud.eliza.ai/api/v1/agents/{agentId}/publish" \
+curl -X POST "https://elizacloud.ai/api/v1/agents/{agentId}/publish" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -70,7 +70,7 @@ View earnings at [Dashboard → Earnings](/dashboard/earnings).
 ### API
 
 ```bash
-curl -X GET "https://cloud.eliza.ai/api/v1/redemptions/balance" \
+curl -X GET "https://elizacloud.ai/api/v1/redemptions/balance" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -100,7 +100,7 @@ curl -X GET "https://cloud.eliza.ai/api/v1/redemptions/balance" \
 ### Request Redemption
 
 ```bash
-curl -X POST "https://cloud.eliza.ai/api/v1/redemptions" \
+curl -X POST "https://elizacloud.ai/api/v1/redemptions" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -121,7 +121,7 @@ curl -X POST "https://cloud.eliza.ai/api/v1/redemptions" \
 ### Check Status
 
 ```bash
-curl -X GET "https://cloud.eliza.ai/api/v1/redemptions/status" \
+curl -X GET "https://elizacloud.ai/api/v1/redemptions/status" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -144,7 +144,7 @@ curl -X GET "https://cloud.eliza.ai/api/v1/redemptions/status" \
 Track your agent's performance:
 
 ```bash
-curl -X GET "https://cloud.eliza.ai/api/v1/my-agents/characters/{id}/stats" \
+curl -X GET "https://elizacloud.ai/api/v1/my-agents/characters/{id}/stats" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -203,7 +203,7 @@ Let users clone your agent template:
 Enable automatic monthly payouts:
 
 ```bash
-curl -X POST "https://cloud.eliza.ai/api/v1/redemptions/auto" \
+curl -X POST "https://elizacloud.ai/api/v1/redemptions/auto" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -217,7 +217,7 @@ curl -X POST "https://cloud.eliza.ai/api/v1/redemptions/auto" \
 ### Payout History
 
 ```bash
-curl -X GET "https://cloud.eliza.ai/api/v1/apps/{appId}/earnings/history" \
+curl -X GET "https://elizacloud.ai/api/v1/apps/{appId}/earnings/history" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 

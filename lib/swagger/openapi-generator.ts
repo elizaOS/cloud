@@ -333,7 +333,7 @@ export function generateOpenAPISpec(baseUrl?: string): OpenAPISpec {
     },
     servers: [
       {
-        url: baseUrl || "https://cloud.eliza.ai",
+        url: baseUrl || "https://elizacloud.ai",
         description: "Production server",
       },
     ],

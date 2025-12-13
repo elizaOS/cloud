@@ -31,7 +31,7 @@ Navigate to [Dashboard → Apps](/dashboard/apps) to create and manage apps.
 
 ```bash
 # Create a new app
-curl -X POST "https://cloud.eliza.ai/api/v1/apps" \
+curl -X POST "https://elizacloud.ai/api/v1/apps" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -97,7 +97,7 @@ Save your API key securely. It will only be shown once.
 Monitor your app's API usage:
 
 ```bash
-curl -X GET "https://cloud.eliza.ai/api/v1/apps/{appId}/analytics" \
+curl -X GET "https://elizacloud.ai/api/v1/apps/{appId}/analytics" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -130,7 +130,7 @@ curl -X GET "https://cloud.eliza.ai/api/v1/apps/{appId}/analytics" \
 Track users of your app:
 
 ```bash
-curl -X GET "https://cloud.eliza.ai/api/v1/apps/{appId}/users" \
+curl -X GET "https://elizacloud.ai/api/v1/apps/{appId}/users" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -158,7 +158,7 @@ curl -X GET "https://cloud.eliza.ai/api/v1/apps/{appId}/users" \
 Earn from your app's usage:
 
 ```bash
-curl -X POST "https://cloud.eliza.ai/api/v1/apps/{appId}/monetization" \
+curl -X POST "https://elizacloud.ai/api/v1/apps/{appId}/monetization" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -173,7 +173,7 @@ curl -X POST "https://cloud.eliza.ai/api/v1/apps/{appId}/monetization" \
 ### Earnings
 
 ```bash
-curl -X GET "https://cloud.eliza.ai/api/v1/apps/{appId}/earnings" \
+curl -X GET "https://elizacloud.ai/api/v1/apps/{appId}/earnings" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -226,7 +226,7 @@ Receive real-time notifications:
 ### Regenerate Key
 
 ```bash
-curl -X POST "https://cloud.eliza.ai/api/v1/apps/{appId}/regenerate-api-key" \
+curl -X POST "https://elizacloud.ai/api/v1/apps/{appId}/regenerate-api-key" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 

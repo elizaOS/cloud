@@ -51,7 +51,7 @@ Click "Deploy" to launch your agent.
 ### Using the API
 
 ```bash
-curl -X POST "https://cloud.eliza.ai/api/v1/my-agents/characters" \
+curl -X POST "https://elizacloud.ai/api/v1/my-agents/characters" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -167,21 +167,21 @@ The character JSON defines your agent's personality and behavior.
 ### List Agents
 
 ```bash
-curl -X GET "https://cloud.eliza.ai/api/v1/my-agents/characters" \
+curl -X GET "https://elizacloud.ai/api/v1/my-agents/characters" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 ### Get Agent Details
 
 ```bash
-curl -X GET "https://cloud.eliza.ai/api/v1/my-agents/characters/{agentId}" \
+curl -X GET "https://elizacloud.ai/api/v1/my-agents/characters/{agentId}" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 ### Update Agent
 
 ```bash
-curl -X PUT "https://cloud.eliza.ai/api/v1/my-agents/characters/{agentId}" \
+curl -X PUT "https://elizacloud.ai/api/v1/my-agents/characters/{agentId}" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -195,7 +195,7 @@ curl -X PUT "https://cloud.eliza.ai/api/v1/my-agents/characters/{agentId}" \
 ### Delete Agent
 
 ```bash
-curl -X DELETE "https://cloud.eliza.ai/api/v1/my-agents/characters/{agentId}" \
+curl -X DELETE "https://elizacloud.ai/api/v1/my-agents/characters/{agentId}" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -217,7 +217,7 @@ Agents can be in one of these states:
 Publish your agents to the marketplace and earn from usage.
 
 ```bash
-curl -X POST "https://cloud.eliza.ai/api/v1/agents/{agentId}/publish" \
+curl -X POST "https://elizacloud.ai/api/v1/agents/{agentId}/publish" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
