@@ -30,7 +30,7 @@ export class MyAgentsService {
     sortOptions: SortOptions;
     pagination: PaginationOptions;
     includeStats: boolean;
-  }): Promise<MarketplaceSearchResult> {
+  }): Promise<MyAgentsSearchResult> {
     const {
       userId,
       organizationId,
@@ -116,7 +116,7 @@ export class MyAgentsService {
       });
     }
 
-    const result: MarketplaceSearchResult = {
+    const result: MyAgentsSearchResult = {
       characters: enrichedCharacters,
       pagination: {
         page: pagination.page,
@@ -465,7 +465,7 @@ export class MyAgentsService {
     sortOptions: SortOptions;
     pagination: PaginationOptions;
     includeStats: boolean;
-  }): Promise<MarketplaceSearchResult> {
+  }): Promise<MyAgentsSearchResult> {
     const { filters, sortOptions, pagination, includeStats } = options;
 
     const organizationId = "public";
@@ -537,7 +537,7 @@ export class MyAgentsService {
       );
     }
 
-    const result: MarketplaceSearchResult = {
+    const result: MyAgentsSearchResult = {
       characters: enrichedCharacters,
       pagination: {
         page: pagination.page,
