@@ -206,9 +206,9 @@
         },
         "LaunchTemplateData": {
           "ImageId": {
-            "Fn::Sub": "{{resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id}}"
+            "Fn::Sub": "{{resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id}}"
           },
-          "InstanceType": "t3.small",
+          "InstanceType": "t4g.small",
           "IamInstanceProfile": {
             "Arn": { "Fn::GetAtt": ["InstanceProfile", "Arn"] }
           },
@@ -279,6 +279,7 @@
     },
     "AutoScalingGroup": {
       "Type": "AWS::AutoScaling::AutoScalingGroup",
+      "DependsOn": ["ECSCluster"],
       "UpdatePolicy": {
         "AutoScalingReplacingUpdate": {
           "WillReplace": true
