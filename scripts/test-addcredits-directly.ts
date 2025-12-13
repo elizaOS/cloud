@@ -78,15 +78,15 @@ async function testAddCredits() {
   } catch (error) {
     console.error("\n❌ ERROR!");
     console.error("-".repeat(70));
-    console.error(`Error Type: ${error.constructor.name}`);
+    console.error(`Error Type: ${error instanceof Error ? error.constructor.name : typeof error}`);
     console.error(`Error Message: ${error instanceof Error ? error.message : String(error)}`);
-    console.error(`Error Code: ${error.code || "(none)"}`);
-    if (error.stack) {
+    console.error(`Error Code: ${(error as { code?: string }).code || "(none)"}`);
+    if (error instanceof Error && error.stack) {
       console.error(`\nStack Trace:`);
       console.error(error.stack);
     }
-    if (error.detail) {
-      console.error(`\nDetail: ${error.detail}`);
+    if ((error as { detail?: string }).detail) {
+      console.error(`\nDetail: ${(error as { detail: string }).detail}`);
     }
   }
 
