@@ -5,7 +5,7 @@ config({ path: ".env.local" });
 
 async function debugLatestWebhook() {
   console.log("🔍 Debugging Latest Webhook Events\n");
-  console.log("=" .repeat(70));
+  console.log("=".repeat(70));
 
   console.log("\n📋 Latest Checkout Sessions:");
   console.log("-".repeat(70));
@@ -47,8 +47,8 @@ async function debugLatestWebhook() {
         }
       }
     }
-  } catch (error: any) {
-    console.error(`❌ Error: ${error.message}`);
+  } catch (error) {
+    console.error(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
   }
 
   console.log("\n\n🔔 Latest Events:");
@@ -73,14 +73,15 @@ async function debugLatestWebhook() {
         console.log(`   Created: ${new Date(event.created * 1000).toISOString()}`);
 
         if (event.type === "checkout.session.completed") {
-          const session = event.data.object as any;
+          const session = event.data.object as Record<string, unknown>;
           console.log(`   Session ID: ${session.id}`);
           console.log(`   Payment Status: ${session.payment_status}`);
           console.log(`   Payment Intent: ${session.payment_intent || "(none)"}`);
 
           console.log(`   📦 Metadata in Event:`);
-          if (session.metadata && Object.keys(session.metadata).length > 0) {
-            Object.entries(session.metadata).forEach(([key, value]) => {
+          const metadata = session.metadata as Record<string, unknown> | undefined;
+          if (metadata && Object.keys(metadata).length > 0) {
+            Object.entries(metadata).forEach(([key, value]) => {
               console.log(`      ${key}: ${value}`);
             });
           } else {
@@ -89,8 +90,8 @@ async function debugLatestWebhook() {
         }
       }
     }
-  } catch (error: any) {
-    console.error(`❌ Error: ${error.message}`);
+  } catch (error) {
+    console.error(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
   }
 
   console.log("\n\n" + "=".repeat(70));

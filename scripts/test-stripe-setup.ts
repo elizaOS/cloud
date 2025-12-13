@@ -157,7 +157,7 @@ async function createStripeProducts() {
 /**
  * Step 2: Generate seed script with real IDs
  */
-async function generateSeedScript(products: any[]) {
+async function generateSeedScript(products: unknown[]) {
   console.log("\n📝 Step 2: Generating Seed Script");
   console.log("-".repeat(50));
 
