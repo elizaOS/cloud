@@ -28,8 +28,6 @@ export const actionsProvider: Provider = {
 
     const actionsData = resolvedActions.filter(Boolean) as Action[];
 
-    console.log("#### ACTIONS DATA RAW actionsData", actionsData);
-
     const actionsWithDescriptions =
       actionsData.length > 0
         ? addHeader("# Available Actions", formatActions(actionsData))
