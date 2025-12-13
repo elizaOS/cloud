@@ -1,157 +1,209 @@
-# ElizaOS Bootstrapper
+# ElizaOS Bootstrapper - Cloudflare Deployment
 
-A lightweight Docker container that downloads and runs ElizaOS project artifacts from Cloudflare R2 storage.
+A lightweight container that downloads ElizaOS projects from R2 and runs them on Cloudflare Workers.
 
-## Purpose
+## Quick Start
 
-The bootstrapper enables efficient, versioned deployments by:
+### 1. Install Wrangler
 
-1. Downloading pre-built project artifacts from R2
-2. Validating integrity via checksum
-3. Installing dependencies
-4. Running the project with configurable commands
+```bash
+npm install -g wrangler
+wrangler login
+```
 
-This separates the build phase from runtime, allowing for:
+### 2. Deploy to Cloudflare Registry
 
-- Faster deployments (small bootstrapper image)
-- Version control of artifacts
-- Easy rollbacks
-- Reduced attack surface
+```bash
+# Use the helper script
+./deploy-to-cloudflare.sh v1.0.0
+
+# Or manually
+wrangler containers push elizaos-bootstrapper:latest
+```
+
+### 3. Configure Environment
+
+Update your platform `.env`:
+
+```bash
+BOOTSTRAPPER_IMAGE_TAG=registry.cloudflare.com/YOUR_ACCOUNT_ID/elizaos-bootstrapper:latest
+CLOUDFLARE_ACCOUNT_ID=your_account_id
+CLOUDFLARE_API_TOKEN=your_api_token
+R2_ACCESS_KEY_ID=your_r2_key
+R2_SECRET_ACCESS_KEY=your_r2_secret
+R2_BUCKET_NAME=eliza-artifacts
+R2_ENDPOINT=https://YOUR_ACCOUNT_ID.r2.cloudflarestorage.com
+```
+
+Get your account ID: `wrangler whoami`
+
+### 4. Start Platform & Deploy
+
+```bash
+cd ..
+npm run build && npm start
+
+# Deploy an agent
+cd your-project
+elizaos deploy --name my-agent
+```
 
 ## How It Works
 
 ```
-Container Start
-    ↓
-Download artifact from R2 (using temp credentials)
-    ↓
-Validate checksum
-    ↓
-Extract tar.gz
-    ↓
-Install dependencies (bun install)
-    ↓
-Optionally build project
-    ↓
-Run start command (configurable)
+1. CLI uploads artifact → R2
+2. Platform tells Cloudflare to deploy
+3. Cloudflare pulls bootstrapper from registry.cloudflare.com
+4. Bootstrapper downloads artifact from R2
+5. Bootstrapper extracts and runs your project
 ```
 
 ## Environment Variables
 
-### Required
+The bootstrapper container receives these automatically:
 
-- `R2_ARTIFACT_URL` - Full URL to the artifact in R2
-- `R2_ACCESS_KEY_ID` - Temporary R2 access key
-- `R2_SECRET_ACCESS_KEY` - Temporary R2 secret key
-- `R2_SESSION_TOKEN` - Temporary session token
-- `R2_ENDPOINT` - R2 endpoint URL
-- `R2_BUCKET_NAME` - R2 bucket name (default: eliza-artifacts)
-
-### Optional
-
-- `R2_ARTIFACT_CHECKSUM` - SHA256 checksum for validation
-- `START_CMD` - Command to run the project (default: "bun run start")
+- `R2_ARTIFACT_URL` - Presigned URL to download artifact (auto-set)
+- `PORT` - Port to run on (default: 3000)
+- `START_CMD` - Command to run (default: "bun run start")
 - `SKIP_BUILD` - Skip build step (default: false)
-- `PORT` - Port for the application (default: 3000)
 
-### Application-Specific
+Plus any environment variables you pass via `elizaos deploy --env`.
 
-Any environment variables needed by your ElizaOS project can be passed through and will be available to the application.
-
-## Building the Image
+## Commands Reference
 
 ```bash
-cd bootstrapper
-docker build -t elizaos/bootstrapper:latest .
-docker tag elizaos/bootstrapper:latest elizaos/bootstrapper:v1.0.0
+# Push image to Cloudflare
+wrangler containers push IMAGE:TAG
+
+# Build and push in one step
+wrangler containers build -p -t IMAGE:TAG .
+
+# List images in Cloudflare registry
+wrangler containers images list
+
+# Get account info
+wrangler whoami
+
+# List deployed containers
+wrangler containers list
 ```
 
-## Publishing to Registry
+## Verify Setup
 
 ```bash
-# Docker Hub
-docker push elizaos/bootstrapper:latest
-docker push elizaos/bootstrapper:v1.0.0
+# Check Wrangler installed
+wrangler --version
 
-# Or to GitHub Container Registry
-docker tag elizaos/bootstrapper:latest ghcr.io/elizaos/bootstrapper:latest
-docker push ghcr.io/elizaos/bootstrapper:latest
+# Check logged in
+wrangler whoami
+
+# Check image in registry
+wrangler containers images list
+
+# Check env variable correct
+grep BOOTSTRAPPER_IMAGE_TAG ../.env
+# Should show: registry.cloudflare.com/...
 ```
 
-## Testing Locally
+## Registry Path Format
 
-```bash
-# Build the image
-docker build -t elizaos/bootstrapper:test .
-
-# Run with environment variables
-docker run -it --rm \
-  -e R2_ARTIFACT_URL="https://your-r2-endpoint/bucket/path/artifact.tar.gz" \
-  -e R2_ACCESS_KEY_ID="your-access-key" \
-  -e R2_SECRET_ACCESS_KEY="your-secret-key" \
-  -e R2_SESSION_TOKEN="your-session-token" \
-  -e R2_ENDPOINT="https://your-account.r2.cloudflarestorage.com" \
-  -e R2_BUCKET_NAME="eliza-artifacts" \
-  -e START_CMD="bun run start" \
-  -p 3000:3000 \
-  elizaos/bootstrapper:test
+Images are stored at:
+```
+registry.cloudflare.com/ACCOUNT_ID/IMAGE_NAME:TAG
 ```
 
-## Security Considerations
-
-1. **Temporary Credentials**: R2 credentials are scoped and time-limited (typically 1-6 hours)
-2. **Read-Only Access**: Download credentials have read-only permissions
-3. **Checksum Validation**: Artifacts are validated before extraction
-4. **Minimal Base Image**: Uses Alpine Linux for small attack surface
-5. **No Persistent Secrets**: Credentials are ephemeral and not stored
+Example:
+```
+registry.cloudflare.com/abc123def456/elizaos-bootstrapper:latest
+```
 
 ## Troubleshooting
 
-### Artifact Download Fails
-
-- Check R2 credentials are valid and not expired
-- Verify R2_ENDPOINT is correct
-- Ensure artifact path exists in R2
-- Check network connectivity
-
-### Checksum Validation Fails
-
-- Artifact may be corrupted during upload
-- Checksum mismatch indicates tampering
-- Re-upload the artifact
-
-### Dependencies Installation Fails
-
-- Check package.json is valid
-- Verify all dependencies are available
-- Check network connectivity to npm registry
-
-### Application Fails to Start
-
-- Check START_CMD is correct
-- Verify PORT is available
-- Check application logs
-- Ensure all required environment variables are set
-
-## Integration with ElizaOS CLI
-
-The bootstrapper is automatically used when deploying via `elizaos deploy`:
-
+**"Wrangler not found"**
 ```bash
-elizaos deploy --name my-agent --port 3000
+npm install -g wrangler
 ```
 
-The CLI will:
+**"Not logged in"**
+```bash
+wrangler login
+```
 
-1. Create an artifact of your project
-2. Upload to R2 via the Cloud API
-3. Deploy this bootstrapper image with artifact URL
-4. Bootstrapper downloads and runs your project
+**"Docker not running"**
+```bash
+# Start Docker Desktop, then retry
+```
 
-## Version History
+**"Image not found when deploying"**
+```bash
+# Ensure env uses full path:
+BOOTSTRAPPER_IMAGE_TAG=registry.cloudflare.com/ACCOUNT_ID/elizaos-bootstrapper:latest
 
-- **v1.0.0** - Initial release
-  - Basic artifact download and extraction
-  - Checksum validation
-  - Dependency installation
-  - Configurable start command
+# Not just:
+# BOOTSTRAPPER_IMAGE_TAG=elizaos-bootstrapper:latest
+```
+
+## Files
+
+- `Dockerfile` - Container definition
+- `bootstrap.sh` - Startup script (downloads from R2, runs project)
+- `deploy-to-cloudflare.sh` - Helper script to build and push
+- `build.sh` - Legacy build script (deprecated)
+
+## Architecture
+
+The bootstrapper enables efficient deployments:
+
+- **Small image** (~50MB) - Only contains download tools
+- **Fast deployments** - Artifact downloads happen at runtime
+- **Versioned artifacts** - Easy rollbacks via R2
+- **Secure** - Presigned URLs expire after 1 hour
+- **Global** - Runs on Cloudflare's edge network
+
+## Security
+
+- Uses presigned URLs (no long-lived credentials)
+- Validates artifact checksums
+- Validates tar.gz structure before extraction
+- Sanitizes all environment variables
+- No sensitive data in container image
+
+## Limits
+
+- **Image size:** Max 2 GB (current: ~50MB)
+- **Account storage:** Max 50 GB total
+- **Architecture:** Must be linux/amd64
+
+## Cost
+
+**Cloudflare Registry:** Included, no extra charge  
+**R2 Storage:** $0.015/GB/month (10 GB free)  
+**Container Execution:** Usage-based (~$5-20/month)
+
+**Total: ~$10-30/month for production**
+
+## Development
+
+To test locally:
+
+```bash
+docker build -t test-bootstrapper .
+docker run -it --rm \
+  -e R2_ARTIFACT_URL="https://presigned-url..." \
+  -p 3000:3000 \
+  test-bootstrapper
+```
+
+## Documentation
+
+- Main README: `../README.md` → "Cloudflare Container Deployment"
+- Cloudflare docs: https://developers.cloudflare.com/containers/
+- Config checker: `../scripts/check-bootstrapper-config.ts`
+
+## Support
+
+For issues:
+1. Run config checker: `tsx ../scripts/check-bootstrapper-config.ts`
+2. Check Cloudflare logs: Dashboard → Workers → Your worker → Logs
+3. Verify registry: `wrangler containers images list`
+4. Check docs: https://developers.cloudflare.com/containers/
