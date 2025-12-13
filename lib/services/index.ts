@@ -23,3 +23,6 @@ export * from "./alb-priority-manager";
 
 // Voice services
 export { voiceCloningService } from "./voice-cloning";
+
+// Email services
+export { emailService } from "./email";
