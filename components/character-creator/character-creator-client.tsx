@@ -63,7 +63,10 @@ export function CharacterCreatorClient({
       if (char) {
         setCharacter(char);
         setSelectedId(initialCharacterId);
-        console.log("[Character Creator] Loaded character from URL:", char.name);
+        console.log(
+          "[Character Creator] Loaded character from URL:",
+          char.name
+        );
       }
     }
   }, [initialCharacterId, initialCharacters]);
@@ -72,7 +75,7 @@ export function CharacterCreatorClient({
     (updates: Partial<ElizaCharacter>) => {
       setCharacter((prev) => ({ ...prev, ...updates }));
     },
-    [],
+    []
   );
 
   const handleSave = useCallback(async () => {
@@ -99,14 +102,20 @@ export function CharacterCreatorClient({
 
         // Show simple success toast
         toast.success("Character created successfully!", {
-          description: "You can now test your character in chat or continue editing.",
+          description:
+            "You can now test your character in chat or continue editing.",
           duration: 4000,
         });
       }
     } catch (error) {
-      throw error;
+      console.error("Error saving character:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to save character. Please try again."
+      );
     }
-  }, [character, selectedId, router]);
+  }, [character, selectedId]);
 
   const handleLoadCharacter = useCallback(
     (characterId: string) => {
@@ -117,7 +126,7 @@ export function CharacterCreatorClient({
         toast.success("Character loaded");
       }
     },
-    [initialCharacters],
+    [initialCharacters]
   );
 
   const handleNewCharacter = useCallback(() => {
@@ -159,7 +168,9 @@ export function CharacterCreatorClient({
             <BrandButton
               variant="primary"
               size="sm"
-              onClick={() => router.push(`/dashboard/chat?characterId=${selectedId}`)}
+              onClick={() =>
+                router.push(`/dashboard/chat?characterId=${selectedId}`)
+              }
             >
               <MessageSquare className="mr-2 h-4 w-4" />
               Test in Chat
@@ -192,7 +203,7 @@ export function CharacterCreatorClient({
       handleNewCharacter,
       handleLoadCharacter,
       router,
-    ],
+    ]
   );
 
   return (
