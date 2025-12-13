@@ -11,7 +11,7 @@ export async function listActiveCreditPacks(): Promise<CreditPack[]> {
 }
 
 export async function getCreditPackByPriceId(
-  stripePriceId: string
+  stripePriceId: string,
 ): Promise<CreditPack | undefined> {
   return await db.query.creditPacks.findFirst({
     where: eq(schema.creditPacks.stripe_price_id, stripePriceId),
@@ -19,7 +19,7 @@ export async function getCreditPackByPriceId(
 }
 
 export async function getCreditPackById(
-  id: string
+  id: string,
 ): Promise<CreditPack | undefined> {
   return await db.query.creditPacks.findFirst({
     where: eq(schema.creditPacks.id, id),

@@ -30,7 +30,7 @@ async function checkDatabaseState() {
       console.log(`  ID: ${org.id}`);
       console.log(`  Credit Balance: ${org.credit_balance.toLocaleString()}`);
       console.log(
-        `  Stripe Customer: ${org.stripe_customer_id || "(not set)"}`
+        `  Stripe Customer: ${org.stripe_customer_id || "(not set)"}`,
       );
       console.log(`  Created: ${org.created_at.toISOString()}`);
     });
@@ -51,13 +51,13 @@ async function checkDatabaseState() {
       console.log(`\n[${txn.created_at.toISOString()}]`);
       console.log(`  Transaction ID: ${txn.id}`);
       console.log(
-        `  Amount: ${txn.amount > 0 ? "+" : ""}${txn.amount.toLocaleString()}`
+        `  Amount: ${txn.amount > 0 ? "+" : ""}${txn.amount.toLocaleString()}`,
       );
       console.log(`  Type: ${txn.type}`);
       console.log(`  Description: ${txn.description || "(none)"}`);
       console.log(`  Organization ID: ${txn.organization_id}`);
       console.log(
-        `  Stripe Payment Intent: ${txn.stripe_payment_intent_id || "(none)"}`
+        `  Stripe Payment Intent: ${txn.stripe_payment_intent_id || "(none)"}`,
       );
     });
   }

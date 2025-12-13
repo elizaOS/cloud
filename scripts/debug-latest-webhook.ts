@@ -23,8 +23,12 @@ async function debugLatestWebhook() {
         console.log(`\n🛒 Session: ${session.id}`);
         console.log(`   Status: ${session.status}`);
         console.log(`   Payment Status: ${session.payment_status}`);
-        console.log(`   Amount: $${((session.amount_total || 0) / 100).toFixed(2)}`);
-        console.log(`   Created: ${new Date(session.created * 1000).toISOString()}`);
+        console.log(
+          `   Amount: $${((session.amount_total || 0) / 100).toFixed(2)}`,
+        );
+        console.log(
+          `   Created: ${new Date(session.created * 1000).toISOString()}`,
+        );
         console.log(`   Customer: ${session.customer || "(none)"}`);
         console.log(`   Payment Intent: ${session.payment_intent || "(none)"}`);
 
@@ -41,7 +45,9 @@ async function debugLatestWebhook() {
           console.log(`\n   🛍️  Line Items:`);
           session.line_items.data.forEach((item) => {
             console.log(`      - ${item.description}`);
-            console.log(`        Amount: $${((item.amount_total || 0) / 100).toFixed(2)}`);
+            console.log(
+              `        Amount: $${((item.amount_total || 0) / 100).toFixed(2)}`,
+            );
             console.log(`        Quantity: ${item.quantity}`);
           });
         }
@@ -70,13 +76,17 @@ async function debugLatestWebhook() {
       for (const event of events.data) {
         console.log(`\n📨 Event: ${event.type}`);
         console.log(`   ID: ${event.id}`);
-        console.log(`   Created: ${new Date(event.created * 1000).toISOString()}`);
+        console.log(
+          `   Created: ${new Date(event.created * 1000).toISOString()}`,
+        );
 
         if (event.type === "checkout.session.completed") {
           const session = event.data.object as Record<string, unknown>;
           console.log(`   Session ID: ${session.id}`);
           console.log(`   Payment Status: ${session.payment_status}`);
-          console.log(`   Payment Intent: ${session.payment_intent || "(none)"}`);
+          console.log(
+            `   Payment Intent: ${session.payment_intent || "(none)"}`,
+          );
 
           console.log(`   📦 Metadata in Event:`);
           const metadata = session.metadata as Record<string, unknown> | undefined;

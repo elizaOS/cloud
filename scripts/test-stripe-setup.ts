@@ -27,7 +27,7 @@ console.log("🧪 Stripe Credit Packs Test Setup");
 console.log("=".repeat(50));
 console.log(`Stripe Key: ${STRIPE_SECRET_KEY.substring(0, 15)}...`);
 console.log(
-  `Mode: ${STRIPE_SECRET_KEY.startsWith("sk_test_") ? "TEST" : "LIVE"}`
+  `Mode: ${STRIPE_SECRET_KEY.startsWith("sk_test_") ? "TEST" : "LIVE"}`,
 );
 console.log("=".repeat(50));
 
@@ -103,7 +103,7 @@ async function createStripeProducts() {
             name: pack.name,
             description: pack.description,
           }),
-        }
+        },
       );
 
       if (!productResponse.ok) {
@@ -135,7 +135,7 @@ async function createStripeProducts() {
 
       const price: StripePrice = await priceResponse.json();
       console.log(
-        `  ✓ Price created: ${price.id} ($${(pack.price_cents / 100).toFixed(2)})`
+        `  ✓ Price created: ${price.id} ($${(pack.price_cents / 100).toFixed(2)})`,
       );
 
       products.push({
@@ -178,7 +178,7 @@ ${products
     stripe_price_id: "${p.priceId}",
     stripe_product_id: "${p.productId}",
     sort_order: ${p.sortOrder},
-  }`
+  }`,
   )
   .join(",\n")}
 ];
@@ -218,12 +218,12 @@ seedCreditPacks()
   const seedPath = path.join(
     process.cwd(),
     "scripts",
-    "seed-credit-packs-generated.ts"
+    "seed-credit-packs-generated.ts",
   );
   fs.writeFileSync(seedPath, seedContent);
 
   console.log(
-    `✓ Seed script generated: scripts/seed-credit-packs-generated.ts`
+    `✓ Seed script generated: scripts/seed-credit-packs-generated.ts`,
   );
   console.log(`\n💡 Run: npm run tsx scripts/seed-credit-packs-generated.ts`);
 
@@ -276,7 +276,7 @@ async function main() {
 
     if (products.length === 0) {
       console.log(
-        "\n❌ No products were created. Please check your Stripe API key."
+        "\n❌ No products were created. Please check your Stripe API key.",
       );
       process.exit(1);
     }
@@ -286,7 +286,7 @@ async function main() {
     console.log("=".repeat(80));
     products.forEach((p) => {
       console.log(
-        `${p.name.padEnd(30)} | ${p.priceId.padEnd(30)} | ${p.productId}`
+        `${p.name.padEnd(30)} | ${p.priceId.padEnd(30)} | ${p.productId}`,
       );
     });
     console.log("=".repeat(80));
@@ -301,11 +301,11 @@ async function main() {
     console.log("\n📋 Next Steps:");
     console.log("  1. Run database migration: npm run db:push");
     console.log(
-      "  2. Seed credit packs: tsx scripts/seed-credit-packs-generated.ts"
+      "  2. Seed credit packs: tsx scripts/seed-credit-packs-generated.ts",
     );
     console.log("  3. Start dev server: npm run dev");
     console.log(
-      "  4. Start Stripe webhooks: stripe listen --forward-to localhost:3000/api/stripe/webhook"
+      "  4. Start Stripe webhooks: stripe listen --forward-to localhost:3000/api/stripe/webhook",
     );
     console.log("  5. Visit: http://localhost:3000/dashboard/billing");
   } catch (error) {
