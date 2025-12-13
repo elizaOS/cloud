@@ -93,7 +93,7 @@ async function checkPgVector() {
     const client = new Client({ connectionString: LOCAL_DATABASE_URL });
     await client.connect();
     const result = await client.query(
-      "SELECT * FROM pg_extension WHERE extname = 'vector'",
+      "SELECT * FROM pg_extension WHERE extname = 'vector'"
     );
     await client.end();
 
@@ -155,7 +155,7 @@ async function checkTables() {
 
     const existingTables = result.rows.map((row) => row.table_name);
     const missingTables = requiredTables.filter(
-      (table) => !existingTables.includes(table),
+      (table) => !existingTables.includes(table)
     );
 
     if (missingTables.length === 0) {
@@ -203,7 +203,7 @@ async function verifySetup() {
     await client.end();
 
     log(
-      `✓ Database has ${userCount.rows[0].count} users and ${orgCount.rows[0].count} organizations`,
+      `✓ Database has ${userCount.rows[0].count} users and ${orgCount.rows[0].count} organizations`
     );
     return true;
   } catch (e) {
@@ -258,7 +258,7 @@ async function main() {
   console.log(`Connection string: ${LOCAL_DATABASE_URL}`);
   console.log("\nNext steps:");
   console.log(
-    "1. Make sure DATABASE_URL in .env.local points to the local database",
+    "1. Make sure DATABASE_URL in .env.local points to the local database"
   );
   console.log("2. Run 'bun run dev' to start the development server");
   console.log("3. Visit http://localhost:3000/dashboard");
