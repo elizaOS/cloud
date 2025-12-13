@@ -125,7 +125,8 @@ async function handleArtifactUpload(request: NextRequest) {
       created_at: new Date(),
     });
 
-    // Return presigned URLs - CLI can use these directly without AWS signing
+    // Return presigned URLs only - CLI uses these directly without AWS signing
+    // SECURITY: Raw credentials are NOT returned to reduce attack surface
     return NextResponse.json({
       success: true,
       data: {
@@ -141,19 +142,6 @@ async function handleArtifactUpload(request: NextRequest) {
           url: downloadPresignedUrl,
           method: "GET",
           expiresAt: downloadCredentials.expiresAt,
-        },
-        // Raw credentials for CLI-side signing if needed
-        credentials: {
-          upload: {
-            accessKeyId: uploadCredentials.accessKeyId,
-            secretAccessKey: uploadCredentials.secretAccessKey,
-            sessionToken: uploadCredentials.sessionToken,
-          },
-          download: {
-            accessKeyId: downloadCredentials.accessKeyId,
-            secretAccessKey: downloadCredentials.secretAccessKey,
-            sessionToken: downloadCredentials.sessionToken,
-          },
         },
         // Artifact metadata
         artifact: {
