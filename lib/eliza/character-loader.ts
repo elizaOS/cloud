@@ -30,12 +30,17 @@ export class CharacterLoader {
     character: Character;
     plugins: Plugin[];
   }> {
+    console.log(`[CharacterLoader] Loading character: ${characterId}`);
+    
     // Load character from database
     const dbCharacter = await charactersService.getById(characterId);
 
     if (!dbCharacter) {
+      console.error(`[CharacterLoader] Character not found: ${characterId}`);
       throw new Error(`Character not found: ${characterId}`);
     }
+
+    console.log(`[CharacterLoader] Found character in DB: ${dbCharacter.name}`);
 
     // Convert to ElizaOS format
     const elizaCharacter = charactersService.toElizaCharacter(dbCharacter);
@@ -45,6 +50,8 @@ export class CharacterLoader {
 
     // Resolve plugins
     const plugins = this.resolvePlugins(elizaCharacter.plugins || []);
+
+    console.log(`[CharacterLoader] Built character: ${character.name} with ${plugins.length} plugins`);
 
     return { character, plugins };
   }
