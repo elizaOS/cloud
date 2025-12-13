@@ -3,6 +3,7 @@
 Complete guide for diagnosing and fixing deployment issues in ElizaOS Cloud.
 
 ## Table of Contents
+
 - [Pre-Deployment Checks](#pre-deployment-checks)
 - [Deployment Process Stages](#deployment-process-stages)
 - [Common Errors](#common-errors)
@@ -14,6 +15,7 @@ Complete guide for diagnosing and fixing deployment issues in ElizaOS Cloud.
 Before deploying, verify:
 
 ### 1. Environment Configuration
+
 ```bash
 # Check all required variables are set
 elizaos config validate  # Future CLI command
@@ -30,6 +32,7 @@ elizaos config validate  # Future CLI command
 **Note:** `DATABASE_URL` and `AGENT_DATABASE_URL` can point to the same database (development) or separate databases (production)
 
 ### 2. API Key
+
 ```bash
 # Get API key from dashboard
 # Visit: https://your-app.com/dashboard/api-keys
@@ -39,6 +42,7 @@ export ELIZAOS_API_KEY="eliza_your_key_here"
 ```
 
 ### 3. Project Validity
+
 ```bash
 # Ensure you're in a valid ElizaOS project
 ls -la package.json  # Should exist
@@ -50,6 +54,7 @@ bun run build
 ```
 
 ### 4. Credit Balance
+
 ```bash
 # Check you have enough credits
 # Visit: https://your-app.com/dashboard/credits
@@ -110,6 +115,7 @@ Stage 6: Monitoring
 **Cause**: The `elizaos/bootstrapper:latest` Docker image doesn't exist or isn't accessible
 
 **Solution**:
+
 ```bash
 # Build the bootstrapper image
 cd eliza-cloud-v2/bootstrapper
@@ -130,6 +136,7 @@ docker push ghcr.io/elizaos/bootstrapper:latest
 **Cause**: R2 credentials are invalid or temporary credentials API failed
 
 **Solution**:
+
 ```bash
 # Verify R2 credentials
 aws s3 ls --endpoint-url=$R2_ENDPOINT
@@ -148,6 +155,7 @@ curl -X GET "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_I
 **Cause**: Artifact was corrupted during upload or download
 
 **Solution**:
+
 ```bash
 # Delete the corrupted artifact
 curl -X DELETE "https://your-app.com/api/v1/artifacts/{artifact-id}" \
@@ -162,6 +170,7 @@ elizaos deploy --name my-agent
 **Cause**: Cloudflare Workers API error or insufficient permissions
 
 **Solution**:
+
 ```bash
 # Verify Cloudflare API token has Workers permissions
 # Required scopes: "Workers Scripts Write", "Workers Routes Write"
@@ -179,6 +188,7 @@ curl -X GET "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_I
 **Cause**: Invalid container configuration or Cloudflare API error
 
 **Solution**:
+
 ```bash
 # Check Worker exists
 curl -X GET "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/{worker-id}" \
@@ -197,6 +207,7 @@ curl -X GET "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_I
 **Cause**: Deployment took longer than 5 minutes (default timeout)
 
 **Solution**:
+
 ```bash
 # Check deployment status manually
 curl https://your-app.com/api/v1/containers/{container-id} \
@@ -215,6 +226,7 @@ curl https://your-app.com/api/v1/containers/{container-id} \
 ## Diagnostic Commands
 
 ### Check System Status
+
 ```bash
 # Verify all features are configured
 curl https://your-app.com/api/health \
@@ -229,6 +241,7 @@ curl https://your-app.com/api/v1/containers \
 ```
 
 ### Check Specific Container
+
 ```bash
 CONTAINER_ID="your-container-id"
 API_KEY="your-api-key"
@@ -243,6 +256,7 @@ curl https://your-app.com/api/v1/containers/$CONTAINER_ID/health \
 ```
 
 ### Check Artifacts
+
 ```bash
 # List artifacts
 curl https://your-app.com/api/v1/artifacts \
@@ -254,6 +268,7 @@ curl https://your-app.com/api/v1/artifacts/stats \
 ```
 
 ### Check Quota and Credits
+
 ```bash
 # Check quota
 curl https://your-app.com/api/v1/containers/quota \
@@ -270,6 +285,7 @@ curl https://your-app.com/api/v1/containers/quota \
 ## Advanced Debugging
 
 ### Enable Debug Mode
+
 ```bash
 # Deploy with verbose logging
 elizaos deploy --name my-agent --verbose
@@ -280,6 +296,7 @@ elizaos deploy --name my-agent
 ```
 
 ### Test Artifact Download Locally
+
 ```bash
 # Download artifact manually to test accessibility
 ARTIFACT_URL="https://your-r2-endpoint/bucket/path/artifact.tar.gz"
@@ -295,6 +312,7 @@ ls -la test-dir/
 ```
 
 ### Test Bootstrapper Locally
+
 ```bash
 # Build bootstrapper
 cd eliza-cloud-v2/bootstrapper
@@ -323,55 +341,57 @@ docker run -it --rm \
 ### Database Inspection
 
 **Platform Database** (SaaS tables):
+
 ```bash
 # Connect to platform database
 psql $DATABASE_URL
 
 # Check containers
-SELECT id, name, status, error_message, created_at 
-FROM containers 
+SELECT id, name, status, error_message, created_at
+FROM containers
 WHERE organization_id = 'your-org-id'
 ORDER BY created_at DESC;
 
 # Check artifacts
-SELECT id, project_id, version, size, created_at 
-FROM artifacts 
+SELECT id, project_id, version, size, created_at
+FROM artifacts
 WHERE organization_id = 'your-org-id'
 ORDER BY created_at DESC;
 
 # Check credit transactions
-SELECT amount, type, description, created_at 
-FROM credit_transactions 
+SELECT amount, type, description, created_at
+FROM credit_transactions
 WHERE organization_id = 'your-org-id'
-ORDER BY created_at DESC 
+ORDER BY created_at DESC
 LIMIT 20;
 ```
 
 **Agent Database** (ElizaOS tables):
+
 ```bash
 # Connect to agent database
 psql $AGENT_DATABASE_URL
 
 # Check agents
-SELECT id, name, username, created_at 
-FROM agents 
+SELECT id, name, username, created_at
+FROM agents
 ORDER BY created_at DESC;
 
 # Check rooms
-SELECT id, name, source, type, created_at 
-FROM rooms 
-ORDER BY created_at DESC 
+SELECT id, name, source, type, created_at
+FROM rooms
+ORDER BY created_at DESC
 LIMIT 20;
 
 # Check memories
-SELECT id, type, room_id, created_at 
-FROM memories 
-ORDER BY created_at DESC 
+SELECT id, type, room_id, created_at
+FROM memories
+ORDER BY created_at DESC
 LIMIT 20;
 
 # Check embeddings dimension
-SELECT COUNT(*), 
-  CASE 
+SELECT COUNT(*),
+  CASE
     WHEN dim384 IS NOT NULL THEN 384
     WHEN dim512 IS NOT NULL THEN 512
     WHEN dim768 IS NOT NULL THEN 768
@@ -384,6 +404,7 @@ GROUP BY dimension;
 ```
 
 ### Cloudflare Worker Debugging
+
 ```bash
 # List Workers
 curl -X GET "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts" \
@@ -410,6 +431,7 @@ If you're still stuck after trying these solutions:
 ## Deployment Checklist
 
 Before deploying:
+
 - [ ] All environment variables are set and validated
 - [ ] API key is generated and active
 - [ ] Credit balance is sufficient (check quota endpoint)
@@ -420,9 +442,9 @@ Before deploying:
 - [ ] Network allows outbound connections to Cloudflare and R2
 
 After deployment:
+
 - [ ] Container status is "running"
 - [ ] Health check returns 200 OK
 - [ ] Application is accessible at deployed URL
 - [ ] Logs show no errors
 - [ ] Credits were deducted correctly
-

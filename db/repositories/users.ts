@@ -124,9 +124,12 @@ export class UsersRepository {
     return user;
   }
 
+<<<<<<< HEAD
   /**
    * Updates an existing user.
    */
+=======
+>>>>>>> 2379ae49c4454bd91c14c080b9a37ac33464cf74
   async update(id: string, data: Partial<NewUser>): Promise<User | undefined> {
     const [updated] = await db
       .update(users)

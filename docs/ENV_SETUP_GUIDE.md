@@ -5,6 +5,7 @@ This guide helps you set up all required and optional environment variables for 
 ## Quick Start
 
 1. Copy the example file:
+
 ```bash
 cp example.env.local .env.local
 ```
@@ -17,15 +18,17 @@ cp example.env.local .env.local
 
 ### Cloudflare Account ID
 
-**Important**: `CLOUDFLARE_ACCOUNT_ID` and `R2_ACCOUNT_ID` are the **same value**. 
+**Important**: `CLOUDFLARE_ACCOUNT_ID` and `R2_ACCOUNT_ID` are the **same value**.
 
 To get your Cloudflare Account ID:
+
 1. Log in to [Cloudflare Dashboard](https://dash.cloudflare.com)
 2. Go to any page (e.g., Workers & Pages)
 3. Look at the URL: `dash.cloudflare.com/{account-id}/...`
 4. Copy the 32-character hex string
 
 Set both variables to this value:
+
 ```env
 CLOUDFLARE_ACCOUNT_ID=abc123def456...
 R2_ACCOUNT_ID=abc123def456...  # Same value!
@@ -38,17 +41,20 @@ R2_ACCOUNT_ID=abc123def456...  # Same value!
 You have two options for Cloudflare API authentication:
 
 **Option 1: API Token (Recommended)**
+
 ```env
 CLOUDFLARE_API_TOKEN=your_scoped_api_token
 ```
 
 Generate a token with these permissions:
+
 - Account > Account Settings > Read
 - Account > Workers Scripts > Edit
 - Account > Workers Routes > Edit
 - Account > R2 > Edit
 
 **Option 2: Global API Key (Legacy, Not Recommended)**
+
 ```env
 CLOUDFLARE_EMAIL=your@email.com
 CLOUDFLARE_API_KEY=your_global_api_key
@@ -73,6 +79,7 @@ AGENT_DATABASE_URL=postgresql://user:password@host:5432/eliza_agents?sslmode=req
 Get from: [Neon](https://neon.tech), [Supabase](https://supabase.com), or any Postgres provider
 
 **Development Setup (Same Database):**
+
 ```env
 # Use the same database for both (simpler for local dev)
 DATABASE_URL=postgresql://localhost:5432/eliza_dev
@@ -80,6 +87,7 @@ AGENT_DATABASE_URL=postgresql://localhost:5432/eliza_dev
 ```
 
 **Production Setup (Separate Databases - Recommended):**
+
 ```env
 # Use different databases for better isolation
 DATABASE_URL=postgresql://host:5432/eliza_platform?sslmode=require
@@ -87,12 +95,14 @@ AGENT_DATABASE_URL=postgresql://host:5432/eliza_agents?sslmode=require
 ```
 
 **Benefits of Separation:**
+
 - ElizaOS tables isolated from platform tables
 - Independent scaling for agent workloads
 - Separate backups and disaster recovery
 - ElizaOS plugin-sql manages its own migrations
 
 ### Authentication (WorkOS)
+
 ```env
 WORKOS_CLIENT_ID=client_01H...
 WORKOS_API_KEY=sk_live_...
@@ -101,6 +111,7 @@ NEXT_PUBLIC_WORKOS_REDIRECT_URI=https://your-domain.com/api/auth/callback
 ```
 
 Setup:
+
 1. Create account at [WorkOS](https://workos.com)
 2. Create an organization
 3. Create an application
@@ -116,15 +127,19 @@ Setup:
 ### AI Services (Enable at least one)
 
 **OpenAI:**
+
 ```env
 OPENAI_API_KEY=sk-proj-...
 ```
+
 Get from: [OpenAI Platform](https://platform.openai.com/api-keys)
 
 **AI Gateway:**
+
 ```env
 AI_GATEWAY_API_KEY=your_gateway_key
 ```
+
 Get from: Your AI Gateway provider
 
 ### Vercel Blob (for Gallery/Media)
@@ -134,6 +149,7 @@ BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...
 ```
 
 Setup:
+
 1. Go to [Vercel Dashboard](https://vercel.com/dashboard)
 2. Navigate to Storage → Create → Blob
 3. Copy the `BLOB_READ_WRITE_TOKEN`
@@ -155,6 +171,7 @@ R2_ENDPOINT=https://{account-id}.r2.cloudflarestorage.com
 ```
 
 Setup:
+
 1. **Create R2 Bucket**:
    - Go to Cloudflare Dashboard → R2
    - Click "Create bucket"
@@ -179,6 +196,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 ```
 
 Setup:
+
 1. Create account at [Stripe](https://stripe.com)
 2. Get API keys from Dashboard → Developers → API keys
 3. Set up webhook:
@@ -194,6 +212,7 @@ CRON_SECRET=random_secret_for_securing_cron_endpoints
 ```
 
 Generate:
+
 ```bash
 openssl rand -hex 32
 ```
@@ -207,8 +226,9 @@ npm run dev
 ```
 
 On startup, the app will:
+
 - ✅ Validate all required variables
-- ⚠️  Warn about missing optional variables
+- ⚠️ Warn about missing optional variables
 - 📋 Show which features are enabled/disabled
 
 ## Feature Status
@@ -218,12 +238,14 @@ After configuration, check which features are available:
 Visit: `http://localhost:3000/dashboard`
 
 The dashboard will show:
+
 - ✅ Enabled - Feature is fully configured
 - ⚠️ Disabled - Missing required environment variables
 
 ## Environment-Specific Configuration
 
 ### Development (.env.local)
+
 ```env
 DATABASE_URL=postgresql://localhost:5432/eliza_dev
 NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/api/auth/callback
@@ -232,6 +254,7 @@ STRIPE_SECRET_KEY=sk_test_...
 ```
 
 ### Production (.env.production or Vercel Environment Variables)
+
 ```env
 DATABASE_URL=postgresql://production-host:5432/eliza_prod?sslmode=require
 NEXT_PUBLIC_WORKOS_REDIRECT_URI=https://your-domain.com/api/auth/callback
@@ -253,6 +276,7 @@ STRIPE_SECRET_KEY=sk_live_...
 ### "Environment validation failed"
 
 Check that:
+
 - All REQUIRED variables are set
 - Values match expected formats (e.g., `sk_` prefix for API keys)
 - DATABASE_URL starts with `postgresql://`
@@ -262,6 +286,7 @@ Check that:
 ### "Feature not configured"
 
 If you see "Container deployments are not configured":
+
 - Verify ALL Cloudflare variables are set
 - Verify ALL R2 variables are set
 - Both are required for the feature to work
@@ -293,6 +318,7 @@ OPENAI_API_KEY=sk-proj-...
 ```
 
 This gives you:
+
 - ✅ Authentication
 - ✅ Database
 - ✅ AI Chat/Generation
@@ -339,4 +365,3 @@ CRON_SECRET=***
 ```
 
 This enables all features.
-

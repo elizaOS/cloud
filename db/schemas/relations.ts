@@ -90,6 +90,7 @@ export const conversationMessagesRelations = relations(
   }),
 );
 
+<<<<<<< HEAD
 /**
  * User characters table relations.
  */
@@ -594,3 +595,15 @@ export const userMcpsRelations = relations(userMcps, ({ one, many }) => ({
   // Apps that use this service
   appServices: many(appServices),
 }));
+=======
+export const userCharactersRelations = relations(userCharacters, ({ one }) => ({
+  user: one(users, {
+    fields: [userCharacters.user_id],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [userCharacters.organization_id],
+    references: [organizations.id],
+  }),
+}));
+>>>>>>> 2379ae49c4454bd91c14c080b9a37ac33464cf74

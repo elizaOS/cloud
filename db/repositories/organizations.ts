@@ -5,7 +5,10 @@ import {
   type Organization,
   type NewOrganization,
 } from "../schemas/organizations";
+<<<<<<< HEAD
 import { creditTransactions } from "../schemas/credit-transactions";
+=======
+>>>>>>> 2379ae49c4454bd91c14c080b9a37ac33464cf74
 import type { CreditTransaction } from "../schemas/credit-transactions";
 
 export type { Organization, NewOrganization };
@@ -174,6 +177,13 @@ export class OrganizationsRepository {
         })
         .where(eq(organizations.id, organizationId));
 
+<<<<<<< HEAD
+=======
+      const { creditTransactions } = await import(
+        "../schemas/credit-transactions"
+      );
+
+>>>>>>> 2379ae49c4454bd91c14c080b9a37ac33464cf74
       const [creditTx] = await tx
         .insert(creditTransactions)
         .values({

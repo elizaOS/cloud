@@ -45,9 +45,12 @@ export function CharacterCreatorClient({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showAssistant, setShowAssistant] = useState(true);
 
-  const handleCharacterUpdate = useCallback((updates: Partial<ElizaCharacter>) => {
-    setCharacter((prev) => ({ ...prev, ...updates }));
-  }, []);
+  const handleCharacterUpdate = useCallback(
+    (updates: Partial<ElizaCharacter>) => {
+      setCharacter((prev) => ({ ...prev, ...updates }));
+    },
+    [],
+  );
 
   const handleSave = useCallback(async () => {
     if (!character.name) {
@@ -72,14 +75,17 @@ export function CharacterCreatorClient({
     }
   }, [character, selectedId]);
 
-  const handleLoadCharacter = useCallback((characterId: string) => {
-    const char = initialCharacters.find((c) => c.id === characterId);
-    if (char) {
-      setCharacter(char);
-      setSelectedId(characterId);
-      toast.success("Character loaded");
-    }
-  }, [initialCharacters]);
+  const handleLoadCharacter = useCallback(
+    (characterId: string) => {
+      const char = initialCharacters.find((c) => c.id === characterId);
+      if (char) {
+        setCharacter(char);
+        setSelectedId(characterId);
+        toast.success("Character loaded");
+      }
+    },
+    [initialCharacters],
+  );
 
   const handleNewCharacter = useCallback(() => {
     setCharacter(defaultCharacter);
@@ -87,53 +93,63 @@ export function CharacterCreatorClient({
     toast.success("New character created");
   }, []);
 
-  useSetPageHeader({
-    title: "Character Creator",
-    description: "Create and customize AI agent characters with personality, knowledge, and style",
-    actions: (
-      <div className="flex items-center gap-3">
-        <Select
-          value={selectedId || "new"}
-          onValueChange={(value) => {
-            if (value === "new") {
-              handleNewCharacter();
-            } else {
-              handleLoadCharacter(value);
-            }
-          }}
-        >
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Select a character..." />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="new">+ New Character</SelectItem>
-            {initialCharacters.map((char) => (
-              <SelectItem key={char.id} value={char.id!}>
-                {char.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowAssistant(!showAssistant)}
-        >
-          {showAssistant ? (
-            <>
-              <PanelLeftClose className="mr-2 h-4 w-4" />
-              Hide Assistant
-            </>
-          ) : (
-            <>
-              <PanelLeftOpen className="mr-2 h-4 w-4" />
-              Show Assistant
-            </>
-          )}
-        </Button>
-      </div>
-    ),
-  }, [selectedId, showAssistant, initialCharacters, handleNewCharacter, handleLoadCharacter]);
+  useSetPageHeader(
+    {
+      title: "Character Creator",
+      description:
+        "Create and customize AI agent characters with personality, knowledge, and style",
+      actions: (
+        <div className="flex items-center gap-3">
+          <Select
+            value={selectedId || "new"}
+            onValueChange={(value) => {
+              if (value === "new") {
+                handleNewCharacter();
+              } else {
+                handleLoadCharacter(value);
+              }
+            }}
+          >
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Select a character..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="new">+ New Character</SelectItem>
+              {initialCharacters.map((char) => (
+                <SelectItem key={char.id} value={char.id!}>
+                  {char.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowAssistant(!showAssistant)}
+          >
+            {showAssistant ? (
+              <>
+                <PanelLeftClose className="mr-2 h-4 w-4" />
+                Hide Assistant
+              </>
+            ) : (
+              <>
+                <PanelLeftOpen className="mr-2 h-4 w-4" />
+                Show Assistant
+              </>
+            )}
+          </Button>
+        </div>
+      ),
+    },
+    [
+      selectedId,
+      showAssistant,
+      initialCharacters,
+      handleNewCharacter,
+      handleLoadCharacter,
+    ],
+  );
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -142,9 +158,9 @@ export function CharacterCreatorClient({
         {/* Left Column - AI Assistant or Form */}
         <div className="flex h-full flex-col overflow-hidden">
           {showAssistant ? (
-            <AiAssistant 
-              character={character} 
-              onCharacterUpdate={handleCharacterUpdate} 
+            <AiAssistant
+              character={character}
+              onCharacterUpdate={handleCharacterUpdate}
             />
           ) : (
             <CharacterForm character={character} onChange={setCharacter} />
@@ -159,18 +175,21 @@ export function CharacterCreatorClient({
                 <TabsTrigger value="json">JSON Editor</TabsTrigger>
                 <TabsTrigger value="form">Form View</TabsTrigger>
               </TabsList>
-              <TabsContent value="json" className="m-0 flex-1 overflow-hidden p-0">
+              <TabsContent
+                value="json"
+                className="m-0 flex-1 overflow-hidden p-0"
+              >
                 <JsonEditor
                   character={character}
                   onChange={setCharacter}
                   onSave={handleSave}
                 />
               </TabsContent>
-              <TabsContent value="form" className="m-0 flex-1 overflow-hidden p-0">
-                <CharacterForm
-                  character={character}
-                  onChange={setCharacter}
-                />
+              <TabsContent
+                value="form"
+                className="m-0 flex-1 overflow-hidden p-0"
+              >
+                <CharacterForm character={character} onChange={setCharacter} />
               </TabsContent>
             </Tabs>
           </Card>
@@ -179,4 +198,3 @@ export function CharacterCreatorClient({
     </div>
   );
 }
-

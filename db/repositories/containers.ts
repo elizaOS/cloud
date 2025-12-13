@@ -3,7 +3,10 @@ import {
   and,
   desc,
   notInArray,
+<<<<<<< HEAD
   inArray,
+=======
+>>>>>>> 2379ae49c4454bd91c14c080b9a37ac33464cf74
   sql,
   type InferSelectModel,
   type InferInsertModel,
@@ -220,6 +223,37 @@ export class ContainersRepository {
     return updated || null;
   }
 
+<<<<<<< HEAD
+=======
+  async listActiveByOrganizationWithArtifactId(organizationId: string): Promise<
+    Array<{
+      id: string;
+      name: string;
+      status: string;
+      artifact_id: string | null;
+    }>
+  > {
+    const results = await db
+      .select({
+        id: containers.id,
+        name: containers.name,
+        status: containers.status,
+        artifact_id: sql<string>`${containers.metadata}->>'artifact_id'`.as(
+          "artifact_id",
+        ),
+      })
+      .from(containers)
+      .where(
+        and(
+          eq(containers.organization_id, organizationId),
+          notInArray(containers.status, ["failed", "deleted", "deleting"]),
+        ),
+      );
+
+    return results;
+  }
+
+>>>>>>> 2379ae49c4454bd91c14c080b9a37ac33464cf74
   /**
    * Checks container quota without creating a container (read-only check).
    * 

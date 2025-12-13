@@ -154,6 +154,22 @@ export const getCurrentUser = cache(
       logger.error("[AUTH] Error:", error instanceof Error ? error.message : error);
       return null;
     }
+<<<<<<< HEAD
+=======
+
+    const user = await usersService.getByEmailWithOrganization(
+      workosUser.email,
+    );
+
+    if (!user) {
+      console.error(
+        `[Auth] User not found in database for email: ${workosUser.email}`,
+      );
+      return null;
+    }
+
+    return user;
+>>>>>>> 2379ae49c4454bd91c14c080b9a37ac33464cf74
   },
 );
 
