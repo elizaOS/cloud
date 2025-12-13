@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +32,15 @@ export function AutoTopUpModal({
   const [enabled, setEnabled] = useState(currentAutoTopUp);
   const [amount, setAmount] = useState(currentAmount.toString());
   const [threshold, setThreshold] = useState(currentThreshold.toString());
+
+  // Sync local state with props when modal opens or props change
+  useEffect(() => {
+    if (open) {
+      setEnabled(currentAutoTopUp);
+      setAmount(currentAmount.toString());
+      setThreshold(currentThreshold.toString());
+    }
+  }, [open, currentAutoTopUp, currentAmount, currentThreshold]);
 
   const handleUpdate = () => {
     const amountValue = parseFloat(amount) || 0;
