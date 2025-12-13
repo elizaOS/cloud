@@ -1,25 +1,24 @@
 "use client";
 
 /**
- * @deprecated Use `useCredits` from `@/providers/CreditsProvider` instead.
+ * Credits Provider - Centralized credit balance management
  *
- * This hook creates its own polling instance which causes duplicate API calls
- * when used in multiple components. The CreditsProvider centralizes credit
- * fetching to a single location, reducing API load by ~75%.
- *
- * Before (2 components using this hook = 2 polling intervals):
- *   import { useCreditsStream } from "@/hooks/use-credits-stream";
- *   const { creditBalance } = useCreditsStream();
- *
- * After (centralized polling):
- *   import { useCredits } from "@/providers/CreditsProvider";
- *   const { creditBalance } = useCredits();
+ * Solves the duplicate polling problem by providing a single source of truth
+ * for credit balance across all components that need it.
  */
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  type ReactNode,
+} from "react";
 import { usePrivy } from "@privy-io/react-auth";
 
-interface UseCreditsStreamResult {
+interface CreditsContextValue {
   creditBalance: number | null;
   isConnected: boolean;
   isLoading: boolean;
@@ -28,13 +27,12 @@ interface UseCreditsStreamResult {
   refreshBalance: () => Promise<void>;
 }
 
-const POLL_INTERVAL = 10000;
-const MAX_AUTH_ERRORS = 3; // Stop polling after 3 consecutive auth errors
+const CreditsContext = createContext<CreditsContextValue | null>(null);
 
-/**
- * @deprecated Use `useCredits` from `@/providers/CreditsProvider` instead.
- */
-export function useCreditsStream(): UseCreditsStreamResult {
+const POLL_INTERVAL = 30000; // Increased from 10s to 30s
+const MAX_AUTH_ERRORS = 3;
+
+export function CreditsProvider({ children }: { children: ReactNode }) {
   const { authenticated, ready } = usePrivy();
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -47,6 +45,8 @@ export function useCreditsStream(): UseCreditsStreamResult {
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
   const authErrorCountRef = useRef(0);
   const isPollingPausedRef = useRef(false);
+  const isVisibleRef = useRef(true);
+  const lastFetchTimeRef = useRef<number>(0);
 
   // Stop polling when too many auth errors occur
   const stopPolling = useCallback(() => {
@@ -65,12 +65,11 @@ export function useCreditsStream(): UseCreditsStreamResult {
 
   const fetchBalance = useCallback(async () => {
     if (!isMountedRef.current) return;
-    
-    // Don't fetch if not authenticated or polling is paused
-    if (!authenticated || isPollingPausedRef.current) {
+
+    // Don't fetch if not authenticated, polling is paused, or tab is hidden
+    if (!authenticated || isPollingPausedRef.current || !isVisibleRef.current) {
       if (isMountedRef.current) {
         setIsLoading(false);
-        // Clear balance for unauthenticated users
         if (!authenticated) {
           setCreditBalance(null);
           setError(null);
@@ -78,6 +77,13 @@ export function useCreditsStream(): UseCreditsStreamResult {
       }
       return;
     }
+
+    // Debounce: don't fetch more than once per 5 seconds
+    const now = Date.now();
+    if (now - lastFetchTimeRef.current < 5000) {
+      return;
+    }
+    lastFetchTimeRef.current = now;
 
     try {
       const response = await fetch("/api/credits/balance", {
@@ -89,21 +95,22 @@ export function useCreditsStream(): UseCreditsStreamResult {
       });
 
       if (!response.ok) {
-        // Handle 401 Unauthorized specifically
         if (response.status === 401) {
           authErrorCountRef.current++;
-          
-          // Log only on first error to avoid console spam
+
           if (authErrorCountRef.current === 1) {
-            console.warn("[useCreditsStream] Unauthorized - user may need to re-authenticate");
+            console.warn(
+              "[CreditsProvider] Unauthorized - user may need to re-authenticate"
+            );
           }
-          
-          // Stop polling after too many auth errors
+
           if (authErrorCountRef.current >= MAX_AUTH_ERRORS) {
-            console.warn("[useCreditsStream] Too many auth errors, pausing polling");
+            console.warn(
+              "[CreditsProvider] Too many auth errors, pausing polling"
+            );
             stopPolling();
           }
-          
+
           if (isMountedRef.current) {
             setError("Unauthorized");
             setIsConnected(false);
@@ -111,11 +118,10 @@ export function useCreditsStream(): UseCreditsStreamResult {
           }
           return;
         }
-        
+
         throw new Error(`Failed to fetch balance: ${response.statusText}`);
       }
 
-      // Reset auth error count on success
       authErrorCountRef.current = 0;
 
       const data = await response.json();
@@ -136,10 +142,10 @@ export function useCreditsStream(): UseCreditsStreamResult {
     } catch (err) {
       if (isMountedRef.current) {
         setError(
-          err instanceof Error ? err.message : "Failed to fetch balance",
+          err instanceof Error ? err.message : "Failed to fetch balance"
         );
         setIsConnected(false);
-        console.error("[useCreditsStream] Error fetching balance:", err);
+        console.error("[CreditsProvider] Error fetching balance:", err);
       }
     } finally {
       if (isMountedRef.current) {
@@ -166,6 +172,23 @@ export function useCreditsStream(): UseCreditsStreamResult {
     }
   }, []);
 
+  // Visibility change handler - pause polling when tab is hidden
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      isVisibleRef.current = document.visibilityState === "visible";
+
+      // Fetch immediately when tab becomes visible (if enough time has passed)
+      if (isVisibleRef.current && authenticated && ready) {
+        fetchBalance();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [authenticated, ready, fetchBalance]);
+
   // Reset and resume polling when authentication state changes
   useEffect(() => {
     if (ready && authenticated) {
@@ -177,15 +200,15 @@ export function useCreditsStream(): UseCreditsStreamResult {
   useEffect(() => {
     isMountedRef.current = true;
 
-    // Only start polling if authenticated and ready
     if (ready && authenticated && !isPollingPausedRef.current) {
       fetchBalance();
 
       pollIntervalRef.current = setInterval(() => {
-        fetchBalance();
+        if (isVisibleRef.current) {
+          fetchBalance();
+        }
       }, POLL_INTERVAL);
     } else if (ready && !authenticated) {
-      // User is not authenticated, set loading to false
       setIsLoading(false);
       setCreditBalance(null);
     }
@@ -199,7 +222,7 @@ export function useCreditsStream(): UseCreditsStreamResult {
     };
   }, [ready, authenticated, fetchBalance]);
 
-  return {
+  const value: CreditsContextValue = {
     creditBalance,
     isConnected,
     isLoading,
@@ -207,4 +230,32 @@ export function useCreditsStream(): UseCreditsStreamResult {
     lastUpdate,
     refreshBalance: fetchBalance,
   };
+
+  return (
+    <CreditsContext.Provider value={value}>{children}</CreditsContext.Provider>
+  );
 }
+
+/**
+ * Hook to consume credits context
+ * Falls back gracefully when used outside provider
+ */
+export function useCredits(): CreditsContextValue {
+  const context = useContext(CreditsContext);
+
+  if (!context) {
+    // Return a sensible default when used outside provider
+    // This allows gradual migration
+    return {
+      creditBalance: null,
+      isConnected: false,
+      isLoading: true,
+      error: null,
+      lastUpdate: null,
+      refreshBalance: async () => {},
+    };
+  }
+
+  return context;
+}
+
