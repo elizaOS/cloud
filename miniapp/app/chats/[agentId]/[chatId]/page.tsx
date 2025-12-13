@@ -155,10 +155,10 @@ function ChatPage() {
 
   // Send message
   const handleSend = async () => {
-    if ((!input.trim() && !selectedImage) || sending) return;
+    if ((!input.trim() && !selectedImageUrl) || sending) return;
 
     const messageText = input.trim();
-    const imageToSend = selectedImage;
+    const imageToSend = selectedImageUrl;
     
     setInput("");
     clearSelectedImage();
@@ -269,17 +269,11 @@ function ChatPage() {
       }
 
       setSelectedImageFile(file);
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setSelectedImage(event.target?.result as string);
-      };
-      reader.readAsDataURL(file);
     }
   };
 
   // Clear selected image
   const clearSelectedImage = () => {
-    setSelectedImage(null);
     setSelectedImageFile(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -668,12 +662,12 @@ function ChatPage() {
         <div className="border-t border-white/5 px-4 py-3">
           <div className="mx-auto max-w-2xl">
             {/* Selected image preview */}
-            {selectedImage && (
+            {selectedImageUrl && (
               <div className="mb-2 flex items-start gap-2">
                 <div className="relative">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={selectedImage}
+                    src={selectedImageUrl}
                     alt="Selected"
                     className="h-20 w-20 rounded-lg object-cover"
                   />
@@ -722,7 +716,7 @@ function ChatPage() {
             />
             <button
               onClick={handleSend}
-                disabled={(!input.trim() && !selectedImage) || sending}
+                disabled={(!input.trim() && !selectedImageUrl) || sending}
               className="flex items-center justify-center rounded-lg bg-brand px-4 py-2 text-white transition-colors hover:bg-brand-600 disabled:opacity-50"
             >
               {sending ? (
