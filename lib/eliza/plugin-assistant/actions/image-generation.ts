@@ -43,11 +43,10 @@ function extractAffiliateImageConfig(
   const vibe = affiliateData.vibe;
   const imageUrls = affiliateData.imageUrls;
 
-  // Check if this is an affiliate character with reference images
+  // Check if this is an affiliate character (source indicates miniapp or affiliate)
+  // Reference images are now optional - autoImage flag is what matters
   result.isAffiliateCharacter = !!(
-    (affiliateData.source || affiliateData.affiliateId) &&
-    Array.isArray(imageUrls) &&
-    imageUrls.length > 0
+    affiliateData.source || affiliateData.affiliateId || affiliateData.autoImage
   );
   result.vibe = typeof vibe === "string" ? vibe : undefined;
 
@@ -690,30 +689,47 @@ Your response should include the valid XML block and nothing else.`;
 }
 
 /**
- * Template for generating character images for affiliate characters.
- * FALLBACK: Only used when no reference images are available.
+ * Template for generating character selfie images when no reference images are available.
+ * Generates human selfies based on character name and bio - gender-neutral approach.
  */
-const affiliateImageGenerationTemplate = `# Task: Generate an image prompt for the character.
+const affiliateImageGenerationTemplate = `# Task: Generate a SELFIE image prompt for the character.
 
 {{providers}}
 
-# CRITICAL RULES - YOU MUST FOLLOW THESE EXACTLY:
-1. Generate images that match the character's personality and the conversation context
-2. Images should be appropriate to the character's role and style
-3. Focus on visual elements that represent the character well
-4. Match the mood and energy of the conversation
+# CHARACTER INFO:
+Name: {{characterName}}
+Bio: {{characterBio}}
+
+# CRITICAL RULES - SELFIE GENERATION:
+1. ALWAYS generate a HUMAN SELFIE photo - never abstract art, landscapes, or non-human images
+2. This must be a realistic smartphone selfie of a person
+3. DO NOT assume any specific gender - infer from the character's name and bio if possible
+4. If gender is unclear, use gender-neutral descriptions or describe features without specifying gender
+5. Focus on: friendly expression, natural lighting, casual selfie pose, looking at camera
+6. Match the character's personality/vibe in the expression and mood
+
+# GENDER INFERENCE GUIDELINES:
+- Look at the character's NAME for gender cues (e.g., "Sarah" = woman, "Mike" = man)
+- Look at the BIO for pronouns or gender references
+- If unclear, describe features neutrally: "person with brown hair" instead of "man/woman with brown hair"
+- Never make assumptions - only specify gender if clearly indicated
+
+# IMAGE STYLE:
+- Photorealistic selfie photo
+- Natural smartphone camera quality
+- Friendly, approachable expression
+- Soft natural lighting
+- Casual, authentic pose
+- High quality, detailed face
 
 # Recent conversation:
 {{conversationLog}}
 
-Based on the conversation context, generate an image prompt that:
-1. Represents the character appropriately
-2. Matches the mood and energy of the conversation
-3. Is visually engaging and contextually relevant
+Based on the character and conversation, generate a selfie prompt:
 
 Your response should be formatted in XML like this:
 <response>
-  <prompt>Your image generation prompt here</prompt>
+  <prompt>photorealistic selfie of [inferred appearance from name/bio], friendly smile, natural lighting, looking at camera, casual pose, smartphone selfie, high quality, detailed face, 8k</prompt>
 </response>
 
 Your response should include the valid XML block and nothing else.`;
@@ -1100,8 +1116,22 @@ export const generateImageAction = {
         : runtime.character.templates?.imageGenerationTemplate ||
           imageGenerationTemplate;
 
+      // Add character info to state for the template
+      const characterBio = runtime.character?.bio;
+      const characterBioText = Array.isArray(characterBio)
+        ? characterBio.join(" ")
+        : typeof characterBio === "string"
+          ? characterBio
+          : "";
+
+      const enhancedState = {
+        ...state,
+        characterName: runtime.character?.name || "Unknown",
+        characterBio: characterBioText,
+      };
+
       const prompt = composePromptFromState({
-        state,
+        state: enhancedState,
         template: selectedTemplate,
       });
 
@@ -1111,8 +1141,30 @@ export const generateImageAction = {
 
       const parsedXml = parseKeyValueXml(promptResponse);
 
-      const imagePrompt =
+      let imagePrompt =
         parsedXml?.prompt || "Unable to generate descriptive prompt for image";
+
+      // For affiliate characters, ensure the prompt generates human selfies
+      if (affiliateConfig.isAffiliateCharacter) {
+        const lowerPrompt = imagePrompt.toLowerCase();
+        // Add selfie/human keywords if not present
+        if (!lowerPrompt.includes("selfie") && !lowerPrompt.includes("portrait")) {
+          imagePrompt = `photorealistic selfie, ${imagePrompt}`;
+        }
+        if (!lowerPrompt.includes("photorealistic") && !lowerPrompt.includes("photo")) {
+          imagePrompt = `photorealistic ${imagePrompt}`;
+        }
+        // Ensure human-related keywords
+        if (!lowerPrompt.includes("person") && !lowerPrompt.includes("man") &&
+            !lowerPrompt.includes("woman") && !lowerPrompt.includes("human")) {
+          imagePrompt = `${imagePrompt}, human person, natural face`;
+        }
+        // Add quality keywords
+        if (!lowerPrompt.includes("8k") && !lowerPrompt.includes("high quality")) {
+          imagePrompt = `${imagePrompt}, high quality, detailed face, 8k`;
+        }
+        logger.info(`[GENERATE_IMAGE] 🤳 Enhanced selfie prompt for affiliate character`);
+      }
 
       const imageModelOptions: {
         prompt: string;

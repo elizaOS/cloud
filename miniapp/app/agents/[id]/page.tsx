@@ -35,7 +35,12 @@ import {
   type VoiceConfig,
   VoiceConfigPanel,
 } from "@/components/personality-presets";
-import { type AgentDetails, getAgent, updateAgent } from "@/lib/cloud-api";
+import {
+  type AgentDetails,
+  getAgent,
+  type ImageGenerationVibe,
+  updateAgent,
+} from "@/lib/cloud-api";
 import { useRenderTracking } from "@/lib/dev/render-tracking";
 import { useAuth } from "@/lib/use-auth";
 
@@ -106,6 +111,13 @@ function AgentDetailPage() {
   const [suggestions, setSuggestions] = useState<string | null>(null);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
+  // Image generation settings (for auto-generating images in chat responses)
+  const [imageGenEnabled, setImageGenEnabled] = useState(false);
+  const [imageGenAutoGenerate, setImageGenAutoGenerate] = useState(false);
+  const [imageGenVibe, setImageGenVibe] = useState<ImageGenerationVibe>("playful");
+  const [imageGenReferenceImages, setImageGenReferenceImages] = useState<string[]>([]);
+  const referenceImageInputRef = useRef<HTMLInputElement>(null);
+
   // Redirect to home if not authenticated
   useEffect(() => {
     if (ready && !authenticated) {
@@ -162,7 +174,7 @@ function AgentDetailPage() {
     if (data.avatarUrl) {
       setGeneratedImageUrl(data.avatarUrl);
       setIsEditingImagePrompt(false);
-      
+
       // Initialize gallery with existing avatar
       const existingImage: GalleryImage = {
         id: `existing_${Date.now()}`,
@@ -172,6 +184,19 @@ function AgentDetailPage() {
       setGalleryImages([existingImage]);
       setPrimaryImageId(existingImage.id);
     }
+
+    // Load image generation settings
+    if (data.imageSettings) {
+      setImageGenEnabled(data.imageSettings.enabled);
+      setImageGenAutoGenerate(data.imageSettings.autoGenerate);
+      if (data.imageSettings.vibe) {
+        setImageGenVibe(data.imageSettings.vibe as ImageGenerationVibe);
+      }
+      if (data.imageSettings.referenceImages) {
+        setImageGenReferenceImages(data.imageSettings.referenceImages);
+      }
+    }
+
     setLoading(false);
   }, [agentId]);
 
@@ -596,6 +621,14 @@ function AgentDetailPage() {
         ]);
     }
 
+    // Include image generation settings
+    updateData.imageSettings = {
+      enabled: imageGenEnabled,
+      autoGenerate: imageGenAutoGenerate,
+      referenceImages: imageGenReferenceImages,
+      vibe: imageGenVibe,
+    };
+
     const updated = await updateAgent(agentId, updateData);
     if (agent) {
       setAgent({ ...agent, ...updated });
@@ -848,6 +881,184 @@ function AgentDetailPage() {
           config={voiceConfig}
           onChange={setVoiceConfig}
         />
+
+        {/* Image Generation in Chat Settings */}
+        <div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.02] p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ImagePlus className="h-4 w-4 text-brand" />
+              <span className="text-sm font-medium text-white/80">Photo Responses</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setImageGenEnabled(!imageGenEnabled)}
+              className={`relative h-6 w-11 rounded-full transition-colors ${
+                imageGenEnabled ? "bg-brand" : "bg-white/20"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                  imageGenEnabled ? "translate-x-5" : "translate-x-0.5"
+                }`}
+              />
+            </button>
+          </div>
+
+          {imageGenEnabled && (
+            <div className="space-y-4 pt-2">
+              <p className="text-xs text-white/50">
+                When enabled, your character can include photos in their chat responses.
+                Upload reference images to maintain consistent appearance.
+              </p>
+
+              {/* Auto-generate toggle */}
+              <div className="flex items-center justify-between rounded-lg bg-white/5 p-3">
+                <div>
+                  <p className="text-sm font-medium text-white/80">Auto-generate photos</p>
+                  <p className="text-xs text-white/40">Include a photo with every response</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setImageGenAutoGenerate(!imageGenAutoGenerate)}
+                  className={`relative h-5 w-9 rounded-full transition-colors ${
+                    imageGenAutoGenerate ? "bg-brand" : "bg-white/20"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                      imageGenAutoGenerate ? "translate-x-4" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Vibe selector */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-white/80">Photo Style</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {(["playful", "flirty", "shy", "bold", "romantic", "spicy", "mysterious", "intellectual"] as const).map(
+                    (vibe) => (
+                      <button
+                        key={vibe}
+                        type="button"
+                        onClick={() => setImageGenVibe(vibe)}
+                        className={`rounded-lg px-2 py-1.5 text-xs font-medium capitalize transition-colors ${
+                          imageGenVibe === vibe
+                            ? "bg-brand text-white"
+                            : "bg-white/5 text-white/60 hover:bg-white/10"
+                        }`}
+                      >
+                        {vibe}
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+
+              {/* Reference images */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-white/80">Reference Photos (Optional)</p>
+                  <span className="text-xs text-white/40">{imageGenReferenceImages.length}/4</span>
+                </div>
+                <p className="text-xs text-white/50">
+                  Add reference photos for consistent appearance. Without references, photos will be generated based on your character&apos;s description.
+                </p>
+
+                {/* Use profile photo button */}
+                {(generatedImageUrl || avatarUrl) && imageGenReferenceImages.length < 4 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const profileUrl = generatedImageUrl || avatarUrl;
+                      if (profileUrl && !imageGenReferenceImages.includes(profileUrl)) {
+                        setImageGenReferenceImages(prev => [...prev, profileUrl]);
+                      }
+                    }}
+                    disabled={imageGenReferenceImages.includes(generatedImageUrl || avatarUrl || "")}
+                    className="w-full flex items-center justify-center gap-2 rounded-lg border border-brand/30 bg-brand/10 px-3 py-2 text-xs font-medium text-brand hover:bg-brand/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Bot className="h-4 w-4" />
+                    {imageGenReferenceImages.includes(generatedImageUrl || avatarUrl || "")
+                      ? "Profile photo already added"
+                      : "Use profile photo as reference"}
+                  </button>
+                )}
+
+                <div className="flex flex-wrap gap-2">
+                  {imageGenReferenceImages.map((url, index) => (
+                    <div
+                      key={`ref-${index}`}
+                      className="relative h-16 w-16 rounded-lg overflow-hidden border border-white/10"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={url}
+                        alt={`Reference ${index + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImageGenReferenceImages(prev =>
+                            prev.filter((_, i) => i !== index)
+                          );
+                        }}
+                        className="absolute top-0.5 right-0.5 rounded-full bg-black/60 p-0.5 text-white/80 hover:bg-black/80"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {imageGenReferenceImages.length < 4 && (
+                    <button
+                      type="button"
+                      onClick={() => referenceImageInputRef.current?.click()}
+                      className="flex h-16 w-16 items-center justify-center rounded-lg border-2 border-dashed border-white/20 text-white/40 hover:border-white/40 hover:text-white/60 transition-colors"
+                    >
+                      <Upload className="h-5 w-5" />
+                    </button>
+                  )}
+                </div>
+
+                <input
+                  ref={referenceImageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file && imageGenReferenceImages.length < 4) {
+                      const formData = new FormData();
+                      formData.append("images", file);
+                      formData.append("type", "reference");
+
+                      const response = await fetch("/api/upload-images", {
+                        method: "POST",
+                        body: formData,
+                      });
+
+                      if (response.ok) {
+                        const result = await response.json();
+                        if (result.images?.[0]?.url) {
+                          setImageGenReferenceImages(prev => [...prev, result.images[0].url]);
+                        }
+                      }
+                    }
+                    e.target.value = "";
+                  }}
+                />
+
+                {imageGenReferenceImages.length === 0 && imageGenAutoGenerate && (
+                  <p className="text-xs text-white/50">
+                    Tip: Adding reference photos helps generate more consistent selfies.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Image Upload/Generate */}
         <div className="space-y-2">

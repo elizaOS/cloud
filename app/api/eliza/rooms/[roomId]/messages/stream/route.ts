@@ -290,22 +290,34 @@ export async function POST(
 
     // Step 4.5: Check if this is an affiliate character and switch to ASSISTANT mode
     // Affiliate characters need ASSISTANT mode for image generation capability
-    // The image generation action's validate function ensures images are only generated
-    // when explicitly requested (e.g., "send me a pic", "generate an image")
+    // Check both character_data.affiliate (legacy) and settings.affiliateData (miniapp)
     if (characterId && agentModeConfig.mode === AgentMode.CHAT) {
       try {
         const character = await charactersService.getById(characterId);
         if (character) {
+          // Check legacy location: character_data.affiliate
           const characterData = character.character_data as
             | Record<string, unknown>
             | undefined;
-          const affiliateData = characterData?.affiliate as
+          const legacyAffiliateData = characterData?.affiliate as
             | Record<string, unknown>
             | undefined;
 
+          // Check new location: settings.affiliateData (used by miniapp)
+          const settings = character.settings as
+            | Record<string, unknown>
+            | undefined;
+          const settingsAffiliateData = settings?.affiliateData as
+            | Record<string, unknown>
+            | undefined;
+
+          // Use whichever has data
+          const affiliateData = settingsAffiliateData || legacyAffiliateData;
+
           if (affiliateData && Object.keys(affiliateData).length > 0) {
             logger.info(
-              "[Stream] 🎭 Detected affiliate character - switching to ASSISTANT mode for image generation"
+              "[Stream] 🎭 Detected affiliate character - switching to ASSISTANT mode for image generation",
+              { hasAutoImage: affiliateData.autoImage, hasImageUrls: !!(affiliateData.imageUrls as unknown[])?.length }
             );
             agentModeConfig = { mode: AgentMode.ASSISTANT };
             // CRITICAL: Also update userContext so runtime loads correct plugins
