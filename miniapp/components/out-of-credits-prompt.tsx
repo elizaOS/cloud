@@ -46,25 +46,22 @@ export function OutOfCreditsPrompt({
         </div>
       ) : (
         // Show both options when shares are available or still loading
-        <>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => setShareModalOpen(true)}
-              className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-brand/20 to-accent-brand/20 border border-brand/30 text-brand-400 font-medium hover:from-brand/30 hover:to-accent-brand/30 transition-all"
-            >
-              <Gift className="h-4 w-4" />
-              {availableToday > 0 ? `Earn ${Math.round(availableToday).toLocaleString()} credits` : "Share & Earn"}
-            </button>
-            <Link
-              href="/settings"
-              className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-medium hover:bg-emerald-500/30 transition-all"
-            >
-              <CreditCard className="h-4 w-4" />
-              Buy Credits
-            </Link>
-          </div>
-
-        </>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => setShareModalOpen(true)}
+            className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-brand/20 to-accent-brand/20 border border-brand/30 text-brand-400 font-medium hover:from-brand/30 hover:to-accent-brand/30 transition-all"
+          >
+            <Gift className="h-4 w-4" />
+            {availableToday > 0 ? `Earn ${Math.round(availableToday).toLocaleString()} credits` : "Share & Earn"}
+          </button>
+          <Link
+            href="/settings"
+            className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-medium hover:bg-emerald-500/30 transition-all"
+          >
+            <CreditCard className="h-4 w-4" />
+            Buy Credits
+          </Link>
+        </div>
       )}
 
       <ShareModal isOpen={shareModalOpen} onClose={() => setShareModalOpen(false)} />
@@ -81,4 +78,3 @@ export function OutOfCreditsPrompt({
     </div>
   );
 }
-

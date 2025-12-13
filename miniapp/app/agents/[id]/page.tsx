@@ -128,6 +128,24 @@ function AgentDetailPage() {
     }
   }, [authenticated, agentId, fetchAgent]);
 
+  // Get current display image - memoize to avoid memory leaks
+  // Must be before early returns per React hooks rules
+  const photoObjectUrl = useMemo(() => {
+    if (photo) {
+      return URL.createObjectURL(photo);
+    }
+    return null;
+  }, [photo]);
+
+  // Clean up object URL when photo changes
+  useEffect(() => {
+    return () => {
+      if (photoObjectUrl) {
+        URL.revokeObjectURL(photoObjectUrl);
+      }
+    };
+  }, [photoObjectUrl]);
+
   // Handle photo upload
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -380,23 +398,6 @@ function AgentDetailPage() {
       </div>
     );
   }
-
-  // Get current display image - memoize to avoid memory leaks
-  const photoObjectUrl = useMemo(() => {
-    if (photo) {
-      return URL.createObjectURL(photo);
-    }
-    return null;
-  }, [photo]);
-
-  // Clean up object URL when photo changes
-  useEffect(() => {
-    return () => {
-      if (photoObjectUrl) {
-        URL.revokeObjectURL(photoObjectUrl);
-      }
-    };
-  }, [photoObjectUrl]);
 
   const displayImage = photoObjectUrl || generatedImageUrl || avatarUrl;
 

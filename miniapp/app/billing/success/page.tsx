@@ -1,15 +1,12 @@
 "use client";
 
 import { CheckCircle2, Loader2 } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
 function BillingSuccessContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const _sessionId = searchParams.get("session_id");
-  void _sessionId;
-
+  // session_id is available via useSearchParams() if needed for validation
   const [countdown, setCountdown] = useState(3);
 
   useEffect(() => {
@@ -69,4 +66,3 @@ export default function BillingSuccessPage() {
     </Suspense>
   );
 }
-

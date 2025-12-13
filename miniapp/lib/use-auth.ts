@@ -24,13 +24,22 @@ const USER_ID_KEY = "miniapp_user_id";
 const ORG_ID_KEY = "miniapp_org_id";
 
 /**
+ * Helper to safely get localStorage value (handles SSR)
+ */
+function getStoredValue(key: string): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(key);
+}
+
+/**
  * Auth hook that manages token-based authentication
  */
 export function useAuth(): AuthState {
+  // Use lazy initialization to avoid calling setState in effect
   const [ready, setReady] = useState(false);
-  const [authToken, setAuthToken] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(() => getStoredValue(AUTH_TOKEN_KEY));
+  const [userId, setUserId] = useState<string | null>(() => getStoredValue(USER_ID_KEY));
+  const [organizationId, setOrganizationId] = useState<string | null>(() => getStoredValue(ORG_ID_KEY));
   const [user, setUser] = useState<AuthUser | null>(null);
 
   // Clear auth state - defined first since it's used by other callbacks
@@ -70,21 +79,17 @@ export function useAuth(): AuthState {
     }
   }, [clearAuth]);
 
-  // Load auth state from localStorage on mount
+  // Fetch user info on mount if we have a token (from lazy initialization)
   useEffect(() => {
-    const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
-    const storedUserId = localStorage.getItem(USER_ID_KEY);
-    const storedOrgId = localStorage.getItem(ORG_ID_KEY);
-
-    if (storedToken && storedUserId) {
-      setAuthToken(storedToken);
-      setUserId(storedUserId);
-      setOrganizationId(storedOrgId);
-      fetchUserInfo(storedToken);
-    }
-
-    setReady(true);
-  }, [fetchUserInfo]);
+    // State is already initialized from localStorage via lazy init (lines 40-42)
+    // Defer all state updates to avoid synchronous setState in effect
+    queueMicrotask(() => {
+      if (authToken) {
+        fetchUserInfo(authToken);
+      }
+      setReady(true);
+    });
+  }, [authToken, fetchUserInfo]);
 
   // Listen for storage changes (e.g., from auth callback in another tab)
   useEffect(() => {
