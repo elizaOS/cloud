@@ -22,13 +22,13 @@
     },
     "ContainerCpu": {
       "Type": "Number",
-      "Default": 256,
-      "Description": "CPU units (256 = 0.25 vCPU)"
+      "Default": 1792,
+      "Description": "CPU units (1792 = 1.75 vCPU, 87.5% of t3g.small)"
     },
     "ContainerMemory": {
       "Type": "Number",
-      "Default": 512,
-      "Description": "Memory in MB"
+      "Default": 1792,
+      "Description": "Memory in MB (1792 = 1.75 GB, 87.5% of t3g.small)"
     },
     "SharedVPCId": {
       "Type": "String",
