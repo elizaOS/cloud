@@ -45,83 +45,86 @@ export function useAuth(): AuthState {
 
   // Fetch user info from Cloud API - defined before the useEffect that uses it
   const fetchUserInfo = useCallback(async (token: string) => {
-    const response = await fetch("/api/proxy/user", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      setUser({
-        id: data.user.id,
-        email: data.user.email,
-        name: data.user.name,
-        avatar: data.user.avatar,
+    try {
+      const response = await fetch("/api/proxy/user", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
-    } else {
-      // Token might be invalid, clear auth state
-      clearAuth();
+
+      if (response.ok) {
+        const data = await response.json();
+        setUser({
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.name,
+          avatar: data.user.avatar,
+        });
+      } else if (response.status === 401) {
+        clearAuth();
+      }
+    } catch {
+      // Network error - don't clear auth, just skip user info fetch
+      console.warn("[useAuth] Failed to fetch user info");
     }
   }, [clearAuth]);
 
-  // Load auth state from localStorage on mount and on storage changes
+  // Load auth state from localStorage on mount
   useEffect(() => {
-    const loadAuthState = () => {
-      const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
-      const storedUserId = localStorage.getItem(USER_ID_KEY);
-      const storedOrgId = localStorage.getItem(ORG_ID_KEY);
+    const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
+    const storedUserId = localStorage.getItem(USER_ID_KEY);
+    const storedOrgId = localStorage.getItem(ORG_ID_KEY);
 
-      if (storedToken && storedUserId) {
-        setAuthToken(storedToken);
-        setUserId(storedUserId);
-        setOrganizationId(storedOrgId);
-        
-        // Fetch user info
-        fetchUserInfo(storedToken);
-      } else {
-        // Clear state if no token
-        setAuthToken(null);
-        setUserId(null);
-        setOrganizationId(null);
-        setUser(null);
-      }
-      
-      setReady(true);
-    };
+    if (storedToken && storedUserId) {
+      setAuthToken(storedToken);
+      setUserId(storedUserId);
+      setOrganizationId(storedOrgId);
+      fetchUserInfo(storedToken);
+    }
 
-    loadAuthState();
+    setReady(true);
+  }, [fetchUserInfo]);
 
-    // Listen for storage changes (e.g., from auth callback in another tab)
+  // Listen for storage changes (e.g., from auth callback in another tab)
+  useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === AUTH_TOKEN_KEY) {
-        loadAuthState();
+        const newToken = localStorage.getItem(AUTH_TOKEN_KEY);
+        const newUserId = localStorage.getItem(USER_ID_KEY);
+        const newOrgId = localStorage.getItem(ORG_ID_KEY);
+
+        if (newToken && newUserId) {
+          setAuthToken(newToken);
+          setUserId(newUserId);
+          setOrganizationId(newOrgId);
+          fetchUserInfo(newToken);
+        } else {
+          clearAuth();
+        }
       }
     };
 
-    // Also check on window focus (for same-tab navigation)
-    const handleFocus = () => {
-      const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
-      if (storedToken !== authToken) {
-        loadAuthState();
-      }
-    };
-
-    // Also listen for our custom auth event
     const handleAuthChanged = () => {
-      loadAuthState();
+      const newToken = localStorage.getItem(AUTH_TOKEN_KEY);
+      const newUserId = localStorage.getItem(USER_ID_KEY);
+      const newOrgId = localStorage.getItem(ORG_ID_KEY);
+
+      if (newToken && newUserId) {
+        setAuthToken(newToken);
+        setUserId(newUserId);
+        setOrganizationId(newOrgId);
+        fetchUserInfo(newToken);
+      }
     };
 
     window.addEventListener("storage", handleStorageChange);
-    window.addEventListener("focus", handleFocus);
     window.addEventListener("miniapp_auth_changed", handleAuthChanged);
 
     return () => {
       window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("focus", handleFocus);
       window.removeEventListener("miniapp_auth_changed", handleAuthChanged);
     };
-  }, [authToken, fetchUserInfo]);
+  }, [fetchUserInfo, clearAuth]);
 
   // Start the login flow
   const login = useCallback(async () => {

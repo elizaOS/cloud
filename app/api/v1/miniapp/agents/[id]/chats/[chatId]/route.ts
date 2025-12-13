@@ -214,19 +214,6 @@ export async function GET(
         }
       }
 
-      // Debug log to understand content structure
-      logger.info("[Miniapp API] Message content structure", {
-        msgId: msg.id,
-        entityId: msg.entityId,
-        agentIdFromUrl: agentId,
-        isAgent: msg.entityId === agentId,
-        rawContentType: typeof rawContent,
-        rawContentSample: JSON.stringify(rawContent)?.substring(0, 800),
-        metadataSample: JSON.stringify(msg.metadata)?.substring(0, 300),
-        parsedContentKeys: typeof content === "object" && content ? Object.keys(content) : [],
-        extractedText: textContent ? textContent.substring(0, 100) : "(EMPTY - extraction failed)",
-      });
-
       // Extract attachments from content if present
       const attachments: MessageAttachment[] | undefined =
         Array.isArray(content.attachments) && content.attachments.length > 0
@@ -248,12 +235,33 @@ export async function GET(
               }))
           : undefined;
 
+      const isAgent =
+        msg.entityId === agentId ||
+        msg.entityId === room?.agentId ||
+        (msg.content as Record<string, unknown>)?.source === "agent";
+
+      // Safely convert createdAt to ISO string
+      let createdAtValue: string;
+      try {
+        if (typeof msg.createdAt === "string") {
+          const testDate = new Date(msg.createdAt);
+          createdAtValue = !isNaN(testDate.getTime()) ? msg.createdAt : new Date().toISOString();
+        } else if (typeof msg.createdAt === "number") {
+          createdAtValue = new Date(msg.createdAt).toISOString();
+        } else if (msg.createdAt && typeof (msg.createdAt as { getTime?: () => number }).getTime === "function") {
+          createdAtValue = new Date((msg.createdAt as { getTime: () => number }).getTime()).toISOString();
+        } else {
+          createdAtValue = new Date().toISOString();
+        }
+      } catch {
+        createdAtValue = new Date().toISOString();
+      }
+
       return {
         id: msg.id,
         content: textContent,
-        role:
-          msg.entityId === agentId ? ("assistant" as const) : ("user" as const),
-        createdAt: msg.createdAt,
+        role: isAgent ? ("assistant" as const) : ("user" as const),
+        createdAt: createdAtValue,
         metadata: msg.metadata,
         attachments:
           attachments && attachments.length > 0 ? attachments : undefined,
