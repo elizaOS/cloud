@@ -1,3 +1,24 @@
+// =============================================================================
+// STATUS UTILITIES
+// =============================================================================
+
+export const STATUS_COLORS = {
+  active: "bg-green-500/20 text-green-400 border-green-500/30",
+  archived: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+  draft: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+  completed: "bg-green-500/20 text-green-400",
+  failed: "bg-red-500/20 text-red-400",
+  running: "bg-blue-500/20 text-blue-400",
+} as const;
+
+export function getStatusColor(status: string): string {
+  return STATUS_COLORS[status as keyof typeof STATUS_COLORS] || STATUS_COLORS.draft;
+}
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
 export interface Workflow {
   id: string;
   name: string;

@@ -497,7 +497,7 @@ class DomainManagementService {
         newStatus: resourceType,
       });
     }
-    return updated || null;
+    return updated ?? null;
   }
 
   // Convenience methods for backward compatibility
@@ -534,7 +534,7 @@ class DomainManagementService {
       });
     }
 
-    return updated || null;
+    return updated ?? null;
   }
 
   async getDnsRecords(domainId: string): Promise<DnsRecord[]> {
@@ -542,19 +542,22 @@ class DomainManagementService {
     if (!domain) return [];
 
     if (domain.registrar === "vercel" && domain.nameserverMode === "vercel") {
-      // Fetch from Vercel API
       try {
         const response = await vercelFetch<{ records: DnsRecord[] }>(
           `/v4/domains/${encodeURIComponent(domain.domain)}/records`,
           { method: "GET" }
         );
-        return response.records || [];
-      } catch {
-        return domain.dnsRecords || [];
+        return response.records ?? [];
+      } catch (error) {
+        logger.warn("[DomainManagement] Failed to fetch DNS records from Vercel", { 
+          domain: domain.domain, 
+          error: extractErrorMessage(error) 
+        });
+        return domain.dnsRecords ?? [];
       }
     }
 
-    return domain.dnsRecords || [];
+    return domain.dnsRecords ?? [];
   }
 
   async addDnsRecord(
@@ -653,11 +656,11 @@ class DomainManagementService {
   }
 
   async getDomain(domainId: string, organizationId: string): Promise<ManagedDomain | null> {
-    return (await managedDomainsRepository.findByIdAndOrg(domainId, organizationId)) || null;
+    return (await managedDomainsRepository.findByIdAndOrg(domainId, organizationId)) ?? null;
   }
 
   async getDomainByName(domain: string): Promise<ManagedDomain | null> {
-    return (await managedDomainsRepository.findByDomain(normalizeDomain(domain))) || null;
+    return (await managedDomainsRepository.findByDomain(normalizeDomain(domain))) ?? null;
   }
 
   listDomains = (orgId: string) => managedDomainsRepository.listByOrganization(orgId);

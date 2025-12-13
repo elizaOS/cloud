@@ -455,30 +455,28 @@ class N8nWorkflowsService {
     return result;
   }
 
-  /**
-   * Resolves the actual value of a variable, decrypting if needed.
-   */
   private async resolveVariableValue(
     variable: N8nWorkflowVariable,
     organizationId: string,
     workflowId?: string
   ): Promise<string> {
-    // If it's a secret with encrypted placeholder, decrypt from vault
-    if (variable.is_secret && variable.value.startsWith("[ENCRYPTED:")) {
-      const secretName = variable.value.match(/\[ENCRYPTED:(.+?)\]/)?.[1];
-      if (secretName && isSecretsConfigured()) {
-        const decryptedValue = await secretsService.get(
-          organizationId,
-          secretName,
-          workflowId,
-          undefined,
-          { actorType: "workflow", actorId: workflowId || organizationId, source: "n8n" }
-        );
-        return decryptedValue || "";
-      }
+    if (!variable.is_secret || !variable.value.startsWith("[ENCRYPTED:")) {
+      return variable.value;
     }
 
-    return variable.value;
+    const secretName = variable.value.match(/\[ENCRYPTED:(.+?)\]/)?.[1];
+    if (!secretName) return variable.value;
+    if (!isSecretsConfigured()) throw new Error("Secrets service not configured");
+
+    const decryptedValue = await secretsService.get(
+      organizationId,
+      secretName,
+      workflowId,
+      undefined,
+      { actorType: "workflow", actorId: workflowId || organizationId, source: "n8n" }
+    );
+    if (decryptedValue === null) throw new Error(`Secret ${secretName} not found`);
+    return decryptedValue;
   }
 
   /**

@@ -300,84 +300,45 @@ export class GatewayManager {
     this.updateConnectionStatus(connectionId, "disconnected");
   }
 
-  private async handleMessage(connectionId: string, message: Message): Promise<void> {
+  private handleMessage(connectionId: string, message: Message): void {
     if (message.author.bot) return;
 
     const conn = this.connections.get(connectionId);
     if (!conn) return;
 
-    const payload = {
-      connection_id: connectionId,
-      organization_id: conn.organizationId,
-      platform_connection_id: connectionId,
-      event_type: "MESSAGE_CREATE",
-      event_id: message.id,
-      guild_id: message.guildId ?? "",
+    this.forwardEvent(connectionId, conn, "MESSAGE_CREATE", {
+      id: message.id,
       channel_id: message.channelId,
-      data: {
-        id: message.id,
-        channel_id: message.channelId,
-        guild_id: message.guildId,
-        author: {
-          id: message.author.id,
-          username: message.author.username,
-          discriminator: message.author.discriminator,
-          avatar: message.author.avatar,
-          bot: message.author.bot,
-          global_name: message.author.globalName,
-        },
-        member: message.member ? {
-          nick: message.member.nickname,
-          roles: message.member.roles.cache.map((r) => r.id),
-        } : undefined,
-        content: message.content,
-        timestamp: message.createdAt.toISOString(),
-        attachments: message.attachments.map((a) => ({
-          id: a.id,
-          filename: a.name,
-          url: a.url,
-          content_type: a.contentType,
-          size: a.size,
-        })),
-        embeds: message.embeds.map((e) => ({
-          title: e.title,
-          description: e.description,
-          url: e.url,
-          color: e.color,
-        })),
-        mentions: message.mentions.users.map((u) => ({
-          id: u.id,
-          username: u.username,
-          bot: u.bot,
-        })),
-        referenced_message: message.reference ? {
-          id: message.reference.messageId,
-        } : undefined,
+      guild_id: message.guildId,
+      author: {
+        id: message.author.id,
+        username: message.author.username,
+        discriminator: message.author.discriminator,
+        avatar: message.author.avatar,
+        bot: message.author.bot,
+        global_name: message.author.globalName,
       },
-      timestamp: new Date().toISOString(),
-    };
-
-    const response = await fetch(
-      `${this.config.elizaCloudUrl}/api/internal/discord/events`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Internal-API-Key": this.config.internalApiKey,
-        },
-        body: JSON.stringify(payload),
-      }
-    );
-
-    if (response.ok) {
-      conn.eventsRouted++;
-    } else {
-      logger.warn("Failed to route event", {
-        connectionId,
-        messageId: message.id,
-        status: response.status,
-      });
-    }
+      member: message.member
+        ? { nick: message.member.nickname, roles: message.member.roles.cache.map((r) => r.id) }
+        : undefined,
+      content: message.content,
+      timestamp: message.createdAt.toISOString(),
+      attachments: message.attachments.map((a) => ({
+        id: a.id,
+        filename: a.name,
+        url: a.url,
+        content_type: a.contentType,
+        size: a.size,
+      })),
+      embeds: message.embeds.map((e) => ({
+        title: e.title,
+        description: e.description,
+        url: e.url,
+        color: e.color,
+      })),
+      mentions: message.mentions.users.map((u) => ({ id: u.id, username: u.username, bot: u.bot })),
+      referenced_message: message.reference ? { id: message.reference.messageId } : undefined,
+    });
   }
 
   private async forwardEvent(
@@ -386,42 +347,31 @@ export class GatewayManager {
     eventType: string,
     data: Record<string, unknown>
   ): Promise<void> {
-    const guildId = (data.guild_id as string) ?? "";
-    const channelId = (data.channel_id as string) ?? "";
-    const eventId = (data.id as string) ?? `${eventType}-${Date.now()}`;
-
     const payload = {
       connection_id: connectionId,
       organization_id: conn.organizationId,
       platform_connection_id: connectionId,
       event_type: eventType,
-      event_id: eventId,
-      guild_id: guildId,
-      channel_id: channelId,
+      event_id: (data.id as string) ?? `${eventType}-${Date.now()}`,
+      guild_id: (data.guild_id as string) ?? "",
+      channel_id: (data.channel_id as string) ?? "",
       data,
       timestamp: new Date().toISOString(),
     };
 
-    const response = await fetch(
-      `${this.config.elizaCloudUrl}/api/internal/discord/events`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Internal-API-Key": this.config.internalApiKey,
-        },
-        body: JSON.stringify(payload),
-      }
-    );
+    const response = await fetch(`${this.config.elizaCloudUrl}/api/internal/discord/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Internal-API-Key": this.config.internalApiKey,
+      },
+      body: JSON.stringify(payload),
+    });
 
     if (response.ok) {
       conn.eventsRouted++;
     } else {
-      logger.warn("Failed to forward event", {
-        connectionId,
-        eventType,
-        status: response.status,
-      });
+      logger.warn("Failed to forward event", { connectionId, eventType, status: response.status });
     }
   }
 

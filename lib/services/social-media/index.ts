@@ -1,4 +1,5 @@
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { secretsService } from "@/lib/services/secrets";
 import { creditsService } from "@/lib/services/credits";
 import { db } from "@/db";

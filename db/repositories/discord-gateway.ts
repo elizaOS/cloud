@@ -38,6 +38,18 @@ export class DiscordBotConnectionsRepository {
   }
 
   /**
+   * Get a bot connection by ID.
+   */
+  async getById(id: string): Promise<DiscordBotConnection | null> {
+    const [connection] = await db
+      .select()
+      .from(discordBotConnections)
+      .where(eq(discordBotConnections.id, id))
+      .limit(1);
+    return connection ?? null;
+  }
+
+  /**
    * Get a bot connection by platform connection ID.
    */
   async getByPlatformConnection(

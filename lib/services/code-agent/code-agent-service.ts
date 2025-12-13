@@ -389,26 +389,18 @@ class CodeAgentService {
     const { sessionId, path, content, createDirectories = true } = params;
     const instance = await this.getActiveInstance(sessionId);
 
-    try {
-      if (createDirectories) {
-        const dir = path.split("/").slice(0, -1).join("/");
-        if (dir) await instance.runCommand("mkdir", ["-p", dir]);
-      }
-      await instance.writeFile(path, content);
-      await this.updateSessionUsage(sessionId, { apiCallsCount: 1, filesCreated: 1 });
-      await db.insert(codeAgentCommands).values({
-        session_id: sessionId,
-        command_type: "write_file",
-        command: path,
-        arguments: { size: Buffer.byteLength(content, "utf-8") },
-        status: "success",
-        files_created: [path],
-        completed_at: new Date(),
-      } satisfies NewCodeAgentCommand);
-      return { success: true, path };
-    } catch (error) {
-      return { success: false, path, error: error instanceof Error ? error.message : "Unknown" };
+    if (createDirectories) {
+      const dir = path.split("/").slice(0, -1).join("/");
+      if (dir) await instance.runCommand("mkdir", ["-p", dir]);
     }
+    await instance.writeFile(path, content);
+    await this.updateSessionUsage(sessionId, { apiCallsCount: 1, filesCreated: 1 });
+    await db.insert(codeAgentCommands).values({
+      session_id: sessionId, command_type: "write_file", command: path,
+      arguments: { size: Buffer.byteLength(content, "utf-8") },
+      status: "success", files_created: [path], completed_at: new Date(),
+    } satisfies NewCodeAgentCommand);
+    return { success: true, path };
   }
 
   async listFiles(params: ListFilesParams): Promise<ListFilesResult> {
@@ -416,16 +408,12 @@ class CodeAgentService {
     const instance = await this.getActiveInstance(sessionId);
     await this.updateSessionUsage(sessionId, { apiCallsCount: 1 });
 
-    try {
-      const entries = await instance.listFiles(path);
-      const filtered = recursive ? entries : entries.filter((e) => {
-        const rel = e.path.replace(path, "").replace(/^\//, "");
-        return rel.split("/").length <= maxDepth;
-      });
-      return { success: true, path, entries: filtered };
-    } catch (error) {
-      return { success: false, path, entries: [], error: error instanceof Error ? error.message : "Unknown" };
-    }
+    const entries = await instance.listFiles(path);
+    const filtered = recursive ? entries : entries.filter((e) => {
+      const rel = e.path.replace(path, "").replace(/^\//, "");
+      return rel.split("/").length <= maxDepth;
+    });
+    return { success: true, path, entries: filtered };
   }
 
   async deleteFile(params: DeleteFileParams): Promise<FileOperationResult> {
@@ -711,37 +699,19 @@ class CodeAgentService {
     const costCents = (usage.apiCallsCount || 0) * COST_PER_API_CALL_CENTS + (usage.cpuSecondsUsed || 0) * COST_PER_CPU_SECOND_CENTS;
     const costDollars = costCents / 100;
 
-    // Deduct credits for this usage
     if (costDollars > 0) {
       const deduction = await creditsService.deductCredits({
         organizationId: session.organization_id,
         amount: costDollars,
         description: `Code Agent: ${usage.commandsExecuted ? 'command' : 'api call'}`,
-        metadata: {
-          session_id: sessionId,
-          user_id: session.user_id,
-          api_calls: usage.apiCallsCount,
-          commands: usage.commandsExecuted,
-        },
+        metadata: { session_id: sessionId, user_id: session.user_id, api_calls: usage.apiCallsCount, commands: usage.commandsExecuted },
       });
+      if (!deduction.success) throw new Error("Failed to deduct credits");
 
-      if (!deduction.success) {
-        logger.warn("[CodeAgentService] Failed to deduct credits for usage", { sessionId, costDollars });
-      }
-
-      // Track usage for analytics
       await usageService.create({
-        organization_id: session.organization_id,
-        user_id: session.user_id,
-        api_key_id: null,
-        type: "code_agent",
-        model: "vercel-sandbox",
-        provider: "eliza-cloud",
-        input_tokens: usage.commandsExecuted || 0,
-        output_tokens: usage.apiCallsCount || 0,
-        input_cost: String(costDollars / 2),
-        output_cost: String(costDollars / 2),
-        is_successful: true,
+        organization_id: session.organization_id, user_id: session.user_id, api_key_id: null, type: "code_agent",
+        model: "vercel-sandbox", provider: "eliza-cloud", input_tokens: usage.commandsExecuted || 0, output_tokens: usage.apiCallsCount || 0,
+        input_cost: String(costDollars / 2), output_cost: String(costDollars / 2), is_successful: true,
       });
     }
 

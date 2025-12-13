@@ -643,40 +643,9 @@ class SecretsService {
   }
 
   async bindSecret(params: BindSecretParams, audit: AuditContext): Promise<SecretBindingMetadata> {
-    const { secretId, projectId, projectType, createdBy } = params;
-
-    const secret = await secretsRepository.findById(secretId);
-    if (!secret) {
-      throw new Error("Secret not found");
-    }
-
-    const existing = await secretBindingsRepository.findBySecretAndProject(
-      secretId,
-      projectId,
-      projectType
-    );
-    if (existing) {
-      throw new Error("Secret is already bound to this project");
-    }
-
-    const binding = await secretBindingsRepository.create({
-      organization_id: secret.organization_id,
-      secret_id: secretId,
-      project_id: projectId,
-      project_type: projectType,
-      created_by: createdBy,
-    });
-
-    await this.logAudit(secretId, secret.organization_id, "read", secret.name, audit);
-
-    return {
-      id: binding.id,
-      secretId: binding.secret_id,
-      secretName: secret.name,
-      projectId: binding.project_id,
-      projectType: binding.project_type,
-      createdAt: binding.created_at,
-    };
+    const result = await this.bindSecrets([params.secretId], params.projectId, params.projectType, params.createdBy, audit);
+    if (result.errors.length > 0) throw new Error(result.errors[0].error);
+    return result.bound[0];
   }
 
   async bindSecrets(
@@ -696,11 +665,7 @@ class SecretsService {
         continue;
       }
 
-      const existing = await secretBindingsRepository.findBySecretAndProject(
-        secretId,
-        projectId,
-        projectType
-      );
+      const existing = await secretBindingsRepository.findBySecretAndProject(secretId, projectId, projectType);
       if (existing) {
         errors.push({ secretId, error: "Already bound" });
         continue;

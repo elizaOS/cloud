@@ -2,13 +2,9 @@
  * Slack Community Moderation Handler
  */
 
-import { logger } from "@/lib/utils/logger";
-import { communityModerationService } from "../community-moderation";
+import { communityModerationService, getServerSettings, pickMostSevereViolation, type ViolationResult } from "../community-moderation";
 import { linkSafetyService } from "../link-safety";
 import { moderationEventsRepository } from "@/db/repositories/community-moderation";
-import { db } from "@/db";
-import { eq, and } from "drizzle-orm";
-import { orgPlatformServers, orgPlatformConnections } from "@/db/schemas/org-platforms";
 import type { CommunityModerationSettings } from "@/db/schemas/org-agents";
 
 interface SlackMessage {
@@ -35,21 +31,21 @@ export class SlackModerationHandler {
     return SlackModerationHandler.instance ??= new SlackModerationHandler();
   }
 
-  async handleMessage(connectionId: string, organizationId: string, message: SlackMessage): Promise<ModerationResult> {
+  async handleMessage(connectionId: string, message: SlackMessage): Promise<ModerationResult> {
     if (message.bot_id) return { handled: false };
 
-    const serverSettings = await this.getServerSettings(connectionId, message.team ?? message.channel);
-    if (!serverSettings) return { handled: false };
+    const serverData = await getServerSettings(connectionId, message.team ?? message.channel);
+    if (!serverData) return { handled: false };
 
-    const { serverId, settings } = serverSettings;
+    const { serverId, organizationId, settings } = serverData;
 
-    const [spamResult, linkResult, wordResult] = await Promise.all([
-      settings.antiSpamEnabled ? this.checkSpam(serverId, message, settings) : null,
+    const results = await Promise.all([
+      settings.antiSpamEnabled ? this.checkSpam(serverId, organizationId, message, settings) : null,
       settings.linkCheckingEnabled ? this.checkLinks(message, settings) : null,
       settings.badWordFilterEnabled ? this.checkBadWords(message, settings) : null,
     ]);
 
-    const action = this.determineModerationAction(spamResult, linkResult, wordResult);
+    const action = pickMostSevereViolation(results);
 
     if (action.shouldAct) {
       await this.logModerationEvent(serverId, organizationId, message, action);
@@ -59,41 +55,40 @@ export class SlackModerationHandler {
     return { handled: false };
   }
 
-  private async checkSpam(serverId: string, message: SlackMessage, settings: CommunityModerationSettings): Promise<{ violation: boolean; type: string; severity: number } | null> {
-    const result = await communityModerationService.checkSpam(serverId, {
-      userId: message.user,
-      platform: "slack",
-      content: message.text,
-      maxMessagesPerMinute: settings.maxMessagesPerMinute ?? 10,
-      duplicateThreshold: settings.duplicateMessageThreshold ?? 3,
-    });
+  private async checkSpam(serverId: string, organizationId: string, message: SlackMessage, settings: CommunityModerationSettings): Promise<ViolationResult | null> {
+    const result = await communityModerationService.spam.checkSpam(
+      { organizationId, serverId, platformUserId: message.user, platform: "slack" },
+      message.text,
+      { maxMessagesPerMinute: settings.maxMessagesPerMinute ?? 10, duplicateThreshold: settings.duplicateMessageThreshold ?? 3 }
+    );
 
     if (!result.isSpam) return null;
     return { violation: true, type: result.reason ?? "spam", severity: result.reason === "rate_limit" ? 2 : 3 };
   }
 
-  private async checkLinks(message: SlackMessage, settings: CommunityModerationSettings): Promise<{ violation: boolean; type: string; severity: number } | null> {
+  private async checkLinks(message: SlackMessage, settings: CommunityModerationSettings): Promise<ViolationResult | null> {
     const urls = linkSafetyService.extractUrls(message.text);
     if (urls.length === 0) return null;
 
     if (settings.blockedDomains?.length) {
-      const blocked = urls.filter((url) => {
-        const domain = new URL(url).hostname;
-        return settings.blockedDomains?.some((b) => domain.endsWith(b));
-      });
-      if (blocked.length > 0) return { violation: true, type: "blocked_domain", severity: 3 };
+      for (const url of urls) {
+        const domain = this.parseDomain(url);
+        if (domain && settings.blockedDomains.some((b) => domain.endsWith(b))) {
+          return { violation: true, type: "blocked_domain", severity: 3 };
+        }
+      }
     }
 
     if (settings.checkLinksWithSafeBrowsing) {
       const results = await linkSafetyService.checkUrls(urls);
-      const threats = results.filter((r) => !r.safe);
-      if (threats.length > 0) return { violation: true, type: threats[0].threats[0] ?? "unsafe_link", severity: 5 };
+      const threat = results.find((r) => !r.safe);
+      if (threat) return { violation: true, type: threat.threats[0] ?? "unsafe_link", severity: 5 };
     }
 
     return null;
   }
 
-  private async checkBadWords(message: SlackMessage, settings: CommunityModerationSettings): Promise<{ violation: boolean; type: string; severity: number } | null> {
+  private checkBadWords(message: SlackMessage, settings: CommunityModerationSettings): ViolationResult | null {
     const banWords = settings.banWords ?? [];
     if (banWords.length === 0) return null;
 
@@ -102,12 +97,6 @@ export class SlackModerationHandler {
     if (!matched) return null;
 
     return { violation: true, type: "bad_word", severity: 3 };
-  }
-
-  private determineModerationAction(...results: Array<{ violation: boolean; type: string; severity: number } | null>): { shouldAct: boolean; type: string; severity: number } {
-    const violations = results.filter((r): r is NonNullable<typeof r> => r?.violation === true);
-    if (violations.length === 0) return { shouldAct: false, type: "none", severity: 0 };
-    return violations.reduce((prev, curr) => curr.severity > prev.severity ? curr : prev, { shouldAct: true, type: violations[0].type, severity: violations[0].severity });
   }
 
   private async logModerationEvent(serverId: string, organizationId: string, message: SlackMessage, action: { type: string; severity: number }): Promise<void> {
@@ -127,19 +116,9 @@ export class SlackModerationHandler {
     });
   }
 
-  private async getServerSettings(connectionId: string, teamId: string): Promise<{ serverId: string; settings: CommunityModerationSettings } | null> {
-    const [server] = await db
-      .select({ id: orgPlatformServers.id, agent_settings: orgPlatformServers.agent_settings })
-      .from(orgPlatformServers)
-      .innerJoin(orgPlatformConnections, eq(orgPlatformServers.connection_id, orgPlatformConnections.id))
-      .where(and(eq(orgPlatformConnections.id, connectionId), eq(orgPlatformServers.server_id, teamId)))
-      .limit(1);
-
-    if (!server) return null;
-    const settings = (server.agent_settings as { community_manager?: CommunityModerationSettings })?.community_manager ?? {};
-    return { serverId: server.id, settings };
+  private parseDomain(url: string): string | null {
+    try { return new URL(url).hostname.toLowerCase(); } catch { return null; }
   }
 }
 
 export const slackModerationHandler = SlackModerationHandler.getInstance();
-

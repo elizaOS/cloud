@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
-import type { Workflow } from "./types";
+import { type Workflow, getStatusColor } from "./types";
 
 interface WorkflowListProps {
   onSelect?: (workflow: Workflow) => void;
@@ -115,16 +115,6 @@ export function WorkflowList({ onSelect, onTest }: WorkflowListProps) {
     }
   }
 
-  function getStatusColor(status: string) {
-    switch (status) {
-      case "active":
-        return "bg-green-500/20 text-green-400 border-green-500/30";
-      case "archived":
-        return "bg-gray-500/20 text-gray-400 border-gray-500/30";
-      default:
-        return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
-    }
-  }
 
   if (isLoading) {
     return (

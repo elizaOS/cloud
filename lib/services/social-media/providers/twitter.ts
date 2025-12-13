@@ -256,7 +256,7 @@ export const twitterProvider: SocialMediaProvider = {
       return {
         platform: "twitter",
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: extractErrorMessage(error),
       };
     }
   },

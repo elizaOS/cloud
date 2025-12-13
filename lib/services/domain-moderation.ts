@@ -158,28 +158,40 @@ class DomainModerationService {
 
   async checkDomainHealth(domain: string): Promise<DomainHealthCheckResult> {
     const startTime = Date.now();
-
-    const tryFetch = async (url: string): Promise<DomainHealthCheckResult | null> => {
+    const fetchWithTimeout = async (url: string): Promise<Response> => {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10000);
       try {
-        const response = await fetch(url, { method: "HEAD", signal: controller.signal, redirect: "follow" });
+        return await fetch(url, { method: "HEAD", signal: controller.signal, redirect: "follow" });
+      } finally {
         clearTimeout(timeout);
-        return {
-          isLive: response.ok || response.status < 500,
-          httpStatus: response.status,
-          sslValid: url.startsWith("https"),
-          responseTimeMs: Date.now() - startTime,
-        };
-      } catch {
-        clearTimeout(timeout);
-        return null;
       }
     };
 
-    return (await tryFetch(`https://${domain}`)) ||
-           (await tryFetch(`http://${domain}`)) ||
-           { isLive: false, sslValid: false, error: "Connection failed" };
+    // Try HTTPS first
+    try {
+      const response = await fetchWithTimeout(`https://${domain}`);
+      return {
+        isLive: response.ok || response.status < 500,
+        httpStatus: response.status,
+        sslValid: true,
+        responseTimeMs: Date.now() - startTime,
+      };
+    } catch {
+      // HTTPS failed, try HTTP
+    }
+
+    try {
+      const response = await fetchWithTimeout(`http://${domain}`);
+      return {
+        isLive: response.ok || response.status < 500,
+        httpStatus: response.status,
+        sslValid: false,
+        responseTimeMs: Date.now() - startTime,
+      };
+    } catch {
+      return { isLive: false, sslValid: false, error: "Connection failed", responseTimeMs: Date.now() - startTime };
+    }
   }
 
   async performHealthCheck(domainId: string): Promise<DomainHealthCheckResult> {

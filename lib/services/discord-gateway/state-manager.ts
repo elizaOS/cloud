@@ -10,7 +10,7 @@ import type { BotConnectionState, PodHeartbeatState } from "./types";
 
 const STATE_TTL = 3600; // 1 hour
 const HEARTBEAT_TTL = 300; // 5 minutes
-const POD_HEARTBEAT_INTERVAL = 30000; // 30 seconds
+const HEARTBEAT_INTERVAL_MS = 30000; // 30 seconds
 
 /**
  * Discord Gateway State Manager
@@ -20,33 +20,26 @@ const POD_HEARTBEAT_INTERVAL = 30000; // 30 seconds
 export class DiscordStateManager {
   private static instance: DiscordStateManager;
   private redis: Redis | null = null;
-  private enabled = false;
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private podId: string;
 
   private constructor() {
     this.podId = process.env.POD_NAME ?? process.env.HOSTNAME ?? `pod-${Date.now()}`;
-    this.initialize();
+    this.initializeRedis();
   }
 
-  private initialize(): void {
+  private initializeRedis(): void {
     const redisUrl = process.env.REDIS_URL || process.env.KV_URL;
     const restUrl = process.env.KV_REST_API_URL;
     const restToken = process.env.KV_REST_API_TOKEN;
 
     if (redisUrl) {
       this.redis = Redis.fromEnv();
-      this.enabled = true;
     } else if (restUrl && restToken) {
       this.redis = new Redis({ url: restUrl, token: restToken });
-      this.enabled = true;
     }
 
-    if (this.enabled) {
-      logger.info("[Discord State Manager] Initialized with Redis");
-    } else {
-      logger.warn("[Discord State Manager] Redis not configured, state management disabled");
-    }
+    logger.info("[Discord State Manager] Initialized", { enabled: !!this.redis });
   }
 
   static getInstance(): DiscordStateManager {
@@ -56,58 +49,42 @@ export class DiscordStateManager {
     return DiscordStateManager.instance;
   }
 
+  /** Helper to parse JSON from Redis (handles both string and object responses) */
+  private parseJson<T>(data: string | T): T {
+    return typeof data === "string" ? JSON.parse(data) : data;
+  }
+
+  /** Check if Redis is available */
+  private get isEnabled(): boolean {
+    return !!this.redis;
+  }
+
   // ===========================================================================
   // CONNECTION STATE
   // ===========================================================================
 
-  /**
-   * Save connection state for resume.
-   */
+  /** Save connection state for resume. */
   async saveConnectionState(state: BotConnectionState): Promise<void> {
-    if (!this.enabled || !this.redis) return;
-
-    const key = `discord:state:${state.connectionId}`;
-    await this.redis.setex(key, STATE_TTL, JSON.stringify(state));
-
-    logger.debug("[Discord State Manager] Saved connection state", {
-      connectionId: state.connectionId,
-      sessionId: state.sessionId,
-      sequence: state.sequence,
-    });
+    if (!this.redis) return;
+    await this.redis.setex(`discord:state:${state.connectionId}`, STATE_TTL, JSON.stringify(state));
+    logger.debug("[Discord State Manager] Saved state", { connectionId: state.connectionId });
   }
 
-  /**
-   * Get connection state for resume.
-   */
+  /** Get connection state for resume. */
   async getConnectionState(connectionId: string): Promise<BotConnectionState | null> {
-    if (!this.enabled || !this.redis) return null;
-
-    const key = `discord:state:${connectionId}`;
-    const data = await this.redis.get<string>(key);
-
-    if (!data) return null;
-
-    return typeof data === "string" ? JSON.parse(data) : data;
+    if (!this.redis) return null;
+    const data = await this.redis.get<string>(`discord:state:${connectionId}`);
+    return data ? this.parseJson<BotConnectionState>(data) : null;
   }
 
-  /**
-   * Clear connection state.
-   */
+  /** Clear connection state. */
   async clearConnectionState(connectionId: string): Promise<void> {
-    if (!this.enabled || !this.redis) return;
-
-    const key = `discord:state:${connectionId}`;
-    await this.redis.del(key);
-
-    logger.debug("[Discord State Manager] Cleared connection state", { connectionId });
+    if (!this.redis) return;
+    await this.redis.del(`discord:state:${connectionId}`);
   }
 
-  /**
-   * Update sequence number.
-   */
+  /** Update sequence number. */
   async updateSequence(connectionId: string, sequence: number): Promise<void> {
-    if (!this.enabled || !this.redis) return;
-
     const state = await this.getConnectionState(connectionId);
     if (state) {
       state.sequence = sequence;
@@ -116,32 +93,17 @@ export class DiscordStateManager {
     }
   }
 
-  /**
-   * Update session info after READY event.
-   */
-  async updateSession(
-    connectionId: string,
-    sessionId: string,
-    resumeGatewayUrl: string
-  ): Promise<void> {
-    if (!this.enabled || !this.redis) return;
-
+  /** Update session info after READY event. */
+  async updateSession(connectionId: string, sessionId: string, resumeGatewayUrl: string): Promise<void> {
     const state = await this.getConnectionState(connectionId);
     if (state) {
-      state.sessionId = sessionId;
-      state.resumeGatewayUrl = resumeGatewayUrl;
-      state.connectedAt = Date.now();
-      state.status = "connected";
+      Object.assign(state, { sessionId, resumeGatewayUrl, connectedAt: Date.now(), status: "connected" });
       await this.saveConnectionState(state);
     }
   }
 
-  /**
-   * Add guild to connection's guild list.
-   */
+  /** Add guild to connection's guild list. */
   async addGuild(connectionId: string, guildId: string): Promise<void> {
-    if (!this.enabled || !this.redis) return;
-
     const state = await this.getConnectionState(connectionId);
     if (state && !state.guilds.includes(guildId)) {
       state.guilds.push(guildId);
@@ -149,12 +111,8 @@ export class DiscordStateManager {
     }
   }
 
-  /**
-   * Remove guild from connection's guild list.
-   */
+  /** Remove guild from connection's guild list. */
   async removeGuild(connectionId: string, guildId: string): Promise<void> {
-    if (!this.enabled || !this.redis) return;
-
     const state = await this.getConnectionState(connectionId);
     if (state) {
       state.guilds = state.guilds.filter((g) => g !== guildId);

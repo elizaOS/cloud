@@ -289,19 +289,14 @@ export class DiscordGatewayService {
    * Get connection record by ID.
    */
   async getConnection(connectionId: string): Promise<DiscordBotConnection | null> {
-    // Check cache first
     const cacheKey = `${CACHE_KEY_PREFIX}${connectionId}`;
     const cached = await cache.get<DiscordBotConnection>(cacheKey);
     if (cached) return cached;
 
-    // Query database
-    const connections = await discordBotConnectionsRepository.listByOrganization("");
-    const connection = connections.find((c) => c.id === connectionId) ?? null;
-
+    const connection = await discordBotConnectionsRepository.getById(connectionId);
     if (connection) {
       await cache.set(cacheKey, connection, CACHE_TTL);
     }
-
     return connection;
   }
 

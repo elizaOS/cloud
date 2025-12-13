@@ -11,7 +11,7 @@ import {
   type SecretProjectType,
   type SecretEnvironment,
 } from "@/db/schemas/secrets";
-import { createAudit, handleSecretsError } from "@/lib/api/secrets-helpers";
+import { createAudit, handleSecretsError, formatSecret } from "@/lib/api/secrets-helpers";
 
 const PROVIDERS = secretProviderEnum.enumValues;
 const PROJECT_TYPES = secretProjectTypeEnum.enumValues;
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const searchParams = request.nextUrl.searchParams;
     const name = searchParams.get("name");
-    const appId = request.headers.get("X-App-Id") || undefined;
+    const appId = request.headers.get("X-App-Id");
     
     if (name) {
       const value = await secretsService.get(user.organization_id, name, appId);
@@ -57,21 +57,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({
-      secrets: result.secrets.map(s => ({
-        id: s.id,
-        name: s.name,
-        description: s.description,
-        scope: s.scope,
-        projectId: s.projectId,
-        projectType: s.projectType,
-        environment: s.environment,
-        provider: s.provider,
-        version: s.version,
-        createdAt: s.createdAt.toISOString(),
-        updatedAt: s.updatedAt.toISOString(),
-        lastAccessedAt: s.lastAccessedAt?.toISOString(),
-        accessCount: s.accessCount,
-      })),
+      secrets: result.secrets.map(formatSecret),
       total: result.total,
       limit,
       offset,
@@ -103,7 +89,7 @@ const BulkCreateSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const appId = request.headers.get("X-App-Id") || undefined;
+    const appId = request.headers.get("X-App-Id");
     const body = await request.json();
     const audit = createAudit(user, "secrets-api");
 

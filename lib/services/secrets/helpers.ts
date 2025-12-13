@@ -82,8 +82,7 @@ export function loadSandboxSecrets(ctx: SandboxSecretContext) {
 }
 
 export function loadOrgSecrets(organizationId: string) {
-  assertSecretsConfigured();
-  return secretsService.getDecrypted({ organizationId });
+  return loadSecrets({ organizationId });
 }
 
 export function isSecretsConfigured(): boolean {
