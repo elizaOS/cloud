@@ -70,22 +70,23 @@ export function KnowledgeDrawer({ characterId }: KnowledgeDrawerProps) {
   };
 
   const handleDelete = async (documentId: string) => {
-    // Include characterId in query params if provided
-    const url = new URL(
-      `/api/v1/knowledge/${documentId}`,
-      window.location.origin,
-    );
-    if (characterId) {
-      url.searchParams.set("characterId", characterId);
-    }
+    try {
+      // Include characterId in query params if provided
+      const url = new URL(
+        `/api/v1/knowledge/${documentId}`,
+        window.location.origin,
+      );
+      if (characterId) {
+        url.searchParams.set("characterId", characterId);
+      }
 
-    const response = await fetch(url.toString(), {
-      method: "DELETE",
-    });
+      const response = await fetch(url.toString(), {
+        method: "DELETE",
+      });
 
-    if (!response.ok) {
-      throw new Error("Failed to delete document");
-    }
+      if (!response.ok) {
+        throw new Error("Failed to delete document");
+      }
 
       // Refresh the list
       fetchDocuments();

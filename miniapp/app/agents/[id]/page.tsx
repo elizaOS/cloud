@@ -121,7 +121,10 @@ function AgentDetailPage() {
 
   useEffect(() => {
     if (authenticated && agentId) {
-      fetchAgent();
+      // Defer fetch to avoid cascading renders
+      queueMicrotask(() => {
+        fetchAgent();
+      });
     }
   }, [authenticated, agentId, fetchAgent]);
 

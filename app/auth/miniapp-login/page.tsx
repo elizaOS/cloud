@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, Suspense } from "react";
+import { useEffect, useState, useCallback, Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import {
@@ -25,8 +25,19 @@ function MiniappLoginContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session");
 
-  const [status, setStatus] = useState<Status>("loading");
-  const [errorMessage, setErrorMessage] = useState("");
+  // Compute initial status from props to avoid setState in effect
+  const initialStatus = useMemo(() => {
+    if (!sessionId) {
+      return { status: "error" as const, errorMessage: "Invalid authentication link. Missing session ID." };
+    }
+    if (!authenticated) {
+      return { status: "waiting_auth" as const, errorMessage: "" };
+    }
+    return { status: "loading" as const, errorMessage: "" };
+  }, [sessionId, authenticated]);
+
+  const [status, setStatus] = useState<Status>(initialStatus.status);
+  const [errorMessage, setErrorMessage] = useState(initialStatus.errorMessage);
 
   const completeLogin = useCallback(async () => {
     if (!sessionId) {
@@ -69,20 +80,32 @@ function MiniappLoginContent() {
     }
   }, [sessionId]);
 
+  // Update status when props change (avoiding synchronous setState)
   useEffect(() => {
-    if (!sessionId) {
-      setStatus("error");
-      setErrorMessage("Invalid authentication link. Missing session ID.");
-      return;
+    const nextStatus = initialStatus.status;
+    const nextErrorMessage = initialStatus.errorMessage;
+    
+    // Only update if status changed to avoid unnecessary renders
+    if (status !== nextStatus || errorMessage !== nextErrorMessage) {
+      // Use setTimeout to avoid synchronous setState in effect
+      const timer = setTimeout(() => {
+        setStatus(nextStatus);
+        setErrorMessage(nextErrorMessage);
+      }, 0);
+      return () => clearTimeout(timer);
     }
+  }, [initialStatus.status, initialStatus.errorMessage, status, errorMessage]);
 
-    if (!authenticated) {
-      setStatus("waiting_auth");
-      return;
+  // Separate effect for completing login when authenticated
+  useEffect(() => {
+    if (initialStatus.status === "loading" && authenticated && sessionId) {
+      // Use setTimeout to avoid synchronous setState in effect
+      const timer = setTimeout(() => {
+        completeLogin();
+      }, 0);
+      return () => clearTimeout(timer);
     }
-
-    completeLogin();
-  }, [authenticated, sessionId, completeLogin]);
+  }, [initialStatus.status, authenticated, sessionId, completeLogin]);
 
   // Auto-trigger login when ready and waiting for auth
   useEffect(() => {

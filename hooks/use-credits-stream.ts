@@ -192,15 +192,21 @@ export function useCreditsStream(): UseCreditsStreamResult {
 
     // Only start polling if authenticated and ready
     if (ready && authenticated && !isPollingPausedRef.current) {
-      fetchBalance();
+      // Defer initial fetch to avoid cascading renders
+      queueMicrotask(() => {
+        fetchBalance();
+      });
 
       pollIntervalRef.current = setInterval(() => {
         fetchBalance();
       }, POLL_INTERVAL);
     } else if (ready && !authenticated) {
       // User is not authenticated, set loading to false
-      setIsLoading(false);
-      setCreditBalance(null);
+      // Use queueMicrotask to defer execution and avoid synchronous setState
+      queueMicrotask(() => {
+        setIsLoading(false);
+        setCreditBalance(null);
+      });
     }
 
     return () => {

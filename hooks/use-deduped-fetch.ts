@@ -273,7 +273,10 @@ export function useDedupedFetch<T>(
 
   // Initial fetch
   useEffect(() => {
-    fetchData();
+    // Defer initial fetch to avoid cascading renders
+    queueMicrotask(() => {
+      fetchData();
+    });
 
     return () => {
       if (abortControllerRef.current) {

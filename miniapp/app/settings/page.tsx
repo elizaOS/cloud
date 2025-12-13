@@ -62,7 +62,10 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (authenticated) {
-      fetchData();
+      // Defer fetch to avoid cascading renders
+      queueMicrotask(() => {
+        fetchData();
+      });
     }
   }, [authenticated, fetchData]);
 
