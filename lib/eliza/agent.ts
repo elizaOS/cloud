@@ -54,6 +54,9 @@ const character: Character = {
       process.env.ELEVENLABS_STT_TAG_AUDIO_EVENTS || "false",
     avatarUrl:
       "https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png",
+    // Multi-step reasoning configuration
+    USE_MULTI_STEP: true,
+    MAX_MULTISTEP_ITERATIONS: 6,
   },
   // ========================================
   // 1. SYSTEM: Identity & Core Delusion
