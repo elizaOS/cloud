@@ -140,6 +140,26 @@ export async function POST(
               message: "Invalid characters or patterns in responseStyle",
             })
             .optional(),
+          flirtiness: z.enum(["low", "medium", "high"]).optional(),
+          romanticMode: z.boolean().optional(),
+          imageGeneration: z
+            .object({
+              enabled: z.boolean(),
+              autoGenerate: z.boolean(),
+              defaultVibe: z
+                .enum([
+                  "flirty",
+                  "shy",
+                  "bold",
+                  "spicy",
+                  "romantic",
+                  "playful",
+                  "mysterious",
+                  "intellectual",
+                ])
+                .optional(),
+            })
+            .optional(),
         })
         .strict();
 
@@ -148,7 +168,7 @@ export async function POST(
         return new Response(
           JSON.stringify({
             error: "Invalid appPromptConfig format",
-            details: validated.error.errors,
+            details: validated.error.issues,
           }),
           { status: 400, headers: { "Content-Type": "application/json" } }
         );
