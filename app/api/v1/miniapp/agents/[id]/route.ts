@@ -25,6 +25,7 @@ import {
 } from "@/lib/middleware/miniapp-rate-limit";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { IMAGE_GENERATION_VIBES, DEFAULT_VIBE } from "@/lib/constants/image-generation";
 
 // Custom validator for URL or base64 data URL
 const urlOrBase64 = z.string().refine(

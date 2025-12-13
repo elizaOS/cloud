@@ -96,7 +96,7 @@ export async function POST(
           /%3C%7C/i, // <|
           /%5D%5D/i, // ]]
           /\\u003c/i, // unicode <
-          /\\x3c/i,   // hex <
+          /\\x3c/i, // hex <
         ];
 
         for (const pattern of encodedPatterns) {
@@ -346,7 +346,10 @@ export async function POST(
           if (affiliateData && Object.keys(affiliateData).length > 0) {
             logger.info(
               "[Stream] 🎭 Detected affiliate character - switching to ASSISTANT mode for image generation",
-              { hasAutoImage: affiliateData.autoImage, hasImageUrls: !!(affiliateData.imageUrls as unknown[])?.length }
+              {
+                hasAutoImage: affiliateData.autoImage,
+                hasImageUrls: !!(affiliateData.imageUrls as unknown[])?.length,
+              }
             );
             agentModeConfig = { mode: AgentMode.ASSISTANT };
             // CRITICAL: Also update userContext so runtime loads correct plugins
