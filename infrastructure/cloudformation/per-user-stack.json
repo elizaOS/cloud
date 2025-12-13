@@ -222,7 +222,7 @@
           "SecurityGroupIds": [{ "Ref": "UserSecurityGroup" }],
           "UserData": {
             "Fn::Base64": {
-              "Fn::Sub": "#!/bin/bash\nset -x\n\nmkdir -p /etc/ecs\necho \"ECS_CLUSTER=elizaos-user-${UserId}\" > /etc/ecs/ecs.config\necho \"ECS_ENABLE_CONTAINER_METADATA=true\" >> /etc/ecs/ecs.config\n\n# Start ecs agent (present on ECS-optimized AMI)\nsystemctl enable --now ecs || true\n"
+              "Fn::Sub": "#!/bin/bash\nset -x\n\n# Configure ECS to join the cluster\nmkdir -p /etc/ecs\necho \"ECS_CLUSTER=elizaos-user-${UserId}\" > /etc/ecs/ecs.config\necho \"ECS_ENABLE_CONTAINER_METADATA=true\" >> /etc/ecs/ecs.config\n\n# Ensure Docker is running (AL2 ECS-optimized AMI)\nsystemctl enable --now docker || true\nfor i in {1..30}; do\n  if systemctl is-active docker >/dev/null 2>&1; then break; fi\n  sleep 2\ndone\n\n# Restart ECS agent cleanly\nsystemctl stop ecs 2>/dev/null || true\nrm -rf /var/lib/ecs/data/* 2>/dev/null || true\nsystemctl enable --now ecs || true\n\n# Wait for ECS agent to be ready\nfor i in {1..60}; do\n  if curl -sf http://localhost:51678/v1/metadata >/dev/null 2>&1; then break; fi\n  sleep 2\ndone\n"
             }
           },
           "BlockDeviceMappings": [
