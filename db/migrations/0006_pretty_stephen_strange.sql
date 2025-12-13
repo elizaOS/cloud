@@ -1,0 +1,1 @@
+CREATE INDEX "organizations_auto_top_up_enabled_idx" ON "organizations" USING btree ("auto_top_up_enabled");
