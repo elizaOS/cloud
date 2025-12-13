@@ -1,12 +1,8 @@
-/**
- * N8N Workflows API
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { n8nWorkflowsService } from "@/lib/services/n8n-workflows";
 import { logger } from "@/lib/utils/logger";
-import { CreateWorkflowSchema } from "@/lib/n8n/schemas";
+import { CreateWorkflowSchema, ErrorResponses } from "@/lib/n8n/schemas";
 
 export async function GET(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
@@ -45,10 +41,7 @@ export async function POST(request: NextRequest) {
   const validation = CreateWorkflowSchema.safeParse(body);
 
   if (!validation.success) {
-    return NextResponse.json(
-      { success: false, error: "Invalid request", details: validation.error.format() },
-      { status: 400 }
-    );
+    return NextResponse.json(ErrorResponses.invalidRequest(validation.error.format()), { status: 400 });
   }
 
   const { name, description, workflowData, tags } = validation.data;

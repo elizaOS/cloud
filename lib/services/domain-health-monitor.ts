@@ -29,20 +29,33 @@ export interface HealthCheckBatchResult {
   error?: string;
 }
 
+const createStats = (): HealthMonitorStats => ({
+  domainsChecked: 0,
+  domainsLive: 0,
+  domainsDown: 0,
+  sslIssues: 0,
+  contentScanned: 0,
+  contentFlagged: 0,
+  expirationWarnings: 0,
+  errors: 0,
+  timedOut: false,
+});
+
+const toHealthCheckResult = (
+  domain: string,
+  result: { isLive: boolean; sslValid?: boolean; responseTimeMs?: number; error?: string }
+): HealthCheckBatchResult => ({
+  domain,
+  isLive: result.isLive,
+  sslValid: result.sslValid ?? true,
+  responseTimeMs: result.responseTimeMs,
+  error: result.error,
+});
+
 class DomainHealthMonitorService {
   async runHealthChecks(): Promise<HealthMonitorStats> {
     const startTime = Date.now();
-    const stats: HealthMonitorStats = {
-      domainsChecked: 0,
-      domainsLive: 0,
-      domainsDown: 0,
-      sslIssues: 0,
-      contentScanned: 0,
-      contentFlagged: 0,
-      expirationWarnings: 0,
-      errors: 0,
-      timedOut: false,
-    };
+    const stats = createStats();
 
     logger.info("[DomainHealthMonitor] Starting health check run");
 
@@ -81,44 +94,19 @@ class DomainHealthMonitorService {
     return stats;
   }
 
-  private async processBatch(
-    domains: ManagedDomain[],
-    stats: HealthMonitorStats
-  ): Promise<void> {
-    const checkPromises = domains.map(async (domain) => {
+  private async processBatch(domains: ManagedDomain[], stats: HealthMonitorStats): Promise<void> {
+    await Promise.all(domains.map(async (d) => {
       try {
-        const result = await domainModerationService.performHealthCheck(domain.id);
+        const result = await domainModerationService.performHealthCheck(d.id);
         stats.domainsChecked++;
-
-        if (result.isLive) {
-          stats.domainsLive++;
-        } else {
-          stats.domainsDown++;
-        }
-
-        if (result.sslValid === false) {
-          stats.sslIssues++;
-        }
-
-        return {
-          domain: domain.domain,
-          isLive: result.isLive,
-          sslValid: result.sslValid ?? true,
-          responseTimeMs: result.responseTimeMs,
-          error: result.error,
-        };
+        result.isLive ? stats.domainsLive++ : stats.domainsDown++;
+        if (result.sslValid === false) stats.sslIssues++;
+        return toHealthCheckResult(d.domain, result);
       } catch (error) {
         stats.errors++;
-        return {
-          domain: domain.domain,
-          isLive: false,
-          sslValid: false,
-          error: extractErrorMessage(error),
-        };
+        return toHealthCheckResult(d.domain, { isLive: false, sslValid: false, error: extractErrorMessage(error) });
       }
-    });
-
-    await Promise.all(checkPromises);
+    }));
   }
 
   private async checkExpirations(stats: HealthMonitorStats): Promise<void> {
@@ -163,17 +151,7 @@ class DomainHealthMonitorService {
 
   async runContentScans(): Promise<HealthMonitorStats> {
     const startTime = Date.now();
-    const stats: HealthMonitorStats = {
-      domainsChecked: 0,
-      domainsLive: 0,
-      domainsDown: 0,
-      sslIssues: 0,
-      contentScanned: 0,
-      contentFlagged: 0,
-      expirationWarnings: 0,
-      errors: 0,
-      timedOut: false,
-    };
+    const stats = createStats();
 
     logger.info("[DomainHealthMonitor] Starting content scan run");
 
@@ -223,16 +201,8 @@ class DomainHealthMonitorService {
   async checkSingleDomain(domainId: string): Promise<HealthCheckBatchResult | null> {
     const domain = await managedDomainsRepository.findById(domainId);
     if (!domain) return null;
-
     const result = await domainModerationService.performHealthCheck(domainId);
-
-    return {
-      domain: domain.domain,
-      isLive: result.isLive,
-      sslValid: result.sslValid ?? true,
-      responseTimeMs: result.responseTimeMs,
-      error: result.error,
-    };
+    return toHealthCheckResult(domain.domain, result);
   }
 
   async getHealthSummary(): Promise<{

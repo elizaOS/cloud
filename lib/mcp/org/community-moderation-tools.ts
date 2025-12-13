@@ -4,6 +4,8 @@
 
 import { z } from "zod";
 import { communityModerationService, type ModerationContext } from "@/lib/services/community-moderation";
+import { walletVerificationService } from "@/lib/services/wallet-verification";
+import { memberWalletsRepository } from "@/db/repositories/community-moderation";
 import { db } from "@/db";
 import { eq } from "drizzle-orm";
 import { orgTokenGates, orgBlockedPatterns, type ModerationAction, type ModerationSeverity } from "@/db/schemas/org-community-moderation";
@@ -203,34 +205,28 @@ async function handleGetSettingsLink(params: z.infer<typeof GetSettingsLinkSchem
   return { success: true, settingsLink: communityModerationService.getSettingsLink(context.organizationId, params.section) };
 }
 
-async function handleVerifyWallet(params: z.infer<typeof VerifyWalletSchema>, context: MCPContext) {
-  const { walletVerificationService } = await import("@/lib/services/wallet-verification");
-
+async function handleVerifyWallet(params: z.infer<typeof VerifyWalletSchema>, _context: MCPContext) {
   const result = await walletVerificationService.verifyAndLinkWallet(params.serverId, params.platformUserId, params.platform, params.walletAddress, params.signature, params.chain);
   if (!result.verified) return { success: false, error: result.error };
   return { success: true, wallet: { address: result.walletAddress, chain: result.chain, verified: true } };
 }
 
 async function handleCheckTokenBalance(params: z.infer<typeof CheckTokenBalanceSchema>, _context: MCPContext) {
-  const { walletVerificationService } = await import("@/lib/services/wallet-verification");
   const result = await walletVerificationService.checkTokenBalance(params.walletAddress, params.tokenAddress, params.chain, "token");
   return { success: true, walletAddress: params.walletAddress, chain: params.chain, tokenAddress: params.tokenAddress, hasBalance: result.hasBalance, balance: result.balance };
 }
 
-async function handleGetVerificationChallenge(params: z.infer<typeof GetVerificationChallengeSchema>, _context: MCPContext) {
-  const { walletVerificationService } = await import("@/lib/services/wallet-verification");
+function handleGetVerificationChallenge(params: z.infer<typeof GetVerificationChallengeSchema>, _context: MCPContext) {
   const challenge = walletVerificationService.generateChallenge(params.serverId, params.platformUserId, params.platform);
   return { success: true, challenge: { nonce: challenge.nonce, message: challenge.message, expiresAt: challenge.expiresAt.toISOString() } };
 }
 
 async function handleSyncUserRoles(params: z.infer<typeof SyncUserRolesSchema>, _context: MCPContext) {
-  const { walletVerificationService } = await import("@/lib/services/wallet-verification");
   const result = await walletVerificationService.syncRoles(params.serverId, params.platformUserId, params.platform, params.connectionId, params.guildId);
   return { success: true, rolesAdded: result.added, rolesRemoved: result.removed };
 }
 
 async function handleListUserWallets(params: z.infer<typeof ListUserWalletsSchema>, _context: MCPContext) {
-  const { memberWalletsRepository } = await import("@/db/repositories/community-moderation");
   const wallets = await memberWalletsRepository.findByPlatformUser(params.serverId, params.platformUserId, params.platform);
   return { success: true, wallets: wallets.map((w) => ({ id: w.id, address: w.wallet_address, chain: w.chain, isPrimary: w.is_primary, verifiedAt: w.verified_at?.toISOString(), assignedRoles: w.assigned_roles })), total: wallets.length };
 }

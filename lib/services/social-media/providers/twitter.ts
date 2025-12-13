@@ -1,5 +1,6 @@
 import { logger } from "@/lib/utils/logger";
 import { TWITTER_API_BASE, TWITTER_UPLOAD_BASE, twitterApiRequest as baseTwitterApiRequest } from "@/lib/utils/twitter-api";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { withRetry } from "../rate-limit";
 import type {
   SocialMediaProvider,

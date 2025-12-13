@@ -1,4 +1,5 @@
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { socialMediaService } from "@/lib/services/social-media";
 import type { SocialCredentials, SocialPlatform } from "@/lib/types/social-media";
 import {
@@ -713,7 +714,7 @@ class FeedPollingService {
         totalPolled: result.engagements.length,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage = extractErrorMessage(error);
       logger.error("[FeedPoller] Poll failed", { configId: config.id, error: errorMessage });
       errors.push(errorMessage);
 

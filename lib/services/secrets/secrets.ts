@@ -304,8 +304,8 @@ class SecretsService {
     newValue: string,
     audit: AuditContext
   ): Promise<SecretMetadata> {
-    const existing = await this.getExistingSecret(secretId, organizationId);
     const encrypted = await this.encryptValue(newValue);
+    const existing = await this.getExistingSecret(secretId, organizationId);
 
     const updated = await secretsRepository.update(secretId, {
       ...encrypted,
@@ -345,16 +345,9 @@ class SecretsService {
     organizationId: string,
     audit: AuditContext
   ): Promise<void> {
-    const existing = await secretsRepository.findById(secretId);
-    if (!existing || existing.organization_id !== organizationId) {
-      throw new Error("Secret not found");
-    }
-
+    const existing = await this.getExistingSecret(secretId, organizationId);
     const deleted = await secretsRepository.delete(secretId);
-    if (!deleted) {
-      throw new Error("Failed to delete secret");
-    }
-
+    if (!deleted) throw new Error("Failed to delete secret");
     await this.logAudit(secretId, organizationId, "deleted", existing.name, audit);
   }
 

@@ -575,8 +575,6 @@ class PlatformCredentialsService {
   }
 
   private async validateBluesky(handle: string, appPassword: string) {
-    if (!handle || !appPassword) throw new Error("Bluesky requires handle and app password");
-
     const normalizedHandle = handle.replace(/^@/, "");
     const service = normalizedHandle.includes(".") && !normalizedHandle.endsWith(".bsky.social")
       ? `https://${normalizedHandle.split(".").slice(-2).join(".")}`
@@ -610,11 +608,8 @@ class PlatformCredentialsService {
   }
 
   private async validateTelegram(botToken: string) {
-    if (!botToken) throw new Error("Telegram requires bot token");
-
     const response = await fetch(`https://api.telegram.org/bot${botToken}/getMe`);
     const data = await response.json();
-
     if (!data.ok) throw new Error(data.description || "Invalid Telegram bot token");
 
     return {
@@ -687,18 +682,14 @@ class PlatformCredentialsService {
     return { sessionId, linkUrl: `${instanceHost}/oauth/authorize?${authParams}`, expiresAt };
   }
 
+  private mastodonSecretName(instanceHost: string): string {
+    return `MASTODON_APP_${instanceHost.replace(/https?:\/\//, "").replace(/[^a-zA-Z0-9]/g, "_")}`;
+  }
+
   private async getOrCreateMastodonApp(instanceHost: string, redirectUri: string): Promise<{ clientId: string; clientSecret: string }> {
-    const instanceKey = instanceHost.replace(/https?:\/\//, "").replace(/[^a-zA-Z0-9]/g, "_");
-    const secretName = `MASTODON_APP_${instanceKey}`;
+    const existing = await this.getMastodonAppCredentials(instanceHost);
+    if (existing) return existing;
 
-    // Try to get existing app credentials from secrets
-    const existing = await secretsService.getSystemSecret(secretName);
-    if (existing) {
-      const parsed = JSON.parse(existing);
-      return { clientId: parsed.client_id, clientSecret: parsed.client_secret };
-    }
-
-    // Register new app with the instance
     const response = await fetch(`${instanceHost}/api/v1/apps`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -711,15 +702,12 @@ class PlatformCredentialsService {
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      logger.error("[Mastodon] App registration failed", { instance: instanceHost, error });
+      logger.error("[Mastodon] App registration failed", { instance: instanceHost, error: await response.text() });
       throw new Error(`Failed to register app with ${instanceHost}`);
     }
 
     const app = await response.json();
-
-    // Store credentials as system secret
-    await secretsService.createSystemSecret(secretName, JSON.stringify({
+    await secretsService.createSystemSecret(this.mastodonSecretName(instanceHost), JSON.stringify({
       client_id: app.client_id,
       client_secret: app.client_secret,
       instance: instanceHost,
@@ -730,12 +718,8 @@ class PlatformCredentialsService {
   }
 
   async getMastodonAppCredentials(instanceHost: string): Promise<{ clientId: string; clientSecret: string } | null> {
-    const instanceKey = instanceHost.replace(/https?:\/\//, "").replace(/[^a-zA-Z0-9]/g, "_");
-    const secretName = `MASTODON_APP_${instanceKey}`;
-
-    const existing = await secretsService.getSystemSecret(secretName);
+    const existing = await secretsService.getSystemSecret(this.mastodonSecretName(instanceHost));
     if (!existing) return null;
-
     const parsed = JSON.parse(existing);
     return { clientId: parsed.client_id, clientSecret: parsed.client_secret };
   }

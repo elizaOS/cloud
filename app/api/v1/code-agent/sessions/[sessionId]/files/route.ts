@@ -44,7 +44,6 @@ async function handlePOST(request: NextRequest, context: RouteContext) {
   if (!session) return NextResponse.json({ error: "Session not found" }, { status: 404 });
 
   const result = await codeAgentService.writeFile({ sessionId, ...body });
-  if (!result.success) return NextResponse.json({ error: result.error }, { status: 500 });
   return NextResponse.json(result, { status: 201 });
 }
 
@@ -59,7 +58,6 @@ async function handleDELETE(request: NextRequest, context: RouteContext) {
   if (!session) return NextResponse.json({ error: "Session not found" }, { status: 404 });
 
   const result = await codeAgentService.deleteFile({ sessionId, path, recursive: searchParams.get("recursive") === "true" });
-  if (!result.success) return NextResponse.json({ error: result.error }, { status: 500 });
   return NextResponse.json(result);
 }
 

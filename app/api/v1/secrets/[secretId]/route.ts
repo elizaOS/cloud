@@ -5,8 +5,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { secretsService, isSecretsConfigured, type AuditContext } from "@/lib/services/secrets";
+import { secretsService, isSecretsConfigured } from "@/lib/services/secrets";
 import { secretsRepository } from "@/db/repositories/secrets";
+import { buildDetailedAudit } from "@/lib/api/secrets-helpers";
 
 export const maxDuration = 30;
 
@@ -18,21 +19,8 @@ const UpdateSchema = z.object({
 
 type RouteContext = { params: Promise<{ secretId: string }> };
 
-function buildAuditContext(request: NextRequest, authResult: Awaited<ReturnType<typeof requireAuthOrApiKeyWithOrg>>): AuditContext {
-  return {
-    actorType: authResult.apiKey ? "api_key" : "user",
-    actorId: authResult.apiKey?.id ?? authResult.user.id,
-    actorEmail: authResult.user.email,
-    ipAddress: request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip") ?? undefined,
-    userAgent: request.headers.get("user-agent") ?? undefined,
-    source: authResult.apiKey ? "api" : "dashboard",
-  };
-}
-
 function assertConfigured() {
-  if (!isSecretsConfigured()) {
-    throw new Error("Secrets service not configured");
-  }
+  if (!isSecretsConfigured()) throw new Error("Secrets service not configured");
 }
 
 export async function GET(request: NextRequest, { params }: RouteContext) {
@@ -51,7 +39,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     secretMeta.name,
     secretMeta.project_id ?? undefined,
     secretMeta.environment as "development" | "preview" | "production" | undefined,
-    buildAuditContext(request, authResult)
+    buildDetailedAudit(request, authResult)
   );
 
   if (value === null) {
@@ -91,7 +79,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       description: parsed.data.description,
       expiresAt: parsed.data.expiresAt === null ? null : parsed.data.expiresAt ? new Date(parsed.data.expiresAt) : undefined,
     },
-    buildAuditContext(request, authResult)
+    buildDetailedAudit(request, authResult)
   );
 
   return NextResponse.json({

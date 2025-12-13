@@ -135,104 +135,40 @@ async function fetchProfile(platform: string, accessToken: string, instanceUrl?:
 
   const data = await response.json();
 
-  const normalizers: Record<string, () => { id: string; username?: string; displayName?: string; avatarUrl?: string; email?: string; raw: Record<string, unknown> }> = {
+  type Profile = { id: string; username?: string; displayName?: string; avatarUrl?: string; email?: string; raw: Record<string, unknown> };
+
+  const googleProfile = (): Profile => ({
+    id: data.id, username: data.email?.split("@")[0], displayName: data.name, avatarUrl: data.picture, email: data.email, raw: data,
+  });
+
+  const normalizers: Record<string, () => Profile> = {
     discord: () => ({
-      id: data.id,
-      username: data.username,
-      displayName: data.global_name || data.username,
+      id: data.id, username: data.username, displayName: data.global_name || data.username,
       avatarUrl: data.avatar ? `https://cdn.discordapp.com/avatars/${data.id}/${data.avatar}.png` : undefined,
-      email: data.email,
-      raw: data,
+      email: data.email, raw: data,
     }),
-    twitter: () => ({
-      id: data.data.id,
-      username: data.data.username,
-      displayName: data.data.name,
-      avatarUrl: data.data.profile_image_url,
-      raw: data.data,
-    }),
-    google: () => ({
-      id: data.id,
-      username: data.email?.split("@")[0],
-      displayName: data.name,
-      avatarUrl: data.picture,
-      email: data.email,
-      raw: data,
-    }),
-    gmail: () => ({
-      id: data.id,
-      username: data.email?.split("@")[0],
-      displayName: data.name,
-      avatarUrl: data.picture,
-      email: data.email,
-      raw: data,
-    }),
-    google_calendar: () => ({
-      id: data.id,
-      username: data.email?.split("@")[0],
-      displayName: data.name,
-      avatarUrl: data.picture,
-      email: data.email,
-      raw: data,
-    }),
-    github: () => ({
-      id: String(data.id),
-      username: data.login,
-      displayName: data.name || data.login,
-      avatarUrl: data.avatar_url,
-      email: data.email,
-      raw: data,
-    }),
-    slack: () => ({
-      id: data.user?.id || data.authed_user?.id,
-      username: data.user?.name || data.authed_user?.name,
-      displayName: data.user?.name || data.authed_user?.name,
-      avatarUrl: data.user?.image_192,
-      email: data.user?.email,
-      raw: data.user || data,
-    }),
-    reddit: () => ({
-      id: data.id,
-      username: data.name,
-      displayName: data.subreddit?.display_name_prefixed || data.name,
-      avatarUrl: data.icon_img?.split("?")[0],
-      raw: data,
-    }),
-    facebook: () => ({
-      id: data.id,
-      username: data.email?.split("@")[0],
-      displayName: data.name,
-      email: data.email,
-      raw: data,
-    }),
-    instagram: () => ({
-      id: data.id,
-      username: data.username,
-      displayName: data.username,
-      raw: data,
-    }),
-    tiktok: () => ({
-      id: data.data?.user?.open_id || data.open_id,
-      username: data.data?.user?.display_name || data.display_name,
-      displayName: data.data?.user?.display_name || data.display_name,
-      avatarUrl: data.data?.user?.avatar_url || data.avatar_url,
-      raw: data.data?.user || data,
-    }),
+    twitter: () => ({ id: data.data.id, username: data.data.username, displayName: data.data.name, avatarUrl: data.data.profile_image_url, raw: data.data }),
+    google: googleProfile,
+    gmail: googleProfile,
+    google_calendar: googleProfile,
+    github: () => ({ id: String(data.id), username: data.login, displayName: data.name || data.login, avatarUrl: data.avatar_url, email: data.email, raw: data }),
+    slack: () => {
+      const u = data.user || data.authed_user || {};
+      return { id: u.id, username: u.name, displayName: u.name, avatarUrl: data.user?.image_192, email: u.email, raw: data.user || data };
+    },
+    reddit: () => ({ id: data.id, username: data.name, displayName: data.subreddit?.display_name_prefixed || data.name, avatarUrl: data.icon_img?.split("?")[0], raw: data }),
+    facebook: () => ({ id: data.id, username: data.email?.split("@")[0], displayName: data.name, email: data.email, raw: data }),
+    instagram: () => ({ id: data.id, username: data.username, displayName: data.username, raw: data }),
+    tiktok: () => {
+      const u = data.data?.user || data;
+      return { id: u.open_id, username: u.display_name, displayName: u.display_name, avatarUrl: u.avatar_url, raw: u };
+    },
     linkedin: () => ({
-      id: data.id || data.sub,
-      username: data.email?.split("@")[0],
+      id: data.id || data.sub, username: data.email?.split("@")[0],
       displayName: data.localizedFirstName ? `${data.localizedFirstName} ${data.localizedLastName}` : data.name,
-      avatarUrl: data.profilePicture?.["displayImage~"]?.elements?.[0]?.identifiers?.[0]?.identifier,
-      email: data.email,
-      raw: data,
+      avatarUrl: data.profilePicture?.["displayImage~"]?.elements?.[0]?.identifiers?.[0]?.identifier, email: data.email, raw: data,
     }),
-    mastodon: () => ({
-      id: data.id,
-      username: data.username,
-      displayName: data.display_name || data.username,
-      avatarUrl: data.avatar,
-      raw: data,
-    }),
+    mastodon: () => ({ id: data.id, username: data.username, displayName: data.display_name || data.username, avatarUrl: data.avatar, raw: data }),
   };
 
   return normalizers[platform]?.() || { id: data.id || "unknown", raw: data };

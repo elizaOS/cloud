@@ -3,6 +3,7 @@
  */
 
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { telegramBotApiRequest } from "@/lib/utils/telegram-api";
 import { withRetry } from "../rate-limit";
 import type {
@@ -192,7 +193,7 @@ export const telegramProvider: SocialMediaProvider = {
       return {
         platform: "telegram",
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: extractErrorMessage(error),
       };
     }
   },

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentUser } from "@/lib/auth/session";
+import { getCurrentUser } from "@/lib/auth";
 import { feedConfigService, type NotificationChannel } from "@/lib/services/social-feed";
 import { logger } from "@/lib/utils/logger";
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth/session";
+import { getCurrentUser } from "@/lib/auth";
 import { engagementEventService } from "@/lib/services/social-feed";
 
 type Params = { params: Promise<{ eventId: string }> };

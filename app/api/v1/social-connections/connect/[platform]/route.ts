@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuth } from "@/lib/middleware/app-auth";
-import { platformCredentialsService, OAUTH_CONFIGS, MANUAL_AUTH_PLATFORMS } from "@/lib/services/platform-credentials";
+import { platformCredentialsService, OAUTH_CONFIGS } from "@/lib/services/platform-credentials";
 import type { PlatformType } from "@/db/schemas/platform-credentials";
 
 const ConnectRequestSchema = z.object({
@@ -20,15 +20,14 @@ export async function POST(
 
   const { platform } = await params;
 
-  // Validate platform
-  if (MANUAL_AUTH_PLATFORMS.includes(platform as typeof MANUAL_AUTH_PLATFORMS[number])) {
+  const manualInfo = MANUAL_PLATFORM_INFO[platform];
+  if (manualInfo) {
     return NextResponse.json({
       success: false,
       error: `Platform ${platform} uses manual credentials. Use POST /api/v1/social-connections with credentials instead.`,
       authType: "manual",
-      instructions: platform === "bluesky"
-        ? { handle: "Your Bluesky handle (e.g., @user.bsky.social)", appPassword: "Generate at bsky.app/settings/app-passwords" }
-        : { botToken: "Create a bot via @BotFather on Telegram and copy the token" },
+      requiredFields: manualInfo.requiredFields,
+      steps: manualInfo.steps,
     }, { status: 400 });
   }
 

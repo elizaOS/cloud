@@ -420,22 +420,14 @@ class CodeAgentService {
     const { sessionId, path, recursive = false } = params;
     const instance = await this.getActiveInstance(sessionId);
 
-    try {
-      if (recursive) await instance.runCommand("rm", ["-rf", path]);
-      else await instance.deleteFile(path);
-      await this.updateSessionUsage(sessionId, { apiCallsCount: 1 });
-      await db.insert(codeAgentCommands).values({
-        session_id: sessionId,
-        command_type: "delete_file",
-        command: path,
-        status: "success",
-        files_deleted: [path],
-        completed_at: new Date(),
-      } satisfies NewCodeAgentCommand);
-      return { success: true, path };
-    } catch (error) {
-      return { success: false, path, error: error instanceof Error ? error.message : "Unknown" };
-    }
+    if (recursive) await instance.runCommand("rm", ["-rf", path]);
+    else await instance.deleteFile(path);
+    await this.updateSessionUsage(sessionId, { apiCallsCount: 1 });
+    await db.insert(codeAgentCommands).values({
+      session_id: sessionId, command_type: "delete_file", command: path,
+      status: "success", files_deleted: [path], completed_at: new Date(),
+    } satisfies NewCodeAgentCommand);
+    return { success: true, path };
   }
 
   async gitClone(params: GitCloneParams): Promise<GitOperationResult> {

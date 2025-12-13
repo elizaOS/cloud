@@ -86,6 +86,20 @@ export function formatSecret(s: SecretMetadata) {
 }
 
 /**
+ * Build detailed audit context (for individual secret operations)
+ */
+export function buildDetailedAudit(request: NextRequest, authResult: AuthResult): AuditContext {
+  return {
+    actorType: authResult.apiKey ? "api_key" : "user",
+    actorId: authResult.apiKey?.id ?? authResult.user.id,
+    actorEmail: authResult.user.email,
+    ipAddress: request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip") ?? undefined,
+    userAgent: request.headers.get("user-agent") ?? undefined,
+    source: authResult.apiKey ? "api" : "dashboard",
+  };
+}
+
+/**
  * Handle API errors with appropriate status codes
  */
 export function handleSecretsError(error: unknown, context?: string): NextResponse {

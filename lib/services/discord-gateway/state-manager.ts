@@ -124,92 +124,58 @@ export class DiscordStateManager {
   // POD COORDINATION
   // ===========================================================================
 
-  /**
-   * Start pod heartbeat.
-   */
+  /** Start pod heartbeat. */
   startPodHeartbeat(): void {
     if (this.heartbeatInterval) return;
-
-    this.heartbeatInterval = setInterval(() => {
-      this.sendPodHeartbeat().catch((err) => {
-        logger.error("[Discord State Manager] Pod heartbeat failed", { error: err });
-      });
-    }, POD_HEARTBEAT_INTERVAL);
-
-    // Send initial heartbeat
+    this.heartbeatInterval = setInterval(() => this.sendPodHeartbeat(), HEARTBEAT_INTERVAL_MS);
     this.sendPodHeartbeat();
-
-    logger.info("[Discord State Manager] Pod heartbeat started", { podId: this.podId });
+    logger.info("[Discord State Manager] Heartbeat started", { podId: this.podId });
   }
 
-  /**
-   * Stop pod heartbeat.
-   */
+  /** Stop pod heartbeat. */
   stopPodHeartbeat(): void {
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = null;
     }
-
-    logger.info("[Discord State Manager] Pod heartbeat stopped", { podId: this.podId });
   }
 
-  /**
-   * Send pod heartbeat.
-   */
+  /** Send pod heartbeat. */
   private async sendPodHeartbeat(): Promise<void> {
-    if (!this.enabled || !this.redis) return;
+    if (!this.redis) return;
 
-    // Get current connections for this pod
     const connections = await this.getPodConnections();
+    const existing = await this.redis.get<string>(`discord:pod:${this.podId}`);
+    const startedAt = existing ? this.parseJson<PodHeartbeatState>(existing).startedAt : Date.now();
 
     const state: PodHeartbeatState = {
       podId: this.podId,
       connections,
       lastHeartbeat: Date.now(),
-      startedAt: Date.now(), // Will be overwritten if existing
+      startedAt,
     };
 
-    const key = `discord:pod:${this.podId}`;
-
-    // Check if pod already registered
-    const existing = await this.redis.get<string>(key);
-    if (existing) {
-      const existingState: PodHeartbeatState =
-        typeof existing === "string" ? JSON.parse(existing) : existing;
-      state.startedAt = existingState.startedAt;
-    }
-
-    await this.redis.setex(key, HEARTBEAT_TTL, JSON.stringify(state));
-
-    // Add to active pods set
+    await this.redis.setex(`discord:pod:${this.podId}`, HEARTBEAT_TTL, JSON.stringify(state));
     await this.redis.sadd("discord:active_pods", this.podId);
     await this.redis.expire("discord:active_pods", HEARTBEAT_TTL);
   }
 
-  /**
-   * Get connections assigned to this pod.
-   */
+  /** Get connections assigned to this pod. */
   private async getPodConnections(): Promise<string[]> {
-    if (!this.enabled || !this.redis) return [];
+    if (!this.redis) return [];
 
-    // Scan for connection states assigned to this pod
-    const pattern = "discord:state:*";
     const connections: string[] = [];
-
     let cursor = 0;
-    do {
-      const result = await this.redis.scan(cursor, { match: pattern, count: 100 });
-      cursor = typeof result[0] === "string" ? parseInt(result[0], 10) : result[0];
 
-      for (const key of result[1]) {
+    do {
+      const [newCursor, keys] = await this.redis.scan(cursor, { match: "discord:state:*", count: 100 });
+      cursor = typeof newCursor === "string" ? parseInt(newCursor, 10) : newCursor;
+
+      for (const key of keys) {
         const data = await this.redis.get<string>(key);
         if (data) {
-          const state: BotConnectionState =
-            typeof data === "string" ? JSON.parse(data) : data;
-          if (state.podId === this.podId) {
-            connections.push(state.connectionId);
-          }
+          const state = this.parseJson<BotConnectionState>(data);
+          if (state.podId === this.podId) connections.push(state.connectionId);
         }
       }
     } while (cursor !== 0);
@@ -217,132 +183,87 @@ export class DiscordStateManager {
     return connections;
   }
 
-  /**
-   * Get all active pods.
-   */
+  /** Get all active pods. */
   async getActivePods(): Promise<string[]> {
-    if (!this.enabled || !this.redis) return [];
-
-    const pods = await this.redis.smembers("discord:active_pods");
-    return pods ?? [];
+    if (!this.redis) return [];
+    return (await this.redis.smembers("discord:active_pods")) ?? [];
   }
 
-  /**
-   * Get pod status.
-   */
+  /** Get pod status. */
   async getPodStatus(podId: string): Promise<PodHeartbeatState | null> {
-    if (!this.enabled || !this.redis) return null;
-
-    const key = `discord:pod:${podId}`;
-    const data = await this.redis.get<string>(key);
-
-    if (!data) return null;
-
-    return typeof data === "string" ? JSON.parse(data) : data;
+    if (!this.redis) return null;
+    const data = await this.redis.get<string>(`discord:pod:${podId}`);
+    return data ? this.parseJson<PodHeartbeatState>(data) : null;
   }
 
-  /**
-   * Check if a pod is alive (has recent heartbeat).
-   */
+  /** Check if a pod is alive (has recent heartbeat). */
   async isPodAlive(podId: string): Promise<boolean> {
     const status = await this.getPodStatus(podId);
-    if (!status) return false;
-
-    const age = Date.now() - status.lastHeartbeat;
-    return age < HEARTBEAT_TTL * 1000;
+    return status ? Date.now() - status.lastHeartbeat < HEARTBEAT_TTL * 1000 : false;
   }
 
-  /**
-   * Find dead pods (no heartbeat).
-   */
+  /** Find dead pods (no heartbeat). */
   async findDeadPods(): Promise<string[]> {
     const activePods = await this.getActivePods();
-    const deadPods: string[] = [];
-
-    for (const podId of activePods) {
-      const isAlive = await this.isPodAlive(podId);
-      if (!isAlive) {
-        deadPods.push(podId);
-      }
-    }
-
-    return deadPods;
+    const results = await Promise.all(activePods.map(async (id) => ({ id, alive: await this.isPodAlive(id) })));
+    return results.filter((r) => !r.alive).map((r) => r.id);
   }
 
-  /**
-   * Claim orphaned connections from dead pods.
-   */
+  /** Claim orphaned connections from dead pods. */
   async claimOrphanedConnections(deadPodId: string): Promise<string[]> {
-    if (!this.enabled || !this.redis) return [];
+    if (!this.redis) return [];
 
-    const claimedConnections: string[] = [];
-    const pattern = "discord:state:*";
-
+    const claimed: string[] = [];
     let cursor = 0;
-    do {
-      const result = await this.redis.scan(cursor, { match: pattern, count: 100 });
-      cursor = typeof result[0] === "string" ? parseInt(result[0], 10) : result[0];
 
-      for (const key of result[1]) {
+    do {
+      const [newCursor, keys] = await this.redis.scan(cursor, { match: "discord:state:*", count: 100 });
+      cursor = typeof newCursor === "string" ? parseInt(newCursor, 10) : newCursor;
+
+      for (const key of keys) {
         const data = await this.redis.get<string>(key);
         if (data) {
-          const state: BotConnectionState =
-            typeof data === "string" ? JSON.parse(data) : data;
-
+          const state = this.parseJson<BotConnectionState>(data);
           if (state.podId === deadPodId) {
-            // Claim this connection
             state.podId = this.podId;
             state.status = "disconnected";
             await this.saveConnectionState(state);
-            claimedConnections.push(state.connectionId);
-
-            logger.info("[Discord State Manager] Claimed orphaned connection", {
-              connectionId: state.connectionId,
-              fromPod: deadPodId,
-              toPod: this.podId,
-            });
+            claimed.push(state.connectionId);
+            logger.info("[Discord State Manager] Claimed orphan", { connectionId: state.connectionId });
           }
         }
       }
     } while (cursor !== 0);
 
-    // Remove dead pod from active set
     await this.redis.srem("discord:active_pods", deadPodId);
     await this.redis.del(`discord:pod:${deadPodId}`);
-
-    return claimedConnections;
+    return claimed;
   }
 
   // ===========================================================================
   // RATE LIMITING
   // ===========================================================================
 
-  /**
-   * Check and update rate limit for Discord API calls.
-   */
+  /** Check and update rate limit for Discord API calls. */
   async checkRateLimit(
     connectionId: string,
     route: string,
     limit: number,
     windowMs: number
   ): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
-    if (!this.enabled || !this.redis) {
+    if (!this.redis) {
       return { allowed: true, remaining: limit, resetAt: Date.now() + windowMs };
     }
 
     const key = `discord:ratelimit:${connectionId}:${route}`;
     const now = Date.now();
-
-    // Get current count and window start
     const data = await this.redis.get<string>(key);
+
     let count = 0;
     let windowStart = now;
 
     if (data) {
-      const parsed: { count: number; windowStart: number } =
-        typeof data === "string" ? JSON.parse(data) : data;
-      
-      // Check if we're still in the same window
+      const parsed = this.parseJson<{ count: number; windowStart: number }>(data);
       if (now - parsed.windowStart < windowMs) {
         count = parsed.count;
         windowStart = parsed.windowStart;
@@ -352,36 +273,21 @@ export class DiscordStateManager {
     const allowed = count < limit;
     const newCount = allowed ? count + 1 : count;
 
-    // Update rate limit state
-    await this.redis.setex(
-      key,
-      Math.ceil(windowMs / 1000),
-      JSON.stringify({ count: newCount, windowStart })
-    );
+    await this.redis.setex(key, Math.ceil(windowMs / 1000), JSON.stringify({ count: newCount, windowStart }));
 
-    return {
-      allowed,
-      remaining: Math.max(0, limit - newCount),
-      resetAt: windowStart + windowMs,
-    };
+    return { allowed, remaining: Math.max(0, limit - newCount), resetAt: windowStart + windowMs };
   }
 
   // ===========================================================================
   // UTILITIES
   // ===========================================================================
 
-  /**
-   * Get current pod ID.
-   */
   getPodId(): string {
     return this.podId;
   }
 
-  /**
-   * Check if state management is enabled.
-   */
-  isEnabled(): boolean {
-    return this.enabled;
+  isRedisEnabled(): boolean {
+    return this.isEnabled;
   }
 }
 

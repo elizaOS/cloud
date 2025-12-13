@@ -19,10 +19,10 @@ async function handlePurchase(request: NextRequest): Promise<Response> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const organizationId = user.organization_id;
 
-  const result = await parseJsonBody(request, PurchaseDomainSchema);
-  if (!result.success) return result.response;
+  const parseResult = await parseJsonBody(request, PurchaseDomainSchema);
+  if (!parseResult.success) return parseResult.response;
 
-  const { domain, registrantInfo, paymentMethod, autoRenew } = result.data;
+  const { domain, registrantInfo, paymentMethod, autoRenew } = parseResult.data;
 
   logger.info("[Domain Purchase] Attempting purchase", {
     domain,

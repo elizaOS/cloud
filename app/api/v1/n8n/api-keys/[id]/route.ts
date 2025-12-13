@@ -13,7 +13,7 @@ export async function PATCH(
 
   const apiKey = await n8nWorkflowApiKeysRepository.findById(id);
   if (!apiKey || apiKey.organization_id !== user.organization_id) {
-    return NextResponse.json({ success: false, error: "API key not found" }, { status: 404 });
+    return NextResponse.json(ErrorResponses.apiKeyNotFound, { status: 404 });
   }
 
   const body = await request.json();
@@ -41,7 +41,7 @@ export async function DELETE(
 
   const apiKey = await n8nWorkflowApiKeysRepository.findById(id);
   if (!apiKey || apiKey.organization_id !== user.organization_id) {
-    return NextResponse.json({ success: false, error: "API key not found" }, { status: 404 });
+    return NextResponse.json(ErrorResponses.apiKeyNotFound, { status: 404 });
   }
 
   await n8nWorkflowApiKeysRepository.delete(id);

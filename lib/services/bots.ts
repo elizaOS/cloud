@@ -18,6 +18,7 @@ import {
 } from "@/db/schemas/org-platforms";
 import { secretsService, type AuditContext } from "./secrets";
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { DISCORD_API_BASE, discordBearerApiRequest, discordBotApiRequest } from "@/lib/utils/discord-api";
 
 // Default audit context for system operations
@@ -813,7 +814,7 @@ class BotsService {
 
       return { healthy: true };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage = extractErrorMessage(error);
 
       await db
         .update(orgPlatformConnections)

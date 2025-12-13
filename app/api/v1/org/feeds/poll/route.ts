@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth/session";
+import { getCurrentUser } from "@/lib/auth";
 import { feedConfigService } from "@/lib/services/social-feed";
 import { feedPollingService } from "@/lib/services/social-feed/polling";
 import { logger } from "@/lib/utils/logger";

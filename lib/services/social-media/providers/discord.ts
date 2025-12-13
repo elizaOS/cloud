@@ -3,6 +3,7 @@
  */
 
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { DISCORD_API_BASE, discordBotHeaders } from "@/lib/utils/discord-api";
 import { withRetry } from "../rate-limit";
 import type {
@@ -218,7 +219,7 @@ export const discordProvider: SocialMediaProvider = {
       return {
         platform: "discord",
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: extractErrorMessage(error),
       };
     }
   },

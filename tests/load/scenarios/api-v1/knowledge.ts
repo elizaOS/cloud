@@ -1,33 +1,12 @@
-import http from "k6/http";
-import { check, group, sleep } from "k6";
-import { getBaseUrl, getConfig } from "../../config/environments";
-import { getAuthHeaders } from "../../helpers/auth";
-import { parseBody } from "../../helpers/assertions";
+import { group, sleep } from "k6";
+import { getConfig } from "../../config/environments";
 import { generateKnowledgeContent, generateMemoryContent } from "../../helpers/data-generators";
-import { recordHttpError } from "../../helpers/metrics";
+import { callMcpTool } from "../../helpers/mcp";
 import { Counter, Trend } from "k6/metrics";
 
-const baseUrl = getBaseUrl();
-const headers = getAuthHeaders();
 const config = getConfig();
-
 const knowledgeQueries = new Counter("knowledge_queries");
 const queryLatency = new Trend("knowledge_query_latency");
-
-function callMcpTool<T>(name: string, args: Record<string, unknown> = {}): T | null {
-  const res = http.post(
-    `${baseUrl}/api/mcp`,
-    JSON.stringify({ jsonrpc: "2.0", method: "tools/call", params: { name, arguments: args }, id: Date.now() }),
-    { headers, tags: { endpoint: "knowledge" } }
-  );
-  if (!check(res, { [`${name} 200`]: (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return null;
-  }
-  const body = parseBody<{ result?: { content?: Array<{ text: string }> } }>(res);
-  const text = body.result?.content?.[0]?.text;
-  return text ? JSON.parse(text) : null;
-}
 
 export function queryKnowledge(query: string, limit = 5): unknown[] {
   const start = Date.now();

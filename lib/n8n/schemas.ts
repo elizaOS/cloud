@@ -253,6 +253,7 @@ export const ErrorResponses = {
   workflowNotFound: { success: false, error: "Workflow not found" } as const,
   triggerNotFound: { success: false, error: "Trigger not found" } as const,
   variableNotFound: { success: false, error: "Variable not found" } as const,
+  apiKeyNotFound: { success: false, error: "API key not found" } as const,
   invalidRequest: (details: unknown) => ({
     success: false,
     error: "Invalid request",

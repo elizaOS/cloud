@@ -1,16 +1,14 @@
 import http from "k6/http";
 import { check, group, sleep } from "k6";
 import { getBaseUrl } from "../../config/environments";
+import { getInternalHeaders } from "../../helpers/auth";
 import { recordHttpError } from "../../helpers/metrics";
 import { Counter, Trend } from "k6/metrics";
 
 const baseUrl = getBaseUrl();
+const headers = getInternalHeaders();
 const webhooksProcessed = new Counter("telegram_webhooks_processed");
 const webhookLatency = new Trend("telegram_webhook_latency");
-
-function getInternalHeaders() {
-  return { "Content-Type": "application/json", Authorization: `Bearer ${__ENV.INTERNAL_API_KEY || "local-dev-internal-key"}` };
-}
 
 interface TelegramUpdate {
   update_id: number;
@@ -44,7 +42,7 @@ function createCallbackUpdate(data: string, chatId: number): TelegramUpdate {
 export function sendTelegramUpdate(update: TelegramUpdate): boolean {
   const start = Date.now();
   const res = http.post(`${baseUrl}/webhooks/telegram`, JSON.stringify(update), {
-    headers: getInternalHeaders(), tags: { endpoint: "telegram" },
+    headers, tags: { endpoint: "telegram" },
   });
   webhookLatency.add(Date.now() - start);
 

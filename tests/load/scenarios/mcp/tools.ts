@@ -1,84 +1,53 @@
-import http from "k6/http";
-import { check, group, sleep } from "k6";
-import { getBaseUrl } from "../../config/environments";
-import { getAuthHeaders } from "../../helpers/auth";
-import { parseBody, parseMcpResult } from "../../helpers/assertions";
-import { mcpToolCalls, mcpToolCallTime, mcpToolErrors, recordHttpError } from "../../helpers/metrics";
-
-const baseUrl = getBaseUrl();
-const headers = getAuthHeaders();
-
-function callTool(name: string, args: Record<string, unknown> = {}): Record<string, unknown> | null {
-  const start = Date.now();
-  const res = http.post(
-    `${baseUrl}/api/mcp`,
-    JSON.stringify({ jsonrpc: "2.0", method: "tools/call", params: { name, arguments: args }, id: Date.now() }),
-    { headers, tags: { endpoint: "mcp", tool: name } }
-  );
-  mcpToolCallTime.add(Date.now() - start);
-  mcpToolCalls.add(1);
-
-  if (res.status !== 200) {
-    recordHttpError(res.status);
-    mcpToolErrors.add(1);
-    return null;
-  }
-  
-  const body = parseBody<{ result?: unknown; error?: unknown }>(res);
-  if (body.error) {
-    mcpToolErrors.add(1);
-    return null;
-  }
-  return parseMcpResult(res);
-}
+import { group, sleep } from "k6";
+import { callMcpTool } from "../../helpers/mcp";
 
 export function checkCredits(): number {
-  const r = callTool("check_credits");
-  return typeof r?.balance === "number" ? r.balance : -1;
+  const r = callMcpTool<{ balance: number }>("check_credits");
+  return r?.balance ?? -1;
 }
 
 export function listAgents(): unknown[] {
-  return callTool("list_agents")?.agents as unknown[] || [];
+  return callMcpTool<{ agents: unknown[] }>("list_agents")?.agents || [];
 }
 
 export function listRooms(): unknown[] {
-  return callTool("list_rooms")?.rooms as unknown[] || [];
+  return callMcpTool<{ rooms: unknown[] }>("list_rooms")?.rooms || [];
 }
 
 export function listModels(): unknown[] {
-  return callTool("list_models")?.models as unknown[] || [];
+  return callMcpTool<{ models: unknown[] }>("list_models")?.models || [];
 }
 
 export function listApiKeys(): unknown[] {
-  return callTool("list_api_keys")?.apiKeys as unknown[] || [];
+  return callMcpTool<{ apiKeys: unknown[] }>("list_api_keys")?.apiKeys || [];
 }
 
 export function listVoices(): unknown[] {
-  return callTool("list_voices")?.voices as unknown[] || [];
+  return callMcpTool<{ voices: unknown[] }>("list_voices")?.voices || [];
 }
 
 export function listContainers(): unknown[] {
-  return callTool("list_containers")?.containers as unknown[] || [];
+  return callMcpTool<{ containers: unknown[] }>("list_containers")?.containers || [];
 }
 
 export function getUserProfile(): Record<string, unknown> | null {
-  return callTool("get_user_profile")?.user as Record<string, unknown> || null;
+  return callMcpTool<{ user: Record<string, unknown> }>("get_user_profile")?.user || null;
 }
 
 export function getCreditSummary(): Record<string, unknown> | null {
-  return callTool("get_credit_summary")?.summary as Record<string, unknown> || null;
+  return callMcpTool<{ summary: Record<string, unknown> }>("get_credit_summary")?.summary || null;
 }
 
 export function getBillingUsage(days = 7): Record<string, unknown> | null {
-  return callTool("get_billing_usage", { days })?.usage as Record<string, unknown> || null;
+  return callMcpTool<{ usage: Record<string, unknown> }>("get_billing_usage", { days })?.usage || null;
 }
 
 export function getContainerQuota(): Record<string, unknown> | null {
-  return callTool("get_container_quota")?.quota as Record<string, unknown> || null;
+  return callMcpTool<{ quota: Record<string, unknown> }>("get_container_quota")?.quota || null;
 }
 
 export function discoverServices(sources = ["local"], limit = 10): unknown[] {
-  return callTool("discover_services", { sources, limit })?.services as unknown[] || [];
+  return callMcpTool<{ services: unknown[] }>("discover_services", { sources, limit })?.services || [];
 }
 
 export function lightMcpTools() {

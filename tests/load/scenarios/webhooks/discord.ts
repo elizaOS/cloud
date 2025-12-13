@@ -1,16 +1,14 @@
 import http from "k6/http";
 import { check, group, sleep } from "k6";
 import { getBaseUrl } from "../../config/environments";
+import { getInternalHeaders } from "../../helpers/auth";
 import { recordHttpError } from "../../helpers/metrics";
 import { Counter, Trend } from "k6/metrics";
 
 const baseUrl = getBaseUrl();
+const headers = getInternalHeaders();
 const webhooksProcessed = new Counter("discord_webhooks_processed");
 const webhookLatency = new Trend("discord_webhook_latency");
-
-function getInternalHeaders() {
-  return { "Content-Type": "application/json", Authorization: `Bearer ${__ENV.INTERNAL_API_KEY || "local-dev-internal-key"}` };
-}
 
 interface DiscordEvent { type: number; d: Record<string, unknown>; t?: string }
 
@@ -51,7 +49,7 @@ function createMemberJoinEvent(guildId: string): DiscordEvent {
 export function sendDiscordEvent(event: DiscordEvent): boolean {
   const start = Date.now();
   const res = http.post(`${baseUrl}/api/internal/discord/events`, JSON.stringify(event), {
-    headers: getInternalHeaders(), tags: { endpoint: "discord" },
+    headers, tags: { endpoint: "discord" },
   });
   webhookLatency.add(Date.now() - start);
 

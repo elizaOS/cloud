@@ -199,15 +199,14 @@ describe("Code Interpreter Service - Integration", () => {
 
       const restore = await mockCredits();
       try {
-        const result = await interpreterService.execute({
-          organizationId: testOrgId,
-          userId: testUserId,
-          language: "ruby" as "python",
-          code: 'puts "hello"',
-        });
-
-        expect(result.success).toBe(false);
-        expect(result.error).toContain("Unsupported language");
+        await expect(
+          interpreterService.execute({
+            organizationId: testOrgId,
+            userId: testUserId,
+            language: "ruby" as "python",
+            code: 'puts "hello"',
+          })
+        ).rejects.toThrow("Unsupported language");
       } finally {
         restore();
       }
