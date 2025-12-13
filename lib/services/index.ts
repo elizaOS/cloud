@@ -20,6 +20,9 @@ export * from "./container-quota";
 export * from "./memory";
 export * from "./agents";
 export * from "./agent-discovery";
+export { appsService } from "./apps";
+export { appAnalyticsService } from "./app-analytics";
+export { appSignupTrackingService } from "./app-signup-tracking";
 
 // AWS Infrastructure services
 export * from "./ecr";
