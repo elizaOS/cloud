@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AiAssistant } from "./ai-assistant";
 import { JsonEditor } from "./json-editor";
-import { CharacterForm } from "./character-form";
+import { CharacterForm } from "@/components/character-builder";
 import {
   Select,
   SelectContent,
