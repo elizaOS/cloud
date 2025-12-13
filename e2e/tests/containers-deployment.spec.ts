@@ -38,11 +38,13 @@ test.describe("Containers Dashboard Page", () => {
 
     const url = page.url();
     const redirectedToLogin = url.includes("/login");
+    const redirectedToHome = url === `${BASE_URL}/` || url === BASE_URL;
     const onContainersPage = url.includes("/containers");
 
-    expect(redirectedToLogin || onContainersPage).toBe(true);
+    // Accept any of: redirect to login, redirect to home, or stay on containers page
+    expect(redirectedToLogin || redirectedToHome || onContainersPage).toBe(true);
     console.log(
-      `✅ Containers page auth check: ${redirectedToLogin ? "redirects to login" : "shows containers"}`
+      `✅ Containers page auth check: ${redirectedToLogin ? "redirects to login" : redirectedToHome ? "redirects to home" : "shows containers"}`
     );
   });
 

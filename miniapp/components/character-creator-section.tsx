@@ -330,7 +330,6 @@ function CharacterCreatorSection() {
     
     if (!imageToUpload && generatedImageUrl) {
       // Convert generated image URL to File
-      console.log(`[Form] Converting generated image to file...`);
       setIsUploadingImages(true);
       let response: Response;
       const directFetch = await fetch(generatedImageUrl, { mode: 'cors' }).catch(() => null);
@@ -366,7 +365,6 @@ function CharacterCreatorSection() {
     }
 
     if (imageToUpload) {
-      console.log(`[Form] Uploading image to Blob Storage...`);
       setIsUploadingImages(true);
 
       const formData = new FormData();
@@ -398,17 +396,11 @@ function CharacterCreatorSection() {
         avatarBase64 = imageUrls[0];
       }
 
-      console.log(`[Form] Image uploaded successfully:`, {
-        hasBase64Avatar: !!avatarBase64,
-      });
       setIsUploadingImages(false);
     }
 
-    console.log(`[Form] Creating character "${name}"...`);
-
     // Get auth token if user is logged in
     const authToken = getAuthToken();
-    console.log(`[Form] User authenticated: ${!!authToken}`);
 
     const response = await fetch("/api/create-character", {
       method: "POST",
@@ -436,12 +428,6 @@ function CharacterCreatorSection() {
     }
 
     const result = await response.json();
-
-    console.log(`[Form] Character created successfully:`, {
-      characterId: result.characterId,
-      sessionId: result.sessionId,
-      authenticated: result.authenticated,
-    });
 
     // Clear the cached draft since character was created successfully
     clearCachedData();
