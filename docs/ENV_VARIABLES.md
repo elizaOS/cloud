@@ -141,11 +141,8 @@ Or via API:
 ## Example .env.local File
 
 ```env
-# Database - Platform
+# Database - Single unified database for platform and ElizaOS tables
 DATABASE_URL=postgresql://localhost:5432/eliza_platform
-
-# Database - Agent (can be same database)
-AGENT_DATABASE_URL=postgresql://localhost:5432/eliza_platform
 
 # Privy Authentication
 NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id
