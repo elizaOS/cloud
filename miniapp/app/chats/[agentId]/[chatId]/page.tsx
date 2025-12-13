@@ -27,6 +27,91 @@ const generateId = () => {
     : `id_${Math.random().toString(36).substring(2, 15)}`;
 };
 
+// Image validation constants
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_COMPRESSED_SIZE = 1 * 1024 * 1024; // 1MB target after compression
+const VALID_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+const MAX_IMAGE_DIMENSION = 2048; // Max width/height after resize
+
+/**
+ * Compress and resize image for optimal upload
+ * Returns a base64 data URL
+ */
+async function compressImage(file: File, maxSize: number = MAX_COMPRESSED_SIZE): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    if (!ctx) {
+      reject(new Error("Canvas context not available"));
+      return;
+    }
+
+    img.onload = () => {
+      let { width, height } = img;
+
+      // Calculate new dimensions while maintaining aspect ratio
+      if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
+        if (width > height) {
+          height = Math.round((height * MAX_IMAGE_DIMENSION) / width);
+          width = MAX_IMAGE_DIMENSION;
+        } else {
+          width = Math.round((width * MAX_IMAGE_DIMENSION) / height);
+          height = MAX_IMAGE_DIMENSION;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Try different quality levels to meet size target
+      let quality = 0.9;
+      let result = canvas.toDataURL("image/jpeg", quality);
+
+      // Reduce quality until under maxSize or minimum quality reached
+      while (result.length > maxSize * 1.37 && quality > 0.3) { // 1.37 accounts for base64 overhead
+        quality -= 0.1;
+        result = canvas.toDataURL("image/jpeg", quality);
+      }
+
+      resolve(result);
+    };
+
+    img.onerror = () => reject(new Error("Failed to load image"));
+
+    // Read file as data URL for the Image element
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Validate image file
+ * Returns error message or null if valid
+ */
+function validateImageFile(file: File): string | null {
+  if (!file.type.startsWith("image/")) {
+    return "Please select an image file";
+  }
+
+  if (!VALID_IMAGE_TYPES.includes(file.type)) {
+    return `Unsupported format. Please use: ${VALID_IMAGE_TYPES.map(t => t.split('/')[1].toUpperCase()).join(', ')}`;
+  }
+
+  if (file.size > MAX_IMAGE_SIZE) {
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+    return `Image too large (${sizeMB}MB). Maximum size is 5MB`;
+  }
+
+  return null;
+}
+
 import { OutOfCreditsPrompt } from "@/components/out-of-credits-prompt";
 import {
   type AgentDetails,
@@ -67,6 +152,8 @@ function ChatPage() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [imageModalUrl, setImageModalUrl] = useState<string | null>(null);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [showLowCredits, setShowLowCredits] = useState(false);
 
@@ -236,30 +323,108 @@ function ChatPage() {
     }
   };
 
-  // Handle image selection
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Check file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setError("Image must be less than 5MB");
-        return;
-      }
-      
-      // Check file type
-      if (!file.type.startsWith("image/")) {
-        setError("Please select an image file");
-        return;
+  // Handle image selection with compression
+  const handleImageSelect = useCallback(async (file: File) => {
+    // Validate file
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setIsProcessingImage(true);
+    setError(null);
+
+    try {
+      // Compress image if it's larger than target size
+      let imageDataUrl: string;
+      if (file.size > MAX_COMPRESSED_SIZE || !file.type.includes("jpeg")) {
+        imageDataUrl = await compressImage(file);
+      } else {
+        // Small JPEG files can be used directly
+        imageDataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.onerror = () => reject(new Error("Failed to read file"));
+          reader.readAsDataURL(file);
+        });
       }
 
       setSelectedImageFile(file);
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setSelectedImage(event.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+      setSelectedImage(imageDataUrl);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to process image");
+    } finally {
+      setIsProcessingImage(false);
+    }
+  }, []);
+
+  // Handle file input change
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleImageSelect(file);
     }
   };
+
+  // Handle drag and drop
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!sending) {
+      setIsDraggingOver(true);
+    }
+  }, [sending]);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+
+    if (sending) return;
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      const file = files[0];
+      if (file.type.startsWith("image/")) {
+        handleImageSelect(file);
+      } else {
+        setError("Please drop an image file");
+      }
+    }
+  }, [sending, handleImageSelect]);
+
+  // Handle paste from clipboard
+  const handlePaste = useCallback((e: ClipboardEvent) => {
+    if (sending) return;
+
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith("image/")) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          handleImageSelect(file);
+        }
+        break;
+      }
+    }
+  }, [sending, handleImageSelect]);
+
+  // Set up paste listener
+  useEffect(() => {
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, [handlePaste]);
 
   // Clear selected image
   const clearSelectedImage = () => {
@@ -356,13 +521,22 @@ function ChatPage() {
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-brand/20">
                 {agent?.avatarUrl ? (
-                  <Image
-                    src={agent.avatarUrl}
-                    alt={agent.name}
-                    width={40}
-                    height={40}
-                    className="h-10 w-10 rounded-lg object-cover"
-                  />
+                  agent.avatarUrl.startsWith("data:") ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={agent.avatarUrl}
+                      alt={agent.name}
+                      className="h-10 w-10 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <Image
+                      src={agent.avatarUrl}
+                      alt={agent.name}
+                      width={40}
+                      height={40}
+                      className="h-10 w-10 rounded-lg object-cover"
+                    />
+                  )
                 ) : (
                   <Bot className="h-5 w-5 text-brand-400" />
                 )}
@@ -464,13 +638,22 @@ function ChatPage() {
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-brand/20">
               {agent?.avatarUrl ? (
-                <Image
-                  src={agent.avatarUrl}
-                  alt={agent.name}
-                  width={32}
-                  height={32}
-                  className="h-8 w-8 rounded-lg object-cover"
-                />
+                agent.avatarUrl.startsWith("data:") ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={agent.avatarUrl}
+                    alt={agent.name}
+                    className="h-8 w-8 rounded-lg object-cover"
+                  />
+                ) : (
+                  <Image
+                    src={agent.avatarUrl}
+                    alt={agent.name}
+                    width={32}
+                    height={32}
+                    className="h-8 w-8 rounded-lg object-cover"
+                  />
+                )
               ) : (
                 <Bot className="h-4 w-4 text-brand-400" />
               )}
@@ -494,13 +677,22 @@ function ChatPage() {
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-brand/20">
                   {agent?.avatarUrl ? (
-                    <Image
-                      src={agent.avatarUrl}
-                      alt={agent.name}
-                      width={64}
-                      height={64}
-                      className="h-16 w-16 rounded-full object-cover"
-                    />
+                    agent.avatarUrl.startsWith("data:") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={agent.avatarUrl}
+                        alt={agent.name}
+                        className="h-16 w-16 rounded-full object-cover"
+                      />
+                    ) : (
+                      <Image
+                        src={agent.avatarUrl}
+                        alt={agent.name}
+                        width={64}
+                        height={64}
+                        className="h-16 w-16 rounded-full object-cover"
+                      />
+                    )
                   ) : (
                     <Bot className="h-8 w-8 text-brand-400" />
                   )}
@@ -521,13 +713,22 @@ function ChatPage() {
                 {message.role === "assistant" && (
                   <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand/20">
                     {agent?.avatarUrl ? (
-                      <Image
-                        src={agent.avatarUrl}
-                        alt={agent.name}
-                        width={32}
-                        height={32}
-                        className="h-8 w-8 rounded-lg object-cover"
-                      />
+                      agent.avatarUrl.startsWith("data:") ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={agent.avatarUrl}
+                          alt={agent.name}
+                          className="h-8 w-8 rounded-lg object-cover"
+                        />
+                      ) : (
+                        <Image
+                          src={agent.avatarUrl}
+                          alt={agent.name}
+                          width={32}
+                          height={32}
+                          className="h-8 w-8 rounded-lg object-cover"
+                        />
+                      )
                     ) : (
                       <Bot className="h-4 w-4 text-brand-400" />
                     )}
@@ -577,13 +778,22 @@ function ChatPage() {
               <div className="flex gap-3 animate-in fade-in duration-300">
                 <div className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand/20">
                   {agent?.avatarUrl ? (
-                    <Image
-                      src={agent.avatarUrl}
-                      alt={agent.name}
-                      width={32}
-                      height={32}
-                      className="h-8 w-8 rounded-lg object-cover"
-                    />
+                    agent.avatarUrl.startsWith("data:") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={agent.avatarUrl}
+                        alt={agent.name}
+                        className="h-8 w-8 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <Image
+                        src={agent.avatarUrl}
+                        alt={agent.name}
+                        width={32}
+                        height={32}
+                        className="h-8 w-8 rounded-lg object-cover"
+                      />
+                    )
                   ) : (
                     <Bot className="h-4 w-4 text-brand-400" />
                   )}
@@ -611,13 +821,22 @@ function ChatPage() {
               <div className="flex gap-3 animate-in fade-in duration-200">
                 <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand/20">
                   {agent?.avatarUrl ? (
-                    <Image
-                      src={agent.avatarUrl}
-                      alt={agent.name}
-                      width={32}
-                      height={32}
-                      className="h-8 w-8 rounded-lg object-cover"
-                    />
+                    agent.avatarUrl.startsWith("data:") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={agent.avatarUrl}
+                        alt={agent.name}
+                        className="h-8 w-8 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <Image
+                        src={agent.avatarUrl}
+                        alt={agent.name}
+                        width={32}
+                        height={32}
+                        className="h-8 w-8 rounded-lg object-cover"
+                      />
+                    )
                   ) : (
                     <Bot className="h-4 w-4 text-brand-400" />
                   )}
@@ -648,28 +867,62 @@ function ChatPage() {
         )}
 
         {/* Input */}
-        <div className="border-t border-white/5 px-4 py-3">
+        <div
+          className={`border-t px-4 py-3 transition-colors ${
+            isDraggingOver
+              ? "border-brand bg-brand/5"
+              : "border-white/5"
+          }`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          {/* Drag overlay hint */}
+          {isDraggingOver && (
+            <div className="pointer-events-none absolute inset-x-4 -mt-1 mb-2 flex items-center justify-center rounded-lg border-2 border-dashed border-brand bg-brand/10 py-4">
+              <span className="text-sm font-medium text-brand">Drop image here</span>
+            </div>
+          )}
           <div className="mx-auto max-w-2xl">
             {/* Selected image preview */}
             {selectedImage && (
-              <div className="mb-2 flex items-start gap-2">
-                <div className="relative">
+              <div className="mb-2 flex items-start gap-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                <div className="relative group">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={selectedImage}
                     alt="Selected"
-                    className="h-20 w-20 rounded-lg object-cover"
+                    className="h-20 w-20 rounded-lg object-cover ring-2 ring-brand/30"
+                    onClick={() => openImageModal(selectedImage)}
                   />
                   <button
                     onClick={clearSelectedImage}
-                    className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600"
+                    disabled={sending}
+                    className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 shadow-lg"
                   >
                     <X className="h-3 w-3" />
                   </button>
+                  {/* Click to preview hint */}
+                  <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                    <span className="text-xs text-white">Preview</span>
+                  </div>
                 </div>
-                <span className="text-xs text-white/40">
-                  {selectedImageFile?.name}
-                </span>
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-white/60 truncate max-w-[150px]">
+                    {selectedImageFile?.name}
+                  </span>
+                  <span className="text-xs text-white/40">
+                    {selectedImageFile && `${(selectedImageFile.size / 1024).toFixed(0)}KB`}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Processing indicator */}
+            {isProcessingImage && (
+              <div className="mb-2 flex items-center gap-2 text-sm text-white/60 animate-in fade-in duration-200">
+                <Loader2 className="h-4 w-4 animate-spin text-brand" />
+                <span>Processing image...</span>
               </div>
             )}
             
@@ -678,19 +931,27 @@ function ChatPage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
-                onChange={handleImageSelect}
+                accept={VALID_IMAGE_TYPES.join(",")}
+                onChange={handleFileInputChange}
                 className="hidden"
               />
-              
+
               {/* Image upload button */}
               <button
                 onClick={() => fileInputRef.current?.click()}
-                disabled={sending}
-                className="flex items-center justify-center rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
-                title="Upload image"
+                disabled={sending || isProcessingImage}
+                className={`flex items-center justify-center rounded-lg border px-3 py-2 transition-colors disabled:opacity-50 ${
+                  isDraggingOver
+                    ? "border-brand bg-brand/20 text-brand"
+                    : "border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
+                }`}
+                title="Upload image (or paste/drag & drop)"
               >
-                <ImageIcon className="h-4 w-4" />
+                {isProcessingImage ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ImageIcon className="h-4 w-4" />
+                )}
               </button>
               
             <textarea

@@ -158,12 +158,21 @@ export default function ChatsPage() {
               {/* Agent Image */}
               <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-brand/20 to-accent-brand/20">
                   {agent.avatarUrl ? (
-                    <Image
-                      src={agent.avatarUrl}
-                      alt={agent.name}
-                      fill
-                    className="object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
+                    agent.avatarUrl.startsWith("data:") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={agent.avatarUrl}
+                        alt={agent.name}
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      <Image
+                        src={agent.avatarUrl}
+                        alt={agent.name}
+                        fill
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    )
                   ) : (
                     <div className="flex h-full w-full items-center justify-center">
                     <Bot className="h-16 w-16 text-brand-400/50" />

@@ -1,7 +1,7 @@
 "use client";
 
 import { Heart, MessageCircle, Sparkles, Zap } from "lucide-react";
-import Image from "next/image";
+// import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
