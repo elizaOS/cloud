@@ -125,7 +125,7 @@ export function useAuth(): AuthState {
     });
 
     if (storedToken) {
-      setAuthToken(storedToken); // eslint-disable-line react-hooks/set-state-in-effect
+      setAuthToken(storedToken);
       setUserId(storedUserId);
       setOrganizationId(storedOrgId);
     }
@@ -141,7 +141,7 @@ export function useAuth(): AuthState {
       ready,
     });
     if (authToken && ready) {
-      fetchUserInfo(authToken); // eslint-disable-line react-hooks/set-state-in-effect
+      fetchUserInfo(authToken);
     }
   }, [authToken, ready, fetchUserInfo]);
 
