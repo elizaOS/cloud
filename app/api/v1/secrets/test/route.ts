@@ -3,9 +3,8 @@ import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { logger } from "@/lib/utils/logger";
-import { secretProviderEnum, type SecretProvider } from "@/db/schemas/secrets";
-
-const PROVIDERS = secretProviderEnum.enumValues;
+import type { SecretProvider } from "@/db/schemas/secrets";
+import { PROVIDERS } from "@/lib/api/secrets-helpers";
 
 const TestSchema = z.object({
   provider: z.enum(PROVIDERS),

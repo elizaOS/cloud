@@ -1,36 +1,20 @@
-import http from "k6/http";
 import { check, group, sleep } from "k6";
-import { getBaseUrl } from "../../config/environments";
-import { getAuthHeaders, getPublicHeaders } from "../../helpers/auth";
-import { parseBody } from "../../helpers/assertions";
-import { a2aMethodCalls, a2aMethodCallTime, a2aMethodErrors, recordHttpError } from "../../helpers/metrics";
+import { httpGet, httpPost } from "../../helpers/http";
+import { a2aMethodCalls, a2aMethodCallTime, a2aMethodErrors } from "../../helpers/metrics";
 
-const baseUrl = getBaseUrl();
-const headers = getAuthHeaders();
-const publicHeaders = getPublicHeaders();
-
-interface A2AResult {
-  result?: { id?: string; status?: string; history?: unknown[] };
-  error?: { code: number; message: string };
-}
+interface A2AResult { result?: { id?: string; status?: string; history?: unknown[] }; error?: { code: number; message: string } }
 
 function callA2A(method: string, params: Record<string, unknown> = {}): A2AResult | null {
   const start = Date.now();
-  const res = http.post(
-    `${baseUrl}/api/a2a`,
-    JSON.stringify({ jsonrpc: "2.0", method, params, id: Date.now() }),
-    { headers, tags: { endpoint: "a2a", method } }
-  );
+  const body = httpPost<A2AResult>("/api/a2a", { jsonrpc: "2.0", method, params, id: Date.now() }, {
+    tags: { endpoint: "a2a", method },
+  });
   a2aMethodCallTime.add(Date.now() - start);
   a2aMethodCalls.add(1);
-
-  if (res.status !== 200) {
-    recordHttpError(res.status);
+  if (!body) {
     a2aMethodErrors.add(1);
     return null;
   }
-
-  const body = parseBody<A2AResult>(res);
   if (body.error) {
     a2aMethodErrors.add(1);
     return null;
@@ -38,17 +22,14 @@ function callA2A(method: string, params: Record<string, unknown> = {}): A2AResul
   return body;
 }
 
-// Real A2A methods per spec
 export function sendMessage(message: string): string | null {
-  const r = callA2A("message/send", {
-    message: { role: "user", parts: [{ type: "text", text: message }] },
-  });
-  return r?.result?.id || null;
+  const r = callA2A("message/send", { message: { role: "user", parts: [{ type: "text", text: message }] } });
+  return r?.result?.id ?? null;
 }
 
 export function getTask(taskId: string): A2AResult["result"] | null {
   const r = callA2A("tasks/get", { id: taskId });
-  return r?.result || null;
+  return r?.result ?? null;
 }
 
 export function cancelTask(taskId: string): boolean {
@@ -56,20 +37,10 @@ export function cancelTask(taskId: string): boolean {
   return r?.result !== undefined;
 }
 
-// Get agent card (public endpoint)
 export function getAgentCard(): Record<string, unknown> | null {
-  const res = http.get(`${baseUrl}/.well-known/agent-card.json`, {
-    headers: publicHeaders,
-    tags: { endpoint: "a2a" },
-  });
-  if (!check(res, { "agent card 200": (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return null;
-  }
-  return parseBody<Record<string, unknown>>(res);
+  return httpGet<Record<string, unknown>>("/.well-known/agent-card.json", { public: true, tags: { endpoint: "a2a" } });
 }
 
-// Skill invocations via message/send
 export function checkBalance(): string | null {
   return sendMessage("Check my credit balance");
 }
@@ -82,14 +53,10 @@ export function getUserInfo(): string | null {
   return sendMessage("Get my user profile");
 }
 
-// Test flows
 export function a2aAgentCardCheck() {
   group("A2A Agent Card", () => {
     const card = getAgentCard();
-    check(null, {
-      "has name": () => card?.name !== undefined,
-      "has skills": () => Array.isArray(card?.skills),
-    });
+    check(null, { "has name": () => card?.name !== undefined, "has skills": () => Array.isArray(card?.skills) });
   });
   sleep(0.5);
 }

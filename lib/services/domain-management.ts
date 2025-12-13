@@ -2,12 +2,10 @@ import { managedDomainsRepository, type ManagedDomain, type DnsRecord } from "@/
 import { logger } from "@/lib/utils/logger";
 import { vercelApiRequest } from "@/lib/utils/vercel-api";
 import { domainModerationService } from "./domain-moderation";
-import { normalizeDomain as normalizeD, isApexDomain, extractErrorMessage } from "@/lib/types/domains";
+import { normalizeDomain, isApexDomain, extractErrorMessage } from "@/lib/types/domains";
 
 const VERCEL_TOKEN = process.env.VERCEL_TOKEN;
 const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID;
-
-export const normalizeDomain = normalizeD;
 
 export interface DomainSearchResult {
   domain: string;

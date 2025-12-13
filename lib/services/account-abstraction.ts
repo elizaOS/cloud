@@ -376,7 +376,7 @@ class AccountAbstractionService {
           txHash,
         });
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
+        const errorMsg = extractErrorMessage(error);
         results.push({
           ...op,
           success: false,
@@ -422,7 +422,7 @@ class AccountAbstractionService {
           txHash,
         });
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
+        const errorMsg = extractErrorMessage(error);
         
         // Mark all as failed
         for (const op of operations) {

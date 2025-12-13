@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAppAuth as requireAuth } from "@/lib/middleware/app-auth";
-import { platformCredentialsService, MANUAL_AUTH_PLATFORMS, SOCIAL_PLATFORMS } from "@/lib/services/platform-credentials";
+import { platformCredentialsService, MANUAL_AUTH_PLATFORMS, SOCIAL_PLATFORMS, type ManualAuthPlatform } from "@/lib/services/platform-credentials";
+import type { PlatformType } from "@/db/schemas/platform-credentials";
 import { logger } from "@/lib/utils/logger";
 
 const BlueskyCredentialsSchema = z.object({
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
   const platforms = await platformCredentialsService.getAvailablePlatforms(authResult.user.organization_id);
   return NextResponse.json({
     success: true,
-    platforms: platforms.filter(p => SOCIAL_PLATFORMS.includes(p.platform)),
+    platforms: platforms.filter(p => (SOCIAL_PLATFORMS as readonly PlatformType[]).includes(p.platform)),
   });
 }
 

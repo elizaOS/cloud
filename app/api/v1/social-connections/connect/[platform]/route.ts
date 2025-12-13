@@ -19,6 +19,7 @@ export async function POST(
   const { user } = authResult;
 
   const { platform } = await params;
+  const platformType = platform as PlatformType;
 
   const manualInfo = MANUAL_PLATFORM_INFO[platform];
   if (manualInfo) {
@@ -31,7 +32,7 @@ export async function POST(
     }, { status: 400 });
   }
 
-  if (!OAUTH_CONFIGS[platform]) {
+  if (!OAUTH_CONFIGS[platformType]) {
     return NextResponse.json({ success: false, error: `Unsupported platform: ${platform}` }, { status: 400 });
   }
 
@@ -73,7 +74,7 @@ export async function POST(
   // Standard OAuth flow
   const session = await platformCredentialsService.createLinkSession({
     organizationId: user.organization_id,
-    platform: platform as PlatformType,
+    platform: platformType,
     requestingUserId: user.id,
     requestedScopes: options.scopes,
     callbackUrl: options.callbackUrl || defaultCallback,
@@ -106,13 +107,14 @@ export async function GET(
   { params }: { params: Promise<{ platform: string }> }
 ) {
   const { platform } = await params;
+  const platformType = platform as PlatformType;
 
   const manualInfo = MANUAL_PLATFORM_INFO[platform];
   if (manualInfo) {
     return NextResponse.json({ success: true, platform, ...manualInfo });
   }
 
-  const config = OAUTH_CONFIGS[platform];
+  const config = OAUTH_CONFIGS[platformType];
   if (!config) {
     return NextResponse.json({ success: false, error: `Unsupported platform: ${platform}` }, { status: 404 });
   }
