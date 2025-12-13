@@ -64,6 +64,12 @@ export async function POST(
     if (appPromptConfig) {
       // Sanitization helper to prevent prompt injection
       const sanitizePromptString = (val: string) => {
+        // Check length - reject suspiciously long prompts
+        if (val.length > 2000) {
+          return false;
+        }
+
+        // Dangerous literal patterns (case-insensitive)
         const dangerousPatterns = [
           "</system>",
           "<|im_end|>",
@@ -74,13 +80,36 @@ export async function POST(
           "### Response:",
           "<|assistant|>",
           "<|user|>",
+          "\\n\\nHuman:",
+          "\\n\\nAssistant:",
         ];
 
+        const lowerVal = val.toLowerCase();
         for (const pattern of dangerousPatterns) {
-          if (val.toLowerCase().includes(pattern.toLowerCase())) {
+          if (lowerVal.includes(pattern.toLowerCase())) {
             return false;
           }
         }
+
+        // Check for encoded versions that could bypass literal checks
+        const encodedPatterns = [
+          /%3C%7C/i, // <|
+          /%5D%5D/i, // ]]
+          /\\u003c/i, // unicode <
+          /\\x3c/i,   // hex <
+        ];
+
+        for (const pattern of encodedPatterns) {
+          if (pattern.test(val)) {
+            return false;
+          }
+        }
+
+        // Reject excessive whitespace or control characters
+        if (/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/.test(val)) {
+          return false;
+        }
+
         return true;
       };
 
