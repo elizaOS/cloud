@@ -101,7 +101,7 @@ async function sendDiscordAlert(alert: SlowQueryAlert): Promise<void> {
         },
       ],
     }),
-  }).catch(() => {});
+  }).catch((e: Error) => console.debug("[QueryAlert] Discord webhook failed:", e.message));
 }
 
 async function sendSlackAlert(alert: SlowQueryAlert): Promise<void> {
@@ -126,7 +126,7 @@ async function sendSlackAlert(alert: SlowQueryAlert): Promise<void> {
         { type: "section", text: { type: "mrkdwn", text: `*Query:*\n\`\`\`${truncated}\`\`\`` } },
       ],
     }),
-  }).catch(() => {});
+  }).catch((e: Error) => console.debug("[QueryAlert] Slack webhook failed:", e.message));
 }
 
 /**
@@ -153,4 +153,13 @@ export function getAlertSeverity(durationMs: number): "warning" | "critical" | n
 
 export function clearRateLimiter(): void {
   alertRateLimiter.clear();
+}
+
+/**
+ * Resets all module state. For testing only.
+ */
+export function resetAlertingState(): void {
+  alertRateLimiter.clear();
+  alertConfig = null;
+  configChecked = false;
 }

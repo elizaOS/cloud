@@ -21,7 +21,7 @@ import configJson from '@/config/x402.json';
 // Storage pricing from x402 config
 const PRICING = configJson.pricing.storage;
 
-// Storage tiers (aligned with packages/contracts/src/storage/IStorageTypes.sol)
+// Storage tiers (aligned with IStorageTypes.sol contract interface)
 export const StorageTier = {
   HOT: 0,
   WARM: 1,

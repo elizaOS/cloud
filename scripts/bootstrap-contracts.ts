@@ -138,10 +138,22 @@ async function checkNetwork(network: NetworkType): Promise<{
 // ============================================================================
 
 async function deployContracts(): Promise<boolean> {
-  const contractsDir = path.resolve(__dirname, "../../../packages/contracts");
+  // Check for contracts directory path from env or use project-local contracts folder
+  const contractsDir = process.env.CONTRACTS_DIR || path.resolve(process.cwd(), "contracts");
   
   console.log("\n🚀 Deploying contracts to Anvil...");
   console.log(`   Working directory: ${contractsDir}`);
+  
+  // Check if forge is available and contracts directory exists
+  const fs = await import("fs");
+  if (!fs.existsSync(contractsDir)) {
+    console.log("\n⚠️  Contracts directory not found.");
+    console.log("   To deploy contracts:");
+    console.log("   1. Set CONTRACTS_DIR env var to your contracts project path");
+    console.log("   2. Or place Solidity contracts in ./contracts/");
+    console.log("   3. Run: forge script script/DeployLocalnet.s.sol --rpc-url http://127.0.0.1:8545 --broadcast");
+    return false;
+  }
 
   return new Promise((resolve) => {
     const child = spawn(
@@ -237,7 +249,7 @@ async function main() {
       console.log("\nTo deploy contracts locally, run:");
       console.log("  bun run scripts/bootstrap-contracts.ts --network anvil --deploy");
       console.log("\nOr start Anvil and deploy manually:");
-      console.log("  cd packages/contracts && forge script script/DeployLocalnet.s.sol --rpc-url http://127.0.0.1:8545 --broadcast");
+      console.log("  CONTRACTS_DIR=/path/to/contracts forge script script/DeployLocalnet.s.sol --rpc-url http://127.0.0.1:8545 --broadcast");
       process.exit(1);
     } else {
       console.log(`\n❌ Cannot auto-deploy to ${network}.`);

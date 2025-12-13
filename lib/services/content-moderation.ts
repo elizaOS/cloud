@@ -15,6 +15,7 @@ import { hasBadWords, minimalBadWordsArray } from "expletives";
 import { adminService } from "./admin";
 import { agentReputationService } from "./agent-reputation";
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 
 // OpenAI Moderation API types
 interface ModerationCategory {
@@ -294,7 +295,7 @@ class ContentModerationService {
       .catch((error) => {
         // Log error but don't propagate - moderation failures should not block users
         logger.error("[ContentModeration] Background moderation failed", { 
-          error: error instanceof Error ? error.message : String(error),
+          error: extractErrorMessage(error),
           userId,
           roomId,
         });
@@ -386,7 +387,7 @@ class ContentModerationService {
       })
       .catch((error) => {
         logger.error("[ContentModeration] Background moderation failed after response", {
-          error: error instanceof Error ? error.message : String(error),
+          error: extractErrorMessage(error),
         });
       });
 
@@ -594,7 +595,7 @@ class ContentModerationService {
       })
       .catch((error) => {
         logger.error("[ContentModeration] Agent moderation failed", { 
-          error: error instanceof Error ? error.message : String(error),
+          error: extractErrorMessage(error),
           userId,
           agentIdentifier,
         });

@@ -5,15 +5,15 @@
   "type": "vendor",
   "description": "Cloud platform integration with agent marketplace, reputation management, and x402 payments",
   "commands": {
-    "dev": "bun run src/index.ts",
-    "build": "bun build src/index.ts --outdir=dist",
-    "test": "bun test tests/",
+    "dev": "bun run dev",
+    "build": "bun run build",
+    "test": "bun test",
     "deploy": "bun run scripts/deploy.ts"
   },
   "ports": {
-    "main": 8010
+    "main": 3000
   },
-  "dependencies": ["contracts", "config"],
+  "dependencies": [],
   "optional": true,
   "enabled": true,
   "autoStart": false,

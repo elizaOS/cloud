@@ -59,3 +59,4 @@ src-tauri/Cargo.lock
 ignore/
 .env*.local
 vendor/
+docs/

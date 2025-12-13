@@ -94,42 +94,56 @@ describe("drizzle SQL object structure", () => {
 describe("SQL text extraction scenarios", () => {
   /**
    * This mimics the extraction logic in db/client.ts
+   * Must match the actual implementation to catch regressions
    */
   function extractSqlText(sqlArg: unknown): string {
     if (!sqlArg || typeof sqlArg !== "object") {
       return "[unknown]";
     }
 
-    // Try to get SQL string from various Drizzle object shapes
     const obj = sqlArg as Record<string, unknown>;
     
-    // Check for sql property (common in execute results)
+    // 1. toSQL() method - query builders
+    if (typeof obj.toSQL === "function") {
+      try {
+        const result = (obj.toSQL as () => { sql?: string })();
+        if (result?.sql) return result.sql;
+      } catch {
+        // toSQL can throw
+      }
+    }
+
+    // 2. Direct sql property
     if (typeof obj.sql === "string") {
       return obj.sql;
     }
 
-    // Check for toSQL method
-    if (typeof obj.toSQL === "function") {
-      const result = (obj.toSQL as () => { sql: string })();
-      if (result && typeof result.sql === "string") {
-        return result.sql;
-      }
-    }
-
-    // Check for queryChunks array
+    // 3. queryChunks array - sql template literals
+    // Structure: [{ value: ["SELECT..."] }, param, { value: ["..."] }]
     const chunks = obj.queryChunks as unknown[] | undefined;
     if (Array.isArray(chunks)) {
       const parts: string[] = [];
-      for (const chunk of chunks) {
-        if (chunk === null || chunk === undefined) continue;
-        const c = chunk as { value?: string };
-        if (c.value !== undefined && c.value !== null) {
-          parts.push(String(c.value));
+      for (const c of chunks) {
+        if (c == null) {
+          parts.push("?");
+        } else if (typeof c === "string") {
+          parts.push(c);
+        } else if (typeof c === "number" || typeof c === "boolean") {
+          parts.push("?");
+        } else if (typeof c === "object") {
+          const chunk = c as Record<string, unknown>;
+          // value is an array of strings in Drizzle sql`` templates
+          if (Array.isArray(chunk.value)) {
+            parts.push(chunk.value.join(""));
+          } else if (typeof chunk.value === "string") {
+            parts.push(chunk.value);
+          } else if (chunk.value !== undefined) {
+            parts.push("?");
+          }
         }
       }
-      if (parts.length > 0) {
-        return parts.join(" ");
-      }
+      const result = parts.join("");
+      if (result.trim()) return result;
     }
 
     return "[unknown]";
@@ -196,25 +210,56 @@ describe("SQL text extraction scenarios", () => {
       queryChunks: [
         null,
         undefined,
-        { value: "SELECT" },
+        { value: ["SELECT "] },
         null,
-        { value: "FROM" },
+        { value: ["FROM"] },
       ],
     };
     const text = extractSqlText(obj);
-    expect(text).toBe("SELECT FROM");
+    expect(text).toBe("??SELECT ?FROM");
   });
 
   it("handles chunks without value property", () => {
     const obj = { 
       queryChunks: [
         { notValue: "test" },
-        { value: "SELECT" },
+        { value: ["SELECT"] },
         { anotherProp: 123 },
       ],
     };
     const text = extractSqlText(obj);
     expect(text).toBe("SELECT");
+  });
+
+  it("handles real Drizzle sql template structure", () => {
+    // Matches actual Drizzle output: [{ value: ["SQL..."] }, param, { value: ["..."] }]
+    const obj = {
+      queryChunks: [
+        { value: ["SELECT * FROM users WHERE id = "] },
+        123, // inline parameter (number)
+        { value: [" AND name = "] },
+        "alice", // inline parameter (string)
+        { value: [""] },
+      ],
+    };
+    const text = extractSqlText(obj);
+    expect(text).toBe("SELECT * FROM users WHERE id = ? AND name = alice");
+  });
+
+  it("handles sql template with multiple parameters", () => {
+    const obj = {
+      queryChunks: [
+        { value: ["INSERT INTO users (id, name, active) VALUES ("] },
+        1,
+        { value: [", "] },
+        "bob",
+        { value: [", "] },
+        true,
+        { value: [")"] },
+      ],
+    };
+    const text = extractSqlText(obj);
+    expect(text).toBe("INSERT INTO users (id, name, active) VALUES (?, bob, ?)");
   });
 });
 

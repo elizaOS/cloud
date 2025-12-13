@@ -37,6 +37,7 @@ import {
 } from "@/lib/cache/mcp-tool-cache";
 import { creditsService } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 
 /**
  * MCP Tool Execution Context
@@ -230,7 +231,7 @@ export function withCredits<TParams, TResult>(
         `MCP Tool Refund: ${toolName} (error)`,
         {
           tool: toolName,
-          error: error instanceof Error ? error.message : String(error),
+          error: extractErrorMessage(error),
         },
       );
 
@@ -307,7 +308,7 @@ export function formatMCPError(error: unknown): {
   content: Array<{ type: "text"; text: string }>;
   isError: true;
 } {
-  const errorMessage = error instanceof Error ? error.message : String(error);
+  const errorMessage = extractErrorMessage(error);
   return {
     content: [
       {

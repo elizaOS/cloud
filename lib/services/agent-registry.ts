@@ -30,6 +30,7 @@ import {
 } from "@/lib/config/erc8004";
 import { X402_ENABLED } from "@/lib/config/x402";
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import type { UserCharacter } from "@/db/schemas/user-characters";
 import type { UserMcp } from "@/db/schemas/user-mcps";
 import { accountAbstractionService } from "./account-abstraction";
@@ -611,7 +612,7 @@ class AgentRegistryService {
 
     for (const network of networks) {
       const result = await this.registerAgent({ ...params, network }).catch((err) => {
-        const error = err instanceof Error ? err.message : String(err);
+        const error = extractErrorMessage(err);
         logger.error("[AgentRegistry] Registration failed", { 
           network, 
           characterId: character.id,
@@ -728,7 +729,7 @@ class AgentRegistryService {
 
     for (const network of networks) {
       const result = await this.registerAgent({ ...params, network }).catch((err) => {
-        const error = err instanceof Error ? err.message : String(err);
+        const error = extractErrorMessage(err);
         return { success: false, error };
       });
 
@@ -788,7 +789,7 @@ class AgentRegistryService {
 
     for (const network of networks) {
       const result = await this.registerMCP({ ...params, network }).catch((err) => {
-        const error = err instanceof Error ? err.message : String(err);
+        const error = extractErrorMessage(err);
         logger.error("[AgentRegistry] MCP registration failed", { 
           network, 
           mcpId: mcp.id,

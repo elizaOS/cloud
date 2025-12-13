@@ -794,7 +794,7 @@ export class CloudFormationService {
       };
     } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error ? error.message : String(error);
+        extractErrorMessage(error);
       logger.error(
         "Failed to get shared infrastructure outputs:",
         errorMessage,

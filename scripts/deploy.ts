@@ -3,7 +3,9 @@
  * Cloud Integration Deployment Script
  * 
  * Deploys and configures CloudReputationProvider and related services.
- * This script should be run from the vendor/cloud directory.
+ * 
+ * Note: This script requires contract addresses to be configured via environment
+ * variables or config files. See config/erc8004.json for address configuration.
  */
 
 import { ethers } from 'ethers';
@@ -36,59 +38,60 @@ interface DeploymentAddresses {
 }
 
 /**
- * Load deployment addresses from Jeju contracts package
+ * Load deployment addresses from config or environment variables
  */
-function loadDeploymentAddresses(chainId: number): DeploymentAddresses {
-  const deploymentsDir = path.resolve(__dirname, '../../../packages/contracts/deployments');
-  const localnetPath = path.join(deploymentsDir, 'localnet/deployment.json');
-  const testnetPath = path.join(deploymentsDir, 'testnet/deployment.json');
+function loadDeploymentAddresses(_chainId: number): DeploymentAddresses {
+  // Load from config/erc8004.json or environment variables
+  const configPath = path.resolve(process.cwd(), 'config/erc8004.json');
+  let config: Record<string, Record<string, Record<string, string>>> = { networks: {} };
   
-  let addresses: Record<string, string> = {};
-  
-  if (chainId === 1337 || chainId === 31337) {
-    if (fs.existsSync(localnetPath)) {
-      addresses = JSON.parse(fs.readFileSync(localnetPath, 'utf-8'));
-    }
-  } else {
-    if (fs.existsSync(testnetPath)) {
-      addresses = JSON.parse(fs.readFileSync(testnetPath, 'utf-8'));
-    }
+  if (fs.existsSync(configPath)) {
+    config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
   }
   
+  const network = process.env.ERC8004_NETWORK || 'base-sepolia';
+  const networkConfig = config.networks?.[network]?.contracts || {};
+  
   return {
-    identityRegistry: addresses.IdentityRegistry || addresses.identityRegistry || '',
-    reputationRegistry: addresses.ReputationRegistry || addresses.reputationRegistry || '',
-    serviceRegistry: addresses.ServiceRegistry || addresses.serviceRegistry || '',
-    creditManager: addresses.CreditManager || addresses.creditManager || '',
-    cloudReputationProvider: addresses.CloudReputationProvider || addresses.cloudReputationProvider,
-    usdc: addresses.USDC || addresses.usdc || '',
-    paymentToken: addresses.PaymentToken || addresses.paymentToken || addresses.ElizaOS || ''
+    identityRegistry: process.env.ERC8004_IDENTITY_REGISTRY || networkConfig.identity || '',
+    reputationRegistry: process.env.ERC8004_REPUTATION_REGISTRY || networkConfig.reputation || '',
+    serviceRegistry: process.env.ERC8004_SERVICE_REGISTRY || '',
+    creditManager: process.env.ERC8004_CREDIT_MANAGER || '',
+    cloudReputationProvider: process.env.ERC8004_CLOUD_REPUTATION_PROVIDER,
+    usdc: process.env.USDC_ADDRESS || '',
+    paymentToken: process.env.ELIZA_TOKEN_ADDRESS || ''
   };
 }
 
 /**
  * Deploy CloudReputationProvider contract
+ * 
+ * Requires: CONTRACT_ARTIFACT_PATH environment variable pointing to compiled contract JSON
+ * Or: contracts/CloudReputationProvider.json in the project root
  */
 async function deployCloudReputationProvider(
   signer: ethers.Signer,
   addresses: DeploymentAddresses
 ): Promise<string> {
-  logger.info('Compiling CloudReputationProvider...');
+  logger.info('Deploying CloudReputationProvider...');
   
-  const artifactPath = path.resolve(
-    __dirname,
-    '../../../packages/contracts/out/CloudReputationProvider.sol/CloudReputationProvider.json'
-  );
+  // Check for artifact in multiple locations
+  const possiblePaths = [
+    process.env.CONTRACT_ARTIFACT_PATH,
+    path.resolve(process.cwd(), 'contracts/CloudReputationProvider.json'),
+  ].filter(Boolean) as string[];
   
-  if (!fs.existsSync(artifactPath)) {
+  const artifactPath = possiblePaths.find(p => fs.existsSync(p));
+  
+  if (!artifactPath) {
     throw new Error(
-      'CloudReputationProvider not compiled. Run: cd packages/contracts && forge build'
+      'CloudReputationProvider artifact not found. Either:\n' +
+      '  1. Set CONTRACT_ARTIFACT_PATH to the compiled contract JSON\n' +
+      '  2. Place CloudReputationProvider.json in contracts/'
     );
   }
   
   const artifact = JSON.parse(fs.readFileSync(artifactPath, 'utf-8'));
-  
-  logger.info('Deploying CloudReputationProvider...');
   
   const factory = new ethers.ContractFactory(
     artifact.abi,

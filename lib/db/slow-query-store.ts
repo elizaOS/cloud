@@ -119,7 +119,7 @@ export async function recordSlowQuery(
   if (redisClient && entry) {
     redisClient
       .setex(`${REDIS_KEY_PREFIX}${queryHash}`, REDIS_TTL_SECONDS, JSON.stringify(entry))
-      .catch(() => {}); // Silent fail
+      .catch((e: Error) => console.debug("[SlowQueryStore] Redis write failed:", e.message));
   }
 
   // Queue for PostgreSQL
@@ -163,12 +163,85 @@ async function flushToPostgres(): Promise<void> {
         last_seen_at = EXCLUDED.last_seen_at
     `
       )
-      .catch(() => {}); // Silent fail
+      .catch((e: Error) => console.debug("[SlowQueryStore] PostgreSQL write failed:", e.message));
   }
 }
 
 export function getSlowQueriesFromMemory(): SlowQueryEntry[] {
   return Array.from(memoryStore.values());
+}
+
+/**
+ * Checks if Redis is available and configured.
+ */
+export function isRedisAvailable(): boolean {
+  return getRedis() !== null;
+}
+
+/**
+ * Retrieves all slow query keys from Redis.
+ */
+export async function getSlowQueryKeysFromRedis(): Promise<string[]> {
+  const redisClient = getRedis();
+  if (!redisClient) return [];
+
+  try {
+    const keys = await redisClient.keys(`${REDIS_KEY_PREFIX}*`);
+    return keys.map((k) => k.replace(REDIS_KEY_PREFIX, ""));
+  } catch (e) {
+    console.debug("[SlowQueryStore] Redis keys failed:", (e as Error).message);
+    return [];
+  }
+}
+
+/**
+ * Retrieves a single slow query entry from Redis by hash.
+ */
+export async function getSlowQueryFromRedis(queryHash: string): Promise<SlowQueryEntry | null> {
+  const redisClient = getRedis();
+  if (!redisClient) return null;
+
+  try {
+    const data = await redisClient.get<string>(`${REDIS_KEY_PREFIX}${queryHash}`);
+    if (!data) return null;
+
+    const entry = typeof data === "string" ? JSON.parse(data) : data;
+    entry.firstSeenAt = new Date(entry.firstSeenAt);
+    entry.lastSeenAt = new Date(entry.lastSeenAt);
+    return entry;
+  } catch (e) {
+    console.debug("[SlowQueryStore] Redis get failed:", (e as Error).message);
+    return null;
+  }
+}
+
+/**
+ * Retrieves all slow queries from Redis cache.
+ * Useful for distributed systems where multiple instances share state.
+ */
+export async function getSlowQueriesFromRedis(): Promise<SlowQueryEntry[]> {
+  const redisClient = getRedis();
+  if (!redisClient) return [];
+
+  try {
+    const keys = await redisClient.keys(`${REDIS_KEY_PREFIX}*`);
+    if (keys.length === 0) return [];
+
+    const entries: SlowQueryEntry[] = [];
+    for (const key of keys) {
+      const data = await redisClient.get<string>(key);
+      if (data) {
+        const entry = typeof data === "string" ? JSON.parse(data) : data;
+        entry.firstSeenAt = new Date(entry.firstSeenAt);
+        entry.lastSeenAt = new Date(entry.lastSeenAt);
+        entries.push(entry);
+      }
+    }
+    return entries;
+  } catch (e) {
+    console.debug("[SlowQueryStore] Redis read failed:", (e as Error).message);
+    return [];
+  }
 }
 
 export function getTopSlowQueries(limit = 20): SlowQueryEntry[] {
@@ -212,4 +285,59 @@ export async function forceFlush(): Promise<void> {
     flushTimeout = null;
   }
   await flushToPostgres();
+}
+
+/**
+ * Gets a slow query entry from Redis by hash.
+ * Returns null if Redis unavailable or entry not found.
+ */
+export async function getSlowQueryFromRedis(queryHash: string): Promise<SlowQueryEntry | null> {
+  const redisClient = getRedis();
+  if (!redisClient) return null;
+
+  const data = await redisClient
+    .get(`${REDIS_KEY_PREFIX}${queryHash}`)
+    .catch((e: Error) => {
+      console.debug("[SlowQueryStore] Redis read failed:", e.message);
+      return null;
+    });
+
+  if (!data) return null;
+
+  if (typeof data === "string") {
+    const parsed = JSON.parse(data) as SlowQueryEntry;
+    parsed.firstSeenAt = new Date(parsed.firstSeenAt);
+    parsed.lastSeenAt = new Date(parsed.lastSeenAt);
+    return parsed;
+  }
+
+  // Upstash may return parsed object directly
+  const entry = data as SlowQueryEntry;
+  entry.firstSeenAt = new Date(entry.firstSeenAt);
+  entry.lastSeenAt = new Date(entry.lastSeenAt);
+  return entry;
+}
+
+/**
+ * Gets all slow query keys from Redis.
+ */
+export async function getSlowQueryKeysFromRedis(): Promise<string[]> {
+  const redisClient = getRedis();
+  if (!redisClient) return [];
+
+  const keys = await redisClient
+    .keys(`${REDIS_KEY_PREFIX}*`)
+    .catch((e: Error) => {
+      console.debug("[SlowQueryStore] Redis keys failed:", e.message);
+      return [];
+    });
+
+  return keys.map((k) => k.replace(REDIS_KEY_PREFIX, ""));
+}
+
+/**
+ * Checks if Redis is available and connected.
+ */
+export function isRedisAvailable(): boolean {
+  return getRedis() !== null;
 }

@@ -11,18 +11,13 @@ type Database = NodePgDatabase<typeof schema> | NeonDatabase<typeof schema>;
 
 let _db: Database | null = null;
 let _instrumentationEnabled: boolean | null = null;
-
 const SLOW_QUERY_THRESHOLD_MS = parseInt(process.env.SLOW_QUERY_THRESHOLD_MS || "50", 10);
 
 function isNeonDatabase(url: string): boolean {
   return url.includes("neon.tech") || url.includes("neon.database");
 }
 
-/**
- * Checks if query instrumentation should be active.
- * Enabled in dev/staging/preview, disabled in production for zero overhead.
- */
-function isInstrumentationEnabled(): boolean {
+export function isInstrumentationEnabled(): boolean {
   if (_instrumentationEnabled !== null) return _instrumentationEnabled;
 
   if (process.env.DB_INSTRUMENTATION_DISABLED === "true") {
@@ -33,7 +28,6 @@ function isInstrumentationEnabled(): boolean {
   const env = process.env.NODE_ENV;
   const vercelEnv = process.env.VERCEL_ENV;
 
-  // Production = disabled
   if (env === "production" && vercelEnv === "production") {
     _instrumentationEnabled = false;
     return false;
@@ -48,9 +42,6 @@ function isInstrumentationEnabled(): boolean {
   return _instrumentationEnabled;
 }
 
-/**
- * Handles slow query logging, storage, and alerting.
- */
 function handleSlowQuery(sqlText: string, durationMs: number): void {
   const preview = sqlText.substring(0, 120).replace(/\s+/g, " ");
   console.warn(`[SlowQuery] ${durationMs}ms | ${preview}${sqlText.length > 120 ? "..." : ""}`);
@@ -71,9 +62,6 @@ function handleSlowQuery(sqlText: string, durationMs: number): void {
   }
 }
 
-/**
- * Wraps a promise with timing instrumentation.
- */
 function wrapWithTiming<T>(fn: () => Promise<T>, getSql: () => string): Promise<T> {
   if (!isInstrumentationEnabled()) return fn();
 
@@ -86,50 +74,36 @@ function wrapWithTiming<T>(fn: () => Promise<T>, getSql: () => string): Promise<
   });
 }
 
-/**
- * Extracts SQL text from Drizzle objects (sql templates and query builders).
- */
 function extractSql(sqlArg: unknown, fallback = "[unknown]"): string {
   if (typeof sqlArg !== "object" || sqlArg === null) return fallback;
 
   const obj = sqlArg as Record<string, unknown>;
 
-  // 1. Direct sql string property (from toSQL result)
   if (typeof obj.sql === "string") return obj.sql;
 
-  // 2. toSQL() method - query builders (select, insert, update, delete)
   if (typeof obj.toSQL === "function") {
     try {
       const result = (obj.toSQL as () => { sql?: string })();
       if (result?.sql) return result.sql;
-    } catch {
-      // toSQL can throw if query is incomplete
-    }
+    } catch {}
   }
 
-  // 3. getSQL() method - returns SQL object with queryChunks
   if (typeof obj.getSQL === "function") {
     try {
       const sqlObj = (obj.getSQL as () => Record<string, unknown>)();
       if (sqlObj) return extractSql(sqlObj, fallback);
-    } catch {
-      // getSQL can throw
-    }
+    } catch {}
   }
 
-  // 4. queryChunks array - sql template literals
   if (Array.isArray(obj.queryChunks)) {
     const parts: string[] = [];
     for (const c of obj.queryChunks) {
       if (c == null) {
         parts.push("?");
-      } else if (typeof c === "string") {
-        parts.push("?"); // String parameter
-      } else if (typeof c === "number" || typeof c === "boolean") {
-        parts.push("?"); // Numeric/boolean parameter
+      } else if (typeof c === "string" || typeof c === "number" || typeof c === "boolean") {
+        parts.push("?");
       } else if (typeof c === "object") {
         const chunk = c as Record<string, unknown>;
-        // value can be a string or array of strings
         if (Array.isArray(chunk.value)) {
           parts.push(chunk.value.join(""));
         } else if (typeof chunk.value === "string") {
@@ -145,10 +119,6 @@ function extractSql(sqlArg: unknown, fallback = "[unknown]"): string {
   return fallback;
 }
 
-/**
- * Creates an instrumented proxy for query builders.
- * Extracts SQL when the query executes (on .then() or await).
- */
 function instrumentQueryBuilder<T extends object>(target: T, methodName: string): T {
   if (!isInstrumentationEnabled()) return target;
 
@@ -161,13 +131,11 @@ function instrumentQueryBuilder<T extends object>(target: T, methodName: string)
         const result = Reflect.apply(value, obj, args);
 
         if (result instanceof Promise) {
-          // Query is executing - extract SQL from current builder state (obj)
           const sqlText = extractSql(obj, `[${methodName}]`);
           return wrapWithTiming(() => result, () => sqlText);
         }
 
         if (result && typeof result === "object") {
-          // Still building - wrap the result for continued chaining
           return instrumentQueryBuilder(result as object, methodName);
         }
 
@@ -181,23 +149,17 @@ function getDb(): Database {
   if (_db) return _db;
 
   const url = process.env.DATABASE_URL;
-  if (!url) {
-    throw new Error("DATABASE_URL not set. Check your .env.local file.");
-  }
+  if (!url) throw new Error("DATABASE_URL not set");
 
   if (isInstrumentationEnabled()) {
     console.info(`[DB] ✓ Query instrumentation ENABLED (threshold: ${SLOW_QUERY_THRESHOLD_MS}ms)`);
-
-    // Check alert config once
     import("@/lib/db/query-alerting")
       .then(({ checkAlertConfig }) => checkAlertConfig())
-      .catch(() => {});
+      .catch((e: Error) => console.debug("[DB] Alert config check failed:", e.message));
   }
 
   if (isNeonDatabase(url)) {
-    if (typeof WebSocket === "undefined") {
-      neonConfig.webSocketConstructor = ws;
-    }
+    if (typeof WebSocket === "undefined") neonConfig.webSocketConstructor = ws;
     _db = drizzleNeon(new NeonPool({ connectionString: url }), { schema }) as Database;
   } else {
     _db = drizzleNode(new PgPool({ connectionString: url }), { schema }) as Database;
@@ -206,10 +168,6 @@ function getDb(): Database {
   return _db;
 }
 
-/**
- * Database client with lazy initialization and optional instrumentation.
- * Instrumentation is only active in development/staging.
- */
 export const db = new Proxy({} as Database, {
   get: (_, prop) => {
     const database = getDb();
@@ -220,18 +178,15 @@ export const db = new Proxy({} as Database, {
     return function (...args: unknown[]) {
       const result = (value as (...a: unknown[]) => unknown).apply(database, args);
 
-      // Handle execute() with SQL template
       if (prop === "execute" && args[0] && result instanceof Promise) {
         const sql = extractSql(args[0]);
         return wrapWithTiming(() => result, () => sql);
       }
 
-      // Handle query builders (select, insert, etc.)
       if (result && typeof result === "object" && !(result instanceof Promise)) {
         return instrumentQueryBuilder(result as object, String(prop));
       }
 
-      // Handle direct promises
       if (result instanceof Promise) {
         return wrapWithTiming(() => result, () => `[${String(prop)}]`);
       }

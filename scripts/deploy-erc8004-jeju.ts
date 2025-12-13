@@ -42,19 +42,8 @@ const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as Address;
 const env = readEnvFile();
 
 // Jeju Chain Definitions
-// Try to read Kurtosis ports for localnet
 function getLocalnetRpcUrl(): string {
-  const portsPath = new URL("../../../packages/deployment/.kurtosis/ports.json", import.meta.url);
-  try {
-    const portsFile = require("fs").readFileSync(portsPath, "utf-8");
-    const ports = JSON.parse(portsFile);
-    if (ports.l2Rpc) {
-      console.log(`📂 Using Kurtosis RPC: ${ports.l2Rpc}`);
-      return ports.l2Rpc;
-    }
-  } catch {
-    // Fall through to default
-  }
+  // Use environment variable for RPC URL (Kurtosis port discovery is handled externally)
   return env.JEJU_LOCALNET_RPC_URL || "http://127.0.0.1:9545";
 }
 
@@ -272,24 +261,13 @@ async function main() {
   console.log(`Network: ${config.name} (chainId: ${config.chainId})`);
   console.log(`RPC: ${config.rpcUrl}`);
 
-  // Check for private key - first try env, then .keys folder
-  let privateKey = env.AGENT0_PRIVATE_KEY;
+  // Check for private key
+  const privateKey = env.AGENT0_PRIVATE_KEY;
   
   if (!privateKey || privateKey === "0x...your_private_key") {
-    // Try to load from Jeju .keys folder
-    const keysPath = new URL("../../../packages/deployment/.keys/testnet-deployer.json", import.meta.url);
-    try {
-      const deployerFile = await Bun.file(keysPath).text();
-      const deployer = JSON.parse(deployerFile);
-      privateKey = deployer.privateKey;
-      console.log(`\n📂 Loaded deployer key from .keys/testnet-deployer.json`);
-      console.log(`   Address: ${deployer.address}`);
-    } catch {
-      console.error("\n❌ No deployer key found");
-      console.log("   Either set AGENT0_PRIVATE_KEY in .env.local");
-      console.log("   Or ensure /packages/deployment/.keys/testnet-deployer.json exists");
-      process.exit(1);
-    }
+    console.error("\n❌ No deployer key found");
+    console.log("   Set AGENT0_PRIVATE_KEY in .env.local");
+    process.exit(1);
   }
 
   // Setup clients
@@ -318,9 +296,8 @@ async function main() {
   } catch (error) {
     console.error(`\n❌ Cannot connect to RPC: ${config.rpcUrl}`);
     console.log(`   Error: ${error instanceof Error ? error.message : "Unknown error"}`);
-    console.log(`\n   For localnet, start it first:`);
-    console.log(`   cd /Users/shawwalters/jeju && bun run localnet:start`);
-    console.log(`\n   For testnet/mainnet, ensure the RPC is accessible.`);
+    console.log(`\n   For localnet, ensure the RPC is running at the configured URL.`);
+    console.log(`   For testnet/mainnet, ensure the RPC is accessible.`);
     process.exit(1);
   }
 

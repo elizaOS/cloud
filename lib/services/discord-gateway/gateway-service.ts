@@ -203,13 +203,18 @@ export class DiscordGatewayService {
    * Get gateway health status.
    */
   async getHealth(): Promise<GatewayHealth> {
-    const [connectedBots, disconnectedBots, queueStats] = await Promise.all([
+    // Fetch all status types: connected, disconnected, starting, reconnecting, error
+    const [connectedBots, disconnectedBots, startingBots, reconnectingBots, errorBots, queueStats] = await Promise.all([
       discordBotConnectionsRepository.listByStatus("connected"),
       discordBotConnectionsRepository.listByStatus("disconnected"),
+      discordBotConnectionsRepository.listByStatus("starting"),
+      discordBotConnectionsRepository.listByStatus("reconnecting"),
+      discordBotConnectionsRepository.listByStatus("error"),
       discordEventQueueRepository.getStats(),
     ]);
 
-    const allBots = [...connectedBots, ...disconnectedBots];
+    const allBots = [...connectedBots, ...disconnectedBots, ...startingBots, ...reconnectingBots, ...errorBots];
+    const notConnectedCount = disconnectedBots.length + startingBots.length + reconnectingBots.length + errorBots.length;
     const totalGuilds = allBots.reduce((sum, b) => sum + (b.guild_count ?? 0), 0);
 
     // Group connected bots by pod
@@ -236,14 +241,14 @@ export class DiscordGatewayService {
 
     const healthyShards = shards.filter((s) => s.status === "healthy").length;
     const status: GatewayHealth["status"] =
-      disconnectedBots.length === 0 && healthyShards === shards.length ? "healthy" :
+      notConnectedCount === 0 && healthyShards === shards.length ? "healthy" :
       healthyShards > 0 ? "degraded" : "unhealthy";
 
     return {
       status,
       totalBots: allBots.length,
       connectedBots: connectedBots.length,
-      disconnectedBots: disconnectedBots.length,
+      disconnectedBots: notConnectedCount,
       totalGuilds,
       shards,
       queueStats: { pending: queueStats.pending, processing: queueStats.processing, deadLetter: queueStats.deadLetter },

@@ -10,6 +10,7 @@ import { agentBudgetService } from "@/lib/services/agent-budgets";
 import { creditsService } from "@/lib/services/credits";
 import { organizationsService } from "@/lib/services/organizations";
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { calculateCost, getProviderFromModel } from "@/lib/pricing";
 
 export interface BillingContext {
@@ -246,7 +247,7 @@ export async function executeWithBilling<T>(params: {
   } catch (error) {
     logger.error("[AgentBilling] Operation failed", {
       context,
-      error: error instanceof Error ? error.message : String(error),
+      error: extractErrorMessage(error),
     });
     return {
       success: false,

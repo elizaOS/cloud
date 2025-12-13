@@ -165,7 +165,10 @@ export class DiscordMessageSender {
     messageId: string
   ): Promise<boolean> {
     const token = await discordGatewayService.getBotToken(connectionId);
-    if (!token) return false;
+    if (!token) {
+      logger.warn("[Discord Message Sender] Delete message failed - no token", { connectionId, channelId, messageId });
+      return false;
+    }
 
     const response = await fetch(
       `${DISCORD_API_BASE}/channels/${channelId}/messages/${messageId}`,
@@ -175,6 +178,9 @@ export class DiscordMessageSender {
       }
     );
 
+    if (!response.ok) {
+      logger.warn("[Discord Message Sender] Delete message failed", { connectionId, channelId, messageId, status: response.status });
+    }
     return response.ok;
   }
 
@@ -188,9 +194,11 @@ export class DiscordMessageSender {
     emoji: string
   ): Promise<boolean> {
     const token = await discordGatewayService.getBotToken(connectionId);
-    if (!token) return false;
+    if (!token) {
+      logger.warn("[Discord Message Sender] Add reaction failed - no token", { connectionId, channelId, messageId, emoji });
+      return false;
+    }
 
-    // Encode emoji for URL
     const encodedEmoji = encodeURIComponent(emoji);
 
     const response = await fetch(
@@ -201,6 +209,9 @@ export class DiscordMessageSender {
       }
     );
 
+    if (!response.ok) {
+      logger.warn("[Discord Message Sender] Add reaction failed", { connectionId, channelId, messageId, emoji, status: response.status });
+    }
     return response.ok;
   }
 
@@ -215,7 +226,10 @@ export class DiscordMessageSender {
     userId?: string
   ): Promise<boolean> {
     const token = await discordGatewayService.getBotToken(connectionId);
-    if (!token) return false;
+    if (!token) {
+      logger.warn("[Discord Message Sender] Remove reaction failed - no token", { connectionId, channelId, messageId, emoji });
+      return false;
+    }
 
     const encodedEmoji = encodeURIComponent(emoji);
     const target = userId ?? "@me";
@@ -228,6 +242,9 @@ export class DiscordMessageSender {
       }
     );
 
+    if (!response.ok) {
+      logger.warn("[Discord Message Sender] Remove reaction failed", { connectionId, channelId, messageId, emoji, status: response.status });
+    }
     return response.ok;
   }
 
@@ -236,7 +253,10 @@ export class DiscordMessageSender {
    */
   async startTyping(connectionId: string, channelId: string): Promise<boolean> {
     const token = await discordGatewayService.getBotToken(connectionId);
-    if (!token) return false;
+    if (!token) {
+      logger.debug("[Discord Message Sender] Start typing failed - no token", { connectionId, channelId });
+      return false;
+    }
 
     const response = await fetch(
       `${DISCORD_API_BASE}/channels/${channelId}/typing`,
@@ -248,6 +268,9 @@ export class DiscordMessageSender {
       }
     );
 
+    if (!response.ok) {
+      logger.debug("[Discord Message Sender] Start typing failed", { connectionId, channelId, status: response.status });
+    }
     return response.ok;
   }
 

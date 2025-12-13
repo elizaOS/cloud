@@ -65,21 +65,30 @@ export class DiscordStateManager {
 
   /** Save connection state for resume. */
   async saveConnectionState(state: BotConnectionState): Promise<void> {
-    if (!this.redis) return;
+    if (!this.redis) {
+      logger.warn("[Discord State Manager] Cannot save state - Redis unavailable", { connectionId: state.connectionId });
+      return;
+    }
     await this.redis.setex(`discord:state:${state.connectionId}`, STATE_TTL, JSON.stringify(state));
     logger.debug("[Discord State Manager] Saved state", { connectionId: state.connectionId });
   }
 
   /** Get connection state for resume. */
   async getConnectionState(connectionId: string): Promise<BotConnectionState | null> {
-    if (!this.redis) return null;
+    if (!this.redis) {
+      logger.debug("[Discord State Manager] Cannot get state - Redis unavailable", { connectionId });
+      return null;
+    }
     const data = await this.redis.get<string>(`discord:state:${connectionId}`);
     return data ? this.parseJson<BotConnectionState>(data) : null;
   }
 
   /** Clear connection state. */
   async clearConnectionState(connectionId: string): Promise<void> {
-    if (!this.redis) return;
+    if (!this.redis) {
+      logger.debug("[Discord State Manager] Cannot clear state - Redis unavailable", { connectionId });
+      return;
+    }
     await this.redis.del(`discord:state:${connectionId}`);
   }
 
@@ -90,6 +99,8 @@ export class DiscordStateManager {
       state.sequence = sequence;
       state.lastHeartbeat = Date.now();
       await this.saveConnectionState(state);
+    } else {
+      logger.debug("[Discord State Manager] Cannot update sequence - state not found", { connectionId, sequence });
     }
   }
 
@@ -99,6 +110,8 @@ export class DiscordStateManager {
     if (state) {
       Object.assign(state, { sessionId, resumeGatewayUrl, connectedAt: Date.now(), status: "connected" });
       await this.saveConnectionState(state);
+    } else {
+      logger.warn("[Discord State Manager] Cannot update session - state not found", { connectionId, sessionId });
     }
   }
 
@@ -108,6 +121,8 @@ export class DiscordStateManager {
     if (state && !state.guilds.includes(guildId)) {
       state.guilds.push(guildId);
       await this.saveConnectionState(state);
+    } else if (!state) {
+      logger.debug("[Discord State Manager] Cannot add guild - state not found", { connectionId, guildId });
     }
   }
 
@@ -117,6 +132,8 @@ export class DiscordStateManager {
     if (state) {
       state.guilds = state.guilds.filter((g) => g !== guildId);
       await this.saveConnectionState(state);
+    } else {
+      logger.debug("[Discord State Manager] Cannot remove guild - state not found", { connectionId, guildId });
     }
   }
 

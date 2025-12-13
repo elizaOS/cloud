@@ -99,13 +99,13 @@ describe("Scenarios", () => {
 
 describe("Source Files", () => {
   test("agents.ts uses /api/v1/app/agents", async () => {
-    const src = await Bun.file("/Users/shawwalters/jeju/vendor/cloud/tests/load/scenarios/api-v1/agents.ts").text();
+    const src = await Bun.file(import.meta.dir + "/../scenarios/api-v1/agents.ts").text();
     expect(src).toContain("/api/v1/app/agents");
     expect(src).toContain("expectedStatus: 201");
   });
 
   test("a2a/methods.ts uses real A2A methods", async () => {
-    const src = await Bun.file("/Users/shawwalters/jeju/vendor/cloud/tests/load/scenarios/a2a/methods.ts").text();
+    const src = await Bun.file(import.meta.dir + "/../scenarios/a2a/methods.ts").text();
     expect(src).toContain("message/send");
     expect(src).toContain("tasks/get");
     expect(src).toContain("tasks/cancel");
@@ -113,14 +113,14 @@ describe("Source Files", () => {
   });
 
   test("mcp/tools.ts calls real tools", async () => {
-    const src = await Bun.file("/Users/shawwalters/jeju/vendor/cloud/tests/load/scenarios/mcp/tools.ts").text();
+    const src = await Bun.file(import.meta.dir + "/../scenarios/mcp/tools.ts").text();
     expect(src).toContain("check_credits");
     expect(src).toContain("list_agents");
     expect(src).toContain("list_models");
   });
 
   test("smoke.ts uses http helpers", async () => {
-    const src = await Bun.file("/Users/shawwalters/jeju/vendor/cloud/tests/load/scenarios/smoke.ts").text();
+    const src = await Bun.file(import.meta.dir + "/../scenarios/smoke.ts").text();
     expect(src).toContain("httpGet");
     expect(src).toContain("httpPost");
   });
@@ -128,20 +128,20 @@ describe("Source Files", () => {
 
 describe("Shell Scripts", () => {
   test("run-local.sh checks k6 and server", async () => {
-    const src = await Bun.file("/Users/shawwalters/jeju/vendor/cloud/tests/load/scripts/run-local.sh").text();
+    const src = await Bun.file(import.meta.dir + "/../scripts/run-local.sh").text();
     expect(src).toContain("command -v k6");
     expect(src).toContain("curl");
   });
 
   test("run-production.sh requires confirmation", async () => {
-    const src = await Bun.file("/Users/shawwalters/jeju/vendor/cloud/tests/load/scripts/run-production.sh").text();
+    const src = await Bun.file(import.meta.dir + "/../scripts/run-production.sh").text();
     expect(src).toContain("PROD_API_KEY");
   });
 });
 
 describe("CI Workflow", () => {
   test("load-tests.yml exists and has correct structure", async () => {
-    const src = await Bun.file("/Users/shawwalters/jeju/vendor/cloud/.github/workflows/load-tests.yml").text();
+    const src = await Bun.file(import.meta.dir + "/../../.github/workflows/load-tests.yml").text();
     expect(src).toContain("k6 run");
     expect(src).toContain("upload-artifact");
     expect(src).toContain("schedule");

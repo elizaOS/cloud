@@ -1,9 +1,3 @@
-/**
- * Discord Event Router
- *
- * Routes Discord gateway events to agents via A2A, MCP, webhooks, or containers.
- */
-
 import { logger } from "@/lib/utils/logger";
 import {
   discordBotConnectionsRepository,
@@ -25,18 +19,11 @@ import type {
 import type {
   DiscordEventRoute,
   NewDiscordEventRoute,
-  DiscordEventType,
-  DiscordRouteType,
   NewDiscordEventQueueItem,
 } from "@/db/schemas/discord-gateway";
 
-const ROUTE_CACHE_TTL = 60; // 1 minute cache for routes
+const ROUTE_CACHE_TTL = 60;
 
-/**
- * Discord Event Router Service
- *
- * Matches Discord events to routes and dispatches to appropriate targets.
- */
 export class DiscordEventRouter {
   private static instance: DiscordEventRouter;
 
@@ -49,13 +36,6 @@ export class DiscordEventRouter {
     return DiscordEventRouter.instance;
   }
 
-  // ===========================================================================
-  // ROUTE MANAGEMENT
-  // ===========================================================================
-
-  /**
-   * Create a new event route.
-   */
   async createRoute(data: NewDiscordEventRoute): Promise<DiscordEventRoute> {
     const route = await discordEventRoutesRepository.create(data);
 
@@ -72,9 +52,6 @@ export class DiscordEventRouter {
     return route;
   }
 
-  /**
-   * Update an existing route.
-   */
   async updateRoute(
     routeId: string,
     data: Partial<NewDiscordEventRoute>
@@ -88,11 +65,7 @@ export class DiscordEventRouter {
     return route;
   }
 
-  /**
-   * Delete a route.
-   */
   async deleteRoute(routeId: string): Promise<boolean> {
-    // Get route before deleting to invalidate cache
     const allRoutes = await discordEventRoutesRepository.listByOrganization("");
     const route = allRoutes.find((r) => r.id === routeId);
     if (!route) return false;
@@ -104,16 +77,10 @@ export class DiscordEventRouter {
     return deleted;
   }
 
-  /**
-   * Get routes for an organization.
-   */
   async getRoutes(organizationId: string): Promise<DiscordEventRoute[]> {
-    return await discordEventRoutesRepository.listByOrganization(organizationId);
+    return discordEventRoutesRepository.listByOrganization(organizationId);
   }
 
-  /**
-   * Enable or disable a route.
-   */
   async setRouteEnabled(routeId: string, enabled: boolean): Promise<DiscordEventRoute | null> {
     const route = await discordEventRoutesRepository.setEnabled(routeId, enabled);
 
@@ -124,13 +91,6 @@ export class DiscordEventRouter {
     return route;
   }
 
-  // ===========================================================================
-  // EVENT ROUTING
-  // ===========================================================================
-
-  /**
-   * Route an event to matching targets.
-   */
   async routeEvent(event: RoutableEvent): Promise<EventRoutingResult[]> {
     const startTime = Date.now();
 
@@ -197,9 +157,6 @@ export class DiscordEventRouter {
     return results;
   }
 
-  /**
-   * Queue an event for later processing (resilience).
-   */
   async queueEvent(event: RoutableEvent, routeId?: string): Promise<string> {
     const queueItem: NewDiscordEventQueueItem = {
       organization_id: event.organizationId,
@@ -232,13 +189,30 @@ export class DiscordEventRouter {
     for (const item of items) {
       await discordEventQueueRepository.markProcessing(item.id);
 
+      // Look up platform_connection_id from route if available
+      let platformConnectionId = "";
+      if (item.route_id) {
+        const routes = await discordEventRoutesRepository.listByOrganization(item.organization_id);
+        const route = routes.find((r) => r.id === item.route_id);
+        if (route) {
+          platformConnectionId = route.platform_connection_id;
+        }
+      }
+
+      if (!platformConnectionId) {
+        logger.warn("[Discord Event Router] Queue item missing platform_connection_id", {
+          queueId: item.id,
+          routeId: item.route_id,
+        });
+      }
+
       const event: RoutableEvent = {
         eventType: item.event_type,
         eventId: item.event_id,
         guildId: item.guild_id,
         channelId: item.channel_id ?? undefined,
         organizationId: item.organization_id,
-        platformConnectionId: "", // Will be looked up from route
+        platformConnectionId,
         data: {
           raw: item.payload.d,
         },
@@ -246,7 +220,7 @@ export class DiscordEventRouter {
       };
 
       const results = await this.routeEvent(event);
-      const allSuccessful = results.every((r) => r.success);
+      const allSuccessful = results.length === 0 || results.every((r) => r.success);
 
       if (allSuccessful) {
         await discordEventQueueRepository.markCompleted(item.id);

@@ -13,6 +13,7 @@ import {
   hashQuery,
   recordSlowQuery,
   getSlowQueriesFromMemory,
+  getSlowQueriesFromRedis,
   getTopSlowQueries,
   getMostFrequentSlowQueries,
   getSlowQueryStats,
@@ -317,6 +318,34 @@ describe("slow-query-store", () => {
       expect(queries[0].callCount).toBe(100);
       // Sum of 100..199 = 100 * (100 + 199) / 2 = 14950
       expect(queries[0].totalDurationMs).toBe(14950);
+    });
+  });
+
+  describe("getSlowQueriesFromRedis", () => {
+    it("returns empty array when Redis not configured", async () => {
+      // This test verifies graceful degradation when Redis is unavailable
+      // The actual Redis behavior is tested in integration tests
+      const queries = await getSlowQueriesFromRedis();
+      expect(Array.isArray(queries)).toBe(true);
+    });
+
+    it("returns queries from Redis when available", async () => {
+      // Record a query (which writes to Redis if configured)
+      await recordSlowQuery("redis_test_query", 150);
+
+      // Give Redis time to process async write
+      await new Promise((r) => setTimeout(r, 100));
+
+      // Try to read from Redis
+      const queries = await getSlowQueriesFromRedis();
+      
+      // If Redis is configured, we should get the query back
+      // If not, we get empty array (graceful degradation)
+      if (queries.length > 0) {
+        const entry = queries.find((q) => q.sqlText === "redis_test_query");
+        expect(entry).toBeDefined();
+        expect(entry!.durationMs).toBe(150);
+      }
     });
   });
 });

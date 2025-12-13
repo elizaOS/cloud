@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 const StatusUpdateSchema = z.object({
   connection_id: z.string().uuid(),
   pod_name: z.string(),
-  status: z.enum(["connecting", "connected", "disconnected", "error"]),
+  status: z.enum(["connecting", "connected", "disconnected", "reconnecting", "error"]),
   error_message: z.string().optional(),
   guild_count: z.number().optional(),
   session_id: z.string().optional(),
@@ -74,14 +74,18 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ success: true });
 }
 
-function mapStatus(status: string): "connecting" | "connected" | "disconnected" | "error" | "resuming" {
+// Maps gateway pod status to database enum values
+// DB enum: ["connected", "disconnected", "reconnecting", "error", "starting"]
+function mapStatus(status: string): "connected" | "disconnected" | "reconnecting" | "error" | "starting" {
   switch (status) {
     case "connecting":
-      return "connecting";
+      return "starting";
     case "connected":
       return "connected";
     case "disconnected":
       return "disconnected";
+    case "reconnecting":
+      return "reconnecting";
     case "error":
       return "error";
     default:

@@ -208,22 +208,19 @@ async function main() {
   }
   console.log();
 
-  // Instrumentation status
+  // Instrumentation status - use the actual function from db/client
   console.log("🔧 INSTRUMENTATION STATUS");
   console.log("-".repeat(60));
   
+  // Dynamically import to get the actual instrumentation check
+  const { isInstrumentationEnabled } = await import("@/db/client");
+  const instrumentationEnabled = isInstrumentationEnabled();
+  
   const env = process.env.NODE_ENV;
   const vercelEnv = process.env.VERCEL_ENV;
-  const disabled = process.env.DB_INSTRUMENTATION_DISABLED === "true";
-  
-  const shouldBeEnabled = !disabled && (
-    env === "development" || 
-    vercelEnv === "preview" || 
-    vercelEnv === "development"
-  );
   
   console.log(`  Environment: ${env || "not set"} (VERCEL_ENV: ${vercelEnv || "not set"})`);
-  console.log(`  Instrumentation: ${shouldBeEnabled ? "✅ ENABLED" : "❌ DISABLED"}`);
+  console.log(`  Instrumentation: ${instrumentationEnabled ? "✅ ENABLED" : "❌ DISABLED"}`);
   console.log(`  Threshold: ${process.env.SLOW_QUERY_THRESHOLD_MS || "50"}ms`);
   
   const hasDiscord = !!process.env.DB_SLOW_QUERY_DISCORD_WEBHOOK;

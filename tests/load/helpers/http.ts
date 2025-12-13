@@ -1,15 +1,21 @@
-import http from "k6/http";
-import { check, Response } from "k6";
+import http, { type RefinedResponse, type ResponseType } from "k6/http";
+import { check } from "k6";
 import { getBaseUrl } from "../config/environments";
 import { getAuthHeaders, getPublicHeaders } from "./auth";
-import { parseBody } from "./assertions";
 import { recordHttpError } from "./metrics";
+
+type K6Response = RefinedResponse<ResponseType | undefined>;
 
 const baseUrl = getBaseUrl();
 const headers = getAuthHeaders();
 const publicHeaders = getPublicHeaders();
 
-function checkStatus(res: Response, expected: number | ((status: number) => boolean), name: string): boolean {
+function parseBody<T>(res: K6Response): T {
+  if (res.body === null) throw new Error("Response body is null");
+  return JSON.parse(res.body as string);
+}
+
+function checkStatus(res: K6Response, expected: number | ((status: number) => boolean), name: string): boolean {
   const predicate = typeof expected === "function" ? expected : (s: number) => s === expected;
   if (!check(res, { [`${name} ${res.status}`]: (r) => predicate(r.status) })) {
     recordHttpError(res.status);
