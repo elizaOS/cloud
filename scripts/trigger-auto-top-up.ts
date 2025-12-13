@@ -56,7 +56,9 @@ async function triggerAutoTopUp() {
             if (detail.amount)
               console.log(`      Amount: $${detail.amount.toFixed(2)}`);
             if (detail.newBalance)
-              console.log(`      New Balance: $${detail.newBalance.toFixed(2)}`);
+              console.log(
+                `      New Balance: $${detail.newBalance.toFixed(2)}`,
+              );
             if (detail.error) console.log(`      Error: ${detail.error}`);
           },
         );
