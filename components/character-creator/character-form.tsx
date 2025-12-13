@@ -57,7 +57,11 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
       <div className="relative z-10 space-y-6">
         <h3 className="text-lg font-bold text-white">Character Details</h3>
 
-        <BrandTabs id="character-form-tabs" defaultValue="basics" className="w-full">
+        <BrandTabs
+          id="character-form-tabs"
+          defaultValue="basics"
+          className="w-full"
+        >
           <BrandTabsList className="grid w-full grid-cols-4">
             <BrandTabsTrigger value="basics" className="flex-1">
               Basics
