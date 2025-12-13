@@ -62,7 +62,7 @@ export async function getOrCreatePurchaserAccount(): Promise<Account> {
   }
 
   // The CDP SDK account object is already compatible with viem Account
-  // Bypass toAccount() to avoid version conflicts between viem and x402-mcp
+  // Bypass toAccount() to avoid version conflicts
   return account as unknown as Account;
 }
 
@@ -72,6 +72,6 @@ export async function getOrCreateSellerAccount(): Promise<Account> {
     name: "Seller",
   });
   // The CDP SDK account object is already compatible with viem Account
-  // Bypass toAccount() to avoid version conflicts between viem and x402-mcp
+  // Bypass toAccount() to avoid version conflicts
   return account as unknown as Account;
 }
