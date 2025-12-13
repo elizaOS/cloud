@@ -43,7 +43,7 @@ const ANON_SESSION_EXPIRY_DAYS = Number.parseInt(
   10
 );
 const ANON_MESSAGE_LIMIT = Number.parseInt(
-  process.env.ANON_MESSAGE_LIMIT || "10",
+  process.env.ANON_MESSAGE_LIMIT || "5",
   10
 );
 const ANON_HOURLY_LIMIT = Number.parseInt(
@@ -308,12 +308,14 @@ export async function convertAnonymousToReal(
       const orgSlug = `user-${privyUserId.slice(-8)}-${Math.random().toString(36).slice(2, 8)}`;
 
       // Create organization for the user
+      // Affiliate-converted users get $1.00 initial credits (affiliate bonus)
+      const AFFILIATE_INITIAL_CREDITS = "1.00";
       const [organization] = await tx
         .insert(organizations)
         .values({
           name: `${anonUser.name || "User"}'s Organization`,
           slug: orgSlug,
-          credit_balance: "5.00", // $5 initial credits
+          credit_balance: AFFILIATE_INITIAL_CREDITS,
         })
         .returning();
 

@@ -1,0 +1,9 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path
+    d="M0 4C0 1.79086 1.79086 0 4 0H28C30.2091 0 32 1.79086 32 4V28C32 30.2091 30.2091 32 28 32H4C1.79086 32 0 30.2091 0 28V4Z"
+    fill="#09090B" />
+  <path d="M14 17H4L8 13H12L21 4H27L14 17Z" fill="#D9D9D9" />
+  <path d="M15 20V18L28 5V7L15 20Z" fill="#D9D9D9" />
+  <path d="M15 24V22L28 9V11L15 24Z" fill="#D9D9D9" />
+  <path d="M15 28V26L20 21V23L15 28Z" fill="#D9D9D9" />
+</svg>
