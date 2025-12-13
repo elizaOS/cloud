@@ -97,32 +97,7 @@ export interface ServerWithConnection extends OrgPlatformServer {
 // TELEGRAM API HELPERS
 // =============================================================================
 
-const TELEGRAM_API_BASE = "https://api.telegram.org";
-
-async function telegramApiRequest<T>(
-  method: string,
-  botToken: string,
-  params?: Record<string, string | number | boolean>
-): Promise<T> {
-  const url = new URL(`${TELEGRAM_API_BASE}/bot${botToken}/${method}`);
-
-  if (params) {
-    Object.entries(params).forEach(([key, value]) => {
-      url.searchParams.set(key, String(value));
-    });
-  }
-
-  const response = await fetch(url.toString());
-  const data = await response.json();
-
-  if (!data.ok) {
-    throw new Error(
-      `Telegram API error: ${data.error_code} - ${data.description}`
-    );
-  }
-
-  return data.result;
-}
+import { telegramBotApiGet } from "@/lib/utils/telegram-api";
 
 // =============================================================================
 // VALIDATION FUNCTIONS
@@ -143,7 +118,7 @@ export async function validateDiscordBotToken(
 export async function validateTelegramBotToken(
   botToken: string
 ): Promise<TelegramBotInfo> {
-  return telegramApiRequest<TelegramBotInfo>("getMe", botToken);
+  return telegramBotApiGet<TelegramBotInfo>(botToken, "getMe");
 }
 
 /**

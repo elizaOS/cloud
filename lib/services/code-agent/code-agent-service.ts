@@ -222,7 +222,7 @@ class CodeAgentService {
     try { await this.createSnapshot({ sessionId, name: "Pre-termination" }); } catch (e) { logger.warn("[CodeAgentService] Snapshot failed", { sessionId, error: e }); }
 
     if (session.runtime_id) {
-      await runtimes[session.runtime_type]?.terminate(session.runtime_id);
+      await runtimes[session.runtime_type].terminate(session.runtime_id);
       this.instances.delete(sessionId);
     }
 

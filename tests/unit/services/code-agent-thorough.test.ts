@@ -17,7 +17,7 @@ describe("Interpreter - Boundary Conditions", () => {
   // Constants must match interpreter-service.ts
   const MAX_OUTPUT = 100000;
   const TIMEOUT_MS = 30000;
-  const COST_CENTS = 0.1;
+  const COST_CENTS = 1;
 
   describe("Code Length Limits", () => {
     test("handles empty string code", () => {
@@ -103,17 +103,17 @@ describe("Interpreter - Boundary Conditions", () => {
   });
 
   describe("Cost Calculation Boundaries", () => {
-    test("minimum cost is 0.1 cents", () => {
-      expect(COST_CENTS).toBe(0.1);
+    test("minimum cost is 1 cent", () => {
+      expect(COST_CENTS).toBe(1);
     });
 
-    test("cost in dollars is 0.001", () => {
+    test("cost in dollars is 0.01", () => {
       const dollars = COST_CENTS / 100;
-      expect(dollars).toBe(0.001);
+      expect(dollars).toBe(0.01);
     });
 
     test("many executions accumulate correctly", () => {
-      const executions = 1000;
+      const executions = 100;
       const totalCents = executions * COST_CENTS;
       const totalDollars = totalCents / 100;
       expect(totalCents).toBe(100);

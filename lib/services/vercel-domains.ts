@@ -15,9 +15,9 @@ import { db } from "@/db";
 import { appDomains, type DomainVerificationRecord } from "@/db/schemas/app-domains";
 import { eq, and, ne } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
+import { buildVercelUrl, vercelApiRequest } from "@/lib/utils/vercel-api";
 
 // Vercel API configuration
-const VERCEL_API_BASE = "https://api.vercel.com";
 const VERCEL_TOKEN = process.env.VERCEL_TOKEN;
 const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID;
 const VERCEL_PROJECT_ID = process.env.VERCEL_APP_PROJECT_ID;
@@ -90,16 +90,7 @@ interface AddDomainResult {
   error?: string;
 }
 
-/**
- * Build Vercel API URL with team ID if available
- */
-function buildVercelUrl(path: string): string {
-  const url = new URL(`${VERCEL_API_BASE}${path}`);
-  if (VERCEL_TEAM_ID) {
-    url.searchParams.set("teamId", VERCEL_TEAM_ID);
-  }
-  return url.toString();
-}
+// Use shared buildVercelUrl from @/lib/utils/vercel-api
 
 /**
  * Make authenticated request to Vercel API
@@ -112,22 +103,7 @@ async function vercelFetch<T>(
     throw new Error("VERCEL_TOKEN is not configured");
   }
 
-  const url = buildVercelUrl(path);
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${VERCEL_TOKEN}`,
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
-    throw new Error(error.error?.message || `Vercel API error: ${response.status}`);
-  }
-
-  return response.json();
+  return vercelApiRequest<T>(path, VERCEL_TOKEN, options, VERCEL_TEAM_ID);
 }
 
 /**

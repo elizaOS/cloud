@@ -48,7 +48,7 @@ interface PlatformPoller {
   ): Promise<PollResult>;
 }
 
-const TWITTER_API_BASE = "https://api.twitter.com/2";
+import { TWITTER_API_BASE, twitterApiRequest } from "@/lib/utils/twitter-api";
 
 class TwitterPoller implements PlatformPoller {
   async poll(
@@ -100,21 +100,11 @@ class TwitterPoller implements PlatformPoller {
       params.set("since_id", sinceId);
     }
 
-    const response = await fetch(
-      `${TWITTER_API_BASE}/users/${userId}/mentions?${params}`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Twitter mentions fetch failed: ${response.status} - ${error}`);
-    }
-
-    const data = await response.json();
+    const data = await twitterApiRequest<{
+      data?: TwitterTweet[];
+      includes?: { users?: TwitterUser[]; tweets?: TwitterTweet[] };
+      meta?: { next_token?: string; result_count?: number };
+    }>(`/users/${userId}/mentions?${params}`, accessToken);
     const engagements: PolledEngagement[] = [];
 
     if (!data.data) {
@@ -202,80 +192,75 @@ class TwitterPoller implements PlatformPoller {
       params.set("since_id", sinceId);
     }
 
-    const response = await fetch(
-      `${TWITTER_API_BASE}/tweets/search/recent?${params}`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      }
-    );
+    try {
+      const data = await twitterApiRequest<{
+        data?: TwitterTweet[];
+        includes?: { users?: TwitterUser[]; tweets?: TwitterTweet[] };
+        meta?: { next_token?: string; result_count?: number };
+      }>(`/tweets/search/recent?${params}`, accessToken);
+      
+      const engagements: PolledEngagement[] = [];
 
-    if (!response.ok) {
+      if (!data.data) {
+        return { engagements, hasMore: false };
+      }
+
+      const users = new Map<string, TwitterUser>();
+      for (const user of data.includes?.users ?? []) {
+        users.set(user.id, user);
+      }
+
+      const referencedTweets = new Map<string, TwitterTweet>();
+      for (const tweet of data.includes?.tweets ?? []) {
+        referencedTweets.set(tweet.id, tweet);
+      }
+
+      for (const tweet of data.data) {
+        const author = users.get(tweet.author_id);
+        const quotedRef = tweet.referenced_tweets?.find(
+          (ref: { type: string; id: string }) => ref.type === "quoted"
+        );
+        const originalTweet = quotedRef ? referencedTweets.get(quotedRef.id) : undefined;
+
+        engagements.push({
+          eventType: "quote_tweet",
+          sourcePostId: tweet.id,
+          sourcePostUrl: `https://twitter.com/i/status/${tweet.id}`,
+          authorId: tweet.author_id,
+          authorUsername: author?.username,
+          authorDisplayName: author?.name,
+          authorAvatarUrl: author?.profile_image_url,
+          authorFollowerCount: author?.public_metrics?.followers_count,
+          authorVerified: author?.verified,
+          originalPostId: originalTweet?.id,
+          originalPostUrl: originalTweet
+            ? `https://twitter.com/i/status/${originalTweet.id}`
+            : undefined,
+          originalPostContent: originalTweet?.text,
+          content: tweet.text,
+          rawData: tweet,
+          engagementMetrics: {
+            likes: tweet.public_metrics?.like_count,
+            reposts: tweet.public_metrics?.retweet_count,
+            replies: tweet.public_metrics?.reply_count,
+            quotes: tweet.public_metrics?.quote_count,
+          },
+        });
+      }
+
+      return {
+        engagements,
+        lastSeenId: data.data[0]?.id,
+        hasMore: !!data.meta?.next_token,
+      };
+    } catch (error) {
       // Search may not be available on all API tiers
-      if (response.status === 403) {
+      if (error instanceof Error && error.message.includes("403")) {
         logger.debug("[Twitter Poller] Quote search not available on this API tier");
         return { engagements: [], hasMore: false };
       }
-      const error = await response.text();
-      throw new Error(`Twitter quote search failed: ${response.status} - ${error}`);
+      throw error;
     }
-
-    const data = await response.json();
-    const engagements: PolledEngagement[] = [];
-
-    if (!data.data) {
-      return { engagements, hasMore: false };
-    }
-
-    const users = new Map<string, TwitterUser>();
-    for (const user of data.includes?.users ?? []) {
-      users.set(user.id, user);
-    }
-
-    const referencedTweets = new Map<string, TwitterTweet>();
-    for (const tweet of data.includes?.tweets ?? []) {
-      referencedTweets.set(tweet.id, tweet);
-    }
-
-    for (const tweet of data.data) {
-      const author = users.get(tweet.author_id);
-      const quotedRef = tweet.referenced_tweets?.find(
-        (ref: { type: string; id: string }) => ref.type === "quoted"
-      );
-      const originalTweet = quotedRef ? referencedTweets.get(quotedRef.id) : undefined;
-
-      engagements.push({
-        eventType: "quote_tweet",
-        sourcePostId: tweet.id,
-        sourcePostUrl: `https://twitter.com/i/status/${tweet.id}`,
-        authorId: tweet.author_id,
-        authorUsername: author?.username,
-        authorDisplayName: author?.name,
-        authorAvatarUrl: author?.profile_image_url,
-        authorFollowerCount: author?.public_metrics?.followers_count,
-        authorVerified: author?.verified,
-        originalPostId: originalTweet?.id,
-        originalPostUrl: originalTweet
-          ? `https://twitter.com/i/status/${originalTweet.id}`
-          : undefined,
-        originalPostContent: originalTweet?.text,
-        content: tweet.text,
-        rawData: tweet,
-        engagementMetrics: {
-          likes: tweet.public_metrics?.like_count,
-          reposts: tweet.public_metrics?.retweet_count,
-          replies: tweet.public_metrics?.reply_count,
-          quotes: tweet.public_metrics?.quote_count,
-        },
-      });
-    }
-
-    return {
-      engagements,
-      lastSeenId: data.data[0]?.id,
-      hasMore: !!data.meta?.next_token,
-    };
   }
 
 }

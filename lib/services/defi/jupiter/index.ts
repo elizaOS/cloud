@@ -47,10 +47,8 @@ export class JupiterService {
     });
   }
 
-  async getQuote(params: JupiterQuoteParams): Promise<SwapQuote> {
-    logger.info(`[Jupiter] Getting quote: ${params.inputMint} -> ${params.outputMint}`);
-
-    const response = await this.client.get<JupiterQuoteResponse>("/quote", {
+  private buildQuoteParams(params: JupiterQuoteParams) {
+    return {
       inputMint: params.inputMint,
       outputMint: params.outputMint,
       amount: params.amount,
@@ -62,19 +60,17 @@ export class JupiterService {
       excludeDexes: params.excludeDexes?.join(","),
       autoSlippage: params.autoSlippage,
       maxAutoSlippageBps: params.maxAutoSlippageBps,
-    });
+    };
+  }
+
+  async getQuote(params: JupiterQuoteParams): Promise<SwapQuote> {
+    logger.info(`[Jupiter] Getting quote: ${params.inputMint} -> ${params.outputMint}`);
+    const response = await this.client.get<JupiterQuoteResponse>("/quote", this.buildQuoteParams(params));
 
     const [inputToken, outputToken] = await Promise.all([
       this.getTokenInfo(params.inputMint),
       this.getTokenInfo(params.outputMint),
     ]);
-
-    const routes: SwapRoute[] = response.routePlan.map((step) => ({
-      protocol: step.swapInfo.label,
-      inputToken: step.swapInfo.inputMint,
-      outputToken: step.swapInfo.outputMint,
-      portion: step.percent / 100,
-    }));
 
     return {
       inputToken: inputToken ?? { address: params.inputMint, symbol: "UNKNOWN", name: "Unknown Token", decimals: 9, chainId: "solana" },
@@ -82,66 +78,42 @@ export class JupiterService {
       inputAmount: response.inAmount,
       outputAmount: response.outAmount,
       priceImpactPercent: parseFloat(response.priceImpactPct),
-      routes,
+      routes: response.routePlan.map((step) => ({
+        protocol: step.swapInfo.label,
+        inputToken: step.swapInfo.inputMint,
+        outputToken: step.swapInfo.outputMint,
+        portion: step.percent / 100,
+      })),
       fee: response.platformFee ? { amount: response.platformFee.amount, token: params.inputMint } : undefined,
     };
   }
 
   async getRawQuote(params: JupiterQuoteParams): Promise<JupiterQuoteResponse> {
     logger.info(`[Jupiter] Getting raw quote: ${params.inputMint} -> ${params.outputMint}`);
-
-    return this.client.get<JupiterQuoteResponse>("/quote", {
-      inputMint: params.inputMint,
-      outputMint: params.outputMint,
-      amount: params.amount,
-      slippageBps: params.slippageBps ?? this.config.defaultSlippageBps ?? 50,
-      swapMode: params.swapMode ?? "ExactIn",
-      onlyDirectRoutes: params.onlyDirectRoutes,
-      asLegacyTransaction: params.asLegacyTransaction,
-      maxAccounts: params.maxAccounts,
-      excludeDexes: params.excludeDexes?.join(","),
-      autoSlippage: params.autoSlippage,
-      maxAutoSlippageBps: params.maxAutoSlippageBps,
-    });
+    return this.client.get<JupiterQuoteResponse>("/quote", this.buildQuoteParams(params));
   }
 
-  async getSwapTransaction(
-    quoteResponse: JupiterQuoteResponse,
-    userPublicKey: string,
-    options: Partial<JupiterSwapRequest> = {}
-  ): Promise<JupiterSwapResponse> {
+  private buildSwapBody(quoteResponse: JupiterQuoteResponse, userPublicKey: string, options: Partial<JupiterSwapRequest> = {}) {
+    return {
+      quoteResponse,
+      userPublicKey,
+      wrapAndUnwrapSol: options.wrapAndUnwrapSol ?? true,
+      useSharedAccounts: options.useSharedAccounts ?? true,
+      computeUnitPriceMicroLamports: options.computeUnitPriceMicroLamports,
+      prioritizationFeeLamports: options.prioritizationFeeLamports ?? "auto",
+      asLegacyTransaction: options.asLegacyTransaction ?? false,
+      dynamicComputeUnitLimit: options.dynamicComputeUnitLimit ?? true,
+    };
+  }
+
+  async getSwapTransaction(quoteResponse: JupiterQuoteResponse, userPublicKey: string, options: Partial<JupiterSwapRequest> = {}): Promise<JupiterSwapResponse> {
     logger.info(`[Jupiter] Building swap transaction for ${userPublicKey}`);
-
-    return this.client.post<JupiterSwapResponse>("/swap", {
-      quoteResponse,
-      userPublicKey,
-      wrapAndUnwrapSol: options.wrapAndUnwrapSol ?? true,
-      useSharedAccounts: options.useSharedAccounts ?? true,
-      computeUnitPriceMicroLamports: options.computeUnitPriceMicroLamports,
-      prioritizationFeeLamports: options.prioritizationFeeLamports ?? "auto",
-      asLegacyTransaction: options.asLegacyTransaction ?? false,
-      dynamicComputeUnitLimit: options.dynamicComputeUnitLimit ?? true,
-      dynamicSlippage: options.dynamicSlippage,
-    } as Record<string, unknown>);
+    return this.client.post<JupiterSwapResponse>("/swap", { ...this.buildSwapBody(quoteResponse, userPublicKey, options), dynamicSlippage: options.dynamicSlippage } as Record<string, unknown>);
   }
 
-  async getSwapInstructions(
-    quoteResponse: JupiterQuoteResponse,
-    userPublicKey: string,
-    options: Partial<JupiterSwapRequest> = {}
-  ): Promise<JupiterSwapInstructionsResponse> {
+  async getSwapInstructions(quoteResponse: JupiterQuoteResponse, userPublicKey: string, options: Partial<JupiterSwapRequest> = {}): Promise<JupiterSwapInstructionsResponse> {
     logger.info(`[Jupiter] Getting swap instructions for ${userPublicKey}`);
-
-    return this.client.post<JupiterSwapInstructionsResponse>("/swap-instructions", {
-      quoteResponse,
-      userPublicKey,
-      wrapAndUnwrapSol: options.wrapAndUnwrapSol ?? true,
-      useSharedAccounts: options.useSharedAccounts ?? true,
-      computeUnitPriceMicroLamports: options.computeUnitPriceMicroLamports,
-      prioritizationFeeLamports: options.prioritizationFeeLamports ?? "auto",
-      asLegacyTransaction: options.asLegacyTransaction ?? false,
-      dynamicComputeUnitLimit: options.dynamicComputeUnitLimit ?? true,
-    } as Record<string, unknown>);
+    return this.client.post<JupiterSwapInstructionsResponse>("/swap-instructions", this.buildSwapBody(quoteResponse, userPublicKey, options) as Record<string, unknown>);
   }
 
   async getTokenPrices(tokenAddresses: string[], vsToken?: string): Promise<Map<string, TokenPrice>> {

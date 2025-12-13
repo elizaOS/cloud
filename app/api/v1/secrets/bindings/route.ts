@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { secretsService, type AuditContext } from "@/lib/services/secrets";
+import { secretsService } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
 import { secretProjectTypeEnum, type SecretProjectType } from "@/db/schemas/secrets";
+import { createAudit, handleSecretsError } from "@/lib/api/secrets-helpers";
 
 const PROJECT_TYPES = secretProjectTypeEnum.enumValues;
 
@@ -18,14 +19,6 @@ const BulkBindSchema = z.object({
   projectId: z.string().uuid(),
   projectType: z.enum(PROJECT_TYPES),
 });
-
-function handleError(error: unknown) {
-  const message = error instanceof Error ? error.message : "Operation failed";
-  logger.error("[Secrets] Binding operation failed", { error: message });
-  if (message.includes("not found")) return NextResponse.json({ error: message }, { status: 404 });
-  if (message.includes("already bound")) return NextResponse.json({ error: message }, { status: 409 });
-  return NextResponse.json({ error: message }, { status: 500 });
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -50,7 +43,7 @@ export async function GET(request: NextRequest) {
     const result = await secretsService.listBindings(user.organization_id, projectId!, projectType, limit, offset);
     return NextResponse.json({ ...result, limit, offset });
   } catch (error) {
-    return handleError(error);
+    return handleSecretsError(error, "Secrets Bindings");
   }
 }
 
@@ -58,7 +51,7 @@ export async function POST(request: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const body = await request.json();
-    const audit: AuditContext = { actorType: "user", actorId: user.id, source: "secrets-bindings-api" };
+    const audit = createAudit(user, "secrets-bindings-api");
 
     if (body.secretIds && Array.isArray(body.secretIds)) {
       const parsed = BulkBindSchema.safeParse(body);
@@ -85,7 +78,6 @@ export async function POST(request: NextRequest) {
     logger.info("[Secrets] Bound", { secretId: parsed.data.secretId, projectId: parsed.data.projectId });
     return NextResponse.json({ binding }, { status: 201 });
   } catch (error) {
-    return handleError(error);
+    return handleSecretsError(error, "Secrets Bindings");
   }
 }
-

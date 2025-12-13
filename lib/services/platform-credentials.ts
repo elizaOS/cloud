@@ -482,6 +482,30 @@ class PlatformCredentialsService {
     return result.rowCount || 0;
   }
 
+  async getCredentialsExpiringWithin(hours: number): Promise<PlatformCredential[]> {
+    const expiryThreshold = new Date(Date.now() + hours * 60 * 60 * 1000);
+    return db.select().from(platformCredentials)
+      .where(and(
+        eq(platformCredentials.status, "active"),
+        lt(platformCredentials.token_expires_at, expiryThreshold)
+      ));
+  }
+
+  async refreshExpiringTokens(hoursBeforeExpiry = 24): Promise<{ refreshed: number; failed: number }> {
+    const expiring = await this.getCredentialsExpiringWithin(hoursBeforeExpiry);
+    let refreshed = 0;
+    let failed = 0;
+
+    for (const credential of expiring) {
+      const success = await this.refreshToken(credential.id, credential.organization_id);
+      if (success) refreshed++;
+      else failed++;
+    }
+
+    logger.info("[Credentials] Proactive refresh complete", { refreshed, failed, total: expiring.length });
+    return { refreshed, failed };
+  }
+
   async storeManualCredentials(params: {
     organizationId: string;
     userId?: string;
@@ -626,17 +650,11 @@ class PlatformCredentialsService {
 
   async createMastodonLinkSession(params: CreateLinkSessionParams & { instanceUrl: string }) {
     const instanceHost = new URL(params.instanceUrl.startsWith("http") ? params.instanceUrl : `https://${params.instanceUrl}`).origin;
+    const cloudUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const redirectUri = `${cloudUrl}/api/auth/platform-callback/mastodon`;
 
-    const clientId = process.env.MASTODON_CLIENT_ID;
-    const clientSecret = process.env.MASTODON_CLIENT_SECRET;
-    const configuredInstance = process.env.MASTODON_INSTANCE_URL;
-
-    if (!configuredInstance || !clientId || !clientSecret) {
-      throw new Error("Mastodon OAuth not configured");
-    }
-    if (!instanceHost.includes(new URL(configuredInstance).host)) {
-      throw new Error(`Instance ${instanceHost} not supported`);
-    }
+    // Get or create app credentials for this instance
+    const { clientId, clientSecret } = await this.getOrCreateMastodonApp(instanceHost, redirectUri);
 
     const sessionId = nanoid(32);
     const oauthState = randomBytes(32).toString("hex");
@@ -657,10 +675,9 @@ class PlatformCredentialsService {
       expires_at: expiresAt,
     });
 
-    const cloudUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const authParams = new URLSearchParams({
       client_id: clientId,
-      redirect_uri: `${cloudUrl}/api/auth/platform-callback/mastodon`,
+      redirect_uri: redirectUri,
       response_type: "code",
       state: oauthState,
       scope: scopes.join(" "),
@@ -668,6 +685,59 @@ class PlatformCredentialsService {
 
     logger.info("[Credentials] Mastodon session created", { sessionId: sessionId.slice(0, 8), instance: instanceHost });
     return { sessionId, linkUrl: `${instanceHost}/oauth/authorize?${authParams}`, expiresAt };
+  }
+
+  private async getOrCreateMastodonApp(instanceHost: string, redirectUri: string): Promise<{ clientId: string; clientSecret: string }> {
+    const instanceKey = instanceHost.replace(/https?:\/\//, "").replace(/[^a-zA-Z0-9]/g, "_");
+    const secretName = `MASTODON_APP_${instanceKey}`;
+
+    // Try to get existing app credentials from secrets
+    const existing = await secretsService.getSystemSecret(secretName);
+    if (existing) {
+      const parsed = JSON.parse(existing);
+      return { clientId: parsed.client_id, clientSecret: parsed.client_secret };
+    }
+
+    // Register new app with the instance
+    const response = await fetch(`${instanceHost}/api/v1/apps`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_name: "ElizaCloud",
+        redirect_uris: redirectUri,
+        scopes: OAUTH_CONFIGS.mastodon.scopes.join(" "),
+        website: process.env.NEXT_PUBLIC_APP_URL || "https://eliza.cloud",
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      logger.error("[Mastodon] App registration failed", { instance: instanceHost, error });
+      throw new Error(`Failed to register app with ${instanceHost}`);
+    }
+
+    const app = await response.json();
+
+    // Store credentials as system secret
+    await secretsService.createSystemSecret(secretName, JSON.stringify({
+      client_id: app.client_id,
+      client_secret: app.client_secret,
+      instance: instanceHost,
+    }));
+
+    logger.info("[Mastodon] App registered", { instance: instanceHost });
+    return { clientId: app.client_id, clientSecret: app.client_secret };
+  }
+
+  async getMastodonAppCredentials(instanceHost: string): Promise<{ clientId: string; clientSecret: string } | null> {
+    const instanceKey = instanceHost.replace(/https?:\/\//, "").replace(/[^a-zA-Z0-9]/g, "_");
+    const secretName = `MASTODON_APP_${instanceKey}`;
+
+    const existing = await secretsService.getSystemSecret(secretName);
+    if (!existing) return null;
+
+    const parsed = JSON.parse(existing);
+    return { clientId: parsed.client_id, clientSecret: parsed.client_secret };
   }
 
   async getAvailablePlatforms(organizationId: string) {

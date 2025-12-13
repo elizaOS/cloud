@@ -4868,25 +4868,8 @@ export async function executeSkillDomainsAssign(
 
   if (!deduction.success) throw new Error("Insufficient credits");
 
-  let updated;
-  switch (resourceType) {
-    case "app":
-      updated = await domainManagementService.assignToApp(domainId, resourceId, ctx.user.organization_id);
-      break;
-    case "container":
-      updated = await domainManagementService.assignToContainer(domainId, resourceId, ctx.user.organization_id);
-      break;
-    case "agent":
-      updated = await domainManagementService.assignToAgent(domainId, resourceId, ctx.user.organization_id);
-      break;
-    case "mcp":
-      updated = await domainManagementService.assignToMcp(domainId, resourceId, ctx.user.organization_id);
-      break;
-  }
-
-  if (!updated) {
-    throw new Error("Failed to assign domain. Ensure domain is verified and resource exists.");
-  }
+  const updated = await domainManagementService.assignToResource(domainId, resourceType, resourceId, ctx.user.organization_id);
+  if (!updated) throw new Error("Failed to assign domain. Ensure domain is verified and resource exists.");
 
   return {
     success: true,

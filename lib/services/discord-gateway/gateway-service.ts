@@ -8,7 +8,6 @@
 import { logger } from "@/lib/utils/logger";
 import {
   discordBotConnectionsRepository,
-  discordEventRoutesRepository,
   discordEventQueueRepository,
 } from "@/db/repositories/discord-gateway";
 import { secretsService, loadSecrets, isSecretsConfigured } from "@/lib/services/secrets";

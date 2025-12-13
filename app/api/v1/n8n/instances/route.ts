@@ -1,30 +1,11 @@
-/**
- * N8N Instances API
- *
- * GET /api/v1/n8n/instances - List n8n instances
- * POST /api/v1/n8n/instances - Create n8n instance
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { n8nWorkflowsService } from "@/lib/services/n8n-workflows";
 import { logger } from "@/lib/utils/logger";
-import { z } from "zod";
+import { CreateInstanceSchema, ErrorResponses } from "@/lib/n8n/schemas";
 
-const CreateInstanceSchema = z.object({
-  name: z.string().min(1),
-  endpoint: z.string().url(),
-  apiKey: z.string().min(1),
-  isDefault: z.boolean().optional(),
-});
-
-/**
- * GET /api/v1/n8n/instances
- * Lists n8n instances for the authenticated organization.
- */
 export async function GET(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
-
   const instances = await n8nWorkflowsService.listInstances(user.organization_id);
 
   return NextResponse.json({
@@ -40,21 +21,12 @@ export async function GET(request: NextRequest) {
   });
 }
 
-/**
- * POST /api/v1/n8n/instances
- * Creates a new n8n instance connection.
- */
 export async function POST(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
-
   const body = await request.json();
   const validation = CreateInstanceSchema.safeParse(body);
-
   if (!validation.success) {
-    return NextResponse.json(
-      { success: false, error: "Invalid request", details: validation.error.format() },
-      { status: 400 }
-    );
+    return NextResponse.json(ErrorResponses.invalidRequest(validation.error.format()), { status: 400 });
   }
 
   const { name, endpoint, apiKey, isDefault } = validation.data;

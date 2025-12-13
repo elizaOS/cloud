@@ -1,11 +1,7 @@
-/**
- * N8N Workflow API - Individual Workflow
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { n8nWorkflowsService } from "@/lib/services/n8n-workflows";
-import { UpdateWorkflowSchema } from "@/lib/schemas/n8n";
+import { UpdateWorkflowSchema, ErrorResponses } from "@/lib/n8n/schemas";
 
 export async function GET(
   request: NextRequest,
@@ -16,7 +12,7 @@ export async function GET(
 
   const workflow = await n8nWorkflowsService.getWorkflow(id);
   if (!workflow || workflow.organization_id !== user.organization_id) {
-    return NextResponse.json({ success: false, error: "Workflow not found" }, { status: 404 });
+    return NextResponse.json(ErrorResponses.workflowNotFound, { status: 404 });
   }
 
   return NextResponse.json({
@@ -44,20 +40,15 @@ export async function PUT(
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await ctx.params;
 
-  // Verify ownership before allowing update
   const existingWorkflow = await n8nWorkflowsService.getWorkflow(id);
   if (!existingWorkflow || existingWorkflow.organization_id !== user.organization_id) {
-    return NextResponse.json({ success: false, error: "Workflow not found" }, { status: 404 });
+    return NextResponse.json(ErrorResponses.workflowNotFound, { status: 404 });
   }
 
   const body = await request.json();
   const validation = UpdateWorkflowSchema.safeParse(body);
-
   if (!validation.success) {
-    return NextResponse.json(
-      { success: false, error: "Invalid request", details: validation.error.format() },
-      { status: 400 }
-    );
+    return NextResponse.json(ErrorResponses.invalidRequest(validation.error.format()), { status: 400 });
   }
 
   if (validation.data.workflowData) {
@@ -95,7 +86,7 @@ export async function DELETE(
 
   const workflow = await n8nWorkflowsService.getWorkflow(id);
   if (!workflow || workflow.organization_id !== user.organization_id) {
-    return NextResponse.json({ success: false, error: "Workflow not found" }, { status: 404 });
+    return NextResponse.json(ErrorResponses.workflowNotFound, { status: 404 });
   }
 
   await n8nWorkflowsService.deleteWorkflow(id);

@@ -147,8 +147,8 @@ describe("Analytics Service - Real Logic", () => {
         return;
       }
 
-      // Use a random org ID that won't have data
-      const stats = await analyticsService.getStats("org_nonexistent_" + Date.now());
+      // Use a random UUID that won't have data
+      const stats = await analyticsService.getStats(crypto.randomUUID());
 
       expect(stats).toBeDefined();
       expect(stats.sessions).toBeDefined();
@@ -168,7 +168,7 @@ describe("Analytics Service - Real Logic", () => {
       const now = new Date();
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-      const stats = await analyticsService.getStats("org_test", {
+      const stats = await analyticsService.getStats(crypto.randomUUID(), {
         start: weekAgo,
         end: now,
       });
@@ -185,8 +185,8 @@ describe("Analytics Service - Real Logic", () => {
       }
 
       const result = await analyticsService.getSessionAnalytics(
-        "sess_nonexistent_" + Date.now(),
-        "org_test"
+        crypto.randomUUID(),
+        crypto.randomUUID()
       );
 
       expect(result).toBeNull();
@@ -201,7 +201,7 @@ describe("Analytics Service - Real Logic", () => {
       }
 
       const result = await analyticsService.getInterpreterAnalytics(
-        "org_nonexistent_" + Date.now()
+        crypto.randomUUID()
       );
 
       expect(Array.isArray(result)).toBe(true);
@@ -215,7 +215,7 @@ describe("Analytics Service - Real Logic", () => {
         return;
       }
 
-      const result = await analyticsService.getRecentExecutions("org_test", 5);
+      const result = await analyticsService.getRecentExecutions(crypto.randomUUID(), 5);
 
       expect(Array.isArray(result)).toBe(true);
       expect(result.length).toBeLessThanOrEqual(5);
@@ -228,7 +228,7 @@ describe("Analytics Service - Real Logic", () => {
       }
 
       const result = await analyticsService.getRecentExecutions(
-        "org_nonexistent_" + Date.now(),
+        crypto.randomUUID(),
         10
       );
 

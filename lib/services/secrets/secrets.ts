@@ -282,40 +282,17 @@ class SecretsService {
     params: UpdateSecretParams,
     audit: AuditContext
   ): Promise<SecretMetadata> {
-    const existing = await secretsRepository.findById(secretId);
-    if (!existing || existing.organization_id !== organizationId) {
-      throw new Error("Secret not found");
-    }
-
+    const existing = await this.getExistingSecret(secretId, organizationId);
     const updateData: Record<string, unknown> = {};
 
     if (params.value !== undefined) {
-      if (Buffer.byteLength(params.value, "utf8") > MAX_SECRET_VALUE_BYTES) {
-        throw new Error(`Secret value exceeds maximum size of ${MAX_SECRET_VALUE_BYTES} bytes`);
-      }
-      const { encryptedValue, encryptedDek, nonce, authTag, keyId } =
-        await this.encryption.encrypt(params.value);
-
-      updateData.encrypted_value = encryptedValue;
-      updateData.encrypted_dek = encryptedDek;
-      updateData.nonce = nonce;
-      updateData.auth_tag = authTag;
-      updateData.encryption_key_id = keyId;
-      updateData.version = existing.version + 1;
+      Object.assign(updateData, await this.encryptValue(params.value), { version: existing.version + 1 });
     }
-
-    if (params.description !== undefined) {
-      updateData.description = params.description;
-    }
-
-    if (params.expiresAt !== undefined) {
-      updateData.expires_at = params.expiresAt;
-    }
+    if (params.description !== undefined) updateData.description = params.description;
+    if (params.expiresAt !== undefined) updateData.expires_at = params.expiresAt;
 
     const updated = await secretsRepository.update(secretId, updateData as Partial<Secret>);
-    if (!updated) {
-      throw new Error("Failed to update secret");
-    }
+    if (!updated) throw new Error("Failed to update secret");
 
     await this.logAudit(secretId, organizationId, "updated", existing.name, audit);
     return this.toMetadata(updated);
@@ -327,34 +304,40 @@ class SecretsService {
     newValue: string,
     audit: AuditContext
   ): Promise<SecretMetadata> {
-    if (Buffer.byteLength(newValue, "utf8") > MAX_SECRET_VALUE_BYTES) {
-      throw new Error(`Secret value exceeds maximum size of ${MAX_SECRET_VALUE_BYTES} bytes`);
-    }
+    const existing = await this.getExistingSecret(secretId, organizationId);
+    const encrypted = await this.encryptValue(newValue);
 
+    const updated = await secretsRepository.update(secretId, {
+      ...encrypted,
+      version: existing.version + 1,
+      last_rotated_at: new Date(),
+    });
+    if (!updated) throw new Error("Failed to rotate secret");
+
+    await this.logAudit(secretId, organizationId, "rotated", existing.name, audit);
+    return this.toMetadata(updated);
+  }
+
+  private async getExistingSecret(secretId: string, organizationId: string): Promise<Secret> {
     const existing = await secretsRepository.findById(secretId);
     if (!existing || existing.organization_id !== organizationId) {
       throw new Error("Secret not found");
     }
+    return existing;
+  }
 
-    const { encryptedValue, encryptedDek, nonce, authTag, keyId } =
-      await this.encryption.encrypt(newValue);
-
-    const updated = await secretsRepository.update(secretId, {
+  private async encryptValue(value: string) {
+    if (Buffer.byteLength(value, "utf8") > MAX_SECRET_VALUE_BYTES) {
+      throw new Error(`Secret value exceeds maximum size of ${MAX_SECRET_VALUE_BYTES} bytes`);
+    }
+    const { encryptedValue, encryptedDek, nonce, authTag, keyId } = await this.encryption.encrypt(value);
+    return {
       encrypted_value: encryptedValue,
       encrypted_dek: encryptedDek,
       nonce,
       auth_tag: authTag,
       encryption_key_id: keyId,
-      version: existing.version + 1,
-      last_rotated_at: new Date(),
-    });
-
-    if (!updated) {
-      throw new Error("Failed to rotate secret");
-    }
-
-    await this.logAudit(secretId, organizationId, "rotated", existing.name, audit);
-    return this.toMetadata(updated);
+    };
   }
 
   async delete(
@@ -915,6 +898,32 @@ class SecretsService {
       createdAt: secret.created_at,
       updatedAt: secret.updated_at,
     };
+  }
+
+  async getSystemSecret(name: string): Promise<string | null> {
+    const systemOrgId = process.env.SYSTEM_ORG_ID || "system";
+    return this.get(systemOrgId, name);
+  }
+
+  async createSystemSecret(name: string, value: string): Promise<SecretMetadata> {
+    const systemOrgId = process.env.SYSTEM_ORG_ID || "system";
+    const audit: AuditContext = { actorType: "system", actorId: "platform-credentials", source: "system" };
+
+    const existing = await this.get(systemOrgId, name);
+    if (existing) {
+      const secret = await secretsRepository.findByName(systemOrgId, name);
+      if (secret) {
+        return this.update(secret.id, systemOrgId, { value }, audit);
+      }
+    }
+
+    return this.create({
+      organizationId: systemOrgId,
+      name,
+      value,
+      scope: "organization",
+      createdBy: "system",
+    }, audit);
   }
 }
 

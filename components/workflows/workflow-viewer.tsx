@@ -21,34 +21,7 @@ import { WorkflowChatEditor } from "./workflow-chat-editor";
 import { WorkflowTriggers } from "./workflow-triggers";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
-
-interface Workflow {
-  id: string;
-  name: string;
-  description: string | null;
-  status: string;
-  version: number;
-  tags: string[];
-  workflowData: Record<string, unknown>;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface WorkflowVersion {
-  id: string;
-  version: number;
-  changes_summary: string | null;
-  created_at: string;
-}
-
-interface Execution {
-  id: string;
-  status: string;
-  started_at: string;
-  completed_at: string | null;
-  duration_ms: number | null;
-  error: string | null;
-}
+import type { Workflow, WorkflowVersion, WorkflowExecution } from "./types";
 
 interface WorkflowViewerProps {
   workflowId: string;
@@ -59,7 +32,7 @@ interface WorkflowViewerProps {
 export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerProps) {
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [versions, setVersions] = useState<WorkflowVersion[]>([]);
-  const [executions, setExecutions] = useState<Execution[]>([]);
+  const [executions, setExecutions] = useState<WorkflowExecution[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const [showChatEditor, setShowChatEditor] = useState(false);
@@ -82,23 +55,19 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
   }, [workflowId]);
 
   const fetchVersions = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/v1/n8n/workflows/${workflowId}/versions`);
-      if (response.ok) {
-        const data = await response.json();
-        setVersions(data.versions || []);
-      }
-    } catch {}
+    const response = await fetch(`/api/v1/n8n/workflows/${workflowId}/versions`);
+    if (response.ok) {
+      const data = await response.json();
+      setVersions(data.versions || []);
+    }
   }, [workflowId]);
 
   const fetchExecutions = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/v1/n8n/workflows/${workflowId}/executions`);
-      if (response.ok) {
-        const data = await response.json();
-        setExecutions(data.executions || []);
-      }
-    } catch {}
+    const response = await fetch(`/api/v1/n8n/workflows/${workflowId}/executions`);
+    if (response.ok) {
+      const data = await response.json();
+      setExecutions(data.executions || []);
+    }
   }, [workflowId]);
 
   useEffect(() => {
@@ -397,4 +366,3 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
     </div>
   );
 }
-

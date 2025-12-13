@@ -1,28 +1,9 @@
-/**
- * Load Test Scenario Patterns
- *
- * Reusable executor configurations for different load patterns.
- */
-
 import { getConfig } from "./environments";
 
-export interface ScenarioConfig {
-  executor: string;
-  stages?: Array<{ duration: string; target: number }>;
-  vus?: number;
-  duration?: string;
-  rate?: number;
-  timeUnit?: string;
-  preAllocatedVUs?: number;
-  maxVUs?: number;
-}
-
-export function rampUpScenario(maxVUs?: number): ScenarioConfig {
-  const config = getConfig();
-  const peak = maxVUs || config.maxVUs;
-
+export function rampUpScenario(maxVUs?: number) {
+  const peak = maxVUs || getConfig().maxVUs;
   return {
-    executor: "ramping-vus",
+    executor: "ramping-vus" as const,
     stages: [
       { duration: "30s", target: Math.floor(peak * 0.1) },
       { duration: "1m", target: Math.floor(peak * 0.5) },
@@ -34,13 +15,11 @@ export function rampUpScenario(maxVUs?: number): ScenarioConfig {
   };
 }
 
-export function spikeScenario(peakVUs?: number): ScenarioConfig {
-  const config = getConfig();
-  const peak = peakVUs || config.maxVUs * 2;
+export function spikeScenario(peakVUs?: number) {
+  const peak = peakVUs || getConfig().maxVUs * 2;
   const baseline = Math.floor(peak * 0.1);
-
   return {
-    executor: "ramping-vus",
+    executor: "ramping-vus" as const,
     stages: [
       { duration: "30s", target: baseline },
       { duration: "10s", target: peak },
@@ -52,40 +31,33 @@ export function spikeScenario(peakVUs?: number): ScenarioConfig {
   };
 }
 
-export function soakScenario(vus?: number, duration?: string): ScenarioConfig {
-  const config = getConfig();
+export function soakScenario(vus?: number, duration?: string) {
   return {
-    executor: "constant-vus",
-    vus: vus || Math.floor(config.maxVUs * 0.3),
+    executor: "constant-vus" as const,
+    vus: vus || Math.floor(getConfig().maxVUs * 0.3),
     duration: duration || "30m",
   };
 }
 
-export function throughputScenario(rps: number, duration?: string): ScenarioConfig {
+export function throughputScenario(rps: number, duration = "5m") {
   return {
-    executor: "constant-arrival-rate",
+    executor: "constant-arrival-rate" as const,
     rate: rps,
     timeUnit: "1s",
-    duration: duration || "5m",
+    duration,
     preAllocatedVUs: Math.ceil(rps * 2),
     maxVUs: Math.ceil(rps * 10),
   };
 }
 
-export function smokeScenario(): ScenarioConfig {
-  return {
-    executor: "constant-vus",
-    vus: 1,
-    duration: "1m",
-  };
+export function smokeScenario() {
+  return { executor: "constant-vus" as const, vus: 1, duration: "1m" };
 }
 
-export function stressScenario(): ScenarioConfig {
-  const config = getConfig();
-  const peak = config.maxVUs;
-
+export function stressScenario() {
+  const peak = getConfig().maxVUs;
   return {
-    executor: "ramping-vus",
+    executor: "ramping-vus" as const,
     stages: [
       { duration: "2m", target: Math.floor(peak * 0.5) },
       { duration: "5m", target: peak },
@@ -97,4 +69,3 @@ export function stressScenario(): ScenarioConfig {
     ],
   };
 }
-

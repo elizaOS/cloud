@@ -8,6 +8,9 @@ import {
   type AdPlatform,
   AdPlatformSchema,
   CampaignIdSchema,
+  CampaignObjectiveSchema,
+  BudgetTypeSchema,
+  CreativeTypeSchema,
   GetAnalyticsSchema as AdGetAnalyticsSchema,
 } from "@/lib/services/advertising";
 import { analyticsService } from "@/lib/services/analytics";
@@ -1209,8 +1212,8 @@ const OrgListCampaignsSchema = z.object({
 const OrgCreateCampaignSchema = z.object({
   adAccountId: z.string().uuid().describe("Ad account to create campaign in"),
   name: z.string().min(1).max(200).describe("Campaign name"),
-  objective: z.enum(["awareness", "traffic", "engagement", "leads", "sales", "app_promotion", "conversions"]).describe("Campaign objective"),
-  budgetType: z.enum(["daily", "lifetime"]).describe("Budget type"),
+  objective: CampaignObjectiveSchema.describe("Campaign objective"),
+  budgetType: BudgetTypeSchema.describe("Budget type"),
   budgetAmount: z.number().positive().describe("Budget amount in USD"),
   startDate: z.string().datetime().optional().describe("Campaign start date"),
   endDate: z.string().datetime().optional().describe("Campaign end date"),
@@ -1224,7 +1227,7 @@ const OrgGetCampaignAnalyticsSchema = AdGetAnalyticsSchema;
 const OrgCreateCreativeSchema = z.object({
   campaignId: z.string().uuid().describe("Campaign to add creative to"),
   name: z.string().describe("Creative name"),
-  type: z.enum(["image", "video", "carousel"]).describe("Creative type"),
+  type: CreativeTypeSchema.describe("Creative type"),
   headline: z.string().max(100).optional().describe("Ad headline"),
   primaryText: z.string().max(500).optional().describe("Primary ad text"),
   description: z.string().max(200).optional().describe("Ad description"),

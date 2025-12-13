@@ -1,5 +1,5 @@
 /**
- * Community Moderation Service - spam detection, scam detection, link checking, moderation actions.
+ * Community Moderation Service - spam detection, scam detection, moderation actions.
  */
 
 import { db } from "@/db";
@@ -20,7 +20,10 @@ import {
   type ModerationEventType,
   type ModerationSeverity,
 } from "@/db/schemas/org-community-moderation";
+import { orgPlatformServers, orgPlatformConnections } from "@/db/schemas/org-platforms";
+import type { CommunityModerationSettings } from "@/db/schemas/org-agents";
 import { logger } from "@/lib/utils/logger";
+import { linkSafetyService } from "./link-safety";
 import { createHash } from "crypto";
 
 export interface SpamCheckResult {
@@ -28,13 +31,6 @@ export interface SpamCheckResult {
   reason?: string;
   confidence: number;
   recommendedAction?: ModerationAction;
-}
-
-export interface LinkCheckResult {
-  isSafe: boolean;
-  threats: string[];
-  domain: string;
-  confidence: number;
 }
 
 export interface PatternMatchResult {
@@ -64,6 +60,12 @@ export interface ModerationContext {
   messageId?: string;
 }
 
+export interface ViolationResult {
+  violation: boolean;
+  type: string;
+  severity: number;
+}
+
 const DEFAULT_SCAM_PATTERNS = [
   /(?:send|transfer)\s*(?:eth|btc|sol|usdt|usdc)/i,
   /(?:airdrop|giveaway)\s*(?:link|claim)/i,
@@ -71,13 +73,8 @@ const DEFAULT_SCAM_PATTERNS = [
   /claim\s*(?:your\s*)?(?:free\s*)?(?:tokens?|nft|reward)/i,
   /(?:support|admin|mod)\s*(?:team|staff)/i,
   /dm\s*(?:me|us)\s*(?:for|to)\s*(?:help|support)/i,
-  /verify\s*(?:your\s*)?(?:account|wallet)/i,
   /(?:your\s*)?(?:account|wallet)\s*(?:is\s*)?(?:suspended|locked|compromised)/i,
 ];
-
-const KNOWN_SCAM_DOMAINS = new Set([
-  "discord-nitro-free.com", "discordgift.site", "steamcommunity.ru", "free-nitro-discord.com",
-]);
 
 function testPattern(content: string, pattern: OrgBlockedPattern): string | null {
   const lowerContent = content.toLowerCase();
@@ -92,14 +89,33 @@ function testPattern(content: string, pattern: OrgBlockedPattern): string | null
   }
 }
 
+/** Shared utility for picking most severe violation */
+export function pickMostSevereViolation(results: (ViolationResult | null)[]): { shouldAct: boolean; type: string; severity: number } {
+  const violations = results.filter((r): r is ViolationResult => r?.violation === true);
+  if (violations.length === 0) return { shouldAct: false, type: "none", severity: 0 };
+  return violations.reduce((prev, curr) => curr.severity > prev.severity ? curr : prev, { shouldAct: true, ...violations[0] });
+}
+
+/** Shared server settings lookup */
+export async function getServerSettings(connectionId: string, serverId: string): Promise<{ serverId: string; organizationId: string; settings: CommunityModerationSettings } | null> {
+  const [server] = await db
+    .select({ id: orgPlatformServers.id, organization_id: orgPlatformServers.organization_id, agent_settings: orgPlatformServers.agent_settings })
+    .from(orgPlatformServers)
+    .innerJoin(orgPlatformConnections, eq(orgPlatformServers.connection_id, orgPlatformConnections.id))
+    .where(and(eq(orgPlatformConnections.id, connectionId), eq(orgPlatformServers.server_id, serverId)))
+    .limit(1);
+
+  if (!server) return null;
+  const settings = (server.agent_settings as { community_manager?: CommunityModerationSettings })?.community_manager ?? {};
+  return { serverId: server.id, organizationId: server.organization_id, settings };
+}
+
 class SpamDetectionService {
   private readonly MESSAGE_WINDOW_MS = 60_000;
-  private readonly DEFAULT_MAX_MESSAGES = 10;
-  private readonly DEFAULT_DUPLICATE_THRESHOLD = 3;
 
   async checkSpam(ctx: ModerationContext, content: string, settings: { maxMessagesPerMinute?: number; duplicateThreshold?: number } = {}): Promise<SpamCheckResult> {
-    const maxMessages = settings.maxMessagesPerMinute ?? this.DEFAULT_MAX_MESSAGES;
-    const duplicateThreshold = settings.duplicateThreshold ?? this.DEFAULT_DUPLICATE_THRESHOLD;
+    const maxMessages = settings.maxMessagesPerMinute ?? 10;
+    const duplicateThreshold = settings.duplicateThreshold ?? 3;
 
     let tracking = await this.getSpamTracking(ctx) ?? await this.createSpamTracking(ctx);
 
@@ -134,11 +150,7 @@ class SpamDetectionService {
       rate_limit_expires_at: new Date(Date.now() + durationMinutes * 60_000),
       rate_limit_count: sql`${orgSpamTracking.rate_limit_count} + 1`,
       updated_at: new Date(),
-    }).where(and(
-      eq(orgSpamTracking.server_id, ctx.serverId),
-      eq(orgSpamTracking.platform_user_id, ctx.platformUserId),
-      eq(orgSpamTracking.platform, ctx.platform)
-    ));
+    }).where(and(eq(orgSpamTracking.server_id, ctx.serverId), eq(orgSpamTracking.platform_user_id, ctx.platformUserId), eq(orgSpamTracking.platform, ctx.platform)));
   }
 
   async isRateLimited(ctx: ModerationContext): Promise<boolean> {
@@ -146,9 +158,7 @@ class SpamDetectionService {
     if (!tracking?.is_rate_limited || !tracking.rate_limit_expires_at) return false;
 
     if (new Date() > tracking.rate_limit_expires_at) {
-      await db.update(orgSpamTracking).set({
-        is_rate_limited: false, rate_limit_expires_at: null, updated_at: new Date(),
-      }).where(eq(orgSpamTracking.id, tracking.id));
+      await db.update(orgSpamTracking).set({ is_rate_limited: false, rate_limit_expires_at: null, updated_at: new Date() }).where(eq(orgSpamTracking.id, tracking.id));
       return false;
     }
     return true;
@@ -160,19 +170,11 @@ class SpamDetectionService {
       spam_violations_24h: sql`${orgSpamTracking.spam_violations_24h} + 1`,
       total_violations: sql`${orgSpamTracking.total_violations} + 1`,
       updated_at: new Date(),
-    }).where(and(
-      eq(orgSpamTracking.server_id, ctx.serverId),
-      eq(orgSpamTracking.platform_user_id, ctx.platformUserId),
-      eq(orgSpamTracking.platform, ctx.platform)
-    ));
+    }).where(and(eq(orgSpamTracking.server_id, ctx.serverId), eq(orgSpamTracking.platform_user_id, ctx.platformUserId), eq(orgSpamTracking.platform, ctx.platform)));
   }
 
   private async getSpamTracking(ctx: ModerationContext): Promise<OrgSpamTracking | null> {
-    const [tracking] = await db.select().from(orgSpamTracking).where(and(
-      eq(orgSpamTracking.server_id, ctx.serverId),
-      eq(orgSpamTracking.platform_user_id, ctx.platformUserId),
-      eq(orgSpamTracking.platform, ctx.platform)
-    )).limit(1);
+    const [tracking] = await db.select().from(orgSpamTracking).where(and(eq(orgSpamTracking.server_id, ctx.serverId), eq(orgSpamTracking.platform_user_id, ctx.platformUserId), eq(orgSpamTracking.platform, ctx.platform))).limit(1);
     return tracking ?? null;
   }
 
@@ -216,59 +218,9 @@ class ScamDetectionService {
 
     for (const pattern of patterns) {
       const matched = testPattern(content, pattern);
-      if (matched) {
-        return { matched: true, pattern, matchedText: matched };
-      }
+      if (matched) return { matched: true, pattern, matchedText: matched };
     }
     return { matched: false };
-  }
-}
-
-class LinkCheckService {
-  extractLinks(content: string): string[] {
-    return content.match(/https?:\/\/[^\s<>)"']+/gi) ?? [];
-  }
-
-  async checkLinks(content: string, organizationId: string, settings: { allowedDomains?: string[]; blockedDomains?: string[] } = {}): Promise<LinkCheckResult[]> {
-    return Promise.all(this.extractLinks(content).map((link) => this.checkLink(link, organizationId, settings)));
-  }
-
-  async checkLink(url: string, organizationId: string, settings: { allowedDomains?: string[]; blockedDomains?: string[] } = {}): Promise<LinkCheckResult> {
-    let domain: string;
-    try {
-      domain = new URL(url).hostname.toLowerCase();
-    } catch {
-      return { isSafe: false, threats: ["malformed_url"], domain: url, confidence: 100 };
-    }
-
-    const threats: string[] = [];
-
-    if (settings.allowedDomains?.some((d) => domain === d.toLowerCase() || domain.endsWith(`.${d.toLowerCase()}`))) {
-      return { isSafe: true, threats: [], domain, confidence: 100 };
-    }
-
-    if (settings.blockedDomains?.some((d) => domain === d.toLowerCase() || domain.endsWith(`.${d.toLowerCase()}`))) {
-      threats.push("blocked_domain");
-    }
-
-    if (KNOWN_SCAM_DOMAINS.has(domain)) threats.push("known_scam_domain");
-
-    const blockedPatterns = await db.select().from(orgBlockedPatterns).where(and(
-      eq(orgBlockedPatterns.organization_id, organizationId),
-      eq(orgBlockedPatterns.pattern_type, "domain"),
-      eq(orgBlockedPatterns.enabled, true)
-    ));
-
-    for (const p of blockedPatterns) {
-      if (domain === p.pattern.toLowerCase() || domain.endsWith(`.${p.pattern.toLowerCase()}`)) {
-        threats.push(`blocked:${p.category}`);
-      }
-    }
-
-    const suspiciousPatterns = [/disc[o0]rd/i, /telegr[a@]m/i, /metamsk/i, /opensee/i, /coinb[a@]se/i, /-official/i, /free-.*-?nitro/i, /claim.*airdrop/i];
-    if (suspiciousPatterns.some((p) => p.test(domain))) threats.push("suspicious_domain");
-
-    return { isSafe: threats.length === 0, threats, domain, confidence: threats.length > 0 ? 80 : 0 };
   }
 }
 
@@ -308,22 +260,12 @@ class ModerationEventsService {
   }
 
   async getEventsForUser(serverId: string, platformUserId: string, platform: string): Promise<OrgModerationEvent[]> {
-    return db.select().from(orgModerationEvents).where(and(
-      eq(orgModerationEvents.server_id, serverId),
-      eq(orgModerationEvents.platform_user_id, platformUserId),
-      eq(orgModerationEvents.platform, platform)
-    )).orderBy(desc(orgModerationEvents.created_at));
+    return db.select().from(orgModerationEvents).where(and(eq(orgModerationEvents.server_id, serverId), eq(orgModerationEvents.platform_user_id, platformUserId), eq(orgModerationEvents.platform, platform))).orderBy(desc(orgModerationEvents.created_at));
   }
 
   async getViolationCount(serverId: string, platformUserId: string, platform: string, sinceDays = 30): Promise<number> {
     const since = new Date(Date.now() - sinceDays * 86400000);
-    const [result] = await db.select({ count: sql<number>`count(*)` }).from(orgModerationEvents).where(and(
-      eq(orgModerationEvents.server_id, serverId),
-      eq(orgModerationEvents.platform_user_id, platformUserId),
-      eq(orgModerationEvents.platform, platform),
-      gte(orgModerationEvents.created_at, since),
-      eq(orgModerationEvents.false_positive, false)
-    ));
+    const [result] = await db.select({ count: sql<number>`count(*)` }).from(orgModerationEvents).where(and(eq(orgModerationEvents.server_id, serverId), eq(orgModerationEvents.platform_user_id, platformUserId), eq(orgModerationEvents.platform, platform), gte(orgModerationEvents.created_at, since), eq(orgModerationEvents.false_positive, false)));
     return Number(result?.count ?? 0);
   }
 
@@ -339,13 +281,15 @@ class EscalationService {
     const banAfter = settings.banAfterViolations ?? 5;
     const timeoutDuration = settings.defaultTimeoutMinutes ?? 10;
 
-    const count = await moderationEventsService.getViolationCount(ctx.serverId, ctx.platformUserId, ctx.platform);
+    const count = await this.events.getViolationCount(ctx.serverId, ctx.platformUserId, ctx.platform);
 
     if (count >= banAfter) return { action: "ban" };
     if (count >= timeoutAfter) return { action: "timeout", durationMinutes: timeoutDuration * Math.min(count - timeoutAfter + 1, 6) };
     if (count >= warnAfter) return { action: "warn" };
     return { action: "delete" };
   }
+
+  private events = new ModerationEventsService();
 }
 
 class TokenGateService {
@@ -354,12 +298,7 @@ class TokenGateService {
   }
 
   async getMemberWallet(serverId: string, platformUserId: string, platform: string): Promise<OrgMemberWallet | null> {
-    const [wallet] = await db.select().from(orgMemberWallets).where(and(
-      eq(orgMemberWallets.server_id, serverId),
-      eq(orgMemberWallets.platform_user_id, platformUserId),
-      eq(orgMemberWallets.platform, platform),
-      eq(orgMemberWallets.is_primary, true)
-    )).limit(1);
+    const [wallet] = await db.select().from(orgMemberWallets).where(and(eq(orgMemberWallets.server_id, serverId), eq(orgMemberWallets.platform_user_id, platformUserId), eq(orgMemberWallets.platform, platform), eq(orgMemberWallets.is_primary, true))).limit(1);
     return wallet ?? null;
   }
 
@@ -377,14 +316,7 @@ class TokenGateService {
       is_primary: true,
     }).onConflictDoUpdate({
       target: [orgMemberWallets.server_id, orgMemberWallets.wallet_address, orgMemberWallets.chain],
-      set: {
-        platform_user_id: params.platformUserId,
-        platform: params.platform,
-        verification_method: params.verificationMethod,
-        verification_signature: params.signature,
-        verified_at: new Date(),
-        updated_at: new Date(),
-      },
+      set: { platform_user_id: params.platformUserId, platform: params.platform, verification_method: params.verificationMethod, verification_signature: params.signature, verified_at: new Date(), updated_at: new Date() },
     }).returning();
     return wallet;
   }
@@ -392,20 +324,39 @@ class TokenGateService {
   async updateWalletBalance(walletId: string, balance: OrgMemberWallet["last_balance"]): Promise<void> {
     await db.update(orgMemberWallets).set({ last_balance: balance, last_checked_at: new Date(), updated_at: new Date() }).where(eq(orgMemberWallets.id, walletId));
   }
-
-  async updateAssignedRoles(walletId: string, roles: string[]): Promise<void> {
-    await db.update(orgMemberWallets).set({ assigned_roles: roles, updated_at: new Date() }).where(eq(orgMemberWallets.id, walletId));
-  }
 }
 
 class CommunityModerationService {
   readonly spam = new SpamDetectionService();
   readonly scam = new ScamDetectionService();
-  readonly links = new LinkCheckService();
   readonly words = new WordFilterService();
   readonly events = new ModerationEventsService();
   readonly escalation = new EscalationService();
   readonly tokenGates = new TokenGateService();
+
+  /** Check links using the unified link safety service */
+  async checkLinks(content: string, settings: { allowedDomains?: string[]; blockedDomains?: string[] } = {}) {
+    const urls = linkSafetyService.extractUrls(content);
+    if (urls.length === 0) return { hasThreat: false, threats: [] };
+
+    for (const url of urls) {
+      const domain = this.parseDomain(url);
+      if (!domain) continue;
+
+      if (settings.allowedDomains?.some((d) => domain === d.toLowerCase() || domain.endsWith(`.${d.toLowerCase()}`))) continue;
+      if (settings.blockedDomains?.some((d) => domain === d.toLowerCase() || domain.endsWith(`.${d.toLowerCase()}`))) {
+        return { hasThreat: true, threats: ["blocked_domain"], url, domain };
+      }
+    }
+
+    const results = await linkSafetyService.checkUrls(urls);
+    const threat = results.find((r) => !r.safe);
+    return threat ? { hasThreat: true, threats: threat.threats, url: threat.url, domain: threat.domain } : { hasThreat: false, threats: [] };
+  }
+
+  private parseDomain(url: string): string | null {
+    try { return new URL(url).hostname.toLowerCase(); } catch { return null; }
+  }
 
   async moderateMessage(ctx: ModerationContext, content: string, settings: {
     antiSpamEnabled?: boolean; antiScamEnabled?: boolean; linkCheckingEnabled?: boolean; badWordFilterEnabled?: boolean;
@@ -429,9 +380,8 @@ class CommunityModerationService {
     }
 
     if (settings.linkCheckingEnabled !== false) {
-      const linkResults = await this.links.checkLinks(content, ctx.organizationId, { allowedDomains: settings.allowedDomains, blockedDomains: settings.blockedDomains });
-      const unsafe = linkResults.find((r) => !r.isSafe);
-      if (unsafe) return { shouldModerate: true, eventType: "malicious_link", severity: unsafe.threats.includes("known_scam_domain") ? "critical" : "high", recommendedAction: "delete", reason: `Unsafe link: ${unsafe.threats.join(", ")}`, confidence: unsafe.confidence, matchedPattern: unsafe.domain };
+      const linkResult = await this.checkLinks(content, { allowedDomains: settings.allowedDomains, blockedDomains: settings.blockedDomains });
+      if (linkResult.hasThreat) return { shouldModerate: true, eventType: "malicious_link", severity: linkResult.threats.includes("scam") ? "critical" : "high", recommendedAction: "delete", reason: `Unsafe link: ${linkResult.threats.join(", ")}`, confidence: 85, matchedPattern: linkResult.domain };
     }
 
     if (settings.badWordFilterEnabled) {
@@ -482,10 +432,3 @@ class CommunityModerationService {
 }
 
 export const communityModerationService = new CommunityModerationService();
-export const spamDetectionService = communityModerationService.spam;
-export const scamDetectionService = communityModerationService.scam;
-export const linkCheckService = communityModerationService.links;
-export const wordFilterService = communityModerationService.words;
-export const moderationEventsService = communityModerationService.events;
-export const escalationService = communityModerationService.escalation;
-export const tokenGateService = communityModerationService.tokenGates;

@@ -1,20 +1,13 @@
 /**
  * DNS Records API
- *
- * GET /api/v1/domains/:id/dns - Get DNS records
- * POST /api/v1/domains/:id/dns - Add a DNS record
- * DELETE /api/v1/domains/:id/dns - Delete a DNS record
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { domainManagementService } from "@/lib/services/domain-management";
+import { domainNotFound, parseJsonBody, type DomainRouteParams } from "@/lib/types/domains";
 import { logger } from "@/lib/utils/logger";
-
-interface RouteParams {
-  params: Promise<{ id: string }>;
-}
 
 const AddDnsRecordSchema = z.object({
   type: z.enum(["A", "AAAA", "CNAME", "TXT", "MX", "NS", "SRV", "CAA"]),
@@ -27,160 +20,66 @@ const AddDnsRecordSchema = z.object({
   srvPort: z.number().int().min(0).max(65535).optional(),
 });
 
-const DeleteDnsRecordSchema = z.object({
-  recordId: z.string().min(1),
-});
+const dnsNotManageable = () =>
+  NextResponse.json({ error: "DNS records can only be managed for domains using Vercel nameservers" }, { status: 400 });
 
-/**
- * GET /api/v1/domains/:id/dns
- * Get DNS records for a domain
- */
-export async function GET(request: NextRequest, { params }: RouteParams) {
+export async function GET(request: NextRequest, { params }: DomainRouteParams) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await params;
 
-  const domain = await domainManagementService.getDomain(
-    id,
-    user.organization_id
-  );
-
-  if (!domain) {
-    return NextResponse.json({ error: "Domain not found" }, { status: 404 });
-  }
+  const domain = await domainManagementService.getDomain(id, user.organization_id);
+  if (!domain) return domainNotFound();
 
   const records = await domainManagementService.getDnsRecords(id);
-
   return NextResponse.json({
     success: true,
     domain: domain.domain,
     records,
-    manageable:
-      domain.registrar === "vercel" && domain.nameserverMode === "vercel",
+    manageable: domain.registrar === "vercel" && domain.nameserverMode === "vercel",
   });
 }
 
-/**
- * POST /api/v1/domains/:id/dns
- * Add a DNS record
- */
-export async function POST(request: NextRequest, { params }: RouteParams) {
+export async function POST(request: NextRequest, { params }: DomainRouteParams) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await params;
 
-  const domain = await domainManagementService.getDomain(
-    id,
-    user.organization_id
-  );
+  const domain = await domainManagementService.getDomain(id, user.organization_id);
+  if (!domain) return domainNotFound();
+  if (domain.registrar !== "vercel" || domain.nameserverMode !== "vercel") return dnsNotManageable();
 
-  if (!domain) {
-    return NextResponse.json({ error: "Domain not found" }, { status: 404 });
-  }
+  const parseResult = await parseJsonBody(request, AddDnsRecordSchema);
+  if (!parseResult.success) return parseResult.response;
 
-  if (domain.registrar !== "vercel" || domain.nameserverMode !== "vercel") {
-    return NextResponse.json(
-      {
-        error:
-          "DNS records can only be managed for domains using Vercel nameservers",
-      },
-      { status: 400 }
-    );
-  }
+  logger.info("[Domains API] Adding DNS record", { domainId: id, recordType: parseResult.data.type, recordName: parseResult.data.name });
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
-
-  const parsed = AddDnsRecordSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Invalid request", details: parsed.error.issues },
-      { status: 400 }
-    );
-  }
-
-  logger.info("[Domains API] Adding DNS record", {
-    domainId: id,
-    recordType: parsed.data.type,
-    recordName: parsed.data.name,
-  });
-
-  const result = await domainManagementService.addDnsRecord(id, parsed.data);
-
+  const result = await domainManagementService.addDnsRecord(id, parseResult.data);
   if (!result.success) {
-    return NextResponse.json(
-      { error: result.error || "Failed to add DNS record" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: result.error || "Failed to add DNS record" }, { status: 400 });
   }
 
-  return NextResponse.json({
-    success: true,
-    record: result.record,
-    message: "DNS record added",
-  });
+  return NextResponse.json({ success: true, record: result.record, message: "DNS record added" });
 }
 
-/**
- * DELETE /api/v1/domains/:id/dns
- * Delete a DNS record
- */
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+export async function DELETE(request: NextRequest, { params }: DomainRouteParams) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await params;
 
-  const domain = await domainManagementService.getDomain(
-    id,
-    user.organization_id
-  );
+  const domain = await domainManagementService.getDomain(id, user.organization_id);
+  if (!domain) return domainNotFound();
+  if (domain.registrar !== "vercel" || domain.nameserverMode !== "vercel") return dnsNotManageable();
 
-  if (!domain) {
-    return NextResponse.json({ error: "Domain not found" }, { status: 404 });
+  const recordId = new URL(request.url).searchParams.get("recordId");
+  if (!recordId) {
+    return NextResponse.json({ error: "recordId query parameter is required" }, { status: 400 });
   }
 
-  if (domain.registrar !== "vercel" || domain.nameserverMode !== "vercel") {
-    return NextResponse.json(
-      {
-        error:
-          "DNS records can only be managed for domains using Vercel nameservers",
-      },
-      { status: 400 }
-    );
-  }
+  logger.info("[Domains API] Deleting DNS record", { domainId: id, recordId });
 
-  const url = new URL(request.url);
-  const recordId = url.searchParams.get("recordId");
-
-  const parsed = DeleteDnsRecordSchema.safeParse({ recordId });
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "recordId query parameter is required" },
-      { status: 400 }
-    );
-  }
-
-  logger.info("[Domains API] Deleting DNS record", {
-    domainId: id,
-    recordId: parsed.data.recordId,
-  });
-
-  const result = await domainManagementService.deleteDnsRecord(
-    id,
-    parsed.data.recordId
-  );
-
+  const result = await domainManagementService.deleteDnsRecord(id, recordId);
   if (!result.success) {
-    return NextResponse.json(
-      { error: result.error || "Failed to delete DNS record" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: result.error || "Failed to delete DNS record" }, { status: 400 });
   }
 
-  return NextResponse.json({
-    success: true,
-    message: "DNS record deleted",
-  });
+  return NextResponse.json({ success: true, message: "DNS record deleted" });
 }
 

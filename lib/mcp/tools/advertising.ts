@@ -17,28 +17,8 @@ const McpConnectAccountSchema = ConnectAccountSchema.omit({ externalAccountId: t
 const McpUpdateCampaignSchema = CampaignIdSchema.merge(UpdateCampaignSchema);
 const McpCreateCreativeSchema = CampaignIdSchema.merge(CreateCreativeSchema);
 
-// ============================================
-// Helpers
-// ============================================
-
 function ok(data: unknown): ToolResponse {
   return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
-}
-
-function err(error: unknown): ToolResponse {
-  return {
-    content: [
-      {
-        type: "text",
-        text: JSON.stringify(
-          { error: error instanceof Error ? error.message : "Unknown error" },
-          null,
-          2
-        ),
-      },
-    ],
-    isError: true,
-  };
 }
 
 // ============================================

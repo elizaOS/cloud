@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAppAuth } from "@/lib/middleware/app-auth";
 import { n8nWorkflowsService } from "@/lib/services/n8n-workflows";
 import { APP_CORS_HEADERS, corsOptions, withCors } from "@/lib/utils/cors";
-import { TestWorkflowSchema } from "@/lib/schemas/n8n";
+import { TestWorkflowSchema } from "@/lib/n8n/schemas";
 
 export const OPTIONS = corsOptions;
 

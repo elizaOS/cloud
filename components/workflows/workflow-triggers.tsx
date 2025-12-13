@@ -38,30 +38,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
-
-type TriggerType = "cron" | "webhook" | "mcp" | "a2a";
-
-interface Trigger {
-  id: string;
-  triggerType: TriggerType;
-  triggerKey: string;
-  config: {
-    cronExpression?: string;
-    webhookSecret?: string;
-    webhookUrl?: string;
-    requireSignature?: boolean;
-    skillId?: string;
-    toolName?: string;
-    maxExecutionsPerDay?: number;
-    inputData?: Record<string, unknown>;
-  };
-  isActive: boolean;
-  executionCount: number;
-  errorCount: number;
-  lastExecutedAt: string | null;
-  createdAt: string;
-  webhookUrl?: string;
-}
+import type { Trigger, TriggerType } from "./types";
 
 interface WorkflowTriggersProps {
   workflowId: string;
@@ -99,7 +76,6 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
-  // Create trigger dialog
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createType, setCreateType] = useState<TriggerType>("webhook");
   const [createConfig, setCreateConfig] = useState({

@@ -32,6 +32,7 @@ const mockDomainService = {
   purchaseDomain: mock(() => Promise.resolve({ success: true })),
   deleteDomain: mock(() => Promise.resolve({ success: true })),
   verifyDomain: mock(() => Promise.resolve({ verified: true })),
+  assignToResource: mock(() => Promise.resolve(null)),
   assignToApp: mock(() => Promise.resolve(null)),
   assignToContainer: mock(() => Promise.resolve(null)),
   assignToAgent: mock(() => Promise.resolve(null)),
@@ -493,9 +494,8 @@ describe("POST /api/v1/domains/:id/assign", () => {
   beforeEach(resetMocks);
 
   it("assigns domain to app", async () => {
-    // Must return domain for getDomain check, then assignToApp
     mockDomainService.getDomain.mockResolvedValue({ id: "domain-1", domain: "test.com", verified: true });
-    mockDomainService.assignToApp.mockResolvedValue({ id: "domain-1", resourceType: "app", appId: "app-1" });
+    mockDomainService.assignToResource.mockResolvedValue({ id: "domain-1", resourceType: "app", appId: "app-1" });
 
     const { POST } = await import("@/app/api/v1/domains/[id]/assign/route");
 

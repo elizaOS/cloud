@@ -6,6 +6,7 @@
 
 import { logger } from "@/lib/utils/logger";
 import {
+  discordBotConnectionsRepository,
   discordEventRoutesRepository,
   discordEventQueueRepository,
 } from "@/db/repositories/discord-gateway";
@@ -327,7 +328,12 @@ export class DiscordEventRouter {
 
       // Filter self messages (from this bot)
       if (route.filter_self_messages) {
-        // TODO: Check if message is from this bot's user ID
+        const connection = await discordBotConnectionsRepository.getByPlatformConnection(
+          event.platformConnectionId
+        );
+        if (connection?.bot_user_id && message.author.id === connection.bot_user_id) {
+          return { route, shouldRoute: false, reason: "Self message filtered" };
+        }
       }
 
       // Check mention_only filter

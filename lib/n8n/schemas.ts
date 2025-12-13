@@ -21,6 +21,43 @@ export const WORKFLOW_STATUSES = ["draft", "active", "archived"] as const;
 export type WorkflowStatus = (typeof WORKFLOW_STATUSES)[number];
 
 // =============================================================================
+// SCHEMAS - Workflows
+// =============================================================================
+
+export const CreateWorkflowSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  workflowData: z.record(z.unknown()),
+  tags: z.array(z.string()).optional(),
+});
+
+export const UpdateWorkflowSchema = z.object({
+  name: z.string().min(1).optional(),
+  description: z.string().optional(),
+  workflowData: z.record(z.unknown()).optional(),
+  status: z.enum(WORKFLOW_STATUSES).optional(),
+  tags: z.array(z.string()).optional(),
+});
+
+export const TestWorkflowSchema = z.object({
+  inputData: z.record(z.unknown()).optional(),
+});
+
+export const ExecuteWorkflowSchema = z.object({
+  inputData: z.record(z.unknown()).optional(),
+  triggerType: z.enum(["manual", "api", "app"]).optional().default("api"),
+});
+
+export const DeployWorkflowSchema = z.object({
+  instanceId: z.string().uuid(),
+  activate: z.boolean().optional().default(true),
+});
+
+export const RevertWorkflowSchema = z.object({
+  version: z.number().int().positive(),
+});
+
+// =============================================================================
 // SCHEMAS - Variables
 // =============================================================================
 
@@ -55,6 +92,17 @@ export const UpdateApiKeySchema = z.object({
 });
 
 // =============================================================================
+// SCHEMAS - Instances
+// =============================================================================
+
+export const CreateInstanceSchema = z.object({
+  name: z.string().min(1),
+  endpoint: z.string().url(),
+  apiKey: z.string().min(1),
+  isDefault: z.boolean().optional(),
+});
+
+// =============================================================================
 // SCHEMAS - Triggers
 // =============================================================================
 
@@ -79,6 +127,24 @@ export const UpdateTriggerSchema = z.object({
   isActive: z.boolean().optional(),
   config: TriggerConfigSchema.partial().optional(),
 });
+
+// =============================================================================
+// TYPE EXPORTS
+// =============================================================================
+
+export type CreateWorkflowInput = z.infer<typeof CreateWorkflowSchema>;
+export type UpdateWorkflowInput = z.infer<typeof UpdateWorkflowSchema>;
+export type TestWorkflowInput = z.infer<typeof TestWorkflowSchema>;
+export type ExecuteWorkflowInput = z.infer<typeof ExecuteWorkflowSchema>;
+export type DeployWorkflowInput = z.infer<typeof DeployWorkflowSchema>;
+export type RevertWorkflowInput = z.infer<typeof RevertWorkflowSchema>;
+export type CreateVariableInput = z.infer<typeof CreateVariableSchema>;
+export type UpdateVariableInput = z.infer<typeof UpdateVariableSchema>;
+export type CreateApiKeyInput = z.infer<typeof CreateApiKeySchema>;
+export type UpdateApiKeyInput = z.infer<typeof UpdateApiKeySchema>;
+export type CreateInstanceInput = z.infer<typeof CreateInstanceSchema>;
+export type CreateTriggerInput = z.infer<typeof CreateTriggerSchema>;
+export type UpdateTriggerInput = z.infer<typeof UpdateTriggerSchema>;
 
 // =============================================================================
 // RESPONSE TRANSFORMERS

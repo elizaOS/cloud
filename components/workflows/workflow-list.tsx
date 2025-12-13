@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
+import { BrandCard, CornerBrackets } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,19 +25,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
-
-interface Workflow {
-  id: string;
-  name: string;
-  description: string | null;
-  status: "draft" | "active" | "archived";
-  version: number;
-  tags: string[];
-  createdAt: string;
-  updatedAt: string;
-  n8nWorkflowId?: string;
-  isActiveInN8n?: boolean;
-}
+import type { Workflow } from "./types";
 
 interface WorkflowListProps {
   onSelect?: (workflow: Workflow) => void;

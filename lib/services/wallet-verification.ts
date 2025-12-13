@@ -2,6 +2,9 @@
  * Wallet Verification Service - signature verification and token balance checking for Solana/EVM.
  */
 
+import { db } from "@/db";
+import { eq } from "drizzle-orm";
+import { orgPlatformServers } from "@/db/schemas/org-platforms";
 import { logger } from "@/lib/utils/logger";
 import { memberWalletsRepository, tokenGatesRepository } from "@/db/repositories/community-moderation";
 import { discordMessageSender } from "./discord-gateway/message-sender";
@@ -139,12 +142,9 @@ class WalletVerificationService {
     }
   }
 
-  async verifyAndLinkWallet(serverId: string, platformUserId: string, platform: string, walletAddress: string, signature: string, chain: OrgMemberWallet["chain"]): Promise<VerificationResult> {
+  async verifyAndLinkWallet(serverId: string, platformUserId: string, platform: string, walletAddress: string, signature: string, chain: OrgMemberWallet["chain"]): Promise<VerificationResult & { wallet?: OrgMemberWallet }> {
     const challenge = await this.getChallenge(serverId, platformUserId, platform);
-
-    if (!challenge) {
-      return { verified: false, error: "Challenge expired or not found" };
-    }
+    if (!challenge) return { verified: false, error: "Challenge expired or not found" };
 
     const verified = chain === "solana"
       ? this.verifySolanaSignature(challenge.message, signature, walletAddress)
@@ -153,10 +153,6 @@ class WalletVerificationService {
     if (!verified) return { verified: false, error: "Invalid signature" };
 
     await this.deleteChallenge(serverId, platformUserId, platform);
-
-    const { db } = await import("@/db");
-    const { eq } = await import("drizzle-orm");
-    const { orgPlatformServers } = await import("@/db/schemas/org-platforms");
 
     const [server] = await db.select({ organization_id: orgPlatformServers.organization_id }).from(orgPlatformServers).where(eq(orgPlatformServers.id, serverId)).limit(1);
     if (!server) return { verified: false, error: "Server not found" };
@@ -174,10 +170,10 @@ class WalletVerificationService {
       is_primary: true,
     };
 
-    await memberWalletsRepository.upsert(walletData);
+    const wallet = await memberWalletsRepository.upsert(walletData);
     logger.info("[WalletVerification] Wallet verified", { serverId, platformUserId, wallet: walletAddress.slice(0, 8), chain });
 
-    return { verified: true, walletAddress, chain };
+    return { verified: true, walletAddress, chain, wallet };
   }
 
   private verifySolanaSignature(message: string, signature: string, walletAddress: string): boolean {
@@ -278,10 +274,10 @@ class WalletVerificationService {
 
     for (const wallet of wallets) {
       for (const gate of gates) {
-        if (gate.chain !== wallet.chain) continue;
+        if (gate.chain !== wallet.chain || !gate.discord_role_id) continue;
 
         const balance = await this.checkTokenBalance(wallet.wallet_address, gate.token_address, gate.chain, gate.token_type);
-        if (BigInt(balance.balance) >= BigInt(gate.min_balance) && gate.discord_role_id) {
+        if (BigInt(balance.balance) >= BigInt(gate.min_balance)) {
           eligibleRoles.add(gate.discord_role_id);
         }
       }
@@ -291,7 +287,7 @@ class WalletVerificationService {
     if (!member) return { added: [], removed: [] };
 
     const currentRoles = new Set(member.roles);
-    const gateRoleIds = new Set(gates.map((g) => g.discord_role_id).filter(Boolean));
+    const gateRoleIds = new Set(gates.map((g) => g.discord_role_id).filter((id): id is string => Boolean(id)));
     const added: string[] = [];
     const removed: string[] = [];
 

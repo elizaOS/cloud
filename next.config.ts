@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
   images: {
@@ -81,6 +82,11 @@ const nextConfig: NextConfig = {
     "ipfs-utils",
     "electron-fetch",
     "electron",
+    // pino and related packages cause SSR issues
+    "pino",
+    "pino-pretty",
+    "thread-stream",
+    "sonic-boom",
   ],
 
   webpack: (config, { isServer }) => {

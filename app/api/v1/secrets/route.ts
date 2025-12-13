@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { secretsService, type AuditContext } from "@/lib/services/secrets";
+import { secretsService } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
 import {
   secretProviderEnum,
@@ -11,6 +11,7 @@ import {
   type SecretProjectType,
   type SecretEnvironment,
 } from "@/db/schemas/secrets";
+import { createAudit, handleSecretsError } from "@/lib/api/secrets-helpers";
 
 const PROVIDERS = secretProviderEnum.enumValues;
 const PROJECT_TYPES = secretProjectTypeEnum.enumValues;
@@ -76,8 +77,7 @@ export async function GET(request: NextRequest) {
       offset,
     });
   } catch (error) {
-    logger.error("[Secrets] GET failed", { error: error instanceof Error ? error.message : error });
-    return NextResponse.json({ error: "Failed to list secrets" }, { status: 500 });
+    return handleSecretsError(error, "Secrets");
   }
 }
 
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const appId = request.headers.get("X-App-Id") || undefined;
     const body = await request.json();
-    const audit: AuditContext = { actorType: "user", actorId: user.id, source: "secrets-api" };
+    const audit = createAudit(user, "secrets-api");
 
     if (body.secrets && Array.isArray(body.secrets)) {
       const parsed = BulkCreateSchema.safeParse(body);
@@ -147,11 +147,6 @@ export async function POST(request: NextRequest) {
     logger.info("[Secrets] Created", { name: parsed.data.name, userId: user.id });
     return NextResponse.json({ id: secret.id, name: secret.name }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to create secret";
-    logger.error("[Secrets] POST failed", { error: message });
-    if (message.includes("already exists")) {
-      return NextResponse.json({ error: message }, { status: 409 });
-    }
-    return NextResponse.json({ error: message }, { status: 500 });
+    return handleSecretsError(error, "Secrets");
   }
 }

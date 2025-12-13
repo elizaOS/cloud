@@ -1,18 +1,8 @@
-/**
- * N8N Workflow Versions API
- *
- * GET /api/v1/n8n/workflows/:id/versions - List versions
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { n8nWorkflowsService } from "@/lib/services/n8n-workflows";
-import { logger } from "@/lib/utils/logger";
+import { ErrorResponses } from "@/lib/n8n/schemas";
 
-/**
- * GET /api/v1/n8n/workflows/:id/versions
- * Lists version history for a workflow.
- */
 export async function GET(
   request: NextRequest,
   ctx: { params: Promise<{ id: string }> }
@@ -22,10 +12,7 @@ export async function GET(
 
   const workflow = await n8nWorkflowsService.getWorkflow(id);
   if (!workflow || workflow.organization_id !== user.organization_id) {
-    return NextResponse.json(
-      { success: false, error: "Workflow not found" },
-      { status: 404 }
-    );
+    return NextResponse.json(ErrorResponses.workflowNotFound, { status: 404 });
   }
 
   const limit = Number.parseInt(request.nextUrl.searchParams.get("limit") || "50");

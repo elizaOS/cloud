@@ -1,0 +1,9 @@
+node_modules
+dist
+.git
+.gitignore
+*.md
+.env*
+*.log
+.DS_Store
+src/__tests__

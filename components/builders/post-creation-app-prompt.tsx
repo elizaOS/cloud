@@ -1,10 +1,3 @@
-/**
- * Post-Creation App Prompt Component
- *
- * Shows after creating an agent, workflow, or service to invite the user
- * to create an app integrated with the newly created entity.
- */
-
 "use client";
 
 import { useState } from "react";
@@ -113,7 +106,6 @@ export function PostCreationAppPrompt({
         </button>
 
         <DialogHeader className="space-y-4">
-          {/* Success Icon */}
           <div className="flex justify-center">
             <div
               className="p-4 rounded-lg border"
@@ -162,7 +154,6 @@ export function PostCreationAppPrompt({
           </div>
         </div>
 
-        {/* App Suggestion */}
         <div className="mt-4 p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
           <div className="flex items-start gap-3">
             <Grid3x3 className="h-5 w-5 text-cyan-400 mt-0.5 flex-shrink-0" />
@@ -180,7 +171,6 @@ export function PostCreationAppPrompt({
           </div>
         </div>
 
-        {/* Actions */}
         <div className="mt-6 flex flex-col gap-3">
           <BrandButton
             variant="primary"
@@ -202,7 +192,6 @@ export function PostCreationAppPrompt({
           </button>
         </div>
 
-        {/* Footer note */}
         <p className="text-xs text-white/40 text-center mt-4">
           You can always create an app later from the Apps section
         </p>
@@ -210,5 +199,3 @@ export function PostCreationAppPrompt({
     </Dialog>
   );
 }
-
-

@@ -7256,22 +7256,7 @@ const mcpHandler = createMcpHandler(
 
           const { domainManagementService } = await import("@/lib/services/domain-management");
 
-          let updated;
-          switch (resourceType) {
-            case "app":
-              updated = await domainManagementService.assignToApp(domainId, resourceId, user.organization_id);
-              break;
-            case "container":
-              updated = await domainManagementService.assignToContainer(domainId, resourceId, user.organization_id);
-              break;
-            case "agent":
-              updated = await domainManagementService.assignToAgent(domainId, resourceId, user.organization_id);
-              break;
-            case "mcp":
-              updated = await domainManagementService.assignToMcp(domainId, resourceId, user.organization_id);
-              break;
-          }
-
+          const updated = await domainManagementService.assignToResource(domainId, resourceType, resourceId, user.organization_id);
           if (!updated) {
             return {
               content: [{

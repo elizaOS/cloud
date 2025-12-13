@@ -256,15 +256,15 @@ describe("Output Handling", () => {
 });
 
 describe("Cost and Duration Tracking", () => {
-  const COST_PER_EXECUTION_CENTS = 0.1;
+  const COST_PER_EXECUTION_CENTS = 1;
 
-  test("cost per execution is 0.1 cents", () => {
-    expect(COST_PER_EXECUTION_CENTS).toBe(0.1);
+  test("cost per execution is 1 cent", () => {
+    expect(COST_PER_EXECUTION_CENTS).toBe(1);
   });
 
   test("cost converts to dollars correctly", () => {
     const costDollars = COST_PER_EXECUTION_CENTS / 100;
-    expect(costDollars).toBe(0.001);
+    expect(costDollars).toBe(0.01);
   });
 
   test("duration is tracked", () => {

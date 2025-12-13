@@ -498,16 +498,19 @@ export const metaAdsProvider: AdProvider = {
 
       const adSetId = adSets.data[0].id;
 
+      if (!input.destinationUrl) {
+        return { success: false, error: "Destination URL is required for creative" };
+      }
+
       // Create ad creative
       const creativeData: Record<string, unknown> = {
         name: input.name,
         object_story_spec: {
-          page_id: "", // Would need to be provided
           link_data: {
-            link: input.destinationUrl || "https://example.com",
-            message: input.primaryText || "",
-            name: input.headline || "",
-            description: input.description || "",
+            link: input.destinationUrl,
+            message: input.primaryText ?? "",
+            name: input.headline ?? "",
+            description: input.description ?? "",
             call_to_action: {
               type: mapCtaToMeta(input.callToAction),
             },

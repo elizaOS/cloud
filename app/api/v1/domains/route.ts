@@ -1,38 +1,20 @@
 /**
  * Domains API
- *
- * GET /api/v1/domains - List all domains for organization
- * POST /api/v1/domains - Purchase or register a new domain
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { domainManagementService } from "@/lib/services/domain-management";
+import { RegistrantInfoSchema, parseJsonBody } from "@/lib/types/domains";
 import { logger } from "@/lib/utils/logger";
 
-// Schema for registering/purchasing a domain
 const RegisterDomainSchema = z.object({
   domain: z.string().min(3).max(253),
   type: z.enum(["purchase", "external"]).default("external"),
   nameserverMode: z.enum(["vercel", "external"]).default("external"),
-  registrantInfo: z
-    .object({
-      fullName: z.string().min(1),
-      email: z.string().email(),
-      organization: z.string().optional(),
-      address: z.object({
-        street: z.string().min(1),
-        city: z.string().min(1),
-        state: z.string().min(1),
-        postalCode: z.string().min(1),
-        country: z.string().length(2), // ISO 3166-1 alpha-2
-      }),
-      phone: z.string().optional(),
-      privacyEnabled: z.boolean().optional(),
-    })
-    .optional(),
-  paymentMethod: z.enum(["stripe", "x402", "credits"]).optional(),
+  registrantInfo: RegistrantInfoSchema.optional(),
+  paymentMethod: z.literal("credits").optional(),
   stripePaymentIntentId: z.string().optional(),
   autoRenew: z.boolean().default(true),
 });
@@ -65,30 +47,13 @@ export async function GET(request: NextRequest) {
   });
 }
 
-/**
- * POST /api/v1/domains
- * Purchase or register a new domain
- */
 export async function POST(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const result = await parseJsonBody(request, RegisterDomainSchema);
+  if (!result.success) return result.response;
 
-  const parsed = RegisterDomainSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Invalid request", details: parsed.error.issues },
-      { status: 400 }
-    );
-  }
-
-  const { domain, type, nameserverMode, registrantInfo, paymentMethod, stripePaymentIntentId, autoRenew } =
-    parsed.data;
+  const { domain, type, nameserverMode, registrantInfo, paymentMethod, stripePaymentIntentId, autoRenew } = result.data;
 
   logger.info("[Domains API] Registering domain", {
     domain,

@@ -99,17 +99,8 @@ describe("DeFi Module Exports", () => {
     }
   });
 
-  test("exports getAllDeFiServices helper", async () => {
-    const defi = await import("@/lib/services/defi");
-
-    expect(typeof defi.getAllDeFiServices).toBe("function");
-  });
-
-  test("exports checkAllServicesHealth helper", async () => {
-    const defi = await import("@/lib/services/defi");
-
-    expect(typeof defi.checkAllServicesHealth).toBe("function");
-  });
+  // Note: getAllDeFiServices and checkAllServicesHealth were removed
+  // Use checkServicesHealth from operations.ts instead
 });
 
 describe("Type Definitions", () => {

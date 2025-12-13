@@ -5,25 +5,13 @@ import { domainManagementService } from "@/lib/services/domain-management";
 import { domainModerationService } from "@/lib/services/domain-moderation";
 import { creditsService } from "@/lib/services/credits";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { RegistrantInfoSchema, parseJsonBody } from "@/lib/types/domains";
 import { logger } from "@/lib/utils/logger";
 
 const PurchaseDomainSchema = z.object({
   domain: z.string().min(3).max(253),
-  registrantInfo: z.object({
-    fullName: z.string().min(1),
-    email: z.string().email(),
-    organization: z.string().optional(),
-    address: z.object({
-      street: z.string().min(1),
-      city: z.string().min(1),
-      state: z.string().min(1),
-      postalCode: z.string().min(1),
-      country: z.string().length(2),
-    }),
-    phone: z.string().optional(),
-    privacyEnabled: z.boolean().optional(),
-  }),
-  paymentMethod: z.literal("credits"), // x402 not yet supported
+  registrantInfo: RegistrantInfoSchema,
+  paymentMethod: z.literal("credits"),
   autoRenew: z.boolean().default(true),
 });
 
@@ -31,22 +19,10 @@ async function handlePurchase(request: NextRequest): Promise<Response> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const organizationId = user.organization_id;
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const result = await parseJsonBody(request, PurchaseDomainSchema);
+  if (!result.success) return result.response;
 
-  const parsed = PurchaseDomainSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Invalid request", details: parsed.error.issues },
-      { status: 400 }
-    );
-  }
-
-  const { domain, registrantInfo, paymentMethod, autoRenew } = parsed.data;
+  const { domain, registrantInfo, paymentMethod, autoRenew } = result.data;
 
   logger.info("[Domain Purchase] Attempting purchase", {
     domain,

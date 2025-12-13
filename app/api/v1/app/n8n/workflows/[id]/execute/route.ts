@@ -7,7 +7,7 @@ import { requireAppAuth } from "@/lib/middleware/app-auth";
 import { n8nWorkflowsService } from "@/lib/services/n8n-workflows";
 import { logger } from "@/lib/utils/logger";
 import { APP_CORS_HEADERS, corsOptions, withCors } from "@/lib/utils/cors";
-import { ExecuteWorkflowSchema } from "@/lib/schemas/n8n";
+import { ExecuteWorkflowSchema } from "@/lib/n8n/schemas";
 
 export const OPTIONS = corsOptions;
 

@@ -325,7 +325,6 @@ export function QuickCreateDialog({
                 </div>
               )}
 
-              {/* Create App option for agents, workflows, and services */}
               {canCreateApp(createdResult.type) && (
                 <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
                   <div className="flex items-center gap-2 mb-1">
@@ -358,7 +357,6 @@ export function QuickCreateDialog({
           </DialogContent>
         </Dialog>
 
-        {/* Post-creation app prompt */}
         {entityType && (
           <PostCreationAppPrompt
             open={showAppPrompt}

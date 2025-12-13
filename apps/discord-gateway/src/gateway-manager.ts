@@ -182,6 +182,92 @@ export class GatewayManager {
       this.handleMessage(assignment.connectionId, message);
     });
 
+    client.on(Events.MessageUpdate, (_oldMessage, newMessage) => {
+      conn.eventsReceived++;
+      if (newMessage.partial) return;
+      this.forwardEvent(assignment.connectionId, conn, "MESSAGE_UPDATE", {
+        id: newMessage.id,
+        channel_id: newMessage.channelId,
+        guild_id: newMessage.guildId,
+        content: newMessage.content,
+        edited_timestamp: newMessage.editedAt?.toISOString(),
+        author: newMessage.author ? {
+          id: newMessage.author.id,
+          username: newMessage.author.username,
+          bot: newMessage.author.bot,
+        } : undefined,
+      });
+    });
+
+    client.on(Events.MessageDelete, (message) => {
+      conn.eventsReceived++;
+      this.forwardEvent(assignment.connectionId, conn, "MESSAGE_DELETE", {
+        id: message.id,
+        channel_id: message.channelId,
+        guild_id: message.guildId,
+      });
+    });
+
+    client.on(Events.MessageReactionAdd, (reaction, user) => {
+      conn.eventsReceived++;
+      this.forwardEvent(assignment.connectionId, conn, "MESSAGE_REACTION_ADD", {
+        message_id: reaction.message.id,
+        channel_id: reaction.message.channelId,
+        guild_id: reaction.message.guildId,
+        emoji: { name: reaction.emoji.name, id: reaction.emoji.id },
+        user_id: user.id,
+      });
+    });
+
+    client.on(Events.GuildMemberAdd, (member) => {
+      conn.eventsReceived++;
+      this.forwardEvent(assignment.connectionId, conn, "GUILD_MEMBER_ADD", {
+        guild_id: member.guild.id,
+        user: {
+          id: member.user.id,
+          username: member.user.username,
+          discriminator: member.user.discriminator,
+          avatar: member.user.avatar,
+          bot: member.user.bot,
+        },
+        nick: member.nickname,
+        roles: member.roles.cache.map((r) => r.id),
+        joined_at: member.joinedAt?.toISOString(),
+      });
+    });
+
+    client.on(Events.GuildMemberRemove, (member) => {
+      conn.eventsReceived++;
+      this.forwardEvent(assignment.connectionId, conn, "GUILD_MEMBER_REMOVE", {
+        guild_id: member.guild.id,
+        user: {
+          id: member.user.id,
+          username: member.user.username,
+          bot: member.user.bot,
+        },
+      });
+    });
+
+    client.on(Events.InteractionCreate, (interaction) => {
+      conn.eventsReceived++;
+      this.forwardEvent(assignment.connectionId, conn, "INTERACTION_CREATE", {
+        id: interaction.id,
+        type: interaction.type,
+        channel_id: interaction.channelId,
+        guild_id: interaction.guildId,
+        user: {
+          id: interaction.user.id,
+          username: interaction.user.username,
+          bot: interaction.user.bot,
+        },
+        // Include command data if available
+        data: "commandName" in interaction ? {
+          name: interaction.commandName,
+          options: "options" in interaction ? interaction.options.data : undefined,
+        } : undefined,
+      });
+    });
+
     client.on(Events.Error, (error) => {
       conn.status = "error";
       conn.error = error.message;
@@ -289,6 +375,51 @@ export class GatewayManager {
       logger.warn("Failed to route event", {
         connectionId,
         messageId: message.id,
+        status: response.status,
+      });
+    }
+  }
+
+  private async forwardEvent(
+    connectionId: string,
+    conn: BotConnection,
+    eventType: string,
+    data: Record<string, unknown>
+  ): Promise<void> {
+    const guildId = (data.guild_id as string) ?? "";
+    const channelId = (data.channel_id as string) ?? "";
+    const eventId = (data.id as string) ?? `${eventType}-${Date.now()}`;
+
+    const payload = {
+      connection_id: connectionId,
+      organization_id: conn.organizationId,
+      platform_connection_id: connectionId,
+      event_type: eventType,
+      event_id: eventId,
+      guild_id: guildId,
+      channel_id: channelId,
+      data,
+      timestamp: new Date().toISOString(),
+    };
+
+    const response = await fetch(
+      `${this.config.elizaCloudUrl}/api/internal/discord/events`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Internal-API-Key": this.config.internalApiKey,
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    if (response.ok) {
+      conn.eventsRouted++;
+    } else {
+      logger.warn("Failed to forward event", {
+        connectionId,
+        eventType,
         status: response.status,
       });
     }

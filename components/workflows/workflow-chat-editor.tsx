@@ -14,32 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-
-interface Workflow {
-  id: string;
-  name: string;
-  description: string | null;
-  status: string;
-  version: number;
-  tags: string[];
-  workflowData: Record<string, unknown>;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-  proposedChanges?: {
-    workflowData?: Record<string, unknown>;
-    name?: string;
-    description?: string;
-    status?: string;
-  };
-  changeStatus?: "pending" | "applied" | "rejected";
-}
+import type { Workflow, ChatMessage } from "./types";
 
 interface WorkflowChatEditorProps {
   workflow: Workflow;
@@ -52,7 +27,7 @@ export function WorkflowChatEditor({
   onWorkflowUpdated,
   onBack,
 }: WorkflowChatEditorProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [currentWorkflow, setCurrentWorkflow] = useState(workflow);
@@ -77,7 +52,7 @@ export function WorkflowChatEditor({
     const trimmedInput = input.trim();
     if (!trimmedInput || isLoading) return;
 
-    const userMessage: Message = {
+    const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
       role: "user",
       content: trimmedInput,
@@ -110,7 +85,7 @@ export function WorkflowChatEditor({
 
       const data = await response.json();
 
-      const assistantMessage: Message = {
+      const assistantMessage: ChatMessage = {
         id: `assistant-${Date.now()}`,
         role: "assistant",
         content: data.message,
@@ -341,4 +316,3 @@ export function WorkflowChatEditor({
     </div>
   );
 }
-

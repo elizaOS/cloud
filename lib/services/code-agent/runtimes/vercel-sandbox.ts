@@ -88,55 +88,32 @@ class VercelSandboxInstance implements RuntimeInstance {
   }
 
   async listFiles(path: string): Promise<FileEntry[]> {
-    const result = await this.sandbox.runCommand({
+    // Linux stat format
+    let result = await this.sandbox.runCommand({
       cmd: "sh",
-      args: [
-        "-c",
-        `find ${path} -maxdepth 3 \\( -type f -o -type d \\) -exec stat -c '%n|%F|%s|%Y' {} \\; 2>/dev/null | head -200`,
-      ],
+      args: ["-c", `find ${path} -maxdepth 3 \\( -type f -o -type d \\) -exec stat -c '%n|%F|%s|%Y' {} \\; 2>/dev/null | head -200`],
     });
-
+    
+    // macOS stat format fallback
     if (result.exitCode !== 0) {
-      const fallback = await this.sandbox.runCommand({
+      result = await this.sandbox.runCommand({
         cmd: "sh",
-        args: [
-          "-c",
-          `find ${path} -maxdepth 3 \\( -type f -o -type d \\) -exec stat -f '%N|%HT|%z|%m' {} \\; 2>/dev/null | head -200`,
-        ],
+        args: ["-c", `find ${path} -maxdepth 3 \\( -type f -o -type d \\) -exec stat -f '%N|%HT|%z|%m' {} \\; 2>/dev/null | head -200`],
       });
-
-      if (fallback.exitCode !== 0) return [];
-
-      const stdout = await fallback.stdout();
-      return stdout
-        .split("\n")
-        .filter(Boolean)
-        .map((line) => {
-          const [filePath, fileType, size, mtime] = line.split("|");
-          const isDir = fileType?.toLowerCase().includes("directory");
-          return {
-            path: filePath,
-            type: isDir ? "directory" : "file",
-            size: isDir ? undefined : parseInt(size || "0", 10),
-            modifiedAt: mtime ? new Date(parseInt(mtime, 10) * 1000).toISOString() : undefined,
-          } as FileEntry;
-        });
     }
+    
+    if (result.exitCode !== 0) return [];
 
-    const stdout = await result.stdout();
-    return stdout
-      .split("\n")
-      .filter(Boolean)
-      .map((line) => {
-        const [filePath, fileType, size, mtime] = line.split("|");
-        const isDir = fileType === "directory";
-        return {
-          path: filePath,
-          type: isDir ? "directory" : "file",
-          size: isDir ? undefined : parseInt(size || "0", 10),
-          modifiedAt: mtime ? new Date(parseInt(mtime, 10) * 1000).toISOString() : undefined,
-        } as FileEntry;
-      });
+    return (await result.stdout()).split("\n").filter(Boolean).map((line) => {
+      const [filePath, fileType, size, mtime] = line.split("|");
+      const isDir = fileType?.toLowerCase().includes("directory") || fileType === "directory";
+      return {
+        path: filePath,
+        type: isDir ? "directory" : "file",
+        size: isDir ? undefined : parseInt(size || "0", 10),
+        modifiedAt: mtime ? new Date(parseInt(mtime, 10) * 1000).toISOString() : undefined,
+      } as FileEntry;
+    });
   }
 
   async deleteFile(path: string): Promise<void> {

@@ -1,26 +1,78 @@
-/**
- * OAuth Callback - Exchanges code for tokens and stores credentials.
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { platformCredentialsService, OAUTH_CONFIGS } from "@/lib/services/platform-credentials";
 import { logger } from "@/lib/utils/logger";
 
 const CLOUD_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
+interface CallbackPayload {
+  credential_id: string;
+  platform: string;
+  status: string;
+  username?: string;
+  display_name?: string;
+  error?: string;
+}
+
+async function sendWebhookCallback(url: string, payload: CallbackPayload) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    logger.warn("[OAuth] Webhook callback failed", { url, status: response.status });
+  }
+}
+
+async function sendMessageCallback(context: Record<string, unknown>, payload: CallbackPayload) {
+  const { platform, server_id, channel_id, user_id } = context;
+
+  const message = payload.status === "success"
+    ? `✅ Successfully connected ${payload.platform} account @${payload.username || payload.display_name}!`
+    : `❌ Failed to connect ${payload.platform}: ${payload.error || "Unknown error"}`;
+
+  if (platform === "discord" && channel_id) {
+    const botToken = process.env.DISCORD_BOT_TOKEN;
+    if (botToken) {
+      await fetch(`https://discord.com/api/v10/channels/${channel_id}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ content: message }),
+      });
+    }
+  } else if (platform === "telegram" && user_id) {
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    if (botToken) {
+      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: user_id, text: message }),
+      });
+    }
+  }
+}
+
 async function exchangeCode(platform: string, code: string, state: string, instanceUrl?: string) {
   const config = OAUTH_CONFIGS[platform];
   if (!config) throw new Error(`Unsupported platform: ${platform}`);
 
-  const clientId = process.env[config.clientIdEnv];
-  const clientSecret = process.env[config.clientSecretEnv];
-  if (!clientId || !clientSecret) throw new Error(`${platform} OAuth not configured`);
-
-  // Determine token URL - Mastodon uses instance-specific URL
+  let clientId: string | undefined;
+  let clientSecret: string | undefined;
   let tokenUrl = config.tokenUrl;
+
+  // Mastodon uses dynamic per-instance app credentials
   if (platform === "mastodon" && instanceUrl) {
     tokenUrl = `${instanceUrl}/oauth/token`;
+    const creds = await platformCredentialsService.getMastodonAppCredentials(instanceUrl);
+    if (!creds) throw new Error(`No app registered for ${instanceUrl}`);
+    clientId = creds.clientId;
+    clientSecret = creds.clientSecret;
+  } else {
+    clientId = process.env[config.clientIdEnv];
+    clientSecret = process.env[config.clientSecretEnv];
   }
+
+  if (!clientId || !clientSecret) throw new Error(`${platform} OAuth not configured`);
 
   const body: Record<string, string> = {
     client_id: clientId,
@@ -37,7 +89,6 @@ async function exchangeCode(platform: string, code: string, state: string, insta
     Accept: "application/json",
   };
 
-  // Reddit requires Basic auth for token exchange
   if (platform === "reddit") {
     headers.Authorization = `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`;
   }
@@ -251,13 +302,37 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   logger.info("[OAuth] Complete", { platform, credentialId: credential.id });
 
-  if (session.callback_url && session.callback_type === "redirect") {
-    const url = new URL(session.callback_url);
-    url.searchParams.set("credential_id", credential.id);
-    url.searchParams.set("platform", platform);
-    url.searchParams.set("status", "success");
-    return NextResponse.redirect(url.toString());
-  }
+  // Handle callback based on type
+  const callbackPayload = {
+    credential_id: credential.id,
+    platform,
+    status: "success",
+    username: profile.username,
+    display_name: profile.displayName,
+  };
 
-  return NextResponse.redirect(`${CLOUD_URL}/auth/platform-link/success?platform=${platform}&session=${session.session_id}`);
+  switch (session.callback_type) {
+    case "webhook":
+      if (session.callback_url) {
+        await sendWebhookCallback(session.callback_url, callbackPayload);
+      }
+      return NextResponse.redirect(`${CLOUD_URL}/auth/platform-link/success?platform=${platform}&session=${session.session_id}`);
+
+    case "message":
+      if (session.callback_context) {
+        await sendMessageCallback(session.callback_context, callbackPayload);
+      }
+      return NextResponse.redirect(`${CLOUD_URL}/auth/platform-link/success?platform=${platform}&session=${session.session_id}`);
+
+    case "redirect":
+    default:
+      if (session.callback_url) {
+        const url = new URL(session.callback_url);
+        url.searchParams.set("credential_id", credential.id);
+        url.searchParams.set("platform", platform);
+        url.searchParams.set("status", "success");
+        return NextResponse.redirect(url.toString());
+      }
+      return NextResponse.redirect(`${CLOUD_URL}/auth/platform-link/success?platform=${platform}&session=${session.session_id}`);
+  }
 }

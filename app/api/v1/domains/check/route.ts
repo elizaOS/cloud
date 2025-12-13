@@ -1,41 +1,22 @@
 /**
  * Domain Availability Check API
- *
- * GET /api/v1/domains/check - Check if a specific domain is available
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { domainManagementService } from "@/lib/services/domain-management";
 import { domainModerationService } from "@/lib/services/domain-moderation";
+import { DomainCheckSchema, validationError } from "@/lib/types/domains";
 import { logger } from "@/lib/utils/logger";
 
-const CheckQuerySchema = z.object({
-  domain: z.string().min(3).max(253),
-});
-
-/**
- * GET /api/v1/domains/check
- * Check if a specific domain is available for purchase
- */
 export async function GET(request: NextRequest) {
   await requireAuthOrApiKeyWithOrg(request);
 
-  const url = new URL(request.url);
-  const domain = url.searchParams.get("domain");
+  const domain = new URL(request.url).searchParams.get("domain");
+  const parsed = DomainCheckSchema.safeParse({ domain });
+  if (!parsed.success) return validationError(parsed.error.issues);
 
-  const parsed = CheckQuerySchema.safeParse({ domain });
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Invalid domain", details: parsed.error.issues },
-      { status: 400 }
-    );
-  }
-
-  logger.info("[Domains API] Checking domain availability", {
-    domain: parsed.data.domain,
-  });
+  logger.info("[Domains API] Checking domain availability", { domain: parsed.data.domain });
 
   // Check moderation first
   const moderation = await domainModerationService.validateDomainName(

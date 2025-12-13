@@ -179,16 +179,16 @@ class AdvertisingService {
       throw new Error("Ad account not found");
     }
 
-    // Delete secrets
+    // Delete secrets - log but don't fail if already deleted
     if (account.access_token_secret_id) {
       await secretsService
         .delete(account.access_token_secret_id, organizationId)
-        .catch(() => {});
+        .catch((e) => logger.warn("[Advertising] Failed to delete access token secret", { error: e }));
     }
     if (account.refresh_token_secret_id) {
       await secretsService
         .delete(account.refresh_token_secret_id, organizationId)
-        .catch(() => {});
+        .catch((e) => logger.warn("[Advertising] Failed to delete refresh token secret", { error: e }));
     }
 
     await adAccountsRepository.delete(accountId);

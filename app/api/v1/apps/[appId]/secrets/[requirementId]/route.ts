@@ -1,72 +1,25 @@
 /**
- * App Secret Requirement Approval API
- *
- * POST   /api/v1/apps/:appId/secrets/:requirementId/approve - Approve a secret requirement
- * DELETE /api/v1/apps/:appId/secrets/:requirementId - Delete/revoke a secret requirement
+ * App Secret Requirement API - Revoke requirement
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { secretsService } from "@/lib/services/secrets";
-import { appsService } from "@/lib/services/apps";
 import { logger } from "@/lib/utils/logger";
+import { verifyAppOwnership, formatRequirement, handleSecretsError } from "@/lib/api/secrets-helpers";
 
 type RouteParams = { params: Promise<{ appId: string; requirementId: string }> };
 
-export async function POST(request: NextRequest, { params }: RouteParams) {
-  const { user } = await requireAuthOrApiKeyWithOrg(request);
-  const { appId, requirementId } = await params;
-
-  // Verify app belongs to org
-  const app = await appsService.getById(appId);
-  if (!app || app.organization_id !== user.organization_id) {
-    return NextResponse.json({ error: "App not found" }, { status: 404 });
-  }
-
-  // Check action
-  const url = new URL(request.url);
-  const action = url.pathname.endsWith("/approve") ? "approve" : "revoke";
-
-  let requirement;
-  if (action === "approve") {
-    requirement = await secretsService.approveAppSecretRequirement(
-      requirementId,
-      user.id
-    );
-    logger.info("[App Secrets] Approved requirement", { appId, requirementId, userId: user.id });
-  } else {
-    requirement = await secretsService.revokeAppSecretRequirement(requirementId);
-    logger.info("[App Secrets] Revoked requirement", { appId, requirementId, userId: user.id });
-  }
-
-  return NextResponse.json({
-    id: requirement.id,
-    secretName: requirement.secret_name,
-    required: requirement.required,
-    approved: requirement.approved,
-    approvedBy: requirement.approved_by,
-    approvedAt: requirement.approved_at?.toISOString(),
-  });
-}
-
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  const { user } = await requireAuthOrApiKeyWithOrg(request);
-  const { appId, requirementId } = await params;
+  try {
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const { appId, requirementId } = await params;
+    await verifyAppOwnership(appId, user.organization_id);
 
-  // Verify app belongs to org
-  const app = await appsService.getById(appId);
-  if (!app || app.organization_id !== user.organization_id) {
-    return NextResponse.json({ error: "App not found" }, { status: 404 });
+    const requirement = await secretsService.revokeAppSecretRequirement(requirementId);
+    logger.info("[App Secrets] Revoked requirement", { appId, requirementId, userId: user.id });
+    return NextResponse.json(formatRequirement(requirement));
+  } catch (error) {
+    return handleSecretsError(error, "App Secrets");
   }
-
-  const requirement = await secretsService.revokeAppSecretRequirement(requirementId);
-
-  logger.info("[App Secrets] Revoked requirement", { appId, requirementId, userId: user.id });
-
-  return NextResponse.json({
-    id: requirement.id,
-    secretName: requirement.secret_name,
-    approved: requirement.approved,
-  });
 }
-

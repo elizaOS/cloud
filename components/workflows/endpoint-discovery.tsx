@@ -18,23 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-
-interface EndpointNode {
-  id: string;
-  name: string;
-  description: string;
-  type: "a2a" | "mcp" | "rest";
-  category: string;
-  endpoint: string;
-  method?: string;
-  authentication?: {
-    type: string;
-    description?: string;
-  };
-  x402Enabled?: boolean;
-  source: string;
-  metadata?: Record<string, unknown>;
-}
+import type { EndpointNode } from "./types";
 
 interface EndpointDiscoveryProps {
   onSelectEndpoint?: (endpoint: EndpointNode) => void;

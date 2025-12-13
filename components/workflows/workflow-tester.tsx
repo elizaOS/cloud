@@ -16,27 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
-
-interface Workflow {
-  id: string;
-  name: string;
-  description: string | null;
-  status: string;
-  version: number;
-}
-
-interface TestResult {
-  success: boolean;
-  executionId: string;
-  status: "completed" | "failed" | "running";
-  startTime: string;
-  endTime?: string;
-  duration?: number;
-  output?: Record<string, unknown>;
-  error?: string;
-  executionMode?: "real" | "simulated";
-  n8nExecutionId?: string;
-}
+import type { Workflow, TestResult } from "./types";
 
 interface WorkflowTesterProps {
   workflow: Workflow;

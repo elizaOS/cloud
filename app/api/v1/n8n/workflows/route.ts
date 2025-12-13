@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { n8nWorkflowsService } from "@/lib/services/n8n-workflows";
 import { logger } from "@/lib/utils/logger";
-import { CreateWorkflowSchema } from "@/lib/schemas/n8n";
+import { CreateWorkflowSchema } from "@/lib/n8n/schemas";
 
 export async function GET(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);

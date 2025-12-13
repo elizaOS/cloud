@@ -1,24 +1,9 @@
-/**
- * N8N Workflow Execute API
- *
- * POST /api/v1/n8n/workflows/:id/execute - Execute workflow (REST endpoint for apps)
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { n8nWorkflowsService } from "@/lib/services/n8n-workflows";
 import { logger } from "@/lib/utils/logger";
-import { z } from "zod";
+import { ExecuteWorkflowSchema, ErrorResponses } from "@/lib/n8n/schemas";
 
-const ExecuteWorkflowSchema = z.object({
-  inputData: z.record(z.unknown()).optional(),
-  triggerType: z.enum(["manual", "api", "app"]).optional().default("api"),
-});
-
-/**
- * POST /api/v1/n8n/workflows/:id/execute
- * Executes a workflow via REST API (for app usage).
- */
 export async function POST(
   request: NextRequest,
   ctx: { params: Promise<{ id: string }> }
@@ -28,20 +13,13 @@ export async function POST(
 
   const workflow = await n8nWorkflowsService.getWorkflow(id);
   if (!workflow || workflow.organization_id !== user.organization_id) {
-    return NextResponse.json(
-      { success: false, error: "Workflow not found" },
-      { status: 404 }
-    );
+    return NextResponse.json(ErrorResponses.workflowNotFound, { status: 404 });
   }
 
   const body = await request.json().catch(() => ({}));
   const validation = ExecuteWorkflowSchema.safeParse(body);
-
   if (!validation.success) {
-    return NextResponse.json(
-      { success: false, error: "Invalid request", details: validation.error.format() },
-      { status: 400 }
-    );
+    return NextResponse.json(ErrorResponses.invalidRequest(validation.error.format()), { status: 400 });
   }
 
   const { inputData, triggerType } = validation.data;

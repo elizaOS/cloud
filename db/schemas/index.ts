@@ -76,3 +76,6 @@ export * from "./code-agent-sessions";
 
 // App Integrations (junction tables)
 export * from "./app-integrations";
+
+// Performance Monitoring
+export * from "./slow-query-log";

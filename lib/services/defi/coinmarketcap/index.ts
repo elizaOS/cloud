@@ -41,7 +41,7 @@ export interface CMCCryptocurrency {
   max_supply: number | null;
   circulating_supply: number;
   total_supply: number;
-  platform: { id: number; name: string; symbol: string; slug: string; token_address: string } | null;
+  platform: CMCPlatform | null;
   cmc_rank: number;
   self_reported_circulating_supply: number | null;
   self_reported_market_cap: number | null;
@@ -99,6 +99,14 @@ export interface CMCGlobalMetrics {
   last_updated: string;
 }
 
+export interface CMCPlatform {
+  id: number;
+  name: string;
+  symbol: string;
+  slug: string;
+  token_address: string;
+}
+
 export interface CMCIdMapEntry {
   id: number;
   name: string;
@@ -108,7 +116,29 @@ export interface CMCIdMapEntry {
   is_active: number;
   first_historical_data: string;
   last_historical_data: string;
-  platform: { id: number; name: string; symbol: string; slug: string; token_address: string } | null;
+  platform: CMCPlatform | null;
+}
+
+export interface CMCCoinInfo {
+  id: number;
+  name: string;
+  symbol: string;
+  category: string;
+  description: string;
+  slug: string;
+  logo: string;
+  subreddit: string;
+  notice: string;
+  tags: string[];
+  urls: { website: string[]; twitter: string[]; message_board: string[]; chat: string[]; facebook: string[]; explorer: string[]; reddit: string[]; technical_doc: string[]; source_code: string[]; announcement: string[] };
+  platform: CMCPlatform | null;
+  date_added: string;
+  date_launched: string | null;
+  is_hidden: number;
+  self_reported_circulating_supply: number | null;
+  self_reported_market_cap: number | null;
+  self_reported_tags: string[] | null;
+  infinite_supply: boolean;
 }
 
 class CoinMarketCapClient extends BaseHttpClient {
@@ -280,26 +310,10 @@ export class CoinMarketCapService {
     return this.idMapCache.get(upperSymbol) ?? null;
   }
 
-  async getCryptocurrencyInfo(ids: number[]): Promise<Record<number, {
-    id: number; name: string; symbol: string; category: string; description: string; slug: string; logo: string;
-    subreddit: string; notice: string; tags: string[];
-    urls: { website: string[]; twitter: string[]; message_board: string[]; chat: string[]; facebook: string[]; explorer: string[]; reddit: string[]; technical_doc: string[]; source_code: string[]; announcement: string[] };
-    platform: { id: number; name: string; symbol: string; slug: string; token_address: string } | null;
-    date_added: string; date_launched: string | null; is_hidden: number;
-    self_reported_circulating_supply: number | null; self_reported_market_cap: number | null; self_reported_tags: string[] | null; infinite_supply: boolean;
-  }>> {
+  async getCryptocurrencyInfo(ids: number[]): Promise<Record<number, CMCCoinInfo>> {
     logger.info(`[CoinMarketCap] Getting info for ${ids.length} cryptocurrencies`);
-
-    const response = await this.client.get<{ data: Record<string, {
-      id: number; name: string; symbol: string; category: string; description: string; slug: string; logo: string;
-      subreddit: string; notice: string; tags: string[];
-      urls: { website: string[]; twitter: string[]; message_board: string[]; chat: string[]; facebook: string[]; explorer: string[]; reddit: string[]; technical_doc: string[]; source_code: string[]; announcement: string[] };
-      platform: { id: number; name: string; symbol: string; slug: string; token_address: string } | null;
-      date_added: string; date_launched: string | null; is_hidden: number;
-      self_reported_circulating_supply: number | null; self_reported_market_cap: number | null; self_reported_tags: string[] | null; infinite_supply: boolean;
-    }> }>("/cryptocurrency/info", { id: ids.join(",") });
-
-    const result: Record<number, typeof response.data[string]> = {};
+    const response = await this.client.get<{ data: Record<string, CMCCoinInfo> }>("/cryptocurrency/info", { id: ids.join(",") });
+    const result: Record<number, CMCCoinInfo> = {};
     for (const [id, data] of Object.entries(response.data)) {
       result[parseInt(id, 10)] = data;
     }

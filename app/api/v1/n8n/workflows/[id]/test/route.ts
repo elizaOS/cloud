@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { n8nWorkflowsService } from "@/lib/services/n8n-workflows";
-import { z } from "zod";
-
-const TestWorkflowSchema = z.object({
-  inputData: z.record(z.unknown()).optional(),
-});
+import { TestWorkflowSchema, ErrorResponses } from "@/lib/n8n/schemas";
 
 export async function POST(
   request: NextRequest,
@@ -16,20 +12,13 @@ export async function POST(
 
   const workflow = await n8nWorkflowsService.getWorkflow(id);
   if (!workflow || workflow.organization_id !== user.organization_id) {
-    return NextResponse.json(
-      { success: false, error: "Workflow not found" },
-      { status: 404 }
-    );
+    return NextResponse.json(ErrorResponses.workflowNotFound, { status: 404 });
   }
 
   const body = await request.json().catch(() => ({}));
   const validation = TestWorkflowSchema.safeParse(body);
-
   if (!validation.success) {
-    return NextResponse.json(
-      { success: false, error: "Invalid request", details: validation.error.format() },
-      { status: 400 }
-    );
+    return NextResponse.json(ErrorResponses.invalidRequest(validation.error.format()), { status: 400 });
   }
 
   const { inputData } = validation.data;
@@ -41,9 +30,6 @@ export async function POST(
   });
 
   const isRealExecution = execution.n8n_execution_id !== null;
-  const outputData = execution.output_data as Record<string, unknown> | null;
-  const wasSimulated = outputData?.note?.toString().includes("simulated") || 
-                       outputData?.note?.toString().includes("Simulated");
 
   return NextResponse.json({
     success: execution.status === "success",

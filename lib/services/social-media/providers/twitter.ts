@@ -1,4 +1,5 @@
 import { logger } from "@/lib/utils/logger";
+import { TWITTER_API_BASE, TWITTER_UPLOAD_BASE, twitterApiRequest as baseTwitterApiRequest } from "@/lib/utils/twitter-api";
 import { withRetry } from "../rate-limit";
 import type {
   SocialMediaProvider,
@@ -11,36 +12,17 @@ import type {
   MediaAttachment,
 } from "@/lib/types/social-media";
 
-const TWITTER_API_BASE = "https://api.twitter.com/2";
-const TWITTER_UPLOAD_BASE = "https://upload.twitter.com/1.1";
-
+// Wrapped with retry logic for social media provider
 async function twitterApiRequest<T>(
   endpoint: string,
   accessToken: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = endpoint.startsWith("http") ? endpoint : `${TWITTER_API_BASE}${endpoint}`;
-
-  const { data } = await withRetry<T>(
-    () => fetch(url, {
-      ...options,
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    }),
-    async (response) => {
-      const json = await response.json();
-      if (json.errors?.length) {
-        throw new Error(json.errors[0].detail || json.errors[0].message || "Twitter API error");
-      }
-      return json;
-    },
+  return withRetry<T>(
+    () => baseTwitterApiRequest<T>(endpoint, accessToken, options),
+    async (data) => data,
     { platform: "twitter", maxRetries: 3 }
   );
-
-  return data;
 }
 
 async function uploadMedia(accessToken: string, media: MediaAttachment): Promise<string> {

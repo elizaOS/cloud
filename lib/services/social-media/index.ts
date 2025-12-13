@@ -294,8 +294,9 @@ class SocialMediaService {
         try {
           return await provider.createPost(credentials, content, platformOptions);
         } catch (error) {
-          logger.error("[SocialMedia] Post failed", { platform, error: error instanceof Error ? error.message : "Unknown" });
-          return { platform, success: false, error: error instanceof Error ? error.message : "Unknown error" };
+          const errorMessage = extractErrorMessage(error);
+          logger.error("[SocialMedia] Post failed", { platform, error: errorMessage });
+          return { platform, success: false, error: errorMessage };
         }
       })
     );

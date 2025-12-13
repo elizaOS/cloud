@@ -3,6 +3,7 @@ import { generateText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { n8nWorkflowsService } from "@/lib/services/n8n-workflows";
+import { ErrorResponses } from "@/lib/n8n/schemas";
 import { z } from "zod";
 
 const EDIT_CHAT_MODEL = "anthropic/claude-sonnet-4.5";
@@ -82,20 +83,14 @@ export async function POST(request: NextRequest) {
   const validation = RequestSchema.safeParse(body);
 
   if (!validation.success) {
-    return NextResponse.json(
-      { success: false, error: "Invalid request", details: validation.error.format() },
-      { status: 400 }
-    );
+    return NextResponse.json(ErrorResponses.invalidRequest(validation.error.format()), { status: 400 });
   }
 
   const { workflowId, currentWorkflow, message, history } = validation.data;
 
   const existingWorkflow = await n8nWorkflowsService.getWorkflow(workflowId);
   if (!existingWorkflow || existingWorkflow.organization_id !== user.organization_id) {
-    return NextResponse.json(
-      { success: false, error: "Workflow not found" },
-      { status: 404 }
-    );
+    return NextResponse.json(ErrorResponses.workflowNotFound, { status: 404 });
   }
 
   const workflowContext = `Current Workflow:

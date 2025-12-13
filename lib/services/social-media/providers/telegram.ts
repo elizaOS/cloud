@@ -3,6 +3,7 @@
  */
 
 import { logger } from "@/lib/utils/logger";
+import { telegramBotApiRequest } from "@/lib/utils/telegram-api";
 import { withRetry } from "../rate-limit";
 import type {
   SocialMediaProvider,
@@ -12,8 +13,6 @@ import type {
   PlatformPostOptions,
   MediaAttachment,
 } from "@/lib/types/social-media";
-
-const TELEGRAM_API_BASE = "https://api.telegram.org/bot";
 
 interface TelegramResponse<T> {
   ok: boolean;
@@ -36,19 +35,14 @@ interface TelegramMessage {
   text?: string;
 }
 
+// Use shared telegramBotApiRequest from @/lib/utils/telegram-api
+// Wrapped with retry logic for social media provider
 async function telegramApiRequest<T>(token: string, method: string, params?: Record<string, unknown>): Promise<T> {
-  const { data } = await withRetry<TelegramResponse<T>>(
-    () => fetch(`${TELEGRAM_API_BASE}${token}/${method}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: params ? JSON.stringify(params) : undefined,
-    }),
-    async (response) => response.json(),
+  return withRetry<T>(
+    () => telegramBotApiRequest<T>(token, method, params),
+    async (data) => data,
     { platform: "telegram", maxRetries: 3 }
   );
-
-  if (!data.ok) throw new Error(data.description ?? `Telegram error: ${data.error_code}`);
-  return data.result as T;
 }
 
 async function sendMediaGroup(

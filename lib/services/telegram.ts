@@ -6,13 +6,12 @@
  */
 
 import { logger } from "@/lib/utils/logger";
+import { telegramBotApiRequest } from "@/lib/utils/telegram-api";
 import { botsService } from "./bots";
 import { secretsService } from "./secrets";
 import { db } from "@/db";
 import { orgPlatformConnections, orgPlatformServers } from "@/db/schemas/org-platforms";
 import { eq, and } from "drizzle-orm";
-
-const TELEGRAM_API_BASE = "https://api.telegram.org/bot";
 
 
 export interface TelegramUser {
@@ -112,39 +111,19 @@ interface TelegramApiResponse<T> {
 // API HELPERS
 // =============================================================================
 
-async function telegramApiRequest<T>(
-  token: string,
-  method: string,
-  params?: Record<string, unknown>
-): Promise<T> {
-  const url = `${TELEGRAM_API_BASE}${token}/${method}`;
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: params ? JSON.stringify(params) : undefined,
-  });
-
-  const data: TelegramApiResponse<T> = await response.json();
-
-  if (!data.ok) {
-    throw new Error(data.description ?? `Telegram API error: ${data.error_code}`);
-  }
-
-  return data.result as T;
-}
+// Use shared telegramBotApiRequest from @/lib/utils/telegram-api
 
 
 class TelegramService {
   async getMe(token: string): Promise<TelegramUser> {
-    return telegramApiRequest<TelegramUser>(token, "getMe");
+    return telegramBotApiRequest<TelegramUser>(token, "getMe");
   }
 
   async sendMessage(
     token: string,
     params: SendMessageParams
   ): Promise<TelegramMessage> {
-    return telegramApiRequest<TelegramMessage>(token, "sendMessage", params);
+    return telegramBotApiRequest<TelegramMessage>(token, "sendMessage", params);
   }
 
   async sendMessageViaConnection(
@@ -168,7 +147,7 @@ class TelegramService {
     callbackQueryId: string,
     options?: { text?: string; show_alert?: boolean }
   ): Promise<boolean> {
-    return telegramApiRequest<boolean>(token, "answerCallbackQuery", {
+    return telegramBotApiRequest<boolean>(token, "answerCallbackQuery", {
       callback_query_id: callbackQueryId,
       text: options?.text,
       show_alert: options?.show_alert ?? false,
@@ -182,7 +161,7 @@ class TelegramService {
     text: string,
     options?: Partial<SendMessageParams>
   ): Promise<TelegramMessage | boolean> {
-    return telegramApiRequest(token, "editMessageText", {
+    return telegramBotApiRequest(token, "editMessageText", {
       chat_id: chatId,
       message_id: messageId,
       text,
@@ -203,22 +182,22 @@ class TelegramService {
   }
 
   async getChat(token: string, chatId: number | string): Promise<TelegramChat> {
-    return telegramApiRequest<TelegramChat>(token, "getChat", { chat_id: chatId });
+    return telegramBotApiRequest<TelegramChat>(token, "getChat", { chat_id: chatId });
   }
 
   async getChatMemberCount(token: string, chatId: number | string): Promise<number> {
-    return telegramApiRequest<number>(token, "getChatMemberCount", { chat_id: chatId });
+    return telegramBotApiRequest<number>(token, "getChatMemberCount", { chat_id: chatId });
   }
 
   async getChatAdministrators(
     token: string,
     chatId: number | string
   ): Promise<Array<{ user: TelegramUser; status: string }>> {
-    return telegramApiRequest(token, "getChatAdministrators", { chat_id: chatId });
+    return telegramBotApiRequest(token, "getChatAdministrators", { chat_id: chatId });
   }
 
   async leaveChat(token: string, chatId: number | string): Promise<boolean> {
-    return telegramApiRequest<boolean>(token, "leaveChat", { chat_id: chatId });
+    return telegramBotApiRequest<boolean>(token, "leaveChat", { chat_id: chatId });
   }
 
   async setWebhook(
@@ -230,14 +209,14 @@ class TelegramService {
       allowed_updates?: string[];
     }
   ): Promise<boolean> {
-    return telegramApiRequest<boolean>(token, "setWebhook", {
+    return telegramBotApiRequest<boolean>(token, "setWebhook", {
       url,
       ...options,
     });
   }
 
   async deleteWebhook(token: string, dropPendingUpdates = false): Promise<boolean> {
-    return telegramApiRequest<boolean>(token, "deleteWebhook", {
+    return telegramBotApiRequest<boolean>(token, "deleteWebhook", {
       drop_pending_updates: dropPendingUpdates,
     });
   }
@@ -249,7 +228,7 @@ class TelegramService {
     last_error_date?: number;
     last_error_message?: string;
   }> {
-    return telegramApiRequest(token, "getWebhookInfo");
+    return telegramBotApiRequest(token, "getWebhookInfo");
   }
 
   async findConnectionByChatId(chatId: string): Promise<{

@@ -407,9 +407,10 @@ export class DiscordMessageSender {
       return { success: false, error: "Bot token not found" };
     }
 
-    const headers = discordBotHeaders(token, reason ? { "X-Audit-Log-Reason": reason } : undefined);
-      headers["X-Audit-Log-Reason"] = encodeURIComponent(reason.slice(0, 512));
-    }
+    const headers = discordBotHeaders(
+      token,
+      reason ? { "X-Audit-Log-Reason": encodeURIComponent(reason.slice(0, 512)) } : undefined
+    );
 
     const response = await fetch(
       `${DISCORD_API_BASE}/guilds/${guildId}/members/${userId}/roles/${roleId}`,
@@ -587,9 +588,10 @@ export class DiscordMessageSender {
       return { success: false, error: "Bot token not found" };
     }
 
-    const headers = discordBotHeaders(token, reason ? { "X-Audit-Log-Reason": reason } : undefined);
-      headers["X-Audit-Log-Reason"] = encodeURIComponent(reason.slice(0, 512));
-    }
+    const headers = discordBotHeaders(
+      token,
+      reason ? { "X-Audit-Log-Reason": encodeURIComponent(reason.slice(0, 512)) } : undefined
+    );
 
     const response = await fetch(
       `${DISCORD_API_BASE}/guilds/${guildId}/members/${userId}`,

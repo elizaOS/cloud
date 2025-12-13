@@ -59,7 +59,7 @@ interface ServiceData {
   workflows: string[];
 }
 
-interface Workflow {
+interface WorkflowSummary {
   id: string;
   name: string;
   status: string;
@@ -75,7 +75,7 @@ export function ServiceBuilder({ appId, initialData, onSave }: ServiceBuilderPro
   const [tools, setTools] = useState<ServiceTool[]>(initialData?.tools ?? []);
   const [newToolName, setNewToolName] = useState("");
   const [newToolDescription, setNewToolDescription] = useState("");
-  const [availableWorkflows, setAvailableWorkflows] = useState<Workflow[]>([]);
+  const [availableWorkflows, setAvailableWorkflows] = useState<WorkflowSummary[]>([]);
   const [selectedWorkflows, setSelectedWorkflows] = useState<string[]>([]);
   const [isLoadingWorkflows, setIsLoadingWorkflows] = useState(false);
   const [isSaving, setIsSaving] = useState(false);

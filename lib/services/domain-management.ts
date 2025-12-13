@@ -1,13 +1,12 @@
-import { managedDomainsRepository, type ManagedDomain, type NewManagedDomain, type DnsRecord } from "@/db/repositories/managed-domains";
+import { managedDomainsRepository, type ManagedDomain, type DnsRecord } from "@/db/repositories/managed-domains";
 import { logger } from "@/lib/utils/logger";
+import { vercelApiRequest } from "@/lib/utils/vercel-api";
 import { domainModerationService } from "./domain-moderation";
 import { normalizeDomain as normalizeD, isApexDomain, extractErrorMessage } from "@/lib/types/domains";
 
-const VERCEL_API_BASE = "https://api.vercel.com";
 const VERCEL_TOKEN = process.env.VERCEL_TOKEN;
 const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID;
 
-// Re-export normalizeDomain for backward compatibility
 export const normalizeDomain = normalizeD;
 
 export interface DomainSearchResult {
@@ -78,14 +77,6 @@ export interface VercelDomainResponse {
 interface VercelDomainCheckResponse { name: string; available: boolean }
 interface VercelDomainPriceResponse { price: number; period: number }
 
-function buildVercelUrl(path: string, includeTeam = true): string {
-  const url = new URL(`${VERCEL_API_BASE}${path}`);
-  if (includeTeam && VERCEL_TEAM_ID) {
-    url.searchParams.set("teamId", VERCEL_TEAM_ID);
-  }
-  return url.toString();
-}
-
 async function vercelFetch<T>(
   path: string,
   options: RequestInit = {},
@@ -95,28 +86,8 @@ async function vercelFetch<T>(
     throw new Error("VERCEL_TOKEN is not configured");
   }
 
-  const url = buildVercelUrl(path, includeTeam);
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${VERCEL_TOKEN}`,
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({
-      error: { message: response.statusText },
-    }));
-    throw new Error(
-      error.error?.message || `Vercel API error: ${response.status}`
-    );
-  }
-
-  return response.json();
+  return vercelApiRequest<T>(path, VERCEL_TOKEN, options, includeTeam ? VERCEL_TEAM_ID : undefined);
 }
-
 
 class DomainManagementService {
   async checkAvailability(domain: string): Promise<DomainSearchResult> {
@@ -183,7 +154,7 @@ class DomainManagementService {
     } catch (error) {
       logger.warn("[DomainManagement] Failed to get domain price", {
         domain: normalized,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: extractErrorMessage(error),
       });
       return null;
     }
@@ -200,24 +171,19 @@ class DomainManagementService {
       return results;
     }
 
-    // Check each TLD
+    // Check each TLD in parallel
     const checkPromises = targetTlds.map(async (tld) => {
       const domain = normalized.includes(".") ? normalized : `${normalized}.${tld}`;
       try {
         return await this.checkAvailability(domain);
-      } catch {
+      } catch (error) {
+        logger.debug("[DomainManagement] TLD check failed", { domain, error: extractErrorMessage(error) });
         return null;
       }
     });
 
     const checkResults = await Promise.all(checkPromises);
-    for (const result of checkResults) {
-      if (result) {
-        results.push(result);
-      }
-    }
-
-    return results;
+    return checkResults.filter((r): r is DomainSearchResult => r !== null);
   }
 
   async purchaseDomain(params: DomainPurchaseParams): Promise<DomainPurchaseResult> {
@@ -317,12 +283,12 @@ class DomainManagementService {
     } catch (error) {
       logger.error("[DomainManagement] Domain purchase failed", {
         domain: normalized,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: extractErrorMessage(error),
       });
 
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Domain purchase failed",
+        error: extractErrorMessage(error),
       };
     }
   }
@@ -458,13 +424,15 @@ class DomainManagementService {
     logger.info("[DomainManagement] Verifying domain", { domain: domain.domain });
 
     try {
-      // Check DNS for verification record
       const { Resolver } = await import("node:dns").then((m) => m.promises);
       const resolver = new Resolver();
       
-      const txtRecords = await resolver.resolveTxt(
-        `_eliza-verification.${domain.domain}`
-      ).catch(() => []);
+      let txtRecords: string[][] = [];
+      try {
+        txtRecords = await resolver.resolveTxt(`_eliza-verification.${domain.domain}`);
+      } catch (dnsError) {
+        logger.debug("[DomainManagement] DNS lookup failed", { domain: domain.domain, error: extractErrorMessage(dnsError) });
+      }
 
       const verified = txtRecords.some((records) =>
         records.includes(domain.verificationToken!)
@@ -491,11 +459,11 @@ class DomainManagementService {
     } catch (error) {
       logger.warn("[DomainManagement] Domain verification failed", {
         domain: domain.domain,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: extractErrorMessage(error),
       });
       return {
         verified: false,
-        error: error instanceof Error ? error.message : "Verification failed",
+        error: extractErrorMessage(error),
       };
     }
   }
@@ -633,7 +601,7 @@ class DomainManagementService {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to add DNS record",
+        error: extractErrorMessage(error),
       };
     }
   }
@@ -679,7 +647,7 @@ class DomainManagementService {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to delete DNS record",
+        error: extractErrorMessage(error),
       };
     }
   }

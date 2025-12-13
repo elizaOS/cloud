@@ -1,0 +1,188 @@
+name: Load Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: 'Test scenario'
+        required: true
+        default: 'smoke'
+        type: choice
+        options: [smoke, full-platform, stress, spike, soak, throughput, rate-limit]
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'local'
+        type: choice
+        options: [local, staging]
+
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/api/**'
+      - 'lib/services/**'
+      - 'tests/load/**'
+
+  schedule:
+    - cron: '0 2 * * *'
+
+env:
+  BUN_VERSION: '1.2'
+
+jobs:
+  # Framework tests (fast, runs on every trigger)
+  framework-tests:
+    name: Load Framework Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      - run: bun run load:test
+
+  # Local load test with full server
+  load-test:
+    name: Load Test (${{ github.event.inputs.scenario || 'smoke' }})
+    runs-on: ubuntu-latest
+    needs: framework-tests
+    timeout-minutes: 30
+    if: github.event.inputs.environment != 'staging'
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: eliza_test
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update && sudo apt-get install -y k6
+
+      - run: bun install --frozen-lockfile
+
+      - name: Setup Database
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/eliza_test?sslmode=disable
+        run: bun run db:push
+
+      - name: Seed Test Data
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/eliza_test?sslmode=disable
+        run: bun run db:seed:dev
+
+      - name: Start Server
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/eliza_test?sslmode=disable
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          NODE_ENV: test
+        run: |
+          bun run build
+          bun run start &
+          sleep 15
+          curl -sf http://localhost:3000/.well-known/agent-card.json || exit 1
+
+      - name: Bundle & Run Load Test
+        env:
+          LOAD_TEST_ENV: local
+          API_KEY: ${{ secrets.LOAD_TEST_API_KEY }}
+          BASE_URL: http://localhost:3000
+        run: |
+          SCENARIO="${{ github.event.inputs.scenario || 'smoke' }}"
+          cd tests/load
+          mkdir -p dist results
+          bun x esbuild "scenarios/${SCENARIO}.ts" --bundle --outfile="dist/${SCENARIO}.js" \
+            --format=esm --platform=neutral --target=es2020 \
+            --external:k6 --external:'k6/*' --external:'https://jslib.k6.io/*' --minify
+          k6 run --out json="results/${SCENARIO}.json" --summary-export="results/summary.json" "dist/${SCENARIO}.js"
+
+      - name: Upload Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-test-results-${{ github.event.inputs.scenario || 'smoke' }}
+          path: tests/load/results/
+          retention-days: 30
+
+      - name: Post Summary
+        if: always()
+        run: |
+          if [ -f tests/load/results/summary.json ]; then
+            echo "### Load Test: ${{ github.event.inputs.scenario || 'smoke' }}" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            jq '.' tests/load/results/summary.json >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Staging load test (manual only, requires approval)
+  staging-load-test:
+    name: Staging Load Test
+    runs-on: ubuntu-latest
+    needs: framework-tests
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging'
+    environment: staging
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update && sudo apt-get install -y k6
+
+      - run: bun install --frozen-lockfile
+
+      - name: Bundle & Run Staging Load Test
+        env:
+          LOAD_TEST_ENV: staging
+          API_KEY: ${{ secrets.STAGING_API_KEY }}
+          BASE_URL: https://staging.elizacloud.ai
+        run: |
+          SCENARIO="${{ github.event.inputs.scenario }}"
+          cd tests/load
+          mkdir -p dist results
+          bun x esbuild "scenarios/${SCENARIO}.ts" --bundle --outfile="dist/${SCENARIO}.js" \
+            --format=esm --platform=neutral --target=es2020 \
+            --external:k6 --external:'k6/*' --external:'https://jslib.k6.io/*' --minify
+          k6 run --out json="results/staging-${SCENARIO}.json" --summary-export="results/summary.json" "dist/${SCENARIO}.js"
+
+      - name: Upload Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: staging-load-test-results
+          path: tests/load/results/
+          retention-days: 30
+
+      - name: Post Summary
+        if: always()
+        run: |
+          if [ -f tests/load/results/summary.json ]; then
+            echo "### Staging Load Test: ${{ github.event.inputs.scenario }}" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            jq '.' tests/load/results/summary.json >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
