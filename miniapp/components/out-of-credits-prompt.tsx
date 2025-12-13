@@ -53,7 +53,7 @@ export function OutOfCreditsPrompt({
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => setShareModalOpen(true)}
-              className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 text-pink-400 font-medium hover:from-pink-500/30 hover:to-purple-500/30 transition-all"
+              className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-brand/20 to-accent-brand/20 border border-brand/30 text-brand-400 font-medium hover:from-brand/30 hover:to-accent-brand/30 transition-all"
             >
               <Gift className="h-4 w-4" />
               {availableToday > 0 ? `Earn ${Math.round(availableToday).toLocaleString()} credits` : "Share & Earn"}
