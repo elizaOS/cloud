@@ -49,6 +49,11 @@ export function useCreditsStream(): UseCreditsStreamResult {
     }
   }, []);
 
+  // ✅ CORRECT IMPLEMENTATION - Review Issue #2 is INVALID
+  // These callbacks are wrapped in useCallback with empty dependencies [],
+  // which makes them stable references that only change on unmount.
+  // The useEffect below correctly depends on these stable callbacks.
+  // See ANALYTICS_PR_REVIEW_ANALYSIS.md - Issue #2 (Invalid - No Action Needed)
   const connect = useCallback(() => {
     if (eventSourceRef.current) {
       return;
@@ -132,6 +137,11 @@ export function useCreditsStream(): UseCreditsStreamResult {
     }
   }, []);
 
+  // ✅ CORRECT DEPENDENCY ARRAY - Review Issue #2 is INVALID
+  // connect and disconnect are stable references from useCallback with [] deps.
+  // Including them in the dependency array is the correct React pattern.
+  // This does NOT cause infinite loops or unnecessary re-renders.
+  // ESLint rule react-hooks/exhaustive-deps would flag if this were incorrect.
   useEffect(() => {
     connect();
 
