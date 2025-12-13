@@ -2,8 +2,31 @@
 
 ## Required Environment Variables for Bootstrapper Deployment
 
-### Database
-- `DATABASE_URL` - PostgreSQL connection string
+### Databases (Two Separate Databases)
+
+#### Platform Database
+- `DATABASE_URL` - PostgreSQL connection string for platform tables
+  - Contains: organizations, users, API keys, credits, containers, artifacts, etc.
+  - Example: `postgresql://user:pass@host:5432/eliza_platform?sslmode=require`
+
+#### Agent Database  
+- `AGENT_DATABASE_URL` - PostgreSQL connection string for ElizaOS agent tables
+  - Contains: agents, memories, rooms, embeddings, entities, relationships, etc.
+  - Managed by ElizaOS plugin-sql migrations
+  - Example: `postgresql://user:pass@host:5432/eliza_agents?sslmode=require`
+
+**Configuration Options:**
+1. **Same Database** (Development): Set both to the same URL
+   ```env
+   DATABASE_URL=postgresql://localhost:5432/eliza_dev
+   AGENT_DATABASE_URL=postgresql://localhost:5432/eliza_dev
+   ```
+
+2. **Separate Databases** (Production): Use different databases for isolation
+   ```env
+   DATABASE_URL=postgresql://host:5432/eliza_platform?sslmode=require
+   AGENT_DATABASE_URL=postgresql://host:5432/eliza_agents?sslmode=require
+   ```
 
 ### Authentication (WorkOS)
 - `WORKOS_CLIENT_ID` - WorkOS client ID
