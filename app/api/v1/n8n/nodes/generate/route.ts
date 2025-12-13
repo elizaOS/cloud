@@ -31,10 +31,6 @@ const GenerateWorkflowSchema = z.object({
   workflowName: z.string().min(1),
 });
 
-/**
- * POST /api/v1/n8n/nodes/generate
- * Generates n8n nodes from endpoint IDs.
- */
 export async function POST(request: NextRequest) {
   try {
     await requireAuthOrApiKeyWithOrg(request);

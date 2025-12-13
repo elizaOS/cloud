@@ -164,18 +164,28 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const priceInCents = availability.price?.price || 0;
-  const priceInDollars = priceInCents / 100;
+  const price = availability.price;
+  if (!price) {
+    return NextResponse.json({
+      success: true,
+      domain,
+      available: true,
+      price: null,
+      paymentMethods: ["credits"],
+      moderationFlags: moderation.flags,
+      requiresReview: moderation.requiresReview,
+    });
+  }
 
   return NextResponse.json({
     success: true,
     domain,
     available: true,
     price: {
-      amount: priceInDollars,
+      amount: price.price / 100,
       currency: "USD",
-      period: availability.price?.period || 1,
-      renewalAmount: (availability.price?.renewalPrice || 0) / 100,
+      period: price.period,
+      renewalAmount: price.renewalPrice / 100,
     },
     paymentMethods: ["credits"],
     moderationFlags: moderation.flags,

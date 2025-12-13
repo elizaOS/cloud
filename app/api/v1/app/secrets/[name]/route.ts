@@ -1,7 +1,3 @@
-/**
- * App Secret by Name API
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { secretsService } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";

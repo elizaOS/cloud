@@ -4,8 +4,7 @@
 
 import { logger } from "@/lib/utils/logger";
 import { discordMessageSender } from "./message-sender";
-import { communityModerationService, getServerSettings, pickMostSevereViolation, parseDomain, type ViolationResult } from "../community-moderation";
-import { linkSafetyService } from "../link-safety";
+import { getServerSettings, pickMostSevereViolation, checkSpamViolation, checkLinksViolation, checkBadWordsViolation, type ModerationContext } from "../community-moderation";
 import { moderationEventsRepository } from "@/db/repositories/community-moderation";
 import type { CommunityModerationSettings } from "@/db/schemas/org-agents";
 import type { RoutableEvent } from "./types";
@@ -50,10 +49,11 @@ export class CommunityModerationHandler {
 
     const { settings, serverId, organizationId } = serverData;
 
+    const ctx: ModerationContext = { organizationId, serverId, platformUserId: message.author.id, platform: "discord" };
     const results = await Promise.all([
-      settings.antiSpamEnabled ? this.checkSpam(serverId, organizationId, message, settings) : null,
-      settings.linkCheckingEnabled ? this.checkLinks(message, settings) : null,
-      settings.badWordFilterEnabled ? this.checkBadWords(message, settings) : null,
+      settings.antiSpamEnabled ? checkSpamViolation(ctx, message.content, settings) : null,
+      settings.linkCheckingEnabled ? checkLinksViolation(message.content, settings) : null,
+      settings.badWordFilterEnabled ? checkBadWordsViolation(message.content, settings) : null,
     ]);
 
     const action = pickMostSevereViolation(results);
@@ -66,49 +66,6 @@ export class CommunityModerationHandler {
     return { handled: false };
   }
 
-  private async checkSpam(serverId: string, organizationId: string, message: DiscordMessageData, settings: CommunityModerationSettings): Promise<ViolationResult | null> {
-    const result = await communityModerationService.spam.checkSpam(
-      { organizationId, serverId, platformUserId: message.author.id, platform: "discord" },
-      message.content,
-      { maxMessagesPerMinute: settings.maxMessagesPerMinute ?? 10, duplicateThreshold: settings.duplicateMessageThreshold ?? 3 }
-    );
-
-    if (!result.isSpam) return null;
-    return { violation: true, type: result.reason ?? "spam", severity: result.reason === "rate_limit" ? 2 : 3 };
-  }
-
-  private async checkLinks(message: DiscordMessageData, settings: CommunityModerationSettings): Promise<ViolationResult | null> {
-    const urls = linkSafetyService.extractUrls(message.content);
-    if (urls.length === 0) return null;
-
-    if (settings.blockedDomains?.length) {
-      for (const url of urls) {
-        const domain = parseDomain(url);
-        if (domain && settings.blockedDomains.some((b) => domain.endsWith(b))) {
-          return { violation: true, type: "blocked_domain", severity: 3 };
-        }
-      }
-    }
-
-    if (settings.checkLinksWithSafeBrowsing) {
-      const results = await linkSafetyService.checkUrls(urls);
-      const threat = results.find((r) => !r.safe);
-      if (threat) return { violation: true, type: threat.threats[0] ?? "unsafe_link", severity: 5 };
-    }
-
-    return null;
-  }
-
-  private checkBadWords(message: DiscordMessageData, settings: CommunityModerationSettings): ViolationResult | null {
-    const banWords = settings.banWords ?? [];
-    if (banWords.length === 0) return null;
-
-    const content = message.content.toLowerCase();
-    const matched = banWords.find((word) => content.includes(word.toLowerCase()));
-    if (!matched) return null;
-
-    return { violation: true, type: "bad_word", severity: 3 };
-  }
 
   private async executeModerationAction(connectionId: string, guildId: string, message: DiscordMessageData, action: { type: string; severity: number }, serverId: string, organizationId: string, settings: CommunityModerationSettings): Promise<void> {
     await discordMessageSender.deleteMessage(connectionId, message.channel_id, message.id);

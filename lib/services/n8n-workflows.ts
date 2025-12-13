@@ -1274,7 +1274,7 @@ class N8nWorkflowsService {
       return { n8nWorkflowId };
     } catch (error) {
       logger.error(`[N8N Workflows] Failed to deploy workflow ${workflowId}`, {
-        error: error instanceof Error ? error.message : String(error),
+        error: extractErrorMessage(error),
       });
       throw error;
     }

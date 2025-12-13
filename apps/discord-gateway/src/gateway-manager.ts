@@ -8,6 +8,9 @@ import { Client, GatewayIntentBits, Events, Message, type ClientOptions } from "
 import { Redis } from "@upstash/redis";
 import { logger } from "./logger";
 
+const metric = (name: string, type: string, help: string, pod: string, value: number): string =>
+  `# HELP ${name} ${help}\n# TYPE ${name} ${type}\n${name}{pod="${pod}"} ${value}`;
+
 interface GatewayConfig {
   podName: string;
   elizaCloudUrl: string;
@@ -430,22 +433,15 @@ export class GatewayManager {
   }
 
   getHealth(): HealthStatus {
-    const totalBots = this.connections.size;
-    const connectedBots = Array.from(this.connections.values()).filter(
-      (c) => c.status === "connected"
-    ).length;
+    const bots = [...this.connections.values()];
+    const connectedBots = bots.filter((c) => c.status === "connected").length;
+    const totalBots = bots.length;
     const disconnectedBots = totalBots - connectedBots;
-    const totalGuilds = Array.from(this.connections.values()).reduce(
-      (sum, c) => sum + c.guildCount,
-      0
-    );
+    const totalGuilds = bots.reduce((sum, c) => sum + c.guildCount, 0);
 
-    let status: HealthStatus["status"] = "healthy";
-    if (totalBots > 0 && connectedBots === 0) {
-      status = "unhealthy";
-    } else if (disconnectedBots > 0) {
-      status = "degraded";
-    }
+    const status: HealthStatus["status"] =
+      totalBots > 0 && connectedBots === 0 ? "unhealthy" :
+      disconnectedBots > 0 ? "degraded" : "healthy";
 
     return {
       status,
@@ -459,31 +455,22 @@ export class GatewayManager {
   }
 
   getMetrics(): string {
-    const health = this.getHealth();
-    const lines: string[] = [
-      `# HELP discord_gateway_bots_total Total number of bots managed by this pod`,
-      `# TYPE discord_gateway_bots_total gauge`,
-      `discord_gateway_bots_total{pod="${this.config.podName}"} ${health.totalBots}`,
-      `# HELP discord_gateway_bots_connected Number of connected bots`,
-      `# TYPE discord_gateway_bots_connected gauge`,
-      `discord_gateway_bots_connected{pod="${this.config.podName}"} ${health.connectedBots}`,
-      `# HELP discord_gateway_guilds_total Total number of guilds`,
-      `# TYPE discord_gateway_guilds_total gauge`,
-      `discord_gateway_guilds_total{pod="${this.config.podName}"} ${health.totalGuilds}`,
-      `# HELP discord_gateway_uptime_seconds Gateway uptime in seconds`,
-      `# TYPE discord_gateway_uptime_seconds gauge`,
-      `discord_gateway_uptime_seconds{pod="${this.config.podName}"} ${Math.floor(health.uptime / 1000)}`,
+    const h = this.getHealth();
+    const pod = this.config.podName;
+
+    const metrics = [
+      metric("discord_gateway_bots_total", "gauge", "Total bots managed", pod, h.totalBots),
+      metric("discord_gateway_bots_connected", "gauge", "Connected bots", pod, h.connectedBots),
+      metric("discord_gateway_guilds_total", "gauge", "Total guilds", pod, h.totalGuilds),
+      metric("discord_gateway_uptime_seconds", "gauge", "Uptime in seconds", pod, Math.floor(h.uptime / 1000)),
     ];
 
-    for (const [connectionId, conn] of this.connections) {
-      lines.push(
-        `# HELP discord_gateway_events_received Total events received`,
-        `discord_gateway_events_received{connection="${connectionId}"} ${conn.eventsReceived}`,
-        `discord_gateway_events_routed{connection="${connectionId}"} ${conn.eventsRouted}`
-      );
+    for (const [id, conn] of this.connections) {
+      metrics.push(`discord_gateway_events_received{connection="${id}"} ${conn.eventsReceived}`);
+      metrics.push(`discord_gateway_events_routed{connection="${id}"} ${conn.eventsRouted}`);
     }
 
-    return lines.join("\n");
+    return metrics.join("\n");
   }
 
   getStatus(): Record<string, unknown> {
@@ -491,17 +478,17 @@ export class GatewayManager {
       podName: this.config.podName,
       startTime: this.startTime.toISOString(),
       uptime: Date.now() - this.startTime.getTime(),
-      connections: Array.from(this.connections.entries()).map(([id, conn]) => ({
+      connections: [...this.connections.entries()].map(([id, c]) => ({
         connectionId: id,
-        organizationId: conn.organizationId,
-        applicationId: conn.applicationId,
-        status: conn.status,
-        guildCount: conn.guildCount,
-        eventsReceived: conn.eventsReceived,
-        eventsRouted: conn.eventsRouted,
-        lastHeartbeat: conn.lastHeartbeat.toISOString(),
-        connectedAt: conn.connectedAt?.toISOString(),
-        error: conn.error,
+        organizationId: c.organizationId,
+        applicationId: c.applicationId,
+        status: c.status,
+        guildCount: c.guildCount,
+        eventsReceived: c.eventsReceived,
+        eventsRouted: c.eventsRouted,
+        lastHeartbeat: c.lastHeartbeat.toISOString(),
+        connectedAt: c.connectedAt?.toISOString(),
+        error: c.error,
       })),
     };
   }

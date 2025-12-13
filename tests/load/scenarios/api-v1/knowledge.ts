@@ -13,21 +13,21 @@ export function queryKnowledge(query: string, limit = 5): unknown[] {
   const r = callMcpTool<{ results: unknown[] }>("query_knowledge", { query, limit });
   queryLatency.add(Date.now() - start);
   knowledgeQueries.add(1);
-  return r?.results || [];
+  return r?.results ?? [];
 }
 
 export function uploadKnowledge(content: string, title: string): string | null {
   const r = callMcpTool<{ knowledgeId?: string; id?: string }>("upload_knowledge", { content, title });
-  return r?.knowledgeId || r?.id || null;
+  return r?.knowledgeId ?? r?.id ?? null;
 }
 
 export function saveMemory(content: string, tags: string[] = []): string | null {
   const r = callMcpTool<{ memoryId?: string; id?: string }>("save_memory", { content, tags });
-  return r?.memoryId || r?.id || null;
+  return r?.memoryId ?? r?.id ?? null;
 }
 
 export function retrieveMemories(query: string, limit = 5): unknown[] {
-  return callMcpTool<{ memories: unknown[] }>("retrieve_memories", { query, limit })?.memories || [];
+  return callMcpTool<{ memories: unknown[] }>("retrieve_memories", { query, limit })?.memories ?? [];
 }
 
 export function knowledgeOperationsCycle() {

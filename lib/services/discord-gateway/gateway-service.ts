@@ -203,74 +203,50 @@ export class DiscordGatewayService {
    * Get gateway health status.
    */
   async getHealth(): Promise<GatewayHealth> {
-    const connectedBots = await discordBotConnectionsRepository.listByStatus("connected");
-    const disconnectedBots = await discordBotConnectionsRepository.listByStatus("disconnected");
+    const [connectedBots, disconnectedBots, queueStats] = await Promise.all([
+      discordBotConnectionsRepository.listByStatus("connected"),
+      discordBotConnectionsRepository.listByStatus("disconnected"),
+      discordEventQueueRepository.getStats(),
+    ]);
+
     const allBots = [...connectedBots, ...disconnectedBots];
-    
-    // Get queue stats
-    const queueStats = await discordEventQueueRepository.getStats();
+    const totalGuilds = allBots.reduce((sum, b) => sum + (b.guild_count ?? 0), 0);
 
-    // Build shard status (group by pod)
-    const podMap = new Map<string, DiscordBotConnection[]>();
-    for (const bot of connectedBots) {
-      if (bot.gateway_pod) {
-        const existing = podMap.get(bot.gateway_pod) ?? [];
-        existing.push(bot);
-        podMap.set(bot.gateway_pod, existing);
-      }
-    }
+    // Group connected bots by pod
+    const podMap = Map.groupBy(
+      connectedBots.filter((b) => b.gateway_pod),
+      (b) => b.gateway_pod!
+    );
 
-    const shards: ShardStatus[] = Array.from(podMap.entries()).map(([podName, bots]) => {
-      const totalGuilds = bots.reduce((sum, b) => sum + (b.guild_count ?? 0), 0);
-      const oldestHeartbeat = bots.reduce(
-        (oldest, b) => {
-          if (!b.last_heartbeat) return oldest;
-          if (!oldest) return b.last_heartbeat;
-          return b.last_heartbeat < oldest ? b.last_heartbeat : oldest;
-        },
-        null as Date | null
-      );
-
-      // Determine health based on heartbeat age
-      const heartbeatAge = oldestHeartbeat
-        ? Date.now() - oldestHeartbeat.getTime()
-        : Infinity;
-      const status: ShardStatus["status"] =
-        heartbeatAge < 60000 ? "healthy" : heartbeatAge < 300000 ? "degraded" : "unhealthy";
+    const shards: ShardStatus[] = [...podMap.entries()].map(([podName, bots]) => {
+      const guildsCount = bots.reduce((sum, b) => sum + (b.guild_count ?? 0), 0);
+      const heartbeats = bots.map((b) => b.last_heartbeat).filter(Boolean) as Date[];
+      const oldestHeartbeat = heartbeats.length ? new Date(Math.min(...heartbeats.map((d) => d.getTime()))) : null;
+      const heartbeatAge = oldestHeartbeat ? Date.now() - oldestHeartbeat.getTime() : Infinity;
 
       return {
         shardId: bots[0]?.shard_id ?? 0,
         podName,
         botsCount: bots.length,
-        guildsCount: totalGuilds,
-        status,
+        guildsCount,
+        status: heartbeatAge < 60000 ? "healthy" : heartbeatAge < 300000 ? "degraded" : "unhealthy",
         lastHeartbeat: oldestHeartbeat,
       };
     });
 
-    const totalGuilds = allBots.reduce((sum, b) => sum + (b.guild_count ?? 0), 0);
-
-    // Determine overall health
     const healthyShards = shards.filter((s) => s.status === "healthy").length;
-    const overallStatus: GatewayHealth["status"] =
-      disconnectedBots.length === 0 && healthyShards === shards.length
-        ? "healthy"
-        : healthyShards > 0
-        ? "degraded"
-        : "unhealthy";
+    const status: GatewayHealth["status"] =
+      disconnectedBots.length === 0 && healthyShards === shards.length ? "healthy" :
+      healthyShards > 0 ? "degraded" : "unhealthy";
 
     return {
-      status: overallStatus,
+      status,
       totalBots: allBots.length,
       connectedBots: connectedBots.length,
       disconnectedBots: disconnectedBots.length,
       totalGuilds,
       shards,
-      queueStats: {
-        pending: queueStats.pending,
-        processing: queueStats.processing,
-        deadLetter: queueStats.deadLetter,
-      },
+      queueStats: { pending: queueStats.pending, processing: queueStats.processing, deadLetter: queueStats.deadLetter },
       lastCheck: new Date(),
     };
   }
@@ -306,9 +282,13 @@ export class DiscordGatewayService {
    */
   async getBotToken(connectionId: string): Promise<string | null> {
     const connection = await this.getConnection(connectionId);
-    if (!connection) return null;
+    if (!connection) {
+      logger.warn("[Discord Gateway] Cannot get token - connection not found", { connectionId });
+      return null;
+    }
 
     if (!isSecretsConfigured()) {
+      logger.warn("[Discord Gateway] Cannot get token - secrets service not configured", { connectionId });
       return null;
     }
 
@@ -317,7 +297,13 @@ export class DiscordGatewayService {
       projectId: connectionId,
     });
 
-    return secrets[`discord_bot_token_${connectionId}`] ?? null;
+    const token = secrets[`discord_bot_token_${connectionId}`];
+    if (!token) {
+      logger.warn("[Discord Gateway] Bot token not found in secrets", { connectionId });
+      return null;
+    }
+
+    return token;
   }
 
   /**

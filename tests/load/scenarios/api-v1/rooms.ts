@@ -1,57 +1,31 @@
-import http from "k6/http";
-import { check, group, sleep } from "k6";
-import { getBaseUrl, getConfig } from "../../config/environments";
-import { getAuthHeaders } from "../../helpers/auth";
-import { parseBody } from "../../helpers/assertions";
-import { generateConversationTitle } from "../../helpers/data-generators";
-import { roomsCreated, recordHttpError } from "../../helpers/metrics";
+import { group, sleep } from "k6";
+import { getConfig } from "../../config/environments";
+import { httpGet, httpPost } from "../../helpers/http";
+import { roomsCreated } from "../../helpers/metrics";
 
-const baseUrl = getBaseUrl();
-const headers = getAuthHeaders();
 const config = getConfig();
 
 interface Room { id: string; name: string }
 
 export function listRooms(): Room[] {
-  const res = http.get(`${baseUrl}/api/eliza/rooms`, { headers, tags: { endpoint: "rooms" } });
-  if (!check(res, { "list 200": (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return [];
-  }
-  return parseBody<{ rooms: Room[] }>(res).rooms || [];
+  const body = httpGet<{ rooms: Room[] }>("/api/eliza/rooms", { tags: { endpoint: "rooms" } });
+  return body?.rooms ?? [];
 }
 
 export function createRoom(name?: string): string | null {
-  const res = http.post(
-    `${baseUrl}/api/eliza/rooms`,
-    JSON.stringify({ name: name || `LoadTest-Room-${Date.now()}` }),
-    { headers, tags: { endpoint: "rooms" } }
-  );
-  if (!check(res, { "create 200": (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return null;
-  }
+  const body = httpPost<{ roomId?: string; id?: string }>("/api/eliza/rooms", { name: name || `LoadTest-Room-${Date.now()}` }, { tags: { endpoint: "rooms" } });
+  if (!body) return null;
   roomsCreated.add(1);
-  const body = parseBody<{ roomId?: string; id?: string }>(res);
-  return body.roomId || body.id || null;
+  return body.roomId ?? body.id ?? null;
 }
 
 export function getRoom(roomId: string): Room | null {
-  const res = http.get(`${baseUrl}/api/eliza/rooms/${roomId}`, { headers, tags: { endpoint: "rooms" } });
-  if (!check(res, { "get 200": (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return null;
-  }
-  return parseBody<Room>(res);
+  return httpGet<Room>(`/api/eliza/rooms/${roomId}`, { tags: { endpoint: "rooms" } });
 }
 
 export function getRoomMessages(roomId: string, limit = 20): unknown[] {
-  const res = http.get(`${baseUrl}/api/eliza/rooms/${roomId}/messages?limit=${limit}`, { headers, tags: { endpoint: "rooms" } });
-  if (!check(res, { "messages 200": (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return [];
-  }
-  return parseBody<{ messages: unknown[] }>(res).messages || [];
+  const body = httpGet<{ messages: unknown[] }>(`/api/eliza/rooms/${roomId}/messages?limit=${limit}`, { tags: { endpoint: "rooms" } });
+  return body?.messages ?? [];
 }
 
 export function roomOperationsCycle() {

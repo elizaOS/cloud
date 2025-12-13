@@ -3,10 +3,8 @@ import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { secretsService } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
-import { secretProjectTypeEnum, type SecretProjectType } from "@/db/schemas/secrets";
-import { createAudit, handleSecretsError } from "@/lib/api/secrets-helpers";
-
-const PROJECT_TYPES = secretProjectTypeEnum.enumValues;
+import type { SecretProjectType } from "@/db/schemas/secrets";
+import { createAudit, handleSecretsError, PROJECT_TYPES } from "@/lib/api/secrets-helpers";
 
 const BindSchema = z.object({
   secretId: z.string().uuid(),

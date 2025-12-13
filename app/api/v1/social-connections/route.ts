@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAuth } from "@/lib/middleware/app-auth";
+import { requireAppAuth as requireAuth } from "@/lib/middleware/app-auth";
 import { platformCredentialsService, MANUAL_AUTH_PLATFORMS, SOCIAL_PLATFORMS } from "@/lib/services/platform-credentials";
 import { logger } from "@/lib/utils/logger";
 
@@ -51,7 +51,9 @@ export async function POST(request: NextRequest) {
 
   const { platform, credentials } = parsed.data;
 
-  if (!MANUAL_AUTH_PLATFORMS.includes(platform)) {
+  // Type guard: parsed.data.platform is already narrowed to "bluesky" | "telegram" by zod schema
+  // but we need to ensure it matches MANUAL_AUTH_PLATFORMS for type safety
+  if (!(MANUAL_AUTH_PLATFORMS[0] === platform || MANUAL_AUTH_PLATFORMS[1] === platform)) {
     return NextResponse.json({ 
       success: false, 
       error: `Platform ${platform} requires OAuth. Use /api/v1/social-connections/connect/${platform} instead.` 
@@ -61,7 +63,7 @@ export async function POST(request: NextRequest) {
   const credential = await platformCredentialsService.storeManualCredentials({
     organizationId: user.organization_id,
     userId: user.id,
-    platform,
+    platform: platform as ManualAuthPlatform,
     credentials,
   });
 

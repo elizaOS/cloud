@@ -1,7 +1,3 @@
-/**
- * Individual Secret API - GET, PATCH, DELETE operations
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";

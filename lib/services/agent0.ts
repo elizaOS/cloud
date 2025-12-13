@@ -29,6 +29,7 @@ import {
   type ERC8004Ecosystem,
 } from "@/lib/config/erc8004";
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL, CacheStaleTTL } from "@/lib/cache/keys";
 import { createHash } from "crypto";
@@ -47,7 +48,7 @@ async function getSDKModule() {
       SDK = sdkModule.SDK;
     } catch (error) {
       logger.warn("[Agent0] Failed to load agent0-sdk, falling back to indexer", {
-        error: error instanceof Error ? error.message : String(error),
+        error: extractErrorMessage(error),
       });
       sdkLoadFailed = true;
       return null;
@@ -294,7 +295,7 @@ class Agent0Service {
       }));
     } catch (error) {
       logger.warn("[Agent0] SDK search failed, falling back to indexer", {
-        error: error instanceof Error ? error.message : String(error),
+        error: extractErrorMessage(error),
       });
       return fetchFromIndexer(filters);
     }
@@ -333,7 +334,7 @@ class Agent0Service {
       } catch (error) {
         logger.warn("[Agent0] Search failed on network", {
           network,
-          error: error instanceof Error ? error.message : String(error),
+          error: extractErrorMessage(error),
         });
         return [];
       }

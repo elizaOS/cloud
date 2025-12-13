@@ -1,7 +1,3 @@
-/**
- * Secret Binding API - Individual binding operations
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { secretsService } from "@/lib/services/secrets";

@@ -1,66 +1,32 @@
-import http from "k6/http";
-import { check, group, sleep } from "k6";
-import { getBaseUrl } from "../../config/environments";
-import { getAuthHeaders, getPublicHeaders } from "../../helpers/auth";
-import { parseBody } from "../../helpers/assertions";
-import { discoveryQueries, recordHttpError } from "../../helpers/metrics";
-
-const baseUrl = getBaseUrl();
-const headers = getAuthHeaders();
-const publicHeaders = getPublicHeaders();
+import { group, sleep } from "k6";
+import { httpGet, httpPost } from "../../helpers/http";
+import { discoveryQueries } from "../../helpers/metrics";
 
 interface Service { agentId: string; name: string }
 
 export function discoverServices(sources = ["local"], limit = 20): Service[] {
-  const res = http.post(`${baseUrl}/api/v1/discovery`, JSON.stringify({ sources, limit }), {
-    headers, tags: { endpoint: "discovery" },
-  });
-  if (!check(res, { "discover 200": (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return [];
-  }
+  const body = httpPost<{ services: Service[] }>("/api/v1/discovery", { sources, limit }, { tags: { endpoint: "discovery" } });
+  if (!body) return [];
   discoveryQueries.add(1);
-  return parseBody<{ services: Service[] }>(res).services || [];
+  return body.services ?? [];
 }
 
 export function getServiceDetails(agentId: string): Record<string, unknown> | null {
-  const res = http.get(`${baseUrl}/api/v1/discovery/${agentId}`, { headers, tags: { endpoint: "discovery" } });
-  if (!check(res, { "details 200": (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return null;
-  }
-  return parseBody<Record<string, unknown>>(res);
+  return httpGet<Record<string, unknown>>(`/api/v1/discovery/${agentId}`, { tags: { endpoint: "discovery" } });
 }
 
 export function findMcpTools(tools: string[]): unknown[] {
-  const res = http.post(`${baseUrl}/api/v1/discovery/mcp-tools`, JSON.stringify({ tools }), {
-    headers, tags: { endpoint: "discovery" },
-  });
-  if (!check(res, { "find tools 200": (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return [];
-  }
-  return parseBody<{ results: unknown[] }>(res).results || [];
+  const body = httpPost<{ results: unknown[] }>("/api/v1/discovery/mcp-tools", { tools }, { tags: { endpoint: "discovery" } });
+  return body?.results ?? [];
 }
 
 export function findA2aSkills(skills: string[]): unknown[] {
-  const res = http.post(`${baseUrl}/api/v1/discovery/a2a-skills`, JSON.stringify({ skills }), {
-    headers, tags: { endpoint: "discovery" },
-  });
-  if (!check(res, { "find skills 200": (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return [];
-  }
-  return parseBody<{ results: unknown[] }>(res).results || [];
+  const body = httpPost<{ results: unknown[] }>("/api/v1/discovery/a2a-skills", { skills }, { tags: { endpoint: "discovery" } });
+  return body?.results ?? [];
 }
 
 export function getAgentCard(): Record<string, unknown> | null {
-  const res = http.get(`${baseUrl}/.well-known/agent-card.json`, { headers: publicHeaders, tags: { endpoint: "discovery" } });
-  if (!check(res, { "agent card 200": (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return null;
-  }
-  return parseBody<Record<string, unknown>>(res);
+  return httpGet<Record<string, unknown>>("/.well-known/agent-card.json", { public: true, tags: { endpoint: "discovery" } });
 }
 
 export function discoveryOperationsCycle() {

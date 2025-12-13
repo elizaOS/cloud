@@ -91,6 +91,24 @@ export function formatSecret(s: SecretMetadata) {
 }
 
 /**
+ * Format audit log entry for API response
+ */
+export function formatAuditEntry(e: SecretAuditLog) {
+  return {
+    id: e.id,
+    secretId: e.secret_id,
+    secretName: e.secret_name,
+    action: e.action,
+    actorType: e.actor_type,
+    actorId: e.actor_id,
+    actorEmail: e.actor_email,
+    source: e.source,
+    ipAddress: e.ip_address,
+    createdAt: e.created_at.toISOString(),
+  };
+}
+
+/**
  * Build detailed audit context (for individual secret operations)
  */
 export function buildDetailedAudit(request: NextRequest, authResult: AuthResult): AuditContext {

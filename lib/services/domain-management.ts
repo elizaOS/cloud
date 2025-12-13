@@ -486,18 +486,18 @@ class DomainManagementService {
     }[resourceType];
 
     const updated = await assignFn();
-    if (updated) {
-      await managedDomainsRepository.createEvent({
-        domainId,
-        eventType: "assignment_change",
-        severity: "info",
-        description: `Domain assigned to ${resourceType}: ${resourceId}`,
-        detectedBy: "system",
-        previousStatus: domain.resourceType || "unassigned",
-        newStatus: resourceType,
-      });
-    }
-    return updated ?? null;
+    if (!updated) return null;
+    
+    await managedDomainsRepository.createEvent({
+      domainId,
+      eventType: "assignment_change",
+      severity: "info",
+      description: `Domain assigned to ${resourceType}: ${resourceId}`,
+      detectedBy: "system",
+      previousStatus: domain.resourceType || "unassigned",
+      newStatus: resourceType,
+    });
+    return updated;
   }
 
   // Convenience methods for backward compatibility
@@ -521,20 +521,19 @@ class DomainManagementService {
     if (!domain) return null;
 
     const updated = await managedDomainsRepository.unassign(domainId);
+    if (!updated) return null;
 
-    if (updated) {
-      await managedDomainsRepository.createEvent({
-        domainId,
-        eventType: "assignment_change",
-        severity: "info",
-        description: "Domain unassigned",
-        detectedBy: "system",
-        previousStatus: domain.resourceType || "unassigned",
-        newStatus: "unassigned",
-      });
-    }
+    await managedDomainsRepository.createEvent({
+      domainId,
+      eventType: "assignment_change",
+      severity: "info",
+      description: "Domain unassigned",
+      detectedBy: "system",
+      previousStatus: domain.resourceType || "unassigned",
+      newStatus: "unassigned",
+    });
 
-    return updated ?? null;
+    return updated;
   }
 
   async getDnsRecords(domainId: string): Promise<DnsRecord[]> {

@@ -168,30 +168,28 @@ class DomainModerationService {
       }
     };
 
-    // Try HTTPS first
-    try {
-      const response = await fetchWithTimeout(`https://${domain}`);
-      return {
-        isLive: response.ok || response.status < 500,
-        httpStatus: response.status,
-        sslValid: true,
-        responseTimeMs: Date.now() - startTime,
-      };
-    } catch {
-      // HTTPS failed, try HTTP
-    }
+    // Try HTTPS first, fall back to HTTP
+    const tryProtocol = async (url: string, sslValid: boolean): Promise<DomainHealthCheckResult | null> => {
+      try {
+        const response = await fetchWithTimeout(url);
+        return {
+          isLive: response.ok || response.status < 500,
+          httpStatus: response.status,
+          sslValid,
+          responseTimeMs: Date.now() - startTime,
+        };
+      } catch {
+        return null;
+      }
+    };
 
-    try {
-      const response = await fetchWithTimeout(`http://${domain}`);
-      return {
-        isLive: response.ok || response.status < 500,
-        httpStatus: response.status,
-        sslValid: false,
-        responseTimeMs: Date.now() - startTime,
-      };
-    } catch {
-      return { isLive: false, sslValid: false, error: "Connection failed", responseTimeMs: Date.now() - startTime };
-    }
+    const httpsResult = await tryProtocol(`https://${domain}`, true);
+    if (httpsResult) return httpsResult;
+
+    const httpResult = await tryProtocol(`http://${domain}`, false);
+    if (httpResult) return httpResult;
+
+    return { isLive: false, sslValid: false, error: "Connection failed", responseTimeMs: Date.now() - startTime };
   }
 
   async performHealthCheck(domainId: string): Promise<DomainHealthCheckResult> {

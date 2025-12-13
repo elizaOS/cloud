@@ -79,33 +79,22 @@ export class ManagedDomainsRepository {
   findByAgentId = (agentId: string) => db.query.managedDomains.findFirst({ where: eq(managedDomains.agentId, agentId) });
   findByMcpId = (mcpId: string) => db.query.managedDomains.findFirst({ where: eq(managedDomains.mcpId, mcpId) });
 
-  async assignToApp(domainId: string, appId: string) {
+  private async assignTo(domainId: string, resourceType: ManagedDomain["resourceType"], resourceId: string) {
     const [updated] = await db.update(managedDomains).set({
-      resourceType: "app", appId, containerId: null, agentId: null, mcpId: null, updatedAt: new Date(),
+      resourceType,
+      appId: resourceType === "app" ? resourceId : null,
+      containerId: resourceType === "container" ? resourceId : null,
+      agentId: resourceType === "agent" ? resourceId : null,
+      mcpId: resourceType === "mcp" ? resourceId : null,
+      updatedAt: new Date(),
     }).where(eq(managedDomains.id, domainId)).returning();
     return updated;
   }
 
-  async assignToContainer(domainId: string, containerId: string) {
-    const [updated] = await db.update(managedDomains).set({
-      resourceType: "container", containerId, appId: null, agentId: null, mcpId: null, updatedAt: new Date(),
-    }).where(eq(managedDomains.id, domainId)).returning();
-    return updated;
-  }
-
-  async assignToAgent(domainId: string, agentId: string) {
-    const [updated] = await db.update(managedDomains).set({
-      resourceType: "agent", agentId, appId: null, containerId: null, mcpId: null, updatedAt: new Date(),
-    }).where(eq(managedDomains.id, domainId)).returning();
-    return updated;
-  }
-
-  async assignToMcp(domainId: string, mcpId: string) {
-    const [updated] = await db.update(managedDomains).set({
-      resourceType: "mcp", mcpId, appId: null, containerId: null, agentId: null, updatedAt: new Date(),
-    }).where(eq(managedDomains.id, domainId)).returning();
-    return updated;
-  }
+  assignToApp = (domainId: string, appId: string) => this.assignTo(domainId, "app", appId);
+  assignToContainer = (domainId: string, containerId: string) => this.assignTo(domainId, "container", containerId);
+  assignToAgent = (domainId: string, agentId: string) => this.assignTo(domainId, "agent", agentId);
+  assignToMcp = (domainId: string, mcpId: string) => this.assignTo(domainId, "mcp", mcpId);
 
   async unassign(domainId: string) {
     const [updated] = await db.update(managedDomains).set({

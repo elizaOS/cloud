@@ -45,9 +45,6 @@ export const UpdateDomainSchema = z.object({
   registrantInfo: RegistrantInfoSchema.optional(),
 });
 
-export type DomainStatus = "pending" | "active" | "expired" | "suspended" | "transferring";
-export type DomainModerationStatus = "clean" | "pending_review" | "flagged" | "suspended";
-
 // Utilities
 export const normalizeDomain = (domain: string): string =>
   domain.toLowerCase().trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");

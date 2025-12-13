@@ -18,10 +18,6 @@ const SearchSchema = z.object({
   limit: z.number().int().min(1).max(200).optional().default(100),
 });
 
-/**
- * GET /api/v1/n8n/nodes/discover
- * Discovers all available endpoints as n8n nodes.
- */
 export async function GET(request: NextRequest) {
   try {
     await requireAuthOrApiKeyWithOrg(request);
@@ -56,10 +52,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/**
- * POST /api/v1/n8n/nodes/discover
- * Searches endpoints with advanced filters.
- */
 export async function POST(request: NextRequest) {
   try {
     await requireAuthOrApiKeyWithOrg(request);

@@ -1,7 +1,3 @@
-/**
- * App Secrets API - Access secrets for the current app
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { secretsService } from "@/lib/services/secrets";

@@ -16,7 +16,8 @@ import {
 } from "@/db/schemas/platform-credentials";
 import { secretsService, type AuditContext } from "./secrets";
 import { logger } from "@/lib/utils/logger";
-import { safeJsonParse } from "@/lib/utils/json-parsing";
+import { safeJsonParse, parseJson } from "@/lib/utils/json-parsing";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 
 const SYSTEM_AUDIT: AuditContext = {
   actorType: "system",
@@ -409,12 +410,12 @@ class PlatformCredentialsService {
 
     if (credential.access_token_secret_id) {
       await secretsService.delete(credential.access_token_secret_id, organizationId, SYSTEM_AUDIT).catch(err => {
-        logger.warn("[Credentials] Failed to delete access token secret", { credentialId, error: err.message });
+        logger.warn("[Credentials] Failed to delete access token secret", { credentialId, error: extractErrorMessage(err) });
       });
     }
     if (credential.refresh_token_secret_id) {
       await secretsService.delete(credential.refresh_token_secret_id, organizationId, SYSTEM_AUDIT).catch(err => {
-        logger.warn("[Credentials] Failed to delete refresh token secret", { credentialId, error: err.message });
+        logger.warn("[Credentials] Failed to delete refresh token secret", { credentialId, error: extractErrorMessage(err) });
       });
     }
 
@@ -459,7 +460,7 @@ class PlatformCredentialsService {
       return false;
     }
 
-    const data = await response.json();
+    const data = await safeJsonParse<{ access_token: string; expires_in?: number }>(response);
 
     if (credential.access_token_secret_id) {
       await secretsService.update(credential.access_token_secret_id, organizationId, { value: data.access_token }, SYSTEM_AUDIT);
@@ -592,11 +593,11 @@ class PlatformCredentialsService {
       throw new Error(err.message || "Bluesky authentication failed");
     }
 
-    const session = await response.json();
+    const session = await safeJsonParse<{ did: string; accessJwt: string }>(response);
     const profileRes = await fetch(`${service}/xrpc/app.bsky.actor.getProfile?actor=${session.did}`, {
       headers: { Authorization: `Bearer ${session.accessJwt}` },
     });
-    const profile = profileRes.ok ? await profileRes.json() : {};
+    const profile = profileRes.ok ? await safeJsonParse<{ displayName?: string; avatar?: string }>(profileRes) : {};
 
     return {
       userId: session.did,
@@ -610,7 +611,10 @@ class PlatformCredentialsService {
 
   private async validateTelegram(botToken: string) {
     const response = await fetch(`https://api.telegram.org/bot${botToken}/getMe`);
-    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(`Telegram API error: ${response.status}`);
+    }
+    const data = await safeJsonParse<{ ok: boolean; result?: { id: number; username?: string; first_name?: string }; description?: string }>(response);
     if (!data.ok) throw new Error(data.description || "Invalid Telegram bot token");
 
     return {
@@ -707,7 +711,7 @@ class PlatformCredentialsService {
       throw new Error(`Failed to register app with ${instanceHost}`);
     }
 
-    const app = await response.json();
+    const app = await safeJsonParse<{ client_id: string; client_secret: string }>(response);
     await secretsService.createSystemSecret(this.mastodonSecretName(instanceHost), JSON.stringify({
       client_id: app.client_id,
       client_secret: app.client_secret,
@@ -721,11 +725,24 @@ class PlatformCredentialsService {
   async getMastodonAppCredentials(instanceHost: string): Promise<{ clientId: string; clientSecret: string } | null> {
     const existing = await secretsService.getSystemSecret(this.mastodonSecretName(instanceHost));
     if (!existing) return null;
-    const parsed = JSON.parse(existing);
+    const parsed = parseJson<{ client_id: string; client_secret: string }>(existing, "Mastodon app credentials");
     return { clientId: parsed.client_id, clientSecret: parsed.client_secret };
   }
 
-  async getAvailablePlatforms(organizationId: string) {
+  async getAvailablePlatforms(organizationId: string): Promise<Array<{
+    platform: PlatformType;
+    authType: "oauth" | "manual";
+    configured: boolean;
+    connected: boolean;
+    connection?: {
+      id: string;
+      username: string;
+      displayName: string;
+      avatarUrl?: string;
+      status: PlatformCredential["status"];
+      linkedAt: Date | null;
+    };
+  }>> {
     const credentials = await this.listCredentials(organizationId, { status: "active" });
     const credentialMap = new Map(credentials.map(c => [c.platform, c]));
 
@@ -741,9 +758,10 @@ class PlatformCredentialsService {
     const oauthPlatforms = Object.entries(OAUTH_CONFIGS)
       .filter(([platform]) => platform !== "twilio")
       .map(([platform, config]) => {
-        const cred = credentialMap.get(platform as PlatformType);
+        const platformType = platform as PlatformType;
+        const cred = credentialMap.get(platformType);
         return {
-          platform,
+          platform: platformType,
           authType: "oauth" as const,
           configured: !!process.env[config.clientIdEnv],
           connected: !!cred,
@@ -752,7 +770,7 @@ class PlatformCredentialsService {
       });
 
     const manualPlatforms = MANUAL_AUTH_PLATFORMS.map(platform => {
-      const cred = credentialMap.get(platform as PlatformType);
+      const cred = credentialMap.get(platform);
       return {
         platform,
         authType: "manual" as const,

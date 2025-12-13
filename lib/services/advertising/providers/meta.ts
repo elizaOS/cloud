@@ -1,4 +1,5 @@
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import type {
   AdProvider,
   AdAccountCredentials,
@@ -182,7 +183,7 @@ export const metaAdsProvider: AdProvider = {
       logger.error("[MetaAds] Validation failed", { error });
       return {
         valid: false,
-        error: error instanceof Error ? error.message : "Validation failed",
+        error: extractErrorMessage(error) || "Validation failed",
       };
     }
   },
@@ -345,7 +346,7 @@ export const metaAdsProvider: AdProvider = {
       logger.error("[MetaAds] Create campaign failed", { error });
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to create campaign",
+        error: extractErrorMessage(error) || "Failed to create campaign",
       };
     }
   },
@@ -379,7 +380,7 @@ export const metaAdsProvider: AdProvider = {
       logger.error("[MetaAds] Update campaign failed", { error });
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to update campaign",
+        error: extractErrorMessage(error) || "Failed to update campaign",
       };
     }
   },
@@ -407,7 +408,7 @@ export const metaAdsProvider: AdProvider = {
       logger.error("[MetaAds] Pause campaign failed", { error });
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to pause campaign",
+        error: extractErrorMessage(error) || "Failed to pause campaign",
       };
     }
   },
@@ -435,7 +436,7 @@ export const metaAdsProvider: AdProvider = {
       logger.error("[MetaAds] Activate campaign failed", { error });
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to activate campaign",
+        error: extractErrorMessage(error) || "Failed to activate campaign",
       };
     }
   },
@@ -462,7 +463,7 @@ export const metaAdsProvider: AdProvider = {
       logger.error("[MetaAds] Delete campaign failed", { error });
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to delete campaign",
+        error: extractErrorMessage(error) || "Failed to delete campaign",
       };
     }
   },
@@ -641,7 +642,7 @@ export const metaAdsProvider: AdProvider = {
       logger.error("[MetaAds] Get metrics failed", { error });
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to get metrics",
+        error: extractErrorMessage(error) || "Failed to get metrics",
       };
     }
   },

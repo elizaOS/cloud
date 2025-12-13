@@ -32,10 +32,6 @@ const GenerateWorkflowRequestSchema = z.object({
   tags: z.array(z.string()).optional().describe("Tags for the workflow"),
 });
 
-/**
- * POST /api/v1/n8n/generate-workflow
- * Generates an n8n workflow JSON from a natural language prompt.
- */
 export async function POST(request: NextRequest) {
   try {
     // Authenticate
@@ -236,7 +232,6 @@ export async function POST(request: NextRequest) {
 
     // Auto-save workflow if requested
     let savedWorkflow = null;
-    let saveError: string | null = null;
     if (autoSave) {
       if (!workflowName) {
         return NextResponse.json(

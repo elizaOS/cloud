@@ -16,7 +16,8 @@ export async function POST(
     return NextResponse.json(ErrorResponses.workflowNotFound, { status: 404 });
   }
 
-  const body = await request.json().catch(() => ({}));
+  const contentLength = request.headers.get("content-length");
+  const body = contentLength === "0" || !contentLength ? {} : await request.json();
   const validation = ExecuteWorkflowSchema.safeParse(body);
   if (!validation.success) {
     return NextResponse.json(ErrorResponses.invalidRequest(validation.error.format()), { status: 400 });

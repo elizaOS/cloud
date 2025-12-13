@@ -1,7 +1,3 @@
-/**
- * App Secret Requirement API - Revoke requirement
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { secretsService } from "@/lib/services/secrets";

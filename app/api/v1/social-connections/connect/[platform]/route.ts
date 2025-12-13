@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAuth } from "@/lib/middleware/app-auth";
-import { platformCredentialsService, OAUTH_CONFIGS } from "@/lib/services/platform-credentials";
+import { requireAppAuth as requireAuth } from "@/lib/middleware/app-auth";
+import { platformCredentialsService, OAUTH_CONFIGS, MANUAL_AUTH_PLATFORMS } from "@/lib/services/platform-credentials";
 import type { PlatformType } from "@/db/schemas/platform-credentials";
 
 const ConnectRequestSchema = z.object({

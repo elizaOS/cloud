@@ -189,11 +189,11 @@ class SecretsService {
       description,
       provider,
       provider_metadata: providerMetadata,
-      encrypted_value: encryptedValue,
-      encryption_key_id: keyId,
-      encrypted_dek: encryptedDek,
+      encrypted_value,
+      encryption_key_id,
+      encrypted_dek,
       nonce,
-      auth_tag: authTag,
+      auth_tag,
       expires_at: expiresAt,
       created_by: createdBy,
     });
@@ -225,16 +225,10 @@ class SecretsService {
   }
 
   async getDecryptedValue(secretId: string, organizationId: string, audit?: AuditContext): Promise<string> {
-    const secret = await secretsRepository.findById(secretId);
-    if (!secret || secret.organization_id !== organizationId) throw new Error("Secret not found");
+    const secret = await this.getExistingSecret(secretId, organizationId);
     const value = await this.decryptSecret(secret);
-
     await secretsRepository.recordAccess(secretId);
-
-    if (audit) {
-      await this.logAudit(secretId, organizationId, "read", secret.name, audit);
-    }
-
+    if (audit) await this.logAudit(secretId, organizationId, "read", secret.name, audit);
     return value;
   }
 
@@ -514,10 +508,10 @@ class SecretsService {
     return {
       accessToken,
       refreshToken,
-      tokenType: session.token_type || "Bearer",
+      tokenType: session.token_type ?? "Bearer",
       scopes: session.scopes,
       isExpired,
-      expiresAt: session.access_token_expires_at || undefined,
+      expiresAt: session.access_token_expires_at ?? undefined,
     };
   }
 
@@ -586,13 +580,13 @@ class SecretsService {
         continue;
       }
 
-      if (Buffer.byteLength(value, "utf8") > MAX_SECRET_VALUE_BYTES) {
-        errors.push({ name, error: `Value exceeds maximum size of ${MAX_SECRET_VALUE_BYTES} bytes` });
+      let encrypted;
+      try {
+        encrypted = await this.encryptValue(value);
+      } catch (error) {
+        errors.push({ name, error: error instanceof Error ? error.message : "Encryption failed" });
         continue;
       }
-
-      const { encryptedValue, encryptedDek, nonce, authTag, keyId } =
-        await this.encryption.encrypt(value);
 
       const secret = await secretsRepository.create({
         organization_id: organizationId,
@@ -600,11 +594,7 @@ class SecretsService {
         scope: "organization",
         description,
         provider,
-        encrypted_value: encryptedValue,
-        encryption_key_id: keyId,
-        encrypted_dek: encryptedDek,
-        nonce,
-        auth_tag: authTag,
+        ...encrypted,
         created_by: createdBy,
       });
 
@@ -708,16 +698,15 @@ class SecretsService {
     const bindings: SecretBindingMetadata[] = [];
     for (const binding of result.bindings) {
       const secret = await secretsRepository.findById(binding.secret_id);
-      if (secret) {
-        bindings.push({
-          id: binding.id,
-          secretId: binding.secret_id,
-          secretName: secret.name,
-          projectId: binding.project_id,
-          projectType: binding.project_type,
-          createdAt: binding.created_at,
-        });
-      }
+      if (!secret) continue;
+      bindings.push({
+        id: binding.id,
+        secretId: binding.secret_id,
+        secretName: secret.name,
+        projectId: binding.project_id,
+        projectType: binding.project_type,
+        createdAt: binding.created_at,
+      });
     }
 
     return { bindings, total: result.total };
@@ -863,12 +852,9 @@ class SecretsService {
     const systemOrgId = process.env.SYSTEM_ORG_ID || "system";
     const audit: AuditContext = { actorType: "system", actorId: "platform-credentials", source: "system" };
 
-    const existing = await this.get(systemOrgId, name);
+    const existing = await secretsRepository.findByName(systemOrgId, name);
     if (existing) {
-      const secret = await secretsRepository.findByName(systemOrgId, name);
-      if (secret) {
-        return this.update(secret.id, systemOrgId, { value }, audit);
-      }
+      return this.update(existing.id, systemOrgId, { value }, audit);
     }
 
     return this.create({

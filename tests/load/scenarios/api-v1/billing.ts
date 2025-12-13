@@ -1,23 +1,13 @@
-import http from "k6/http";
-import { check, group, sleep } from "k6";
-import { getBaseUrl } from "../../config/environments";
-import { getAuthHeaders } from "../../helpers/auth";
-import { parseBody } from "../../helpers/assertions";
-import { recordHttpError } from "../../helpers/metrics";
+import { group, sleep } from "k6";
+import { httpGet } from "../../helpers/http";
 import { Counter } from "k6/metrics";
 
-const baseUrl = getBaseUrl();
-const headers = getAuthHeaders();
 const billingQueries = new Counter("billing_queries");
 
 function billingGet<T>(path: string): T | null {
-  const res = http.get(`${baseUrl}${path}`, { headers, tags: { endpoint: "billing" } });
-  if (!check(res, { [`${path} 200`]: (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return null;
-  }
-  billingQueries.add(1);
-  return parseBody<T>(res);
+  const body = httpGet<T>(path, { tags: { endpoint: "billing" } });
+  if (body) billingQueries.add(1);
+  return body;
 }
 
 export function getBillingUsage(days = 30) {
@@ -25,11 +15,11 @@ export function getBillingUsage(days = 30) {
 }
 
 export function listPaymentMethods(): unknown[] {
-  return billingGet<{ paymentMethods: unknown[] }>("/api/payment-methods/list")?.paymentMethods || [];
+  return billingGet<{ paymentMethods: unknown[] }>("/api/payment-methods/list")?.paymentMethods ?? [];
 }
 
 export function listInvoices(): unknown[] {
-  return billingGet<{ invoices: unknown[] }>("/api/invoices/list")?.invoices || [];
+  return billingGet<{ invoices: unknown[] }>("/api/invoices/list")?.invoices ?? [];
 }
 
 export function getAutoTopUpSettings() {

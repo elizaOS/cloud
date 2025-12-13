@@ -98,7 +98,7 @@ class LinkSafetyService {
       results.push(...await this.checkSafeBrowsingBatch(urlsToCheck));
     } else {
       for (const url of urlsToCheck) {
-        results.push({ url, safe: true, threats: [], source: "local", confidence: 70, domain: this.parseDomain(url)! });
+        results.push({ url, safe: true, threats: [], source: "local", confidence: 70, domain: parseDomain(url)! });
       }
     }
 
@@ -161,7 +161,7 @@ class LinkSafetyService {
     if (!response.ok) {
       logger.error("[LinkSafety] Safe Browsing API error", { status: response.status });
       return urls.map((url) => ({
-        url, safe: true, threats: [], source: "unknown" as const, confidence: 50, domain: this.parseDomain(url)!,
+        url, safe: true, threats: [], source: "unknown" as const, confidence: 50, domain: parseDomain(url)!,
       }));
     }
 
@@ -175,7 +175,7 @@ class LinkSafetyService {
     }
 
     return urls.map((url) => {
-      const domain = this.parseDomain(url)!;
+      const domain = parseDomain(url)!;
       const threats = threatsByUrl.get(url) ?? [];
       return { url, safe: threats.length === 0, threats, source: "safe_browsing" as const, confidence: 95, domain };
     });

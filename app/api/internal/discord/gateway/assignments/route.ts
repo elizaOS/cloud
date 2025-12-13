@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
   // Assign up to 10 bots per poll
   const toAssign = unassigned.slice(0, 10);
 
+  let skippedNoToken = 0;
   for (const conn of toAssign) {
     const assigned = await discordGatewayService.assignPod(conn.id, podName);
     if (assigned) {
@@ -57,6 +58,8 @@ export async function GET(request: NextRequest) {
           botToken: token,
           intents: conn.intents ?? DEFAULT_INTENTS,
         });
+      } else {
+        skippedNoToken++;
       }
     }
   }
@@ -74,8 +77,17 @@ export async function GET(request: NextRequest) {
           botToken: token,
           intents: conn.intents ?? DEFAULT_INTENTS,
         });
+      } else {
+        skippedNoToken++;
       }
     }
+  }
+
+  if (skippedNoToken > 0) {
+    logger.warn("[Gateway Assignments] Skipped connections with missing tokens", {
+      podName,
+      skippedCount: skippedNoToken,
+    });
   }
 
   logger.info("[Gateway Assignments] Returning assignments", {

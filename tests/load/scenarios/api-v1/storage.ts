@@ -1,73 +1,40 @@
-import http from "k6/http";
-import { check, group, sleep } from "k6";
-import { getBaseUrl } from "../../config/environments";
-import { getAuthHeaders } from "../../helpers/auth";
-import { parseBody } from "../../helpers/assertions";
+import { group, sleep } from "k6";
+import { httpGet, httpPostFile, httpDelete } from "../../helpers/http";
 import { generateTestFile } from "../../helpers/data-generators";
-import { filesUploaded, filesDownloaded, uploadTime, downloadTime, recordHttpError } from "../../helpers/metrics";
-
-const baseUrl = getBaseUrl();
-const headers = getAuthHeaders();
+import { filesUploaded, filesDownloaded, uploadTime, downloadTime } from "../../helpers/metrics";
 
 interface StorageFile { id: string; name: string }
 
 export function listFiles(limit = 20): StorageFile[] {
-  const res = http.get(`${baseUrl}/api/v1/storage?limit=${limit}`, { headers, tags: { endpoint: "storage" } });
-  if (!check(res, { "list 200": (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return [];
-  }
-  return parseBody<{ files: StorageFile[] }>(res).files || [];
+  const body = httpGet<{ files: StorageFile[] }>(`/api/v1/storage?limit=${limit}`, { tags: { endpoint: "storage" } });
+  return body?.files ?? [];
 }
 
 export function uploadFile(): string | null {
   const file = generateTestFile();
   const start = Date.now();
-  const res = http.post(
-    `${baseUrl}/api/v1/storage`,
-    { file: http.file(file.content, file.name, file.mimeType) },
-    { headers: { Authorization: headers.Authorization }, tags: { endpoint: "storage" } }
-  );
+  const body = httpPostFile<{ id?: string; fileId?: string }>("/api/v1/storage", file, { tags: { endpoint: "storage" } });
   uploadTime.add(Date.now() - start);
-
-  if (!check(res, { "upload 200": (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return null;
-  }
+  if (!body) return null;
   filesUploaded.add(1);
-  const body = parseBody<{ id?: string; fileId?: string }>(res);
-  return body.id || body.fileId || null;
+  return body.id ?? body.fileId ?? null;
 }
 
 export function getFileMetadata(fileId: string): StorageFile | null {
-  const res = http.get(`${baseUrl}/api/v1/storage/${fileId}`, { headers, tags: { endpoint: "storage" } });
-  if (!check(res, { "metadata 200": (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return null;
-  }
-  return parseBody<StorageFile>(res);
+  return httpGet<StorageFile>(`/api/v1/storage/${fileId}`, { tags: { endpoint: "storage" } });
 }
 
 export function downloadFile(fileId: string): boolean {
   const start = Date.now();
-  const res = http.get(`${baseUrl}/api/v1/storage/${fileId}/download`, { headers, tags: { endpoint: "storage" } });
+  const body = httpGet(`/api/v1/storage/${fileId}/download`, { tags: { endpoint: "storage" } });
   downloadTime.add(Date.now() - start);
-
-  if (!check(res, { "download 200": (r) => r.status === 200 })) {
-    recordHttpError(res.status);
-    return false;
-  }
+  if (!body) return false;
   filesDownloaded.add(1);
   return true;
 }
 
 export function deleteFile(fileId: string): boolean {
-  const res = http.del(`${baseUrl}/api/v1/storage/${fileId}`, null, { headers, tags: { endpoint: "storage" } });
-  if (!check(res, { "delete 2xx": (r) => r.status >= 200 && r.status < 300 })) {
-    recordHttpError(res.status);
-    return false;
-  }
-  return true;
+  return httpDelete(`/api/v1/storage/${fileId}`, { tags: { endpoint: "storage" } });
 }
 
 export function storageOperationsCycle() {

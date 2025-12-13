@@ -7,316 +7,208 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import ws from "ws";
 
-/**
- * Union type for supported database drivers.
- */
 type Database = NodePgDatabase<typeof schema> | NeonDatabase<typeof schema>;
 
 let _db: Database | null = null;
 let _instrumentationEnabled: boolean | null = null;
-let _alertConfigChecked = false;
 
-/**
- * Checks if a database URL is for Neon serverless.
- */
+const SLOW_QUERY_THRESHOLD_MS = parseInt(process.env.SLOW_QUERY_THRESHOLD_MS || "50", 10);
+
 function isNeonDatabase(url: string): boolean {
   return url.includes("neon.tech") || url.includes("neon.database");
 }
 
 /**
- * Determines if query instrumentation should be active.
- * 
- * ONLY enabled in development/staging/preview.
- * DISABLED in production for zero CPU overhead.
+ * Checks if query instrumentation should be active.
+ * Enabled in dev/staging/preview, disabled in production for zero overhead.
  */
-function shouldEnableInstrumentation(): boolean {
+function isInstrumentationEnabled(): boolean {
   if (_instrumentationEnabled !== null) return _instrumentationEnabled;
-  
-  const env = process.env.NODE_ENV;
-  const vercelEnv = process.env.VERCEL_ENV;
-  
-  // Explicitly disabled
+
   if (process.env.DB_INSTRUMENTATION_DISABLED === "true") {
     _instrumentationEnabled = false;
     return false;
   }
-  
-  // Production = disabled (zero CPU impact)
+
+  const env = process.env.NODE_ENV;
+  const vercelEnv = process.env.VERCEL_ENV;
+
+  // Production = disabled
   if (env === "production" && vercelEnv === "production") {
     _instrumentationEnabled = false;
     return false;
   }
-  
-  // Development, staging, preview = enabled
-  _instrumentationEnabled = env === "development" || 
-         vercelEnv === "preview" || 
-         vercelEnv === "development" ||
-         process.env.DB_INSTRUMENTATION_ENABLED === "true";
-  
+
+  _instrumentationEnabled =
+    env === "development" ||
+    vercelEnv === "preview" ||
+    vercelEnv === "development" ||
+    process.env.DB_INSTRUMENTATION_ENABLED === "true";
+
   return _instrumentationEnabled;
 }
 
-/** Slow query threshold in milliseconds */
-const SLOW_QUERY_THRESHOLD_MS = parseInt(
-  process.env.SLOW_QUERY_THRESHOLD_MS || "50",
-  10
-);
-
 /**
- * Check and log alert configuration on first query.
- */
-function checkAlertConfig(): void {
-  if (_alertConfigChecked) return;
-  _alertConfigChecked = true;
-
-  const discordUrl = process.env.DB_SLOW_QUERY_DISCORD_WEBHOOK;
-  const slackUrl = process.env.DB_SLOW_QUERY_SLACK_WEBHOOK;
-
-  if (!discordUrl && !slackUrl) {
-    console.warn(
-      "\n" +
-      "╔══════════════════════════════════════════════════════════════════════════════╗\n" +
-      "║  ⚠️  DATABASE SLOW QUERY ALERTS NOT CONFIGURED                                ║\n" +
-      "╠══════════════════════════════════════════════════════════════════════════════╣\n" +
-      "║  Queries exceeding 200ms will not trigger real-time alerts.                  ║\n" +
-      "║                                                                              ║\n" +
-      "║  To enable alerts, add one or both of these to your .env.local:              ║\n" +
-      "║                                                                              ║\n" +
-      "║  DB_SLOW_QUERY_DISCORD_WEBHOOK=https://discord.com/api/webhooks/...          ║\n" +
-      "║  DB_SLOW_QUERY_SLACK_WEBHOOK=https://hooks.slack.com/services/...            ║\n" +
-      "║                                                                              ║\n" +
-      "║  Slow queries are still tracked in slow_query_log table and memory.          ║\n" +
-      "╚══════════════════════════════════════════════════════════════════════════════╝\n"
-    );
-  } else {
-    const channels: string[] = [];
-    if (discordUrl) channels.push("Discord");
-    if (slackUrl) channels.push("Slack");
-    console.info(`[DB] ✓ Slow query alerts enabled via: ${channels.join(", ")}`);
-  }
-}
-
-/**
- * Records a slow query to storage and sends alerts if needed.
+ * Handles slow query logging, storage, and alerting.
  */
 function handleSlowQuery(sqlText: string, durationMs: number): void {
-  const queryPreview = sqlText.substring(0, 120).replace(/\s+/g, " ");
-  console.warn(
-    `[SlowQuery] ${durationMs}ms | ${queryPreview}${sqlText.length > 120 ? "..." : ""}`
-  );
+  const preview = sqlText.substring(0, 120).replace(/\s+/g, " ");
+  console.warn(`[SlowQuery] ${durationMs}ms | ${preview}${sqlText.length > 120 ? "..." : ""}`);
 
-  // Record to stores (async, don't block)
-  import("@/lib/db/slow-query-store").then(({ recordSlowQuery }) => {
-    recordSlowQuery(sqlText, durationMs);
-  }).catch(() => {
-    // Ignore import errors during startup
-  });
+  import("@/lib/db/slow-query-store")
+    .then(({ recordSlowQuery }) => recordSlowQuery(sqlText, durationMs))
+    .catch((e) => console.warn("[DB] slow-query-store import failed:", e));
 
-  // Send alerts for very slow queries (>200ms)
   if (durationMs >= 200) {
-    import("@/lib/db/query-alerting").then(({ sendSlowQueryAlert, getAlertSeverity }) => {
-      const severity = getAlertSeverity(durationMs);
-      if (severity) {
-        sendSlowQueryAlert({
-          query: sqlText,
-          durationMs,
-          timestamp: new Date(),
-          severity,
-        });
-      }
-    }).catch(() => {
-      // Ignore import errors
-    });
+    import("@/lib/db/query-alerting")
+      .then(({ sendSlowQueryAlert, getAlertSeverity }) => {
+        const severity = getAlertSeverity(durationMs);
+        if (severity) {
+          sendSlowQueryAlert({ query: sqlText, durationMs, timestamp: new Date(), severity });
+        }
+      })
+      .catch((e) => console.warn("[DB] query-alerting import failed:", e));
   }
 }
 
 /**
- * Wraps an async function with timing instrumentation.
+ * Wraps a promise with timing instrumentation.
  */
-function wrapWithTiming<T>(
-  fn: () => Promise<T>,
-  getSqlText: () => string
-): Promise<T> {
-  if (!shouldEnableInstrumentation()) {
-    return fn();
-  }
+function wrapWithTiming<T>(fn: () => Promise<T>, getSql: () => string): Promise<T> {
+  if (!isInstrumentationEnabled()) return fn();
 
-  checkAlertConfig();
-  
-  const startTime = performance.now();
-  
-  return fn().then(
-    (result) => {
-      const durationMs = Math.round(performance.now() - startTime);
-      if (durationMs >= SLOW_QUERY_THRESHOLD_MS) {
-        handleSlowQuery(getSqlText(), durationMs);
-      }
-      return result;
-    },
-    (error) => {
-      const durationMs = Math.round(performance.now() - startTime);
-      if (durationMs >= SLOW_QUERY_THRESHOLD_MS) {
-        handleSlowQuery(getSqlText(), durationMs);
-      }
-      throw error;
+  const start = performance.now();
+  return fn().finally(() => {
+    const duration = Math.round(performance.now() - start);
+    if (duration >= SLOW_QUERY_THRESHOLD_MS) {
+      handleSlowQuery(getSql(), duration);
     }
-  );
+  });
 }
 
 /**
- * Gets or creates the database connection instance.
+ * Extracts SQL text from Drizzle's SQL template object.
  */
-function getDb() {
-  if (!_db) {
-    const databaseUrl = process.env.DATABASE_URL;
+function extractSql(sqlArg: unknown): string {
+  if (typeof sqlArg !== "object" || sqlArg === null) return "[execute]";
 
-    if (!databaseUrl) {
-      throw new Error(
-        "DATABASE_URL environment variable is not set. Make sure you have a .env.local file with DATABASE_URL defined.",
-      );
-    }
+  const obj = sqlArg as Record<string, unknown>;
 
-    if (shouldEnableInstrumentation()) {
-      console.info(
-        `[DB] ✓ Query instrumentation ENABLED (threshold: ${SLOW_QUERY_THRESHOLD_MS}ms)`
-      );
-    }
+  // Try direct sql property first
+  if (typeof obj.sql === "string") return obj.sql;
 
-    if (isNeonDatabase(databaseUrl)) {
-      // Configure WebSocket for Node.js environment (Neon requires WebSocket)
-      if (typeof WebSocket === "undefined") {
-        neonConfig.webSocketConstructor = ws;
-      }
-
-      const pool = new NeonPool({ connectionString: databaseUrl });
-      _db = drizzleNeon(pool, { schema }) as Database;
-    } else {
-      // Local development: Use standard PostgreSQL driver
-      const pool = new PgPool({ connectionString: databaseUrl });
-      _db = drizzleNode(pool, { schema }) as Database;
-    }
+  // Try queryChunks
+  if (Array.isArray(obj.queryChunks)) {
+    return obj.queryChunks
+      .map((c) => {
+        if (c == null) return "?";
+        if (typeof c === "string") return c;
+        if (typeof c === "object") {
+          const chunk = c as Record<string, unknown>;
+          if (typeof chunk.value === "string") return chunk.value;
+          if (typeof chunk.sql === "string") return chunk.sql;
+        }
+        return "?";
+      })
+      .join("");
   }
 
-  return _db;
+  // Try toSQL method
+  if (typeof obj.toSQL === "function") {
+    const result = (obj.toSQL as () => { sql?: string })();
+    if (result?.sql) return result.sql;
+  }
+
+  return "[execute]";
 }
 
 /**
- * Creates an instrumented proxy for a query builder.
- * Wraps methods that return promises with timing.
+ * Creates an instrumented proxy for query builders.
  */
-function createInstrumentedQueryProxy<T extends object>(target: T, sqlGetter: () => string): T {
-  if (!shouldEnableInstrumentation()) {
-    return target;
-  }
+function instrumentQueryBuilder<T extends object>(target: T, methodName: string): T {
+  if (!isInstrumentationEnabled()) return target;
 
   return new Proxy(target, {
     get(obj, prop) {
       const value = Reflect.get(obj, prop);
-      
-      if (typeof value !== "function") {
-        return value;
-      }
+      if (typeof value !== "function") return value;
 
-      // Wrap the function
-      return function(this: T, ...args: unknown[]) {
+      return function (...args: unknown[]) {
         const result = Reflect.apply(value, obj, args);
-        
-        // If it returns a promise, wrap it with timing
+
         if (result instanceof Promise) {
-          return wrapWithTiming(
-            () => result,
-            sqlGetter
-          );
+          return wrapWithTiming(() => result, () => `[${methodName}]`);
         }
-        
-        // If it returns a query builder (chainable), wrap that too
-        if (result && typeof result === "object" && result !== null) {
-          return createInstrumentedQueryProxy(result, sqlGetter);
+
+        if (result && typeof result === "object") {
+          return instrumentQueryBuilder(result as object, methodName);
         }
-        
+
         return result;
       };
     },
   });
 }
 
+function getDb(): Database {
+  if (_db) return _db;
+
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    throw new Error("DATABASE_URL not set. Check your .env.local file.");
+  }
+
+  if (isInstrumentationEnabled()) {
+    console.info(`[DB] ✓ Query instrumentation ENABLED (threshold: ${SLOW_QUERY_THRESHOLD_MS}ms)`);
+
+    // Check alert config once
+    import("@/lib/db/query-alerting")
+      .then(({ checkAlertConfig }) => checkAlertConfig())
+      .catch(() => {});
+  }
+
+  if (isNeonDatabase(url)) {
+    if (typeof WebSocket === "undefined") {
+      neonConfig.webSocketConstructor = ws;
+    }
+    _db = drizzleNeon(new NeonPool({ connectionString: url }), { schema }) as Database;
+  } else {
+    _db = drizzleNode(new PgPool({ connectionString: url }), { schema }) as Database;
+  }
+
+  return _db;
+}
+
 /**
- * Database proxy that lazily initializes the connection and adds instrumentation.
- * 
- * Instrumentation wraps async query execution to measure timing.
- * In production, instrumentation is disabled for zero overhead.
+ * Database client with lazy initialization and optional instrumentation.
+ * Instrumentation is only active in development/staging.
  */
 export const db = new Proxy({} as Database, {
   get: (_, prop) => {
     const database = getDb();
     const value = database[prop as keyof typeof database];
-    
-    if (typeof value !== "function") {
-      return value;
-    }
 
-    // Return a wrapped function
-    return function(...args: unknown[]) {
-      const result = (value as (...args: unknown[]) => unknown).apply(database, args);
-      
-      // For execute() calls with SQL template, extract the SQL
-      if (prop === "execute" && args[0]) {
-        const sqlArg = args[0];
-        let sqlText = "[execute]";
-        
-        if (typeof sqlArg === "object" && sqlArg !== null) {
-          // Try to extract SQL from Drizzle's SQL object
-          // Drizzle SQL has: { queryChunks: [...], sql: string, params: [...] }
-          const sqlObj = sqlArg as Record<string, unknown>;
-          
-          if (typeof sqlObj.sql === "string") {
-            // Direct sql property (Drizzle SQL template)
-            sqlText = sqlObj.sql;
-          } else if (Array.isArray(sqlObj.queryChunks)) {
-            // Fall back to queryChunks if sql not available
-            sqlText = sqlObj.queryChunks
-              .map((c: unknown) => {
-                if (c === null || c === undefined) return "?";
-                if (typeof c === "string") return c;
-                if (typeof c === "object" && c !== null) {
-                  const chunk = c as Record<string, unknown>;
-                  if (typeof chunk.value === "string") return chunk.value;
-                  if ("sql" in chunk) return String(chunk.sql);
-                }
-                return "?";
-              })
-              .join("");
-          } else if ("toSQL" in sqlObj && typeof sqlObj.toSQL === "function") {
-            // Try toSQL method if available
-            const sqlResult = (sqlObj.toSQL as () => { sql: string })();
-            if (sqlResult && typeof sqlResult.sql === "string") {
-              sqlText = sqlResult.sql;
-            }
-          }
-        }
-        
-        if (result instanceof Promise) {
-          return wrapWithTiming(() => result as Promise<unknown>, () => sqlText);
-        }
+    if (typeof value !== "function") return value;
+
+    return function (...args: unknown[]) {
+      const result = (value as (...a: unknown[]) => unknown).apply(database, args);
+
+      // Handle execute() with SQL template
+      if (prop === "execute" && args[0] && result instanceof Promise) {
+        const sql = extractSql(args[0]);
+        return wrapWithTiming(() => result, () => sql);
       }
-      
-      // For query builders (select, insert, update, delete), wrap the chain
-      if (result && typeof result === "object" && result !== null && !(result instanceof Promise)) {
-        const methodName = String(prop);
-        return createInstrumentedQueryProxy(
-          result as object,
-          () => `[${methodName}]`
-        );
+
+      // Handle query builders (select, insert, etc.)
+      if (result && typeof result === "object" && !(result instanceof Promise)) {
+        return instrumentQueryBuilder(result as object, String(prop));
       }
-      
-      // For direct promises, wrap with timing
+
+      // Handle direct promises
       if (result instanceof Promise) {
-        return wrapWithTiming(
-          () => result,
-          () => `[${String(prop)}]`
-        );
+        return wrapWithTiming(() => result, () => `[${String(prop)}]`);
       }
-      
+
       return result;
     };
   },

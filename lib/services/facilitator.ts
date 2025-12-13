@@ -5,6 +5,7 @@
 
 import { discoverHttpFacilitator, verifyPaymentViaHttp, settlePaymentViaHttp, type HttpFacilitatorConfig } from '@/scripts/shared/x402-client';
 import type { Address } from 'viem';
+import { extractErrorMessage } from '@/lib/utils/error-handling';
 
 export interface PaymentRequirement {
   scheme: 'exact' | 'upto';

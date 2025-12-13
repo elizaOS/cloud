@@ -3,19 +3,8 @@ import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { secretsService } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
-import {
-  secretProviderEnum,
-  secretProjectTypeEnum,
-  secretEnvironmentEnum,
-  type SecretProvider,
-  type SecretProjectType,
-  type SecretEnvironment,
-} from "@/db/schemas/secrets";
-import { createAudit, handleSecretsError, formatSecret } from "@/lib/api/secrets-helpers";
-
-const PROVIDERS = secretProviderEnum.enumValues;
-const PROJECT_TYPES = secretProjectTypeEnum.enumValues;
-const ENVIRONMENTS = secretEnvironmentEnum.enumValues;
+import type { SecretProvider, SecretProjectType, SecretEnvironment } from "@/db/schemas/secrets";
+import { createAudit, handleSecretsError, formatSecret, PROVIDERS, PROJECT_TYPES, ENVIRONMENTS } from "@/lib/api/secrets-helpers";
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,22 +25,12 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get("limit") || "100"), 500);
     const offset = parseInt(searchParams.get("offset") || "0");
 
-    if (provider && !PROVIDERS.includes(provider)) {
-      return NextResponse.json({ error: "Invalid provider" }, { status: 400 });
-    }
-    if (projectType && !PROJECT_TYPES.includes(projectType)) {
-      return NextResponse.json({ error: "Invalid projectType" }, { status: 400 });
-    }
-    if (environment && !ENVIRONMENTS.includes(environment)) {
-      return NextResponse.json({ error: "Invalid environment" }, { status: 400 });
-    }
-
     const result = await secretsService.listFiltered({
       organizationId: user.organization_id,
-      projectId,
-      projectType,
-      environment,
-      provider,
+      ...(projectId && { projectId }),
+      ...(projectType && { projectType }),
+      ...(environment && { environment }),
+      ...(provider && { provider }),
       limit,
       offset,
     });

@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { connection_id, pod_name, status, error_message, guild_count } = parsed.data;
+  const { connection_id, pod_name, status, error_message, guild_count, session_id, resume_gateway_url, sequence_number } = parsed.data;
 
   logger.info("[Gateway Status] Status update received", {
     connectionId: connection_id,
@@ -58,7 +58,13 @@ export async function POST(request: NextRequest) {
   // Map gateway status to database status
   const dbStatus = mapStatus(status);
 
-  await discordGatewayService.updateConnectionStatus(connection_id, dbStatus, error_message);
+  await discordGatewayService.updateConnectionStatus(connection_id, dbStatus, {
+    errorMessage: error_message,
+    sessionId: session_id,
+    resumeGatewayUrl: resume_gateway_url,
+    sequenceNumber: sequence_number,
+    gatewayPod: pod_name,
+  });
 
   // Update guild count if provided
   if (guild_count !== undefined) {

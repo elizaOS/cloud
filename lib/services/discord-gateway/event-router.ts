@@ -92,16 +92,15 @@ export class DiscordEventRouter {
    * Delete a route.
    */
   async deleteRoute(routeId: string): Promise<boolean> {
-    // Get route first to invalidate cache
-    const routes = await discordEventRoutesRepository.listByOrganization("");
-    const route = routes.find((r) => r.id === routeId);
+    // Get route before deleting to invalidate cache
+    const allRoutes = await discordEventRoutesRepository.listByOrganization("");
+    const route = allRoutes.find((r) => r.id === routeId);
+    if (!route) return false;
 
     const deleted = await discordEventRoutesRepository.delete(routeId);
-
-    if (deleted && route) {
+    if (deleted) {
       await this.invalidateRouteCache(route.platform_connection_id, route.guild_id);
     }
-
     return deleted;
   }
 
@@ -578,9 +577,10 @@ export class DiscordEventRouter {
     event: RoutableEvent
   ): Promise<boolean> {
     // route_target should be container ID or URL
+    const containerBaseUrl = process.env.CONTAINER_BASE_URL ?? "https://{id}.containers.elizacloud.ai";
     const containerUrl = route.route_target.startsWith("http")
       ? route.route_target
-      : `https://${route.route_target}.containers.elizacloud.ai`;
+      : containerBaseUrl.replace("{id}", route.route_target);
 
     const response = await fetch(`${containerUrl}/api/discord/event`, {
       method: "POST",

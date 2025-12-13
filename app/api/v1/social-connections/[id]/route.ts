@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/middleware/app-auth";
+import { requireAppAuth as requireAuth } from "@/lib/middleware/app-auth";
 import { platformCredentialsService } from "@/lib/services/platform-credentials";
 import { logger } from "@/lib/utils/logger";
 
