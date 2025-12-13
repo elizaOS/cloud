@@ -99,6 +99,13 @@
       "when": 1761052478836,
       "tag": "0001_woozy_joseph",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1761314360145,
+      "tag": "0002_perpetual_war_machine",
+      "breakpoints": true
     }
   ]
 }
