@@ -18,7 +18,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 // Helper to generate unique IDs without using Date.now() during render
 const generateId = () => {
@@ -64,8 +64,24 @@ function ChatPage() {
   const [streamingContent, setStreamingContent] = useState("");
   const [isThinking, setIsThinking] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  
+  // Memoize selected image object URL to avoid memory leaks
+  const selectedImageUrl = useMemo(() => {
+    if (selectedImageFile) {
+      return URL.createObjectURL(selectedImageFile);
+    }
+    return null;
+  }, [selectedImageFile]);
+
+  // Clean up object URL when image changes
+  useEffect(() => {
+    return () => {
+      if (selectedImageUrl) {
+        URL.revokeObjectURL(selectedImageUrl);
+      }
+    };
+  }, [selectedImageUrl]);
   const [imageModalUrl, setImageModalUrl] = useState<string | null>(null);
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [showLowCredits, setShowLowCredits] = useState(false);

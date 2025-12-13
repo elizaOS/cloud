@@ -8,16 +8,13 @@ import { ShareModal, useShareStatus } from "./share-modal";
 
 interface OutOfCreditsPromptProps {
   currentBalance?: number;
-  onClose?: () => void;
   inline?: boolean;
 }
 
 export function OutOfCreditsPrompt({
   currentBalance = 0,
-  onClose: _onClose,
   inline = false,
 }: OutOfCreditsPromptProps) {
-  void _onClose; // Reserved for future use
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const { allClaimedToday, availableToday } = useShareStatus();
 

@@ -3,7 +3,7 @@
 import { Loader2, Sparkles, Upload, X } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/button";
 import { useRenderTracking } from "@/lib/dev/render-tracking";
@@ -79,6 +79,24 @@ function CharacterCreatorSection() {
   }, []);
   
   const [photo, setPhoto] = useState<File | null>(null);
+  
+  // Memoize photo object URL to avoid memory leaks
+  const photoObjectUrl = useMemo(() => {
+    if (photo) {
+      return URL.createObjectURL(photo);
+    }
+    return null;
+  }, [photo]);
+
+  // Clean up object URL when photo changes
+  useEffect(() => {
+    return () => {
+      if (photoObjectUrl) {
+        URL.revokeObjectURL(photoObjectUrl);
+      }
+    };
+  }, [photoObjectUrl]);
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [error, setError] = useState("");
@@ -625,11 +643,11 @@ function CharacterCreatorSection() {
                 ) : (
                   <>
                     {/* Single image upload - show preview or upload area */}
-                    {photo ? (
+                    {photo && photoObjectUrl ? (
                       <div className="w-full h-full max-w-44 mx-auto">
                         <div className="h-full rounded-lg border border-white/10 overflow-hidden relative">
                           <Image
-                            src={URL.createObjectURL(photo)}
+                            src={photoObjectUrl}
                             alt="Preview"
                             width={176}
                             height={176}

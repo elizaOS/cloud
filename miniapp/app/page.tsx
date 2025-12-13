@@ -2,7 +2,6 @@ import { Suspense } from "react";
 
 import CharacterCreatorSection from "../components/character-creator-section";
 import Hero from "../components/hero";
-import { LayoutLines } from "../components/layout-lines";
 import { ReferralCapture } from "../components/referral-capture";
 import { Section } from "../components/section";
 
@@ -12,7 +11,6 @@ export default function Home() {
       <Suspense fallback={null}>
         <ReferralCapture />
       </Suspense>
-      <LayoutLines />
       
       {/* Combined Hero + Character Creator Section */}
       <Section 

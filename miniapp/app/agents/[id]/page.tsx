@@ -17,7 +17,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { type AgentDetails, getAgent, updateAgent } from "@/lib/cloud-api";
 import { useRenderTracking } from "@/lib/dev/render-tracking";
@@ -381,8 +381,24 @@ function AgentDetailPage() {
     );
   }
 
-  // Get current display image
-  const displayImage = photo ? URL.createObjectURL(photo) : generatedImageUrl || avatarUrl;
+  // Get current display image - memoize to avoid memory leaks
+  const photoObjectUrl = useMemo(() => {
+    if (photo) {
+      return URL.createObjectURL(photo);
+    }
+    return null;
+  }, [photo]);
+
+  // Clean up object URL when photo changes
+  useEffect(() => {
+    return () => {
+      if (photoObjectUrl) {
+        URL.revokeObjectURL(photoObjectUrl);
+      }
+    };
+  }, [photoObjectUrl]);
+
+  const displayImage = photoObjectUrl || generatedImageUrl || avatarUrl;
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
