@@ -230,3 +230,4 @@ export function generateStructuredData(
       return generateOrganizationSchema();
   }
 }
+

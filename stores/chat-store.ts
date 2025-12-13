@@ -269,26 +269,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
   deleteRoom: async (roomIdToDelete: string) => {
     const { rooms, roomId, setRooms, setRoomId } = get();
 
-    try {
-      const response = await fetch(`/api/eliza/rooms/${roomIdToDelete}`, {
-        method: "DELETE",
-      });
+    const response = await fetch(`/api/eliza/rooms/${roomIdToDelete}`, {
+      method: "DELETE",
+    });
 
-      if (response.ok) {
-        // Remove from local state
-        setRooms(rooms.filter((r) => r.id !== roomIdToDelete));
+    if (response.ok) {
+      // Remove from local state
+      setRooms(rooms.filter((r) => r.id !== roomIdToDelete));
 
-        // If deleted room was selected, clear selection
-        if (roomId === roomIdToDelete) {
-          setRoomId(null);
-          // Also clear from localStorage
-          if (typeof window !== "undefined") {
-            window.localStorage.removeItem("elizaRoomId");
-          }
+      // If deleted room was selected, clear selection
+      if (roomId === roomIdToDelete) {
+        setRoomId(null);
+        // Also clear from localStorage
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem("elizaRoomId");
         }
       }
-    } catch (error) {
-      console.error("Error deleting room:", error);
+    } else {
+      console.error("Error deleting room:", response.status);
     }
   },
 
