@@ -9,9 +9,6 @@ import { useEffect, useRef } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 
-let isRedirecting = false;
-let redirectTimeout: NodeJS.Timeout | null = null;
-
 export function useAuthRedirect(options?: {
   redirectTo?: string;
   requireAuth?: boolean;
@@ -20,13 +17,15 @@ export function useAuthRedirect(options?: {
   const { ready, authenticated } = usePrivy();
   const router = useRouter();
   const hasRedirected = useRef(false);
+  const isRedirecting = useRef(false);
+  const redirectTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const redirectTo = options?.redirectTo || "/dashboard";
   const requireAuth = options?.requireAuth ?? false;
   const delay = options?.delay ?? 0;
 
   useEffect(() => {
-    if (!ready || hasRedirected.current || isRedirecting) {
+    if (!ready || hasRedirected.current || isRedirecting.current) {
       return;
     }
 
@@ -35,13 +34,13 @@ export function useAuthRedirect(options?: {
 
     if (shouldRedirectToDashboard || shouldRedirectToHome) {
       hasRedirected.current = true;
-      isRedirecting = true;
+      isRedirecting.current = true;
 
-      if (redirectTimeout) {
-        clearTimeout(redirectTimeout);
+      if (redirectTimeout.current) {
+        clearTimeout(redirectTimeout.current);
       }
 
-      redirectTimeout = setTimeout(() => {
+      redirectTimeout.current = setTimeout(() => {
         const destination = shouldRedirectToDashboard ? redirectTo : "/";
         console.log(`[useAuthRedirect] Redirecting to ${destination}`, {
           authenticated,
@@ -51,17 +50,17 @@ export function useAuthRedirect(options?: {
         router.push(destination);
 
         setTimeout(() => {
-          isRedirecting = false;
+          isRedirecting.current = false;
         }, 1000);
       }, delay);
     }
 
     return () => {
-      if (redirectTimeout) {
-        clearTimeout(redirectTimeout);
+      if (redirectTimeout.current) {
+        clearTimeout(redirectTimeout.current);
       }
     };
   }, [ready, authenticated, router, redirectTo, requireAuth, delay]);
 
-  return { ready, authenticated, isRedirecting };
+  return { ready, authenticated, isRedirecting: isRedirecting.current };
 }
