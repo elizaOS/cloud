@@ -389,7 +389,7 @@ export default function AgentDetailPage() {
           className="mt-4 inline-flex items-center gap-2 text-sm text-white/60 hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to characters
+          Back to friends
         </Link>
       </div>
     );
@@ -406,7 +406,7 @@ export default function AgentDetailPage() {
         className="mb-6 inline-flex items-center gap-2 text-sm text-white/60 hover:text-white"
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to characters
+        Back to friends
       </Link>
 
       {/* Hero section with avatar */}
@@ -434,7 +434,7 @@ export default function AgentDetailPage() {
             {Array.isArray(agent?.bio) ? agent.bio[0] : agent?.bio}
           </p>
 
-          {/* Action buttons */}
+          {/* Chat button */}
           <div className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start">
             <Link
               href={`/chats/${agentId}`}
@@ -443,18 +443,6 @@ export default function AgentDetailPage() {
               <MessageSquare className="h-4 w-4" />
               <span>Chat Now</span>
             </Link>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 hover:bg-white/10 hover:text-white disabled:opacity-50"
-            >
-              {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              <span>Save Changes</span>
-            </button>
           </div>
         </div>
       </div>
@@ -590,8 +578,7 @@ export default function AgentDetailPage() {
 
           <div className="h-44">
             {imageTab === "generate" ? (
-              <>
-                {(generatedImageUrl || avatarUrl) && !isEditingImagePrompt ? (
+              (generatedImageUrl || avatarUrl) && !isEditingImagePrompt ? (
                   <div className="w-full h-full max-w-44 mx-auto">
                     <div className="h-full rounded-lg border border-white/10 overflow-hidden relative">
                       <Image
@@ -656,11 +643,9 @@ export default function AgentDetailPage() {
                       )}
                     </button>
                   </div>
-                )}
-              </>
+                )
             ) : (
-              <>
-                {photo ? (
+              photo ? (
                   <div className="w-full h-full max-w-44 mx-auto">
                     <div className="h-full rounded-lg border border-white/10 overflow-hidden relative">
                       <Image
@@ -697,8 +682,7 @@ export default function AgentDetailPage() {
                       className="hidden"
                     />
                   </label>
-                )}
-              </>
+                )
             )}
           </div>
         </div>
@@ -852,6 +836,20 @@ export default function AgentDetailPage() {
             </div>
           </>
         )}
+
+        {/* Save Changes Button - at bottom of form */}
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-pink-500 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-pink-600 disabled:opacity-50"
+        >
+          {saving ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="h-4 w-4" />
+          )}
+          <span>Save Changes</span>
+        </button>
       </div>
     </div>
   );

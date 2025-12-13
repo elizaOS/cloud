@@ -46,6 +46,43 @@ export function useAuth(): AuthState {
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
 
+  // Clear auth state - defined first since it's used by other callbacks
+  const clearAuth = useCallback(() => {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(USER_ID_KEY);
+    localStorage.removeItem(ORG_ID_KEY);
+    setAuthToken(null);
+    setUserId(null);
+    setOrganizationId(null);
+    setUser(null);
+  }, []);
+
+  // Fetch user info from Cloud API - defined before the useEffect that uses it
+  const fetchUserInfo = useCallback(async (token: string) => {
+    try {
+      const response = await fetch("/api/proxy/user", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUser({
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.name,
+          avatar: data.user.avatar,
+        });
+      } else {
+        // Token might be invalid, clear auth state
+        clearAuth();
+      }
+    } catch (error) {
+      console.error("Failed to fetch user info:", error);
+    }
+  }, [clearAuth]);
+
   // Load auth state from localStorage on mount and on storage changes
   useEffect(() => {
     const loadAuthState = () => {
@@ -102,44 +139,7 @@ export function useAuth(): AuthState {
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("miniapp_auth_changed", handleAuthChanged);
     };
-  }, [authToken]);
-
-  // Fetch user info from Cloud API
-  const fetchUserInfo = async (token: string) => {
-    try {
-      const response = await fetch("/api/proxy/user", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUser({
-          id: data.user.id,
-          email: data.user.email,
-          name: data.user.name,
-          avatar: data.user.avatar,
-        });
-      } else {
-        // Token might be invalid, clear auth state
-        clearAuth();
-      }
-    } catch (error) {
-      console.error("Failed to fetch user info:", error);
-    }
-  };
-
-  // Clear auth state
-  const clearAuth = () => {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
-    localStorage.removeItem(USER_ID_KEY);
-    localStorage.removeItem(ORG_ID_KEY);
-    setAuthToken(null);
-    setUserId(null);
-    setOrganizationId(null);
-    setUser(null);
-  };
+  }, [authToken, fetchUserInfo]);
 
   // Start the login flow
   const login = useCallback(async () => {
@@ -181,7 +181,7 @@ export function useAuth(): AuthState {
   const logout = useCallback(() => {
     clearAuth();
     window.location.href = "/";
-  }, []);
+  }, [clearAuth]);
 
   return {
     ready,

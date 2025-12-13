@@ -200,7 +200,6 @@ function ConnectingContent() {
 
             {/* Footer text */}
             <div className="space-y-2 text-center">
-              <p className="text-sm text-white/50">Almost ready to chat...</p>
               <p className="text-xs text-white/30">
                 You&apos;ll be able to chat in a moment
               </p>
