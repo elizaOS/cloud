@@ -291,7 +291,25 @@
       "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
       "Properties": {
         "Name": {
-          "Fn::Sub": "elizaos-${UserId}"
+          "Fn::Join": [
+            "",
+            [
+              "eliza-",
+              {
+                "Fn::Select": [
+                  0,
+                  { "Fn::Split": ["-", { "Ref": "UserId" }] }
+                ]
+              },
+              "-",
+              {
+                "Fn::Select": [
+                  1,
+                  { "Fn::Split": ["-", { "Ref": "UserId" }] }
+                ]
+              }
+            ]
+          ]
         },
         "Protocol": "HTTP",
         "Port": { "Ref": "ContainerPort" },
