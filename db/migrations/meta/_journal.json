@@ -64,6 +64,13 @@
       "when": 1765296166902,
       "tag": "0008_fast_khan",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1759756277947,
+      "tag": "0002_curvy_daimon_hellstrom",
+      "breakpoints": true
     }
   ]
 }
