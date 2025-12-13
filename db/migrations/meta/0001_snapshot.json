@@ -748,7 +748,6 @@
         "users_privy_user_id_unique": {
           "name": "users_privy_user_id_unique",
           "nullsNotDistinct": false,
-<<<<<<< HEAD
           "columns": [
             "privy_user_id"
           ]
@@ -759,14 +758,10 @@
           "columns": [
             "anonymous_session_id"
           ]
-=======
-          "columns": ["workos_user_id"]
->>>>>>> 2379ae49c4454bd91c14c080b9a37ac33464cf74
         },
         "users_email_unique": {
           "name": "users_email_unique",
           "nullsNotDistinct": false,
-<<<<<<< HEAD
           "columns": [
             "email"
           ]
@@ -1227,9 +1222,6 @@
           "columns": [
             "session_token"
           ]
-=======
-          "columns": ["email"]
->>>>>>> 2379ae49c4454bd91c14c080b9a37ac33464cf74
         }
       },
       "policies": {},

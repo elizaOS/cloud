@@ -3,10 +3,7 @@ import {
   and,
   desc,
   notInArray,
-<<<<<<< HEAD
   inArray,
-=======
->>>>>>> 2379ae49c4454bd91c14c080b9a37ac33464cf74
   sql,
   type InferSelectModel,
   type InferInsertModel,
@@ -223,8 +220,6 @@ export class ContainersRepository {
     return updated || null;
   }
 
-<<<<<<< HEAD
-=======
   async listActiveByOrganizationWithArtifactId(organizationId: string): Promise<
     Array<{
       id: string;
@@ -253,7 +248,6 @@ export class ContainersRepository {
     return results;
   }
 
->>>>>>> 2379ae49c4454bd91c14c080b9a37ac33464cf74
   /**
    * Checks container quota without creating a container (read-only check).
    *

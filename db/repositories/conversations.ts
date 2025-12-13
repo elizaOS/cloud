@@ -115,13 +115,9 @@ export class ConversationsRepository {
     await db.delete(conversations).where(eq(conversations.id, id));
   }
 
-<<<<<<< HEAD
   /**
    * Adds a message to a conversation.
    */
-=======
-  // Message operations
->>>>>>> 2379ae49c4454bd91c14c080b9a37ac33464cf74
   async addMessage(data: NewConversationMessage): Promise<ConversationMessage> {
     const [message] = await db
       .insert(conversationMessages)

@@ -62,12 +62,9 @@ export class CreditTransactionsRepository {
     });
   }
 
-<<<<<<< HEAD
   /**
    * Creates a new credit transaction.
    */
-=======
->>>>>>> 2379ae49c4454bd91c14c080b9a37ac33464cf74
   async create(data: NewCreditTransaction): Promise<CreditTransaction> {
     const [transaction] = await db
       .insert(creditTransactions)
@@ -77,11 +74,7 @@ export class CreditTransactionsRepository {
   }
 }
 
-<<<<<<< HEAD
 /**
  * Singleton instance of CreditTransactionsRepository.
  */
-=======
-// Export singleton instance
->>>>>>> 2379ae49c4454bd91c14c080b9a37ac33464cf74
 export const creditTransactionsRepository = new CreditTransactionsRepository();
