@@ -32,7 +32,7 @@ export class ProviderHealthRepository {
 
   /**
    * Creates or updates a provider health record.
-   * 
+   *
    * Updates existing record if found, otherwise creates a new one.
    */
   async createOrUpdate(data: NewProviderHealth): Promise<ProviderHealth> {

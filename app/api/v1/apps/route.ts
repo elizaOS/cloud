@@ -55,7 +55,10 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     logger.error("Failed to list apps:", error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Failed to list apps" },
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to list apps",
+      },
       { status: 500 },
     );
   }
@@ -78,7 +81,11 @@ export async function POST(request: NextRequest) {
 
     if (!validationResult.success) {
       return NextResponse.json(
-        { success: false, error: "Invalid request data", details: validationResult.error.format() },
+        {
+          success: false,
+          error: "Invalid request data",
+          details: validationResult.error.format(),
+        },
         { status: 400 },
       );
     }
@@ -113,7 +120,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logger.error("Failed to create app:", error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Failed to create app" },
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to create app",
+      },
       { status: 500 },
     );
   }

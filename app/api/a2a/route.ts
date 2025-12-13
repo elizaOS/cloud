@@ -38,7 +38,7 @@ function a2aError(
   code: number,
   message: string,
   id: string | number | null,
-  status = 400
+  status = 400,
 ): NextResponse {
   return NextResponse.json(jsonRpcError(code, message, id), { status });
 }
@@ -48,22 +48,29 @@ function a2aSuccess<T>(result: T, id: string | number | null): NextResponse {
 }
 
 // Method registry
-type MethodHandler = (params: Record<string, unknown>, ctx: A2AContext) => Promise<unknown>;
+type MethodHandler = (
+  params: Record<string, unknown>,
+  ctx: A2AContext,
+) => Promise<unknown>;
 
-const METHODS: Record<string, { handler: MethodHandler; description: string }> = {
-  "message/send": {
-    handler: (params, ctx) => handleMessageSend(params as unknown as MessageSendParams, ctx),
-    description: "Send a message to create/continue a task (A2A standard)",
-  },
-  "tasks/get": {
-    handler: (params, ctx) => handleTasksGet(params as unknown as TaskGetParams, ctx),
-    description: "Get task status and history (A2A standard)",
-  },
-  "tasks/cancel": {
-    handler: (params, ctx) => handleTasksCancel(params as unknown as TaskCancelParams, ctx),
-    description: "Cancel a running task (A2A standard)",
-  },
-};
+const METHODS: Record<string, { handler: MethodHandler; description: string }> =
+  {
+    "message/send": {
+      handler: (params, ctx) =>
+        handleMessageSend(params as unknown as MessageSendParams, ctx),
+      description: "Send a message to create/continue a task (A2A standard)",
+    },
+    "tasks/get": {
+      handler: (params, ctx) =>
+        handleTasksGet(params as unknown as TaskGetParams, ctx),
+      description: "Get task status and history (A2A standard)",
+    },
+    "tasks/cancel": {
+      handler: (params, ctx) =>
+        handleTasksCancel(params as unknown as TaskCancelParams, ctx),
+      description: "Cancel a running task (A2A standard)",
+    },
+  };
 
 // Request schema
 const JsonRpcRequestSchema = z.object({
@@ -81,7 +88,11 @@ export async function POST(request: NextRequest) {
   try {
     body = JSON.parse(bodyText);
   } catch {
-    return a2aError(A2AErrorCodes.PARSE_ERROR, "Parse error: Invalid JSON", null);
+    return a2aError(
+      A2AErrorCodes.PARSE_ERROR,
+      "Parse error: Invalid JSON",
+      null,
+    );
   }
 
   const parsed = JsonRpcRequestSchema.safeParse(body);
@@ -89,7 +100,7 @@ export async function POST(request: NextRequest) {
     return a2aError(
       A2AErrorCodes.INVALID_REQUEST,
       "Invalid Request: Does not conform to JSON-RPC 2.0",
-      null
+      null,
     );
   }
 
@@ -117,24 +128,24 @@ export async function POST(request: NextRequest) {
           "Authentication required. Get an API key or top up credits via x402 payment at /api/v1/credits/topup",
           id,
           {
-          x402: {
-            topupEndpoint: "/api/v1/credits/topup",
-            network: getDefaultNetwork(),
-            asset: USDC_ADDRESSES[getDefaultNetwork()],
-            payTo: X402_RECIPIENT_ADDRESS,
-            minimumTopup: TOPUP_PRICE,
-            creditsPerDollar: CREDITS_PER_DOLLAR,
+            x402: {
+              topupEndpoint: "/api/v1/credits/topup",
+              network: getDefaultNetwork(),
+              asset: USDC_ADDRESSES[getDefaultNetwork()],
+              payTo: X402_RECIPIENT_ADDRESS,
+              minimumTopup: TOPUP_PRICE,
+              creditsPerDollar: CREDITS_PER_DOLLAR,
+            },
           },
-          }
         ),
-        { status: 402 }
+        { status: 402 },
       );
     }
     return a2aError(
       A2AErrorCodes.AUTHENTICATION_REQUIRED,
       e instanceof Error ? e.message : "Auth failed",
       id,
-      401
+      401,
     );
   }
 
@@ -143,13 +154,19 @@ export async function POST(request: NextRequest) {
   const agentChainId = request.headers.get("x-agent-chain-id");
   const agentIdentifier =
     agentChainId && agentTokenId
-    ? `${agentChainId}:${agentTokenId}`
-    : `org:${authResult.user.organization_id}`;
+      ? `${agentChainId}:${agentTokenId}`
+      : `org:${authResult.user.organization_id}`;
 
   // Check if agent is banned
-  const isAgentBanned = await agentReputationService.shouldBlockAgent(agentIdentifier);
+  const isAgentBanned =
+    await agentReputationService.shouldBlockAgent(agentIdentifier);
   if (isAgentBanned) {
-    return a2aError(A2AErrorCodes.AGENT_BANNED, "Agent is banned due to policy violations", id, 403);
+    return a2aError(
+      A2AErrorCodes.AGENT_BANNED,
+      "Agent is banned due to policy violations",
+      id,
+      403,
+    );
   }
 
   // Rate limit based on trust level
@@ -160,17 +177,32 @@ export async function POST(request: NextRequest) {
     | "neutral"
     | "trusted"
     | "verified";
-  const rateLimit = agentReputationService.getRateLimitForTrustLevel(trustLevel);
+  const rateLimit =
+    agentReputationService.getRateLimitForTrustLevel(trustLevel);
 
-  const rateLimitResult = await checkRateLimitRedis(`a2a:${agentIdentifier}`, 60000, rateLimit);
+  const rateLimitResult = await checkRateLimitRedis(
+    `a2a:${agentIdentifier}`,
+    60000,
+    rateLimit,
+  );
   if (!rateLimitResult.allowed) {
-    return a2aError(A2AErrorCodes.RATE_LIMITED, `Rate limited. Trust level: ${trustLevel}`, id, 429);
+    return a2aError(
+      A2AErrorCodes.RATE_LIMITED,
+      `Rate limited. Trust level: ${trustLevel}`,
+      id,
+      429,
+    );
   }
 
   // Find handler
   const methodDef = METHODS[method];
   if (!methodDef) {
-    return a2aError(A2AErrorCodes.METHOD_NOT_FOUND, `Method not found: ${method}`, id, 404);
+    return a2aError(
+      A2AErrorCodes.METHOD_NOT_FOUND,
+      `Method not found: ${method}`,
+      id,
+      404,
+    );
   }
 
   // Load secrets for this organization
@@ -199,7 +231,9 @@ export async function POST(request: NextRequest) {
     // Track successful request
     agentReputationService
       .recordRequest({ agentIdentifier, isSuccessful: true, method })
-      .catch((err) => logger.error("[A2A] Failed to record request", { error: err }));
+      .catch((err) =>
+        logger.error("[A2A] Failed to record request", { error: err }),
+      );
 
     return a2aSuccess(result, id);
   } catch (e) {
@@ -223,7 +257,9 @@ export async function POST(request: NextRequest) {
     // Track failed request
     agentReputationService
       .recordRequest({ agentIdentifier, isSuccessful: false, method })
-      .catch((err) => logger.error("[A2A] Failed to record failed request", { error: err }));
+      .catch((err) =>
+        logger.error("[A2A] Failed to record failed request", { error: err }),
+      );
 
     return a2aError(code, msg, id, status);
   }

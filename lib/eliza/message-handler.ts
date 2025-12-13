@@ -58,10 +58,15 @@ export class MessageHandler {
     const entityId = this.userContext.userId;
     const modeConfig = agentModeConfig || DEFAULT_AGENT_MODE;
 
-    elizaLogger.info(`[MessageHandler] Processing: user=${this.userContext.userId}, room=${roomId}, mode=${modeConfig.mode}`);
+    elizaLogger.info(
+      `[MessageHandler] Processing: user=${this.userContext.userId}, room=${roomId}, mode=${modeConfig.mode}`,
+    );
 
     await this.ensureConnectionForCloud(roomId, entityId);
-    const userMessage = this.createMessage(roomId, entityId, { text, attachments });
+    const userMessage = this.createMessage(roomId, entityId, {
+      text,
+      attachments,
+    });
 
     let responseContent: Content | undefined;
     let usage: MessageResult["usage"];
@@ -75,16 +80,23 @@ export class MessageHandler {
           responseContent = content;
 
           const responseMemory: Memory = {
-            id: createUniqueUuid(this.runtime, (userMessage.id ?? uuidv4()) as UUID),
+            id: createUniqueUuid(
+              this.runtime,
+              (userMessage.id ?? uuidv4()) as UUID,
+            ),
             entityId: this.runtime.agentId,
             agentId: this.runtime.agentId,
             roomId: roomId as UUID,
-            content: { ...content, source: content.source || "agent", inReplyTo: userMessage.id },
+            content: {
+              ...content,
+              source: content.source || "agent",
+              inReplyTo: userMessage.id,
+            },
             metadata: {
               type: MemoryType.MESSAGE,
-              role: 'agent',
-              dialogueType: 'message',
-              visibility: 'visible',
+              role: "agent",
+              dialogueType: "message",
+              visibility: "visible",
               agentMode: modeConfig.mode,
             } as DialogueMetadata,
           };
@@ -100,7 +112,10 @@ export class MessageHandler {
 
     const responseMemory = this.createResponseMemoryFromContent(
       roomId,
-      responseContent || { text: "I'm sorry, I couldn't generate a response.", source: "agent" },
+      responseContent || {
+        text: "I'm sorry, I couldn't generate a response.",
+        source: "agent",
+      },
     );
 
     if (this.userContext.isAnonymous && this.userContext.sessionToken) {
@@ -108,13 +123,21 @@ export class MessageHandler {
     }
 
     // Fire-and-forget side effects (Discord only - room titles handled by roomTitleEvaluator)
-    this.sendToDiscordThread(roomId, text, responseContent?.text || "", options.characterId).catch(() => {});
+    this.sendToDiscordThread(
+      roomId,
+      text,
+      responseContent?.text || "",
+      options.characterId,
+    ).catch(() => {});
 
     return { message: responseMemory, usage };
   }
 
   /** Sets up ElizaOS infrastructure (world, room, entities, participants) with caching */
-  private async ensureConnectionForCloud(roomId: string, entityId: string): Promise<void> {
+  private async ensureConnectionForCloud(
+    roomId: string,
+    entityId: string,
+  ): Promise<void> {
     if (await connectionCache.isEstablished(roomId, entityId)) return;
 
     const entityUuid = stringToUuid(entityId) as UUID;
@@ -122,8 +145,16 @@ export class MessageHandler {
     const worldId = stringToUuid("eliza-world") as UUID;
     const serverId = stringToUuid("eliza-server") as UUID;
 
-    const displayName = this.userContext.name || this.userContext.email || this.userContext.userId || "User";
-    const names = [this.userContext.name, this.userContext.email, displayName].filter(Boolean) as string[];
+    const displayName =
+      this.userContext.name ||
+      this.userContext.email ||
+      this.userContext.userId ||
+      "User";
+    const names = [
+      this.userContext.name,
+      this.userContext.email,
+      displayName,
+    ].filter(Boolean) as string[];
 
     await this.ensureWorldExists(worldId, serverId);
     await this.ensureAgentEntity();
@@ -134,20 +165,34 @@ export class MessageHandler {
     await connectionCache.markEstablished(roomId, entityId);
   }
 
-  private async ensureWorldExists(worldId: UUID, serverId: UUID): Promise<void> {
+  private async ensureWorldExists(
+    worldId: UUID,
+    serverId: UUID,
+  ): Promise<void> {
     try {
       await this.runtime.ensureWorldExists({
-        id: worldId, name: "ElizaCloud Web", agentId: this.runtime.agentId, serverId,
+        id: worldId,
+        name: "ElizaCloud Web",
+        agentId: this.runtime.agentId,
+        serverId,
       } as World);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      if (!msg.toLowerCase().includes("duplicate") && !msg.toLowerCase().includes("unique constraint")) throw e;
+      if (
+        !msg.toLowerCase().includes("duplicate") &&
+        !msg.toLowerCase().includes("unique constraint")
+      )
+        throw e;
     }
   }
 
-  private async ensureRoomExistsWithFields(roomId: UUID, worldId: UUID, serverId: UUID): Promise<void> {
+  private async ensureRoomExistsWithFields(
+    roomId: UUID,
+    worldId: UUID,
+    serverId: UUID,
+  ): Promise<void> {
     const existingRoom = await this.runtime.getRoom(roomId);
-    
+
     if (existingRoom) {
       if (!existingRoom.worldId || !existingRoom.serverId) {
         // DO NOT UPDATE ROOM NAME. SHOULD BE DONE BY AGENT.
@@ -156,29 +201,46 @@ export class MessageHandler {
     } else {
       // We set the name to "New Chat" to and leave that for the agent to update.
       await this.runtime.ensureRoomExists({
-        id: roomId, name: "New Chat", type: ChannelType.DM, channelId: roomId,
-        worldId, serverId, agentId: this.runtime.agentId, source: "web",
+        id: roomId,
+        name: "New Chat",
+        type: ChannelType.DM,
+        channelId: roomId,
+        worldId,
+        serverId,
+        agentId: this.runtime.agentId,
+        source: "web",
       });
     }
   }
 
   private async ensureAgentEntity(): Promise<void> {
     if (await this.runtime.getEntityById(this.runtime.agentId)) return;
-    
+
     try {
       await this.runtime.createEntity({
         id: this.runtime.agentId,
         agentId: this.runtime.agentId,
         names: [this.runtime.character?.name || "Agent"],
-        metadata: { name: this.runtime.character?.name || "Agent", type: "agent" },
+        metadata: {
+          name: this.runtime.character?.name || "Agent",
+          type: "agent",
+        },
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      if (!msg.toLowerCase().includes("duplicate") && !msg.toLowerCase().includes("unique constraint")) throw e;
+      if (
+        !msg.toLowerCase().includes("duplicate") &&
+        !msg.toLowerCase().includes("unique constraint")
+      )
+        throw e;
     }
   }
 
-  private async ensureUserEntity(entityUuid: UUID, names: string[], displayName: string): Promise<void> {
+  private async ensureUserEntity(
+    entityUuid: UUID,
+    names: string[],
+    displayName: string,
+  ): Promise<void> {
     const existingEntity = await this.runtime.getEntityById(entityUuid);
     const metadata = {
       web: {
@@ -192,28 +254,62 @@ export class MessageHandler {
 
     if (!existingEntity) {
       try {
-        await this.runtime.createEntity({ id: entityUuid, agentId: this.runtime.agentId, names, metadata });
+        await this.runtime.createEntity({
+          id: entityUuid,
+          agentId: this.runtime.agentId,
+          names,
+          metadata,
+        });
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        if (!msg.toLowerCase().includes("duplicate") && !msg.toLowerCase().includes("unique constraint")) {
+        if (
+          !msg.toLowerCase().includes("duplicate") &&
+          !msg.toLowerCase().includes("unique constraint")
+        ) {
           throw new Error(`Failed to create user entity: ${msg}`);
         }
       }
     } else {
-      const mergedNames = [...new Set([...(existingEntity.names || []), ...names])].filter(Boolean) as string[];
-      const mergedMetadata = { ...existingEntity.metadata, web: { ...(existingEntity.metadata?.web as Record<string, unknown>), ...metadata.web } };
-      
+      const mergedNames = [
+        ...new Set([...(existingEntity.names || []), ...names]),
+      ].filter(Boolean) as string[];
+      const mergedMetadata = {
+        ...existingEntity.metadata,
+        web: {
+          ...(existingEntity.metadata?.web as Record<string, unknown>),
+          ...metadata.web,
+        },
+      };
+
       // Non-critical update, ignore failures
-      await this.runtime.updateEntity({ id: entityUuid, agentId: this.runtime.agentId, names: mergedNames, metadata: mergedMetadata }).catch(() => {});
+      await this.runtime
+        .updateEntity({
+          id: entityUuid,
+          agentId: this.runtime.agentId,
+          names: mergedNames,
+          metadata: mergedMetadata,
+        })
+        .catch(() => {});
     }
   }
 
-  private async ensureParticipants(roomId: UUID, entityUuid: UUID): Promise<void> {
-    await this.runtime.ensureParticipantInRoom(this.runtime.agentId, roomId).catch(() => {});
-    await this.runtime.ensureParticipantInRoom(entityUuid, roomId).catch(() => {});
+  private async ensureParticipants(
+    roomId: UUID,
+    entityUuid: UUID,
+  ): Promise<void> {
+    await this.runtime
+      .ensureParticipantInRoom(this.runtime.agentId, roomId)
+      .catch(() => {});
+    await this.runtime
+      .ensureParticipantInRoom(entityUuid, roomId)
+      .catch(() => {});
   }
 
-  private createMessage(roomId: string, entityId: string, content: { text?: string; attachments?: Media[] }): Memory {
+  private createMessage(
+    roomId: string,
+    entityId: string,
+    content: { text?: string; attachments?: Media[] },
+  ): Memory {
     const entityUuid = stringToUuid(entityId) as UUID;
     return {
       id: uuidv4() as UUID,
@@ -225,19 +321,29 @@ export class MessageHandler {
         text: content.text || "",
         source: "user",
         ...(content.attachments?.length
-          ? { attachments: content.attachments.filter((att): att is Media => typeof att === "object" && att !== null && ("url" in att || "mimeType" in att || "data" in att)) }
+          ? {
+              attachments: content.attachments.filter(
+                (att): att is Media =>
+                  typeof att === "object" &&
+                  att !== null &&
+                  ("url" in att || "mimeType" in att || "data" in att),
+              ),
+            }
           : {}),
       },
       metadata: {
         type: MemoryType.MESSAGE,
-        role: 'user',
-        dialogueType: 'message',
-        visibility: 'visible',
+        role: "user",
+        dialogueType: "message",
+        visibility: "visible",
       } as DialogueMetadata,
     };
   }
 
-  private createResponseMemoryFromContent(roomId: string, content: Content): Memory {
+  private createResponseMemoryFromContent(
+    roomId: string,
+    content: Content,
+  ): Memory {
     return {
       id: uuidv4() as UUID,
       roomId: roomId as UUID,
@@ -260,10 +366,15 @@ export class MessageHandler {
     }
   }
 
-  private async sendToDiscordThread(roomId: string, userText: string, agentResponse: string, characterId?: string): Promise<void> {
-    const roomData = await db.execute<{ metadata: { discordThreadId?: string } }>(
-      sql`SELECT metadata FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`,
-    );
+  private async sendToDiscordThread(
+    roomId: string,
+    userText: string,
+    agentResponse: string,
+    characterId?: string,
+  ): Promise<void> {
+    const roomData = await db.execute<{
+      metadata: { discordThreadId?: string };
+    }>(sql`SELECT metadata FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`);
 
     const threadId = roomData.rows[0]?.metadata?.discordThreadId;
     if (!threadId) return;
@@ -276,11 +387,20 @@ export class MessageHandler {
       characterName = character.rows[0]?.name || "Agent";
     }
 
-    await discordService.sendToThread(threadId, `**${this.userContext.name || this.userContext.email || this.userContext.entityId}:** ${userText}`);
-    await discordService.sendToThread(threadId, `**🤖 ${characterName}:** ${agentResponse}`);
+    await discordService.sendToThread(
+      threadId,
+      `**${this.userContext.name || this.userContext.email || this.userContext.entityId}:** ${userText}`,
+    );
+    await discordService.sendToThread(
+      threadId,
+      `**🤖 ${characterName}:** ${agentResponse}`,
+    );
   }
 }
 
-export function createMessageHandler(runtime: AgentRuntime, userContext: UserContext): MessageHandler {
+export function createMessageHandler(
+  runtime: AgentRuntime,
+  userContext: UserContext,
+): MessageHandler {
   return new MessageHandler(runtime, userContext);
 }

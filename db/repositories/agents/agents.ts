@@ -1,6 +1,6 @@
 /**
  * Agents repository.
- * 
+ *
  * Pure database operations for the ElizaOS agents table.
  * Used to get agent info without spinning up the full runtime.
  */
@@ -13,7 +13,7 @@ import { logger } from "@/lib/utils/logger";
 
 /**
  * Agent information returned from database.
- * 
+ *
  * Matches the agentTable schema from @elizaos/plugin-sql.
  */
 export interface AgentInfo {
@@ -92,7 +92,7 @@ export class AgentsRepository {
 
   /**
    * Creates a new agent.
-   * 
+   *
    * @returns True if successful, false if agent with same ID already exists.
    * @throws Error if creation fails for reasons other than duplicate ID.
    */

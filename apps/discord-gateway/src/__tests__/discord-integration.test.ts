@@ -520,3 +520,4 @@ describe("Discord Integration - Error Scenarios", () => {
     await manager.shutdown();
   });
 });
+

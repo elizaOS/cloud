@@ -13,7 +13,7 @@ import { organizations } from "./organizations";
 
 /**
  * App credit balances table schema.
- * 
+ *
  * Tracks credit balances for users within third-party apps.
  */
 export const appCreditBalances = pgTable(
@@ -44,14 +44,13 @@ export const appCreditBalances = pgTable(
   (table) => ({
     app_user_unique: uniqueIndex("app_credit_balances_app_user_idx").on(
       table.app_id,
-      table.user_id
+      table.user_id,
     ),
     app_idx: index("app_credit_balances_app_idx").on(table.app_id),
     user_idx: index("app_credit_balances_user_idx").on(table.user_id),
     org_idx: index("app_credit_balances_org_idx").on(table.organization_id),
-  })
+  }),
 );
 
 export type AppCreditBalance = InferSelectModel<typeof appCreditBalances>;
 export type NewAppCreditBalance = InferInsertModel<typeof appCreditBalances>;
-

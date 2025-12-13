@@ -81,7 +81,9 @@ test.describe("MCP Core API", () => {
 test.describe("MCP Demo - Weather", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /api/mcp/demos/weather returns weather MCP info", async ({ request }) => {
+  test("GET /api/mcp/demos/weather returns weather MCP info", async ({
+    request,
+  }) => {
     const response = await request.get(`${CLOUD_URL}/api/mcp/demos/weather`, {
       headers: authHeaders(),
     });
@@ -97,7 +99,9 @@ test.describe("MCP Demo - Weather", () => {
     }
   });
 
-  test("POST /api/mcp/demos/weather calls weather tool", async ({ request }) => {
+  test("POST /api/mcp/demos/weather calls weather tool", async ({
+    request,
+  }) => {
     const response = await request.post(`${CLOUD_URL}/api/mcp/demos/weather`, {
       headers: authHeaders(),
       data: {
@@ -119,10 +123,15 @@ test.describe("MCP Demo - Weather", () => {
     }
   });
 
-  test("GET /api/mcp/demos/weather/sse returns SSE transport", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/mcp/demos/weather/sse`, {
-      headers: authHeaders(),
-    });
+  test("GET /api/mcp/demos/weather/sse returns SSE transport", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      `${CLOUD_URL}/api/mcp/demos/weather/sse`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 404, 500, 501]).toContain(response.status());
 
@@ -179,7 +188,9 @@ test.describe("MCP Demo - Time", () => {
 test.describe("MCP Demo - Crypto", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /api/mcp/demos/crypto returns crypto MCP info", async ({ request }) => {
+  test("GET /api/mcp/demos/crypto returns crypto MCP info", async ({
+    request,
+  }) => {
     const response = await request.get(`${CLOUD_URL}/api/mcp/demos/crypto`, {
       headers: authHeaders(),
     });
@@ -225,13 +236,16 @@ test.describe("Character MCP Configuration", () => {
 
   test.beforeAll(async ({ request }) => {
     // Create a test character
-    const response = await request.post(`${CLOUD_URL}/api/my-agents/characters`, {
-      headers: authHeaders(),
-      data: {
-        name: "MCP Test Character",
-        bio: "For MCP testing",
+    const response = await request.post(
+      `${CLOUD_URL}/api/my-agents/characters`,
+      {
+        headers: authHeaders(),
+        data: {
+          name: "MCP Test Character",
+          bio: "For MCP testing",
+        },
       },
-    });
+    );
 
     if (response.status() === 200 || response.status() === 201) {
       const data = await response.json();
@@ -242,20 +256,28 @@ test.describe("Character MCP Configuration", () => {
 
   test.afterAll(async ({ request }) => {
     if (testCharacterId) {
-      await request.delete(`${CLOUD_URL}/api/my-agents/characters/${testCharacterId}`, {
-        headers: authHeaders(),
-      });
+      await request.delete(
+        `${CLOUD_URL}/api/my-agents/characters/${testCharacterId}`,
+        {
+          headers: authHeaders(),
+        },
+      );
     }
   });
 
-  test("GET /api/characters/:characterId/mcps lists character MCPs", async ({ request }) => {
+  test("GET /api/characters/:characterId/mcps lists character MCPs", async ({
+    request,
+  }) => {
     if (!testCharacterId) {
       return;
     }
 
-    const response = await request.get(`${CLOUD_URL}/api/characters/${testCharacterId}/mcps`, {
-      headers: authHeaders(),
-    });
+    const response = await request.get(
+      `${CLOUD_URL}/api/characters/${testCharacterId}/mcps`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 404, 500, 501]).toContain(response.status());
 
@@ -269,18 +291,23 @@ test.describe("Character MCP Configuration", () => {
     }
   });
 
-  test("POST /api/characters/:characterId/mcps adds MCP to character", async ({ request }) => {
+  test("POST /api/characters/:characterId/mcps adds MCP to character", async ({
+    request,
+  }) => {
     if (!testCharacterId) {
       return;
     }
 
-    const response = await request.post(`${CLOUD_URL}/api/characters/${testCharacterId}/mcps`, {
-      headers: authHeaders(),
-      data: {
-        mcp_id: "weather-demo",
-        enabled: true,
+    const response = await request.post(
+      `${CLOUD_URL}/api/characters/${testCharacterId}/mcps`,
+      {
+        headers: authHeaders(),
+        data: {
+          mcp_id: "weather-demo",
+          enabled: true,
+        },
       },
-    });
+    );
 
     expect([200, 201, 400, 404, 500, 501]).toContain(response.status());
 
@@ -325,7 +352,7 @@ test.describe("MCPs Dashboard UI", () => {
 
     // Look for MCP cards or list
     const mcpItems = page.locator(
-      '[class*="mcp"], [class*="card"], [class*="Card"], article, [class*="tool"]'
+      '[class*="mcp"], [class*="card"], [class*="Card"], article, [class*="tool"]',
     );
     const itemCount = await mcpItems.count();
 
@@ -345,7 +372,7 @@ test.describe("MCPs Dashboard UI", () => {
 
     // Look for try/demo buttons
     const demoButtons = page.locator(
-      'button:has-text("Try"), button:has-text("Demo"), button:has-text("Test"), button:has-text("Connect")'
+      'button:has-text("Try"), button:has-text("Demo"), button:has-text("Test"), button:has-text("Connect")',
     );
     const buttonCount = await demoButtons.count();
 
@@ -370,5 +397,3 @@ test.describe("MCPs Dashboard UI", () => {
     console.log(`✅ Found ${toggleCount} MCP toggle switches`);
   });
 });
-
-

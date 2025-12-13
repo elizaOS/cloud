@@ -52,7 +52,7 @@ export const ESTIMATED_COSTS = {
 
   // Media operations
   image_gen: 0.05, // DALL-E, FLUX
-  video_gen: 0.50, // Kling, etc
+  video_gen: 0.5, // Kling, etc
   voice_tts: 0.015, // ElevenLabs TTS
   voice_stt: 0.01, // ElevenLabs STT
 
@@ -70,7 +70,7 @@ export const ESTIMATED_COSTS = {
  * This is a non-locking check - actual deduction happens post-execution.
  */
 export async function preCheckBilling(
-  context: BillingContext
+  context: BillingContext,
 ): Promise<PreBillResult> {
   const { agentId, organizationId, estimatedCost, description } = context;
 
@@ -78,7 +78,7 @@ export async function preCheckBilling(
   if (agentId) {
     const budgetCheck = await agentBudgetService.checkBudget(
       agentId,
-      estimatedCost
+      estimatedCost,
     );
 
     if (budgetCheck.canProceed) {
@@ -103,10 +103,13 @@ export async function preCheckBilling(
 
     // If agent has no budget at all (not initialized), fall through to org credits
     if (budgetCheck.availableBudget === 0) {
-      logger.debug("[AgentBilling] No agent budget, falling back to org credits", {
-        agentId,
-        organizationId,
-      });
+      logger.debug(
+        "[AgentBilling] No agent budget, falling back to org credits",
+        {
+          agentId,
+          organizationId,
+        },
+      );
     } else {
       // Agent has budget but insufficient
       return {
@@ -162,7 +165,7 @@ export async function preCheckBilling(
 export async function postBillOperation(
   context: BillingContext,
   preResult: PreBillResult,
-  actualCost?: number
+  actualCost?: number,
 ): Promise<PostBillResult> {
   const cost = actualCost ?? context.estimatedCost;
 
@@ -277,12 +280,12 @@ export async function executeWithBilling<T>(params: {
  */
 export async function estimateLLMCost(
   model: string,
-  messages: Array<{ role: string; content: string }>
+  messages: Array<{ role: string; content: string }>,
 ): Promise<number> {
   // Quick estimate based on message content
   const totalChars = messages.reduce((sum, m) => sum + m.content.length, 0);
   const estimatedTokens = Math.ceil(totalChars / 4);
-  
+
   // Assume 2x output tokens vs input
   const estimatedOutputTokens = Math.min(estimatedTokens, 1000);
 
@@ -291,7 +294,7 @@ export async function estimateLLMCost(
     model,
     provider,
     estimatedTokens,
-    estimatedOutputTokens
+    estimatedOutputTokens,
   );
 
   return Math.max(totalCost, 0.001); // Minimum $0.001
@@ -300,7 +303,8 @@ export async function estimateLLMCost(
 /**
  * Get estimated cost for a known operation type
  */
-export function getEstimatedCost(operation: keyof typeof ESTIMATED_COSTS): number {
+export function getEstimatedCost(
+  operation: keyof typeof ESTIMATED_COSTS,
+): number {
   return ESTIMATED_COSTS[operation];
 }
-

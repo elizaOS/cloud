@@ -40,4 +40,3 @@ export type FalVideoResponse = {
   isFallback?: boolean;
   originalError?: string;
 };
-

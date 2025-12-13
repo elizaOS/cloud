@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
   // If checking specific agent status
   if (agentId) {
     const authResult = await requireAuthOrApiKeyWithOrg(request);
-    
+
     const character = await charactersService.getById(agentId);
     if (!character) {
       return NextResponse.json({ error: "Agent not found" }, { status: 404 });
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
 
     const onChainAgent = character.erc8004_agent_id
       ? await agent0Service.getAgentCached(
-          `${contracts.chainId}:${character.erc8004_agent_id}`
+          `${contracts.chainId}:${character.erc8004_agent_id}`,
         )
       : null;
 
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
   // If checking specific MCP status
   if (mcpId) {
     const authResult = await requireAuthOrApiKeyWithOrg(request);
-    
+
     const mcp = await userMcpsService.getById(mcpId);
     if (!mcp) {
       return NextResponse.json({ error: "MCP not found" }, { status: 404 });
@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
 
     const onChainAgent = mcp.erc8004_agent_id
       ? await agent0Service.getAgentCached(
-          `${contracts.chainId}:${mcp.erc8004_agent_id}`
+          `${contracts.chainId}:${mcp.erc8004_agent_id}`,
         )
       : null;
 
@@ -157,7 +157,9 @@ export async function GET(request: NextRequest) {
   // Overall ERC-8004 status
   const elizaCloudAgentId = ELIZA_CLOUD_AGENT_ID[network];
   const selfAgent = elizaCloudAgentId
-    ? await agent0Service.getAgentCached(`${contracts.chainId}:${elizaCloudAgentId}`)
+    ? await agent0Service.getAgentCached(
+        `${contracts.chainId}:${elizaCloudAgentId}`,
+      )
     : null;
 
   // Get status for all networks
@@ -263,4 +265,3 @@ export async function OPTIONS() {
     },
   });
 }
-

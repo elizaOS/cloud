@@ -335,16 +335,35 @@ const mcpHandler = createMcpHandler(
           // Check if user is blocked due to moderation violations
           if (await contentModerationService.shouldBlockUser(user.id)) {
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: "Account suspended due to policy violations" }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: "Account suspended due to policy violations" },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
 
           // Start async moderation with agent tracking (doesn't block)
           const agentId = `org:${user.organization_id}`;
-          contentModerationService.moderateAgentInBackground(prompt, user.id, agentId, undefined, (result) => {
-            logger.warn("[MCP] generate_text moderation violation", { userId: user.id, categories: result.flaggedCategories, action: result.action });
-          });
+          contentModerationService.moderateAgentInBackground(
+            prompt,
+            user.id,
+            agentId,
+            undefined,
+            (result) => {
+              logger.warn("[MCP] generate_text moderation violation", {
+                userId: user.id,
+                categories: result.flaggedCategories,
+                action: result.action,
+              });
+            },
+          );
 
           const provider = getProviderFromModel(model);
 
@@ -627,16 +646,35 @@ const mcpHandler = createMcpHandler(
           // Check if user is blocked due to moderation violations
           if (await contentModerationService.shouldBlockUser(user.id)) {
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: "Account suspended due to policy violations" }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: "Account suspended due to policy violations" },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
 
           // Start async moderation for image prompt with agent tracking (doesn't block)
           const agentId = `org:${user.organization_id}`;
-          contentModerationService.moderateAgentInBackground(prompt, user.id, agentId, undefined, (result) => {
-            logger.warn("[MCP] generate_image moderation violation", { userId: user.id, categories: result.flaggedCategories, action: result.action });
-          });
+          contentModerationService.moderateAgentInBackground(
+            prompt,
+            user.id,
+            agentId,
+            undefined,
+            (result) => {
+              logger.warn("[MCP] generate_image moderation violation", {
+                userId: user.id,
+                categories: result.flaggedCategories,
+                action: result.action,
+              });
+            },
+          );
 
           const org = await organizationsService.getById(user.organization_id!);
           if (!org) {
@@ -2855,16 +2893,35 @@ const mcpHandler = createMcpHandler(
           // Check if user is blocked due to moderation violations
           if (await contentModerationService.shouldBlockUser(user.id)) {
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: "Account suspended due to policy violations" }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: "Account suspended due to policy violations" },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
 
           // Start async moderation with agent tracking (doesn't block)
           const agentId = `org:${user.organization_id}`;
-          contentModerationService.moderateAgentInBackground(message, user.id, agentId, roomId, (result) => {
-            logger.warn("[MCP] chat_with_agent moderation violation", { userId: user.id, categories: result.flaggedCategories, action: result.action });
-          });
+          contentModerationService.moderateAgentInBackground(
+            message,
+            user.id,
+            agentId,
+            roomId,
+            (result) => {
+              logger.warn("[MCP] chat_with_agent moderation violation", {
+                userId: user.id,
+                categories: result.flaggedCategories,
+                action: result.action,
+              });
+            },
+          );
 
           const org = await organizationsService.getById(user.organization_id!);
 
@@ -3275,7 +3332,11 @@ const mcpHandler = createMcpHandler(
           name: z.string().describe("Agent name"),
           bio: z.union([z.string(), z.array(z.string())]).describe("Agent bio"),
           system: z.string().optional().describe("System prompt"),
-          category: z.string().optional().default("assistant").describe("Agent category"),
+          category: z
+            .string()
+            .optional()
+            .default("assistant")
+            .describe("Agent category"),
           tags: z.array(z.string()).optional().describe("Agent tags"),
         },
       },
@@ -3298,13 +3359,35 @@ const mcpHandler = createMcpHandler(
             content: [
               {
                 type: "text" as const,
-                text: JSON.stringify({ success: true, agentId: character.id, name: character.name }, null, 2),
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    agentId: character.id,
+                    name: character.name,
+                  },
+                  null,
+                  2,
+                ),
               },
             ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to create agent" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to create agent",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -3319,7 +3402,10 @@ const mcpHandler = createMcpHandler(
         inputSchema: {
           agentId: z.string().describe("Agent ID to update"),
           name: z.string().optional().describe("New agent name"),
-          bio: z.union([z.string(), z.array(z.string())]).optional().describe("New agent bio"),
+          bio: z
+            .union([z.string(), z.array(z.string())])
+            .optional()
+            .describe("New agent bio"),
           system: z.string().optional().describe("New system prompt"),
           category: z.string().optional().describe("New category"),
           tags: z.array(z.string()).optional().describe("New tags"),
@@ -3336,15 +3422,38 @@ const mcpHandler = createMcpHandler(
           if (category) updates.category = category;
           if (tags) updates.tags = tags;
 
-          const updated = await charactersService.updateForUser(agentId, user.id, updates);
+          const updated = await charactersService.updateForUser(
+            agentId,
+            user.id,
+            updates,
+          );
           if (!updated) throw new Error("Agent not found or not owned by user");
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ success: true, agentId }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ success: true, agentId }, null, 2),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to update agent" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to update agent",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -3364,15 +3473,37 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          const deleted = await charactersService.deleteForUser(agentId, user.id);
+          const deleted = await charactersService.deleteForUser(
+            agentId,
+            user.id,
+          );
           if (!deleted) throw new Error("Agent not found or not owned by user");
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ success: true, agentId }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ success: true, agentId }, null, 2),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to delete agent" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to delete agent",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -3386,7 +3517,11 @@ const mcpHandler = createMcpHandler(
         description: "Generate a video using AI models. Cost: $5 per video",
         inputSchema: {
           prompt: z.string().describe("Video generation prompt"),
-          model: z.string().optional().default("fal-ai/veo3").describe("Model to use for generation"),
+          model: z
+            .string()
+            .optional()
+            .default("fal-ai/veo3")
+            .describe("Model to use for generation"),
         },
       },
       async ({ prompt, model }) => {
@@ -3395,7 +3530,9 @@ const mcpHandler = createMcpHandler(
           const VIDEO_COST = 5;
 
           if (Number(user.organization.credit_balance) < VIDEO_COST) {
-            throw new Error(`Insufficient credits: need $${VIDEO_COST.toFixed(2)}`);
+            throw new Error(
+              `Insufficient credits: need $${VIDEO_COST.toFixed(2)}`,
+            );
           }
 
           const deduction = await creditsService.deductCredits({
@@ -3423,19 +3560,38 @@ const mcpHandler = createMcpHandler(
             content: [
               {
                 type: "text" as const,
-                text: JSON.stringify({
-                  success: true,
-                  jobId: generation.id,
-                  status: "pending",
-                  cost: VIDEO_COST,
-                  message: "Video generation started. Poll /api/v1/gallery to check status.",
-                }, null, 2),
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    jobId: generation.id,
+                    status: "pending",
+                    cost: VIDEO_COST,
+                    message:
+                      "Video generation started. Poll /api/v1/gallery to check status.",
+                  },
+                  null,
+                  2,
+                ),
               },
             ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to generate video" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to generate video",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -3446,17 +3602,27 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "generate_embeddings",
       {
-        description: "Generate vector embeddings for text. Cost: ~$0.00002 per 1K tokens",
+        description:
+          "Generate vector embeddings for text. Cost: ~$0.00002 per 1K tokens",
         inputSchema: {
-          input: z.union([z.string(), z.array(z.string())]).describe("Text or array of texts to embed"),
-          model: z.string().optional().default("text-embedding-3-small").describe("Embedding model"),
+          input: z
+            .union([z.string(), z.array(z.string())])
+            .describe("Text or array of texts to embed"),
+          model: z
+            .string()
+            .optional()
+            .default("text-embedding-3-small")
+            .describe("Embedding model"),
         },
       },
       async ({ input, model }) => {
         try {
           const { user } = getAuthContext();
           const inputs = Array.isArray(input) ? input : [input];
-          const totalTokens = inputs.reduce((sum, text) => sum + estimateTokens(text), 0);
+          const totalTokens = inputs.reduce(
+            (sum, text) => sum + estimateTokens(text),
+            0,
+          );
           const COST_PER_TOKEN = 0.00002 / 1000;
           const cost = totalTokens * COST_PER_TOKEN;
 
@@ -3473,21 +3639,49 @@ const mcpHandler = createMcpHandler(
           if (!deduction.success) throw new Error("Credit deduction failed");
 
           const provider = getProvider();
-          const response = await provider.createEmbeddings({ model, input: inputs });
+          const response = await provider.createEmbeddings({
+            model,
+            input: inputs,
+          });
           const data = await response.json();
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({
-              success: true,
-              embeddings: data.data.map((d: { embedding: number[] }) => d.embedding),
-              model,
-              usage: { totalTokens },
-              cost,
-            }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    embeddings: data.data.map(
+                      (d: { embedding: number[] }) => d.embedding,
+                    ),
+                    model,
+                    usage: { totalTokens },
+                    cost,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to generate embeddings" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to generate embeddings",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -3508,18 +3702,43 @@ const mcpHandler = createMcpHandler(
           const data = await response.json();
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({
-              success: true,
-              models: data.data.map((m: { id: string; owned_by: string }) => ({
-                id: m.id,
-                owned_by: m.owned_by,
-              })),
-              total: data.data.length,
-            }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    models: data.data.map(
+                      (m: { id: string; owned_by: string }) => ({
+                        id: m.id,
+                        owned_by: m.owned_by,
+                      }),
+                    ),
+                    total: data.data.length,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list models" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to list models",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -3530,11 +3749,22 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "query_knowledge",
       {
-        description: "Query the knowledge base using semantic search. Cost: varies by result count",
+        description:
+          "Query the knowledge base using semantic search. Cost: varies by result count",
         inputSchema: {
           query: z.string().describe("Search query"),
-          characterId: z.string().optional().describe("Filter by character/agent ID"),
-          limit: z.number().int().min(1).max(20).optional().default(5).describe("Max results"),
+          characterId: z
+            .string()
+            .optional()
+            .describe("Filter by character/agent ID"),
+          limit: z
+            .number()
+            .int()
+            .min(1)
+            .max(20)
+            .optional()
+            .default(5)
+            .describe("Max results"),
         },
       },
       async ({ query, characterId, limit }) => {
@@ -3550,19 +3780,43 @@ const mcpHandler = createMcpHandler(
           });
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({
-              success: true,
-              results: results.map((r) => ({
-                content: r.memory.content?.text || String(r.memory.content),
-                score: r.score,
-                id: r.memory.id,
-              })),
-              count: results.length,
-            }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    results: results.map((r) => ({
+                      content:
+                        r.memory.content?.text || String(r.memory.content),
+                      score: r.score,
+                      id: r.memory.id,
+                    })),
+                    count: results.length,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to query knowledge" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to query knowledge",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -3575,36 +3829,72 @@ const mcpHandler = createMcpHandler(
       {
         description: "List all generated media (images and videos). FREE tool.",
         inputSchema: {
-          type: z.enum(["image", "video"]).optional().describe("Filter by media type"),
-          limit: z.number().int().min(1).max(50).optional().default(20).describe("Max results"),
+          type: z
+            .enum(["image", "video"])
+            .optional()
+            .describe("Filter by media type"),
+          limit: z
+            .number()
+            .int()
+            .min(1)
+            .max(50)
+            .optional()
+            .default(20)
+            .describe("Max results"),
         },
       },
       async ({ type, limit }) => {
         try {
           const { user } = getAuthContext();
 
-          let generations = await generationsService.listByOrganization(user.organization_id!, limit);
+          let generations = await generationsService.listByOrganization(
+            user.organization_id!,
+            limit,
+          );
           if (type) {
             generations = generations.filter((g) => g.type === type);
           }
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({
-              success: true,
-              media: generations.map((g) => ({
-                id: g.id,
-                type: g.type,
-                url: g.storage_url || g.content || "",
-                prompt: g.prompt || "",
-                status: g.status,
-                createdAt: g.created_at,
-              })),
-              total: generations.length,
-            }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    media: generations.map((g) => ({
+                      id: g.id,
+                      type: g.type,
+                      url: g.storage_url || g.content || "",
+                      prompt: g.prompt || "",
+                      status: g.status,
+                      createdAt: g.created_at,
+                    })),
+                    total: generations.length,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list gallery" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to list gallery",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -3615,7 +3905,8 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "text_to_speech",
       {
-        description: "Convert text to speech audio. Cost: ~$0.001 per 100 chars",
+        description:
+          "Convert text to speech audio. Cost: ~$0.001 per 100 chars",
         inputSchema: {
           text: z.string().max(5000).describe("Text to convert to speech"),
           voiceId: z.string().optional().describe("ElevenLabs voice ID"),
@@ -3635,16 +3926,46 @@ const mcpHandler = createMcpHandler(
           if (!deduction.success) throw new Error("Insufficient credits");
 
           const elevenLabs = await getElevenLabsService();
-          const audioBuffer = await elevenLabs.textToSpeech(text, voiceId || "21m00Tcm4TlvDq8ikWAM");
+          const audioBuffer = await elevenLabs.textToSpeech(
+            text,
+            voiceId || "21m00Tcm4TlvDq8ikWAM",
+          );
           const { uploadFromBuffer } = await import("@/lib/blob");
-          const audioUrl = await uploadFromBuffer(audioBuffer, `tts-${Date.now()}.mp3`, "audio/mpeg");
+          const audioUrl = await uploadFromBuffer(
+            audioBuffer,
+            `tts-${Date.now()}.mp3`,
+            "audio/mpeg",
+          );
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ success: true, audioUrl, format: "mp3", cost: TTS_COST }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { success: true, audioUrl, format: "mp3", cost: TTS_COST },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to generate speech" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to generate speech",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -3664,18 +3985,47 @@ const mcpHandler = createMcpHandler(
           const voices = await elevenLabs.listVoices();
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({
-              success: true,
-              voices: voices.map((v: { voice_id: string; name: string; category: string }) => ({
-                id: v.voice_id,
-                name: v.name,
-                category: v.category,
-              })),
-            }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    voices: voices.map(
+                      (v: {
+                        voice_id: string;
+                        name: string;
+                        category: string;
+                      }) => ({
+                        id: v.voice_id,
+                        name: v.name,
+                        category: v.category,
+                      }),
+                    ),
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list voices" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to list voices",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -3688,29 +4038,59 @@ const mcpHandler = createMcpHandler(
       {
         description: "Get usage analytics overview. FREE tool.",
         inputSchema: {
-          timeRange: z.enum(["daily", "weekly", "monthly"]).optional().default("daily").describe("Time range"),
+          timeRange: z
+            .enum(["daily", "weekly", "monthly"])
+            .optional()
+            .default("daily")
+            .describe("Time range"),
         },
       },
       async ({ timeRange }) => {
         try {
           const { user } = getAuthContext();
-          const overview = await analyticsService.getOverview(user.organization_id!, timeRange);
+          const overview = await analyticsService.getOverview(
+            user.organization_id!,
+            timeRange,
+          );
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({
-              success: true,
-              overview: {
-                totalRequests: overview.summary.totalRequests,
-                successRate: overview.summary.successRate,
-                totalCost: overview.summary.totalCost,
-                avgCostPerRequest: overview.summary.avgCostPerRequest,
-                timeRange,
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    overview: {
+                      totalRequests: overview.summary.totalRequests,
+                      successRate: overview.summary.successRate,
+                      totalCost: overview.summary.totalCost,
+                      avgCostPerRequest: overview.summary.avgCostPerRequest,
+                      timeRange,
+                    },
+                  },
+                  null,
+                  2,
+                ),
               },
-            }, null, 2) }],
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get analytics" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to get analytics",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -3727,23 +4107,48 @@ const mcpHandler = createMcpHandler(
       async () => {
         try {
           const { user } = getAuthContext();
-          const keys = await apiKeysService.listByOrganization(user.organization_id!);
+          const keys = await apiKeysService.listByOrganization(
+            user.organization_id!,
+          );
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({
-              success: true,
-              apiKeys: keys.map((k) => ({
-                id: k.id,
-                name: k.name,
-                keyPrefix: k.key_prefix,
-                isActive: k.is_active,
-                createdAt: k.created_at,
-              })),
-            }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    apiKeys: keys.map((k) => ({
+                      id: k.id,
+                      name: k.name,
+                      keyPrefix: k.key_prefix,
+                      isActive: k.is_active,
+                      createdAt: k.created_at,
+                    })),
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list API keys" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to list API keys",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -3754,11 +4159,18 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "create_api_key",
       {
-        description: "Create a new API key. FREE tool. Returns plain key only once!",
+        description:
+          "Create a new API key. FREE tool. Returns plain key only once!",
         inputSchema: {
           name: z.string().min(1).describe("API key name"),
           description: z.string().optional().describe("Description"),
-          rateLimit: z.number().int().min(1).optional().default(1000).describe("Rate limit per minute"),
+          rateLimit: z
+            .number()
+            .int()
+            .min(1)
+            .optional()
+            .default(1000)
+            .describe("Rate limit per minute"),
         },
       },
       async ({ name, description, rateLimit }) => {
@@ -3777,16 +4189,44 @@ const mcpHandler = createMcpHandler(
           });
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({
-              success: true,
-              apiKey: { id: apiKey.id, name: apiKey.name, keyPrefix: apiKey.key_prefix },
-              plainKey, // IMPORTANT: Only shown once!
-              warning: "Store this key securely - it will not be shown again!",
-            }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    apiKey: {
+                      id: apiKey.id,
+                      name: apiKey.name,
+                      keyPrefix: apiKey.key_prefix,
+                    },
+                    plainKey, // IMPORTANT: Only shown once!
+                    warning:
+                      "Store this key securely - it will not be shown again!",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to create API key" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to create API key",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -3808,11 +4248,30 @@ const mcpHandler = createMcpHandler(
           await apiKeysService.delete(apiKeyId, user.organization_id!);
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ success: true, apiKeyId }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ success: true, apiKeyId }, null, 2),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to delete API key" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to delete API key",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -3829,20 +4288,51 @@ const mcpHandler = createMcpHandler(
       async () => {
         try {
           const { user } = getAuthContext();
-          const balance = await secureTokenRedemptionService.getEarnedBalance(user.organization_id!);
-          const pending = await secureTokenRedemptionService.getPendingRedemptions(user.organization_id!);
+          const balance = await secureTokenRedemptionService.getEarnedBalance(
+            user.organization_id!,
+          );
+          const pending =
+            await secureTokenRedemptionService.getPendingRedemptions(
+              user.organization_id!,
+            );
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({
-              success: true,
-              redeemableBalance: balance,
-              pendingRedemptions: pending.reduce((sum, p) => sum + p.pointsAmount, 0),
-              pendingCount: pending.length,
-            }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    redeemableBalance: balance,
+                    pendingRedemptions: pending.reduce(
+                      (sum, p) => sum + p.pointsAmount,
+                      0,
+                    ),
+                    pendingCount: pending.length,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get redemption balance" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to get redemption balance",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -3879,11 +4369,34 @@ const mcpHandler = createMcpHandler(
 
           const prompts = JSON.parse(text);
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ success: true, prompts, cost: COST }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { success: true, prompts, cost: COST },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to generate prompts" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to generate prompts",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -3898,7 +4411,10 @@ const mcpHandler = createMcpHandler(
         inputSchema: {
           content: z.string().describe("Document content"),
           title: z.string().describe("Document title"),
-          characterId: z.string().optional().describe("Associate with specific agent"),
+          characterId: z
+            .string()
+            .optional()
+            .describe("Associate with specific agent"),
         },
       },
       async ({ content, title, characterId }) => {
@@ -3922,16 +4438,39 @@ const mcpHandler = createMcpHandler(
           });
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({
-              success: true,
-              documentId: result.memoryId,
-              status: "indexed",
-              cost: COST,
-            }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    documentId: result.memoryId,
+                    status: "indexed",
+                    cost: COST,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to upload knowledge" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to upload knowledge",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -3950,18 +4489,49 @@ const mcpHandler = createMcpHandler(
       async ({ containerId }) => {
         try {
           const { user } = getAuthContext();
-          const container = await getContainer(containerId, user.organization_id!);
+          const container = await getContainer(
+            containerId,
+            user.organization_id!,
+          );
           if (!container) throw new Error("Container not found");
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({
-              success: true,
-              container: { id: container.id, name: container.name, status: container.status, url: container.load_balancer_url },
-            }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    container: {
+                      id: container.id,
+                      name: container.name,
+                      status: container.status,
+                      url: container.load_balancer_url,
+                    },
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get container" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to get container",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -3980,19 +4550,45 @@ const mcpHandler = createMcpHandler(
       async ({ containerId }) => {
         try {
           const { user } = getAuthContext();
-          const container = await getContainer(containerId, user.organization_id!);
+          const container = await getContainer(
+            containerId,
+            user.organization_id!,
+          );
           if (!container) throw new Error("Container not found");
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({
-              success: true,
-              healthy: container.status === "running",
-              status: container.status,
-            }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    healthy: container.status === "running",
+                    status: container.status,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get container health" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to get container health",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -4006,25 +4602,60 @@ const mcpHandler = createMcpHandler(
         description: "Get container logs. FREE tool.",
         inputSchema: {
           containerId: z.string().uuid().describe("Container ID"),
-          limit: z.number().int().min(1).max(100).optional().default(50).describe("Max log entries"),
+          limit: z
+            .number()
+            .int()
+            .min(1)
+            .max(100)
+            .optional()
+            .default(50)
+            .describe("Max log entries"),
         },
       },
       async ({ containerId, limit }) => {
         try {
           const { user } = getAuthContext();
-          const container = await getContainer(containerId, user.organization_id!);
+          const container = await getContainer(
+            containerId,
+            user.organization_id!,
+          );
           if (!container) throw new Error("Container not found");
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({
-              success: true,
-              logs: [`Container ${containerId} status: ${container.status}`],
-              limit,
-            }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    logs: [
+                      `Container ${containerId} status: ${container.status}`,
+                    ],
+                    limit,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get container logs" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to get container logs",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -4037,25 +4668,69 @@ const mcpHandler = createMcpHandler(
       {
         description: "List MCP servers. FREE tool.",
         inputSchema: {
-          scope: z.enum(["own", "public"]).optional().default("own").describe("Scope"),
-          limit: z.number().int().min(1).max(50).optional().default(20).describe("Max results"),
+          scope: z
+            .enum(["own", "public"])
+            .optional()
+            .default("own")
+            .describe("Scope"),
+          limit: z
+            .number()
+            .int()
+            .min(1)
+            .max(50)
+            .optional()
+            .default(20)
+            .describe("Max results"),
         },
       },
       async ({ scope, limit }) => {
         try {
           const { user } = getAuthContext();
-          const mcps = await userMcpsService.list({ organizationId: user.organization_id!, scope, limit, offset: 0 });
+          const mcps = await userMcpsService.list({
+            organizationId: user.organization_id!,
+            scope,
+            limit,
+            offset: 0,
+          });
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({
-              success: true,
-              mcps: mcps.map((m) => ({ id: m.id, name: m.name, slug: m.slug, status: m.status })),
-              total: mcps.length,
-            }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    mcps: mcps.map((m) => ({
+                      id: m.id,
+                      name: m.name,
+                      slug: m.slug,
+                      status: m.status,
+                    })),
+                    total: mcps.length,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list MCPs" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to list MCPs",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -4069,7 +4744,12 @@ const mcpHandler = createMcpHandler(
         description: "Create a new MCP server. FREE tool.",
         inputSchema: {
           name: z.string().min(1).max(100).describe("MCP name"),
-          slug: z.string().min(1).max(50).regex(/^[a-z0-9-]+$/).describe("URL slug"),
+          slug: z
+            .string()
+            .min(1)
+            .max(50)
+            .regex(/^[a-z0-9-]+$/)
+            .describe("URL slug"),
           description: z.string().min(1).max(1000).describe("Description"),
         },
       },
@@ -4079,16 +4759,41 @@ const mcpHandler = createMcpHandler(
           const mcp = await userMcpsService.create({
             organization_id: user.organization_id!,
             user_id: user.id,
-            name, slug, description,
+            name,
+            slug,
+            description,
             status: "draft",
           });
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ success: true, mcpId: mcp.id, slug: mcp.slug }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { success: true, mcpId: mcp.id, slug: mcp.slug },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to create MCP" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to create MCP",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -4110,11 +4815,30 @@ const mcpHandler = createMcpHandler(
           await userMcpsService.delete(mcpId, user.organization_id!);
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ success: true, mcpId }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ success: true, mcpId }, null, 2),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to delete MCP" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to delete MCP",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -4134,15 +4858,42 @@ const mcpHandler = createMcpHandler(
           const rooms = await roomsService.getRoomsForEntity(user.id);
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({
-              success: true,
-              rooms: rooms.map((r) => ({ id: r.id, characterId: r.character_id, lastMessage: r.last_message_preview })),
-              total: rooms.length,
-            }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    rooms: rooms.map((r) => ({
+                      id: r.id,
+                      characterId: r.character_id,
+                      lastMessage: r.last_message_preview,
+                    })),
+                    total: rooms.length,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list rooms" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to list rooms",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -4168,11 +4919,34 @@ const mcpHandler = createMcpHandler(
           });
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ success: true, roomId: room.id, characterId: room.agentId }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { success: true, roomId: room.id, characterId: room.agentId },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to create room" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to create room",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -4191,20 +4965,43 @@ const mcpHandler = createMcpHandler(
           const { user } = getAuthContext();
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({
-              success: true,
-              user: {
-                id: user.id,
-                email: user.email,
-                name: user.name,
-                organizationId: user.organization_id,
-                creditBalance: user.organization.credit_balance,
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    user: {
+                      id: user.id,
+                      email: user.email,
+                      name: user.name,
+                      organizationId: user.organization_id,
+                      creditBalance: user.organization.credit_balance,
+                    },
+                  },
+                  null,
+                  2,
+                ),
               },
-            }, null, 2) }],
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get user profile" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to get user profile",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -4217,7 +5014,12 @@ const mcpHandler = createMcpHandler(
       {
         description: "Update user profile. FREE tool.",
         inputSchema: {
-          name: z.string().min(1).max(100).optional().describe("New display name"),
+          name: z
+            .string()
+            .min(1)
+            .max(100)
+            .optional()
+            .describe("New display name"),
         },
       },
       async ({ name }) => {
@@ -4228,11 +5030,30 @@ const mcpHandler = createMcpHandler(
           }
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ success: true }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ success: true }, null, 2),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to update profile" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to update profile",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -4245,20 +5066,49 @@ const mcpHandler = createMcpHandler(
       {
         description: "Get token redemption quote. FREE tool.",
         inputSchema: {
-          pointsAmount: z.number().int().min(100).max(100000).describe("Points to redeem"),
-          network: z.enum(["ethereum", "base", "bnb", "solana"]).describe("Payout network"),
+          pointsAmount: z
+            .number()
+            .int()
+            .min(100)
+            .max(100000)
+            .describe("Points to redeem"),
+          network: z
+            .enum(["ethereum", "base", "bnb", "solana"])
+            .describe("Payout network"),
         },
       },
       async ({ pointsAmount, network }) => {
         try {
-          const quote = await secureTokenRedemptionService.getRedemptionQuote(pointsAmount, network);
+          const quote = await secureTokenRedemptionService.getRedemptionQuote(
+            pointsAmount,
+            network,
+          );
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ success: true, quote }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ success: true, quote }, null, 2),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get redemption quote" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to get redemption quote",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -4274,13 +5124,45 @@ const mcpHandler = createMcpHandler(
           name: z.string().min(1).max(100).describe("Container name"),
           ecrImageUri: z.string().describe("ECR image URI"),
           projectName: z.string().min(1).max(50).describe("Project name"),
-          port: z.number().int().min(1).max(65535).optional().default(3000).describe("Port"),
-          cpu: z.number().int().min(256).max(2048).optional().default(1792).describe("CPU units"),
-          memory: z.number().int().min(256).max(2048).optional().default(1792).describe("Memory MB"),
-          environmentVars: z.record(z.string()).optional().describe("Environment variables"),
+          port: z
+            .number()
+            .int()
+            .min(1)
+            .max(65535)
+            .optional()
+            .default(3000)
+            .describe("Port"),
+          cpu: z
+            .number()
+            .int()
+            .min(256)
+            .max(2048)
+            .optional()
+            .default(1792)
+            .describe("CPU units"),
+          memory: z
+            .number()
+            .int()
+            .min(256)
+            .max(2048)
+            .optional()
+            .default(1792)
+            .describe("Memory MB"),
+          environmentVars: z
+            .record(z.string())
+            .optional()
+            .describe("Environment variables"),
         },
       },
-      async ({ name, ecrImageUri, projectName, port, cpu, memory, environmentVars }) => {
+      async ({
+        name,
+        ecrImageUri,
+        projectName,
+        port,
+        cpu,
+        memory,
+        environmentVars,
+      }) => {
         try {
           const { user } = getAuthContext();
           const DEPLOYMENT_COST = 10;
@@ -4310,17 +5192,40 @@ const mcpHandler = createMcpHandler(
           });
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({
-              success: true,
-              containerId: container.id,
-              name: container.name,
-              status: container.status,
-              cost: DEPLOYMENT_COST,
-            }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    containerId: container.id,
+                    name: container.name,
+                    status: container.status,
+                    cost: DEPLOYMENT_COST,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to create container" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to create container",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -4339,16 +5244,38 @@ const mcpHandler = createMcpHandler(
       async ({ containerId }) => {
         try {
           const { user } = getAuthContext();
-          const container = await getContainer(containerId, user.organization_id!);
+          const container = await getContainer(
+            containerId,
+            user.organization_id!,
+          );
           if (!container) throw new Error("Container not found");
 
           await deleteContainer(containerId, user.organization_id!);
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ success: true, containerId }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ success: true, containerId }, null, 2),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to delete container" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to delete container",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -4367,24 +5294,50 @@ const mcpHandler = createMcpHandler(
       async ({ containerId }) => {
         try {
           const { user } = getAuthContext();
-          const container = await getContainer(containerId, user.organization_id!);
+          const container = await getContainer(
+            containerId,
+            user.organization_id!,
+          );
           if (!container) throw new Error("Container not found");
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({
-              success: true,
-              metrics: {
-                containerId,
-                status: container.status,
-                cpu: container.cpu,
-                memory: container.memory,
-                createdAt: container.created_at,
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    metrics: {
+                      containerId,
+                      status: container.status,
+                      cpu: container.cpu,
+                      memory: container.memory,
+                      createdAt: container.created_at,
+                    },
+                  },
+                  null,
+                  2,
+                ),
               },
-            }, null, 2) }],
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get container metrics" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to get container metrics",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -4401,21 +5354,46 @@ const mcpHandler = createMcpHandler(
       async () => {
         try {
           const { user } = getAuthContext();
-          const containers = await containersService.listByOrganization(user.organization_id!);
+          const containers = await containersService.listByOrganization(
+            user.organization_id!,
+          );
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({
-              success: true,
-              quota: {
-                used: containers.length,
-                limit: 5,
-                remaining: Math.max(0, 5 - containers.length),
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    quota: {
+                      used: containers.length,
+                      limit: 5,
+                      remaining: Math.max(0, 5 - containers.length),
+                    },
+                  },
+                  null,
+                  2,
+                ),
               },
-            }, null, 2) }],
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get container quota" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to get container quota",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -4435,24 +5413,54 @@ const mcpHandler = createMcpHandler(
           const org = await organizationsService.getById(user.organization_id!);
           if (!org) throw new Error("Organization not found");
 
-          const redeemable = await redeemableEarningsService.getBalance(user.organization_id!);
-          const agentBudgets = await agentBudgetService.getOrgBudgets(user.organization_id!);
-          const totalAgentBudgets = agentBudgets.reduce((sum, b) => sum + Number(b.remaining_budget || 0), 0);
+          const redeemable = await redeemableEarningsService.getBalance(
+            user.organization_id!,
+          );
+          const agentBudgets = await agentBudgetService.getOrgBudgets(
+            user.organization_id!,
+          );
+          const totalAgentBudgets = agentBudgets.reduce(
+            (sum, b) => sum + Number(b.remaining_budget || 0),
+            0,
+          );
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({
-              success: true,
-              summary: {
-                organizationCredits: Number(org.credit_balance),
-                redeemableEarnings: redeemable,
-                totalAgentBudgets,
-                agentCount: agentBudgets.length,
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    summary: {
+                      organizationCredits: Number(org.credit_balance),
+                      redeemableEarnings: redeemable,
+                      totalAgentBudgets,
+                      agentCount: agentBudgets.length,
+                    },
+                  },
+                  null,
+                  2,
+                ),
               },
-            }, null, 2) }],
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get credit summary" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to get credit summary",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -4465,36 +5473,77 @@ const mcpHandler = createMcpHandler(
       {
         description: "List credit transactions. FREE tool.",
         inputSchema: {
-          limit: z.number().int().min(1).max(100).optional().default(50).describe("Max results"),
-          hours: z.number().int().min(1).optional().describe("Filter to last N hours"),
+          limit: z
+            .number()
+            .int()
+            .min(1)
+            .max(100)
+            .optional()
+            .default(50)
+            .describe("Max results"),
+          hours: z
+            .number()
+            .int()
+            .min(1)
+            .optional()
+            .describe("Filter to last N hours"),
         },
       },
       async ({ limit, hours }) => {
         try {
           const { user } = getAuthContext();
-          let transactions = await creditsService.listTransactionsByOrganization(user.organization_id!, limit);
+          let transactions =
+            await creditsService.listTransactionsByOrganization(
+              user.organization_id!,
+              limit,
+            );
 
           if (hours) {
             const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
-            transactions = transactions.filter((t) => new Date(t.created_at) >= cutoffTime);
+            transactions = transactions.filter(
+              (t) => new Date(t.created_at) >= cutoffTime,
+            );
           }
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({
-              success: true,
-              transactions: transactions.map((t) => ({
-                id: t.id,
-                amount: Number(t.amount),
-                type: t.type,
-                description: t.description,
-                createdAt: t.created_at,
-              })),
-              total: transactions.length,
-            }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    transactions: transactions.map((t) => ({
+                      id: t.id,
+                      amount: Number(t.amount),
+                      type: t.type,
+                      description: t.description,
+                      createdAt: t.created_at,
+                    })),
+                    total: transactions.length,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list transactions" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to list transactions",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -4513,21 +5562,44 @@ const mcpHandler = createMcpHandler(
           const packs = await creditsService.listActiveCreditPacks();
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({
-              success: true,
-              packs: packs.map((p) => ({
-                id: p.id,
-                name: p.name,
-                credits: Number(p.credits),
-                price: Number(p.price),
-                currency: p.currency,
-                popular: p.popular,
-              })),
-            }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    packs: packs.map((p) => ({
+                      id: p.id,
+                      name: p.name,
+                      credits: Number(p.credits),
+                      price: Number(p.price),
+                      currency: p.currency,
+                      popular: p.popular,
+                    })),
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list credit packs" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to list credit packs",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -4618,40 +5690,87 @@ const mcpHandler = createMcpHandler(
       {
         description: "Get billing usage statistics. FREE tool.",
         inputSchema: {
-          days: z.number().int().min(1).max(90).optional().default(30).describe("Days to include"),
+          days: z
+            .number()
+            .int()
+            .min(1)
+            .max(90)
+            .optional()
+            .default(30)
+            .describe("Days to include"),
         },
       },
       async ({ days }) => {
         try {
           const { user } = getAuthContext();
-          const usage = await usageService.listByOrganization(user.organization_id!, 1000);
+          const usage = await usageService.listByOrganization(
+            user.organization_id!,
+            1000,
+          );
 
           const cutoffTime = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-          const recentUsage = usage.filter((u) => new Date(u.created_at) >= cutoffTime);
+          const recentUsage = usage.filter(
+            (u) => new Date(u.created_at) >= cutoffTime,
+          );
 
-          const totalCost = recentUsage.reduce((sum, u) => sum + Number(u.input_cost || 0) + Number(u.output_cost || 0), 0);
-          const totalTokens = recentUsage.reduce((sum, u) => sum + (u.input_tokens || 0) + (u.output_tokens || 0), 0);
+          const totalCost = recentUsage.reduce(
+            (sum, u) =>
+              sum + Number(u.input_cost || 0) + Number(u.output_cost || 0),
+            0,
+          );
+          const totalTokens = recentUsage.reduce(
+            (sum, u) => sum + (u.input_tokens || 0) + (u.output_tokens || 0),
+            0,
+          );
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({
-              success: true,
-              usage: {
-                period: `${days} days`,
-                totalRequests: recentUsage.length,
-                totalTokens,
-                totalCost,
-                byType: {
-                  chat: recentUsage.filter((u) => u.type === "chat").length,
-                  image: recentUsage.filter((u) => u.type === "image").length,
-                  video: recentUsage.filter((u) => u.type === "video").length,
-                  embedding: recentUsage.filter((u) => u.type === "embedding").length,
-                },
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    usage: {
+                      period: `${days} days`,
+                      totalRequests: recentUsage.length,
+                      totalTokens,
+                      totalCost,
+                      byType: {
+                        chat: recentUsage.filter((u) => u.type === "chat")
+                          .length,
+                        image: recentUsage.filter((u) => u.type === "image")
+                          .length,
+                        video: recentUsage.filter((u) => u.type === "video")
+                          .length,
+                        embedding: recentUsage.filter(
+                          (u) => u.type === "embedding",
+                        ).length,
+                      },
+                    },
+                  },
+                  null,
+                  2,
+                ),
               },
-            }, null, 2) }],
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get billing usage" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to get billing usage",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -4671,7 +5790,10 @@ const mcpHandler = createMcpHandler(
           "Discover services (agents, MCPs, apps) from both Eliza Cloud and the ERC-8004 registry. " +
           "Use this to find external services to interact with. FREE tool.",
         inputSchema: {
-          query: z.string().optional().describe("Search query to filter by name or description"),
+          query: z
+            .string()
+            .optional()
+            .describe("Search query to filter by name or description"),
           types: z
             .array(z.enum(["agent", "mcp", "a2a", "app"]))
             .optional()
@@ -4679,18 +5801,50 @@ const mcpHandler = createMcpHandler(
           sources: z
             .array(z.enum(["local", "erc8004"]))
             .optional()
-            .describe("Sources to search (local = Eliza Cloud, erc8004 = decentralized)"),
-          categories: z.array(z.string()).optional().describe("Filter by categories"),
+            .describe(
+              "Sources to search (local = Eliza Cloud, erc8004 = decentralized)",
+            ),
+          categories: z
+            .array(z.string())
+            .optional()
+            .describe("Filter by categories"),
           tags: z.array(z.string()).optional().describe("Filter by tags"),
-          mcpTools: z.array(z.string()).optional().describe("Find services with specific MCP tools"),
-          a2aSkills: z.array(z.string()).optional().describe("Find services with specific A2A skills"),
-          x402Only: z.boolean().optional().describe("Only return services with x402 payment support"),
-          limit: z.number().int().min(1).max(50).optional().default(20).describe("Max results"),
+          mcpTools: z
+            .array(z.string())
+            .optional()
+            .describe("Find services with specific MCP tools"),
+          a2aSkills: z
+            .array(z.string())
+            .optional()
+            .describe("Find services with specific A2A skills"),
+          x402Only: z
+            .boolean()
+            .optional()
+            .describe("Only return services with x402 payment support"),
+          limit: z
+            .number()
+            .int()
+            .min(1)
+            .max(50)
+            .optional()
+            .default(20)
+            .describe("Max results"),
         },
       },
-      async ({ query, types, sources, categories, tags, mcpTools, a2aSkills, x402Only, limit }) => {
+      async ({
+        query,
+        types,
+        sources,
+        categories,
+        tags,
+        mcpTools,
+        a2aSkills,
+        x402Only,
+        limit,
+      }) => {
         try {
-          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+          const baseUrl =
+            process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
           const services: Array<{
             id: string;
             name: string;
@@ -4718,7 +5872,9 @@ const mcpHandler = createMcpHandler(
                 services.push({
                   id: char.id,
                   name: char.name,
-                  description: Array.isArray(char.bio) ? char.bio.join(" ") : char.bio,
+                  description: Array.isArray(char.bio)
+                    ? char.bio.join(" ")
+                    : char.bio,
                   type: "agent",
                   source: "local",
                   a2aEndpoint: `${baseUrl}/api/agents/${char.id}/a2a`,
@@ -4762,8 +5918,15 @@ const mcpHandler = createMcpHandler(
             });
 
             for (const agent of agents) {
-              const discovered = agent0ToDiscoveredService(agent, network, chainId);
-              if (!searchTypes.length || searchTypes.includes(discovered.type)) {
+              const discovered = agent0ToDiscoveredService(
+                agent,
+                network,
+                chainId,
+              );
+              if (
+                !searchTypes.length ||
+                searchTypes.includes(discovered.type)
+              ) {
                 services.push({
                   id: discovered.id,
                   name: discovered.name,
@@ -4779,18 +5942,38 @@ const mcpHandler = createMcpHandler(
           }
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                success: true,
-                count: services.length,
-                services: services.slice(0, limit),
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    count: services.length,
+                    services: services.slice(0, limit),
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Discovery failed" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Discovery failed",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -4805,7 +5988,11 @@ const mcpHandler = createMcpHandler(
           "Get detailed information about a specific service from the ERC-8004 registry. " +
           "Use agentId in format 'chainId:tokenId'. FREE tool.",
         inputSchema: {
-          agentId: z.string().describe("Agent ID in format 'chainId:tokenId' (e.g., '84532:123')"),
+          agentId: z
+            .string()
+            .describe(
+              "Agent ID in format 'chainId:tokenId' (e.g., '84532:123')",
+            ),
         },
       },
       async ({ agentId }) => {
@@ -4813,7 +6000,16 @@ const mcpHandler = createMcpHandler(
           const agent = await agent0Service.getAgentCached(agentId);
           if (!agent) {
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: "Agent not found", agentId }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: "Agent not found", agentId },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
@@ -4823,17 +6019,37 @@ const mcpHandler = createMcpHandler(
           const service = agent0ToDiscoveredService(agent, network, chainId);
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                success: true,
-                service,
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    service,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get service details" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to get service details",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -4848,8 +6064,13 @@ const mcpHandler = createMcpHandler(
           "Find services that provide specific MCP tools. " +
           "Useful for discovering external capabilities. FREE tool.",
         inputSchema: {
-          tools: z.array(z.string()).describe("List of MCP tool names to search for"),
-          x402Only: z.boolean().optional().describe("Only return services with x402 payment"),
+          tools: z
+            .array(z.string())
+            .describe("List of MCP tool names to search for"),
+          x402Only: z
+            .boolean()
+            .optional()
+            .describe("Only return services with x402 payment"),
         },
       },
       async ({ tools, x402Only }) => {
@@ -4858,7 +6079,9 @@ const mcpHandler = createMcpHandler(
           const chainId = CHAIN_IDS[network];
 
           const agents = await agent0Service.findAgentsWithToolsCached(tools);
-          const filtered = x402Only ? agents.filter((a) => a.x402Support) : agents;
+          const filtered = x402Only
+            ? agents.filter((a) => a.x402Support)
+            : agents;
 
           const results = filtered.map((agent) => ({
             agentId: agent.agentId,
@@ -4872,19 +6095,39 @@ const mcpHandler = createMcpHandler(
           }));
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                success: true,
-                searchedTools: tools,
-                count: results.length,
-                services: results,
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    searchedTools: tools,
+                    count: results.length,
+                    services: results,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to find MCP tools" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to find MCP tools",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -4899,8 +6142,13 @@ const mcpHandler = createMcpHandler(
           "Find agents that have specific A2A skills for agent-to-agent communication. " +
           "Useful for discovering agents to collaborate with. FREE tool.",
         inputSchema: {
-          skills: z.array(z.string()).describe("List of A2A skill names to search for"),
-          x402Only: z.boolean().optional().describe("Only return services with x402 payment"),
+          skills: z
+            .array(z.string())
+            .describe("List of A2A skill names to search for"),
+          x402Only: z
+            .boolean()
+            .optional()
+            .describe("Only return services with x402 payment"),
         },
       },
       async ({ skills, x402Only }) => {
@@ -4909,7 +6157,9 @@ const mcpHandler = createMcpHandler(
           const chainId = CHAIN_IDS[network];
 
           const agents = await agent0Service.findAgentsWithSkillsCached(skills);
-          const filtered = x402Only ? agents.filter((a) => a.x402Support) : agents;
+          const filtered = x402Only
+            ? agents.filter((a) => a.x402Support)
+            : agents;
 
           const results = filtered.map((agent) => ({
             agentId: agent.agentId,
@@ -4923,19 +6173,39 @@ const mcpHandler = createMcpHandler(
           }));
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                success: true,
-                searchedSkills: skills,
-                count: results.length,
-                agents: results,
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    searchedSkills: skills,
+                    count: results.length,
+                    agents: results,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to find A2A skills" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to find A2A skills",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -8410,13 +9680,15 @@ async function handleRequest(req: NextRequest) {
 
     // Track request for agent reputation (fire and forget)
     const agentIdentifier = `org:${authResult.user.organization_id}`;
-    agentReputationService.recordRequest({
-      agentIdentifier,
-      isSuccessful: true,
-      method: "mcp",
-    }).catch(() => {
-      // Ignore errors - don't fail MCP request for reputation tracking
-    });
+    agentReputationService
+      .recordRequest({
+        agentIdentifier,
+        isSuccessful: true,
+        method: "mcp",
+      })
+      .catch(() => {
+        // Ignore errors - don't fail MCP request for reputation tracking
+      });
 
     // Run MCP handler within auth context using AsyncLocalStorage
     // NextRequest extends Request, but the mcp-handler declares a global Request augmentation
@@ -8426,13 +9698,22 @@ async function handleRequest(req: NextRequest) {
     });
   } catch (error) {
     // Return 402 with x402 payment info if enabled and configured
-    const { X402_ENABLED, X402_RECIPIENT_ADDRESS, getDefaultNetwork, USDC_ADDRESSES, TOPUP_PRICE, CREDITS_PER_DOLLAR, isX402Configured } = await import("@/lib/config/x402");
-    
+    const {
+      X402_ENABLED,
+      X402_RECIPIENT_ADDRESS,
+      getDefaultNetwork,
+      USDC_ADDRESSES,
+      TOPUP_PRICE,
+      CREDITS_PER_DOLLAR,
+      isX402Configured,
+    } = await import("@/lib/config/x402");
+
     if (isX402Configured()) {
       return NextResponse.json(
         {
           error: "authentication_failed",
-          error_description: "Authentication required. Get an API key or top up credits via x402 payment.",
+          error_description:
+            "Authentication required. Get an API key or top up credits via x402 payment.",
           x402: {
             topupEndpoint: "/api/v1/credits/topup",
             network: getDefaultNetwork(),
@@ -8445,7 +9726,8 @@ async function handleRequest(req: NextRequest) {
         {
           status: 402,
           headers: {
-            "WWW-Authenticate": 'Bearer realm="MCP Server", error="invalid_token"',
+            "WWW-Authenticate":
+              'Bearer realm="MCP Server", error="invalid_token"',
           },
         },
       );

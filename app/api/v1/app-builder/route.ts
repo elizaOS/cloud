@@ -51,9 +51,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to list sessions",
+        error:
+          error instanceof Error ? error.message : "Failed to list sessions",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest) {
           error: "Invalid request data",
           details: validationResult.error.format(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -117,7 +118,7 @@ export async function POST(request: NextRequest) {
         error:
           error instanceof Error ? error.message : "Failed to create session",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

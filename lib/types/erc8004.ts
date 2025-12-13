@@ -217,18 +217,20 @@ export interface DiscoveryResponse {
  * Parse an ERC-8004 agentId string (format: "chainId:tokenId")
  * Returns null if parsing fails
  */
-export function parseAgentId(agentId: string): { chainId: number; tokenId: number } | null {
+export function parseAgentId(
+  agentId: string,
+): { chainId: number; tokenId: number } | null {
   if (!agentId || typeof agentId !== "string") return null;
-  
+
   const parts = agentId.split(":");
   if (parts.length !== 2) return null;
-  
+
   const chainId = parseInt(parts[0], 10);
   const tokenId = parseInt(parts[1], 10);
-  
+
   if (isNaN(chainId) || isNaN(tokenId)) return null;
   if (chainId <= 0 || tokenId < 0) return null;
-  
+
   return { chainId, tokenId };
 }
 
@@ -263,7 +265,7 @@ export function agent0ToDiscoveredService(
     };
   },
   network: ERC8004Network,
-  chainId: number
+  chainId: number,
 ): DiscoveredService {
   // Parse agentId with validation
   const parsed = parseAgentId(agent.agentId);
@@ -281,13 +283,19 @@ export function agent0ToDiscoveredService(
   let pricing: ServicePricing;
   if (agent.x402Support) {
     pricing = { type: "x402", description: "Pay-per-request via x402" };
-  } else if (agent.metadata?.pricingType === "credits" && agent.metadata?.creditsPerRequest) {
-    pricing = { 
-      type: "credits", 
+  } else if (
+    agent.metadata?.pricingType === "credits" &&
+    agent.metadata?.creditsPerRequest
+  ) {
+    pricing = {
+      type: "credits",
       amount: agent.metadata.creditsPerRequest,
-      description: `${agent.metadata.creditsPerRequest} credits per request` 
+      description: `${agent.metadata.creditsPerRequest} credits per request`,
     };
-  } else if (agent.metadata?.pricingType === "free" || !agent.metadata?.pricingType) {
+  } else if (
+    agent.metadata?.pricingType === "free" ||
+    !agent.metadata?.pricingType
+  ) {
     pricing = { type: "free", description: "Free to use" };
   } else {
     // Default: if we can't determine, assume free
@@ -316,5 +324,3 @@ export function agent0ToDiscoveredService(
     pricing,
   };
 }
-
-

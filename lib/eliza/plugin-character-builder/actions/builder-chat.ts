@@ -108,7 +108,11 @@ DO NOT USE when:
 - User confirms they want to save → use CREATE_CHARACTER or SAVE_CHANGES
 
 This is your main tool for understanding what the user wants before taking action.`,
-  validate: async (_runtime: IAgentRuntime, _message: Memory, _state?: State) => {
+  validate: async (
+    _runtime: IAgentRuntime,
+    _message: Memory,
+    _state?: State,
+  ) => {
     return true;
   },
   handler: async (
@@ -138,7 +142,9 @@ This is your main tool for understanding what the user wants before taking actio
 
     const originalSystemPrompt = runtime.character.system;
 
-    const systemTemplate = creatorMode ? creatorModeSystemPrompt : buildModeSystemPrompt;
+    const systemTemplate = creatorMode
+      ? creatorModeSystemPrompt
+      : buildModeSystemPrompt;
     runtime.character.system = cleanPrompt(
       composePromptFromState({ state, template: systemTemplate }),
     );
@@ -176,7 +182,9 @@ This is your main tool for understanding what the user wants before taking actio
     [
       {
         name: "{{user1}}",
-        content: { text: "What's the difference between a companion and assistant?" },
+        content: {
+          text: "What's the difference between a companion and assistant?",
+        },
       },
       {
         name: "{{agentName}}",

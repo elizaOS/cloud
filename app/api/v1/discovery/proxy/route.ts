@@ -25,7 +25,9 @@ import { logger } from "@/lib/utils/logger";
 
 const requestSchema = z.object({
   /** ERC-8004 agent ID in format "chainId:tokenId" */
-  agentId: z.string().regex(/^\d+:\d+$/, "Invalid agentId format. Use 'chainId:tokenId'"),
+  agentId: z
+    .string()
+    .regex(/^\d+:\d+$/, "Invalid agentId format. Use 'chainId:tokenId'"),
 
   /** Endpoint type to call */
   endpointType: z.enum(["mcp", "a2a"]),
@@ -54,24 +56,30 @@ const BLOCKED_URL_PATTERNS = [
 /**
  * Validate external endpoint URL for security
  */
-function isValidExternalEndpoint(url: string): { valid: boolean; reason?: string } {
+function isValidExternalEndpoint(url: string): {
+  valid: boolean;
+  reason?: string;
+} {
   // Must be HTTPS in production
   if (process.env.NODE_ENV === "production" && !url.startsWith("https://")) {
-    return { valid: false, reason: "HTTPS required for external endpoints in production" };
+    return {
+      valid: false,
+      reason: "HTTPS required for external endpoints in production",
+    };
   }
-  
+
   // Must be HTTP or HTTPS
   if (!url.startsWith("http://") && !url.startsWith("https://")) {
     return { valid: false, reason: "Only HTTP/HTTPS protocols allowed" };
   }
-  
+
   // Check against blocked patterns (internal IPs, localhost, etc.)
   for (const pattern of BLOCKED_URL_PATTERNS) {
     if (pattern.test(url)) {
       return { valid: false, reason: "Internal/private URLs are blocked" };
     }
   }
-  
+
   // Validate URL can be parsed
   try {
     const parsed = new URL(url);
@@ -81,7 +89,7 @@ function isValidExternalEndpoint(url: string): { valid: boolean; reason?: string
   } catch {
     return { valid: false, reason: "Malformed URL" };
   }
-  
+
   return { valid: true };
 }
 
@@ -107,7 +115,7 @@ export async function POST(request: NextRequest) {
         message: "Too many proxy requests. Max 30 per minute.",
         retryAfter: Math.ceil((rateLimit.retryAfter ?? 60) / 1000),
       },
-      { status: 429 }
+      { status: 429 },
     );
   }
 
@@ -117,11 +125,16 @@ export async function POST(request: NextRequest) {
   if (!parseResult.success) {
     return NextResponse.json(
       { error: "Invalid request", details: parseResult.error.issues },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
-  const { agentId, endpointType, body, headers: customHeaders } = parseResult.data;
+  const {
+    agentId,
+    endpointType,
+    body,
+    headers: customHeaders,
+  } = parseResult.data;
 
   // Validate the target agent is registered on ERC-8004
   const agent = await agent0Service.getAgentCached(agentId);
@@ -131,7 +144,7 @@ export async function POST(request: NextRequest) {
         error: "agent_not_found",
         message: `Agent ${agentId} not found in ERC-8004 registry`,
       },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -141,7 +154,7 @@ export async function POST(request: NextRequest) {
         error: "agent_inactive",
         message: `Agent ${agentId} is not active`,
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -155,7 +168,7 @@ export async function POST(request: NextRequest) {
         error: "endpoint_not_available",
         message: `Agent ${agentId} does not have an ${endpointType.toUpperCase()} endpoint`,
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -173,7 +186,7 @@ export async function POST(request: NextRequest) {
         message: `External endpoint validation failed: ${endpointValidation.reason}`,
         agentId,
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -198,7 +211,7 @@ export async function POST(request: NextRequest) {
         required: PROXY_COST_CREDITS,
         balance: deductResult.balance,
       },
-      { status: 402 }
+      { status: 402 },
     );
   }
 
@@ -239,11 +252,12 @@ export async function POST(request: NextRequest) {
         },
         guidance: {
           step1: "Use the externalEndpoint URL directly",
-          step2: "Add x402 payment headers per https://github.com/coinbase/x402",
+          step2:
+            "Add x402 payment headers per https://github.com/coinbase/x402",
           step3: "Include your payment proof in the X-PAYMENT header",
         },
       },
-      { status: 402 }
+      { status: 402 },
     );
   }
 
@@ -277,7 +291,7 @@ export async function POST(request: NextRequest) {
         agentId,
         creditsRefunded: PROXY_COST_CREDITS,
       },
-      { status: 503 }
+      { status: 503 },
     );
   }
 
@@ -317,7 +331,7 @@ export async function POST(request: NextRequest) {
         creditsCharged: PROXY_COST_CREDITS,
       },
     },
-    { status: externalResponse.ok ? 200 : 502 }
+    { status: externalResponse.ok ? 200 : 502 },
   );
 }
 
@@ -327,8 +341,7 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     endpoint: "/api/v1/discovery/proxy",
-    description:
-      "Proxy requests to external ERC-8004 registered services",
+    description: "Proxy requests to external ERC-8004 registered services",
     usage: {
       method: "POST",
       body: {
@@ -342,4 +355,3 @@ export async function GET() {
     rateLimit: "30 requests per minute",
   });
 }
-

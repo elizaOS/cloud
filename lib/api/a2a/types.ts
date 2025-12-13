@@ -38,7 +38,10 @@ export {
  * A2A execution context with authenticated user and secrets
  */
 export interface A2AContext {
-  user: UserWithOrganization & { organization_id: string; organization: Organization };
+  user: UserWithOrganization & {
+    organization_id: string;
+    organization: Organization;
+  };
   apiKeyId: string | null;
   agentIdentifier: string;
   /**
@@ -490,7 +493,7 @@ export interface GitOperationResult {
  */
 export type MethodHandler<T = Record<string, unknown>, R = unknown> = (
   params: T,
-  ctx: A2AContext
+  ctx: A2AContext,
 ) => Promise<R>;
 
 /**
@@ -500,4 +503,3 @@ export interface MethodDefinition {
   handler: MethodHandler;
   description: string;
 }
-

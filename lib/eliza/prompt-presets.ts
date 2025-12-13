@@ -180,7 +180,9 @@ export function getPromptPreset(name: PromptPresetName): PromptPreset {
  * Get preset from environment variable or return null
  */
 export function getPresetFromEnv(): PromptPreset | null {
-  const presetName = process.env.APP_PROMPT_PRESET as PromptPresetName | undefined;
+  const presetName = process.env.APP_PROMPT_PRESET as
+    | PromptPresetName
+    | undefined;
   if (!presetName) return null;
 
   if (!(presetName in promptPresets)) {
@@ -196,7 +198,7 @@ export function getPresetFromEnv(): PromptPreset | null {
  */
 export function mergePromptConfig(
   config?: PromptConfig,
-  preset?: PromptPreset | null
+  preset?: PromptPreset | null,
 ): PromptConfig {
   const base: PromptConfig = {
     systemPrefix: "",
@@ -226,7 +228,9 @@ export function mergePromptConfig(
 /**
  * Generate flirtiness style directive based on level
  */
-export function getFlirtinessDirective(level: PromptConfig["flirtiness"]): string {
+export function getFlirtinessDirective(
+  level: PromptConfig["flirtiness"],
+): string {
   switch (level) {
     case "high":
       return `

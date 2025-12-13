@@ -39,7 +39,7 @@ const publishBodySchema = z.object({
  */
 export async function POST(
   request: NextRequest,
-  ctx: { params: Promise<{ mcpId: string }> }
+  ctx: { params: Promise<{ mcpId: string }> },
 ) {
   const authResult = await requireAuthOrApiKeyWithOrg(request);
   const { mcpId } = await ctx.params;
@@ -54,7 +54,8 @@ export async function POST(
     const parseResult = publishBodySchema.safeParse(body);
     if (parseResult.success) {
       registerOnChain = parseResult.data.registerOnChain ?? false;
-      network = (parseResult.data.network as ERC8004Network) ?? getDefaultNetwork();
+      network =
+        (parseResult.data.network as ERC8004Network) ?? getDefaultNetwork();
     }
   }
 
@@ -64,7 +65,7 @@ export async function POST(
     {
       registerOnChain,
       network,
-    }
+    },
   );
 
   logger.info("[API] Published user MCP", {
@@ -97,14 +98,14 @@ export async function POST(
  */
 export async function DELETE(
   request: NextRequest,
-  ctx: { params: Promise<{ mcpId: string }> }
+  ctx: { params: Promise<{ mcpId: string }> },
 ) {
   const authResult = await requireAuthOrApiKeyWithOrg(request);
   const { mcpId } = await ctx.params;
 
   const mcp = await userMcpsService.unpublish(
     mcpId,
-    authResult.user.organization_id
+    authResult.user.organization_id,
   );
 
   logger.info("[API] Unpublished user MCP", {
@@ -131,4 +132,3 @@ export async function OPTIONS() {
     },
   });
 }
-

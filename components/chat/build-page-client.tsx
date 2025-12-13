@@ -80,18 +80,17 @@ export function BuildPageClient({
   // Initialize anonymous session for unauthenticated users
   useEffect(() => {
     if (!isAuthenticated && !anonymousSession) {
-      getOrCreateAnonymousUserAction()
-        .then((result) => {
-          if (result.session) {
-            setAnonymousSession({
-              messageCount: result.session.message_count,
-              messagesLimit: result.session.messages_limit,
-              remainingMessages:
-                result.session.messages_limit - result.session.message_count,
-            });
-          }
-          setIsLoadingSession(false);
-        })
+      getOrCreateAnonymousUserAction().then((result) => {
+        if (result.session) {
+          setAnonymousSession({
+            messageCount: result.session.message_count,
+            messagesLimit: result.session.messages_limit,
+            remainingMessages:
+              result.session.messages_limit - result.session.message_count,
+          });
+        }
+        setIsLoadingSession(false);
+      });
     }
   }, [isAuthenticated, anonymousSession]);
 
@@ -115,7 +114,8 @@ export function BuildPageClient({
           interface WindowWithPendingNavigation extends Window {
             __pendingNavigation?: string | null;
           }
-          (window as WindowWithPendingNavigation).__pendingNavigation = anchor.href;
+          (window as WindowWithPendingNavigation).__pendingNavigation =
+            anchor.href;
         }
       }
 

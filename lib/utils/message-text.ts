@@ -68,7 +68,7 @@ export function extractTextFromContent(content: unknown): string {
       ([key, v]) =>
         typeof v === "string" &&
         (v as string).length > 0 &&
-        !EXCLUDED_FIELDS.has(key)
+        !EXCLUDED_FIELDS.has(key),
     )
     .sort((a, b) => (b[1] as string).length - (a[1] as string).length);
 
@@ -113,7 +113,7 @@ export function extractTextFromMetadata(metadata: unknown): string {
  */
 export function extractMessageText(
   content: unknown,
-  metadata?: unknown
+  metadata?: unknown,
 ): string {
   // Try content first
   const textFromContent = extractTextFromContent(content);

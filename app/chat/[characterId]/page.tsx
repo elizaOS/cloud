@@ -45,7 +45,9 @@ export default async function ChatPage({
   // Cloud chat page only works with cloud-created agents (including affiliates)
   // App-deployed agents have their own chat interface
   if (character.source !== "cloud") {
-    logger.warn(`[Chat Page] Character ${characterId} is not a cloud agent (source: ${character.source})`);
+    logger.warn(
+      `[Chat Page] Character ${characterId} is not a cloud agent (source: ${character.source})`,
+    );
     notFound();
   }
 
@@ -111,8 +113,12 @@ export default async function ChatPage({
     } catch {
       // No session exists - redirect to API route to create one
       const returnUrl = `/chat/${characterId}${source ? `?source=${source}` : ""}`;
-      logger.info(`[Chat Page] No anonymous session found, redirecting to create one`);
-      redirect(`/api/auth/create-anonymous-session?returnUrl=${encodeURIComponent(returnUrl)}`);
+      logger.info(
+        `[Chat Page] No anonymous session found, redirecting to create one`,
+      );
+      redirect(
+        `/api/auth/create-anonymous-session?returnUrl=${encodeURIComponent(returnUrl)}`,
+      );
     }
 
     if (!sessionUser.anonymousSession) {

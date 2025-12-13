@@ -25,7 +25,7 @@ export const assistantPlugin: Plugin = {
       async (payload: MessagePayload) => {
         if (!payload.callback) return;
         logger.info(
-          `[Assistant] Message received in room ${payload.message.roomId}`
+          `[Assistant] Message received in room ${payload.message.roomId}`,
         );
         await handleMessage({
           runtime: payload.runtime,

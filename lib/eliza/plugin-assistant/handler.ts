@@ -51,24 +51,32 @@ const imageGenerationTimestamps = new Map<string, number>();
 function canGenerateImage(roomId: string): boolean {
   const lastGenerated = imageGenerationTimestamps.get(roomId);
   const now = Date.now();
-  
+
   if (!lastGenerated || now - lastGenerated > MIN_IMAGE_INTERVAL_MS) {
     imageGenerationTimestamps.set(roomId, now);
     return true;
   }
-  
+
   return false;
 }
 
 // Intent detection for explicit image requests
 function hasImageIntent(userMessage: string): boolean {
   const imageKeywords = [
-    'pic', 'picture', 'photo', 'image', 'selfie', 'show me',
-    'send me', 'what do you look like', 'appearance', 'wearing'
+    "pic",
+    "picture",
+    "photo",
+    "image",
+    "selfie",
+    "show me",
+    "send me",
+    "what do you look like",
+    "appearance",
+    "wearing",
   ];
-  
+
   const lowerMessage = userMessage.toLowerCase();
-  return imageKeywords.some(keyword => lowerMessage.includes(keyword));
+  return imageKeywords.some((keyword) => lowerMessage.includes(keyword));
 }
 
 /**
@@ -122,7 +130,7 @@ export async function handleMessage({
     const shouldAutoGenerateImages = affiliateData?.autoImage === true;
 
     logger.info(
-      `[Assistant] Processing for ${runtime.character.name}, affiliate: ${isAffiliateChat}, autoImage: ${shouldAutoGenerateImages}`
+      `[Assistant] Processing for ${runtime.character.name}, affiliate: ${isAffiliateChat}, autoImage: ${shouldAutoGenerateImages}`,
     );
 
     const providers = isAffiliateChat
@@ -149,7 +157,7 @@ export async function handleMessage({
         template:
           runtime.character.templates?.planningTemplate ||
           chatAssistantPlanningTemplate,
-      })
+      }),
     );
 
     runtime.character.system = composePromptFromState({
@@ -171,15 +179,15 @@ export async function handleMessage({
       const userText = (message.content?.text || "").trim();
       const hasExplicitRequest = hasImageIntent(userText);
       const rateLimitAllows = canGenerateImage(message.roomId.toString());
-      
+
       // Only force image generation if:
       // 1. User explicitly requested an image, OR
       // 2. Rate limit allows it (hasn't generated in last minute)
       if (hasExplicitRequest || rateLimitAllows) {
         logger.info(
-          `[Assistant] Auto-generating image - explicit: ${hasExplicitRequest}, rateLimit: ${rateLimitAllows}`
+          `[Assistant] Auto-generating image - explicit: ${hasExplicitRequest}, rateLimit: ${rateLimitAllows}`,
         );
-        
+
         shouldRespondNow = false;
         if (!plan) {
           plan = {
@@ -198,13 +206,13 @@ export async function handleMessage({
         }
       } else {
         logger.info(
-          `[Assistant] Skipping auto-image (rate limited) - last generated < 1 min ago`
+          `[Assistant] Skipping auto-image (rate limited) - last generated < 1 min ago`,
         );
       }
     }
 
     logger.info(
-      `[Assistant] Plan: canRespondNow=${shouldRespondNow}, thought=${plan?.thought?.substring(0, 50)}`
+      `[Assistant] Plan: canRespondNow=${shouldRespondNow}, thought=${plan?.thought?.substring(0, 50)}`,
     );
 
     let responseContent = "";
@@ -234,7 +242,7 @@ export async function handleMessage({
           runtime,
           message,
           plannedProviders,
-          updatedState
+          updatedState,
         );
         updatedState = await executeActions(
           runtime,
@@ -242,7 +250,7 @@ export async function handleMessage({
           plannedActions,
           plan,
           updatedState,
-          callback
+          callback,
         );
 
         // Exit early if action already sent response
@@ -277,7 +285,7 @@ export async function handleMessage({
         composePromptFromState({
           state: updatedState,
           template: chatAssistantFinalSystemPrompt,
-        })
+        }),
       );
 
       const responsePrompt = cleanPrompt(
@@ -286,12 +294,12 @@ export async function handleMessage({
           template:
             runtime.character.templates?.messageHandlerTemplate ||
             chatAssistantResponseTemplate,
-        })
+        }),
       );
 
       const responseResult = await generateResponseWithRetry(
         runtime,
-        responsePrompt
+        responsePrompt,
       );
       responseContent = responseResult.text;
       thought = responseResult.thought;
@@ -311,7 +319,7 @@ export async function handleMessage({
     const actionResults = await runtime.getActionResults(message.id as UUID);
     const actionResultAttachments = extractAttachments(actionResults);
     const cachedAttachments = getAndClearCachedAttachments(
-      message.roomId as string
+      message.roomId as string,
     );
 
     // Dedupe attachments by ID, preferring cached (validated HTTP URLs)
@@ -340,16 +348,19 @@ export async function handleMessage({
 
     // Ensure we have a response - if generation failed, provide a fallback
     if (!responseContent || responseContent.trim() === "") {
-      logger.warn("[Assistant] Response generation failed - using fallback response");
-      responseContent = mediaAttachments.length > 0
-        ? "Here you go! 😊"
-        : "I'm having trouble thinking right now. Could you try asking that again?";
+      logger.warn(
+        "[Assistant] Response generation failed - using fallback response",
+      );
+      responseContent =
+        mediaAttachments.length > 0
+          ? "Here you go! 😊"
+          : "I'm having trouble thinking right now. Could you try asking that again?";
     }
 
     // Post-process response to remove AI-speak and track openings
     const processedResponse = postProcessResponse(
       responseContent,
-      message.roomId as string
+      message.roomId as string,
     );
     const finalText = processedResponse.text;
 
@@ -383,7 +394,7 @@ export async function handleMessage({
       message,
       initialState,
       responseMemory,
-      callback
+      callback,
     );
 
     const endTime = Date.now();

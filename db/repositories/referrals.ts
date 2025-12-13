@@ -140,7 +140,10 @@ class ReferralSignupsRepository {
   /**
    * Lists referral signups for a referrer, ordered by creation date.
    */
-  async listByReferrerId(referrerId: string, limit = 50): Promise<ReferralSignup[]> {
+  async listByReferrerId(
+    referrerId: string,
+    limit = 50,
+  ): Promise<ReferralSignup[]> {
     return db
       .select()
       .from(referralSignups)
@@ -162,7 +165,7 @@ class ReferralSignupsRepository {
    */
   async markBonusCredited(
     id: string,
-    amount: number
+    amount: number,
   ): Promise<ReferralSignup | null> {
     const [result] = await db
       .update(referralSignups)
@@ -190,7 +193,10 @@ class ReferralSignupsRepository {
   /**
    * Marks a referral as qualified and credits the qualified bonus.
    */
-  async markQualified(id: string, amount: number): Promise<ReferralSignup | null> {
+  async markQualified(
+    id: string,
+    amount: number,
+  ): Promise<ReferralSignup | null> {
     const [result] = await db
       .update(referralSignups)
       .set({
@@ -206,15 +212,17 @@ class ReferralSignupsRepository {
   /**
    * Finds an unqualified referral signup for a user.
    */
-  async findUnqualifiedByReferredUserId(userId: string): Promise<ReferralSignup | null> {
+  async findUnqualifiedByReferredUserId(
+    userId: string,
+  ): Promise<ReferralSignup | null> {
     const [result] = await db
       .select()
       .from(referralSignups)
       .where(
         and(
           eq(referralSignups.referred_user_id, userId),
-          sql`${referralSignups.qualified_at} IS NULL`
-        )
+          sql`${referralSignups.qualified_at} IS NULL`,
+        ),
       )
       .limit(1);
     return result || null;
@@ -242,13 +250,13 @@ class SocialShareRewardsRepository {
   /**
    * Atomically checks if user has claimed today and creates a new share record if not.
    * Prevents race conditions by doing check-and-insert in a single transaction.
-   * 
+   *
    * @returns The created share record, or null if already claimed today
    */
   async createIfNotClaimedToday(
     userId: string,
     platform: "x" | "farcaster" | "telegram" | "discord",
-    data: Omit<NewSocialShareReward, "user_id" | "platform">
+    data: Omit<NewSocialShareReward, "user_id" | "platform">,
   ): Promise<SocialShareReward | null> {
     return await db.transaction(async (tx) => {
       const startOfDay = new Date();
@@ -262,8 +270,8 @@ class SocialShareRewardsRepository {
           and(
             eq(socialShareRewards.user_id, userId),
             eq(socialShareRewards.platform, platform),
-            gte(socialShareRewards.created_at, startOfDay)
-          )
+            gte(socialShareRewards.created_at, startOfDay),
+          ),
         )
         .limit(1);
 
@@ -315,7 +323,7 @@ class SocialShareRewardsRepository {
    */
   async hasClaimedToday(
     userId: string,
-    platform: "x" | "farcaster" | "telegram" | "discord"
+    platform: "x" | "farcaster" | "telegram" | "discord",
   ): Promise<boolean> {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -327,8 +335,8 @@ class SocialShareRewardsRepository {
         and(
           eq(socialShareRewards.user_id, userId),
           eq(socialShareRewards.platform, platform),
-          gte(socialShareRewards.created_at, startOfDay)
-        )
+          gte(socialShareRewards.created_at, startOfDay),
+        ),
       )
       .limit(1);
 
@@ -373,4 +381,3 @@ export {
   type SocialShareReward,
   type NewSocialShareReward,
 };
-

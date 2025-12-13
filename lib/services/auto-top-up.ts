@@ -148,9 +148,7 @@ export class AutoTopUpService {
 
     // Validate organization has necessary Stripe data
     if (!org.stripe_customer_id) {
-      logger.error(
-        `[AutoTopUp] Org ${organizationId} missing Stripe customer`,
-      );
+      logger.error(`[AutoTopUp] Org ${organizationId} missing Stripe customer`);
       await this.disableAutoTopUp(organizationId, "Missing Stripe customer");
       return {
         organizationId,
@@ -188,9 +186,7 @@ export class AutoTopUpService {
     }
 
     // Create and confirm PaymentIntent with saved payment method
-    logger.info(
-      `[AutoTopUp] Creating PaymentIntent for $${amount.toFixed(2)}`,
-    );
+    logger.info(`[AutoTopUp] Creating PaymentIntent for $${amount.toFixed(2)}`);
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // Convert to cents

@@ -36,7 +36,7 @@ export class AgentEventsRepository {
 
   async listByAgent(
     agentId: string,
-    filters?: AgentEventFilters
+    filters?: AgentEventFilters,
   ): Promise<AgentEvent[]> {
     const conditions = [eq(agentEvents.agent_id, agentId)];
 
@@ -61,7 +61,7 @@ export class AgentEventsRepository {
 
   async listByOrganization(
     organizationId: string,
-    filters?: AgentEventFilters
+    filters?: AgentEventFilters,
   ): Promise<AgentEvent[]> {
     const conditions = [eq(agentEvents.organization_id, organizationId)];
 
@@ -86,7 +86,7 @@ export class AgentEventsRepository {
 
   async getLatestByAgent(
     agentId: string,
-    eventType?: AgentEventType
+    eventType?: AgentEventType,
   ): Promise<AgentEvent | undefined> {
     const conditions = [eq(agentEvents.agent_id, agentId)];
 
@@ -104,7 +104,7 @@ export class AgentEventsRepository {
     return await db.query.agentEvents.findFirst({
       where: and(
         eq(agentEvents.agent_id, agentId),
-        eq(agentEvents.level, "error")
+        eq(agentEvents.level, "error"),
       ),
       orderBy: desc(agentEvents.created_at),
     });
@@ -112,7 +112,7 @@ export class AgentEventsRepository {
 
   async countByAgent(
     agentId: string,
-    since?: Date
+    since?: Date,
   ): Promise<{ total: number; byType: Record<string, number> }> {
     const conditions = [eq(agentEvents.agent_id, agentId)];
     if (since) {

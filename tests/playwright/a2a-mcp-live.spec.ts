@@ -37,8 +37,16 @@ function jsonRpc(method: string, params: Record<string, unknown> = {}, id = 1) {
 }
 
 // Helper to invoke a skill via message/send
-function skillMessage(skill: string, text?: string, extraData?: Record<string, unknown>) {
-  const parts: Array<{ type: string; text?: string; data?: Record<string, unknown> }> = [];
+function skillMessage(
+  skill: string,
+  text?: string,
+  extraData?: Record<string, unknown>,
+) {
+  const parts: Array<{
+    type: string;
+    text?: string;
+    data?: Record<string, unknown>;
+  }> = [];
   if (text) parts.push({ type: "text", text });
   parts.push({ type: "data", data: { skill, ...extraData } });
 
@@ -54,7 +62,9 @@ function skillMessage(skill: string, text?: string, extraData?: Record<string, u
 test.describe("A2A Service Discovery", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY required");
 
-  test("GET /api/a2a returns service info with 3 methods and skills", async ({ request }) => {
+  test("GET /api/a2a returns service info with 3 methods and skills", async ({
+    request,
+  }) => {
     const response = await request.get(`${BASE_URL}/api/a2a`);
     expect(response.status()).toBe(200);
 
@@ -77,7 +87,9 @@ test.describe("A2A Service Discovery", () => {
     expect(Array.isArray(data.skills)).toBe(true);
     expect(data.skills.length).toBeGreaterThan(10);
 
-    console.log(`✅ A2A service discovery: ${data.methods.length} methods, ${data.skills.length} skills`);
+    console.log(
+      `✅ A2A service discovery: ${data.methods.length} methods, ${data.skills.length} skills`,
+    );
   });
 });
 
@@ -292,7 +304,7 @@ test.describe("Skill: chat_completion (costs credits)", () => {
       data: skillMessage(
         "chat_completion",
         "What is 2+2? Reply with just the number.",
-        { model: "gpt-4o-mini", maxTokens: 10 }
+        { model: "gpt-4o-mini", maxTokens: 10 },
       ),
     });
     expect(response.status()).toBe(200);
@@ -303,7 +315,7 @@ test.describe("Skill: chat_completion (costs credits)", () => {
 
     // Should have text response in the status message
     const textPart = data.result.status.message?.parts?.find(
-      (p: { type: string }) => p.type === "text"
+      (p: { type: string }) => p.type === "text",
     );
     expect(textPart?.text).toBeDefined();
     expect(textPart?.text.length).toBeGreaterThan(0);
@@ -311,7 +323,9 @@ test.describe("Skill: chat_completion (costs credits)", () => {
     console.log(`✅ chat_completion: "${textPart?.text?.substring(0, 50)}..."`);
   });
 
-  test("default skill is chat_completion when text provided", async ({ request }) => {
+  test("default skill is chat_completion when text provided", async ({
+    request,
+  }) => {
     const response = await request.post(`${BASE_URL}/api/a2a`, {
       headers: authHeaders(),
       data: jsonRpc("message/send", {
@@ -343,7 +357,9 @@ test.describe("CORS", () => {
     });
     expect(response.status()).toBe(204);
     expect(response.headers()["access-control-allow-origin"]).toBe("*");
-    expect(response.headers()["access-control-allow-methods"]).toContain("POST");
+    expect(response.headers()["access-control-allow-methods"]).toContain(
+      "POST",
+    );
   });
 });
 

@@ -20,7 +20,7 @@ export const chatPlaygroundPlugin: Plugin = {
       async (payload: MessagePayload) => {
         if (!payload.callback) return;
         logger.info(
-          `[Playground] Message received in room ${payload.message.roomId}`
+          `[Playground] Message received in room ${payload.message.roomId}`,
         );
         await handleMessage({
           runtime: payload.runtime,

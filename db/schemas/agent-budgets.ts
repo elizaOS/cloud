@@ -112,7 +112,7 @@ export const agentBudgets = pgTable(
     agent_idx: uniqueIndex("agent_budgets_agent_idx").on(table.agent_id),
     owner_org_idx: index("agent_budgets_owner_org_idx").on(table.owner_org_id),
     paused_idx: index("agent_budgets_paused_idx").on(table.is_paused),
-  })
+  }),
 );
 
 // ============================================================================
@@ -145,8 +145,14 @@ export const agentBudgetTransactions = pgTable(
     amount: numeric("amount", { precision: 12, scale: 4 }).notNull(), // Positive for credits, negative for debits
 
     // Balance after transaction
-    balance_after: numeric("balance_after", { precision: 12, scale: 4 }).notNull(),
-    daily_spent_after: numeric("daily_spent_after", { precision: 10, scale: 4 }),
+    balance_after: numeric("balance_after", {
+      precision: 12,
+      scale: 4,
+    }).notNull(),
+    daily_spent_after: numeric("daily_spent_after", {
+      precision: 10,
+      scale: 4,
+    }),
 
     // Context
     description: text("description").notNull(),
@@ -170,9 +176,9 @@ export const agentBudgetTransactions = pgTable(
     agent_idx: index("agent_budget_txns_agent_idx").on(table.agent_id),
     type_idx: index("agent_budget_txns_type_idx").on(table.type),
     created_at_idx: index("agent_budget_txns_created_at_idx").on(
-      table.created_at
+      table.created_at,
     ),
-  })
+  }),
 );
 
 // ============================================================================
@@ -187,4 +193,3 @@ export type AgentBudgetTransaction = InferSelectModel<
 export type NewAgentBudgetTransaction = InferInsertModel<
   typeof agentBudgetTransactions
 >;
-

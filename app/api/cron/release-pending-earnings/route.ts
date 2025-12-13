@@ -44,19 +44,19 @@ function verifyCronSecret(request: NextRequest): boolean {
     return false;
   }
 
-  const providedSecret = authHeader.startsWith("Bearer ") 
-    ? authHeader.slice(7) 
+  const providedSecret = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7)
     : authHeader;
 
   // SECURITY: Timing-safe comparison to prevent timing attacks
   try {
     const secretBuffer = Buffer.from(cronSecret, "utf-8");
     const providedBuffer = Buffer.from(providedSecret, "utf-8");
-    
+
     if (secretBuffer.length !== providedBuffer.length) {
       return false;
     }
-    
+
     return timingSafeEqual(secretBuffer, providedBuffer);
   } catch {
     return false;
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
 
   // Calculate cutoff date for standard earnings (7 days ago)
   const cutoffDate = new Date(
-    Date.now() - VESTING_CONFIG.APP_EARNINGS_HOLD_PERIOD_MS
+    Date.now() - VESTING_CONFIG.APP_EARNINGS_HOLD_PERIOD_MS,
   );
 
   // Find all apps with pending balances where earnings are old enough
@@ -103,8 +103,8 @@ export async function GET(request: NextRequest) {
         and(
           sql`${appEarningsTransactions.app_id} = ${app.app_id}`,
           sql`${appEarningsTransactions.type} IN ('inference_markup', 'purchase_share')`,
-          lte(appEarningsTransactions.created_at, cutoffDate)
-        )
+          lte(appEarningsTransactions.created_at, cutoffDate),
+        ),
       )
       .orderBy(appEarningsTransactions.created_at)
       .limit(1);
@@ -125,8 +125,8 @@ export async function GET(request: NextRequest) {
         and(
           sql`${appEarningsTransactions.app_id} = ${app.app_id}`,
           sql`${appEarningsTransactions.type} IN ('inference_markup', 'purchase_share')`,
-          lte(appEarningsTransactions.created_at, cutoffDate)
-        )
+          lte(appEarningsTransactions.created_at, cutoffDate),
+        ),
       );
 
     const releasableAmount = Number(releasableResult[0]?.total || 0);
@@ -191,4 +191,3 @@ export async function GET(request: NextRequest) {
     },
   });
 }
-

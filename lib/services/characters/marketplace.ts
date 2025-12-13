@@ -727,7 +727,7 @@ export class CharacterMarketplaceService {
     userId: string,
   ): Promise<ExtendedCharacter | null> {
     const character = await userCharactersRepository.findById(characterId);
-    
+
     // Return null if not found or not owned by user
     if (!character || character.user_id !== userId) {
       return null;

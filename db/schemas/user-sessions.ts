@@ -15,7 +15,7 @@ import { users } from "./users";
 
 /**
  * User sessions table schema.
- * 
+ *
  * Tracks authenticated user sessions with usage metrics and device information.
  */
 export const userSessions = pgTable(

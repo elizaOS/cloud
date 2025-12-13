@@ -256,7 +256,7 @@ export class ContainersRepository {
 >>>>>>> 2379ae49c4454bd91c14c080b9a37ac33464cf74
   /**
    * Checks container quota without creating a container (read-only check).
-   * 
+   *
    * Note: This has a small race condition window but is useful for pre-flight checks.
    * Use createWithQuotaCheck for atomic quota enforcement.
    */
@@ -306,7 +306,7 @@ export class ContainersRepository {
 
   /**
    * Atomically checks quota and creates container in a transaction.
-   * 
+   *
    * Prevents race conditions where multiple concurrent requests could bypass quota limits.
    * Uses row-level locking (FOR UPDATE) to ensure atomicity.
    */

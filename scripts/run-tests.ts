@@ -15,29 +15,29 @@ interface TestGroup {
 }
 
 // Files that require live server/API key - excluded from default run
-const EXCLUDED_FILES = [
-  "tests/integration/comprehensive-api.test.ts",
-];
+const EXCLUDED_FILES = ["tests/integration/comprehensive-api.test.ts"];
 
 // Define test groups that can run independently
 const testGroups: TestGroup[] = [
   { name: "Unit Tests", pattern: "tests/unit/" },
   { name: "Security Tests", pattern: "tests/security/" },
-  { 
-    name: "Integration Tests", 
+  {
+    name: "Integration Tests",
     pattern: "tests/integration/",
-    exclude: EXCLUDED_FILES 
+    exclude: EXCLUDED_FILES,
   },
 ];
 
-async function runTestGroup(group: TestGroup): Promise<{ passed: boolean; output: string }> {
+async function runTestGroup(
+  group: TestGroup,
+): Promise<{ passed: boolean; output: string }> {
   console.log(`\n${"═".repeat(70)}`);
   console.log(`Running: ${group.name}`);
   console.log(`${"═".repeat(70)}\n`);
 
   // Build test files list, excluding specified files
-  let patterns = group.pattern.split(" ").filter(p => p.trim());
-  
+  let patterns = group.pattern.split(" ").filter((p) => p.trim());
+
   // If there are excludes, we need to list files and filter
   if (group.exclude && group.exclude.length > 0) {
     const excludeSet = new Set(group.exclude);
@@ -58,7 +58,7 @@ async function runTestGroup(group: TestGroup): Promise<{ passed: boolean; output
 
   const result = await $`bun test --timeout ${TIMEOUT} ${patterns}`.nothrow();
   const output = result.stdout.toString() + result.stderr.toString();
-  
+
   return { passed: result.exitCode === 0, output };
 }
 
@@ -103,4 +103,3 @@ main().catch((e) => {
   console.error("Test runner failed:", e);
   process.exit(1);
 });
-

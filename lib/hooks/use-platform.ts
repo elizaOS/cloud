@@ -21,11 +21,11 @@ interface UsePlatformResult {
 
 /**
  * Hook to detect if running in Tauri and get platform info
- * 
+ *
  * Usage:
  * ```tsx
  * const { isTauri, isMobile, isIOS } = usePlatform();
- * 
+ *
  * if (isMobile) {
  *   return <MobileBillingCard />;
  * }
@@ -41,10 +41,10 @@ export function usePlatform(): UsePlatformResult {
       // Check if Tauri is available
       if (typeof window !== "undefined" && "__TAURI__" in window) {
         setIsTauri(true);
-        
+
         // Dynamically import Tauri API to avoid SSR issues
         const { invoke } = await import("@tauri-apps/api/core");
-        
+
         const info = await invoke<PlatformInfo>("get_platform_info");
         setPlatformInfo(info);
       }
@@ -70,4 +70,3 @@ export function usePlatform(): UsePlatformResult {
 export function isTauriEnvironment(): boolean {
   return typeof window !== "undefined" && "__TAURI__" in window;
 }
-

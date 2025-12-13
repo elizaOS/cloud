@@ -54,7 +54,11 @@ export interface MCPToolContext {
   getToolCache: (toolName: string, params: unknown) => Promise<unknown | null>;
 
   /** Set tool result in cache */
-  setToolCache: (toolName: string, params: unknown, result: unknown) => Promise<void>;
+  setToolCache: (
+    toolName: string,
+    params: unknown,
+    result: unknown,
+  ) => Promise<void>;
 
   /** Invalidate tool cache */
   invalidateToolCache: (toolName: string, params?: unknown) => Promise<void>;

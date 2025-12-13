@@ -1,17 +1,17 @@
 /**
  * Redemption Processing Cron Job
- * 
+ *
  * POST /api/cron/process-redemptions
- * 
+ *
  * Processes approved token redemptions and executes payouts.
  * Should be called by a cron scheduler (e.g., Vercel Cron, AWS EventBridge).
- * 
+ *
  * SECURITY:
  * 1. Requires CRON_SECRET header for authentication
  * 2. Processes in batches with distributed locking
  * 3. Handles retries with exponential backoff
  * 4. Logs all operations for audit
- * 
+ *
  * RECOMMENDED SCHEDULE: Every 5 minutes
  */
 
@@ -28,7 +28,7 @@ export const maxDuration = 120; // 2 minutes max for processing
  */
 function verifyCronSecret(request: NextRequest): boolean {
   const cronSecret = process.env.CRON_SECRET;
-  
+
   if (!cronSecret) {
     logger.error("[Redemption Cron] CRON_SECRET not configured");
     return false;
@@ -40,20 +40,20 @@ function verifyCronSecret(request: NextRequest): boolean {
   }
 
   // Support both "Bearer <secret>" and just "<secret>"
-  const providedSecret = authHeader.startsWith("Bearer ") 
-    ? authHeader.slice(7) 
+  const providedSecret = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7)
     : authHeader;
 
   // SECURITY: Timing-safe comparison to prevent timing attacks
   try {
     const secretBuffer = Buffer.from(cronSecret, "utf-8");
     const providedBuffer = Buffer.from(providedSecret, "utf-8");
-    
+
     // timingSafeEqual requires same length, so pad shorter one
     if (secretBuffer.length !== providedBuffer.length) {
       return false;
     }
-    
+
     return timingSafeEqual(secretBuffer, providedBuffer);
   } catch {
     return false;
@@ -70,14 +70,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     logger.warn("[Redemption Cron] Unauthorized access attempt");
     return NextResponse.json(
       { success: false, error: "Unauthorized" },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
   logger.info("[Redemption Cron] Starting redemption processing");
 
   // Check if payout processor is configured (support both naming conventions)
-  const evmConfigured = !!(process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY);
+  const evmConfigured = !!(
+    process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY
+  );
   const solanaConfigured = !!process.env.SOLANA_PAYOUT_PRIVATE_KEY;
 
   if (!evmConfigured && !solanaConfigured) {
@@ -105,7 +107,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     solanaConfigured,
     balances: {
       evm: balances.evm.configured ? balances.evm.balances : "not configured",
-      solana: balances.solana.configured ? balances.solana.balance : "not configured",
+      solana: balances.solana.configured
+        ? balances.solana.balance
+        : "not configured",
     },
   });
 }
@@ -115,7 +119,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   // Allow health checks without auth for monitoring (support both naming conventions)
-  const evmConfigured = !!(process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY);
+  const evmConfigured = !!(
+    process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY
+  );
   const solanaConfigured = !!process.env.SOLANA_PAYOUT_PRIVATE_KEY;
 
   return NextResponse.json({
@@ -125,4 +131,3 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     cronSecretConfigured: !!process.env.CRON_SECRET,
   });
 }
-

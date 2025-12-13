@@ -110,8 +110,13 @@ export async function POST(request: NextRequest) {
       return addCorsHeaders(response, corsResult.origin);
     }
 
-    const { creditPackId, amount, successUrl, cancelUrl, appId: bodyAppId } =
-      validationResult.data;
+    const {
+      creditPackId,
+      amount,
+      successUrl,
+      cancelUrl,
+      appId: bodyAppId,
+    } = validationResult.data;
 
     // App ID can come from body OR X-App-Id header (proxy adds header automatically)
     const headerAppId = request.headers.get("X-App-Id");
@@ -126,9 +131,13 @@ export async function POST(request: NextRequest) {
     // Determine if this is an app-specific purchase
     const isAppPurchase = !!appId;
     const purchaseSource = isAppPurchase ? "miniapp_app" : "miniapp";
-    
+
     if (isAppPurchase) {
-      logger.info("[Miniapp Billing] App-specific checkout", { appId, headerAppId, bodyAppId });
+      logger.info("[Miniapp Billing] App-specific checkout", {
+        appId,
+        headerAppId,
+        bodyAppId,
+      });
     }
 
     if (creditPackId) {
@@ -159,8 +168,8 @@ export async function POST(request: NextRequest) {
       };
     } else if (amount) {
       // For app purchases, customize the product name to show app context
-      const productName = isAppPurchase 
-        ? "App Credits Top-up" 
+      const productName = isAppPurchase
+        ? "App Credits Top-up"
         : "Account Balance Top-up";
       const productDescription = isAppPurchase
         ? `Add $${amount.toFixed(2)} credits to your app balance`

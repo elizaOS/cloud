@@ -15,10 +15,7 @@
 
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import {
-  isBuiltInAvatar,
-  ensureAvatarUrl,
-} from "@/lib/utils/default-avatar";
+import { isBuiltInAvatar, ensureAvatarUrl } from "@/lib/utils/default-avatar";
 
 interface ElizaAvatarProps {
   avatarUrl?: string;

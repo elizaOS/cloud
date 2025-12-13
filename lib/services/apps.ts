@@ -41,7 +41,10 @@ export class AppsService {
     return await appsRepository.listByOrganization(organizationId);
   }
 
-  async listAll(filters?: { isActive?: boolean; isApproved?: boolean }): Promise<App[]> {
+  async listAll(filters?: {
+    isActive?: boolean;
+    isApproved?: boolean;
+  }): Promise<App[]> {
     return await appsRepository.listAll(filters);
   }
 

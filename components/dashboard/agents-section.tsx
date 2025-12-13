@@ -360,9 +360,7 @@ function AgentsEmptyState() {
           </p>
           <div className="flex gap-2">
             <BrandButton
-              onClick={() =>
-                (window.location.href = "/dashboard/build")
-              }
+              onClick={() => (window.location.href = "/dashboard/build")}
               size="sm"
               className="h-8 text-xs"
             >

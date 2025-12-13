@@ -1,6 +1,6 @@
 /**
  * Repository for ElizaOS rooms table.
- * 
+ *
  * Handles all database operations for rooms without spinning up runtime.
  */
 
@@ -30,7 +30,7 @@ export interface RoomMetadata {
 
 /**
  * Room with last message preview for sidebar/list views.
- * 
+ *
  * All data comes from a single optimized query.
  */
 export interface RoomWithPreview {
@@ -121,7 +121,7 @@ export class RoomsRepository {
 
   /**
    * Creates a new room.
-   * 
+   *
    * Note: source and type are required in the database (notNull, no defaults).
    */
   async create(input: CreateRoomInput): Promise<Room> {
@@ -216,10 +216,10 @@ export class RoomsRepository {
 
   /**
    * Gets all rooms for an entity (user) with last message preview.
-   * 
+   *
    * Uses a single optimized query with joins. Returns rooms sorted by most recent activity.
    * Includes character name and avatar from user_characters table.
-   * 
+   *
    * @param entityId - The user's ID (from auth).
    * @returns Rooms with preview data, sorted by most recent activity.
    */

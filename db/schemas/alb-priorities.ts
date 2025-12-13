@@ -1,6 +1,6 @@
 /**
  * ALB priorities table schema.
- * 
+ *
  * Tracks ALB listener rule priorities to ensure uniqueness across all user deployments.
  * ALB priorities must be unique integers between 1 and 50,000.
  */

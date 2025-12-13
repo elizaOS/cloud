@@ -33,7 +33,8 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
   }
 
   // Get moderation events
-  const moderationEvents = await agentReputationService.getAgentModerationEvents(agentIdentifier);
+  const moderationEvents =
+    await agentReputationService.getAgentModerationEvents(agentIdentifier);
 
   logger.info("[AdminAgentReputation] Fetched agent details", {
     agentIdentifier,
@@ -111,8 +112,10 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
     summary: {
       totalModerationEvents: moderationEvents.length,
       unresolvedEvents: moderationEvents.filter((e) => !e.resolvedAt).length,
-      totalReputationChange: moderationEvents.reduce((sum, e) => sum + (e.reputationChange ?? 0), 0),
+      totalReputationChange: moderationEvents.reduce(
+        (sum, e) => sum + (e.reputationChange ?? 0),
+        0,
+      ),
     },
   });
 }
-

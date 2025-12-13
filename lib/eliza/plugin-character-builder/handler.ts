@@ -30,8 +30,13 @@ import {
 } from "../shared/utils/helpers";
 import type { MessageReceivedHandlerParams } from "../shared/types";
 
-function parsePlanningResponse(response: string): { thought: string; actions: string } | null {
-  const parsed = parseKeyValueXml(response) as { thought?: string; actions?: string } | null;
+function parsePlanningResponse(
+  response: string,
+): { thought: string; actions: string } | null {
+  const parsed = parseKeyValueXml(response) as {
+    thought?: string;
+    actions?: string;
+  } | null;
   if (!parsed?.actions) return null;
   return { thought: parsed.thought || "", actions: parsed.actions };
 }
@@ -99,8 +104,10 @@ export async function handleMessage({
     runtime.character.system = cleanPrompt(
       composePromptFromState({ state, template: buildModeSystemPrompt }),
     );
-  
-    const planningPrompt = cleanPrompt(composePromptFromState({ state, template: buildModePlanningTemplate }));
+
+    const planningPrompt = cleanPrompt(
+      composePromptFromState({ state, template: buildModePlanningTemplate }),
+    );
 
     const planningResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
       prompt: planningPrompt,
@@ -109,8 +116,9 @@ export async function handleMessage({
     runtime.character.system = originalSystemPrompt;
 
     const plan = parsePlanningResponse(planningResponse);
-    const selectedAction = parsePlannedItems(plan?.actions)[0] || "BUILDER_CHAT";
-    
+    const selectedAction =
+      parsePlannedItems(plan?.actions)[0] || "BUILDER_CHAT";
+
     logger.debug(`[${modeLabel}] Executing action: ${selectedAction}`);
 
     // Create action response with thought and mode context
@@ -139,11 +147,18 @@ export async function handleMessage({
 
     await runtime.processActions(message, [actionResponse], state, callback);
 
-    if (!(await isResponseStillValid(runtime, message.roomId, responseId))) return;
+    if (!(await isResponseStillValid(runtime, message.roomId, responseId)))
+      return;
     await clearLatestResponseId(runtime, message.roomId);
 
     // Run evaluators asynchronously in background
-    await runEvaluatorsWithTimeout(runtime, message, state, actionResponse, callback);
+    await runEvaluatorsWithTimeout(
+      runtime,
+      message,
+      state,
+      actionResponse,
+      callback,
+    );
 
     await runtime.emitEvent(EventType.RUN_ENDED, {
       runtime,

@@ -18,14 +18,28 @@ import { logger } from "@/lib/utils/logger";
 const FlagAgentSchema = z.object({
   action: z.enum(["flag", "ban", "unban", "warn"]),
   agentIdentifier: z.string().min(1),
-  flagType: z.enum(["csam", "self_harm", "spam", "scam", "harassment", "copyright", "malware", "other"]).optional(),
+  flagType: z
+    .enum([
+      "csam",
+      "self_harm",
+      "spam",
+      "scam",
+      "harassment",
+      "copyright",
+      "malware",
+      "other",
+    ])
+    .optional(),
   reason: z.string().min(1),
   evidence: z.string().optional(),
   permanent: z.boolean().optional().default(false),
 });
 
 const ListAgentsSchema = z.object({
-  status: z.enum(["all", "banned", "flagged", "low_reputation"]).optional().default("all"),
+  status: z
+    .enum(["all", "banned", "flagged", "low_reputation"])
+    .optional()
+    .default("all"),
   limit: z.coerce.number().min(1).max(200).optional().default(50),
   offset: z.coerce.number().min(0).optional().default(0),
 });
@@ -43,7 +57,10 @@ export async function GET(request: NextRequest) {
   const searchParams = Object.fromEntries(request.nextUrl.searchParams);
   const parsed = ListAgentsSchema.safeParse(searchParams);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid parameters", details: parsed.error.issues }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid parameters", details: parsed.error.issues },
+      { status: 400 },
+    );
   }
 
   const { status, limit } = parsed.data;
@@ -87,10 +104,14 @@ export async function POST(request: NextRequest) {
 
   const parsed = FlagAgentSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid request", details: parsed.error.issues }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request", details: parsed.error.issues },
+      { status: 400 },
+    );
   }
 
-  const { action, agentIdentifier, flagType, reason, evidence, permanent } = parsed.data;
+  const { action, agentIdentifier, flagType, reason, evidence, permanent } =
+    parsed.data;
 
   logger.info("[AdminAgentReputation] Action requested", {
     action,
@@ -103,7 +124,10 @@ export async function POST(request: NextRequest) {
   switch (action) {
     case "flag":
       if (!flagType) {
-        return NextResponse.json({ error: "flagType required for flag action" }, { status: 400 });
+        return NextResponse.json(
+          { error: "flagType required for flag action" },
+          { status: 400 },
+        );
       }
       result = await agentReputationService.flagAgent({
         agentIdentifier,
@@ -135,7 +159,10 @@ export async function POST(request: NextRequest) {
     case "warn":
       // Record as a warning (flag without ban)
       if (!flagType) {
-        return NextResponse.json({ error: "flagType required for warn action" }, { status: 400 });
+        return NextResponse.json(
+          { error: "flagType required for warn action" },
+          { status: 400 },
+        );
       }
       result = await agentReputationService.recordViolation({
         agentIdentifier,
@@ -169,4 +196,3 @@ export async function POST(request: NextRequest) {
     },
   });
 }
-

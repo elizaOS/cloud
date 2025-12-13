@@ -44,7 +44,9 @@ export const characterBuilderPlugin: Plugin = {
     [EventType.MESSAGE_RECEIVED]: [
       async (payload: MessagePayload) => {
         if (!payload.callback) return;
-        logger.info(`[Builder] Message received in room ${payload.message.roomId}`);
+        logger.info(
+          `[Builder] Message received in room ${payload.message.roomId}`,
+        );
         await handleMessage({
           runtime: payload.runtime,
           message: payload.message,

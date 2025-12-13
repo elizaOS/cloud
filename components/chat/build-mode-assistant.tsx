@@ -88,9 +88,16 @@ export function BuildModeAssistant({
 
   // Determine display info based on mode
   // Show Eliza until character is actually saved (has source from database)
-  const isCharacterSaved = !isCreatorMode && character?.id && (character as { source?: string })?.source;
-  const displayName = isCharacterSaved ? (character?.name || "Build Assistant") : DEFAULT_ELIZA.name;
-  const displayAvatar = isCharacterSaved ? (character?.avatarUrl || character?.avatar_url) : DEFAULT_ELIZA.avatarUrl;
+  const isCharacterSaved =
+    !isCreatorMode &&
+    character?.id &&
+    (character as { source?: string })?.source;
+  const displayName = isCharacterSaved
+    ? character?.name || "Build Assistant"
+    : DEFAULT_ELIZA.name;
+  const displayAvatar = isCharacterSaved
+    ? character?.avatarUrl || character?.avatar_url
+    : DEFAULT_ELIZA.avatarUrl;
 
   // Create builder room ID
   // - Creator mode: single room for creating new characters (fresh start each time)
@@ -124,7 +131,9 @@ export function BuildModeAssistant({
         if (success && conversations) {
           const existingRoom = conversations.find(
             (conv) =>
-              conv.title.startsWith(`[BUILD] ${character?.name || "Character"}`) &&
+              conv.title.startsWith(
+                `[BUILD] ${character?.name || "Character"}`,
+              ) &&
               character?.id &&
               conv.title.includes(`(${character.id})`),
           );
@@ -171,11 +180,13 @@ export function BuildModeAssistant({
       if (response.ok) {
         const data = await response.json();
         const loadedMessages = data.messages || [];
-        const metadata = data.metadata as {
-          locked?: boolean;
-          createdCharacterId?: string;
-          createdCharacterName?: string;
-        } | undefined;
+        const metadata = data.metadata as
+          | {
+              locked?: boolean;
+              createdCharacterId?: string;
+              createdCharacterName?: string;
+            }
+          | undefined;
 
         // Check if room is locked (character was created)
         if (metadata?.locked && metadata.createdCharacterId) {
@@ -373,7 +384,8 @@ export function BuildModeAssistant({
                     data.content?.metadata?.characterCreated
                   ) {
                     detectedCharacterCreated = true;
-                    createdCharacterId = data.content.metadata.characterId || null;
+                    createdCharacterId =
+                      data.content.metadata.characterId || null;
                   }
 
                   // Check for SUGGEST_CHANGES with partial field updates
@@ -403,17 +415,27 @@ export function BuildModeAssistant({
                 // Apply character updates to editor
                 if (proposedCharacterUpdate) {
                   onCharacterUpdate(proposedCharacterUpdate);
-                  toast.success("Character preview updated!", { duration: 4000 });
+                  toast.success("Character preview updated!", {
+                    duration: 4000,
+                  });
                 }
 
                 // Handle character creation in creator mode - lock the room
-                if (isCreatorMode && detectedCharacterCreated && createdCharacterId) {
+                if (
+                  isCreatorMode &&
+                  detectedCharacterCreated &&
+                  createdCharacterId
+                ) {
                   // Lock the room and show link to chat with the created agent
                   setLockedRoom({
                     characterId: createdCharacterId,
-                    characterName: proposedCharacterUpdate?.name as string || "your agent",
+                    characterName:
+                      (proposedCharacterUpdate?.name as string) || "your agent",
                   });
-                  toast.success("Character created! You can now chat with your agent.", { duration: 4000 });
+                  toast.success(
+                    "Character created! You can now chat with your agent.",
+                    { duration: 4000 },
+                  );
                 }
 
                 // Refresh character data after apply action
@@ -620,7 +642,9 @@ export function BuildModeAssistant({
                   />
                   <div className="space-y-2">
                     <h2 className="text-xl font-semibold text-white">
-                      {isCreatorMode ? "Create your agent" : `Edit ${character?.name || "character"}`}
+                      {isCreatorMode
+                        ? "Create your agent"
+                        : `Edit ${character?.name || "character"}`}
                     </h2>
                     <p className="text-sm text-white/50">
                       {isCreatorMode
@@ -807,13 +831,19 @@ export function BuildModeAssistant({
                                   </a>
                                 ),
                                 ul: ({ children }) => (
-                                  <ul className="list-disc list-inside my-2">{children}</ul>
+                                  <ul className="list-disc list-inside my-2">
+                                    {children}
+                                  </ul>
                                 ),
                                 ol: ({ children }) => (
-                                  <ol className="list-decimal list-inside my-2">{children}</ol>
+                                  <ol className="list-decimal list-inside my-2">
+                                    {children}
+                                  </ol>
                                 ),
                                 p: ({ children }) => (
-                                  <p className="my-2 first:mt-0 last:mb-0">{children}</p>
+                                  <p className="my-2 first:mt-0 last:mb-0">
+                                    {children}
+                                  </p>
                                 ),
                               }}
                             >
@@ -893,9 +923,7 @@ export function BuildModeAssistant({
                   </div>
                   <div className="flex items-center gap-2 py-3 px-4 bg-white/[0.03] border border-white/[0.06] rounded-lg">
                     <Loader2 className="h-4 w-4 animate-spin text-white/40" />
-                    <span className="text-sm text-white/40">
-                      thinking...
-                    </span>
+                    <span className="text-sm text-white/40">thinking...</span>
                   </div>
                 </div>
               </div>
@@ -905,7 +933,6 @@ export function BuildModeAssistant({
           </div>
         </ScrollArea>
       </div>
-
 
       {/* Locked Room Banner - Shows when character was created */}
       {lockedRoom && (
@@ -984,7 +1011,8 @@ export function BuildModeAssistant({
                 onInput={(e) => {
                   const target = e.currentTarget;
                   target.style.height = "44px";
-                  target.style.height = Math.min(target.scrollHeight, 140) + "px";
+                  target.style.height =
+                    Math.min(target.scrollHeight, 140) + "px";
                 }}
                 placeholder="Describe your character or ask for help..."
                 disabled={isLoading}

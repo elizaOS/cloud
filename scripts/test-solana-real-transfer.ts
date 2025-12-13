@@ -1,28 +1,30 @@
 /**
  * Solana Real Transfer Test
- * 
+ *
  * Executes a real token transfer on Solana mainnet to verify the payout system.
- * 
+ *
  * Run: SOLANA_PAYOUT_PRIVATE_KEY=<key> bun run scripts/test-solana-real-transfer.ts
  */
 
-import { 
-  Connection, 
-  PublicKey, 
-  Keypair, 
+import {
+  Connection,
+  PublicKey,
+  Keypair,
   Transaction,
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
-import { 
-  getAssociatedTokenAddress, 
-  getAccount, 
+import {
+  getAssociatedTokenAddress,
+  getAccount,
   createTransferInstruction,
   getOrCreateAssociatedTokenAccount,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import bs58 from "bs58";
 
-const ELIZA_TOKEN_MINT = new PublicKey("DuMbhu7mvQvqQHGcnikDgb4XegXJRyhUBfdU22uELiZA");
+const ELIZA_TOKEN_MINT = new PublicKey(
+  "DuMbhu7mvQvqQHGcnikDgb4XegXJRyhUBfdU22uELiZA",
+);
 const ELIZA_DECIMALS = 9;
 
 // Test recipient - send to self for testing
@@ -45,27 +47,28 @@ async function main() {
   // Decode private key
   const privateKeyBytes = bs58.decode(privateKeyBase58);
   const keypair = Keypair.fromSecretKey(privateKeyBytes);
-  
+
   console.log(`Sender: ${keypair.publicKey.toBase58()}`);
   console.log(`Recipient: ${TEST_RECIPIENT}`);
   console.log(`Amount: ${TEST_AMOUNT} elizaOS`);
   console.log("");
 
   // Connect to Solana mainnet
-  const rpcUrl = process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
+  const rpcUrl =
+    process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
   const connection = new Connection(rpcUrl, "confirmed");
 
   // Get source token account
   const sourceTokenAccount = await getAssociatedTokenAddress(
     ELIZA_TOKEN_MINT,
-    keypair.publicKey
+    keypair.publicKey,
   );
 
   // Get or create destination token account
   const recipientPubkey = new PublicKey(TEST_RECIPIENT);
   const destTokenAccount = await getAssociatedTokenAddress(
     ELIZA_TOKEN_MINT,
-    recipientPubkey
+    recipientPubkey,
   );
 
   console.log(`Source Token Account: ${sourceTokenAccount.toBase58()}`);
@@ -74,17 +77,18 @@ async function main() {
 
   // Check balance before
   const accountBefore = await getAccount(connection, sourceTokenAccount);
-  const balanceBefore = Number(accountBefore.amount) / Math.pow(10, ELIZA_DECIMALS);
+  const balanceBefore =
+    Number(accountBefore.amount) / Math.pow(10, ELIZA_DECIMALS);
   console.log(`Balance before: ${balanceBefore.toFixed(2)} elizaOS`);
 
   // Create transfer instruction
   const transferAmount = BigInt(TEST_AMOUNT * Math.pow(10, ELIZA_DECIMALS));
-  
+
   const transferIx = createTransferInstruction(
     sourceTokenAccount,
     destTokenAccount,
     keypair.publicKey,
-    transferAmount
+    transferAmount,
   );
 
   // Build transaction
@@ -98,7 +102,7 @@ async function main() {
     connection,
     transaction,
     [keypair],
-    { commitment: "confirmed" }
+    { commitment: "confirmed" },
   );
 
   console.log("");
@@ -108,10 +112,13 @@ async function main() {
 
   // Check balance after
   const accountAfter = await getAccount(connection, sourceTokenAccount);
-  const balanceAfter = Number(accountAfter.amount) / Math.pow(10, ELIZA_DECIMALS);
+  const balanceAfter =
+    Number(accountAfter.amount) / Math.pow(10, ELIZA_DECIMALS);
   console.log("");
   console.log(`Balance after: ${balanceAfter.toFixed(2)} elizaOS`);
-  console.log(`Transferred: ${(balanceBefore - balanceAfter).toFixed(2)} elizaOS`);
+  console.log(
+    `Transferred: ${(balanceBefore - balanceAfter).toFixed(2)} elizaOS`,
+  );
 
   console.log("");
   console.log("═".repeat(70));
@@ -119,8 +126,7 @@ async function main() {
   console.log("═".repeat(70));
 }
 
-main().catch(e => {
+main().catch((e) => {
   console.error("❌ Transfer failed:", e.message);
   process.exit(1);
 });
-

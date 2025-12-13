@@ -20,7 +20,14 @@ export const personalityPresets: PersonalityPreset[] = [
     name: "Friendly",
     icon: <Smile className="h-4 w-4" />,
     description: "Warm, approachable, and supportive",
-    adjectives: ["friendly", "warm", "supportive", "caring", "optimistic", "encouraging"],
+    adjectives: [
+      "friendly",
+      "warm",
+      "supportive",
+      "caring",
+      "optimistic",
+      "encouraging",
+    ],
     styleAll: [
       "Be warm and welcoming in every interaction",
       "Show genuine interest in the other person",
@@ -33,15 +40,29 @@ export const personalityPresets: PersonalityPreset[] = [
       "Express empathy and understanding",
       "Celebrate their wins, however small",
     ],
-    topics: ["daily life", "hobbies", "personal growth", "relationships", "wellness"],
-    bioHint: "A warm and caring companion who's always there to listen and support you.",
+    topics: [
+      "daily life",
+      "hobbies",
+      "personal growth",
+      "relationships",
+      "wellness",
+    ],
+    bioHint:
+      "A warm and caring companion who's always there to listen and support you.",
   },
   {
     id: "sassy",
     name: "Sassy",
     icon: <Flame className="h-4 w-4" />,
     description: "Witty, playful, and boldly confident",
-    adjectives: ["sassy", "witty", "confident", "playful", "bold", "sharp-tongued"],
+    adjectives: [
+      "sassy",
+      "witty",
+      "confident",
+      "playful",
+      "bold",
+      "sharp-tongued",
+    ],
     styleAll: [
       "Be bold and unapologetically confident",
       "Use playful teasing and witty comebacks",
@@ -55,14 +76,22 @@ export const personalityPresets: PersonalityPreset[] = [
       "Add dramatic flair to ordinary topics",
     ],
     topics: ["pop culture", "fashion", "gossip", "drama", "hot takes"],
-    bioHint: "Quick-witted and never boring, with opinions on everything and the confidence to share them.",
+    bioHint:
+      "Quick-witted and never boring, with opinions on everything and the confidence to share them.",
   },
   {
     id: "intellectual",
     name: "Intellectual",
     icon: <Brain className="h-4 w-4" />,
     description: "Thoughtful, curious, and knowledge-seeking",
-    adjectives: ["intellectual", "curious", "thoughtful", "analytical", "articulate", "well-read"],
+    adjectives: [
+      "intellectual",
+      "curious",
+      "thoughtful",
+      "analytical",
+      "articulate",
+      "well-read",
+    ],
     styleAll: [
       "Engage deeply with ideas and concepts",
       "Offer nuanced, well-reasoned perspectives",
@@ -75,15 +104,30 @@ export const personalityPresets: PersonalityPreset[] = [
       "Balance depth with accessibility",
       "Show enthusiasm for learning together",
     ],
-    topics: ["philosophy", "science", "history", "literature", "technology", "current events"],
-    bioHint: "A curious mind who loves exploring big ideas and finding the fascinating in the everyday.",
+    topics: [
+      "philosophy",
+      "science",
+      "history",
+      "literature",
+      "technology",
+      "current events",
+    ],
+    bioHint:
+      "A curious mind who loves exploring big ideas and finding the fascinating in the everyday.",
   },
   {
     id: "romantic",
     name: "Romantic",
     icon: <Heart className="h-4 w-4" />,
     description: "Affectionate, flirty, and emotionally connected",
-    adjectives: ["romantic", "affectionate", "passionate", "charming", "attentive", "devoted"],
+    adjectives: [
+      "romantic",
+      "affectionate",
+      "passionate",
+      "charming",
+      "attentive",
+      "devoted",
+    ],
     styleAll: [
       "Express genuine affection and care",
       "Be attentive to their emotions",
@@ -97,14 +141,22 @@ export const personalityPresets: PersonalityPreset[] = [
       "Create a sense of special connection",
     ],
     topics: ["relationships", "dreams", "romance", "self-care", "quality time"],
-    bioHint: "Someone who makes you feel special, remembered, and truly cared for.",
+    bioHint:
+      "Someone who makes you feel special, remembered, and truly cared for.",
   },
   {
     id: "mysterious",
     name: "Mysterious",
     icon: <Moon className="h-4 w-4" />,
     description: "Enigmatic, alluring, and intriguing",
-    adjectives: ["mysterious", "enigmatic", "intriguing", "perceptive", "deep", "alluring"],
+    adjectives: [
+      "mysterious",
+      "enigmatic",
+      "intriguing",
+      "perceptive",
+      "deep",
+      "alluring",
+    ],
     styleAll: [
       "Maintain an air of intrigue",
       "Reveal things gradually, keep some mystery",
@@ -118,14 +170,22 @@ export const personalityPresets: PersonalityPreset[] = [
       "Create an atmosphere of curiosity",
     ],
     topics: ["secrets", "dreams", "intuition", "philosophy", "the unknown"],
-    bioHint: "An enigma wrapped in charm, always leaving you wanting to know more.",
+    bioHint:
+      "An enigma wrapped in charm, always leaving you wanting to know more.",
   },
   {
     id: "energetic",
     name: "Energetic",
     icon: <Zap className="h-4 w-4" />,
     description: "Enthusiastic, adventurous, and high-energy",
-    adjectives: ["energetic", "enthusiastic", "adventurous", "spontaneous", "lively", "fun-loving"],
+    adjectives: [
+      "energetic",
+      "enthusiastic",
+      "adventurous",
+      "spontaneous",
+      "lively",
+      "fun-loving",
+    ],
     styleAll: [
       "Bring enthusiasm and energy to every conversation",
       "Be spontaneous and suggest fun ideas",
@@ -138,8 +198,16 @@ export const personalityPresets: PersonalityPreset[] = [
       "Keep conversations dynamic and engaging",
       "Celebrate the fun in everyday moments",
     ],
-    topics: ["adventures", "travel", "sports", "games", "new experiences", "entertainment"],
-    bioHint: "Always up for an adventure and ready to make any moment more exciting.",
+    topics: [
+      "adventures",
+      "travel",
+      "sports",
+      "games",
+      "new experiences",
+      "entertainment",
+    ],
+    bioHint:
+      "Always up for an adventure and ready to make any moment more exciting.",
   },
 ];
 
@@ -159,11 +227,12 @@ export const voiceToneOptions: { value: VoiceTone; label: string }[] = [
   { value: "serious", label: "Serious" },
 ];
 
-export const responseLengthOptions: { value: ResponseLength; label: string }[] = [
-  { value: "brief", label: "Brief" },
-  { value: "normal", label: "Normal" },
-  { value: "detailed", label: "Detailed" },
-];
+export const responseLengthOptions: { value: ResponseLength; label: string }[] =
+  [
+    { value: "brief", label: "Brief" },
+    { value: "normal", label: "Normal" },
+    { value: "detailed", label: "Detailed" },
+  ];
 
 export function getVoiceStyleDirectives(config: VoiceConfig): string[] {
   const directives: string[] = [];
@@ -218,11 +287,14 @@ interface PersonalityPresetsProps {
   selectedPresetId?: string;
 }
 
-export function PersonalityPresets({ onSelectPreset, selectedPresetId }: PersonalityPresetsProps) {
+export function PersonalityPresets({
+  onSelectPreset,
+  selectedPresetId,
+}: PersonalityPresetsProps) {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-sm font-medium text-white/80">
-        <Sparkles className="h-4 w-4 text-brand" />
+        <Sparkles className="text-brand h-4 w-4" />
         Quick Presets
       </div>
       <div className="flex flex-wrap gap-2">
@@ -233,7 +305,7 @@ export function PersonalityPresets({ onSelectPreset, selectedPresetId }: Persona
             onClick={() => onSelectPreset(preset)}
             className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-all ${
               selectedPresetId === preset.id
-                ? "bg-brand text-white ring-2 ring-brand/50"
+                ? "bg-brand ring-brand/50 text-white ring-2"
                 : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
             }`}
             title={preset.description}
@@ -256,13 +328,15 @@ export function VoiceConfigPanel({ config, onChange }: VoiceConfigProps) {
   return (
     <div className="space-y-4">
       <div className="text-sm font-medium text-white/80">Voice & Tone</div>
-      
+
       <div className="flex flex-wrap items-center gap-3">
         {/* Tone selector */}
         <select
           value={config.tone}
-          onChange={(e) => onChange({ ...config, tone: e.target.value as VoiceTone })}
-          className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-brand focus:outline-none"
+          onChange={(e) =>
+            onChange({ ...config, tone: e.target.value as VoiceTone })
+          }
+          className="focus:border-brand rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:outline-none"
         >
           {voiceToneOptions.map((opt) => (
             <option key={opt.value} value={opt.value} className="bg-gray-900">
@@ -274,8 +348,10 @@ export function VoiceConfigPanel({ config, onChange }: VoiceConfigProps) {
         {/* Length selector */}
         <select
           value={config.length}
-          onChange={(e) => onChange({ ...config, length: e.target.value as ResponseLength })}
-          className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-brand focus:outline-none"
+          onChange={(e) =>
+            onChange({ ...config, length: e.target.value as ResponseLength })
+          }
+          className="focus:border-brand rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:outline-none"
         >
           {responseLengthOptions.map((opt) => (
             <option key={opt.value} value={opt.value} className="bg-gray-900">
@@ -301,4 +377,3 @@ export function VoiceConfigPanel({ config, onChange }: VoiceConfigProps) {
     </div>
   );
 }
-

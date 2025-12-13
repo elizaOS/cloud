@@ -154,7 +154,7 @@ export class ConversationsRepository {
 
   /**
    * Adds a message with automatic sequence number and updates conversation stats.
-   * 
+   *
    * Performs all operations atomically in a transaction.
    */
   async addMessageWithSequence(

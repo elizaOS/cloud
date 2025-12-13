@@ -121,7 +121,7 @@ export class CreditsService {
 
       if (existingTransaction) {
         logger.info(
-          `[CreditsService] Idempotency: Payment intent ${stripePaymentIntentId} already processed (transaction ${existingTransaction.id})`
+          `[CreditsService] Idempotency: Payment intent ${stripePaymentIntentId} already processed (transaction ${existingTransaction.id})`,
         );
 
         // Get current balance to return consistent response
@@ -147,13 +147,13 @@ export class CreditsService {
           const existingInTx = await tx.query.creditTransactions.findFirst({
             where: eq(
               creditTransactions.stripe_payment_intent_id,
-              stripePaymentIntentId
+              stripePaymentIntentId,
             ),
           });
 
           if (existingInTx) {
             logger.info(
-              `[CreditsService] Race condition detected: Payment intent ${stripePaymentIntentId} was inserted by another thread`
+              `[CreditsService] Race condition detected: Payment intent ${stripePaymentIntentId} was inserted by another thread`,
             );
 
             // Get current balance
@@ -216,7 +216,7 @@ export class CreditsService {
         invalidateOrganizationCache(organizationId).catch((error) => {
           logger.error(
             "[CreditsService] Failed to invalidate org cache:",
-            error
+            error,
           );
         });
         return result;
@@ -345,7 +345,7 @@ export class CreditsService {
           invalidateOrganizationCache(organizationId).catch((error) => {
             logger.error(
               "[CreditsService] Failed to invalidate org cache:",
-              error
+              error,
             );
           });
           // Invalidate balance cache immediately after successful deduction
@@ -363,7 +363,7 @@ export class CreditsService {
               .catch((error) => {
                 logger.error(
                   "[CreditsService] Failed to track session usage:",
-                  error
+                  error,
                 );
               });
           }
@@ -371,11 +371,11 @@ export class CreditsService {
           // Check if auto top-up should be triggered
           this.checkAndTriggerAutoTopUp(
             organizationId,
-            result.newBalance
+            result.newBalance,
           ).catch((error) => {
             logger.error(
               "[CreditsService] Failed to check auto top-up:",
-              error
+              error,
             );
           });
 
@@ -384,9 +384,9 @@ export class CreditsService {
             (error) => {
               logger.error(
                 "[CreditsService] Failed to queue low credits email:",
-                error
+                error,
               );
-            }
+            },
           );
         }
         return result;
@@ -399,7 +399,7 @@ export class CreditsService {
    */
   private async checkAndTriggerAutoTopUp(
     organizationId: string,
-    newBalance: number
+    newBalance: number,
   ): Promise<void> {
     try {
       // Get organization details
@@ -421,7 +421,7 @@ export class CreditsService {
       }
 
       logger.info(
-        `[CreditsService] Auto top-up triggered: balance $${newBalance.toFixed(2)} < threshold $${threshold.toFixed(2)}`
+        `[CreditsService] Auto top-up triggered: balance $${newBalance.toFixed(2)} < threshold $${threshold.toFixed(2)}`,
       );
 
       // Import auto top-up service dynamically for lazy loading (only when needed)
@@ -431,25 +431,25 @@ export class CreditsService {
       autoTopUpService.executeAutoTopUp(org).catch((error) => {
         logger.error(
           `[CreditsService] Auto top-up execution failed for org ${organizationId}:`,
-          error
+          error,
         );
       });
     } catch (error) {
       logger.error(
         `[CreditsService] Error checking auto top-up for org ${organizationId}:`,
-        error
+        error,
       );
     }
   }
 
   private async queueLowCreditsEmail(
     organizationId: string,
-    currentBalance: number
+    currentBalance: number,
   ): Promise<void> {
     try {
       const threshold = parseInt(
         process.env.LOW_CREDITS_THRESHOLD || "1000",
-        10
+        10,
       );
 
       if (currentBalance <= 0 || currentBalance > threshold) {
@@ -488,7 +488,7 @@ export class CreditsService {
     } catch (error) {
       logger.error(
         `[CreditsService] Error queueing low credits email for org ${organizationId}:`,
-        error
+        error,
       );
     }
   }
@@ -552,7 +552,7 @@ export class CreditsService {
         invalidateOrganizationCache(organizationId).catch((error) => {
           logger.error(
             "[CreditsService] Failed to invalidate org cache:",
-            error
+            error,
           );
         });
         return result;

@@ -12,7 +12,9 @@ const DEFAULT_ENV_FILE = ".env.local";
 /**
  * Read environment variables from a .env file
  */
-export function readEnvFile(envFile: string = DEFAULT_ENV_FILE): Record<string, string> {
+export function readEnvFile(
+  envFile: string = DEFAULT_ENV_FILE,
+): Record<string, string> {
   if (!existsSync(envFile)) return {};
 
   const content = readFileSync(envFile, "utf-8");
@@ -33,7 +35,11 @@ export function readEnvFile(envFile: string = DEFAULT_ENV_FILE): Record<string, 
 /**
  * Update a single key in the env file
  */
-export function updateEnvFile(key: string, value: string, envFile: string = DEFAULT_ENV_FILE): void {
+export function updateEnvFile(
+  key: string,
+  value: string,
+  envFile: string = DEFAULT_ENV_FILE,
+): void {
   let content = existsSync(envFile) ? readFileSync(envFile, "utf-8") : "";
 
   const regex = new RegExp(`^${key}=.*$`, "m");
@@ -51,7 +57,7 @@ export function updateEnvFile(key: string, value: string, envFile: string = DEFA
  */
 export function updateEnvFileMultiple(
   updates: Record<string, string>,
-  envFile: string = DEFAULT_ENV_FILE
+  envFile: string = DEFAULT_ENV_FILE,
 ): void {
   let content = existsSync(envFile) ? readFileSync(envFile, "utf-8") : "";
 
@@ -74,4 +80,3 @@ export function isEnvSet(env: Record<string, string>, key: string): boolean {
   const value = env[key];
   return !!value && value !== "0x0000000000000000000000000000000000000000";
 }
-

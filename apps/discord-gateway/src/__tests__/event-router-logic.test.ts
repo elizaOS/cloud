@@ -744,3 +744,4 @@ describe("Queue Event Structure", () => {
     expect(queueItem.channel_id).toBeUndefined();
   });
 });
+

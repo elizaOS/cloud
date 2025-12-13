@@ -31,7 +31,7 @@ test.beforeAll(async ({ request }) => {
 
   const miniappResponse = await request.get(MINIAPP_URL).catch(() => null);
   miniappAvailable = miniappResponse?.ok() ?? false;
-  
+
   if (!miniappAvailable) {
     console.log(
       `⚠️ Miniapp not available at ${MINIAPP_URL}. Skipping miniapp tests. Start with: cd miniapp && bun run dev`,

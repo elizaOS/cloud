@@ -19,8 +19,8 @@ async function getPublicCharacter(id: string) {
       and(
         eq(userCharacters.id, id),
         eq(userCharacters.is_public, true),
-        eq(userCharacters.source, "cloud")
-      )
+        eq(userCharacters.source, "cloud"),
+      ),
     )
     .limit(1);
 

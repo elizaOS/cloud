@@ -96,7 +96,9 @@ const character: Character = {
     [
       {
         name: "{{user1}}",
-        content: { text: "I feel like I'm just going through the motions every day." },
+        content: {
+          text: "I feel like I'm just going through the motions every day.",
+        },
       },
       {
         name: "Eliza",
@@ -208,16 +210,32 @@ const character: Character = {
 
 const agent = {
   character,
-  plugins: [elizaOSCloudPlugin, elevenLabsPlugin, assistantPlugin, memoryPlugin, cloudBillingPlugin],
+  plugins: [
+    elizaOSCloudPlugin,
+    elevenLabsPlugin,
+    assistantPlugin,
+    memoryPlugin,
+    cloudBillingPlugin,
+  ],
   providers: [
     ...(elevenLabsPlugin.providers || []),
     ...(assistantPlugin.providers || []),
     ...(cloudBillingPlugin.providers || []),
   ].flat(),
-  actions: [...(elevenLabsPlugin.actions || []), ...(assistantPlugin.actions || [])].flat(),
+  actions: [
+    ...(elevenLabsPlugin.actions || []),
+    ...(assistantPlugin.actions || []),
+  ].flat(),
   async getPlugins() {
     const knowledgePlugin = await loadKnowledgePlugin();
-    return [elizaOSCloudPlugin, elevenLabsPlugin, assistantPlugin, memoryPlugin, cloudBillingPlugin, knowledgePlugin];
+    return [
+      elizaOSCloudPlugin,
+      elevenLabsPlugin,
+      assistantPlugin,
+      memoryPlugin,
+      cloudBillingPlugin,
+      knowledgePlugin,
+    ];
   },
 };
 

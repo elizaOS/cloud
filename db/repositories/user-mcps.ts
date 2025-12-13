@@ -36,7 +36,7 @@ export const userMcpsRepository = {
    */
   async getBySlug(
     slug: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<UserMcp | null> {
     const [mcp] = await db
       .select()
@@ -44,8 +44,8 @@ export const userMcpsRepository = {
       .where(
         and(
           eq(userMcps.slug, slug),
-          eq(userMcps.organization_id, organizationId)
-        )
+          eq(userMcps.organization_id, organizationId),
+        ),
       );
     return mcp ?? null;
   },
@@ -59,7 +59,7 @@ export const userMcpsRepository = {
       status?: UserMcp["status"];
       limit?: number;
       offset?: number;
-    } = {}
+    } = {},
   ): Promise<UserMcp[]> {
     const { status, limit = 50, offset = 0 } = options;
 
@@ -78,8 +78,8 @@ export const userMcpsRepository = {
         .where(
           and(
             eq(userMcps.organization_id, organizationId),
-            eq(userMcps.status, status)
-          )
+            eq(userMcps.status, status),
+          ),
         )
         .orderBy(desc(userMcps.created_at))
         .limit(limit)
@@ -92,14 +92,22 @@ export const userMcpsRepository = {
   /**
    * List public MCPs (for registry)
    */
-  async listPublic(options: {
-    category?: string;
-    status?: UserMcp["status"];
-    search?: string;
-    limit?: number;
-    offset?: number;
-  } = {}): Promise<UserMcp[]> {
-    const { category, status = "live", search, limit = 100, offset = 0 } = options;
+  async listPublic(
+    options: {
+      category?: string;
+      status?: UserMcp["status"];
+      search?: string;
+      limit?: number;
+      offset?: number;
+    } = {},
+  ): Promise<UserMcp[]> {
+    const {
+      category,
+      status = "live",
+      search,
+      limit = 100,
+      offset = 0,
+    } = options;
 
     const conditions = [
       eq(userMcps.is_public, true),
@@ -114,8 +122,8 @@ export const userMcpsRepository = {
       conditions.push(
         or(
           ilike(userMcps.name, `%${search}%`),
-          ilike(userMcps.description, `%${search}%`)
-        )!
+          ilike(userMcps.description, `%${search}%`),
+        )!,
       );
     }
 
@@ -133,7 +141,7 @@ export const userMcpsRepository = {
    */
   async update(
     id: string,
-    data: Partial<Omit<UserMcp, "id" | "created_at">>
+    data: Partial<Omit<UserMcp, "id" | "created_at">>,
   ): Promise<UserMcp | null> {
     const [mcp] = await db
       .update(userMcps)
@@ -157,7 +165,7 @@ export const userMcpsRepository = {
   async incrementUsage(
     id: string,
     creditsEarned: number,
-    x402EarnedUsd: number = 0
+    x402EarnedUsd: number = 0,
   ): Promise<void> {
     await db
       .update(userMcps)
@@ -176,7 +184,7 @@ export const userMcpsRepository = {
    */
   async updateStatus(
     id: string,
-    status: UserMcp["status"]
+    status: UserMcp["status"],
   ): Promise<UserMcp | null> {
     const updateData: Partial<UserMcp> = {
       status,
@@ -219,11 +227,13 @@ export const userMcpsRepository = {
   /**
    * List MCPs registered on ERC-8004
    */
-  async listERC8004Registered(options: {
-    network?: string;
-    limit?: number;
-    offset?: number;
-  } = {}): Promise<UserMcp[]> {
+  async listERC8004Registered(
+    options: {
+      network?: string;
+      limit?: number;
+      offset?: number;
+    } = {},
+  ): Promise<UserMcp[]> {
     const { network, limit = 100, offset = 0 } = options;
 
     const conditions = [eq(userMcps.erc8004_registered, true)];
@@ -246,7 +256,7 @@ export const userMcpsRepository = {
    */
   async getByERC8004AgentId(
     network: string,
-    agentId: number
+    agentId: number,
   ): Promise<UserMcp | null> {
     const [mcp] = await db
       .select()
@@ -254,8 +264,8 @@ export const userMcpsRepository = {
       .where(
         and(
           eq(userMcps.erc8004_network, network),
-          eq(userMcps.erc8004_agent_id, agentId)
-        )
+          eq(userMcps.erc8004_agent_id, agentId),
+        ),
       );
     return mcp ?? null;
   },
@@ -312,7 +322,7 @@ export const mcpUsageRepository = {
    */
   async getByMcp(
     mcpId: string,
-    options: { limit?: number; offset?: number } = {}
+    options: { limit?: number; offset?: number } = {},
   ): Promise<McpUsage[]> {
     const { limit = 100, offset = 0 } = options;
 
@@ -330,7 +340,7 @@ export const mcpUsageRepository = {
    */
   async getByOrganization(
     organizationId: string,
-    options: { limit?: number; offset?: number } = {}
+    options: { limit?: number; offset?: number } = {},
   ): Promise<McpUsage[]> {
     const { limit = 100, offset = 0 } = options;
 
@@ -373,4 +383,3 @@ export const mcpUsageRepository = {
 
 // Re-export types
 export type { UserMcp, NewUserMcp, McpUsage, NewMcpUsage };
-

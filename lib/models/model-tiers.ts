@@ -88,7 +88,14 @@ export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
       outputPer1k: 0.015,
       currency: "USD",
     },
-    capabilities: ["text", "code", "reasoning", "vision", "function_calling", "long_context"],
+    capabilities: [
+      "text",
+      "code",
+      "reasoning",
+      "vision",
+      "function_calling",
+      "long_context",
+    ],
     contextWindow: 200000,
     recommended: true,
   },
@@ -104,7 +111,14 @@ export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
       outputPer1k: 0.075,
       currency: "USD",
     },
-    capabilities: ["text", "code", "reasoning", "vision", "function_calling", "long_context"],
+    capabilities: [
+      "text",
+      "code",
+      "reasoning",
+      "vision",
+      "function_calling",
+      "long_context",
+    ],
     contextWindow: 200000,
   },
 } as const;
@@ -195,7 +209,7 @@ export function isValidModelTier(tier: string): tier is ModelTier {
 export function estimateTierCost(
   tier: ModelTier,
   inputTokens: number,
-  outputTokens: number
+  outputTokens: number,
 ): number {
   const config = MODEL_TIERS[tier];
   const inputCost = (inputTokens / 1000) * config.pricing.inputPer1k;
@@ -206,17 +220,22 @@ export function estimateTierCost(
 /**
  * Check if a tier has a specific capability
  */
-export function tierHasCapability(tier: ModelTier, capability: ModelCapability): boolean {
+export function tierHasCapability(
+  tier: ModelTier,
+  capability: ModelCapability,
+): boolean {
   return MODEL_TIERS[tier].capabilities.includes(capability);
 }
 
 /**
  * Get all tiers that have a specific capability
  */
-export function getTiersWithCapability(capability: ModelCapability): ModelTier[] {
-  return MODEL_TIER_LIST
-    .filter((config) => config.capabilities.includes(capability))
-    .map((config) => config.id);
+export function getTiersWithCapability(
+  capability: ModelCapability,
+): ModelTier[] {
+  return MODEL_TIER_LIST.filter((config) =>
+    config.capabilities.includes(capability),
+  ).map((config) => config.id);
 }
 
 /**

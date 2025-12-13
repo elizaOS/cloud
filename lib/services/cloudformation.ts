@@ -91,15 +91,9 @@ export class CloudFormationService {
     // Try multiple paths for better compatibility across environments
     const possiblePaths = [
       // Vercel deployment (relative to project root)
-      path.join(
-        process.cwd(),
-        "scripts/cloudformation/per-user-stack.json",
-      ),
+      path.join(process.cwd(), "scripts/cloudformation/per-user-stack.json"),
       // Local development (from lib/services/)
-      path.join(
-        __dirname,
-        "../../scripts/cloudformation/per-user-stack.json",
-      ),
+      path.join(__dirname, "../../scripts/cloudformation/per-user-stack.json"),
       // Build output (from .next/server/)
       path.join(
         __dirname,

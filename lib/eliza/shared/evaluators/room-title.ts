@@ -12,11 +12,11 @@ import { extractErrorMessage } from "@/lib/utils/error-handling";
 
 /**
  * Room Title Generator Evaluator
- * 
+ *
  * Automatically generates concise room titles from the first user message.
  * Runs in background to avoid blocking message processing.
  * Matches behavior of Claude and other AI chat apps.
- * 
+ *
  * Pattern: Similar to reflection evaluator but focused on title generation
  */
 
@@ -66,7 +66,7 @@ async function handler(runtime: IAgentRuntime, message: Memory) {
   try {
     // Check if room already has a title
     const existingRoom = await runtime.getRoom(roomId as UUID);
-    
+
     if (!existingRoom) {
       logger.debug(`[RoomTitle] Room not found: ${roomId}`);
       return;
@@ -94,9 +94,7 @@ async function handler(runtime: IAgentRuntime, message: Memory) {
     }
 
     // Compose state with conversation context
-    const state = await runtime.composeState(message, [
-      "RECENT_MESSAGES",
-    ]);
+    const state = await runtime.composeState(message, ["RECENT_MESSAGES"]);
 
     // Generate prompt
     const prompt = composePromptFromState({
@@ -163,7 +161,10 @@ async function handler(runtime: IAgentRuntime, message: Memory) {
 export const roomTitleEvaluator: Evaluator = {
   name: "ROOM_TITLE",
   similes: ["GENERATE_ROOM_TITLE", "CONVERSATION_TITLE"],
-  validate: async (runtime: IAgentRuntime, message: Memory): Promise<boolean> => {
+  validate: async (
+    runtime: IAgentRuntime,
+    message: Memory,
+  ): Promise<boolean> => {
     if (!message.roomId || !message.entityId) {
       return false;
     }
@@ -189,7 +190,7 @@ export const roomTitleEvaluator: Evaluator = {
 
     // Filter messages by entityId since DB filter might not work properly
     const filteredUserMessages = userMessages.filter(
-      (msg) => msg.entityId === message.entityId
+      (msg) => msg.entityId === message.entityId,
     );
 
     const result = filteredUserMessages.length === 1;

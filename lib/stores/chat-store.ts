@@ -1,7 +1,7 @@
 /**
  * Chat Store - Zustand
  * Manages chat state including rooms, characters, and selections
- * 
+ *
  * NOTE: entityId is now derived from authenticated user on the server, not stored locally.
  * This is a security improvement - clients cannot spoof their identity.
  */
@@ -92,20 +92,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     const loadPromise = (async () => {
       set({ isLoadingRooms: true });
-      
+
       // Server derives entityId from authenticated user
       const headers: Record<string, string> = {};
-      
+
       // Pass anonymous session token if available (for affiliate flows)
       if (anonymousSessionToken) {
         headers["X-Anonymous-Session"] = anonymousSessionToken;
       }
-      
+
       const res = await fetch(`/api/eliza/rooms`, { headers });
-      
+
       if (res.ok) {
         const data = await res.json();
-        
+
         if (Array.isArray(data.rooms)) {
           const roomItems: RoomItem[] = data.rooms
             .slice(0, 20)
@@ -122,7 +122,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
           const currentState = get();
           const existingCharacterIds = new Set(
-            currentState.availableCharacters.map((c) => c.id)
+            currentState.availableCharacters.map((c) => c.id),
           );
 
           const charactersFromRooms: Character[] = [];
@@ -162,7 +162,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           });
         }
       }
-      
+
       set({ isLoadingRooms: false, loadRoomsPromise: null });
     })();
 
@@ -178,7 +178,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const requestBody: Record<string, string | undefined> = {
       characterId: characterId || undefined,
     };
-    
+
     // Pass the session token for anonymous users
     if (anonymousSessionToken) {
       requestBody.sessionToken = anonymousSessionToken;
@@ -187,7 +187,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
-    
+
     // Also pass as header for redundancy
     if (anonymousSessionToken) {
       headers["X-Anonymous-Session"] = anonymousSessionToken;

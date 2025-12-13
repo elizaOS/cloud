@@ -48,7 +48,7 @@ function hashToken(token: string): string {
 export async function cacheSessionValidation(
   token: string,
   userId: string,
-  privyId: string
+  privyId: string,
 ): Promise<void> {
   const tokenHash = hashToken(token);
   const key = CacheKeys.session.privy(tokenHash);
@@ -61,14 +61,16 @@ export async function cacheSessionValidation(
   };
 
   await cache.set(key, data, CacheTTL.session.privy);
-  logger.debug("[SessionCache] Cached session validation", { tokenHash: tokenHash.substring(0, 8) });
+  logger.debug("[SessionCache] Cached session validation", {
+    tokenHash: tokenHash.substring(0, 8),
+  });
 }
 
 /**
  * Get cached session validation result
  */
 export async function getCachedSessionValidation(
-  token: string
+  token: string,
 ): Promise<CachedSession | null> {
   const tokenHash = hashToken(token);
   const key = CacheKeys.session.privy(tokenHash);
@@ -89,7 +91,7 @@ export async function getCachedSessionValidation(
  */
 export async function cacheSessionUser(
   token: string,
-  user: UserWithOrganization
+  user: UserWithOrganization,
 ): Promise<void> {
   const tokenHash = hashToken(token);
   const key = CacheKeys.session.user(tokenHash);
@@ -110,7 +112,7 @@ export async function cacheSessionUser(
  * Get cached user data for a session token
  */
 export async function getCachedSessionUser(
-  token: string
+  token: string,
 ): Promise<UserWithOrganization | null> {
   const tokenHash = hashToken(token);
   const key = CacheKeys.session.user(tokenHash);
@@ -151,4 +153,3 @@ export async function clearAllSessionCaches(): Promise<void> {
   await cache.delPattern(CacheKeys.session.pattern());
   logger.info("[SessionCache] Cleared all session caches");
 }
-

@@ -3,7 +3,7 @@ import { userCharacters } from "./user-characters";
 
 /**
  * Eliza room characters table schema.
- * 
+ *
  * Maps ElizaOS rooms to user-created characters, allowing each conversation
  * room to use a different character.
  */

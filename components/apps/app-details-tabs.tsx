@@ -45,7 +45,9 @@ export function AppDetailsTabs({ app, showApiKey }: AppDetailsTabsProps) {
   const handleTabChange = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", value);
-    router.push(`/dashboard/apps/${app.id}?${params.toString()}`, { scroll: false });
+    router.push(`/dashboard/apps/${app.id}?${params.toString()}`, {
+      scroll: false,
+    });
   };
 
   return (

@@ -46,7 +46,9 @@ function extractAffiliateImageConfig(
   // Check if this is an affiliate character (source indicates miniapp or affiliate)
   // Reference images are now optional - autoImage flag is what matters
   result.isAffiliateCharacter = !!(
-    affiliateData.source || affiliateData.affiliateId || affiliateData.autoImage
+    affiliateData.source ||
+    affiliateData.affiliateId ||
+    affiliateData.autoImage
   );
   result.vibe = typeof vibe === "string" ? vibe : undefined;
 
@@ -185,13 +187,10 @@ async function getOrExtractAppearanceDescription(
     );
 
     try {
-      const visionResult = await runtime.useModel(
-        ModelType.IMAGE_DESCRIPTION,
-        {
-          imageUrl: imageUrl,
-          prompt: appearanceExtractionPrompt,
-        },
-      );
+      const visionResult = await runtime.useModel(ModelType.IMAGE_DESCRIPTION, {
+        imageUrl: imageUrl,
+        prompt: appearanceExtractionPrompt,
+      });
 
       if (visionResult) {
         let descriptionText = "";
@@ -823,513 +822,518 @@ export const generateImageAction = {
     responses?: Memory[],
   ): Promise<ActionResult> => {
     const allProviders =
-        responses?.flatMap((res) => res.content?.providers ?? []) ?? [];
+      responses?.flatMap((res) => res.content?.providers ?? []) ?? [];
 
-      state = await runtime.composeState(message, [
-        ...(allProviders ?? []),
-        "RECENT_MESSAGES",
-      ]);
+    state = await runtime.composeState(message, [
+      ...(allProviders ?? []),
+      "RECENT_MESSAGES",
+    ]);
 
-      const characterId =
-        runtime.character?.id && typeof runtime.character.id === "string"
-          ? runtime.character.id
-          : undefined;
-      const affiliateConfig = extractAffiliateImageConfig(
-        (() => {
-          const settings = runtime.character?.settings;
-          if (
-            settings &&
-            typeof settings === "object" &&
-            !Array.isArray(settings)
-          ) {
-            return settings as Record<string, unknown>;
-          }
-          return undefined;
-        })(),
+    const characterId =
+      runtime.character?.id && typeof runtime.character.id === "string"
+        ? runtime.character.id
+        : undefined;
+    const affiliateConfig = extractAffiliateImageConfig(
+      (() => {
+        const settings = runtime.character?.settings;
+        if (
+          settings &&
+          typeof settings === "object" &&
+          !Array.isArray(settings)
+        ) {
+          return settings as Record<string, unknown>;
+        }
+        return undefined;
+      })(),
+    );
+
+    if (affiliateConfig.isAffiliateCharacter) {
+      logger.info(
+        `[GENERATE_IMAGE] 🎭 Affiliate character detected (vibe: ${affiliateConfig.vibe}, refs: ${affiliateConfig.referenceImageUrls.length})`,
       );
 
-      if (affiliateConfig.isAffiliateCharacter) {
+      const appearanceResult = await prepareAppearanceBasedGeneration(
+        runtime,
+        affiliateConfig,
+        characterId,
+      );
+
+      if (appearanceResult.hasValidAppearance) {
         logger.info(
-          `[GENERATE_IMAGE] 🎭 Affiliate character detected (vibe: ${affiliateConfig.vibe}, refs: ${affiliateConfig.referenceImageUrls.length})`,
+          `[GENERATE_IMAGE] 🎨 Generating synthetic image based on extracted appearance...`,
         );
 
-        const appearanceResult = await prepareAppearanceBasedGeneration(
-          runtime,
-          affiliateConfig,
-          characterId,
-        );
+        const enhancedState = {
+          ...state,
+          appearanceDescription: appearanceResult.appearanceDescription,
+        };
 
-        if (appearanceResult.hasValidAppearance) {
+        const prompt = composePromptFromState({
+          state: enhancedState,
+          template: appearanceBasedImageTemplate,
+        });
+
+        const promptResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
+          prompt,
+        });
+
+        const parsedXml = parseKeyValueXml(promptResponse);
+        let imagePrompt = parsedXml?.prompt || "";
+
+        const appearance = appearanceResult.appearanceDescription;
+
+        const isWoman =
+          appearance.toLowerCase().startsWith("woman") ||
+          appearance.toLowerCase().startsWith("young woman") ||
+          appearance.toLowerCase().includes("woman,");
+        const isMan =
+          appearance.toLowerCase().startsWith("man") ||
+          appearance.toLowerCase().startsWith("young man") ||
+          appearance.toLowerCase().includes("man,");
+        const detectedGender = isWoman ? "woman" : isMan ? "man" : null;
+
+        if (detectedGender) {
           logger.info(
-            `[GENERATE_IMAGE] 🎨 Generating synthetic image based on extracted appearance...`,
+            `[GENERATE_IMAGE] 👤 Gender from appearance: ${detectedGender}`,
           );
+        }
 
-          const enhancedState = {
-            ...state,
-            appearanceDescription: appearanceResult.appearanceDescription,
-          };
-
-          const prompt = composePromptFromState({
-            state: enhancedState,
-            template: appearanceBasedImageTemplate,
-          });
-
-          const promptResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
-            prompt,
-          });
-
-          const parsedXml = parseKeyValueXml(promptResponse);
-          let imagePrompt = parsedXml?.prompt || "";
-
-          const appearance = appearanceResult.appearanceDescription;
-
-          const isWoman =
-            appearance.toLowerCase().startsWith("woman") ||
-            appearance.toLowerCase().startsWith("young woman") ||
-            appearance.toLowerCase().includes("woman,");
-          const isMan =
-            appearance.toLowerCase().startsWith("man") ||
-            appearance.toLowerCase().startsWith("young man") ||
-            appearance.toLowerCase().includes("man,");
-          const detectedGender = isWoman ? "woman" : isMan ? "man" : null;
-
-          if (detectedGender) {
-            logger.info(
-              `[GENERATE_IMAGE] 👤 Gender from appearance: ${detectedGender}`,
+        if (!imagePrompt || imagePrompt.length < 20) {
+          imagePrompt = `photorealistic portrait photo of a ${appearance}, romantic selfie pose, looking at camera, soft natural lighting, intimate mood, high quality 8k, detailed facial features`;
+        } else {
+          const hasAppearance = appearance
+            .substring(0, 40)
+            .toLowerCase()
+            .split(",")
+            .some((part) =>
+              imagePrompt.toLowerCase().includes(part.trim().toLowerCase()),
             );
-          }
-
-          if (!imagePrompt || imagePrompt.length < 20) {
-            imagePrompt = `photorealistic portrait photo of a ${appearance}, romantic selfie pose, looking at camera, soft natural lighting, intimate mood, high quality 8k, detailed facial features`;
+          if (!hasAppearance) {
+            imagePrompt = `photorealistic portrait photo of a ${appearance}, ${imagePrompt}`;
           } else {
-            const hasAppearance = appearance
-              .substring(0, 40)
-              .toLowerCase()
-              .split(",")
-              .some((part) =>
-                imagePrompt.toLowerCase().includes(part.trim().toLowerCase()),
-              );
-            if (!hasAppearance) {
-              imagePrompt = `photorealistic portrait photo of a ${appearance}, ${imagePrompt}`;
-            } else {
-              imagePrompt = `photorealistic portrait photo of a ${imagePrompt}`;
-            }
+            imagePrompt = `photorealistic portrait photo of a ${imagePrompt}`;
           }
+        }
 
-          if (detectedGender) {
-            const wrongGender = detectedGender === "woman" ? "man" : "woman";
-            const wrongGenderRegex = new RegExp(`\\b${wrongGender}\\b`, "gi");
-            if (
-              wrongGenderRegex.test(imagePrompt) &&
-              !imagePrompt.toLowerCase().includes(detectedGender)
-            ) {
-              imagePrompt = imagePrompt.replace(
-                wrongGenderRegex,
-                detectedGender,
-              );
-              logger.info(
-                `[GENERATE_IMAGE] 🔄 Fixed wrong gender in prompt: ${wrongGender} -> ${detectedGender}`,
-              );
-            }
-
-            if (!imagePrompt.toLowerCase().includes(detectedGender)) {
-              imagePrompt = `${detectedGender}, ${imagePrompt}`;
-              logger.info(
-                `[GENERATE_IMAGE] ➕ Prepended gender to prompt: ${detectedGender}`,
-              );
-            }
-          }
-
-          if (!imagePrompt.toLowerCase().includes("photorealistic")) {
-            imagePrompt = `photorealistic ${imagePrompt}`;
-          }
-
-          logger.info(
-            `[GENERATE_IMAGE] 🎨 Final appearance-matched prompt (${imagePrompt.length} chars): "${imagePrompt.substring(0, 200)}..."`,
-          );
-
-          const imageResponse = await runtime.useModel(ModelType.IMAGE, {
-            prompt: imagePrompt,
-          });
-
+        if (detectedGender) {
+          const wrongGender = detectedGender === "woman" ? "man" : "woman";
+          const wrongGenderRegex = new RegExp(`\\b${wrongGender}\\b`, "gi");
           if (
-            !imageResponse ||
-            imageResponse.length === 0 ||
-            !imageResponse[0]?.url
+            wrongGenderRegex.test(imagePrompt) &&
+            !imagePrompt.toLowerCase().includes(detectedGender)
           ) {
-            logger.error(
-              "[GENERATE_IMAGE] ❌ Image generation failed - no response from model",
-            );
-            return {
-              text: "I couldn't generate an image right now, let's chat instead! 💬",
-              values: {
-                success: false,
-                error: "IMAGE_GENERATION_FAILED",
-                prompt: imagePrompt,
-              },
-              data: {
-                actionName: "GENERATE_IMAGE",
-                prompt: imagePrompt,
-              },
-              success: false,
-            };
-          }
-
-          const rawImageUrl = imageResponse[0].url;
-          logger.info(
-            `[GENERATE_IMAGE] ✅ Generated synthetic image successfully`,
-          );
-
-          let blobUrl: string | null = null;
-          try {
-            blobUrl = await ensureBlobUrl(rawImageUrl);
+            imagePrompt = imagePrompt.replace(wrongGenderRegex, detectedGender);
             logger.info(
-              `[GENERATE_IMAGE] 📦 Uploaded to blob: ${blobUrl?.substring(0, 60)}...`,
-            );
-          } catch (err: unknown) {
-            const errorMessage =
-              err instanceof Error ? err.message : String(err);
-            logger.warn(
-              `[GENERATE_IMAGE] ⚠️ Blob upload failed: ${errorMessage}`,
+              `[GENERATE_IMAGE] 🔄 Fixed wrong gender in prompt: ${wrongGender} -> ${detectedGender}`,
             );
           }
 
-          const finalImageUrl = blobUrl || rawImageUrl;
-          const hasValidUrl = finalImageUrl.startsWith("http");
-
-          // Build vibe-specific caption template
-          const vibeSpecificTemplate = buildCaptionTemplate(
-            affiliateConfig.vibe,
-          );
-          logger.info(
-            `[GENERATE_IMAGE] 🎭 Using vibe-specific template for: ${affiliateConfig.vibe || "default"}`,
-          );
-
-          const captionPrompt = composePromptFromState({
-            state,
-            template: vibeSpecificTemplate,
-          });
-
-          // Vibe-specific default replies (NOT about the photo - just normal conversation)
-          const defaultCaptions: Record<string, string> = {
-            flirty:
-              "Hey you 😘 I'd love to know more about you! What's something that makes you smile?",
-            shy: "Oh hi! 😊 I'm a bit nervous but... I'd really like to get to know you better. What do you like to do? 🌸",
-            bold: "I like your energy 🔥 So tell me - what's the most interesting thing about you?",
-            spicy:
-              "Mmm I'm intrigued 😈 What gets you excited? I want to know everything about you",
-            romantic:
-              "Hey there 💕 I'd love to hear about your day. What's been on your mind lately? 💖",
-            playful:
-              "Heyyy! 🎉 What fun stuff are you up to? Tell me something random about yourself! ✨",
-            mysterious:
-              "Hey... 🌙 I'm curious about you. What brought you here tonight?",
-            intellectual:
-              "Hi there ✨ I'm curious - what's something you're really passionate about?",
-          };
-
-          const defaultCaption =
-            affiliateConfig.vibe &&
-            defaultCaptions[affiliateConfig.vibe.toLowerCase()]
-              ? defaultCaptions[affiliateConfig.vibe.toLowerCase()]
-              : "Hey! 😊 I'd love to get to know you better. Tell me something about yourself!";
-
-          let caption = defaultCaption;
-          try {
-            const captionResponse = await runtime.useModel(
-              ModelType.TEXT_LARGE,
-              {
-                prompt: captionPrompt,
-              },
-            );
-            const parsedCaption = parseKeyValueXml(captionResponse);
-            if (parsedCaption?.caption && parsedCaption.caption.length > 10) {
-              caption = parsedCaption.caption;
-              // Ensure it's not too short/quote-like - if less than 30 chars, it's probably a one-liner
-              if (caption.length < 30 && !caption.includes("?")) {
-                caption = `${caption} What do you think? 😊`;
-              }
-            }
-          } catch {
-            logger.warn(
-              "[GENERATE_IMAGE] Failed to generate caption, using vibe-specific default",
+          if (!imagePrompt.toLowerCase().includes(detectedGender)) {
+            imagePrompt = `${detectedGender}, ${imagePrompt}`;
+            logger.info(
+              `[GENERATE_IMAGE] ➕ Prepended gender to prompt: ${detectedGender}`,
             );
           }
+        }
 
-          logger.info(`[GENERATE_IMAGE] 💬 Caption: "${caption}"`);
+        if (!imagePrompt.toLowerCase().includes("photorealistic")) {
+          imagePrompt = `photorealistic ${imagePrompt}`;
+        }
 
-          const attachmentId = v4();
-          const timestamp = new Date()
-            .toISOString()
-            .replace(/[:.]/g, "-")
-            .slice(0, 19);
-          const displayAttachments = [
-            {
-              id: attachmentId,
-              url: hasValidUrl ? finalImageUrl : rawImageUrl,
-              rawUrl: rawImageUrl,
-              title: `Generated_${timestamp}.png`,
-              contentType: ContentType.IMAGE,
-            },
-          ];
+        logger.info(
+          `[GENERATE_IMAGE] 🎨 Final appearance-matched prompt (${imagePrompt.length} chars): "${imagePrompt.substring(0, 200)}..."`,
+        );
 
-          const responseContent = {
-            attachments: displayAttachments,
-            thought: `Generated a new photo based on my appearance`,
-            actions: ["GENERATE_IMAGE"],
-            text: caption,
-          };
+        const imageResponse = await runtime.useModel(ModelType.IMAGE, {
+          prompt: imagePrompt,
+        });
 
-          logger.info(
-            `[GENERATE_IMAGE] 📤 Sending generated image to callback...`,
+        if (
+          !imageResponse ||
+          imageResponse.length === 0 ||
+          !imageResponse[0]?.url
+        ) {
+          logger.error(
+            "[GENERATE_IMAGE] ❌ Image generation failed - no response from model",
           );
-          await callback(responseContent);
-          logger.info(`[GENERATE_IMAGE] ✅ Generated image sent successfully`);
-
           return {
-            text: caption,
+            text: "I couldn't generate an image right now, let's chat instead! 💬",
             values: {
-              success: true,
-              imageGenerated: true,
-              imageUrl: finalImageUrl,
+              success: false,
+              error: "IMAGE_GENERATION_FAILED",
               prompt: imagePrompt,
             },
             data: {
               actionName: "GENERATE_IMAGE",
-              imageUrl: hasValidUrl ? finalImageUrl : undefined,
               prompt: imagePrompt,
-              attachments: hasValidUrl ? displayAttachments : [],
             },
-            success: true,
+            success: false,
           };
-        } else {
-          const fallbackResult =
-            appearanceResult as AppearanceGenerationFallback;
+        }
+
+        const rawImageUrl = imageResponse[0].url;
+        logger.info(
+          `[GENERATE_IMAGE] ✅ Generated synthetic image successfully`,
+        );
+
+        let blobUrl: string | null = null;
+        try {
+          blobUrl = await ensureBlobUrl(rawImageUrl);
+          logger.info(
+            `[GENERATE_IMAGE] 📦 Uploaded to blob: ${blobUrl?.substring(0, 60)}...`,
+          );
+        } catch (err: unknown) {
+          const errorMessage = err instanceof Error ? err.message : String(err);
           logger.warn(
-            `[GENERATE_IMAGE] ⚠️ Cannot generate appearance-based image: ${fallbackResult.fallbackReason}`,
+            `[GENERATE_IMAGE] ⚠️ Blob upload failed: ${errorMessage}`,
           );
         }
-      }
 
-      const selectedTemplate = affiliateConfig.isAffiliateCharacter
-        ? affiliateImageGenerationTemplate
-        : runtime.character.templates?.imageGenerationTemplate ||
-          imageGenerationTemplate;
+        const finalImageUrl = blobUrl || rawImageUrl;
+        const hasValidUrl = finalImageUrl.startsWith("http");
 
-      // Add character info to state for the template
-      const characterBio = runtime.character?.bio;
-      const characterBioText = Array.isArray(characterBio)
-        ? characterBio.join(" ")
-        : typeof characterBio === "string"
-          ? characterBio
-          : "";
-
-      const enhancedState = {
-        ...state,
-        characterName: runtime.character?.name || "Unknown",
-        characterBio: characterBioText,
-      };
-
-      const prompt = composePromptFromState({
-        state: enhancedState,
-        template: selectedTemplate,
-      });
-
-      const promptResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
-        prompt,
-      });
-
-      const parsedXml = parseKeyValueXml(promptResponse);
-
-      let imagePrompt =
-        parsedXml?.prompt || "Unable to generate descriptive prompt for image";
-
-      // For affiliate characters, ensure the prompt generates human selfies
-      if (affiliateConfig.isAffiliateCharacter) {
-        const lowerPrompt = imagePrompt.toLowerCase();
-        // Add selfie/human keywords if not present
-        if (!lowerPrompt.includes("selfie") && !lowerPrompt.includes("portrait")) {
-          imagePrompt = `photorealistic selfie, ${imagePrompt}`;
-        }
-        if (!lowerPrompt.includes("photorealistic") && !lowerPrompt.includes("photo")) {
-          imagePrompt = `photorealistic ${imagePrompt}`;
-        }
-        // Ensure human-related keywords
-        if (!lowerPrompt.includes("person") && !lowerPrompt.includes("man") &&
-            !lowerPrompt.includes("woman") && !lowerPrompt.includes("human")) {
-          imagePrompt = `${imagePrompt}, human person, natural face`;
-        }
-        // Add quality keywords
-        if (!lowerPrompt.includes("8k") && !lowerPrompt.includes("high quality")) {
-          imagePrompt = `${imagePrompt}, high quality, detailed face, 8k`;
-        }
-        logger.info(`[GENERATE_IMAGE] 🤳 Enhanced selfie prompt for affiliate character`);
-      }
-
-      const imageModelOptions: {
-        prompt: string;
-      } = {
-        prompt: imagePrompt,
-      };
-
-      logger.info(
-        `[GENERATE_IMAGE] 🎨 Generating new image with prompt: "${imagePrompt.substring(0, 100)}..."`,
-      );
-
-      const imageResponse = await runtime.useModel(
-        ModelType.IMAGE,
-        imageModelOptions,
-      );
-
-      if (
-        !imageResponse ||
-        imageResponse.length === 0 ||
-        !imageResponse[0]?.url
-      ) {
-        logger.error(
-          {
-            imageResponse,
-            imagePrompt,
-          },
-          "generateImageAction: Image generation failed - no valid response received",
+        // Build vibe-specific caption template
+        const vibeSpecificTemplate = buildCaptionTemplate(affiliateConfig.vibe);
+        logger.info(
+          `[GENERATE_IMAGE] 🎭 Using vibe-specific template for: ${affiliateConfig.vibe || "default"}`,
         );
+
+        const captionPrompt = composePromptFromState({
+          state,
+          template: vibeSpecificTemplate,
+        });
+
+        // Vibe-specific default replies (NOT about the photo - just normal conversation)
+        const defaultCaptions: Record<string, string> = {
+          flirty:
+            "Hey you 😘 I'd love to know more about you! What's something that makes you smile?",
+          shy: "Oh hi! 😊 I'm a bit nervous but... I'd really like to get to know you better. What do you like to do? 🌸",
+          bold: "I like your energy 🔥 So tell me - what's the most interesting thing about you?",
+          spicy:
+            "Mmm I'm intrigued 😈 What gets you excited? I want to know everything about you",
+          romantic:
+            "Hey there 💕 I'd love to hear about your day. What's been on your mind lately? 💖",
+          playful:
+            "Heyyy! 🎉 What fun stuff are you up to? Tell me something random about yourself! ✨",
+          mysterious:
+            "Hey... 🌙 I'm curious about you. What brought you here tonight?",
+          intellectual:
+            "Hi there ✨ I'm curious - what's something you're really passionate about?",
+        };
+
+        const defaultCaption =
+          affiliateConfig.vibe &&
+          defaultCaptions[affiliateConfig.vibe.toLowerCase()]
+            ? defaultCaptions[affiliateConfig.vibe.toLowerCase()]
+            : "Hey! 😊 I'd love to get to know you better. Tell me something about yourself!";
+
+        let caption = defaultCaption;
+        try {
+          const captionResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
+            prompt: captionPrompt,
+          });
+          const parsedCaption = parseKeyValueXml(captionResponse);
+          if (parsedCaption?.caption && parsedCaption.caption.length > 10) {
+            caption = parsedCaption.caption;
+            // Ensure it's not too short/quote-like - if less than 30 chars, it's probably a one-liner
+            if (caption.length < 30 && !caption.includes("?")) {
+              caption = `${caption} What do you think? 😊`;
+            }
+          }
+        } catch {
+          logger.warn(
+            "[GENERATE_IMAGE] Failed to generate caption, using vibe-specific default",
+          );
+        }
+
+        logger.info(`[GENERATE_IMAGE] 💬 Caption: "${caption}"`);
+
+        const attachmentId = v4();
+        const timestamp = new Date()
+          .toISOString()
+          .replace(/[:.]/g, "-")
+          .slice(0, 19);
+        const displayAttachments = [
+          {
+            id: attachmentId,
+            url: hasValidUrl ? finalImageUrl : rawImageUrl,
+            rawUrl: rawImageUrl,
+            title: `Generated_${timestamp}.png`,
+            contentType: ContentType.IMAGE,
+          },
+        ];
+
+        const responseContent = {
+          attachments: displayAttachments,
+          thought: `Generated a new photo based on my appearance`,
+          actions: ["GENERATE_IMAGE"],
+          text: caption,
+        };
+
+        logger.info(
+          `[GENERATE_IMAGE] 📤 Sending generated image to callback...`,
+        );
+        await callback(responseContent);
+        logger.info(`[GENERATE_IMAGE] ✅ Generated image sent successfully`);
+
         return {
-          text: "Image generation failed",
+          text: caption,
           values: {
-            success: false,
-            error: "IMAGE_GENERATION_FAILED",
+            success: true,
+            imageGenerated: true,
+            imageUrl: finalImageUrl,
             prompt: imagePrompt,
           },
           data: {
             actionName: "GENERATE_IMAGE",
+            imageUrl: hasValidUrl ? finalImageUrl : undefined,
             prompt: imagePrompt,
-            rawResponse: imageResponse,
+            attachments: hasValidUrl ? displayAttachments : [],
           },
-          success: false,
-        };
-      }
-
-      const rawImageUrl = imageResponse[0].url;
-
-      logger.info(
-        `[GENERATE_IMAGE] Received image URL (base64: ${isBase64DataUrl(rawImageUrl)}): ${rawImageUrl.substring(0, 100)}...`,
-      );
-
-      // CRITICAL: Convert base64 to blob URL to prevent token bloat
-      // Base64 images can be 100KB+ which exceeds token limits quickly
-      logger.info(`[GENERATE_IMAGE] Attempting to upload to blob storage...`);
-
-      let blobUrl: string | null = null;
-
-      try {
-        // userId property does not exist on IAgentRuntime. If needed, update ensureBlobUrl to not require userId,
-        // or retrieve from runtime.agentConfig, session, or another source if necessary.
-        blobUrl = await ensureBlobUrl(rawImageUrl);
-        logger.info(
-          `[GENERATE_IMAGE] Blob upload result: ${blobUrl ? blobUrl.substring(0, 80) + "..." : "FAILED"}`,
-        );
-      } catch (err) {
-        const blobError = err instanceof Error ? err.message : String(err);
-        logger.error(`[GENERATE_IMAGE] ❌ Blob upload threw error:`, blobError);
-      }
-
-      // If blob upload failed, we still show the image to user but don't store URL in memory
-      const imageUrl = blobUrl || "";
-      const hasValidStorageUrl = blobUrl !== null && blobUrl.startsWith("http");
-
-      logger.info(
-        `[GENERATE_IMAGE] Final state: hasValidStorageUrl=${hasValidStorageUrl}, imageUrl=${imageUrl ? imageUrl.substring(0, 80) + "..." : "(empty)"}`,
-      );
-
-      // Determine file extension from URL or default to png
-      const getFileExtension = (url: string): string => {
-        const urlPath = new URL(url).pathname;
-        const extension = urlPath.split(".").pop()?.toLowerCase();
-        // Common image extensions
-        if (
-          extension &&
-          ["png", "jpg", "jpeg", "gif", "webp", "bmp"].includes(extension)
-        ) {
-          return extension;
-        }
-        // Extension not in allowed list, fall through to default
-        return "png"; // Default fallback for invalid/unknown extensions
-      };
-
-      // Create shared attachment data to avoid duplication
-      const extension = getFileExtension(imageUrl);
-      const timestamp = new Date()
-        .toISOString()
-        .replace(/[:.]/g, "-")
-        .slice(0, 19);
-      const fileName = `Generated_Image_${timestamp}.${extension}`;
-      const attachmentId = v4();
-
-      // Create attachment with BOTH URLs:
-      // - rawUrl: For immediate display in the frontend (may be base64)
-      // - url: For storage in memory (only valid HTTP URLs, or raw as fallback)
-      // The frontend callback will receive both, but only HTTP URLs get stored in memory
-      const persistentUrl = hasValidStorageUrl ? imageUrl : rawImageUrl;
-
-      const displayAttachments = [
-        {
-          id: attachmentId,
-          url: persistentUrl, // Use blob URL if available, otherwise raw
-          rawUrl: rawImageUrl, // Keep raw for immediate display
-          title: fileName,
-          contentType: ContentType.IMAGE,
-        },
-      ];
-
-      logger.info(
-        `[GENERATE_IMAGE] 📎 Preparing callback with ${displayAttachments.length} attachment(s)`,
-      );
-      logger.info(
-        `[GENERATE_IMAGE] 📎 Attachment details: id=${attachmentId}, url=${persistentUrl.substring(0, 80)}..., startsWithHttp=${persistentUrl.startsWith("http")}`,
-      );
-
-      // For non-affiliate characters, just show the image without unnecessary text
-      const responseContent = {
-        attachments: displayAttachments,
-        thought: `Generated an image based on: "${imagePrompt}"`,
-        actions: ["GENERATE_IMAGE"],
-        text: "", // No text needed - the image speaks for itself
-      };
-
-      logger.info(
-        `[GENERATE_IMAGE] 📤 Invoking callback with responseContent...`,
-      );
-      await callback(responseContent);
-      logger.info(`[GENERATE_IMAGE] ✅ Callback completed`);
-
-      // Storage attachments for action result - only valid URLs
-      const storageAttachments = hasValidStorageUrl
-        ? [
-            {
-              id: attachmentId,
-              url: imageUrl, // This is a valid blob URL
-              title: fileName,
-              contentType: ContentType.IMAGE,
-            },
-          ]
-        : []; // Empty - image was shown to user but not stored in memory
-
-      return {
-        text: "", // No unnecessary text in action result
-        values: {
           success: true,
-          imageGenerated: true,
-          imageUrl: imageUrl || rawImageUrl,
+        };
+      } else {
+        const fallbackResult = appearanceResult as AppearanceGenerationFallback;
+        logger.warn(
+          `[GENERATE_IMAGE] ⚠️ Cannot generate appearance-based image: ${fallbackResult.fallbackReason}`,
+        );
+      }
+    }
+
+    const selectedTemplate = affiliateConfig.isAffiliateCharacter
+      ? affiliateImageGenerationTemplate
+      : runtime.character.templates?.imageGenerationTemplate ||
+        imageGenerationTemplate;
+
+    // Add character info to state for the template
+    const characterBio = runtime.character?.bio;
+    const characterBioText = Array.isArray(characterBio)
+      ? characterBio.join(" ")
+      : typeof characterBio === "string"
+        ? characterBio
+        : "";
+
+    const enhancedState = {
+      ...state,
+      characterName: runtime.character?.name || "Unknown",
+      characterBio: characterBioText,
+    };
+
+    const prompt = composePromptFromState({
+      state: enhancedState,
+      template: selectedTemplate,
+    });
+
+    const promptResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
+      prompt,
+    });
+
+    const parsedXml = parseKeyValueXml(promptResponse);
+
+    let imagePrompt =
+      parsedXml?.prompt || "Unable to generate descriptive prompt for image";
+
+    // For affiliate characters, ensure the prompt generates human selfies
+    if (affiliateConfig.isAffiliateCharacter) {
+      const lowerPrompt = imagePrompt.toLowerCase();
+      // Add selfie/human keywords if not present
+      if (
+        !lowerPrompt.includes("selfie") &&
+        !lowerPrompt.includes("portrait")
+      ) {
+        imagePrompt = `photorealistic selfie, ${imagePrompt}`;
+      }
+      if (
+        !lowerPrompt.includes("photorealistic") &&
+        !lowerPrompt.includes("photo")
+      ) {
+        imagePrompt = `photorealistic ${imagePrompt}`;
+      }
+      // Ensure human-related keywords
+      if (
+        !lowerPrompt.includes("person") &&
+        !lowerPrompt.includes("man") &&
+        !lowerPrompt.includes("woman") &&
+        !lowerPrompt.includes("human")
+      ) {
+        imagePrompt = `${imagePrompt}, human person, natural face`;
+      }
+      // Add quality keywords
+      if (
+        !lowerPrompt.includes("8k") &&
+        !lowerPrompt.includes("high quality")
+      ) {
+        imagePrompt = `${imagePrompt}, high quality, detailed face, 8k`;
+      }
+      logger.info(
+        `[GENERATE_IMAGE] 🤳 Enhanced selfie prompt for affiliate character`,
+      );
+    }
+
+    const imageModelOptions: {
+      prompt: string;
+    } = {
+      prompt: imagePrompt,
+    };
+
+    logger.info(
+      `[GENERATE_IMAGE] 🎨 Generating new image with prompt: "${imagePrompt.substring(0, 100)}..."`,
+    );
+
+    const imageResponse = await runtime.useModel(
+      ModelType.IMAGE,
+      imageModelOptions,
+    );
+
+    if (
+      !imageResponse ||
+      imageResponse.length === 0 ||
+      !imageResponse[0]?.url
+    ) {
+      logger.error(
+        {
+          imageResponse,
+          imagePrompt,
+        },
+        "generateImageAction: Image generation failed - no valid response received",
+      );
+      return {
+        text: "Image generation failed",
+        values: {
+          success: false,
+          error: "IMAGE_GENERATION_FAILED",
           prompt: imagePrompt,
         },
         data: {
           actionName: "GENERATE_IMAGE",
-          imageUrl: imageUrl || undefined,
           prompt: imagePrompt,
-          attachments: storageAttachments,
+          rawResponse: imageResponse,
         },
-        success: true,
+        success: false,
       };
+    }
+
+    const rawImageUrl = imageResponse[0].url;
+
+    logger.info(
+      `[GENERATE_IMAGE] Received image URL (base64: ${isBase64DataUrl(rawImageUrl)}): ${rawImageUrl.substring(0, 100)}...`,
+    );
+
+    // CRITICAL: Convert base64 to blob URL to prevent token bloat
+    // Base64 images can be 100KB+ which exceeds token limits quickly
+    logger.info(`[GENERATE_IMAGE] Attempting to upload to blob storage...`);
+
+    let blobUrl: string | null = null;
+
+    try {
+      // userId property does not exist on IAgentRuntime. If needed, update ensureBlobUrl to not require userId,
+      // or retrieve from runtime.agentConfig, session, or another source if necessary.
+      blobUrl = await ensureBlobUrl(rawImageUrl);
+      logger.info(
+        `[GENERATE_IMAGE] Blob upload result: ${blobUrl ? blobUrl.substring(0, 80) + "..." : "FAILED"}`,
+      );
+    } catch (err) {
+      const blobError = err instanceof Error ? err.message : String(err);
+      logger.error(`[GENERATE_IMAGE] ❌ Blob upload threw error:`, blobError);
+    }
+
+    // If blob upload failed, we still show the image to user but don't store URL in memory
+    const imageUrl = blobUrl || "";
+    const hasValidStorageUrl = blobUrl !== null && blobUrl.startsWith("http");
+
+    logger.info(
+      `[GENERATE_IMAGE] Final state: hasValidStorageUrl=${hasValidStorageUrl}, imageUrl=${imageUrl ? imageUrl.substring(0, 80) + "..." : "(empty)"}`,
+    );
+
+    // Determine file extension from URL or default to png
+    const getFileExtension = (url: string): string => {
+      const urlPath = new URL(url).pathname;
+      const extension = urlPath.split(".").pop()?.toLowerCase();
+      // Common image extensions
+      if (
+        extension &&
+        ["png", "jpg", "jpeg", "gif", "webp", "bmp"].includes(extension)
+      ) {
+        return extension;
+      }
+      // Extension not in allowed list, fall through to default
+      return "png"; // Default fallback for invalid/unknown extensions
+    };
+
+    // Create shared attachment data to avoid duplication
+    const extension = getFileExtension(imageUrl);
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, "-")
+      .slice(0, 19);
+    const fileName = `Generated_Image_${timestamp}.${extension}`;
+    const attachmentId = v4();
+
+    // Create attachment with BOTH URLs:
+    // - rawUrl: For immediate display in the frontend (may be base64)
+    // - url: For storage in memory (only valid HTTP URLs, or raw as fallback)
+    // The frontend callback will receive both, but only HTTP URLs get stored in memory
+    const persistentUrl = hasValidStorageUrl ? imageUrl : rawImageUrl;
+
+    const displayAttachments = [
+      {
+        id: attachmentId,
+        url: persistentUrl, // Use blob URL if available, otherwise raw
+        rawUrl: rawImageUrl, // Keep raw for immediate display
+        title: fileName,
+        contentType: ContentType.IMAGE,
+      },
+    ];
+
+    logger.info(
+      `[GENERATE_IMAGE] 📎 Preparing callback with ${displayAttachments.length} attachment(s)`,
+    );
+    logger.info(
+      `[GENERATE_IMAGE] 📎 Attachment details: id=${attachmentId}, url=${persistentUrl.substring(0, 80)}..., startsWithHttp=${persistentUrl.startsWith("http")}`,
+    );
+
+    // For non-affiliate characters, just show the image without unnecessary text
+    const responseContent = {
+      attachments: displayAttachments,
+      thought: `Generated an image based on: "${imagePrompt}"`,
+      actions: ["GENERATE_IMAGE"],
+      text: "", // No text needed - the image speaks for itself
+    };
+
+    logger.info(
+      `[GENERATE_IMAGE] 📤 Invoking callback with responseContent...`,
+    );
+    await callback(responseContent);
+    logger.info(`[GENERATE_IMAGE] ✅ Callback completed`);
+
+    // Storage attachments for action result - only valid URLs
+    const storageAttachments = hasValidStorageUrl
+      ? [
+          {
+            id: attachmentId,
+            url: imageUrl, // This is a valid blob URL
+            title: fileName,
+            contentType: ContentType.IMAGE,
+          },
+        ]
+      : []; // Empty - image was shown to user but not stored in memory
+
+    return {
+      text: "", // No unnecessary text in action result
+      values: {
+        success: true,
+        imageGenerated: true,
+        imageUrl: imageUrl || rawImageUrl,
+        prompt: imagePrompt,
+      },
+      data: {
+        actionName: "GENERATE_IMAGE",
+        imageUrl: imageUrl || undefined,
+        prompt: imagePrompt,
+        attachments: storageAttachments,
+      },
+      success: true,
+    };
   },
   examples: [
     [

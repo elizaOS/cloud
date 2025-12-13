@@ -161,7 +161,7 @@ function printSummary(
   user: { id: string },
   organization: { id: string; name: string },
   miniapp: { id: string; slug: string },
-  apiKeyPlain: string | null
+  apiKeyPlain: string | null,
 ) {
   console.log("\n" + "=".repeat(60));
   console.log("=== MINIAPP DEVELOPMENT ENVIRONMENT READY ===");
@@ -178,13 +178,21 @@ function printSummary(
   const reused = 5 - created - (result.apiKey.regenerated ? 1 : 0);
 
   console.log("\n📊 Idempotency Summary:");
-  console.log(`   Created: ${created}  |  Reused: ${reused}${result.apiKey.regenerated ? "  |  Regenerated: 1" : ""}`);
+  console.log(
+    `   Created: ${created}  |  Reused: ${reused}${result.apiKey.regenerated ? "  |  Regenerated: 1" : ""}`,
+  );
   console.log("");
-  console.log(`   Organization: ${result.organization ? "✨ NEW" : "♻️  reused"}`);
+  console.log(
+    `   Organization: ${result.organization ? "✨ NEW" : "♻️  reused"}`,
+  );
   console.log(`   User:         ${result.user ? "✨ NEW" : "♻️  reused"}`);
   console.log(`   Miniapp:      ${result.miniapp ? "✨ NEW" : "♻️  reused"}`);
-  console.log(`   API Key:      ${result.apiKey.created ? "✨ NEW" : result.apiKey.regenerated ? "🔄 regenerated" : "♻️  reused"}`);
-  console.log(`   App User:     ${result.appUserLink ? "✨ NEW" : "♻️  reused"}`);
+  console.log(
+    `   API Key:      ${result.apiKey.created ? "✨ NEW" : result.apiKey.regenerated ? "🔄 regenerated" : "♻️  reused"}`,
+  );
+  console.log(
+    `   App User:     ${result.appUserLink ? "✨ NEW" : "♻️  reused"}`,
+  );
 
   console.log("\n📋 Test User Details:");
   console.log(`   User ID:        ${user.id}`);
@@ -197,7 +205,9 @@ function printSummary(
   console.log(`   App ID:         ${miniapp.id}`);
   console.log(`   Slug:           ${miniapp.slug}`);
   console.log(`   App URL:        ${MINIAPP_CONFIG.appUrl}`);
-  console.log(`   Allowed Origins: ${MINIAPP_CONFIG.allowedOrigins.join(", ")}`);
+  console.log(
+    `   Allowed Origins: ${MINIAPP_CONFIG.allowedOrigins.join(", ")}`,
+  );
 
   if (apiKeyPlain) {
     console.log("\n🔑 NEW API Key (added to miniapp/.env.local):");
@@ -209,7 +219,9 @@ function printSummary(
 
   console.log("\n🔐 Test Wallet:");
   console.log(`   Address: ${TEST_WALLET_ADDRESS}`);
-  console.log('   Seed:    "test test test test test test test test test test test junk"');
+  console.log(
+    '   Seed:    "test test test test test test test test test test test junk"',
+  );
 }
 
 async function main() {
@@ -298,15 +310,22 @@ async function main() {
       });
 
       if (existingKey) {
-          await db
-            .update(apiKeys)
-            .set({ permissions: API_KEY_PERMISSIONS, updated_at: new Date() })
-            .where(eq(apiKeys.id, existingKey.id));
-          console.log(`  ✓ Reusing API key: ${existingKey.key_prefix}...`);
+        await db
+          .update(apiKeys)
+          .set({ permissions: API_KEY_PERMISSIONS, updated_at: new Date() })
+          .where(eq(apiKeys.id, existingKey.id));
+        console.log(`  ✓ Reusing API key: ${existingKey.key_prefix}...`);
       } else {
         // Key was deleted, create new
-        const { apiKey: newKey, plainKey, prefix } = await createApiKey(organization.id, user.id);
-        await db.update(apps).set({ api_key_id: newKey.id }).where(eq(apps.id, miniapp.id));
+        const {
+          apiKey: newKey,
+          plainKey,
+          prefix,
+        } = await createApiKey(organization.id, user.id);
+        await db
+          .update(apps)
+          .set({ api_key_id: newKey.id })
+          .where(eq(apps.id, miniapp.id));
         apiKeyPlain = plainKey;
         result.apiKey.created = true;
         console.log(`  ✓ Created API key: ${prefix}...`);
@@ -314,8 +333,15 @@ async function main() {
       }
     } else {
       // No key linked
-      const { apiKey: newKey, plainKey, prefix } = await createApiKey(organization.id, user.id);
-      await db.update(apps).set({ api_key_id: newKey.id }).where(eq(apps.id, miniapp.id));
+      const {
+        apiKey: newKey,
+        plainKey,
+        prefix,
+      } = await createApiKey(organization.id, user.id);
+      await db
+        .update(apps)
+        .set({ api_key_id: newKey.id })
+        .where(eq(apps.id, miniapp.id));
       apiKeyPlain = plainKey;
       result.apiKey.created = true;
       console.log(`  ✓ Created API key: ${prefix}...`);
@@ -329,7 +355,11 @@ async function main() {
       .where(eq(apps.id, miniapp.id));
   } else {
     // Create new miniapp with API key
-    const { apiKey: newKey, plainKey, prefix } = await createApiKey(organization.id, user.id);
+    const {
+      apiKey: newKey,
+      plainKey,
+      prefix,
+    } = await createApiKey(organization.id, user.id);
     apiKeyPlain = plainKey;
     result.apiKey.created = true;
     console.log(`  ✓ Created API key: ${prefix}...`);

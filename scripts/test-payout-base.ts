@@ -1,17 +1,25 @@
 /**
  * Test Payout System on Base Network
- * 
+ *
  * This script tests the payout system using the funded wallet.
- * 
+ *
  * Run: bun run scripts/test-payout-base.ts
  */
 
-import { createPublicClient, createWalletClient, http, parseAbi, formatUnits, type Address } from "viem";
+import {
+  createPublicClient,
+  createWalletClient,
+  http,
+  parseAbi,
+  formatUnits,
+  type Address,
+} from "viem";
 import { base } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 
 // elizaOS token on Base
-const ELIZA_TOKEN_ADDRESS = "0xea17df5cf6d172224892b5477a16acb111182478" as Address;
+const ELIZA_TOKEN_ADDRESS =
+  "0xea17df5cf6d172224892b5477a16acb111182478" as Address;
 const ELIZA_DECIMALS = 9;
 
 const ERC20_ABI = parseAbi([
@@ -29,16 +37,19 @@ async function main() {
   console.log("");
 
   // Check environment
-  const privateKey = process.env.EVM_PRIVATE_KEY || process.env.EVM_PAYOUT_PRIVATE_KEY;
+  const privateKey =
+    process.env.EVM_PRIVATE_KEY || process.env.EVM_PAYOUT_PRIVATE_KEY;
   if (!privateKey) {
-    console.error("❌ EVM_PRIVATE_KEY or EVM_PAYOUT_PRIVATE_KEY not set in environment");
+    console.error(
+      "❌ EVM_PRIVATE_KEY or EVM_PAYOUT_PRIVATE_KEY not set in environment",
+    );
     process.exit(1);
   }
 
   // Format private key
-  const formattedKey = privateKey.startsWith("0x") 
-    ? privateKey as `0x${string}` 
-    : `0x${privateKey}` as `0x${string}`;
+  const formattedKey = privateKey.startsWith("0x")
+    ? (privateKey as `0x${string}`)
+    : (`0x${privateKey}` as `0x${string}`);
 
   // Create account from private key
   const account = privateKeyToAccount(formattedKey);
@@ -76,7 +87,7 @@ async function main() {
 
   // Check token contract
   console.log("Token Address:", ELIZA_TOKEN_ADDRESS);
-  
+
   const [tokenName, tokenSymbol, tokenDecimals] = await Promise.all([
     publicClient.readContract({
       address: ELIZA_TOKEN_ADDRESS,
@@ -101,7 +112,9 @@ async function main() {
   console.log("");
 
   if (Number(tokenDecimals) !== ELIZA_DECIMALS) {
-    console.warn(`⚠️  Decimals mismatch! Expected ${ELIZA_DECIMALS}, got ${tokenDecimals}`);
+    console.warn(
+      `⚠️  Decimals mismatch! Expected ${ELIZA_DECIMALS}, got ${tokenDecimals}`,
+    );
   } else {
     console.log("✅ Token decimals match expected (9)");
   }
@@ -113,7 +126,9 @@ async function main() {
   console.log("");
 
   // Check ETH balance for gas
-  const ethBalance = await publicClient.getBalance({ address: account.address });
+  const ethBalance = await publicClient.getBalance({
+    address: account.address,
+  });
   const ethBalanceFormatted = formatUnits(ethBalance, 18);
   console.log("ETH Balance:", ethBalanceFormatted, "ETH");
 
@@ -138,7 +153,9 @@ async function main() {
   if (parseFloat(tokenBalanceFormatted) === 0) {
     console.error("❌ No elizaOS tokens in wallet!");
     console.log("");
-    console.log("Please fund the wallet with elizaOS tokens to enable payouts.");
+    console.log(
+      "Please fund the wallet with elizaOS tokens to enable payouts.",
+    );
     process.exit(1);
   } else if (parseFloat(tokenBalanceFormatted) < 100) {
     console.warn("⚠️  Low elizaOS balance - may want to add more for payouts");
@@ -157,13 +174,17 @@ async function main() {
   const testRecipient = account.address; // Send to self for testing
 
   console.log("Test payout details:");
-  console.log("  Amount:", formatUnits(testAmount, ELIZA_DECIMALS), tokenSymbol);
+  console.log(
+    "  Amount:",
+    formatUnits(testAmount, ELIZA_DECIMALS),
+    tokenSymbol,
+  );
   console.log("  Recipient:", testRecipient, "(self - for testing)");
   console.log("");
 
   // Simulate the transaction
   console.log("Simulating transfer...");
-  
+
   try {
     const { request } = await publicClient.simulateContract({
       account,
@@ -187,14 +208,14 @@ async function main() {
 
     if (process.argv.includes("--execute")) {
       console.log("Executing real transfer...");
-      
+
       const txHash = await walletClient.writeContract(request);
       console.log("Transaction submitted:", txHash);
       console.log("Explorer:", `https://basescan.org/tx/${txHash}`);
       console.log("");
 
       console.log("Waiting for confirmation...");
-      const receipt = await publicClient.waitForTransactionReceipt({ 
+      const receipt = await publicClient.waitForTransactionReceipt({
         hash: txHash,
         confirmations: 2,
       });
@@ -207,7 +228,6 @@ async function main() {
         console.error("❌ Transaction reverted!");
       }
     }
-
   } catch (error) {
     console.error("❌ Simulation failed:", error);
     process.exit(1);
@@ -225,7 +245,9 @@ async function main() {
     walletAddress: account.address,
     ethBalance: ethBalanceFormatted,
     tokenBalance: tokenBalanceFormatted,
-    canProcessPayouts: parseFloat(tokenBalanceFormatted) > 0 && parseFloat(ethBalanceFormatted) > 0.001,
+    canProcessPayouts:
+      parseFloat(tokenBalanceFormatted) > 0 &&
+      parseFloat(ethBalanceFormatted) > 0.001,
   };
 
   console.log("Status:", JSON.stringify(status, null, 2));
@@ -254,4 +276,3 @@ async function main() {
 }
 
 main().catch(console.error);
-

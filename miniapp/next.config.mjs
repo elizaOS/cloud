@@ -2,7 +2,7 @@
 const nextConfig = {
   // Enable React strict mode for catching issues
   reactStrictMode: true,
-  
+
   // Webpack configuration for development tools
   webpack: (config, { dev, isServer }) => {
     // Only in development and on client-side
@@ -10,10 +10,10 @@ const nextConfig = {
       // Enable source maps for better debugging
       config.devtool = "cheap-module-source-map";
     }
-    
+
     return config;
   },
-  
+
   images: {
     remotePatterns: [
       {

@@ -49,16 +49,16 @@ export const agentEvents = pgTable(
   (table) => ({
     agent_idx: index("agent_events_agent_idx").on(table.agent_id),
     organization_idx: index("agent_events_organization_idx").on(
-      table.organization_id
+      table.organization_id,
     ),
     event_type_idx: index("agent_events_event_type_idx").on(table.event_type),
     level_idx: index("agent_events_level_idx").on(table.level),
     created_at_idx: index("agent_events_created_at_idx").on(table.created_at),
     agent_created_idx: index("agent_events_agent_created_idx").on(
       table.agent_id,
-      table.created_at
+      table.created_at,
     ),
-  })
+  }),
 );
 
 export type AgentEvent = InferSelectModel<typeof agentEvents>;

@@ -63,7 +63,11 @@ async function handlePOST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { messages, id, tier }: { messages: UIMessage[]; id?: string; tier?: string } = body;
+    const {
+      messages,
+      id,
+      tier,
+    }: { messages: UIMessage[]; id?: string; tier?: string } = body;
 
     const modelConfig = resolveModel(tier || id);
     const selectedModel = modelConfig.modelId;
@@ -84,16 +88,22 @@ async function handlePOST(req: NextRequest) {
         userId: user.id,
       });
       return NextResponse.json(
-        { error: "Your account has been suspended due to policy violations. Please contact support." },
+        {
+          error:
+            "Your account has been suspended due to policy violations. Please contact support.",
+        },
         { status: 403 },
       );
     }
 
     // Start async content moderation (runs in background, doesn't block)
-    const lastMessageText = typeof lastMessage?.content === "string" 
-      ? lastMessage.content 
-      : (lastMessage?.content as Array<{ type: string; text?: string }>)?.find(c => c.type === "text")?.text || "";
-    
+    const lastMessageText =
+      typeof lastMessage?.content === "string"
+        ? lastMessage.content
+        : (
+            lastMessage?.content as Array<{ type: string; text?: string }>
+          )?.find((c) => c.type === "text")?.text || "";
+
     if (lastMessageText) {
       contentModerationService.moderateInBackground(
         lastMessageText,
@@ -105,7 +115,7 @@ async function handlePOST(req: NextRequest) {
             categories: result.flaggedCategories,
             action: result.action,
           });
-        }
+        },
       );
     }
 

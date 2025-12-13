@@ -39,12 +39,12 @@ export async function GET(request: NextRequest) {
   // Rate limiting
   const rateLimitResult = await checkMiniappRateLimit(
     request,
-    MINIAPP_RATE_LIMITS
+    MINIAPP_RATE_LIMITS,
   );
   if (!rateLimitResult.allowed) {
     return createRateLimitErrorResponse(
       rateLimitResult,
-      corsResult.origin ?? undefined
+      corsResult.origin ?? undefined,
     );
   }
 
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const limit = Math.min(
       50,
-      Math.max(1, parseInt(searchParams.get("limit") || "20", 10))
+      Math.max(1, parseInt(searchParams.get("limit") || "20", 10)),
     );
     const search = searchParams.get("search") || undefined;
 
@@ -83,7 +83,9 @@ export async function GET(request: NextRequest) {
         createdAt: char.createdAt || char.created_at,
         updatedAt: char.updatedAt || char.updated_at,
         stats: char.stats,
-        imageSettings: affiliateDataToImageSettings(char.settings as Record<string, unknown> | undefined),
+        imageSettings: affiliateDataToImageSettings(
+          char.settings as Record<string, unknown> | undefined,
+        ),
       })),
       pagination: {
         page: result.pagination.page,
@@ -108,7 +110,7 @@ export async function GET(request: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : "Failed to list agents",
       },
-      { status }
+      { status },
     );
 
     return addCorsHeaders(response, corsResult.origin);
@@ -120,9 +122,18 @@ const ImageGenerationSettingsSchema = z.object({
   enabled: z.boolean(),
   autoGenerate: z.boolean(),
   referenceImages: z.array(z.string()).default([]),
-  vibe: z.enum([
-    "flirty", "shy", "bold", "spicy", "romantic", "playful", "mysterious", "intellectual"
-  ]).optional(),
+  vibe: z
+    .enum([
+      "flirty",
+      "shy",
+      "bold",
+      "spicy",
+      "romantic",
+      "playful",
+      "mysterious",
+      "intellectual",
+    ])
+    .optional(),
   appearanceDescription: z.string().optional(),
 });
 
@@ -148,7 +159,7 @@ const CreateAgentSchema = z.object({
         z.number(),
         z.boolean(),
         z.record(z.string(), z.unknown()),
-      ])
+      ]),
     )
     .optional(),
   isPublic: z.boolean().optional(),
@@ -159,7 +170,7 @@ const CreateAgentSchema = z.object({
  * Convert imageSettings to affiliateData format for storage
  */
 function imageSettingsToAffiliateData(
-  imageSettings: z.infer<typeof ImageGenerationSettingsSchema> | undefined
+  imageSettings: z.infer<typeof ImageGenerationSettingsSchema> | undefined,
 ): Record<string, unknown> | undefined {
   if (!imageSettings || !imageSettings.enabled) return undefined;
 
@@ -176,15 +187,19 @@ function imageSettingsToAffiliateData(
  * Convert affiliateData back to imageSettings format for API response
  */
 function affiliateDataToImageSettings(
-  settings: Record<string, unknown> | undefined
-): {
-  enabled: boolean;
-  autoGenerate: boolean;
-  referenceImages: string[];
-  vibe?: string;
-  appearanceDescription?: string;
-} | undefined {
-  const affiliateData = settings?.affiliateData as Record<string, unknown> | undefined;
+  settings: Record<string, unknown> | undefined,
+):
+  | {
+      enabled: boolean;
+      autoGenerate: boolean;
+      referenceImages: string[];
+      vibe?: string;
+      appearanceDescription?: string;
+    }
+  | undefined {
+  const affiliateData = settings?.affiliateData as
+    | Record<string, unknown>
+    | undefined;
   if (!affiliateData) return undefined;
 
   return {
@@ -192,7 +207,9 @@ function affiliateDataToImageSettings(
     autoGenerate: affiliateData.autoImage === true,
     referenceImages: (affiliateData.imageUrls as string[]) || [],
     vibe: affiliateData.vibe as string | undefined,
-    appearanceDescription: affiliateData.appearanceDescription as string | undefined,
+    appearanceDescription: affiliateData.appearanceDescription as
+      | string
+      | undefined,
   };
 }
 
@@ -206,12 +223,12 @@ export async function POST(request: NextRequest) {
   // Rate limiting (stricter for write operations)
   const rateLimitResult = await checkMiniappRateLimit(
     request,
-    MINIAPP_WRITE_LIMITS
+    MINIAPP_WRITE_LIMITS,
   );
   if (!rateLimitResult.allowed) {
     return createRateLimitErrorResponse(
       rateLimitResult,
-      corsResult.origin ?? undefined
+      corsResult.origin ?? undefined,
     );
   }
 
@@ -228,7 +245,7 @@ export async function POST(request: NextRequest) {
           error: "Invalid request data",
           details: validationResult.error.format(),
         },
-        { status: 400 }
+        { status: 400 },
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -282,10 +299,12 @@ export async function POST(request: NextRequest) {
           avatarUrl: character.avatar_url,
           isPublic: character.is_public,
           createdAt: character.created_at,
-          imageSettings: affiliateDataToImageSettings(character.settings as Record<string, unknown>),
+          imageSettings: affiliateDataToImageSettings(
+            character.settings as Record<string, unknown>,
+          ),
         },
       },
-      { status: 201 }
+      { status: 201 },
     );
 
     return addCorsHeaders(response, corsResult.origin);
@@ -302,7 +321,7 @@ export async function POST(request: NextRequest) {
         error:
           error instanceof Error ? error.message : "Failed to create agent",
       },
-      { status }
+      { status },
     );
 
     return addCorsHeaders(response, corsResult.origin);

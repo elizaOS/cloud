@@ -92,7 +92,8 @@ export async function POST(request: NextRequest) {
     // Extract IP address from headers (for abuse tracking)
     const forwardedFor = headersList.get("x-forwarded-for");
     const realIp = headersList.get("x-real-ip");
-    const ipAddress = forwardedFor?.split(",")[0]?.trim() || realIp || undefined;
+    const ipAddress =
+      forwardedFor?.split(",")[0]?.trim() || realIp || undefined;
     const userAgent = headersList.get("user-agent") || undefined;
 
     // Handle different webhook events
@@ -119,7 +120,7 @@ export async function POST(request: NextRequest) {
         if (anonSessionToken) {
           logger.info(
             "[Privy Webhook] Anonymous session detected, initiating migration...",
-            { tokenPreview: anonSessionToken.slice(0, 8) + "..." }
+            { tokenPreview: anonSessionToken.slice(0, 8) + "..." },
           );
 
           try {
@@ -129,22 +130,19 @@ export async function POST(request: NextRequest) {
             if (anonSession) {
               const migrationResult = await migrateAnonymousSession(
                 anonSession.user_id,
-                payload.user.id
+                payload.user.id,
               );
 
-              logger.info(
-                "[Privy Webhook] Migration completed",
-                {
-                  success: migrationResult.success,
-                  anonymousUserId: anonSession.user_id,
-                  realUserId: user.id,
-                  privyUserId: payload.user.id,
-                  ...migrationResult.mergedData,
-                }
-              );
+              logger.info("[Privy Webhook] Migration completed", {
+                success: migrationResult.success,
+                anonymousUserId: anonSession.user_id,
+                realUserId: user.id,
+                privyUserId: payload.user.id,
+                ...migrationResult.mergedData,
+              });
             } else {
               logger.debug(
-                "[Privy Webhook] Anonymous session token not found in DB"
+                "[Privy Webhook] Anonymous session token not found in DB",
               );
             }
           } catch (migrationError) {

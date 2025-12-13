@@ -58,7 +58,9 @@ export class ApiKeysService {
     // Cache the result (including null for invalid keys to prevent repeated lookups)
     if (apiKey) {
       await cache.set(cacheKey, apiKey, CacheTTL.apiKey.validation);
-      logger.debug("[ApiKeys] Cached valid API key", { keyPrefix: apiKey.key_prefix });
+      logger.debug("[ApiKeys] Cached valid API key", {
+        keyPrefix: apiKey.key_prefix,
+      });
     }
 
     return apiKey || null;
