@@ -338,10 +338,10 @@ export function CharacterCardSkeleton({
 
   // Grid view skeleton
   return (
-    <Card className="overflow-hidden p-0 gap-0 h-full">
+    <Card className="overflow-hidden p-0 rounded-none gap-0 h-full">
       <CardContent className="p-0 h-full flex flex-col">
         {/* Image skeleton */}
-        <Skeleton className="h-48 w-full rounded-t-xl rounded-b-none" />
+        <Skeleton className="h-48 w-full rounded-none" />
 
         {/* Content skeleton */}
         <div className="p-4 flex flex-col flex-1 space-y-3">
