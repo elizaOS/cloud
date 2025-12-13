@@ -49,8 +49,10 @@ For the ElizaOS CLI to use the bootstrapper deployment:
 
 These are injected into containers during bootstrapper deployment:
 
-- `R2_ARTIFACT_URL` - URL to fetch the project artifact
-- `R2_TOKEN` - One-time token for R2 access
+- `R2_ARTIFACT_URL` - Presigned URL to fetch the project artifact
+- `R2_ACCESS_KEY_ID` - Temporary R2 access key (automatically injected)
+- `R2_SECRET_ACCESS_KEY` - Temporary R2 secret key (automatically injected)
+- `R2_SESSION_TOKEN` - Temporary R2 session token (automatically injected)
 - `R2_ARTIFACT_CHECKSUM` - SHA256 checksum for verification
 - `START_CMD` - Command to start the application (default: bun run start)
 - `PORT` - Port the application listens on (default: 3000)

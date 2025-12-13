@@ -8,7 +8,6 @@ import {
   retryWithBackoff,
   withTimeout,
 } from "@/lib/errors/deployment-errors";
-import { logger } from "@/lib/logger";
 
 /**
  * Sanitize sensitive data for logging
@@ -102,13 +101,8 @@ export class CloudflareService {
   async deployContainer(
     config: DeploymentConfig,
   ): Promise<DeploymentResult> {
-    const deployLogger = logger.child({ 
-      service: "cloudflare", 
-      deploymentName: config.name 
-    });
-
     try {
-      deployLogger.info("Starting Cloudflare container deployment", sanitizeForLogging({
+      console.log("Starting Cloudflare container deployment", sanitizeForLogging({
         name: config.name,
         port: config.port,
         maxInstances: config.maxInstances,
@@ -122,25 +116,25 @@ export class CloudflareService {
         : config.imageTag;
 
       // Step 1: Create Worker script
-      deployLogger.info("Creating Worker script");
+      console.log("Creating Worker script");
       const worker = await this.createWorkerScript({
         ...config,
         imageTag: finalImageTag,
       });
-      deployLogger.info("Worker script created", { workerId: worker.id });
+      console.log("Worker script created", { workerId: worker.id });
 
       // Step 2: Deploy container binding
-      deployLogger.info("Deploying container binding");
+      console.log("Deploying container binding");
       const container = await this.deployContainerBinding(
         { ...config, imageTag: finalImageTag },
         worker.id,
       );
-      deployLogger.info("Container binding deployed", { containerId: container.id });
+      console.log("Container binding deployed", { containerId: container.id });
 
       // Step 3: Create route for the worker
-      deployLogger.info("Creating Worker route");
+      console.log("Creating Worker route");
       const route = await this.createWorkerRoute(worker.id, config.name);
-      deployLogger.info("Worker route created", { url: route.url });
+      console.log("Worker route created", { url: route.url });
 
       const result = {
         workerId: worker.id,
@@ -149,13 +143,13 @@ export class CloudflareService {
         status: "deployed",
       };
 
-      deployLogger.info("Cloudflare deployment completed successfully", result);
+      console.log("Cloudflare deployment completed successfully", result);
 
       return result;
     } catch (error) {
-      deployLogger.error(
+      console.error(
         "Cloudflare deployment failed",
-        error instanceof Error ? error : new Error(String(error)),
+        error instanceof Error ? error.message : String(error),
         sanitizeForLogging({ config })
       );
       throw new Error(

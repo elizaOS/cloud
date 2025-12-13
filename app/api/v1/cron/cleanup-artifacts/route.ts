@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cleanupAllArtifacts } from "@/lib/services/artifact-cleanup";
-import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +17,7 @@ export async function POST(request: NextRequest) {
     const cronSecret = process.env.CRON_SECRET;
 
     if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      logger.warn("Unauthorized cron request", {
+      console.warn("Unauthorized cron request", {
         ip: request.headers.get("x-forwarded-for"),
       });
       return NextResponse.json(
@@ -30,7 +29,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    logger.info("Starting scheduled artifact cleanup");
+    console.log("Starting scheduled artifact cleanup");
 
     const result = await cleanupAllArtifacts({
       maxVersionsPerProject: 10,
@@ -38,7 +37,7 @@ export async function POST(request: NextRequest) {
       minVersionsToKeep: 3,
     });
 
-    logger.info("Scheduled artifact cleanup completed", result);
+    console.log("Scheduled artifact cleanup completed", result);
 
     return NextResponse.json({
       success: true,
@@ -49,9 +48,9 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    logger.error(
+    console.error(
       "Artifact cleanup cron failed",
-      error instanceof Error ? error : new Error(String(error))
+      error instanceof Error ? error.message : String(error)
     );
 
     return NextResponse.json(
