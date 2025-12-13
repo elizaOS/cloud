@@ -135,12 +135,12 @@ Deploy a new container to AWS ECS.
 }
 ```
 
-**Response (Insufficient Credits):**
+**Response (Insufficient Balance):**
 
 ```json
 {
   "success": false,
-  "error": "Insufficient credits. Required: 1000, Available: 500",
+  "error": "Insufficient balance. Required: $10.00, Available: $5.00",
   "requiredCredits": 1000
 }
 ```
@@ -176,10 +176,10 @@ Status: `403 Forbidden`
 - `environment_vars`: Environment variables (max 50 vars, 32KB per var)
 - `health_check_path`: HTTP path for health checks (default: `/health`)
 
-**Credit Costs:**
+**Pricing:**
 
-- Base deployment: 1000 credits ($10)
-- Additional instances: 50 credits per instance per hour
+- Base deployment: $0.50
+- Additional instances: $0.05 per instance per hour
 - Higher CPU/memory allocations incur additional charges
 
 **Validation Rules:**
