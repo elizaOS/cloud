@@ -36,6 +36,14 @@ bun run db:generate      # Generate migration files from schema changes
 bun run db:migrate       # Apply pending migrations
 bun run db:push          # Push schema changes directly (dev only)
 bun run db:studio        # Open Drizzle Studio database browser
+
+# Local Database (Docker PostgreSQL - See LOCAL_DATABASE.md for full guide)
+bun run db:local:setup   # Complete automated setup (one command to rule them all)
+bun run db:local:start   # Start database container
+bun run db:local:stop    # Stop database container
+bun run db:local:clean   # Complete cleanup (removes all data and networks)
+bun run db:local:logs    # View database logs
+bun run db:local:seed    # Re-run seed data
 ```
 
 ---
