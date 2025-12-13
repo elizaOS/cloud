@@ -1,0 +1,417 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "ElizaOS Per-User Container Stack v2 - Production Ready - 1 t3g.small ARM instance with ECS",
+  "Parameters": {
+    "UserId": {
+      "Type": "String",
+      "Description": "Unique user ID for this deployment"
+    },
+    "UserEmail": {
+      "Type": "String",
+      "Description": "User email for tagging",
+      "Default": "unknown@example.com"
+    },
+    "ContainerImage": {
+      "Type": "String",
+      "Description": "ECR image URI for the container"
+    },
+    "ContainerPort": {
+      "Type": "Number",
+      "Default": 3000,
+      "Description": "Container port"
+    },
+    "ContainerCpu": {
+      "Type": "Number",
+      "Default": 256,
+      "Description": "CPU units (256 = 0.25 vCPU)"
+    },
+    "ContainerMemory": {
+      "Type": "Number",
+      "Default": 512,
+      "Description": "Memory in MB"
+    },
+    "SharedVPCId": {
+      "Type": "String",
+      "Description": "Shared VPC ID"
+    },
+    "SharedSubnetId": {
+      "Type": "String",
+      "Description": "Shared public subnet ID"
+    },
+    "SharedALBArn": {
+      "Type": "String",
+      "Description": "Shared ALB ARN"
+    },
+    "SharedListenerArn": {
+      "Type": "String",
+      "Description": "Shared ALB HTTPS Listener ARN"
+    },
+    "SharedALBSecurityGroupId": {
+      "Type": "String",
+      "Description": "Shared ALB Security Group ID"
+    },
+    "ECSExecutionRoleArn": {
+      "Type": "String",
+      "Description": "ECS Task Execution Role ARN"
+    },
+    "ECSTaskRoleArn": {
+      "Type": "String",
+      "Description": "ECS Task Role ARN"
+    },
+    "KeyName": {
+      "Type": "String",
+      "Description": "EC2 Key Pair for SSH access",
+      "Default": ""
+    },
+    "ListenerRulePriority": {
+      "Type": "Number",
+      "Description": "ALB Listener Rule Priority (must be unique, 1-50000)",
+      "MinValue": 1,
+      "MaxValue": 50000
+    }
+  },
+  "Conditions": {
+    "HasKeyPair": {
+      "Fn::Not": [{"Fn::Equals": [{"Ref": "KeyName"}, ""]}]
+    }
+  },
+  "Resources": {
+    "UserSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupName": {
+          "Fn::Sub": "elizaos-user-${UserId}-sg"
+        },
+        "GroupDescription": {
+          "Fn::Sub": "Security group for user ${UserId} ECS instance"
+        },
+        "VpcId": {"Ref": "SharedVPCId"},
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": {"Ref": "ContainerPort"},
+            "ToPort": {"Ref": "ContainerPort"},
+            "SourceSecurityGroupId": {"Ref": "SharedALBSecurityGroupId"},
+            "Description": "Allow traffic from ALB only"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 22,
+            "ToPort": 22,
+            "CidrIp": "0.0.0.0/0",
+            "Description": "SSH access for debugging"
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 443,
+            "ToPort": 443,
+            "CidrIp": "0.0.0.0/0",
+            "Description": "HTTPS to AWS services and internet"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 80,
+            "ToPort": 80,
+            "CidrIp": "0.0.0.0/0",
+            "Description": "HTTP for package downloads"
+          }
+        ],
+        "Tags": [
+          {"Key": "Name", "Value": {"Fn::Sub": "elizaos-user-${UserId}-sg"}},
+          {"Key": "UserId", "Value": {"Ref": "UserId"}},
+          {"Key": "UserEmail", "Value": {"Ref": "UserEmail"}},
+          {"Key": "BillingEntity", "Value": "ElizaOS"},
+          {"Key": "CostCenter", "Value": {"Ref": "UserId"}},
+          {"Key": "ManagedBy", "Value": "ElizaOS"}
+        ]
+      }
+    },
+    "ECSCluster": {
+      "Type": "AWS::ECS::Cluster",
+      "Properties": {
+        "ClusterName": {
+          "Fn::Sub": "elizaos-user-${UserId}"
+        },
+        "Tags": [
+          {"Key": "Name", "Value": {"Fn::Sub": "elizaos-user-${UserId}"}},
+          {"Key": "UserId", "Value": {"Ref": "UserId"}},
+          {"Key": "UserEmail", "Value": {"Ref": "UserEmail"}},
+          {"Key": "BillingEntity", "Value": "ElizaOS"},
+          {"Key": "CostCenter", "Value": {"Ref": "UserId"}},
+          {"Key": "ManagedBy", "Value": "ElizaOS"}
+        ]
+      }
+    },
+    "InstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "InstanceProfileName": {
+          "Fn::Sub": "elizaos-user-${UserId}-profile"
+        },
+        "Roles": [
+          "elizaos-ecs-instance-role"
+        ]
+      }
+    },
+    "LaunchTemplate": {
+      "Type": "AWS::EC2::LaunchTemplate",
+      "Properties": {
+        "LaunchTemplateName": {
+          "Fn::Sub": "elizaos-user-${UserId}-lt"
+        },
+        "LaunchTemplateData": {
+          "ImageId": {
+            "Fn::Sub": "{{resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id}}"
+          },
+          "InstanceType": "t3g.small",
+          "IamInstanceProfile": {
+            "Arn": {"Fn::GetAtt": ["InstanceProfile", "Arn"]}
+          },
+          "KeyName": {
+            "Fn::If": ["HasKeyPair", {"Ref": "KeyName"}, {"Ref": "AWS::NoValue"}]
+          },
+          "SecurityGroupIds": [
+            {"Ref": "UserSecurityGroup"}
+          ],
+          "UserData": {
+            "Fn::Base64": {
+              "Fn::Sub": "#!/bin/bash\necho ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config\necho ECS_ENABLE_CONTAINER_METADATA=true >> /etc/ecs/ecs.config\necho ECS_ENABLE_TASK_IAM_ROLE=true >> /etc/ecs/ecs.config\nyum install -y amazon-cloudwatch-agent\nsystemctl restart docker\n"
+            }
+          },
+          "BlockDeviceMappings": [
+            {
+              "DeviceName": "/dev/xvda",
+              "Ebs": {
+                "VolumeSize": 20,
+                "VolumeType": "gp3",
+                "DeleteOnTermination": true,
+                "Encrypted": true,
+                "Iops": 3000,
+                "Throughput": 125
+              }
+            }
+          ],
+          "TagSpecifications": [
+            {
+              "ResourceType": "instance",
+              "Tags": [
+                {"Key": "Name", "Value": {"Fn::Sub": "elizaos-user-${UserId}"}},
+                {"Key": "UserId", "Value": {"Ref": "UserId"}},
+                {"Key": "UserEmail", "Value": {"Ref": "UserEmail"}},
+                {"Key": "BillingEntity", "Value": "ElizaOS"},
+                {"Key": "CostCenter", "Value": {"Ref": "UserId"}},
+                {"Key": "ManagedBy", "Value": "ElizaOS"}
+              ]
+            }
+          ],
+          "MetadataOptions": {
+            "HttpTokens": "required",
+            "HttpPutResponseHopLimit": 2
+          }
+        }
+      }
+    },
+    "EC2Instance": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "LaunchTemplate": {
+          "LaunchTemplateId": {"Ref": "LaunchTemplate"},
+          "Version": {"Fn::GetAtt": ["LaunchTemplate", "LatestVersionNumber"]}
+        },
+        "SubnetId": {"Ref": "SharedSubnetId"},
+        "Tags": [
+          {"Key": "Name", "Value": {"Fn::Sub": "elizaos-user-${UserId}"}},
+          {"Key": "UserId", "Value": {"Ref": "UserId"}},
+          {"Key": "UserEmail", "Value": {"Ref": "UserEmail"}},
+          {"Key": "BillingEntity", "Value": "ElizaOS"},
+          {"Key": "CostCenter", "Value": {"Ref": "UserId"}}
+        ]
+      }
+    },
+    "EC2RecoveryAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": {"Fn::Sub": "elizaos-${UserId}-recovery"},
+        "AlarmDescription": "Trigger EC2 recovery if system status check fails",
+        "MetricName": "StatusCheckFailed_System",
+        "Namespace": "AWS/EC2",
+        "Statistic": "Minimum",
+        "Period": 60,
+        "EvaluationPeriods": 2,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "AlarmActions": [
+          {"Fn::Sub": "arn:aws:automate:${AWS::Region}:ec2:recover"}
+        ],
+        "Dimensions": [
+          {"Name": "InstanceId", "Value": {"Ref": "EC2Instance"}}
+        ]
+      }
+    },
+    "TargetGroup": {
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "elizaos-${UserId}"
+        },
+        "Protocol": "HTTP",
+        "Port": {"Ref": "ContainerPort"},
+        "VpcId": {"Ref": "SharedVPCId"},
+        "TargetType": "instance",
+        "HealthCheckEnabled": true,
+        "HealthCheckPath": "/health",
+        "HealthCheckProtocol": "HTTP",
+        "HealthCheckIntervalSeconds": 30,
+        "HealthCheckTimeoutSeconds": 5,
+        "HealthyThresholdCount": 2,
+        "UnhealthyThresholdCount": 3,
+        "Tags": [
+          {"Key": "UserId", "Value": {"Ref": "UserId"}},
+          {"Key": "BillingEntity", "Value": "ElizaOS"},
+          {"Key": "CostCenter", "Value": {"Ref": "UserId"}},
+          {"Key": "ManagedBy", "Value": "ElizaOS"}
+        ]
+      }
+    },
+    "ListenerRule": {
+      "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
+      "Properties": {
+        "ListenerArn": {"Ref": "SharedListenerArn"},
+        "Priority": {"Ref": "ListenerRulePriority"},
+        "Conditions": [
+          {
+            "Field": "host-header",
+            "HostHeaderConfig": {
+              "Values": [
+                {"Fn::Sub": "${UserId}.elizacloud.ai"}
+              ]
+            }
+          }
+        ],
+        "Actions": [
+          {
+            "Type": "forward",
+            "TargetGroupArn": {"Ref": "TargetGroup"}
+          }
+        ]
+      }
+    },
+    "LogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": {"Fn::Sub": "/ecs/elizaos-user-${UserId}"},
+        "RetentionInDays": 7
+      }
+    },
+    "TaskDefinition": {
+      "Type": "AWS::ECS::TaskDefinition",
+      "DependsOn": "LogGroup",
+      "Properties": {
+        "Family": {
+          "Fn::Sub": "elizaos-user-${UserId}"
+        },
+        "NetworkMode": "bridge",
+        "RequiresCompatibilities": ["EC2"],
+        "Cpu": {"Ref": "ContainerCpu"},
+        "Memory": {"Ref": "ContainerMemory"},
+        "ExecutionRoleArn": {"Ref": "ECSExecutionRoleArn"},
+        "TaskRoleArn": {"Ref": "ECSTaskRoleArn"},
+        "ContainerDefinitions": [
+          {
+            "Name": "agent",
+            "Image": {"Ref": "ContainerImage"},
+            "Essential": true,
+            "PortMappings": [
+              {
+                "ContainerPort": {"Ref": "ContainerPort"},
+                "Protocol": "tcp"
+              }
+            ],
+            "LogConfiguration": {
+              "LogDriver": "awslogs",
+              "Options": {
+                "awslogs-group": {"Fn::Sub": "/ecs/elizaos-user-${UserId}"},
+                "awslogs-region": {"Ref": "AWS::Region"},
+                "awslogs-stream-prefix": "ecs"
+              }
+            }
+          }
+        ],
+        "Tags": [
+          {"Key": "UserId", "Value": {"Ref": "UserId"}},
+          {"Key": "BillingEntity", "Value": "ElizaOS"},
+          {"Key": "CostCenter", "Value": {"Ref": "UserId"}},
+          {"Key": "ManagedBy", "Value": "ElizaOS"}
+        ]
+      }
+    },
+    "ECSService": {
+      "Type": "AWS::ECS::Service",
+      "DependsOn": ["EC2Instance"],
+      "Properties": {
+        "ServiceName": {
+          "Fn::Sub": "elizaos-user-${UserId}"
+        },
+        "Cluster": {"Ref": "ECSCluster"},
+        "TaskDefinition": {"Ref": "TaskDefinition"},
+        "DesiredCount": 1,
+        "LaunchType": "EC2",
+        "LoadBalancers": [
+          {
+            "TargetGroupArn": {"Ref": "TargetGroup"},
+            "ContainerName": "agent",
+            "ContainerPort": {"Ref": "ContainerPort"}
+          }
+        ],
+        "HealthCheckGracePeriodSeconds": 300,
+        "DeploymentConfiguration": {
+          "MaximumPercent": 200,
+          "MinimumHealthyPercent": 100
+        },
+        "Tags": [
+          {"Key": "UserId", "Value": {"Ref": "UserId"}},
+          {"Key": "BillingEntity", "Value": "ElizaOS"},
+          {"Key": "CostCenter", "Value": {"Ref": "UserId"}},
+          {"Key": "ManagedBy", "Value": "ElizaOS"}
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "ClusterName": {
+      "Description": "ECS Cluster Name",
+      "Value": {"Ref": "ECSCluster"}
+    },
+    "ClusterArn": {
+      "Description": "ECS Cluster ARN",
+      "Value": {"Fn::GetAtt": ["ECSCluster", "Arn"]}
+    },
+    "InstanceId": {
+      "Description": "EC2 Instance ID",
+      "Value": {"Ref": "EC2Instance"}
+    },
+    "InstancePublicIp": {
+      "Description": "EC2 Instance Public IP",
+      "Value": {"Fn::GetAtt": ["EC2Instance", "PublicIp"]}
+    },
+    "ServiceArn": {
+      "Description": "ECS Service ARN",
+      "Value": {"Ref": "ECSService"}
+    },
+    "TaskDefinitionArn": {
+      "Description": "ECS Task Definition ARN",
+      "Value": {"Ref": "TaskDefinition"}
+    },
+    "TargetGroupArn": {
+      "Description": "Target Group ARN",
+      "Value": {"Ref": "TargetGroup"}
+    },
+    "ContainerUrl": {
+      "Description": "Container URL",
+      "Value": {"Fn::Sub": "https://${UserId}.elizacloud.ai"}
+    }
+  }
+}
+

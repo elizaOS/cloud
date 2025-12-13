@@ -51,7 +51,6 @@ Generate a token with these permissions:
 - Account > Account Settings > Read
 - Account > Workers Scripts > Edit
 - Account > Workers Routes > Edit
-- Account > R2 > Edit
 
 **Option 2: Global API Key (Legacy, Not Recommended)**
 
@@ -159,34 +158,48 @@ Setup:
 Required for container deployments via CLI:
 
 ```env
-# Account & Authentication
-CLOUDFLARE_ACCOUNT_ID=abc123def456...
-CLOUDFLARE_API_TOKEN=your_scoped_token
+# AWS Configuration for ECS/ECR
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=AKIA...
+AWS_SECRET_ACCESS_KEY=...
 
-# R2 Storage Access
-R2_ACCESS_KEY_ID=your_access_key
-R2_SECRET_ACCESS_KEY=your_secret_key
-R2_BUCKET_NAME=eliza-artifacts
-R2_ENDPOINT=https://{account-id}.r2.cloudflarestorage.com
+# ECS Configuration
+ECS_CLUSTER_NAME=elizaos-production
+AWS_VPC_ID=vpc-...
+AWS_SUBNET_IDS=subnet-xxx,subnet-yyy
+AWS_SECURITY_GROUP_IDS=sg-...
+
+# ECS IAM Roles
+ECS_EXECUTION_ROLE_ARN=arn:aws:iam::...:role/ecsTaskExecutionRole
+ECS_TASK_ROLE_ARN=arn:aws:iam::...:role/ecsTaskRole
+
+# Optional: Shared ALB for cost optimization (recommended)
+ECS_SHARED_ALB_ARN=arn:aws:elasticloadbalancing:...
+ECS_SHARED_LISTENER_ARN=arn:aws:elasticloadbalancing:...
 ```
 
 Setup:
 
-1. **Create R2 Bucket**:
-   - Go to Cloudflare Dashboard → R2
-   - Click "Create bucket"
-   - Name it `eliza-artifacts`
-   - Select region closest to your users
+1. **Create ECS Cluster**:
+   - Go to AWS Console → ECS
+   - Click "Create cluster"
+   - Choose "EC2 Linux + Networking" launch type
+   - Name it `elizaos-production`
+   - Note: Clusters are created automatically via CloudFormation per user
 
-2. **Generate R2 API Token**:
-   - In R2 section, click "Manage R2 API Tokens"
-   - Click "Create API token"
-   - Permissions: Object Read & Write
-   - Copy `Access Key ID` and `Secret Access Key`
+2. **Set up VPC and Subnets**:
+   - Use existing VPC or create new one
+   - Need at least 2 public subnets in different AZs
+   - Security group must allow HTTP/HTTPS ingress
 
-3. **Set Endpoint**:
-   - Format: `https://{account-id}.r2.cloudflarestorage.com`
-   - Replace `{account-id}` with your Cloudflare account ID
+3. **Create IAM Roles**:
+   - Create `ecsTaskExecutionRole` with `AmazonECSTaskExecutionRolePolicy`
+   - Create `ecsTaskRole` for task-specific permissions
+   
+4. **Optional: Create Shared ALB** (saves $20/month per container):
+   - Create Application Load Balancer in ECS console
+   - Configure HTTPS listener with ACM certificate for `*.elizacloud.ai`
+   - Note the ALB ARN and Listener ARN
 
 ### Stripe (for Payments)
 
@@ -287,9 +300,9 @@ Check that:
 
 If you see "Container deployments are not configured":
 
-- Verify ALL Cloudflare variables are set
-- Verify ALL R2 variables are set
-- Both are required for the feature to work
+- Verify ALL AWS ECS variables are set
+- Check AWS credentials are valid: `aws sts get-caller-identity`
+- Verify ECS cluster exists: `aws ecs describe-clusters --clusters elizaos-production`
 
 ### "Cannot connect to database"
 
@@ -348,13 +361,18 @@ AI_GATEWAY_API_KEY=***
 # Storage
 BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...
 
-# Cloudflare (consolidated)
-CLOUDFLARE_ACCOUNT_ID=abc123def456...
-CLOUDFLARE_API_TOKEN=***
-R2_ACCESS_KEY_ID=***
-R2_SECRET_ACCESS_KEY=***
-R2_BUCKET_NAME=eliza-artifacts-prod
-R2_ENDPOINT=https://abc123def456.r2.cloudflarestorage.com
+# AWS ECS/ECR Configuration
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=***
+AWS_SECRET_ACCESS_KEY=***
+ECS_CLUSTER_NAME=elizaos-production
+AWS_VPC_ID=vpc-***
+AWS_SUBNET_IDS=subnet-***,subnet-***
+AWS_SECURITY_GROUP_IDS=sg-***
+ECS_EXECUTION_ROLE_ARN=arn:aws:iam::***:role/ecsTaskExecutionRole
+ECS_TASK_ROLE_ARN=arn:aws:iam::***:role/ecsTaskRole
+ECS_SHARED_ALB_ARN=arn:aws:elasticloadbalancing:***
+ECS_SHARED_LISTENER_ARN=arn:aws:elasticloadbalancing:***
 
 # Payments
 STRIPE_SECRET_KEY=sk_live_...
