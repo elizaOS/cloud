@@ -10,6 +10,7 @@ export interface RoomItem {
   lastText?: string;
   lastTime?: number;
   characterId?: string;
+  title?: string; // AI-generated title from first user message
 }
 
 export interface Character {
@@ -105,6 +106,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               characterId: r.characterId,
               lastText: r.lastText,
               lastTime: r.lastTime,
+              title: r.title, // AI-generated title
             }));
 
           setRooms(roomItems);
