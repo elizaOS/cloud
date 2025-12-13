@@ -76,16 +76,42 @@ export async function createR2TempCredentials(
       ...authHeaders,
     };
 
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        bucket: bucketName,
-        prefix: objectPrefix,
-        permission,
-        ttl_seconds: ttlSeconds,
-      }),
-    });
+    // Add timeout to prevent hanging (30 seconds for API calls)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+    let response: Response;
+    try {
+      response = await fetch(endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          bucket: bucketName,
+          prefix: objectPrefix,
+          permission,
+          ttl_seconds: ttlSeconds,
+        }),
+        signal: controller.signal,
+      });
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      
+      // Handle timeout
+      if (fetchError instanceof Error && fetchError.name === "AbortError") {
+        throw new Error("Cloudflare API request timed out after 30 seconds. Please check your network connection and try again.");
+      }
+      
+      // Handle network errors
+      throw new Error(`Network error calling Cloudflare API: ${fetchError instanceof Error ? fetchError.message : "Unknown error"}`);
+    }
+    
+    clearTimeout(timeoutId);
+
+    // Check HTTP status
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Cloudflare API returned ${response.status}: ${errorText}`);
+    }
 
     const data = await response.json() as {
       success: boolean;
@@ -94,12 +120,27 @@ export async function createR2TempCredentials(
         secretAccessKey: string;
         sessionToken: string;
       };
-      errors?: Array<{ message: string }>;
+      errors?: Array<{ message: string; code?: number }>;
     };
 
+    // Check API response success
     if (!data.success || !data.result) {
-      const errorMsg = data.errors?.map(e => e.message).join(", ") || "Unknown error";
+      const errorMsg = data.errors?.map(e => `${e.message}${e.code ? ` (${e.code})` : ""}`).join(", ") || "Unknown error";
+      
+      // Provide helpful context for common errors
+      if (errorMsg.includes("not found") || errorMsg.includes("404")) {
+        throw new Error(`R2 bucket '${bucketName}' not found. Please verify bucket exists and credentials are correct.`);
+      }
+      if (errorMsg.includes("unauthorized") || errorMsg.includes("403")) {
+        throw new Error(`R2 credentials unauthorized. Please check R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY.`);
+      }
+      
       throw new Error(`Failed to create R2 temp credentials: ${errorMsg}`);
+    }
+
+    // Validate response structure
+    if (!data.result.accessKeyId || !data.result.secretAccessKey || !data.result.sessionToken) {
+      throw new Error("Incomplete R2 credentials returned from Cloudflare API");
     }
 
     return {

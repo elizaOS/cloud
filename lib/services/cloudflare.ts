@@ -65,7 +65,7 @@ export class CloudflareService {
 
       // Use bootstrapper image for artifact-based deployments
       const finalImageTag = config.useBootstrapper 
-        ? "elizaos/bootstrapper:latest"  // This should be configurable
+        ? process.env.BOOTSTRAPPER_IMAGE_TAG || "elizaos/bootstrapper:latest"
         : config.imageTag;
 
       // Step 1: Create Worker script
@@ -235,14 +235,57 @@ export default {
       // Import R2 credentials service
       const { createArtifactDownloadCredentials } = await import("./r2-credentials");
       
-      // Extract artifact details from URL
+      // Extract artifact details from URL with validation
       // URL format: https://.../artifacts/{org}/{project}/{version}/{artifactId}.tar.gz
-      const urlParts = config.artifactUrl.split("/");
-      const artifactFileName = urlParts[urlParts.length - 1];
-      const artifactId = artifactFileName.replace(".tar.gz", "");
-      const version = urlParts[urlParts.length - 2];
-      const projectId = urlParts[urlParts.length - 3];
-      const organizationId = urlParts[urlParts.length - 4];
+      let organizationId: string;
+      let projectId: string;
+      let version: string;
+      let artifactId: string;
+
+      try {
+        const url = new URL(config.artifactUrl);
+        const pathParts = url.pathname.split("/").filter(Boolean);
+        
+        // Validate URL structure: must have at least 5 parts (artifacts, org, project, version, filename)
+        if (pathParts.length < 5) {
+          throw new Error(
+            `Invalid artifact URL structure. Expected format: .../artifacts/{org}/{project}/{version}/{file}.tar.gz`
+          );
+        }
+
+        // Find the artifacts directory in the path
+        const artifactsIndex = pathParts.indexOf("artifacts");
+        if (artifactsIndex === -1 || artifactsIndex + 4 >= pathParts.length) {
+          throw new Error(
+            `Artifact URL must contain 'artifacts' directory followed by org/project/version/file`
+          );
+        }
+
+        organizationId = pathParts[artifactsIndex + 1];
+        projectId = pathParts[artifactsIndex + 2];
+        version = pathParts[artifactsIndex + 3];
+        const artifactFileName = pathParts[artifactsIndex + 4];
+
+        // Validate filename ends with .tar.gz
+        if (!artifactFileName.endsWith(".tar.gz")) {
+          throw new Error(`Artifact filename must end with .tar.gz, got: ${artifactFileName}`);
+        }
+
+        artifactId = artifactFileName.replace(".tar.gz", "");
+
+        // Validate all parts are non-empty
+        if (!organizationId || !projectId || !version || !artifactId) {
+          throw new Error("Artifact URL contains empty path components");
+        }
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : "Invalid artifact URL";
+        throw new CloudflareApiError(
+          `Failed to parse artifact URL: ${errorMsg}`,
+          config.artifactUrl,
+          "PARSE",
+          { url: config.artifactUrl }
+        );
+      }
 
       // Generate temporary download credentials (read-only, 6 hours for container startup)
       const downloadCreds = await createArtifactDownloadCredentials({
