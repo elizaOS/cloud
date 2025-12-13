@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, Suspense, useMemo } from "react";
+import { useEffect, useState, useCallback, Suspense, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import {
@@ -38,6 +38,9 @@ function MiniappLoginContent() {
 
   const [status, setStatus] = useState<Status>(initialStatus.status);
   const [errorMessage, setErrorMessage] = useState(initialStatus.errorMessage);
+
+  // Track if login has been triggered to prevent infinite loop
+  const loginTriggeredRef = useRef(false);
 
   const completeLogin = useCallback(async () => {
     if (!sessionId) {
@@ -108,9 +111,15 @@ function MiniappLoginContent() {
   }, [initialStatus.status, authenticated, sessionId, completeLogin]);
 
   // Auto-trigger login when ready and waiting for auth
+  // Use ref to ensure login is only called once to prevent infinite loop
   useEffect(() => {
-    if (status === "waiting_auth" && ready && !authenticated) {
+    if (status === "waiting_auth" && ready && !authenticated && !loginTriggeredRef.current) {
+      loginTriggeredRef.current = true;
       login();
+    }
+    // Reset the flag if user becomes authenticated (for re-auth scenarios)
+    if (authenticated) {
+      loginTriggeredRef.current = false;
     }
   }, [status, ready, authenticated, login]);
 
