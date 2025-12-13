@@ -2,6 +2,7 @@
 export * from "./organizations";
 export * from "./users";
 export * from "./api-keys";
+export * from "./cli-auth-sessions";
 export * from "./credits";
 export * from "./usage";
 export * from "./generations";
