@@ -1,3 +1,14 @@
+/**
+ * Character creator client component for creating and editing characters.
+ * Provides form-based and JSON editor modes with build mode assistant integration.
+ * Supports character creation, updates, and testing.
+ *
+ * @param props - Character creator configuration
+ * @param props.initialCharacters - Initial list of characters
+ * @param props.initialCharacterId - Optional character ID to edit
+ * @param props.userId - User ID for character ownership
+ */
+
 "use client";
 
 import { useState, useCallback, useEffect } from "react";

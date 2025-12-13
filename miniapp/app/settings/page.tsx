@@ -13,9 +13,8 @@ import {
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import type { Billing, CreditPack, AppBilling } from "@/lib/cloud-api";
 import {
-  type Billing,
-  type CreditPack,
   createCheckoutSession,
   getBilling,
   getCreditPacks,
@@ -35,6 +34,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [billing, setBilling] = useState<Billing | null>(null);
+  const [appBilling, setAppBilling] = useState<AppBilling | null>(null);
 
   // Credit packs modal state
   const [showCreditPacks, setShowCreditPacks] = useState(false);
@@ -54,14 +54,10 @@ export default function SettingsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
-    try {
-      const billingData = await getBilling();
-      setBilling(billingData.billing);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load settings");
-    } finally {
-      setLoading(false);
-    }
+    const billingData = await getBilling();
+    setBilling(billingData.billing);
+    setAppBilling(billingData.appBilling || null);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -75,14 +71,9 @@ export default function SettingsPage() {
     setShowCreditPacks(true);
     if (creditPacks.length === 0) {
       setLoadingPacks(true);
-      try {
-        const packs = await getCreditPacks();
-        setCreditPacks(packs);
-      } catch (err) {
-        console.error("Failed to load credit packs:", err);
-      } finally {
-        setLoadingPacks(false);
-      }
+      const packs = await getCreditPacks();
+      setCreditPacks(packs);
+      setLoadingPacks(false);
     }
   }, [creditPacks.length]);
 
@@ -91,25 +82,19 @@ export default function SettingsPage() {
     async (packId?: string, credits?: number) => {
       const loadingId = packId || "custom";
       setCheckoutLoading(loadingId);
-      try {
-        // Convert credits to dollars for the API (1 credit = $0.01)
-        const amount = credits ? credits / 100 : undefined;
-        const { url } = await createCheckoutSession({
-          creditPackId: packId,
-          amount: amount,
-          successUrl: `${window.location.origin}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-          cancelUrl: `${window.location.origin}/settings?canceled=true`,
-        });
+      // Convert credits to dollars for the API (1 credit = $0.01)
+      const amount = credits ? credits / 100 : undefined;
+      const { url } = await createCheckoutSession({
+        creditPackId: packId,
+        amount: amount,
+        successUrl: `${window.location.origin}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancelUrl: `${window.location.origin}/settings?canceled=true`,
+      });
 
-        if (url) {
-          window.location.href = url;
-        }
-      } catch (err) {
-        console.error("Checkout failed:", err);
-        setError(err instanceof Error ? err.message : "Checkout failed");
-      } finally {
-        setCheckoutLoading(null);
+      if (url) {
+        window.location.href = url;
       }
+      setCheckoutLoading(null);
     },
     []
   );
@@ -136,7 +121,13 @@ export default function SettingsPage() {
   const displayName = user?.name || null;
 
   // Convert dollar values to credits for display
-  const creditBalance = billing ? dollarsToCredits(billing.creditBalance) : 0;
+  // Use app-specific credits if monetization is enabled, otherwise org credits
+  let creditBalance = 0;
+  if (appBilling?.monetizationEnabled && appBilling.creditBalance !== undefined) {
+    creditBalance = dollarsToCredits(appBilling.creditBalance);
+  } else if (billing) {
+    creditBalance = dollarsToCredits(billing.creditBalance);
+  }
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
@@ -218,7 +209,11 @@ export default function SettingsPage() {
                 <p className="text-3xl font-bold text-white">
                   {creditBalance.toLocaleString()}
                 </p>
-                <p className="text-sm text-white/40">credits available</p>
+                <p className="text-sm text-white/40">
+                  {appBilling?.monetizationEnabled 
+                    ? `${appBilling.appName || 'App'} credits` 
+                    : 'credits available'}
+                </p>
               </div>
               <button
                 onClick={handleOpenCreditPacks}

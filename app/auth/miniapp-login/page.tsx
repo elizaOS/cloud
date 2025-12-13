@@ -160,8 +160,7 @@ function MiniappLoginContent() {
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
-            <CardTitle>Completing Authentication</CardTitle>
-            <CardDescription>Setting up your session...</CardDescription>
+            <CardTitle>Logging In...</CardTitle>
           </CardHeader>
         </Card>
       </div>

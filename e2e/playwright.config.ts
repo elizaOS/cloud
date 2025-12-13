@@ -75,8 +75,18 @@ export default defineConfig({
         ...devices["Desktop Chrome"],
         viewport: { width: 1280, height: 720 },
       },
-      // Only ignore the full wallet test (requires MetaMask), allow local wallet test
-      testIgnore: [/wallet-login\.spec\.ts$/, /miniapp.*\.spec\.ts$/],
+      // Only ignore the full wallet test (requires MetaMask), miniapp tests, and API tests
+      testIgnore: [/wallet-login\.spec\.ts$/, /miniapp.*\.spec\.ts$/, /.*-api\.spec\.ts$/],
+    },
+
+    // API integration tests (apps, miniapp authenticated, etc.)
+    {
+      name: "api",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1280, height: 720 },
+      },
+      testMatch: [/.*-api\.spec\.ts$/, /miniapp-authenticated\.spec\.ts$/],
     },
 
     // Miniapp integration tests

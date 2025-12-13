@@ -1,14 +1,16 @@
 "use client";
 
-import { Bot, ChevronDown, Loader2, LogIn, LogOut, Settings, User } from "lucide-react";
+import { Bot, ChevronDown, Coins, Loader2, LogIn, LogOut, Settings, User } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { getBilling } from "@/lib/cloud-api";
 import { useAuth } from "@/lib/use-auth";
 
 export function AuthButton() {
   const { ready, authenticated, login, logout, user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [credits, setCredits] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -22,6 +24,36 @@ export function AuthButton() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Fetch credits when authenticated
+  useEffect(() => {
+    let cancelled = false;
+    
+    if (authenticated) {
+      getBilling()
+        .then(({ billing }) => {
+          if (!cancelled) setCredits(billing.creditBalance);
+        })
+        .catch(() => {
+          if (!cancelled) setCredits(null);
+        });
+    }
+    
+    return () => {
+      cancelled = true;
+      // Clear credits on cleanup (when auth changes or component unmounts)
+      setCredits(null);
+    };
+  }, [authenticated]);
+
+  // Format credits for display
+  const formatCredits = (amount: string) => {
+    const num = parseFloat(amount);
+    if (num >= 1000) {
+      return `$${(num / 1000).toFixed(1)}k`;
+    }
+    return `$${num.toFixed(2)}`;
+  };
 
   // Still loading
   if (!ready) {
@@ -57,6 +89,16 @@ export function AuthButton() {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2 transition-colors hover:bg-white/10"
       >
+        {/* Credits Badge */}
+        {credits && (
+          <div className="flex items-center gap-1 rounded-md bg-emerald-500/20 px-2 py-0.5">
+            <Coins className="h-3 w-3 text-emerald-400" />
+            <span className="text-xs font-medium text-emerald-400">
+              {formatCredits(credits)}
+            </span>
+          </div>
+        )}
+        
         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-pink-500 to-purple-600">
           <User className="h-4 w-4 text-white" />
         </div>
@@ -72,7 +114,12 @@ export function AuthButton() {
           {/* User Info */}
           <div className="border-b border-white/10 px-4 py-3">
             <p className="truncate text-sm font-medium text-white">{displayName}</p>
-            <p className="text-xs text-white/50">Signed in</p>
+            {credits && (
+              <p className="mt-1 flex items-center gap-1 text-xs text-emerald-400">
+                <Coins className="h-3 w-3" />
+                {formatCredits(credits)} credits
+              </p>
+            )}
           </div>
 
           {/* Menu Items */}
@@ -93,20 +140,20 @@ export function AuthButton() {
               <Settings className="h-4 w-4 text-white/60" />
               Settings
             </Link>
-      </div>
+          </div>
 
           {/* Logout */}
           <div className="border-t border-white/10 py-1">
-      <button
+            <button
               onClick={() => {
                 setIsOpen(false);
                 logout();
               }}
               className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-400 transition-colors hover:bg-white/5 hover:text-red-300"
-      >
-        <LogOut className="h-4 w-4" />
+            >
+              <LogOut className="h-4 w-4" />
               Sign Out
-      </button>
+            </button>
           </div>
         </div>
       )}

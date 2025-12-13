@@ -205,8 +205,6 @@ function printSummary(
     console.log(`ELIZA_CLOUD_API_KEY=${apiKeyPlain}`);
     console.log(`NEXT_PUBLIC_ELIZA_CLOUD_URL=http://localhost:3000`);
     console.log("─".repeat(60));
-  } else {
-    console.log("\n🔑 API Key: unchanged (use --force to regenerate)");
   }
 
   console.log("\n🔐 Test Wallet:");
@@ -224,8 +222,6 @@ async function main() {
     apiKey: { created: false, regenerated: false },
     appUserLink: false,
   };
-
-  const forceRegenerate = process.argv.includes("--force") || process.argv.includes("-f");
 
   // Step 1: Organization
   console.log("[1/5] Organization...");
@@ -302,29 +298,11 @@ async function main() {
       });
 
       if (existingKey) {
-        if (forceRegenerate) {
-          const { key, hash, prefix } = generateApiKey();
-          await db
-            .update(apiKeys)
-            .set({
-              key,
-              key_hash: hash,
-              key_prefix: prefix,
-              permissions: API_KEY_PERMISSIONS,
-              updated_at: new Date(),
-            })
-            .where(eq(apiKeys.id, existingKey.id));
-          apiKeyPlain = key;
-          result.apiKey.regenerated = true;
-          console.log(`  ✓ Regenerated API key: ${prefix}...`);
-          writeMiniappEnvLocal(apiKeyPlain);
-        } else {
           await db
             .update(apiKeys)
             .set({ permissions: API_KEY_PERMISSIONS, updated_at: new Date() })
             .where(eq(apiKeys.id, existingKey.id));
           console.log(`  ✓ Reusing API key: ${existingKey.key_prefix}...`);
-        }
       } else {
         // Key was deleted, create new
         const { apiKey: newKey, plainKey, prefix } = await createApiKey(organization.id, user.id);

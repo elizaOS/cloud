@@ -18,6 +18,8 @@ import { NextRequest, NextResponse } from "next/server";
 const ELIZA_CLOUD_URL =
   process.env.NEXT_PUBLIC_ELIZA_CLOUD_URL || "http://localhost:3000";
 const ELIZA_CLOUD_API_KEY = process.env.ELIZA_CLOUD_API_KEY;
+// Optional: App ID for monetization tracking (if your app has monetization enabled)
+const ELIZA_APP_ID = process.env.ELIZA_APP_ID;
 
 /**
  * Forward request to Eliza Cloud
@@ -71,6 +73,11 @@ async function forwardRequest(
     headers.set("X-Api-Key", ELIZA_CLOUD_API_KEY);
   }
 
+  // Add App ID for monetization tracking if configured
+  if (ELIZA_APP_ID) {
+    headers.set("X-App-Id", ELIZA_APP_ID);
+  }
+
   // Forward authentication header
   const authHeader = request.headers.get("authorization");
   if (authHeader) {
@@ -99,14 +106,8 @@ async function forwardRequest(
   // Get request body for non-GET requests
   let body: string | null = null;
   if (method !== "GET" && method !== "HEAD") {
-    try {
-      body = await request.text();
-    } catch {
-      // No body
-    }
+    body = await request.text();
   }
-
-  console.log(`[Miniapp Proxy] ${method} ${targetUrl.toString()}`);
 
   try {
     const response = await fetch(targetUrl.toString(), {

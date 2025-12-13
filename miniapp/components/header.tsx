@@ -3,8 +3,9 @@
 import { Bot } from "lucide-react";
 import Link from "next/link";
 
-import { AuthButton } from "./auth-button";
 import { useAuth } from "@/lib/use-auth";
+
+import { AuthButton } from "./auth-button";
 
 export function Header() {
   const { authenticated, ready } = useAuth();

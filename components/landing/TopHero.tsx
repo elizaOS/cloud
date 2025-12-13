@@ -1,3 +1,9 @@
+/**
+ * Top hero section component for the landing page.
+ * Displays CLI commands for creating and deploying agents with OS-specific tabs.
+ * Includes copy-to-clipboard functionality and call-to-action buttons.
+ */
+
 "use client";
 
 import { useState } from "react";
