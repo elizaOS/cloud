@@ -2,11 +2,14 @@
  * Get the Eliza Cloud URL with smart defaults for production
  *
  * Auto-detects production URL if NEXT_PUBLIC_ELIZA_CLOUD_URL is not set.
+ * Filters out the marketing site (elizaos.ai) which doesn't have API endpoints.
  */
 export function getCloudUrl(): string {
-  // Use environment variable if set
-  if (process.env.NEXT_PUBLIC_ELIZA_CLOUD_URL) {
-    return process.env.NEXT_PUBLIC_ELIZA_CLOUD_URL;
+  const envUrl = process.env.NEXT_PUBLIC_ELIZA_CLOUD_URL;
+  
+  // Use environment variable if set AND it's not the marketing site
+  if (envUrl && envUrl !== "https://elizaos.ai" && !envUrl.includes("elizaos.ai")) {
+    return envUrl;
   }
 
   // In browser (production), use same origin as miniapp
