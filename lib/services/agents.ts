@@ -123,12 +123,17 @@ export class AgentService {
   async sendMessage(input: SendMessageInput): Promise<AgentResponse> {
     const { roomId, entityId, message, streaming, attachments } = input;
 
-    // Acquire distributed lock to prevent concurrent message processing
-    const lock = await distributedLocks.acquireRoomLock(roomId, 60000); // 60s TTL
+    // Acquire distributed lock with retry for MCP concurrent requests
+    // Will retry up to 10 times with exponential backoff (max ~20s wait)
+    const lock = await distributedLocks.acquireRoomLockWithRetry(roomId, 60000, {
+      maxRetries: 10,
+      initialDelayMs: 100,
+      maxDelayMs: 2000,
+    });
 
     if (!lock) {
       throw new Error(
-        "Room is currently processing another message. Please try again.",
+        "Room is currently processing another message. Maximum wait time exceeded.",
       );
     }
 
@@ -154,15 +159,13 @@ export class AgentService {
 
       // Emit response complete event
       await agentEventEmitter.emitResponseComplete(roomId, agentMessage, messageUsage || {
-        inputTokens: message.length / 4,
-        outputTokens: (agentMessage.content.text as string || "").length / 4,
+        inputTokens: Math.ceil(message.length / 4),
+        outputTokens: Math.ceil(((agentMessage.content.text as string) || "").length / 4),
         model: "eliza-agent",
       });
 
-      // Update room context in cache
-      await this.updateRoomContext(roomId, agentMessage);
-
-      // Invalidate room context cache to force refresh
+      // Invalidate room context cache to force fresh fetch on next request
+      // This is more reliable than trying to update the cache with new messages
       await agentStateCache.invalidateRoomContext(roomId);
 
       return {
@@ -171,8 +174,8 @@ export class AgentService {
         roomId,
         timestamp: new Date(agentMessage.createdAt || Date.now()),
         usage: {
-          inputTokens: message.length / 4,
-          outputTokens: (agentMessage.content.text as string).length / 4,
+          inputTokens: Math.ceil(message.length / 4),
+          outputTokens: Math.ceil(((agentMessage.content.text as string) || "").length / 4),
           model: "eliza-agent",
         },
         ...(streaming && {
