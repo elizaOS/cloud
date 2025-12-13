@@ -16,7 +16,7 @@ API keys are stored in the database with **dual storage** for different purposes
 
 ### Why Dual Storage?
 
-1. **`key` (plaintext)**: 
+1. **`key` (plaintext)**:
    - **Purpose**: Server-side retrieval for runtime injection
    - **Risk**: If database is compromised, keys are exposed
    - **Mitigation**: Database access is strictly controlled, SSL encrypted
@@ -53,6 +53,7 @@ validateApiKey(key: string): Promise<ApiKey | null> {
 ## Security Trade-offs
 
 ### ✅ Current Approach (Plaintext Storage)
+
 - **Pro**: Simple retrieval for server-side runtime injection
 - **Pro**: No key rotation complexity
 - **Pro**: Direct mapping to user
@@ -60,12 +61,14 @@ validateApiKey(key: string): Promise<ApiKey | null> {
 - **Mitigation**: Database SSL, access controls, audit logs
 
 ### ❌ Alternative: Full Encryption
+
 - **Pro**: Keys encrypted at rest
 - **Con**: Need to manage encryption keys securely (chicken-egg problem)
 - **Con**: Key rotation becomes complex
 - **Con**: Cannot validate without decrypting (performance impact)
 
 ### ❌ Alternative: No Plaintext Storage
+
 - **Pro**: Only hashes stored
 - **Con**: Cannot retrieve keys for runtime injection
 - **Con**: User would need to manually configure each agent
@@ -81,12 +84,14 @@ validateApiKey(key: string): Promise<ApiKey | null> {
 ## Recommendations
 
 ### Current Implementation: ✅ Acceptable for MVP
+
 - Plaintext storage is industry-standard for API keys (AWS, Stripe, GitHub all use this)
 - Server-side only retrieval
 - SSL/TLS encrypted in transit
 - Database access controls in place
 
 ### Future Enhancements:
+
 1. Add database encryption at rest (AWS RDS encryption)
 2. Implement key rotation policy
 3. Add API key usage alerts

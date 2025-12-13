@@ -7,6 +7,7 @@ This directory contains global state management using Zustand.
 We use Zustand for clean, simple state management without the boilerplate of Context providers.
 
 ### Benefits
+
 - **No Provider Wrappers**: Direct store access from any component
 - **TypeScript First**: Full type safety
 - **DevTools**: Built-in Redux DevTools support
@@ -16,7 +17,9 @@ We use Zustand for clean, simple state management without the boilerplate of Con
 ## Stores
 
 ### `chat-store.ts`
+
 Manages chat-related state including:
+
 - Rooms (conversations)
 - Room selection
 - Characters (AI agents)
@@ -31,13 +34,13 @@ import { useChatStore } from '@/stores/chat-store';
 function MyComponent() {
   // Select only what you need (component only re-renders when these change)
   const { rooms, createRoom, loadRooms } = useChatStore();
-  
+
   // Actions
   const handleNewRoom = async () => {
     const roomId = await createRoom();
     console.log('Created room:', roomId);
   };
-  
+
   return (
     <div>
       {rooms.map(room => (
@@ -77,6 +80,7 @@ interface ChatState {
 ## Best Practices
 
 ### 1. Select Only What You Need
+
 ```typescript
 // ❌ Bad - component re-renders on any store change
 const store = useChatStore();
@@ -86,26 +90,28 @@ const { rooms, loadRooms } = useChatStore();
 ```
 
 ### 2. Use Selectors for Derived State
+
 ```typescript
 // ✅ Good - computed value
-const activeRoom = useChatStore(state => 
-  state.rooms.find(r => r.id === state.roomId)
+const activeRoom = useChatStore((state) =>
+  state.rooms.find((r) => r.id === state.roomId),
 );
 ```
 
 ### 3. Keep Actions Simple
+
 ```typescript
 // Actions should be pure and handle their own side effects
 const createRoom = async (characterId?: string | null) => {
   try {
-    const response = await fetch('/api/eliza/rooms', {
-      method: 'POST',
+    const response = await fetch("/api/eliza/rooms", {
+      method: "POST",
       body: JSON.stringify({ characterId }),
     });
     const data = await response.json();
     return data.roomId;
   } catch (error) {
-    console.error('Error creating room:', error);
+    console.error("Error creating room:", error);
     return null;
   }
 };
@@ -120,9 +126,10 @@ const createRoom = async (characterId?: string | null) => {
 5. Document usage in this README
 
 Example:
+
 ```typescript
 // stores/user-store.ts
-import { create } from 'zustand';
+import { create } from "zustand";
 
 interface UserState {
   user: User | null;
@@ -140,12 +147,11 @@ export const useUserStore = create<UserState>((set) => ({
 Stores can be easily tested by importing and calling actions:
 
 ```typescript
-import { useChatStore } from '@/stores/chat-store';
+import { useChatStore } from "@/stores/chat-store";
 
-test('creates room', async () => {
+test("creates room", async () => {
   const { createRoom } = useChatStore.getState();
-  const roomId = await createRoom('character-123');
+  const roomId = await createRoom("character-123");
   expect(roomId).toBeDefined();
 });
 ```
-
