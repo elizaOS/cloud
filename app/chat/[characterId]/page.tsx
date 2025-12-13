@@ -245,6 +245,49 @@ export default async function ChatPage({
     }
   }
 
+  // 5. CLAIM AFFILIATE CHARACTER
+  // If this is an affiliate-created character owned by an anonymous user,
+  // automatically transfer ownership to the authenticated user
+  if (user!.organization_id) {
+    const claimCheck = await charactersService.isClaimableAffiliateCharacter(characterId);
+    
+    if (claimCheck.claimable) {
+      logger.info(`[Chat Page] 🎯 Detected claimable affiliate character, initiating transfer...`, {
+        characterId,
+        userId: user!.id,
+        previousOwnerId: claimCheck.ownerId,
+      });
+
+      const claimResult = await charactersService.claimAffiliateCharacter(
+        characterId,
+        user!.id,
+        user!.organization_id
+      );
+
+      if (claimResult.success) {
+        logger.info(`[Chat Page] ✅ Successfully claimed affiliate character: ${characterId}`);
+        // Reload the character to get updated ownership
+        const updatedCharacter = await charactersService.getById(characterId);
+        if (updatedCharacter) {
+          return (
+            <ChatInterface
+              character={updatedCharacter}
+              user={{
+                id: user!.id,
+                name: user!.name || undefined,
+                email: user!.email || undefined,
+              }}
+              source={source}
+              theme={theme}
+            />
+          );
+        }
+      } else {
+        logger.warn(`[Chat Page] Failed to claim affiliate character: ${claimResult.message}`);
+      }
+    }
+  }
+
   return (
     <ChatInterface
       character={character}
