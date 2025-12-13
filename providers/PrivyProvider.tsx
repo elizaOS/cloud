@@ -8,7 +8,6 @@ export default function PrivyProvider({
 }: {
   children: React.ReactNode;
 }) {
-
   // Check if Privy App ID is configured
   if (!process.env.NEXT_PUBLIC_PRIVY_APP_ID) {
     console.error("NEXT_PUBLIC_PRIVY_APP_ID is not set!");
