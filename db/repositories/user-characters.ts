@@ -54,7 +54,7 @@ export class UserCharactersRepository {
 
   async update(
     id: string,
-    data: Partial<NewUserCharacter>,
+    data: Partial<NewUserCharacter>
   ): Promise<UserCharacter | undefined> {
     const [updated] = await db
       .update(userCharacters)
@@ -77,7 +77,7 @@ export class UserCharactersRepository {
     organizationId: string,
     sortOptions: SortOptions,
     limit: number,
-    offset: number,
+    offset: number
   ): Promise<UserCharacter[]> {
     const conditions: SQL[] = [];
 
@@ -85,8 +85,8 @@ export class UserCharactersRepository {
       conditions.push(
         or(
           ilike(userCharacters.name, `%${filters.search}%`),
-          sql`${userCharacters.bio}::text ILIKE ${"%" + filters.search + "%"}`,
-        )!,
+          sql`${userCharacters.bio}::text ILIKE ${"%" + filters.search + "%"}`
+        )!
       );
     }
 
@@ -96,7 +96,7 @@ export class UserCharactersRepository {
 
     if (filters.hasVoice) {
       conditions.push(
-        sql`${userCharacters.plugins}::jsonb @> '["@elizaos/plugin-elevenlabs"]'::jsonb`,
+        sql`${userCharacters.plugins}::jsonb @> '["@elizaos/plugin-elevenlabs"]'::jsonb`
       );
     }
 
@@ -119,8 +119,8 @@ export class UserCharactersRepository {
         or(
           eq(userCharacters.organization_id, organizationId),
           eq(userCharacters.is_template, true),
-          eq(userCharacters.is_public, true),
-        )!,
+          eq(userCharacters.is_public, true)
+        )!
       );
     }
 
@@ -130,24 +130,26 @@ export class UserCharactersRepository {
     let secondaryOrderBy;
     switch (sortBy) {
       case "popularity":
-        secondaryOrderBy = direction === "asc"
-          ? userCharacters.popularity_score
-          : desc(userCharacters.popularity_score);
+        secondaryOrderBy =
+          direction === "asc"
+            ? userCharacters.popularity_score
+            : desc(userCharacters.popularity_score);
         break;
       case "newest":
-        secondaryOrderBy = direction === "asc"
-          ? userCharacters.created_at
-          : desc(userCharacters.created_at);
+        secondaryOrderBy =
+          direction === "asc"
+            ? userCharacters.created_at
+            : desc(userCharacters.created_at);
         break;
       case "name":
-        secondaryOrderBy = direction === "asc"
-          ? userCharacters.name
-          : desc(userCharacters.name);
+        secondaryOrderBy =
+          direction === "asc" ? userCharacters.name : desc(userCharacters.name);
         break;
       case "updated":
-        secondaryOrderBy = direction === "asc"
-          ? userCharacters.updated_at
-          : desc(userCharacters.updated_at);
+        secondaryOrderBy =
+          direction === "asc"
+            ? userCharacters.updated_at
+            : desc(userCharacters.updated_at);
         break;
       default:
         secondaryOrderBy = desc(userCharacters.popularity_score);
@@ -165,7 +167,7 @@ export class UserCharactersRepository {
   async count(
     filters: SearchFilters,
     userId: string,
-    organizationId: string,
+    organizationId: string
   ): Promise<number> {
     const conditions: SQL[] = [];
 
@@ -173,8 +175,8 @@ export class UserCharactersRepository {
       conditions.push(
         or(
           ilike(userCharacters.name, `%${filters.search}%`),
-          sql`${userCharacters.bio}::text ILIKE ${"%" + filters.search + "%"}`,
-        )!,
+          sql`${userCharacters.bio}::text ILIKE ${"%" + filters.search + "%"}`
+        )!
       );
     }
 
@@ -184,7 +186,7 @@ export class UserCharactersRepository {
 
     if (filters.hasVoice) {
       conditions.push(
-        sql`${userCharacters.plugins}::jsonb @> '["@elizaos/plugin-elevenlabs"]'::jsonb`,
+        sql`${userCharacters.plugins}::jsonb @> '["@elizaos/plugin-elevenlabs"]'::jsonb`
       );
     }
 
@@ -207,8 +209,8 @@ export class UserCharactersRepository {
         or(
           eq(userCharacters.organization_id, organizationId),
           eq(userCharacters.is_template, true),
-          eq(userCharacters.is_public, true),
-        )!,
+          eq(userCharacters.is_public, true)
+        )!
       );
     }
 
@@ -259,7 +261,7 @@ export class UserCharactersRepository {
     return await db.query.userCharacters.findMany({
       where: or(
         eq(userCharacters.is_template, true),
-        eq(userCharacters.is_public, true),
+        eq(userCharacters.is_public, true)
       ),
       orderBy: desc(userCharacters.popularity_score),
       limit,
@@ -327,9 +329,7 @@ export class UserCharactersRepository {
         break;
       case "name":
         secondaryOrderBy =
-          direction === "asc"
-            ? userCharacters.name
-            : desc(userCharacters.name);
+          direction === "asc" ? userCharacters.name : desc(userCharacters.name);
         break;
       case "updated":
         secondaryOrderBy =
