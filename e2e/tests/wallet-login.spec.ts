@@ -65,7 +65,7 @@ test.describe("Wallet Login", () => {
     // Look for the Privy modal - it may have different selectors
     // Try multiple possible selectors for the Privy modal
     const privyModal = page.locator(
-      '[data-testid="privy-modal"], #privy-modal, [class*="PrivyModal"], iframe[src*="privy"]'
+      '[data-testid="privy-modal"], #privy-modal, [class*="PrivyModal"], iframe[src*="privy"]',
     );
 
     // The modal should be visible

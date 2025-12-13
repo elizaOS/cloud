@@ -766,7 +766,3 @@ const handler = createPaidMcpHandler(
  * @returns MCP handler response.
  */
 export { handler as GET, handler as POST, handler as DELETE };
-
-
-
-

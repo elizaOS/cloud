@@ -3,7 +3,7 @@ import {
   clearAuthState,
   goToLogin,
   LoginSelectors,
-  waitForPageLoad
+  waitForPageLoad,
 } from "../fixtures/test-fixtures";
 
 /**
@@ -42,7 +42,9 @@ test.describe("Social Login", () => {
     await goToLogin(page);
 
     // Listen for new pages (OAuth redirects to new tab/window sometimes)
-    const pagePromise = context.waitForEvent("page", { timeout: 10000 }).catch(() => null);
+    const pagePromise = context
+      .waitForEvent("page", { timeout: 10000 })
+      .catch(() => null);
 
     // Click Google login button
     const googleButton = page.locator(LoginSelectors.googleButton);
@@ -64,7 +66,7 @@ test.describe("Social Login", () => {
       expect(
         newPageUrl.includes("accounts.google.com") ||
           newPageUrl.includes("privy.io") ||
-          newPageUrl.includes("auth")
+          newPageUrl.includes("auth"),
       ).toBe(true);
       await newPage.close();
     } else {
@@ -88,7 +90,9 @@ test.describe("Social Login", () => {
   test("should initiate Discord OAuth flow", async ({ page, context }) => {
     await goToLogin(page);
 
-    const pagePromise = context.waitForEvent("page", { timeout: 10000 }).catch(() => null);
+    const pagePromise = context
+      .waitForEvent("page", { timeout: 10000 })
+      .catch(() => null);
 
     // Click Discord login button
     const discordButton = page.locator(LoginSelectors.discordButton);
@@ -103,7 +107,7 @@ test.describe("Social Login", () => {
       expect(
         newPageUrl.includes("discord.com") ||
           newPageUrl.includes("privy.io") ||
-          newPageUrl.includes("auth")
+          newPageUrl.includes("auth"),
       ).toBe(true);
       await newPage.close();
     }
@@ -116,17 +120,15 @@ test.describe("Social Login", () => {
     const githubButton = page.locator(LoginSelectors.githubButton);
     await expect(githubButton).toBeVisible({ timeout: 30000 });
     await expect(githubButton).toBeEnabled();
-    
+
     // Verify button text
     const buttonText = await githubButton.textContent();
     expect(buttonText).toContain("GitHub");
-    
+
     console.log("✅ GitHub OAuth button is available");
   });
 
-  test("should trigger OAuth flow when button is clicked", async ({
-    page,
-  }) => {
+  test("should trigger OAuth flow when button is clicked", async ({ page }) => {
     await goToLogin(page);
 
     // Google OAuth button should be visible and enabled
@@ -178,7 +180,9 @@ test.describe("Email Login", () => {
     await expect(sendCodeButton).toBeDisabled();
   });
 
-  test("should attempt to send verification code for valid email", async ({ page }) => {
+  test("should attempt to send verification code for valid email", async ({
+    page,
+  }) => {
     await goToLogin(page);
 
     const emailInput = page.locator(LoginSelectors.emailInput);
@@ -227,7 +231,7 @@ test.describe("Login Page Navigation", () => {
     // Skip if we can't set up auth
     test.skip(
       !process.env.TEST_AUTH_TOKEN,
-      "Requires TEST_AUTH_TOKEN for pre-authenticated state"
+      "Requires TEST_AUTH_TOKEN for pre-authenticated state",
     );
 
     // Set up authenticated cookie
@@ -268,11 +272,7 @@ test.describe("Login Page Navigation", () => {
     // Should show "Sign Up" text instead of "Welcome back"
     const pageContent = await page.textContent("body");
     expect(
-      pageContent?.includes("Sign Up") || pageContent?.includes("Create")
+      pageContent?.includes("Sign Up") || pageContent?.includes("Create"),
     ).toBe(true);
   });
 });
-
-
-
-
