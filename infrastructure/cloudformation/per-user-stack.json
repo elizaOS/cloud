@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "ElizaOS Per-User Container Stack - Production Ready - 1 t3g.small ARM instance with ECS + Monitoring",
+  "Description": "ElizaOS Per-User Container Stack - Production Ready - 1 t3.small instance with ECS + Monitoring",
   "Parameters": {
     "UserId": {
       "Type": "String",
@@ -23,12 +23,12 @@
     "ContainerCpu": {
       "Type": "Number",
       "Default": 1792,
-      "Description": "CPU units (1792 = 1.75 vCPU, 87.5% of t3g.small)"
+      "Description": "CPU units (1792 = 1.75 vCPU, 87.5% of t3.small)"
     },
     "ContainerMemory": {
       "Type": "Number",
       "Default": 1792,
-      "Description": "Memory in MB (1792 = 1.75 GB, 87.5% of t3g.small)"
+      "Description": "Memory in MB (1792 = 1.75 GB, 87.5% of t3.small)"
     },
     "SharedVPCId": {
       "Type": "String",
@@ -175,9 +175,9 @@
         },
         "LaunchTemplateData": {
           "ImageId": {
-            "Fn::Sub": "{{resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id}}"
+            "Fn::Sub": "{{resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id}}"
           },
-          "InstanceType": "t3g.small",
+          "InstanceType": "t3.small",
           "IamInstanceProfile": {
             "Arn": { "Fn::GetAtt": ["InstanceProfile", "Arn"] }
           },
