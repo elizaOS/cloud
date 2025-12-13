@@ -20,6 +20,7 @@ import {
 import { jeju, jejuTestnet, jejuLocalnet } from "@/lib/config/chains";
 import { base, baseSepolia } from "viem/chains";
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 
 export interface CreateIntentRequest {
   sourceChainId: number;

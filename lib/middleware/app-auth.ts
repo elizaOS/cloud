@@ -102,6 +102,22 @@ export async function requireAppAuth(
 }
 
 /**
+ * Require app authentication (returns NextResponse on error)
+ * Compatible with routes that check `if (authResult instanceof NextResponse)`
+ */
+export async function requireAuth(
+  request: NextRequest,
+): Promise<UserWithOrganization | NextResponse> {
+  const result = await verifyAppToken(request);
+
+  if (!result.success) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
+  }
+
+  return result.user;
+}
+
+/**
  * Optional app authentication
  * Returns the user if authenticated, or null if not
  */

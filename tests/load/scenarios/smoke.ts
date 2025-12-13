@@ -1,13 +1,9 @@
 import { group, check, sleep } from "k6";
 import { Options } from "k6/options";
-import http from "k6/http";
-import { getBaseUrl, getConfig } from "../config/environments";
-import { getAuthHeaders, getPublicHeaders } from "../helpers/auth";
+import { getConfig } from "../config/environments";
+import { httpGet, httpPost } from "../helpers/http";
 import { smokeScenario } from "../config/scenarios";
 
-const baseUrl = getBaseUrl();
-const headers = getAuthHeaders();
-const publicHeaders = getPublicHeaders();
 const config = getConfig();
 
 export const options: Options = {
@@ -21,19 +17,20 @@ export function setup() {
 
 export default function () {
   group("Public", () => {
-    check(http.get(`${baseUrl}/.well-known/agent-card.json`, { headers: publicHeaders }), { "agent card 200": (r) => r.status === 200 });
+    const card = httpGet("/.well-known/agent-card.json", { public: true });
+    check(null, { "agent card 200": () => card !== null });
     sleep(0.5);
   });
 
   group("Authenticated", () => {
-    check(http.get(`${baseUrl}/api/credits/balance`, { headers }), { "balance 200": (r) => r.status === 200 });
+    const balance = httpGet("/api/credits/balance");
+    check(null, { "balance 200": () => balance !== null });
     sleep(0.5);
-    check(http.get(`${baseUrl}/api/v1/app/agents`, { headers }), { "agents 200": (r) => r.status === 200 });
+    const agents = httpGet("/api/v1/app/agents");
+    check(null, { "agents 200": () => agents !== null });
     sleep(0.5);
-    check(
-      http.post(`${baseUrl}/api/a2a`, JSON.stringify({ jsonrpc: "2.0", method: "a2a.getAgentCard", params: {}, id: 1 }), { headers }),
-      { "a2a 200": (r) => r.status === 200 }
-    );
+    const a2a = httpPost("/api/a2a", { jsonrpc: "2.0", method: "a2a.getAgentCard", params: {}, id: 1 });
+    check(null, { "a2a 200": () => a2a !== null });
   });
   sleep(2);
 }

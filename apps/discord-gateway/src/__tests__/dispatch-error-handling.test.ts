@@ -9,6 +9,10 @@ describe("Dispatch Error Handling", () => {
   const originalFetch = globalThis.fetch;
   let fetchCalls: Array<{ url: string; options: RequestInit }> = [];
 
+  const setMockFetch = (mockFn: ReturnType<typeof mock>): void => {
+    globalThis.fetch = mockFn as unknown as typeof fetch;
+  };
+
   beforeEach(() => {
     fetchCalls = [];
   });
@@ -33,14 +37,14 @@ describe("Dispatch Error Handling", () => {
 
     errorCodes.forEach(({ code, name, retryable }) => {
       it(`should handle ${code} ${name} response`, async () => {
-        globalThis.fetch = mock(() =>
+        setMockFetch(mock(() =>
           Promise.resolve({
             ok: false,
             status: code,
             statusText: name,
             json: () => Promise.resolve({ error: name }),
           } as Response)
-        );
+        ));
 
         const response = await fetch("https://api.example.com/webhook", {
           method: "POST",
@@ -59,7 +63,7 @@ describe("Dispatch Error Handling", () => {
 
   describe("Network Failure Handling", () => {
     it("should handle fetch throwing error", async () => {
-      globalThis.fetch = mock(() => Promise.reject(new Error("Network error")));
+      setMockFetch(mock(() => Promise.reject(new Error("Network error"))))));
 
       let caught = false;
       let errorMessage = "";
@@ -76,9 +80,9 @@ describe("Dispatch Error Handling", () => {
     });
 
     it("should handle DNS resolution failure", async () => {
-      globalThis.fetch = mock(() =>
+      setMockFetch(mock(() =>
         Promise.reject(new Error("getaddrinfo ENOTFOUND api.example.com"))
-      );
+      ));
 
       let caught = false;
       try {
@@ -92,7 +96,7 @@ describe("Dispatch Error Handling", () => {
     });
 
     it("should handle connection refused", async () => {
-      globalThis.fetch = mock(() =>
+      setMockFetch(mock(() =>
         Promise.reject(new Error("connect ECONNREFUSED 127.0.0.1:3000"))
       );
 
@@ -108,7 +112,7 @@ describe("Dispatch Error Handling", () => {
     });
 
     it("should handle connection reset", async () => {
-      globalThis.fetch = mock(() => Promise.reject(new Error("read ECONNRESET")));
+      setMockFetch(mock(() => Promise.reject(new Error("read ECONNRESET")))));
 
       let caught = false;
       try {
@@ -122,7 +126,7 @@ describe("Dispatch Error Handling", () => {
     });
 
     it("should handle socket timeout", async () => {
-      globalThis.fetch = mock(() =>
+      setMockFetch(mock(() =>
         Promise.reject(new Error("socket hang up"))
       );
 
@@ -140,7 +144,7 @@ describe("Dispatch Error Handling", () => {
 
   describe("Response Parsing Errors", () => {
     it("should handle malformed JSON response", async () => {
-      globalThis.fetch = mock(() =>
+      setMockFetch(mock(() =>
         Promise.resolve({
           ok: true,
           status: 200,
@@ -166,7 +170,7 @@ describe("Dispatch Error Handling", () => {
     });
 
     it("should handle empty response body", async () => {
-      globalThis.fetch = mock(() =>
+      setMockFetch(mock(() =>
         Promise.resolve({
           ok: true,
           status: 204,
@@ -185,7 +189,7 @@ describe("Dispatch Error Handling", () => {
     });
 
     it("should handle HTML error page response", async () => {
-      globalThis.fetch = mock(() =>
+      setMockFetch(mock(() =>
         Promise.resolve({
           ok: false,
           status: 500,
@@ -204,7 +208,7 @@ describe("Dispatch Error Handling", () => {
 
   describe("Timeout Handling", () => {
     it("should handle request timeout via AbortController", async () => {
-      globalThis.fetch = mock((_url: string, options?: RequestInit) => {
+      setMockFetch(mock((_url: string, options?: RequestInit) => {
         const signal = options?.signal;
         if (signal?.aborted) {
           return Promise.reject(new DOMException("The operation was aborted", "AbortError"));
@@ -233,7 +237,7 @@ describe("Dispatch Error Handling", () => {
     });
 
     it("should complete successfully before timeout", async () => {
-      globalThis.fetch = mock(() =>
+      setMockFetch(mock(() =>
         Promise.resolve({
           ok: true,
           status: 200,
@@ -259,7 +263,7 @@ describe("Dispatch Error Handling", () => {
       let attempts = 0;
       const maxRetries = 3;
 
-      globalThis.fetch = mock(() => {
+      setMockFetch(mock(() => {
         attempts++;
         if (attempts < maxRetries) {
           return Promise.resolve({
@@ -328,7 +332,7 @@ describe("Dispatch Error Handling", () => {
       let attempts = 0;
       const maxRetries = 3;
 
-      globalThis.fetch = mock(() => {
+      setMockFetch(mock(() => {
         attempts++;
         return Promise.resolve({
           ok: false,
@@ -412,17 +416,17 @@ describe("Dispatch Error Handling", () => {
 
       // Trip the circuit
       tripCircuit();
-      expect(circuitState).toBe("open");
+      expect(circuitState as string).toBe("open");
       expect(checkCircuit()).toBe(false);
 
       // Simulate cooldown elapsed
       lastFailureTime = Date.now() - cooldownMs - 1;
       expect(checkCircuit()).toBe(true);
-      expect(circuitState).toBe("half-open");
+      expect(circuitState as string).toBe("half-open");
 
       // Success closes circuit
       recordResult(true);
-      expect(circuitState).toBe("closed");
+      expect(circuitState as string).toBe("closed");
     });
   });
 
@@ -430,7 +434,7 @@ describe("Dispatch Error Handling", () => {
     it("should handle very long request bodies", async () => {
       const longContent = "a".repeat(100000);
 
-      globalThis.fetch = mock((_url: string, options?: RequestInit) => {
+      setMockFetch(mock((_url: string, options?: RequestInit) => {
         fetchCalls.push({ url: _url, options: options ?? {} });
         return Promise.resolve({
           ok: true,
@@ -457,7 +461,7 @@ describe("Dispatch Error Handling", () => {
         quotes: 'He said "hello" and \'goodbye\'',
       };
 
-      globalThis.fetch = mock((_url: string, options?: RequestInit) => {
+      setMockFetch(mock((_url: string, options?: RequestInit) => {
         fetchCalls.push({ url: _url, options: options ?? {} });
         return Promise.resolve({
           ok: true,
@@ -493,7 +497,7 @@ describe("Dispatch Error Handling", () => {
 
   describe("Header Handling", () => {
     it("should include all required headers", async () => {
-      globalThis.fetch = mock((_url: string, options?: RequestInit) => {
+      setMockFetch(mock((_url: string, options?: RequestInit) => {
         fetchCalls.push({ url: _url, options: options ?? {} });
         return Promise.resolve({
           ok: true,
@@ -520,7 +524,7 @@ describe("Dispatch Error Handling", () => {
     });
 
     it("should handle missing optional headers", async () => {
-      globalThis.fetch = mock((_url: string, options?: RequestInit) => {
+      setMockFetch(mock((_url: string, options?: RequestInit) => {
         fetchCalls.push({ url: _url, options: options ?? {} });
         return Promise.resolve({
           ok: true,
@@ -544,7 +548,7 @@ describe("Dispatch Error Handling", () => {
 
   describe("URL Handling", () => {
     it("should handle URL with query parameters", async () => {
-      globalThis.fetch = mock((_url: string, options?: RequestInit) => {
+      setMockFetch(mock((_url: string, options?: RequestInit) => {
         fetchCalls.push({ url: _url, options: options ?? {} });
         return Promise.resolve({
           ok: true,
@@ -559,7 +563,7 @@ describe("Dispatch Error Handling", () => {
     });
 
     it("should handle URL with encoded characters", async () => {
-      globalThis.fetch = mock((_url: string, options?: RequestInit) => {
+      setMockFetch(mock((_url: string, options?: RequestInit) => {
         fetchCalls.push({ url: _url, options: options ?? {} });
         return Promise.resolve({
           ok: true,
@@ -574,7 +578,7 @@ describe("Dispatch Error Handling", () => {
     });
 
     it("should handle trailing slash in URL", async () => {
-      globalThis.fetch = mock((_url: string, options?: RequestInit) => {
+      setMockFetch(mock((_url: string, options?: RequestInit) => {
         fetchCalls.push({ url: _url, options: options ?? {} });
         return Promise.resolve({
           ok: true,
@@ -592,7 +596,7 @@ describe("Dispatch Error Handling", () => {
 
   describe("Response Time Tracking", () => {
     it("should accurately measure response time", async () => {
-      globalThis.fetch = mock(
+      setMockFetch(mock(
         () =>
           new Promise((resolve) =>
             setTimeout(
@@ -615,7 +619,7 @@ describe("Dispatch Error Handling", () => {
     });
 
     it("should track response time on failure", async () => {
-      globalThis.fetch = mock(
+      setMockFetch(mock(
         () =>
           new Promise((resolve) =>
             setTimeout(
@@ -648,7 +652,7 @@ describe("Concurrent Dispatch Operations", () => {
   it("should handle parallel dispatches to multiple targets", async () => {
     const callOrder: string[] = [];
 
-    globalThis.fetch = mock((url: string) => {
+    setMockFetch(mock((url: string) => {
       callOrder.push(url);
       return Promise.resolve({
         ok: true,
@@ -673,7 +677,7 @@ describe("Concurrent Dispatch Operations", () => {
   it("should handle mixed success/failure in parallel dispatches", async () => {
     let callCount = 0;
 
-    globalThis.fetch = mock(() => {
+    setMockFetch(mock(() => {
       callCount++;
       return Promise.resolve({
         ok: callCount % 2 === 0, // Alternate success/failure
@@ -696,7 +700,7 @@ describe("Concurrent Dispatch Operations", () => {
   });
 
   it("should isolate failures in parallel operations", async () => {
-    globalThis.fetch = mock((url: string) => {
+    setMockFetch(mock((url: string) => {
       if (url.includes("fail")) {
         return Promise.reject(new Error("Network error"));
       }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAppAuth as requireAuth } from "@/lib/middleware/app-auth";
+import { requireAuth } from "@/lib/middleware/app-auth";
 import { platformCredentialsService } from "@/lib/services/platform-credentials";
 import { logger } from "@/lib/utils/logger";
 
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   if (authResult instanceof NextResponse) return authResult;
 
   const { id } = await params;
-  const c = await platformCredentialsService.getCredential(id, authResult.user.organization_id);
+  const c = await platformCredentialsService.getCredential(id, authResult.organization_id);
   if (!c) return NextResponse.json({ success: false, error: "Connection not found" }, { status: 404 });
 
   return NextResponse.json({
@@ -27,8 +27,8 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
   if (authResult instanceof NextResponse) return authResult;
 
   const { id } = await params;
-  await platformCredentialsService.revokeCredential(id, authResult.user.organization_id);
-  logger.info("[SocialConnections] Revoked", { credentialId: id, userId: authResult.user.id });
+  await platformCredentialsService.revokeCredential(id, authResult.organization_id);
+  logger.info("[SocialConnections] Revoked", { credentialId: id, userId: authResult.id });
   return NextResponse.json({ success: true });
 }
 
@@ -43,12 +43,12 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ success: false, error: "Unknown action" }, { status: 400 });
   }
 
-  const success = await platformCredentialsService.refreshToken(id, authResult.user.organization_id);
+  const success = await platformCredentialsService.refreshToken(id, authResult.organization_id);
   if (!success) {
     return NextResponse.json({ success: false, error: "Token refresh failed. The connection may need to be re-authorized." }, { status: 400 });
   }
 
-  logger.info("[SocialConnections] Token refreshed", { credentialId: id, userId: authResult.user.id });
+  logger.info("[SocialConnections] Token refreshed", { credentialId: id, userId: authResult.id });
   return NextResponse.json({ success: true, message: "Token refreshed" });
 }
 

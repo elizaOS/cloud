@@ -615,7 +615,9 @@ class PlatformCredentialsService {
       throw new Error(`Telegram API error: ${response.status}`);
     }
     const data = await safeJsonParse<{ ok: boolean; result?: { id: number; username?: string; first_name?: string }; description?: string }>(response);
-    if (!data.ok) throw new Error(data.description || "Invalid Telegram bot token");
+    if (!data.ok || !data.result) {
+      throw new Error(data.description || "Invalid Telegram bot token");
+    }
 
     return {
       userId: String(data.result.id),

@@ -211,6 +211,7 @@
     "file-type": "^21.1.1",
     "highlight.js": "^11.11.1",
     "isomorphic-dompurify": "^2.33.0",
+    "k6": "^0.0.0",
     "lightningcss": "^1.30.2",
     "lucide-react": "^0.555.0",
     "mcp-handler": "^1.0.4",

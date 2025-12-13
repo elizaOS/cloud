@@ -36,9 +36,6 @@ function getClientIp(request: NextRequest): string {
   return forwarded?.split(",")[0]?.trim() || realIp || "unknown";
 }
 
-/**
- * Check if IP is in allowed list.
- */
 function isIpAllowed(clientIp: string, allowedIps?: string[]): boolean {
   if (!allowedIps || allowedIps.length === 0) {
     return true; // No restrictions

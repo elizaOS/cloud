@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAppAuth as requireAuth } from "@/lib/middleware/app-auth";
+import { requireAuth } from "@/lib/middleware/app-auth";
 import { platformCredentialsService, OAUTH_CONFIGS, MANUAL_AUTH_PLATFORMS } from "@/lib/services/platform-credentials";
 import type { PlatformType } from "@/db/schemas/platform-credentials";
 
@@ -16,7 +16,6 @@ export async function POST(
 ) {
   const authResult = await requireAuth(request);
   if (authResult instanceof NextResponse) return authResult;
-  const { user } = authResult;
 
   const { platform } = await params;
   const platformType = platform as PlatformType;
@@ -54,9 +53,9 @@ export async function POST(
     }
 
     const session = await platformCredentialsService.createMastodonLinkSession({
-      organizationId: user.organization_id,
+      organizationId: authResult.organization_id,
       platform: "mastodon",
-      requestingUserId: user.id,
+      requestingUserId: authResult.id,
       requestedScopes: options.scopes,
       callbackUrl: options.callbackUrl || defaultCallback,
       callbackType: "redirect",
@@ -73,9 +72,9 @@ export async function POST(
 
   // Standard OAuth flow
   const session = await platformCredentialsService.createLinkSession({
-    organizationId: user.organization_id,
+    organizationId: authResult.organization_id,
     platform: platformType,
-    requestingUserId: user.id,
+    requestingUserId: authResult.id,
     requestedScopes: options.scopes,
     callbackUrl: options.callbackUrl || defaultCallback,
     callbackType: "redirect",

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAppAuth as requireAuth } from "@/lib/middleware/app-auth";
+import { requireAuth } from "@/lib/middleware/app-auth";
 import { platformCredentialsService, MANUAL_AUTH_PLATFORMS, SOCIAL_PLATFORMS, type ManualAuthPlatform } from "@/lib/services/platform-credentials";
 import type { PlatformType } from "@/db/schemas/platform-credentials";
 import { logger } from "@/lib/utils/logger";
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
   const authResult = await requireAuth(request);
   if (authResult instanceof NextResponse) return authResult;
 
-  const platforms = await platformCredentialsService.getAvailablePlatforms(authResult.user.organization_id);
+  const platforms = await platformCredentialsService.getAvailablePlatforms(authResult.organization_id);
   return NextResponse.json({
     success: true,
     platforms: platforms.filter(p => (SOCIAL_PLATFORMS as readonly PlatformType[]).includes(p.platform)),
@@ -39,7 +39,6 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth(request);
   if (authResult instanceof NextResponse) return authResult;
-  const { user } = authResult;
 
   const body = await request.json();
   const parsed = ManualCredentialsSchema.safeParse(body);
@@ -53,8 +52,12 @@ export async function POST(request: NextRequest) {
   const { platform, credentials } = parsed.data;
 
   // Type guard: parsed.data.platform is already narrowed to "bluesky" | "telegram" by zod schema
-  // but we need to ensure it matches MANUAL_AUTH_PLATFORMS for type safety
-  if (!(MANUAL_AUTH_PLATFORMS[0] === platform || MANUAL_AUTH_PLATFORMS[1] === platform)) {
+  // Both values are in MANUAL_AUTH_PLATFORMS, so this check is redundant but kept for runtime safety
+  const isManualPlatform = (p: string): p is ManualAuthPlatform => {
+    return MANUAL_AUTH_PLATFORMS.includes(p as ManualAuthPlatform);
+  };
+
+  if (!isManualPlatform(platform)) {
     return NextResponse.json({ 
       success: false, 
       error: `Platform ${platform} requires OAuth. Use /api/v1/social-connections/connect/${platform} instead.` 
@@ -62,15 +65,15 @@ export async function POST(request: NextRequest) {
   }
 
   const credential = await platformCredentialsService.storeManualCredentials({
-    organizationId: user.organization_id,
-    userId: user.id,
-    platform: platform as ManualAuthPlatform,
+    organizationId: authResult.organization_id,
+    userId: authResult.id,
+    platform,
     credentials,
   });
 
   logger.info("[SocialConnections] Manual credentials stored", { 
     platform, 
-    userId: user.id,
+    userId: authResult.id,
     credentialId: credential.id,
   });
 
