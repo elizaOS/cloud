@@ -1,6 +1,6 @@
 import { config } from "dotenv";
-import { db } from "../db/drizzle";
-import * as schema from "../db/sass/schema";
+import { db } from "../db/client";
+import * as schema from "../db/schemas";
 import { desc } from "drizzle-orm";
 
 config({ path: ".env.local" });
