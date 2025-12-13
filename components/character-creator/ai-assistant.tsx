@@ -3,8 +3,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Bot, User, Send, Sparkles } from "lucide-react";
@@ -13,6 +11,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark.css";
+import { BrandCard, BrandButton, CornerBrackets, SectionLabel } from "@/components/brand";
 
 interface AiAssistantProps {
   character: ElizaCharacter;
@@ -233,14 +232,16 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
   const isLoading = status === "streaming";
 
   return (
-    <Card className="flex h-full flex-col">
-      <CardHeader className="flex-shrink-0 border-b">
-        <CardTitle className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-purple-500" />
-          AI Character Assistant
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-1 flex-col gap-4 overflow-hidden p-4">
+    <BrandCard className="relative flex h-full flex-col">
+      <CornerBrackets size="sm" className="opacity-50" />
+      
+      <div className="relative z-10 flex-shrink-0 border-b border-white/10 p-4">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-[#FF5800]" />
+          <h3 className="text-lg font-bold text-white">AI Character Assistant</h3>
+        </div>
+      </div>
+      <div className="relative z-10 flex flex-1 flex-col gap-4 overflow-hidden p-4">
         {/* Messages */}
         <ScrollArea className="flex-1 pr-4">
           <div className="space-y-4">
@@ -252,15 +253,15 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
                 }`}
               >
                 {message.role === "assistant" && (
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900">
-                    <Bot className="h-4 w-4 text-purple-600 dark:text-purple-300" />
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
+                    <Bot className="h-4 w-4 text-white" />
                   </div>
                 )}
                 <div
-                  className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                  className={`max-w-[80%] rounded-none px-4 py-2 border ${
                     message.role === "user"
-                      ? "bg-blue-600 text-white dark:bg-blue-700"
-                      : "bg-muted"
+                      ? "bg-[#FF580020] border-[#FF5800] text-white"
+                      : "bg-black/40 border-white/10"
                   }`}
                 >
                   <div
@@ -283,22 +284,22 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
                   </div>
                 </div>
                 {message.role === "user" && (
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
-                    <User className="h-4 w-4 text-blue-600 dark:text-blue-300" />
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
+                    <User className="h-4 w-4 text-white" />
                   </div>
                 )}
               </div>
             ))}
             {isLoading && (
               <div className="flex gap-3">
-                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900">
-                  <Bot className="h-4 w-4 animate-pulse text-purple-600 dark:text-purple-300" />
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
+                  <Bot className="h-4 w-4 animate-pulse text-white" />
                 </div>
-                <div className="rounded-lg bg-muted px-4 py-2">
+                <div className="rounded-none bg-black/40 border border-white/10 px-4 py-2">
                   <div className="flex gap-1">
-                    <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.3s]"></div>
-                    <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.15s]"></div>
-                    <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400"></div>
+                    <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.3s]"></div>
+                    <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.15s]"></div>
+                    <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800]"></div>
                   </div>
                 </div>
               </div>
@@ -316,48 +317,48 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
                 {[1, 2, 3, 4].map((i) => (
                   <div
                     key={i}
-                    className="h-8 w-32 animate-pulse rounded-md bg-muted"
+                    className="h-8 w-32 animate-pulse rounded-none bg-white/10"
                   />
                 ))}
               </div>
             ) : isEditMode ? (
               <>
-                <Button
+                <BrandButton
                   variant="outline"
                   size="sm"
                   onClick={() => setInput("Add more personality traits")}
                   className="text-xs"
                 >
                   Add personality traits
-                </Button>
-                <Button
+                </BrandButton>
+                <BrandButton
                   variant="outline"
                   size="sm"
                   onClick={() => setInput("Improve the bio description")}
                   className="text-xs"
                 >
                   Improve bio
-                </Button>
-                <Button
+                </BrandButton>
+                <BrandButton
                   variant="outline"
                   size="sm"
                   onClick={() => setInput("Add conversation examples")}
                   className="text-xs"
                 >
                   Add examples
-                </Button>
-                <Button
+                </BrandButton>
+                <BrandButton
                   variant="outline"
                   size="sm"
                   onClick={() => setInput("Refine the writing style")}
                   className="text-xs"
                 >
                   Refine style
-                </Button>
+                </BrandButton>
               </>
             ) : (
               quickPrompts.map((prompt, index) => (
-                <Button
+                <BrandButton
                   key={index}
                   variant="outline"
                   size="sm"
@@ -367,7 +368,7 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
                   className="text-xs"
                 >
                   {prompt}
-                </Button>
+                </BrandButton>
               ))
             )}
           </div>
@@ -379,7 +380,7 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Describe your character or ask for help..."
-            className="min-h-[60px] max-h-[120px] resize-none"
+            className="min-h-[60px] max-h-[120px] resize-none rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -387,16 +388,16 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
               }
             }}
           />
-          <Button
+          <BrandButton
             type="submit"
-            size="icon"
+            variant="icon-primary"
             disabled={!input.trim() || isLoading}
             className="h-[60px] w-[60px]"
           >
-            <Send className="h-4 w-4" />
-          </Button>
+            <Send className="h-5 w-5" style={{ color: "#FF5800" }} />
+          </BrandButton>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </BrandCard>
   );
 }
