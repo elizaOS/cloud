@@ -179,7 +179,7 @@ aside.nextra-sidebar-container {
 main {
   background: var(--surface-bg) !important;
   /* Only control horizontal padding so we don't wipe out Nextra's vertical spacing */
-  padding-inline: 1.25rem !important;
+  padding-inline: 0.5rem !important;
 }
 
 /* The docs landing page has its own spacing; avoid double-padding it */
@@ -191,7 +191,7 @@ main.nextra-content-container.docs-landing {
 .nextra-body-full,
 .nextra-content-container {
   /* Provide consistent horizontal gutters even when Nextra's wrapper isn't present */
-  padding-inline: 1.25rem !important;
+  padding-inline: 0.5rem !important;
 }
 
 /* Prevent `.nextra-content-container` rule from re-adding padding on the landing page */
@@ -201,9 +201,9 @@ main.nextra-content-container.docs-landing.nextra-content-container {
 
 article.nextra-content {
   color: var(--text-secondary) !important;
-  max-width: 80ch;
+  max-width: 90ch;
   margin: 0 auto;
-  padding: 2rem 1.25rem;
+  padding: 2rem 0.75rem;
 }
 
 /* Headings */
@@ -1551,17 +1551,17 @@ footer.nextra-footer {
    ═══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 1024px) {
   main {
-    padding-inline: 1.5rem !important;
+    padding-inline: 0.75rem !important;
   }
 
   .nextra-body-typesetting-article,
   .nextra-body-full,
   .nextra-content-container {
-    padding-inline: 1.5rem !important;
+    padding-inline: 0.75rem !important;
   }
   
   article.nextra-content {
-    padding: 2rem 1.5rem;
+    padding: 2rem 0.5rem;
   }
   
   article h1 {
@@ -1584,13 +1584,13 @@ footer.nextra-footer {
 
 @media (max-width: 768px) {
   main {
-    padding-inline: 1rem !important;
+    padding-inline: 0.5rem !important;
   }
 
   .nextra-body-typesetting-article,
   .nextra-body-full,
   .nextra-content-container {
-    padding-inline: 1rem !important;
+    padding-inline: 0.5rem !important;
   }
   
   .nextra-sidebar-container {
@@ -1602,7 +1602,7 @@ footer.nextra-footer {
   }
   
   article.nextra-content {
-    padding: 1.5rem 1rem;
+    padding: 1.5rem 0.5rem;
   }
   
   article h1 {
@@ -1643,13 +1643,13 @@ aside.nextra-toc {
 
 .nextra-body > div:first-child {
   /* Avoid removing vertical spacing by using inline-only padding */
-  padding-inline: 1rem !important;
+  padding-inline: 0.5rem !important;
 }
 
 .nextra-content > div,
 .nextra-content > article {
-  padding-left: 0.5rem;
-  padding-right: 0.5rem;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
 }
 
 .nextra-breadcrumb {
