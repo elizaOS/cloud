@@ -132,7 +132,6 @@ export default function WalletPage() {
   const [redeemLoading, setRedeemLoading] = useState(false);
   const [redeemError, setRedeemError] = useState<string | null>(null);
   const [redeemSuccess, setRedeemSuccess] = useState(false);
-  const [copiedAddress, setCopiedAddress] = useState(false);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -147,8 +146,8 @@ export default function WalletPage() {
     setError(null);
 
     const [balanceRes, redemptionsRes] = await Promise.all([
-      fetchApi("/api/v1/redemptions/balance"),
-      fetchApi("/api/v1/redemptions?limit=10"),
+      fetchApi<RedemptionBalance & { success: boolean; error?: string }>("/api/v1/redemptions/balance"),
+      fetchApi<{ success: boolean; redemptions?: Redemption[]; error?: string }>("/api/v1/redemptions?limit=10"),
     ]);
 
     if (balanceRes.success) {
@@ -181,7 +180,7 @@ export default function WalletPage() {
     }
 
     setQuoteLoading(true);
-    const res = await fetchApi(
+    const res = await fetchApi<{ success: boolean; quote?: Quote; error?: string }>(
       `/api/v1/redemptions/quote?network=${selectedNetwork}&pointsAmount=${pointsAmount}`
     );
 
@@ -211,7 +210,7 @@ export default function WalletPage() {
     setRedeemLoading(true);
     setRedeemError(null);
 
-    const res = await fetchApi("/api/v1/redemptions", {
+    const res = await fetchApi<{ success: boolean; error?: string }>("/api/v1/redemptions", {
       method: "POST",
       body: JSON.stringify({
         appId: selectedApp,
@@ -230,12 +229,6 @@ export default function WalletPage() {
     }
 
     setRedeemLoading(false);
-  };
-
-  const copyAddress = (address: string) => {
-    navigator.clipboard.writeText(address);
-    setCopiedAddress(true);
-    setTimeout(() => setCopiedAddress(false), 2000);
   };
 
   if (!ready || !authenticated) {
