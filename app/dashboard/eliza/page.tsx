@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import { requireAuth } from "@/lib/auth";
 import { ElizaPageClient } from "@/components/chat/eliza-page-client";
 import { listCharacters } from "@/app/actions/characters";
+import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Eliza Agent",
-  description:
-    "Chat with Eliza using the full ElizaOS runtime with persistent memory and room-based conversations",
-};
+export const metadata: Metadata = generatePageMetadata({
+  ...ROUTE_METADATA.eliza,
+  path: "/dashboard/eliza",
+  noIndex: true,
+});
 
 // Force dynamic rendering since we use server-side auth (cookies)
 export const dynamic = "force-dynamic";
