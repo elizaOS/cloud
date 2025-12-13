@@ -124,40 +124,40 @@ export class UserCharactersRepository {
       );
     }
 
-    let orderBy;
     const { sortBy, order } = sortOptions;
     const direction = order === "asc" ? "asc" : "desc";
 
+    let secondaryOrderBy;
     switch (sortBy) {
       case "popularity":
-        orderBy = direction === "asc"
+        secondaryOrderBy = direction === "asc"
           ? userCharacters.popularity_score
           : desc(userCharacters.popularity_score);
         break;
       case "newest":
-        orderBy = direction === "asc"
+        secondaryOrderBy = direction === "asc"
           ? userCharacters.created_at
           : desc(userCharacters.created_at);
         break;
       case "name":
-        orderBy = direction === "asc"
+        secondaryOrderBy = direction === "asc"
           ? userCharacters.name
           : desc(userCharacters.name);
         break;
       case "updated":
-        orderBy = direction === "asc"
+        secondaryOrderBy = direction === "asc"
           ? userCharacters.updated_at
           : desc(userCharacters.updated_at);
         break;
       default:
-        orderBy = desc(userCharacters.popularity_score);
+        secondaryOrderBy = desc(userCharacters.popularity_score);
     }
 
     return await db
       .select()
       .from(userCharacters)
       .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(orderBy)
+      .orderBy(desc(userCharacters.featured), secondaryOrderBy)
       .limit(limit)
       .offset(offset);
   }
