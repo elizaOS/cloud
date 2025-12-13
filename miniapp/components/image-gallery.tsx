@@ -140,8 +140,7 @@ export function ImageGallery({
   // Clear selection when images change
   useEffect(() => {
     if (selectedId && !images.find((img) => img.id === selectedId)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSelectedId(null);
+      setSelectedId(null); // eslint-disable-line react-hooks/set-state-in-effect
     }
   }, [images, selectedId]);
 
