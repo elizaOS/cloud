@@ -30,6 +30,7 @@ interface ChatState {
   selectedCharacterId: string | null;
   pendingMessage: string | null; // Message from landing page to auto-send
   loadRoomsPromise: Promise<void> | null; // Track ongoing loadRooms operation
+  anonymousSessionToken: string | null; // Session token for anonymous users (from URL)
 
   // Actions
   setRooms: (rooms: RoomItem[]) => void;
@@ -38,6 +39,7 @@ interface ChatState {
   setAvailableCharacters: (characters: Character[]) => void;
   setSelectedCharacterId: (characterId: string | null) => void;
   setPendingMessage: (message: string | null) => void;
+  setAnonymousSessionToken: (token: string | null) => void;
   loadRooms: (force?: boolean) => Promise<void>;
   createRoom: (characterId?: string | null) => Promise<string | null>;
   deleteRoom: (roomId: string) => Promise<void>;
@@ -73,6 +75,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   selectedCharacterId: null,
   pendingMessage: null,
   loadRoomsPromise: null,
+  anonymousSessionToken: null,
 
   // Setters
   setRooms: (rooms) => set({ rooms }),
@@ -88,6 +91,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setSelectedCharacterId: (characterId) =>
     set({ selectedCharacterId: characterId }),
   setPendingMessage: (message) => set({ pendingMessage: message }),
+  setAnonymousSessionToken: (token) => set({ anonymousSessionToken: token }),
 
   // Initialize entity ID
   initializeEntityId: () => {
@@ -109,8 +113,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     // Deduplicate concurrent loadRooms calls
     if (!force && state.loadRoomsPromise) {
+      console.log("[ChatStore] loadRooms - using existing promise");
       return state.loadRoomsPromise;
     }
+
+    console.log("[ChatStore] loadRooms - fetching rooms for entityId:", entityId);
 
     const loadPromise = (async () => {
       set({ isLoadingRooms: true });
@@ -119,6 +126,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const res = await fetch(`/api/eliza/rooms?${params.toString()}`);
         if (res.ok) {
           const data = await res.json();
+          console.log("[ChatStore] loadRooms - API response:", { 
+            roomCount: data.rooms?.length || 0, 
+            rooms: data.rooms?.map((r: Record<string, unknown>) => ({ id: r.id, characterId: r.characterId })) 
+          });
           if (Array.isArray(data.rooms)) {
             const roomItems: RoomItem[] = data.rooms
               .slice(0, 20)
@@ -132,9 +143,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
             set({ rooms: roomItems });
           }
+        } else {
+          console.error("[ChatStore] loadRooms - API error:", res.status, await res.text());
         }
       } catch (error) {
-        console.error("Error loading rooms:", error);
+        console.error("[ChatStore] Error loading rooms:", error);
       } finally {
         set({ isLoadingRooms: false, loadRoomsPromise: null });
       }
