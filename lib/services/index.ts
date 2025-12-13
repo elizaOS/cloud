@@ -12,6 +12,8 @@ export * from "./containers";
 export * from "./analytics";
 export * from "./container-quota";
 export * from "./memory";
+export * from "./agents";
+export * from "./agent-discovery";
 
 // AWS Infrastructure services
 export * from "./ecr";
