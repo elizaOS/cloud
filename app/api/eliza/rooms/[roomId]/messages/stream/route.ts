@@ -62,11 +62,51 @@ export async function POST(
 
     // Validate appPromptConfig if provided
     if (appPromptConfig) {
+      // Sanitization helper to prevent prompt injection
+      const sanitizePromptString = (val: string) => {
+        const dangerousPatterns = [
+          "</system>",
+          "<|im_end|>",
+          "<|endoftext|>",
+          "[INST]",
+          "[/INST]",
+          "### Instruction:",
+          "### Response:",
+          "<|assistant|>",
+          "<|user|>",
+        ];
+
+        for (const pattern of dangerousPatterns) {
+          if (val.toLowerCase().includes(pattern.toLowerCase())) {
+            return false;
+          }
+        }
+        return true;
+      };
+
       const AppPromptConfigSchema = z
         .object({
-          systemPrefix: z.string().max(2000).optional(),
-          systemSuffix: z.string().max(2000).optional(),
-          responseStyle: z.string().max(1000).optional(),
+          systemPrefix: z
+            .string()
+            .max(2000)
+            .refine(sanitizePromptString, {
+              message: "Invalid characters or patterns in systemPrefix",
+            })
+            .optional(),
+          systemSuffix: z
+            .string()
+            .max(2000)
+            .refine(sanitizePromptString, {
+              message: "Invalid characters or patterns in systemSuffix",
+            })
+            .optional(),
+          responseStyle: z
+            .string()
+            .max(1000)
+            .refine(sanitizePromptString, {
+              message: "Invalid characters or patterns in responseStyle",
+            })
+            .optional(),
         })
         .strict();
 
