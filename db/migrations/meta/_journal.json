@@ -92,6 +92,13 @@
       "when": 1760268046215,
       "tag": "0005_wooden_fenris",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1761052478836,
+      "tag": "0001_woozy_joseph",
+      "breakpoints": true
     }
   ]
 }
