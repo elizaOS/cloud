@@ -6,8 +6,19 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/button";
+import { ImageCropper } from "@/components/image-cropper";
 import { useRenderTracking } from "@/lib/dev/render-tracking";
 import { getAuthToken } from "@/lib/use-auth";
+
+// Image validation constants
+const VALID_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 const CACHE_KEY = "miniapp_character_creator_draft";
 
@@ -57,7 +68,10 @@ function loadCachedData(): Partial<CachedFormData> | null {
 
 function saveCachedData(data: Omit<CachedFormData, "savedAt">) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(CACHE_KEY, JSON.stringify({ ...data, savedAt: Date.now() }));
+  localStorage.setItem(
+    CACHE_KEY,
+    JSON.stringify({ ...data, savedAt: Date.now() }),
+  );
 }
 
 function clearCachedData() {
@@ -70,23 +84,37 @@ function CharacterCreatorSection() {
   useRenderTracking("CharacterCreatorSection", { threshold: 8 });
 
   const router = useRouter();
-  
+
   const [formState, setFormState] = useState<FormState>(initialFormState);
-  const { name, backstory, personality, imageTab, imagePrompt, generatedImageUrl, isEditingImagePrompt } = formState;
-  
+  const {
+    name,
+    backstory,
+    personality,
+    imageTab,
+    imagePrompt,
+    generatedImageUrl,
+    isEditingImagePrompt,
+  } = formState;
+
   const updateFormState = useCallback((updates: Partial<FormState>) => {
-    setFormState(prev => ({ ...prev, ...updates }));
+    setFormState((prev) => ({ ...prev, ...updates }));
   }, []);
-  
+
   const [photo, setPhoto] = useState<File | null>(null);
-  
+  const [croppedPhotoBlob, setCroppedPhotoBlob] = useState<Blob | null>(null);
+  const [cropImageUrl, setCropImageUrl] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
   // Memoize photo object URL to avoid memory leaks
   const photoObjectUrl = useMemo(() => {
+    if (croppedPhotoBlob) {
+      return URL.createObjectURL(croppedPhotoBlob);
+    }
     if (photo) {
       return URL.createObjectURL(photo);
     }
     return null;
-  }, [photo]);
+  }, [photo, croppedPhotoBlob]);
 
   // Clean up object URL when photo changes
   useEffect(() => {
@@ -96,7 +124,7 @@ function CharacterCreatorSection() {
       }
     };
   }, [photoObjectUrl]);
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [error, setError] = useState("");
@@ -104,6 +132,7 @@ function CharacterCreatorSection() {
   const [generatingField, setGeneratingField] = useState<string | null>(null);
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
   const isHydratedRef = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load cached data on mount
   useEffect(() => {
@@ -113,7 +142,7 @@ function CharacterCreatorSection() {
       void _savedAt;
       // Defer state update to avoid cascading renders
       queueMicrotask(() => {
-        setFormState(prev => ({ ...prev, ...formData }));
+        setFormState((prev) => ({ ...prev, ...formData }));
       });
     }
     isHydratedRef.current = true;
@@ -130,24 +159,115 @@ function CharacterCreatorSection() {
       generatedImageUrl,
       isEditingImagePrompt,
     });
-  }, [name, backstory, personality, imageTab, imagePrompt, generatedImageUrl, isEditingImagePrompt]);
+  }, [
+    name,
+    backstory,
+    personality,
+    imageTab,
+    imagePrompt,
+    generatedImageUrl,
+    isEditingImagePrompt,
+  ]);
 
   useEffect(() => {
     saveToCache();
   }, [saveToCache]);
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setPhoto(e.target.files[0]);
-    }
-  };
+  const validateAndOpenCropper = useCallback((file: File) => {
+    setError("");
 
-  const handleGenerateField = async (fieldName: "name" | "personality" | "backstory") => {
+    // Validate format
+    if (!VALID_IMAGE_TYPES.includes(file.type)) {
+      setError("Invalid format. Only JPG, PNG, WebP, and GIF are supported.");
+      return;
+    }
+
+    // Validate size
+    if (file.size > MAX_FILE_SIZE) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      setError(`File too large (${sizeMB}MB). Maximum: 5MB`);
+      return;
+    }
+
+    // Open cropper
+    const url = URL.createObjectURL(file);
+    setPhoto(file);
+    setCropImageUrl(url);
+  }, []);
+
+  const handlePhotoChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        validateAndOpenCropper(file);
+      }
+      // Reset input so same file can be selected again
+      e.target.value = "";
+    },
+    [validateAndOpenCropper],
+  );
+
+  const handleCrop = useCallback(
+    (blob: Blob) => {
+      setCroppedPhotoBlob(blob);
+      if (cropImageUrl) {
+        URL.revokeObjectURL(cropImageUrl);
+      }
+      setCropImageUrl(null);
+    },
+    [cropImageUrl],
+  );
+
+  const handleCropCancel = useCallback(() => {
+    if (cropImageUrl) {
+      URL.revokeObjectURL(cropImageUrl);
+    }
+    setCropImageUrl(null);
+    setPhoto(null);
+  }, [cropImageUrl]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        validateAndOpenCropper(files[0]);
+      }
+    },
+    [validateAndOpenCropper],
+  );
+
+  const handleRemovePhoto = useCallback(() => {
+    if (photoObjectUrl && croppedPhotoBlob) {
+      URL.revokeObjectURL(photoObjectUrl);
+    }
+    setPhoto(null);
+    setCroppedPhotoBlob(null);
+  }, [photoObjectUrl, croppedPhotoBlob]);
+
+  const handleGenerateField = async (
+    fieldName: "name" | "personality" | "backstory",
+  ) => {
     if (generatingField || isGeneratingImage) return;
-    
+
     setGeneratingField(fieldName);
     setError("");
-    
+
     const response = await fetch("/api/generate-field", {
       method: "POST",
       headers: {
@@ -155,7 +275,12 @@ function CharacterCreatorSection() {
       },
       body: JSON.stringify({
         fieldName,
-        currentValue: fieldName === "name" ? name : fieldName === "personality" ? personality : backstory,
+        currentValue:
+          fieldName === "name"
+            ? name
+            : fieldName === "personality"
+              ? personality
+              : backstory,
         context: {
           name,
           personality,
@@ -182,7 +307,7 @@ function CharacterCreatorSection() {
 
   const handleGenerateImage = async () => {
     if (!imagePrompt.trim() || isGeneratingImage || generatingField) return;
-    
+
     setIsGeneratingImage(true);
     updateFormState({ generatedImageUrl: null }); // Clear old image when generating new one
     setError("");
@@ -213,14 +338,14 @@ function CharacterCreatorSection() {
 
     if (reader) {
       let buffer = "";
-      
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
-        
+
         // Keep the last incomplete line in buffer
         buffer = lines.pop() || "";
 
@@ -228,9 +353,15 @@ function CharacterCreatorSection() {
           if (line.startsWith("data: ")) {
             const data = JSON.parse(line.slice(6));
             if (data.type === "image" && data.imageUrl) {
-              updateFormState({ generatedImageUrl: data.imageUrl, isEditingImagePrompt: false });
+              updateFormState({
+                generatedImageUrl: data.imageUrl,
+                isEditingImagePrompt: false,
+              });
             } else if (data.type === "complete" && data.imageUrl) {
-              updateFormState({ generatedImageUrl: data.imageUrl, isEditingImagePrompt: false });
+              updateFormState({
+                generatedImageUrl: data.imageUrl,
+                isEditingImagePrompt: false,
+              });
             } else if (data.type === "error") {
               setError(data.error || "Generation failed");
               setIsGeneratingImage(false);
@@ -239,12 +370,15 @@ function CharacterCreatorSection() {
           }
         }
       }
-      
+
       // Process any remaining buffer
       if (buffer.trim() && buffer.startsWith("data: ")) {
         const data = JSON.parse(buffer.slice(6));
         if (data.type === "complete" && data.imageUrl) {
-          updateFormState({ generatedImageUrl: data.imageUrl, isEditingImagePrompt: false });
+          updateFormState({
+            generatedImageUrl: data.imageUrl,
+            isEditingImagePrompt: false,
+          });
         } else if (data.type === "error") {
           setError(data.error || "Generation failed");
         }
@@ -253,21 +387,24 @@ function CharacterCreatorSection() {
       // Fallback for non-streaming response
       const result = await response.json();
       if (result.success && result.imageUrl) {
-        updateFormState({ generatedImageUrl: result.imageUrl, isEditingImagePrompt: false });
+        updateFormState({
+          generatedImageUrl: result.imageUrl,
+          isEditingImagePrompt: false,
+        });
       } else {
         setError(result.error || "Failed to generate image");
       }
     }
-    
+
     setIsGeneratingImage(false);
   };
 
   const handleGeneratePrompt = async () => {
     if (isGeneratingPrompt || generatingField || isGeneratingImage) return;
-    
+
     setIsGeneratingPrompt(true);
     setError("");
-    
+
     const response = await fetch("/api/generate-field", {
       method: "POST",
       headers: {
@@ -325,14 +462,16 @@ function CharacterCreatorSection() {
     let imageUrls: string[] = [];
     let imageBase64s: string[] = [];
 
-    // Use photo if uploaded, otherwise use generated image if available
-    let imageToUpload: File | null = photo;
-    
+    // Use cropped photo if available, then fall back to original photo, then generated image
+    let imageToUpload: File | Blob | null = croppedPhotoBlob || photo;
+
     if (!imageToUpload && generatedImageUrl) {
       // Convert generated image URL to File
       setIsUploadingImages(true);
       let response: Response;
-      const directFetch = await fetch(generatedImageUrl, { mode: 'cors' }).catch(() => null);
+      const directFetch = await fetch(generatedImageUrl, {
+        mode: "cors",
+      }).catch(() => null);
       if (directFetch && directFetch.ok) {
         response = directFetch;
       } else {
@@ -361,14 +500,22 @@ function CharacterCreatorSection() {
         }
       }
       const blob = await response.blob();
-      imageToUpload = new File([blob], `generated-${Date.now()}.png`, { type: blob.type || "image/png" });
+      imageToUpload = new File([blob], `generated-${Date.now()}.png`, {
+        type: blob.type || "image/png",
+      });
     }
 
     if (imageToUpload) {
       setIsUploadingImages(true);
 
       const formData = new FormData();
-      formData.append("images", imageToUpload);
+      // Handle both File and Blob types
+      if (imageToUpload instanceof File) {
+        formData.append("images", imageToUpload);
+      } else {
+        formData.append("images", imageToUpload, `avatar-${Date.now()}.jpg`);
+      }
+      formData.append("type", "avatar");
 
       const uploadResponse = await fetch("/api/upload-images", {
         method: "POST",
@@ -443,79 +590,97 @@ function CharacterCreatorSection() {
       if (result.sessionId) {
         params.set("sessionId", result.sessionId);
       }
+      // Pass the avatar image for display on the loading screen
+      const displayImage = photoObjectUrl || generatedImageUrl;
+      if (displayImage) {
+        params.set("avatarUrl", displayImage);
+      }
       router.push(`/connecting?${params.toString()}`);
     }
-    
+
     setIsSubmitting(false);
     setIsUploadingImages(false);
   };
 
   return (
-    <div className="flex w-full flex-col lg:w-auto lg:flex-1 lg:max-w-lg xl:max-w-xl lg:shrink-0">
-      <div className="w-full">
-        <form onSubmit={handleSubmit} className="space-y-3">
+    <>
+      {/* Image Cropper Modal */}
+      {cropImageUrl && (
+        <ImageCropper
+          image={cropImageUrl}
+          aspectRatio={1}
+          onCrop={handleCrop}
+          onCancel={handleCropCancel}
+        />
+      )}
+
+      <div className="flex w-full flex-col lg:w-auto lg:max-w-lg lg:flex-1 lg:shrink-0 xl:max-w-xl">
+        <div className="w-full">
+          <form onSubmit={handleSubmit} className="space-y-3">
             <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label
-                    htmlFor="name"
-                    className="block text-sm font-medium text-white/90"
-                  >
-                    Name
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => handleGenerateField("name")}
-                    disabled={generatingField !== null || isGeneratingImage}
-                    className="flex items-center justify-center hover:opacity-70 transition-opacity disabled:opacity-50"
-                  >
-                    {generatingField === "name" ? (
-                      <Loader2 className="size-4 text-white/70 animate-spin" />
-                    ) : (
-                      <Sparkles className="size-4 text-white/70" />
-                    )}
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  id="name"
-                  value={name}
-                  onChange={(e) => updateFormState({ name: e.target.value })}
-                  placeholder="Enter your character's name"
-                  className="h-10 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white placeholder-white/30 backdrop-blur-sm transition-colors hover:border-white/20 focus:border-brand/50 focus:ring-1 focus:ring-brand/20 focus:outline-hidden"
-                  required
-                />
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="name"
+                  className="block text-sm font-medium text-white/90"
+                >
+                  Name
+                </label>
+                <button
+                  type="button"
+                  onClick={() => handleGenerateField("name")}
+                  disabled={generatingField !== null || isGeneratingImage}
+                  className="flex items-center justify-center transition-opacity hover:opacity-70 disabled:opacity-50"
+                >
+                  {generatingField === "name" ? (
+                    <Loader2 className="size-4 animate-spin text-white/70" />
+                  ) : (
+                    <Sparkles className="size-4 text-white/70" />
+                  )}
+                </button>
+              </div>
+              <input
+                type="text"
+                id="name"
+                value={name}
+                onChange={(e) => updateFormState({ name: e.target.value })}
+                placeholder="Enter your character's name"
+                className="focus:border-brand/50 focus:ring-brand/20 h-10 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white placeholder-white/30 backdrop-blur-sm transition-colors hover:border-white/20 focus:ring-1 focus:outline-hidden"
+                required
+              />
             </div>
 
             <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label
-                    htmlFor="personality"
-                    className="block text-sm font-medium text-white/90"
-                  >
-                    Personality
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => handleGenerateField("personality")}
-                    disabled={generatingField !== null || isGeneratingImage}
-                    className="flex items-center justify-center hover:opacity-70 transition-opacity disabled:opacity-50"
-                  >
-                    {generatingField === "personality" ? (
-                      <Loader2 className="size-4 text-white/70 animate-spin" />
-                    ) : (
-                      <Sparkles className="size-4 text-white/70" />
-                    )}
-                  </button>
-                </div>
-                <textarea
-                  id="personality"
-                  value={personality}
-                  onChange={(e) => updateFormState({ personality: e.target.value })}
-                  placeholder="What are they like?"
-                  rows={3}
-                  maxLength={1000}
-                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 backdrop-blur-sm transition-colors hover:border-white/20 focus:border-brand/50 focus:ring-1 focus:ring-brand/20 focus:outline-hidden resize-none"
-                />
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="personality"
+                  className="block text-sm font-medium text-white/90"
+                >
+                  Personality
+                </label>
+                <button
+                  type="button"
+                  onClick={() => handleGenerateField("personality")}
+                  disabled={generatingField !== null || isGeneratingImage}
+                  className="flex items-center justify-center transition-opacity hover:opacity-70 disabled:opacity-50"
+                >
+                  {generatingField === "personality" ? (
+                    <Loader2 className="size-4 animate-spin text-white/70" />
+                  ) : (
+                    <Sparkles className="size-4 text-white/70" />
+                  )}
+                </button>
+              </div>
+              <textarea
+                id="personality"
+                value={personality}
+                onChange={(e) =>
+                  updateFormState({ personality: e.target.value })
+                }
+                placeholder="What are they like?"
+                rows={3}
+                maxLength={1000}
+                className="focus:border-brand/50 focus:ring-brand/20 w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 backdrop-blur-sm transition-colors hover:border-white/20 focus:ring-1 focus:outline-hidden"
+              />
             </div>
 
             <div className="space-y-2">
@@ -524,14 +689,16 @@ function CharacterCreatorSection() {
                   type="button"
                   onClick={() => {
                     // If there's a generated image, show it (not editing mode)
-                    updateFormState({ 
+                    updateFormState({
                       imageTab: "generate",
-                      isEditingImagePrompt: generatedImageUrl ? false : isEditingImagePrompt
+                      isEditingImagePrompt: generatedImageUrl
+                        ? false
+                        : isEditingImagePrompt,
                     });
                   }}
                   className={`px-3 py-1.5 text-sm font-medium transition-colors ${
                     imageTab === "generate"
-                      ? "text-white border-b-2 border-brand"
+                      ? "border-brand border-b-2 text-white"
                       : "text-white/50 hover:text-white/70"
                   }`}
                 >
@@ -542,7 +709,7 @@ function CharacterCreatorSection() {
                   onClick={() => updateFormState({ imageTab: "upload" })}
                   className={`px-3 py-1.5 text-sm font-medium transition-colors ${
                     imageTab === "upload"
-                      ? "text-white border-b-2 border-brand"
+                      ? "border-brand border-b-2 text-white"
                       : "text-white/50 hover:text-white/70"
                   }`}
                 >
@@ -556,20 +723,22 @@ function CharacterCreatorSection() {
                   <>
                     {/* Show image when generated and not editing, otherwise show prompt */}
                     {generatedImageUrl && !isEditingImagePrompt ? (
-                      <div className="w-full h-full max-w-44 mx-auto">
-                        <div className="h-full rounded-lg border border-white/10 overflow-hidden relative">
+                      <div className="mx-auto h-full w-full max-w-44">
+                        <div className="relative h-full overflow-hidden rounded-lg border border-white/10">
                           <Image
                             src={generatedImageUrl}
                             alt="Generated"
                             width={176}
                             height={176}
-                            className="w-full h-full object-cover"
+                            className="h-full w-full object-cover"
                           />
                           {/* X button to replace - always visible for mobile */}
                           <button
                             type="button"
-                            onClick={() => updateFormState({ isEditingImagePrompt: true })}
-                            className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white/80 hover:bg-black/80 hover:text-white transition-colors"
+                            onClick={() =>
+                              updateFormState({ isEditingImagePrompt: true })
+                            }
+                            className="absolute top-2 right-2 rounded-full bg-black/60 p-1.5 text-white/80 transition-colors hover:bg-black/80 hover:text-white"
                             aria-label="Replace image"
                           >
                             <X className="size-4" />
@@ -577,9 +746,9 @@ function CharacterCreatorSection() {
                         </div>
                       </div>
                     ) : (
-                      <div className="h-full flex flex-col">
+                      <div className="flex h-full flex-col">
                         {/* Multi-line textarea with generate prompt button */}
-                        <div className="flex-1 flex flex-col space-y-2">
+                        <div className="flex flex-1 flex-col space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="text-sm font-medium text-white/90">
                               Image Description
@@ -587,11 +756,15 @@ function CharacterCreatorSection() {
                             <button
                               type="button"
                               onClick={handleGeneratePrompt}
-                              disabled={isGeneratingPrompt || generatingField !== null || isGeneratingImage}
-                              className="flex items-center justify-center hover:opacity-70 transition-opacity disabled:opacity-50"
+                              disabled={
+                                isGeneratingPrompt ||
+                                generatingField !== null ||
+                                isGeneratingImage
+                              }
+                              className="flex items-center justify-center transition-opacity hover:opacity-70 disabled:opacity-50"
                             >
                               {isGeneratingPrompt ? (
-                                <Loader2 className="size-4 text-white/70 animate-spin" />
+                                <Loader2 className="size-4 animate-spin text-white/70" />
                               ) : (
                                 <Sparkles className="size-4 text-white/70" />
                               )}
@@ -599,17 +772,23 @@ function CharacterCreatorSection() {
                           </div>
                           <textarea
                             value={imagePrompt}
-                            onChange={(e) => updateFormState({ imagePrompt: e.target.value })}
+                            onChange={(e) =>
+                              updateFormState({ imagePrompt: e.target.value })
+                            }
                             placeholder="Describe how they look..."
-                            className="flex-1 w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-white/30 backdrop-blur-sm transition-colors hover:border-white/20 focus:border-brand/50 focus:ring-1 focus:ring-brand/20 focus:outline-hidden resize-none"
+                            className="focus:border-brand/50 focus:ring-brand/20 w-full flex-1 resize-none rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-white/30 backdrop-blur-sm transition-colors hover:border-white/20 focus:ring-1 focus:outline-hidden"
                           />
                         </div>
                         {/* Generate button below */}
                         <button
                           type="button"
                           onClick={handleGenerateImage}
-                          disabled={isGeneratingImage || !imagePrompt.trim() || generatingField !== null}
-                          className="mt-2 w-full h-10 px-3 rounded-lg border border-white/10 bg-white/5 text-sm text-white/90 hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shrink-0"
+                          disabled={
+                            isGeneratingImage ||
+                            !imagePrompt.trim() ||
+                            generatingField !== null
+                          }
+                          className="mt-2 flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white/90 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {isGeneratingImage ? (
                             <>
@@ -619,7 +798,9 @@ function CharacterCreatorSection() {
                           ) : (
                             <>
                               <Sparkles className="size-4" />
-                              {generatedImageUrl ? "Regenerate Image" : "Generate Image"}
+                              {generatedImageUrl
+                                ? "Regenerate Image"
+                                : "Generate Image"}
                             </>
                           )}
                         </button>
@@ -629,22 +810,22 @@ function CharacterCreatorSection() {
                 ) : (
                   <>
                     {/* Single image upload - show preview or upload area */}
-                    {photo && photoObjectUrl ? (
-                      <div className="w-full h-full max-w-44 mx-auto">
-                        <div className="h-full rounded-lg border border-white/10 overflow-hidden relative">
+                    {(croppedPhotoBlob || photo) && photoObjectUrl ? (
+                      <div className="mx-auto h-full w-full max-w-44">
+                        <div className="relative h-full overflow-hidden rounded-lg border border-white/10">
                           <Image
                             src={photoObjectUrl}
                             alt="Preview"
                             width={176}
                             height={176}
-                            className="w-full h-full object-cover"
+                            className="h-full w-full object-cover"
                             unoptimized
                           />
                           {/* X button to clear - always visible for mobile */}
                           <button
                             type="button"
-                            onClick={() => setPhoto(null)}
-                            className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white/80 hover:bg-black/80 hover:text-white transition-colors"
+                            onClick={handleRemovePhoto}
+                            className="absolute top-2 right-2 rounded-full bg-black/60 p-1.5 text-white/80 transition-colors hover:bg-black/80 hover:text-white"
                             aria-label="Remove image"
                           >
                             <X className="size-4" />
@@ -652,22 +833,40 @@ function CharacterCreatorSection() {
                         </div>
                       </div>
                     ) : (
-                      <label
-                        htmlFor="photos"
-                        className="w-full h-full max-w-44 mx-auto flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-white/10 bg-white/[0.02] transition-all hover:border-white/20 hover:bg-white/[0.04]"
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => fileInputRef.current?.click()}
+                        onKeyDown={(e) =>
+                          e.key === "Enter" && fileInputRef.current?.click()
+                        }
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        className={`mx-auto flex h-full w-full max-w-44 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed transition-all ${
+                          isDragging
+                            ? "border-brand bg-brand/10"
+                            : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+                        }`}
                       >
-                        <Upload className="mb-1 size-8 text-white/30 transition-colors group-hover:text-white/50" />
-                        <p className="text-sm text-white/50 text-center px-4">
-                          Upload
+                        <Upload
+                          className={`mb-1 size-8 transition-colors ${isDragging ? "text-brand" : "text-white/30"}`}
+                        />
+                        <p className="px-4 text-center text-sm text-white/50">
+                          {isDragging ? "Drop here" : "Drag & drop or click"}
+                        </p>
+                        <p className="mt-1 text-xs text-white/30">
+                          JPG, PNG, WebP, GIF
                         </p>
                         <input
+                          ref={fileInputRef}
                           id="photos"
                           type="file"
-                          accept="image/*"
+                          accept={VALID_IMAGE_TYPES.join(",")}
                           onChange={handlePhotoChange}
                           className="hidden"
                         />
-                      </label>
+                      </div>
                     )}
                   </>
                 )}
@@ -675,71 +874,74 @@ function CharacterCreatorSection() {
             </div>
 
             <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label
-                    htmlFor="backstory"
-                    className="block text-sm font-medium text-white/90"
-                  >
-                    How do you know each other?
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => handleGenerateField("backstory")}
-                    disabled={generatingField !== null || isGeneratingImage}
-                    className="flex items-center justify-center hover:opacity-70 transition-opacity disabled:opacity-50"
-                  >
-                    {generatingField === "backstory" ? (
-                      <Loader2 className="size-4 text-white/70 animate-spin" />
-                    ) : (
-                      <Sparkles className="size-4 text-white/70" />
-                    )}
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  id="backstory"
-                  value={backstory}
-                  onChange={(e) => updateFormState({ backstory: e.target.value })}
-                  placeholder="Met in college, always joked about running away together."
-                  className="h-10 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white placeholder-white/30 backdrop-blur-sm transition-colors hover:border-white/20 focus:border-brand/50 focus:ring-1 focus:ring-brand/20 focus:outline-hidden"
-                />
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="backstory"
+                  className="block text-sm font-medium text-white/90"
+                >
+                  How do you know each other?
+                </label>
+                <button
+                  type="button"
+                  onClick={() => handleGenerateField("backstory")}
+                  disabled={generatingField !== null || isGeneratingImage}
+                  className="flex items-center justify-center transition-opacity hover:opacity-70 disabled:opacity-50"
+                >
+                  {generatingField === "backstory" ? (
+                    <Loader2 className="size-4 animate-spin text-white/70" />
+                  ) : (
+                    <Sparkles className="size-4 text-white/70" />
+                  )}
+                </button>
+              </div>
+              <input
+                type="text"
+                id="backstory"
+                value={backstory}
+                onChange={(e) => updateFormState({ backstory: e.target.value })}
+                placeholder="Met in college, always joked about running away together."
+                className="focus:border-brand/50 focus:ring-brand/20 h-10 w-full rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white placeholder-white/30 backdrop-blur-sm transition-colors hover:border-white/20 focus:ring-1 focus:outline-hidden"
+              />
             </div>
 
             {error && (
-                <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-200">
-                  {error}
-                </div>
+              <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                {error}
+              </div>
             )}
 
             <div className="pt-1">
-                <Button
-                  type="submit"
-                  disabled={
-                    isSubmitting ||
-                    isUploadingImages ||
-                    !name.trim() ||
-                    !personality.trim() ||
-                    !backstory.trim()
-                  }
-                  size="lg"
-                  className="h-11 w-full bg-gradient-to-b from-brand to-brand-600 text-base font-semibold shadow-lg hover:from-brand-400 hover:to-brand disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isUploadingImages
-                    ? "Uploading..."
-                    : isSubmitting
+              <Button
+                type="submit"
+                disabled={
+                  isSubmitting ||
+                  isUploadingImages ||
+                  !name.trim() ||
+                  !personality.trim() ||
+                  !backstory.trim()
+                }
+                size="lg"
+                className="from-brand to-brand-600 hover:from-brand-400 hover:to-brand h-11 w-full bg-gradient-to-b text-base font-semibold shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isUploadingImages
+                  ? "Uploading..."
+                  : isSubmitting
                     ? "Creating..."
                     : "Create"}
-                </Button>
+              </Button>
             </div>
           </form>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
 // Enable why-did-you-render tracking for this component
 if (process.env.NODE_ENV === "development") {
-  (CharacterCreatorSection as React.FC & { whyDidYouRender?: boolean }).whyDidYouRender = true;
+  (
+    CharacterCreatorSection as React.FC & { whyDidYouRender?: boolean }
+  ).whyDidYouRender = true;
 }
 
 export default CharacterCreatorSection;

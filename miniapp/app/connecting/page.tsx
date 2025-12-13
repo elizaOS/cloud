@@ -1,10 +1,12 @@
 "use client";
 
 import { Heart, MessageCircle, Sparkles, Zap } from "lucide-react";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
-const CLOUD_URL = process.env.NEXT_PUBLIC_ELIZA_CLOUD_URL || "http://localhost:3000";
+const CLOUD_URL =
+  process.env.NEXT_PUBLIC_ELIZA_CLOUD_URL || "http://localhost:3000";
 
 function ConnectingContent() {
   const searchParams = useSearchParams();
@@ -14,10 +16,19 @@ function ConnectingContent() {
   const name = searchParams.get("name") || "Your Character";
   const characterId = searchParams.get("characterId");
   const sessionId = searchParams.get("sessionId");
+  const avatarUrl = searchParams.get("avatarUrl");
 
   const steps = [
-    { icon: Sparkles, text: "Analyzing your preferences", color: "text-brand-400" },
-    { icon: Heart, text: "Creating your perfect companion", color: "text-fuchsia-400" },
+    {
+      icon: Sparkles,
+      text: "Analyzing your preferences",
+      color: "text-brand-400",
+    },
+    {
+      icon: Heart,
+      text: "Creating your perfect companion",
+      color: "text-fuchsia-400",
+    },
     {
       icon: MessageCircle,
       text: "Finalizing everything for you",
@@ -34,7 +45,10 @@ function ConnectingContent() {
     // Floating hearts animation
     const heartsInterval = setInterval(() => {
       setHearts((prev) => {
-        const newHearts = [...prev, { id: Date.now(), left: 45 + Math.random() * 10 }];
+        const newHearts = [
+          ...prev,
+          { id: Date.now(), left: 45 + Math.random() * 10 },
+        ];
         return newHearts.slice(-5); // Keep only last 5
       });
     }, 800);
@@ -63,14 +77,14 @@ function ConnectingContent() {
         clearTimeout(redirectTimeout);
       }
     };
-  }, [characterId, name, sessionId]);
+  }, [characterId, sessionId]);
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050109] p-4">
       {/* Ambient background effects */}
       <div className="absolute inset-0 overflow-hidden">
         {/* Gradient orbs */}
-        <div className="absolute top-1/4 left-1/4 size-96 animate-pulse rounded-full bg-brand/10 blur-3xl" />
+        <div className="bg-brand/10 absolute top-1/4 left-1/4 size-96 animate-pulse rounded-full blur-3xl" />
         <div className="absolute right-1/4 bottom-1/4 size-96 animate-pulse rounded-full bg-fuchsia-500/10 blur-3xl delay-1000" />
 
         {/* Floating hearts */}
@@ -83,7 +97,7 @@ function ConnectingContent() {
               left: `${heart.left}%`,
             }}
           >
-            <Heart className="size-6 fill-brand/30 text-brand/50" />
+            <Heart className="fill-brand/30 text-brand/50 size-6" />
           </div>
         ))}
       </div>
@@ -95,18 +109,32 @@ function ConnectingContent() {
           <div className="absolute inset-0 rounded-2xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]" />
 
           <div className="relative space-y-8">
-            {/* Animated icon */}
+            {/* Avatar or Animated icon */}
             <div className="flex justify-center">
               <div className="relative">
                 {/* Pulsing ring */}
-                <div className="absolute inset-0 animate-ping rounded-full bg-brand/20" />
-                {/* Main icon container */}
-                <div className="relative flex size-20 items-center justify-center rounded-full bg-gradient-to-b from-brand to-brand-600 shadow-lg shadow-brand/30">
-                  <Zap
-                    className="size-10 animate-pulse text-white"
-                    fill="white"
-                  />
-                </div>
+                <div className="bg-brand/20 absolute -inset-2 animate-ping rounded-full" />
+                <div className="from-brand/30 absolute -inset-2 animate-pulse rounded-full bg-gradient-to-r to-fuchsia-500/30 blur-md" />
+                {/* Avatar or fallback icon */}
+                {avatarUrl ? (
+                  <div className="border-brand/50 shadow-brand/30 relative size-24 overflow-hidden rounded-full border-2 shadow-lg">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={avatarUrl}
+                      alt={name}
+                      className="size-full object-cover"
+                    />
+                    {/* Animated glow overlay */}
+                    <div className="from-brand/20 absolute inset-0 animate-pulse bg-gradient-to-t to-transparent" />
+                  </div>
+                ) : (
+                  <div className="from-brand to-brand-600 shadow-brand/30 relative flex size-20 items-center justify-center rounded-full bg-gradient-to-b shadow-lg">
+                    <Zap
+                      className="size-10 animate-pulse text-white"
+                      fill="white"
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -145,7 +173,7 @@ function ConnectingContent() {
                       }`}
                     >
                       {isComplete ? (
-                        <div className="flex size-4 items-center justify-center rounded-full bg-brand">
+                        <div className="bg-brand flex size-4 items-center justify-center rounded-full">
                           <svg
                             className="size-3 text-white"
                             fill="none"
@@ -182,13 +210,12 @@ function ConnectingContent() {
 
                     {/* Loading spinner for active step */}
                     {isActive && !isComplete && (
-                      <div className="mt-1 size-4 shrink-0 animate-spin rounded-full border-2 border-brand/30 border-t-brand" />
+                      <div className="border-brand/30 border-t-brand mt-1 size-4 shrink-0 animate-spin rounded-full border-2" />
                     )}
                   </div>
                 );
               })}
             </div>
-
           </div>
         </div>
       </div>
@@ -224,7 +251,7 @@ export default function ConnectingPage() {
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center bg-[#050109]">
-          <div className="size-8 animate-spin rounded-full border-2 border-brand/30 border-t-brand" />
+          <div className="border-brand/30 border-t-brand size-8 animate-spin rounded-full border-2" />
         </div>
       }
     >
