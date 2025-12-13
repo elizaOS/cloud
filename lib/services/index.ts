@@ -27,3 +27,6 @@ export { voiceCloningService } from "./voice-cloning";
 
 // Email services
 export { emailService } from "./email";
+
+// Discord services
+export { discordService } from "./discord";
