@@ -25,7 +25,7 @@ interface ListenerMetadata {
 
 /**
  * Message Event Emitter for real-time Eliza chat updates
- * 
+ *
  * Follows the same pattern as CreditEventEmitter
  * Supports SSE streaming for instant message delivery
  */

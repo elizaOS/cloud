@@ -12,7 +12,8 @@ import { voiceProvider } from "./voice-provider";
 
 export const voicePlugin: Plugin = {
   name: "@eliza-cloud/plugin-voice",
-  description: "Provides speech-to-text and text-to-speech capabilities using ElevenLabs",
+  description:
+    "Provides speech-to-text and text-to-speech capabilities using ElevenLabs",
 
   actions: [speechToTextAction],
   providers: [voiceProvider],

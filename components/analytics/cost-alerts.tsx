@@ -94,7 +94,7 @@ export function CostAlerts({ costTrending, creditBalance }: CostAlertsProps) {
           key={`${alert.title}-${index}`}
           className={cn(
             "rounded-xl border bg-background/80 p-5 text-sm shadow-sm",
-            toneClasses[alert.type]
+            toneClasses[alert.type],
           )}
         >
           <div className="flex items-start gap-4">

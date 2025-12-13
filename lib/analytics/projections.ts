@@ -44,7 +44,7 @@ export const PROJECTION_CONSTANTS = {
 function seededRandom(
   timestamp: Date,
   index: number,
-  variance: number
+  variance: number,
 ): number {
   const seed = timestamp.getTime() + index;
   // Simple Linear Congruential Generator (LCG)
@@ -95,7 +95,7 @@ export interface ProjectionAlert {
  * @returns Slope and intercept for the linear regression line
  */
 export function calculateLinearRegression(
-  values: number[]
+  values: number[],
 ): LinearRegressionResult {
   const n = values.length;
 
@@ -126,26 +126,26 @@ export function calculateLinearRegression(
 
 export function generateProjections(
   historicalData: TimeSeriesDataPoint[],
-  periods: number
+  periods: number,
 ): ProjectionDataPoint[] {
   if (historicalData.length < 3) {
     return historicalData.map((d) => ({ ...d, isProjected: false }));
   }
 
   const requestsRegression = calculateLinearRegression(
-    historicalData.map((d) => d.totalRequests)
+    historicalData.map((d) => d.totalRequests),
   );
   const costRegression = calculateLinearRegression(
-    historicalData.map((d) => d.totalCost)
+    historicalData.map((d) => d.totalCost),
   );
   const inputTokensRegression = calculateLinearRegression(
-    historicalData.map((d) => d.inputTokens)
+    historicalData.map((d) => d.inputTokens),
   );
   const outputTokensRegression = calculateLinearRegression(
-    historicalData.map((d) => d.outputTokens)
+    historicalData.map((d) => d.outputTokens),
   );
   const successRateRegression = calculateLinearRegression(
-    historicalData.map((d) => d.successRate)
+    historicalData.map((d) => d.successRate),
   );
 
   const combined: ProjectionDataPoint[] = historicalData.map((d) => ({
@@ -166,29 +166,29 @@ export function generateProjections(
 
     const projectedRequests = Math.max(
       0,
-      requestsRegression.intercept + requestsRegression.slope * futureIndex
+      requestsRegression.intercept + requestsRegression.slope * futureIndex,
     );
     const projectedCost = Math.max(
       0,
-      costRegression.intercept + costRegression.slope * futureIndex
+      costRegression.intercept + costRegression.slope * futureIndex,
     );
     const projectedInputTokens = Math.max(
       0,
       inputTokensRegression.intercept +
-        inputTokensRegression.slope * futureIndex
+        inputTokensRegression.slope * futureIndex,
     );
     const projectedOutputTokens = Math.max(
       0,
       outputTokensRegression.intercept +
-        outputTokensRegression.slope * futureIndex
+        outputTokensRegression.slope * futureIndex,
     );
     const projectedSuccessRate = Math.min(
       1.0,
       Math.max(
         0,
         successRateRegression.intercept +
-          successRateRegression.slope * futureIndex
-      )
+          successRateRegression.slope * futureIndex,
+      ),
     );
 
     const futureDate = new Date(lastDate.getTime() + avgTimeDiff * i);
@@ -206,7 +206,7 @@ export function generateProjections(
     const confidence = Math.max(
       PROJECTION_CONSTANTS.MIN_CONFIDENCE,
       PROJECTION_CONSTANTS.INITIAL_CONFIDENCE -
-        i * PROJECTION_CONSTANTS.CONFIDENCE_DECAY_RATE
+        i * PROJECTION_CONSTANTS.CONFIDENCE_DECAY_RATE,
     );
 
     combined.push({
@@ -227,7 +227,7 @@ export function generateProjections(
 export function generateProjectionAlerts(
   historicalData: TimeSeriesDataPoint[],
   projectedData: ProjectionDataPoint[],
-  creditBalance: number
+  creditBalance: number,
 ): ProjectionAlert[] {
   const alerts: ProjectionAlert[] = [];
 
@@ -269,7 +269,7 @@ export function generateProjectionAlerts(
   }
 
   const maxProjectedRequests = Math.max(
-    ...projectedOnly.map((d) => d.totalRequests)
+    ...projectedOnly.map((d) => d.totalRequests),
   );
   const requestIncrease =
     avgRequests > 0
@@ -286,7 +286,7 @@ export function generateProjectionAlerts(
   }
 
   const costRegression = calculateLinearRegression(
-    historicalData.map((d) => d.totalCost)
+    historicalData.map((d) => d.totalCost),
   );
   if (costRegression.slope < -0.1) {
     alerts.push({
@@ -298,7 +298,7 @@ export function generateProjectionAlerts(
 
   const totalProjectedCost = projectedOnly.reduce(
     (sum, d) => sum + d.totalCost,
-    0
+    0,
   );
   if (totalProjectedCost > 100000) {
     alerts.push({

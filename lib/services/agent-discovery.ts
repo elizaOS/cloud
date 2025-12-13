@@ -52,7 +52,7 @@ export class AgentDiscoveryService {
     organizationId: string,
     userId: string,
     filters?: AgentDiscoveryFilters,
-    includeStats: boolean = false
+    includeStats: boolean = false,
   ): Promise<AgentListResult> {
     try {
       // Create filter hash for caching
@@ -61,11 +61,11 @@ export class AgentDiscoveryService {
       // Check cache first
       const cached = await agentStateCache.getAgentList(
         organizationId,
-        filterHash
+        filterHash,
       );
       if (cached) {
         logger.debug(
-          `[Agent Discovery] Cache hit for org ${organizationId} with filters ${filterHash}`
+          `[Agent Discovery] Cache hit for org ${organizationId} with filters ${filterHash}`,
         );
         return {
           agents: cached as AgentInfo[],
@@ -75,7 +75,7 @@ export class AgentDiscoveryService {
       }
 
       logger.debug(
-        `[Agent Discovery] Cache miss, fetching agents for org ${organizationId}`
+        `[Agent Discovery] Cache miss, fetching agents for org ${organizationId}`,
       );
 
       // Fetch characters and containers in parallel
@@ -87,15 +87,15 @@ export class AgentDiscoveryService {
       // Build agent info from characters
       const agents = await Promise.all(
         characters.map((char) =>
-          this.buildAgentInfo(char, containers, includeStats)
-        )
+          this.buildAgentInfo(char, containers, includeStats),
+        ),
       );
 
       // Filter by deployment status if requested
       let filteredAgents = agents;
       if (filters?.deployed !== undefined) {
         filteredAgents = agents.filter((a) =>
-          filters.deployed ? a.status === "deployed" : a.status !== "deployed"
+          filters.deployed ? a.status === "deployed" : a.status !== "deployed",
         );
       }
 
@@ -103,7 +103,7 @@ export class AgentDiscoveryService {
       await agentStateCache.setAgentList(
         organizationId,
         filterHash,
-        filteredAgents
+        filteredAgents,
       );
 
       return {
@@ -123,7 +123,7 @@ export class AgentDiscoveryService {
   private async fetchCharacters(
     organizationId: string,
     userId: string,
-    filters?: AgentDiscoveryFilters
+    filters?: AgentDiscoveryFilters,
   ): Promise<UserCharacter[]> {
     if (filters?.template) {
       // Fetch templates
@@ -153,7 +153,7 @@ export class AgentDiscoveryService {
       return await containersService.listByOrganization(organizationId);
     } catch (error) {
       logger.warn(
-        `[Agent Discovery] Error fetching containers: ${error instanceof Error ? error.message : "Unknown error"}`
+        `[Agent Discovery] Error fetching containers: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
       return [];
     }
@@ -167,11 +167,11 @@ export class AgentDiscoveryService {
     containers: Awaited<
       ReturnType<typeof containersService.listByOrganization>
     >,
-    includeStats: boolean
+    includeStats: boolean,
   ): Promise<AgentInfo> {
     // Find deployment container by character_id FK
     const container = containers.find(
-      (c) => c.character_id === character.id && c.status === "running"
+      (c) => c.character_id === character.id && c.status === "running",
     );
 
     // Determine status
@@ -181,7 +181,7 @@ export class AgentDiscoveryService {
     } else {
       // Check if there's a stopped container
       const stoppedContainer = containers.find(
-        (c) => c.character_id === character.id && c.status !== "running"
+        (c) => c.character_id === character.id && c.status !== "running",
       );
       if (stoppedContainer) {
         status = "stopped";
@@ -251,7 +251,7 @@ export class AgentDiscoveryService {
           count?: boolean;
         }) => Promise<Memory[] | number>;
         getRoomsByIds: (
-          roomIds: string[]
+          roomIds: string[],
         ) => Promise<{ id: string; createdAt?: Date }[]>;
       };
 
@@ -277,7 +277,7 @@ export class AgentDiscoveryService {
       } catch (error) {
         logger.warn(
           `[Agent Discovery] Error fetching message count for ${agentId}:`,
-          error
+          error,
         );
         messageCount = 0;
       }
@@ -297,7 +297,7 @@ export class AgentDiscoveryService {
           recentMessages.length > 0
         ) {
           const sortedMessages = recentMessages.sort(
-            (a, b) => (b.createdAt || 0) - (a.createdAt || 0)
+            (a, b) => (b.createdAt || 0) - (a.createdAt || 0),
           );
           if (sortedMessages[0]?.createdAt) {
             lastActiveAt = new Date(sortedMessages[0].createdAt);
@@ -306,7 +306,7 @@ export class AgentDiscoveryService {
       } catch (error) {
         logger.warn(
           `[Agent Discovery] Error fetching last active time for ${agentId}:`,
-          error
+          error,
         );
       }
 
@@ -315,7 +315,7 @@ export class AgentDiscoveryService {
       try {
         const containers = await containersService.listByOrganization(agentId);
         const activeContainer = containers.find(
-          (c) => c.character_id === agentId && c.status === "running"
+          (c) => c.character_id === agentId && c.status === "running",
         );
 
         if (activeContainer?.last_deployed_at) {
@@ -325,7 +325,7 @@ export class AgentDiscoveryService {
       } catch (error) {
         logger.warn(
           `[Agent Discovery] Unable to calculate uptime for ${agentId}:`,
-          error
+          error,
         );
       }
 
@@ -343,7 +343,7 @@ export class AgentDiscoveryService {
       return stats;
     } catch (error) {
       logger.debug(
-        `[Agent Discovery] Could not fetch stats for ${agentId} (likely not deployed)`
+        `[Agent Discovery] Could not fetch stats for ${agentId} (likely not deployed)`,
       );
 
       // Return and cache empty stats for non-deployed characters
@@ -368,7 +368,7 @@ export class AgentDiscoveryService {
    * @returns Map of agent ID to stats
    */
   async getAgentStatisticsBatch(
-    agentIds: string[]
+    agentIds: string[],
   ): Promise<Map<string, AgentStats>> {
     const statsMap = new Map<string, AgentStats>();
 
@@ -444,7 +444,7 @@ export class AgentDiscoveryService {
   async invalidateAgentListCache(organizationId: string): Promise<void> {
     await agentStateCache.invalidateAgentList(organizationId);
     logger.debug(
-      `[Agent Discovery] Invalidated agent list cache for org ${organizationId}`
+      `[Agent Discovery] Invalidated agent list cache for org ${organizationId}`,
     );
   }
 

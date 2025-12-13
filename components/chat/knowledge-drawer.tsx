@@ -81,9 +81,7 @@ export function KnowledgeDrawer() {
       fetchDocuments();
     } catch (err) {
       console.error("Error deleting document:", err);
-      alert(
-        err instanceof Error ? err.message : "Failed to delete document",
-      );
+      alert(err instanceof Error ? err.message : "Failed to delete document");
     }
   };
 
@@ -135,4 +133,3 @@ export function KnowledgeDrawer() {
     </Sheet>
   );
 }
-
