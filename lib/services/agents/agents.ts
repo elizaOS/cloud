@@ -13,6 +13,9 @@ const agentInfoCacheKey = (agentId: string) => `agent:info:${agentId}`;
 
 export type { AgentInfo };
 
+/**
+ * Input for sending a message to an agent.
+ */
 export interface SendMessageInput {
   roomId: string;
   entityId: string;
@@ -22,6 +25,9 @@ export interface SendMessageInput {
   attachments?: Attachment[];
 }
 
+/**
+ * Message attachment structure.
+ */
 export interface Attachment {
   id?: string;
   type: "image" | "file";
@@ -34,6 +40,9 @@ export interface Attachment {
   text?: string;
 }
 
+/**
+ * Response from an agent.
+ */
 export interface AgentResponse {
   messageId: string;
   content: string;
