@@ -64,7 +64,7 @@ export async function sendToDiscordThread(
       let characterName = "Agent";
       if (characterId) {
         const character = await db.execute<{ name: string }>(
-          sql`SELECT name FROM characters WHERE id = ${characterId}::uuid LIMIT 1`,
+          sql`SELECT name FROM user_characters WHERE id = ${characterId}::uuid LIMIT 1`,
         );
         characterName = character.rows[0]?.name || "Agent";
       }
