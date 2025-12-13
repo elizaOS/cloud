@@ -36,30 +36,34 @@ Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6 mb-8">
   <a href="/docs/quickstart#using-the-agent-creator" className="docs-quickstart-card no-underline group" style={{"--card-accent-color": "#ff5800"}}>
     <div className="relative z-10">
-      <div className="text-3xl mb-3">🎨</div>
-      <div className="font-bold text-white text-lg mb-1 group-hover:text-[#ff5800] transition-colors">Visual Builder</div>
-      <div className="text-white/50 text-sm">Create agents with the no-code editor</div>
+      <div className="docs-quickstart-icon" aria-hidden="true">🎨</div>
+      <div className="docs-quickstart-title">Visual Builder</div>
+      <div className="docs-quickstart-desc">Create agents with the no-code editor</div>
+      <div className="docs-quickstart-arrow" aria-hidden="true">→</div>
     </div>
   </a>
   <a href="/docs/quickstart#using-the-api" className="docs-quickstart-card no-underline group" style={{"--card-accent-color": "#0b35f1"}}>
     <div className="relative z-10">
-      <div className="text-3xl mb-3">⚡</div>
-      <div className="font-bold text-white text-lg mb-1 group-hover:text-[#0b35f1] transition-colors">REST API</div>
-      <div className="text-white/50 text-sm">OpenAI-compatible endpoints</div>
+      <div className="docs-quickstart-icon" aria-hidden="true">⚡</div>
+      <div className="docs-quickstart-title">REST API</div>
+      <div className="docs-quickstart-desc">OpenAI-compatible endpoints</div>
+      <div className="docs-quickstart-arrow" aria-hidden="true">→</div>
     </div>
   </a>
   <a href="/docs/quickstart#using-the-cli" className="docs-quickstart-card no-underline group" style={{"--card-accent-color": "#22c55e"}}>
     <div className="relative z-10">
-      <div className="text-3xl mb-3">💻</div>
-      <div className="font-bold text-white text-lg mb-1 group-hover:text-[#22c55e] transition-colors">CLI Deployment</div>
-      <div className="text-white/50 text-sm">Deploy from your local project</div>
+      <div className="docs-quickstart-icon" aria-hidden="true">💻</div>
+      <div className="docs-quickstart-title">CLI Deployment</div>
+      <div className="docs-quickstart-desc">Deploy from your local project</div>
+      <div className="docs-quickstart-arrow" aria-hidden="true">→</div>
     </div>
   </a>
   <a href="/docs/mcp" className="docs-quickstart-card no-underline group" style={{"--card-accent-color": "#a855f7"}}>
     <div className="relative z-10">
-      <div className="text-3xl mb-3">🔌</div>
-      <div className="font-bold text-white text-lg mb-1 group-hover:text-[#a855f7] transition-colors">MCP Protocol</div>
-      <div className="text-white/50 text-sm">Connect with external tools</div>
+      <div className="docs-quickstart-icon" aria-hidden="true">🔌</div>
+      <div className="docs-quickstart-title">MCP Protocol</div>
+      <div className="docs-quickstart-desc">Connect with external tools</div>
+      <div className="docs-quickstart-arrow" aria-hidden="true">→</div>
     </div>
   </a>
 </div>
@@ -858,7 +862,7 @@ Response:
 
 ```bash
 # Install the CLI
-npm install -g @elizaos/cli
+bun add -g @elizaos/cli
 
 # Login to elizaOS Cloud
 elizaos login
@@ -1248,7 +1252,7 @@ Create a new agent.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/my-agents/characters/{id}</span>
+  <span className="path">/api/v1/my-agents/characters/{'{id}'}</span>
 </div>
 
 Get details about a specific agent.
@@ -1259,7 +1263,7 @@ Get details about a specific agent.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-put">PUT</span>
-  <span className="path">/api/v1/my-agents/characters/{id}</span>
+  <span className="path">/api/v1/my-agents/characters/{'{id}'}</span>
 </div>
 
 Update an agent's configuration.
@@ -1282,7 +1286,7 @@ Update an agent's configuration.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/v1/my-agents/characters/{id}</span>
+  <span className="path">/api/v1/my-agents/characters/{'{id}'}</span>
 </div>
 
 Delete an agent.
@@ -1293,7 +1297,7 @@ Delete an agent.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-post">POST</span>
-  <span className="path">/api/v1/my-agents/characters/{id}/clone</span>
+  <span className="path">/api/v1/my-agents/characters/{'{id}'}/clone</span>
 </div>
 
 Create a copy of an existing agent.
@@ -1304,7 +1308,7 @@ Create a copy of an existing agent.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/my-agents/characters/{id}/stats</span>
+  <span className="path">/api/v1/my-agents/characters/{'{id}'}/stats</span>
 </div>
 
 Get usage statistics for an agent.
@@ -1326,7 +1330,7 @@ Get usage statistics for an agent.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-post">POST</span>
-  <span className="path">/api/v1/agents/{agentId}/publish</span>
+  <span className="path">/api/v1/agents/{'{agentId}'}/publish</span>
 </div>
 
 Publish an agent to the marketplace.
@@ -1426,7 +1430,7 @@ The full API key is only shown once. Store it securely.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/api-keys/{id}</span>
+  <span className="path">/api/v1/api-keys/{'{id}'}</span>
 </div>
 
 Get API key details (without the secret).
@@ -1437,7 +1441,7 @@ Get API key details (without the secret).
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-put">PUT</span>
-  <span className="path">/api/v1/api-keys/{id}</span>
+  <span className="path">/api/v1/api-keys/{'{id}'}</span>
 </div>
 
 Update API key name or permissions.
@@ -1457,7 +1461,7 @@ Update API key name or permissions.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/v1/api-keys/{id}</span>
+  <span className="path">/api/v1/api-keys/{'{id}'}</span>
 </div>
 
 Revoke (delete) an API key.
@@ -1470,7 +1474,7 @@ Revoked keys stop working immediately.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-post">POST</span>
-  <span className="path">/api/v1/api-keys/{id}/regenerate</span>
+  <span className="path">/api/v1/api-keys/{'{id}'}/regenerate</span>
 </div>
 
 Generate a new secret for an existing key.
@@ -1577,7 +1581,7 @@ Create a new application.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/apps/{id}</span>
+  <span className="path">/api/v1/apps/{'{id}'}</span>
 </div>
 
 Get application details.
@@ -1588,7 +1592,7 @@ Get application details.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-put">PUT</span>
-  <span className="path">/api/v1/apps/{id}</span>
+  <span className="path">/api/v1/apps/{'{id}'}</span>
 </div>
 
 Update an application.
@@ -1599,7 +1603,7 @@ Update an application.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/v1/apps/{id}</span>
+  <span className="path">/api/v1/apps/{'{id}'}</span>
 </div>
 
 Delete an application.
@@ -1610,7 +1614,7 @@ Delete an application.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/apps/{id}/analytics</span>
+  <span className="path">/api/v1/apps/{'{id}'}/analytics</span>
 </div>
 
 Get usage analytics for an app.
@@ -1633,7 +1637,7 @@ Get usage analytics for an app.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-post">POST</span>
-  <span className="path">/api/v1/apps/{id}/regenerate-api-key</span>
+  <span className="path">/api/v1/apps/{'{id}'}/regenerate-api-key</span>
 </div>
 
 Generate a new API key for the app.
@@ -1646,7 +1650,7 @@ This invalidates the previous API key immediately.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/apps/{id}/monetization</span>
+  <span className="path">/api/v1/apps/{'{id}'}/monetization</span>
 </div>
 
 Get monetization settings and earnings.
@@ -1936,7 +1940,7 @@ Deploy a new container.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/containers/{id}</span>
+  <span className="path">/api/v1/containers/{'{id}'}</span>
 </div>
 
 Get container details.
@@ -1947,7 +1951,7 @@ Get container details.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/v1/containers/{id}</span>
+  <span className="path">/api/v1/containers/{'{id}'}</span>
 </div>
 
 Stop and delete a container.
@@ -1958,7 +1962,7 @@ Stop and delete a container.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/containers/{id}/logs</span>
+  <span className="path">/api/v1/containers/{'{id}'}/logs</span>
 </div>
 
 Get container logs.
@@ -1989,7 +1993,7 @@ Get container logs.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/containers/{id}/metrics</span>
+  <span className="path">/api/v1/containers/{'{id}'}/metrics</span>
 </div>
 
 Get container resource metrics.
@@ -2020,7 +2024,7 @@ Get container resource metrics.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/containers/{id}/health</span>
+  <span className="path">/api/v1/containers/{'{id}'}/health</span>
 </div>
 
 Get container health status.
@@ -2044,7 +2048,7 @@ Get container health status.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/containers/{id}/logs/stream</span>
+  <span className="path">/api/v1/containers/{'{id}'}/logs/stream</span>
 </div>
 
 Stream logs in real-time using Server-Sent Events.
@@ -2462,7 +2466,7 @@ Get all items in your gallery.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/gallery/{id}</span>
+  <span className="path">/api/v1/gallery/{'{id}'}</span>
 </div>
 
 Get details about a specific item.
@@ -2491,7 +2495,7 @@ Get details about a specific item.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/v1/gallery/{id}</span>
+  <span className="path">/api/v1/gallery/{'{id}'}</span>
 </div>
 
 Delete an item from your gallery.
@@ -2796,7 +2800,7 @@ Search your knowledge base.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/knowledge/{id}</span>
+  <span className="path">/api/v1/knowledge/{'{id}'}</span>
 </div>
 
 Get document details.
@@ -2807,7 +2811,7 @@ Get document details.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/v1/knowledge/{id}</span>
+  <span className="path">/api/v1/knowledge/{'{id}'}</span>
 </div>
 
 Remove a document from your knowledge base.
@@ -2894,7 +2898,7 @@ Add a new MCP server.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/mcps/{mcpId}</span>
+  <span className="path">/api/v1/mcps/{'{mcpId}'}</span>
 </div>
 
 Get MCP details and available tools.
@@ -2925,7 +2929,7 @@ Get MCP details and available tools.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-put">PUT</span>
-  <span className="path">/api/v1/mcps/{mcpId}</span>
+  <span className="path">/api/v1/mcps/{'{mcpId}'}</span>
 </div>
 
 Update MCP configuration.
@@ -2936,7 +2940,7 @@ Update MCP configuration.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/v1/mcps/{mcpId}</span>
+  <span className="path">/api/v1/mcps/{'{mcpId}'}</span>
 </div>
 
 Remove an MCP server.
@@ -2947,7 +2951,7 @@ Remove an MCP server.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-post">POST</span>
-  <span className="path">/api/v1/mcps/{mcpId}/publish</span>
+  <span className="path">/api/v1/mcps/{'{mcpId}'}/publish</span>
 </div>
 
 Publish MCP to the registry.
@@ -3317,7 +3321,7 @@ Check overall redemption status.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/redemptions/{id}</span>
+  <span className="path">/api/v1/redemptions/{'{id}'}</span>
 </div>
 
 Get details about a specific redemption.
@@ -3607,7 +3611,7 @@ Voice cloning requires 1-5 minutes of clear audio samples for best results.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/elevenlabs/voices/{id}</span>
+  <span className="path">/api/elevenlabs/voices/{'{id}'}</span>
 </div>
 
 Delete a cloned voice.
@@ -3618,7 +3622,7 @@ Delete a cloned voice.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/elevenlabs/voices/verify/{id}</span>
+  <span className="path">/api/elevenlabs/voices/verify/{'{id}'}</span>
 </div>
 
 Check voice cloning status.
@@ -6320,17 +6324,12 @@ Install the official elizaOS packages:
 
   
 ```bash
-npm install @elizaos/core @elizaos/plugin-elizacloud
+bun add @elizaos/core @elizaos/plugin-elizacloud
 ```
   
   
 ```bash
 pnpm add @elizaos/core @elizaos/plugin-elizacloud
-```
-  
-  
-```bash
-bun add @elizaos/core @elizaos/plugin-elizacloud
 ```
   
   
@@ -6344,7 +6343,7 @@ yarn add @elizaos/core @elizaos/plugin-elizacloud
 Install the elizaOS CLI for deployment and management:
 
 ```bash
-npm install -g @elizaos/cli
+bun add -g @elizaos/cli
 ```
 
 Verify the installation:
@@ -6358,7 +6357,7 @@ elizaos --version
 | Requirement | Version |
 |-------------|---------|
 | Node.js | 18.0+ |
-| npm/pnpm/yarn/bun | Latest |
+| Bun | Latest |
 | TypeScript | 5.0+ (recommended) |
 
 ## Project Setup
@@ -6373,7 +6372,7 @@ cd my-agent
 ### Install Dependencies
 
 ```bash
-npm install
+bun install
 ```
 
 ### Configure Environment
@@ -6393,7 +6392,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 ### Start Development
 
 ```bash
-npm run dev
+bun run dev
 ```
 
 ## TypeScript Configuration
@@ -7488,15 +7487,46 @@ This guide assumes you have a elizaOS Cloud account. [Sign up here](/login) if y
 
 ## Choose Your Path
 
-  
-    Build agents with our no-code editor
-  
-  
-    Integrate via REST API
-  
-  
-    Deploy with the elizaOS CLI
-  
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 mb-8">
+  <a
+    href="#using-the-agent-creator"
+    className="docs-quickstart-card no-underline group"
+    style={{ "--card-accent-color": "#ff5800" }}
+  >
+    <div className="relative z-10">
+      <div className="font-bold text-white text-lg mb-1 group-hover:text-[#ff5800] transition-colors">
+        Visual Builder
+      </div>
+      <div className="text-white/50 text-sm">Build agents with our no-code editor</div>
+    </div>
+  </a>
+
+  <a
+    href="#using-the-api"
+    className="docs-quickstart-card no-underline group"
+    style={{ "--card-accent-color": "#0b35f1" }}
+  >
+    <div className="relative z-10">
+      <div className="font-bold text-white text-lg mb-1 group-hover:text-[#0b35f1] transition-colors">
+        API Integration
+      </div>
+      <div className="text-white/50 text-sm">Integrate via REST API</div>
+    </div>
+  </a>
+
+  <a
+    href="#using-the-cli"
+    className="docs-quickstart-card no-underline group"
+    style={{ "--card-accent-color": "#22c55e" }}
+  >
+    <div className="relative z-10">
+      <div className="font-bold text-white text-lg mb-1 group-hover:text-[#22c55e] transition-colors">
+        CLI Deployment
+      </div>
+      <div className="text-white/50 text-sm">Deploy with the elizaOS CLI</div>
+    </div>
+  </a>
+</div>
 
 ## Using the Agent Creator
 
@@ -7673,7 +7703,7 @@ Deploy agents from your local elizaOS project.
 ### Install the CLI
 
 ```bash
-npm install -g @elizaos/cli
+bun add -g @elizaos/cli
 ```
 
 ### Login to elizaOS Cloud
@@ -7950,7 +7980,7 @@ Integrate elizaOS Cloud with official SDKs and community libraries.
 The official TypeScript SDK for elizaOS Cloud:
 
 ```bash
-npm install @elizaos/cloud
+bun add @elizaos/cloud
 ```
 
 ```typescript

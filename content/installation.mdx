@@ -13,20 +13,15 @@ Set up your development environment for elizaOS Cloud integration.
 
 Install the official elizaOS packages:
 
-<Tabs items={['npm', 'pnpm', 'bun', 'yarn']}>
+<Tabs items={['bun', 'pnpm', 'yarn']}>
   <Tabs.Tab>
 ```bash
-npm install @elizaos/core @elizaos/plugin-elizacloud
+bun add @elizaos/core @elizaos/plugin-elizacloud
 ```
   </Tabs.Tab>
   <Tabs.Tab>
 ```bash
 pnpm add @elizaos/core @elizaos/plugin-elizacloud
-```
-  </Tabs.Tab>
-  <Tabs.Tab>
-```bash
-bun add @elizaos/core @elizaos/plugin-elizacloud
 ```
   </Tabs.Tab>
   <Tabs.Tab>
@@ -41,7 +36,7 @@ yarn add @elizaos/core @elizaos/plugin-elizacloud
 Install the elizaOS CLI for deployment and management:
 
 ```bash
-npm install -g @elizaos/cli
+bun add -g @elizaos/cli
 ```
 
 Verify the installation:
@@ -55,7 +50,7 @@ elizaos --version
 | Requirement | Version |
 |-------------|---------|
 | Node.js | 18.0+ |
-| npm/pnpm/yarn/bun | Latest |
+| Bun | Latest |
 | TypeScript | 5.0+ (recommended) |
 
 ## Project Setup
@@ -71,7 +66,7 @@ cd my-agent
 ### Install Dependencies
 
 ```bash
-npm install
+bun install
 ```
 
 ### Configure Environment
@@ -91,7 +86,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 ### Start Development
 
 ```bash
-npm run dev
+bun run dev
 ```
 </Steps>
 

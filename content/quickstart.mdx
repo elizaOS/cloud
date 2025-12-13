@@ -15,17 +15,46 @@ This guide assumes you have a elizaOS Cloud account. [Sign up here](/login) if y
 
 ## Choose Your Path
 
-<Cards>
-  <Cards.Card title="Visual Builder" href="#using-the-agent-creator">
-    Build agents with our no-code editor
-  </Cards.Card>
-  <Cards.Card title="API Integration" href="#using-the-api">
-    Integrate via REST API
-  </Cards.Card>
-  <Cards.Card title="CLI Deployment" href="#using-the-cli">
-    Deploy with the elizaOS CLI
-  </Cards.Card>
-</Cards>
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 mb-8">
+  <a
+    href="#using-the-agent-creator"
+    className="docs-quickstart-card no-underline group"
+    style={{ "--card-accent-color": "#ff5800" }}
+  >
+    <div className="relative z-10">
+      <div className="font-bold text-white text-lg mb-1 group-hover:text-[#ff5800] transition-colors">
+        Visual Builder
+      </div>
+      <div className="text-white/50 text-sm">Build agents with our no-code editor</div>
+    </div>
+  </a>
+
+  <a
+    href="#using-the-api"
+    className="docs-quickstart-card no-underline group"
+    style={{ "--card-accent-color": "#0b35f1" }}
+  >
+    <div className="relative z-10">
+      <div className="font-bold text-white text-lg mb-1 group-hover:text-[#0b35f1] transition-colors">
+        API Integration
+      </div>
+      <div className="text-white/50 text-sm">Integrate via REST API</div>
+    </div>
+  </a>
+
+  <a
+    href="#using-the-cli"
+    className="docs-quickstart-card no-underline group"
+    style={{ "--card-accent-color": "#22c55e" }}
+  >
+    <div className="relative z-10">
+      <div className="font-bold text-white text-lg mb-1 group-hover:text-[#22c55e] transition-colors">
+        CLI Deployment
+      </div>
+      <div className="text-white/50 text-sm">Deploy with the elizaOS CLI</div>
+    </div>
+  </a>
+</div>
 
 ## Using the Agent Creator
 
@@ -210,7 +239,7 @@ Deploy agents from your local elizaOS project.
 ### Install the CLI
 
 ```bash
-npm install -g @elizaos/cli
+bun add -g @elizaos/cli
 ```
 
 ### Login to elizaOS Cloud

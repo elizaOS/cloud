@@ -19,12 +19,12 @@ const TopHero = () => {
 
   const commands = {
     unix: {
-      create: "npx elizaos create my-agent",
-      deploy: "npx elizaos deploy",
+      create: "bunx elizaos create my-agent",
+      deploy: "bunx elizaos deploy",
     },
     windows: {
-      create: "npx elizaos create my-agent",
-      deploy: "npx elizaos deploy",
+      create: "bunx elizaos create my-agent",
+      deploy: "bunx elizaos deploy",
     },
   };
 

@@ -92,7 +92,7 @@ The full API key is only shown once. Store it securely.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/api-keys/{id}</span>
+  <span className="path">/api/v1/api-keys/{'{id}'}</span>
 </div>
 
 Get API key details (without the secret).
@@ -103,7 +103,7 @@ Get API key details (without the secret).
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-put">PUT</span>
-  <span className="path">/api/v1/api-keys/{id}</span>
+  <span className="path">/api/v1/api-keys/{'{id}'}</span>
 </div>
 
 Update API key name or permissions.
@@ -123,7 +123,7 @@ Update API key name or permissions.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/v1/api-keys/{id}</span>
+  <span className="path">/api/v1/api-keys/{'{id}'}</span>
 </div>
 
 Revoke (delete) an API key.
@@ -138,7 +138,7 @@ Revoked keys stop working immediately.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-post">POST</span>
-  <span className="path">/api/v1/api-keys/{id}/regenerate</span>
+  <span className="path">/api/v1/api-keys/{'{id}'}/regenerate</span>
 </div>
 
 Generate a new secret for an existing key.
