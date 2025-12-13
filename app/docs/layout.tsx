@@ -5,6 +5,7 @@ import 'nextra-theme-docs/style.css'
 import './docs.css'
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { LlmsTxtBadge } from '@/components/docs/llms-txt-badge'
 
 export const metadata: Metadata = {
   title: {
@@ -28,6 +29,7 @@ const navbar = (
     }
     projectLink="https://github.com/elizaOS/eliza"
   >
+    <LlmsTxtBadge />
     <Link 
       href="/dashboard" 
       className="flex items-center gap-1.5 text-xs text-white/90 hover:text-white transition-colors px-3 py-1.5 bg-[#ff5800] hover:bg-[#ff6a1a]"
