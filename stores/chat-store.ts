@@ -10,6 +10,7 @@ export interface RoomItem {
   lastText?: string;
   lastTime?: number;
   characterId?: string;
+  characterName?: string;
   title?: string; // AI-generated title from first user message
 }
 
@@ -145,12 +146,39 @@ export const useChatStore = create<ChatState>((set, get) => ({
               .map((r: Record<string, unknown>) => ({
                 id: r.id as string,
                 characterId: r.characterId as string | undefined,
+                characterName: r.characterName as string | undefined,
                 lastText: r.lastText as string | undefined,
                 lastTime: r.lastTime as number | undefined,
                 title: r.title as string | undefined,
               }));
 
-            set({ rooms: roomItems });
+            const currentState = get();
+            const existingCharacterIds = new Set(currentState.availableCharacters.map(c => c.id));
+
+            const charactersFromRooms: Character[] = [];
+            for (const room of roomItems) {
+              if (room.characterId && room.characterName && !existingCharacterIds.has(room.characterId)) {
+                charactersFromRooms.push({
+                  id: room.characterId,
+                  name: room.characterName,
+                });
+                existingCharacterIds.add(room.characterId);
+              }
+            }
+
+            const mergedCharacters = [...currentState.availableCharacters, ...charactersFromRooms];
+
+            let newSelectedCharacterId = currentState.selectedCharacterId;
+            if (!newSelectedCharacterId && charactersFromRooms.length === 1 && currentState.availableCharacters.length === 0) {
+              newSelectedCharacterId = charactersFromRooms[0].id;
+              console.log("[ChatStore] Auto-selecting character:", newSelectedCharacterId);
+            }
+
+            set({
+              rooms: roomItems,
+              availableCharacters: mergedCharacters,
+              selectedCharacterId: newSelectedCharacterId,
+            });
           }
         } else {
           console.error("[ChatStore] loadRooms - API error:", res.status, await res.text());
