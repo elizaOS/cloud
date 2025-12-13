@@ -25,7 +25,7 @@ const updateMemberSchema = z.object({
  */
 async function handlePATCH(
   request: NextRequest,
-  context?: { params: Promise<{ userId: string }> }
+  context?: { params: Promise<{ userId: string }> },
 ) {
   try {
     const currentUser = await requireAuth();
@@ -36,14 +36,14 @@ async function handlePATCH(
           success: false,
           error: "Only organization owners can update member roles",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     if (!context?.params) {
       return NextResponse.json(
         { success: false, error: "Invalid request" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -59,7 +59,7 @@ async function handlePATCH(
           success: false,
           error: "User not found",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -69,7 +69,7 @@ async function handlePATCH(
           success: false,
           error: "User does not belong to your organization",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -79,7 +79,7 @@ async function handlePATCH(
           success: false,
           error: "Cannot change your own role",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -89,7 +89,7 @@ async function handlePATCH(
           success: false,
           error: "Cannot change owner role",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -104,7 +104,7 @@ async function handlePATCH(
           success: false,
           error: "Failed to update member",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -131,7 +131,7 @@ async function handlePATCH(
           error: "Validation error",
           details: error.issues,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -141,7 +141,7 @@ async function handlePATCH(
         error:
           error instanceof Error ? error.message : "Failed to update member",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -157,7 +157,7 @@ async function handlePATCH(
  */
 async function handleDELETE(
   request: NextRequest,
-  context?: { params: Promise<{ userId: string }> }
+  context?: { params: Promise<{ userId: string }> },
 ) {
   try {
     const currentUser = await requireAuth();
@@ -168,14 +168,14 @@ async function handleDELETE(
           success: false,
           error: "Only owners and admins can remove members",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     if (!context?.params) {
       return NextResponse.json(
         { success: false, error: "Invalid request" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -189,7 +189,7 @@ async function handleDELETE(
           success: false,
           error: "User not found",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -199,7 +199,7 @@ async function handleDELETE(
           success: false,
           error: "User does not belong to your organization",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -209,7 +209,7 @@ async function handleDELETE(
           success: false,
           error: "Cannot remove yourself from the organization",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -219,7 +219,7 @@ async function handleDELETE(
           success: false,
           error: "Cannot remove organization owner",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -229,7 +229,7 @@ async function handleDELETE(
           success: false,
           error: "Admins cannot remove other admins",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -250,7 +250,7 @@ async function handleDELETE(
         error:
           error instanceof Error ? error.message : "Failed to remove member",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

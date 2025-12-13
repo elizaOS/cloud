@@ -177,11 +177,18 @@ export function CharacterCreatorClient({
         <div className="flex h-full flex-col overflow-hidden">
           <BrandCard className="relative flex h-full flex-col overflow-hidden">
             <CornerBrackets size="sm" className="opacity-50" />
-            
-            <BrandTabs defaultValue="json" className="flex h-full flex-col relative z-10">
+
+            <BrandTabs
+              defaultValue="json"
+              className="flex h-full flex-col relative z-10"
+            >
               <BrandTabsList className="mx-4 mb-2 mt-4 w-[calc(100%-2rem)]">
-                <BrandTabsTrigger value="json" className="flex-1">JSON Editor</BrandTabsTrigger>
-                <BrandTabsTrigger value="form" className="flex-1">Form View</BrandTabsTrigger>
+                <BrandTabsTrigger value="json" className="flex-1">
+                  JSON Editor
+                </BrandTabsTrigger>
+                <BrandTabsTrigger value="form" className="flex-1">
+                  Form View
+                </BrandTabsTrigger>
               </BrandTabsList>
               <BrandTabsContent
                 value="json"

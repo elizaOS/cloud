@@ -26,7 +26,7 @@ async function handlePOST(request: NextRequest) {
 
     const acceptedInvite = await invitesService.acceptInvite(
       validated.token,
-      user.id
+      user.id,
     );
 
     revalidateTag("user-auth", {});
@@ -50,7 +50,7 @@ async function handlePOST(request: NextRequest) {
           error: "Validation error",
           details: error.issues,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -71,7 +71,7 @@ async function handlePOST(request: NextRequest) {
                 errorMessage.includes("expired")
               ? 400
               : 500,
-      }
+      },
     );
   }
 }
