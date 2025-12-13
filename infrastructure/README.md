@@ -121,6 +121,21 @@ curl https://your-domain.com/api/v1/containers/{id}/metrics \
   -H "Authorization: Bearer $ELIZAOS_API_KEY"
 ```
 
+**Get Direct EC2 Access URL**:
+```bash
+# Via CloudFormation stack outputs
+aws cloudformation describe-stacks \
+  --stack-name elizaos-user-<userId> \
+  --region us-east-1 \
+  --query 'Stacks[0].Outputs[?OutputKey==`DirectAccessUrl`].OutputValue' \
+  --output text
+
+# Returns: http://ec2-xx-xxx-xxx-xxx.compute-1.amazonaws.com:3000
+
+# Test it
+curl http://ec2-xx-xxx-xxx-xxx.compute-1.amazonaws.com:3000/health
+```
+
 ### Key File Locations
 
 - **Templates**: `infrastructure/cloudformation/*.json`
@@ -186,6 +201,28 @@ curl https://your-domain.com/api/v1/containers/{id}/metrics \
 - CloudFormation stack provisioned automatically
 - Sequential ALB priority allocation (no collisions)
 - Full teardown automation with prorated refunds
+
+#### 🌐 Public Internet Access
+
+**Two ways to access your containers**:
+
+1. **Via ALB (Production)**: `https://{userId}.elizacloud.ai`
+   - HTTPS with ACM certificate
+   - Host-based routing
+   - Automatic health checks
+   - Recommended for production
+
+2. **Direct via EC2 (Development/Testing)**: `http://{ec2-public-dns}:{port}`
+   - Direct access to EC2 instance public DNS
+   - Useful for development, debugging, and testing
+   - HTTP only (no certificate)
+   - Example: `http://ec2-54-123-45-67.compute-1.amazonaws.com:3000`
+
+**Network Configuration**:
+- ✅ ALB security group: Allows **0.0.0.0/0** on ports 80 and 443
+- ✅ Container security group: Allows **0.0.0.0/0** on container port (direct access)
+- ✅ Container security group: Allows traffic from ALB (routed access)
+- ✅ EC2 instances in **public subnets** with automatic public IP assignment
 
 #### 📊 Monitoring
 
@@ -270,9 +307,9 @@ aws cloudformation describe-stacks \
   --query 'Stacks[0].Outputs'
 ```
 
-### Step 2: Configure DNS
+### Step 2: Configure DNS (Required for Public Access)
 
-Point wildcard DNS to the ALB:
+**Containers are publicly accessible via ALB** - you just need to point DNS to it:
 
 ```bash
 # Get ALB DNS name
@@ -282,14 +319,34 @@ ALB_DNS=$(aws cloudformation describe-stacks \
   --query 'Stacks[0].Outputs[?OutputKey==`SharedALBDNS`].OutputValue' \
   --output text)
 
+echo "ALB DNS: $ALB_DNS"
 echo "Create DNS record: *.elizacloud.ai → CNAME → $ALB_DNS"
 ```
 
-**Verify**:
+**Add this to your DNS provider** (e.g., Cloudflare, Route53, etc.):
+```
+Type: CNAME
+Name: *.elizacloud.ai
+Target: <ALB_DNS from above>
+TTL: 300 (or Auto)
+Proxy: Disabled (DNS only)
+```
+
+**Verify DNS propagation**:
 
 ```bash
+# Test wildcard DNS
 dig test.elizacloud.ai
-# Should resolve to ALB IP addresses
+
+# Should return the ALB's IP addresses
+# If not, wait a few minutes for DNS propagation
+```
+
+**Test public access**:
+```bash
+# After DNS propagates, test with any subdomain
+curl https://test.elizacloud.ai
+# Should return 404 (no container at this userId) or connect to a deployed container
 ```
 
 ### Step 3: Run Database Migrations
@@ -377,15 +434,28 @@ elizaos deploy --name test-container
 ✅ Container created: <container-id>
 ⏳ Waiting for deployment (10-15 minutes)...
 ✅ Deployment successful!
-🌐 URL: https://<userId>.elizacloud.ai
+🌐 ALB URL: https://<userId>.elizacloud.ai
+🔗 Direct URL: http://ec2-xx-xxx-xxx-xxx.compute-1.amazonaws.com:3000
 ```
 
-**Verify**:
+**Verify deployment**:
 
-1. Check dashboard: https://elizacloud.ai/dashboard/containers
-2. View metrics (wait 5 minutes for CloudWatch data)
-3. View logs (should show container startup)
-4. Test URL: `curl https://<userId>.elizacloud.ai/health`
+1. **Check dashboard**: https://elizacloud.ai/dashboard/containers
+2. **View metrics**: Wait 5 minutes for CloudWatch data to populate
+3. **View logs**: Should show container startup messages
+4. **Test ALB access**: `curl https://<userId>.elizacloud.ai/health`
+5. **Test direct EC2 access**: 
+   ```bash
+   # Get EC2 public DNS from stack outputs
+   aws cloudformation describe-stacks \
+     --stack-name elizaos-user-<userId> \
+     --region us-east-1 \
+     --query 'Stacks[0].Outputs[?OutputKey==`DirectAccessUrl`].OutputValue' \
+     --output text
+   
+   # Test direct access (HTTP, no HTTPS)
+   curl http://ec2-xx-xxx-xxx-xxx.compute-1.amazonaws.com:3000/health
+   ```
 
 ---
 
@@ -678,11 +748,53 @@ Duration: 10-15 minutes
 
 ### Network Security ✅
 
-- VPC isolation (10.0.0.0/16)
-- Security groups restrict traffic to ALB only
-- No direct internet access to containers
-- HTTPS enforced with ACM certificate
-- HTTP automatically redirects to HTTPS
+**Public Internet Access Architecture**:
+```
+┌──────────────────────────────────────────────────────┐
+│  Internet (Public Users)                              │
+│  Access: 0.0.0.0/0 on ports 80/443                   │
+└────────────────┬─────────────────────────────────────┘
+                 │
+                 ▼
+┌──────────────────────────────────────────────────────┐
+│  Application Load Balancer (ALB)                      │
+│  - Internet-facing                                    │
+│  - Security Group: Allow 0.0.0.0/0 on 80, 443        │
+│  - Routes by host: {userId}.elizacloud.ai            │
+└────────────────┬─────────────────────────────────────┘
+                 │
+                 ▼
+┌──────────────────────────────────────────────────────┐
+│  Target Group + Health Checks                         │
+│  - Health check path: /health                         │
+│  - Protocol: HTTP                                     │
+└────────────────┬─────────────────────────────────────┘
+                 │
+                 ▼
+┌──────────────────────────────────────────────────────┐
+│  EC2 Instance (Public Subnet)                         │
+│  - Public IP: Auto-assigned                           │
+│  - Security Group: Allow traffic FROM ALB ONLY        │
+└────────────────┬─────────────────────────────────────┘
+                 │
+                 ▼
+┌──────────────────────────────────────────────────────┐
+│  ECS Container (Your ElizaOS Agent)                   │
+│  - Listens on container port (default 3000)           │
+│  - Must expose /health endpoint                       │
+└──────────────────────────────────────────────────────┘
+```
+
+**Security Layers**:
+- ✅ **Dual Access**:
+  - Production: `https://{userId}.elizacloud.ai` (via ALB, HTTPS)
+  - Development: `http://{ec2-dns}:{port}` (direct to EC2, HTTP)
+- ✅ **VPC Isolation**: Containers are in VPC (10.0.0.0/16)
+- ✅ **Security Groups**: 
+  - Allow traffic from ALB security group (for routed access)
+  - Allow 0.0.0.0/0 on container port (for direct EC2 access)
+- ✅ **HTTPS on ALB**: ACM certificate, HTTP→HTTPS redirect
+- ✅ **Host-Based Routing**: Each user gets unique subdomain
 
 ### Data Security ✅
 
@@ -1065,21 +1177,67 @@ aws cloudformation describe-stack-events \
 - Insufficient capacity → Check AWS limits
 - IAM permissions → Verify roles exist
 
-### Container Not Healthy
+### Container Not Accessible via URL
 
-**Check target health**:
+**The architecture provides public internet access via ALB**:
+```
+Internet → ALB (https://{userId}.elizacloud.ai) → Target Group → EC2/ECS Container
+```
 
+**Verify step-by-step**:
+
+1. **Check DNS resolution**:
+```bash
+# Should resolve to ALB IP addresses
+dig {userId}.elizacloud.ai
+
+# Get ALB DNS name
+aws cloudformation describe-stacks \
+  --stack-name production-elizaos-shared \
+  --region us-east-1 \
+  --query 'Stacks[0].Outputs[?OutputKey==`SharedALBDNS`].OutputValue' \
+  --output text
+```
+
+2. **Check target health**:
 ```bash
 aws elbv2 describe-target-health \
-  --target-group-arn <arn>
+  --target-group-arn <arn-from-stack-outputs>
+  
+# Healthy status should show:
+# "State": "healthy"
+```
+
+3. **Check listener rules**:
+```bash
+# Verify listener rule exists for your userId
+aws elbv2 describe-rules \
+  --listener-arn <listener-arn-from-shared-stack> \
+  --region us-east-1 | grep {userId}
+```
+
+4. **Test ALB directly**:
+```bash
+# Get ALB DNS
+ALB_DNS=$(aws cloudformation describe-stacks \
+  --stack-name production-elizaos-shared \
+  --region us-east-1 \
+  --query 'Stacks[0].Outputs[?OutputKey==`SharedALBDNS`].OutputValue' \
+  --output text)
+
+# Test with Host header
+curl -H "Host: {userId}.elizacloud.ai" https://$ALB_DNS/health
 ```
 
 **Common issues**:
 
-- Container not listening on correct port
-- Health check path wrong (should be `/health`)
-- Container startup taking too long (>5 minutes)
-- Application crashed (check logs)
+- ❌ **DNS not configured**: Add `*.elizacloud.ai → CNAME → ALB DNS name`
+- ❌ **Container not healthy**: Check if container has `/health` endpoint
+- ❌ **Wrong port**: Container must listen on the configured port (default 3000)
+- ❌ **Health check failing**: Container takes >15 minutes to start (grace period exceeded)
+- ❌ **Application crashed**: Check CloudWatch logs via `/api/v1/containers/{id}/logs`
+- ❌ **Security groups**: ALB security group allows 0.0.0.0/0 on 80/443 (already configured)
+- ❌ **Public IP**: EC2 instance is in public subnet with MapPublicIpOnLaunch=true (already configured)
 
 ### Logs Not Showing
 
