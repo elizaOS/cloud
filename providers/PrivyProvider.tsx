@@ -74,7 +74,7 @@ export default function PrivyProvider({
       appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID!}
       clientId={process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID!}
       config={{
-        loginMethods: ["wallet", "email"],
+        loginMethods: ["wallet", "email", "google", "discord", "github"],
         embeddedWallets: {
           ethereum: {
             createOnLogin: "all-users",
