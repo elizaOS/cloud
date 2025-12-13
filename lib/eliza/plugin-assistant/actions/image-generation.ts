@@ -13,6 +13,7 @@ import {
   logger,
 } from "@elizaos/core";
 import { v4 } from "uuid";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { uploadBase64Image, isFalAiUrl, ensureElizaCloudUrl } from "@/lib/blob";
 import type { AffiliateData } from "@/lib/types/affiliate";
 
@@ -342,7 +343,7 @@ Your response MUST be in this XML format:
     appearanceDescriptionCache.set(cacheKey, finalAppearance);
     return finalAppearance;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = extractErrorMessage(error);
     logger.error(
       `[GENERATE_IMAGE] ❌ Failed to extract appearance: ${errorMessage}`,
     );
@@ -441,7 +442,7 @@ async function ensureBlobUrl(
       } catch (error) {
         logger.error(
           "[GENERATE_IMAGE] ❌ Failed to upload Fal.ai URL to our storage:",
-          error instanceof Error ? error.message : String(error),
+          extractErrorMessage(error),
         );
         // Return null to prevent exposing Fal.ai URL
         return null;

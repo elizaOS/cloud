@@ -255,7 +255,7 @@ function createDecentralizedFacilitator(network: X402Network): DecentralizedFaci
         return isValid;
       } catch (error) {
         logger.error("[x402] Verification error", { 
-          error: error instanceof Error ? error.message : String(error) 
+          error: extractErrorMessage(error) 
         });
         return false;
       }

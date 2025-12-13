@@ -1,9 +1,3 @@
-/**
- * Gateway Manager
- *
- * Manages multiple Discord bot connections for multi-tenant operation.
- */
-
 import { Client, GatewayIntentBits, Events, Message, type ClientOptions } from "discord.js";
 import { Redis } from "@upstash/redis";
 import { logger } from "./logger";

@@ -1,28 +1,22 @@
-/**
- * Integration tests for Redis slow query storage.
- * 
- * These tests verify the Redis tier of slow query tracking.
- * Requires: REDIS_URL or KV_REST_API_URL + KV_REST_API_TOKEN
- */
-
-import { describe, it, expect, beforeEach } from "bun:test";
+import { describe, it, expect, beforeEach, beforeAll } from "bun:test";
 import {
   recordSlowQuery,
   getSlowQueryFromRedis,
   getSlowQueryKeysFromRedis,
   isRedisAvailable,
   clearMemoryStore,
+  resetRedisState,
   hashQuery,
 } from "@/lib/db/slow-query-store";
 
-// Skip Redis tests if not configured
+// Reset Redis state and check availability
+resetRedisState();
 const hasRedis = isRedisAvailable();
 const describeWithRedis = hasRedis ? describe : describe.skip;
 
 describeWithRedis("redis slow query integration", () => {
-  beforeEach(() => {
-    clearMemoryStore();
-  });
+  beforeAll(() => resetRedisState());
+  beforeEach(() => clearMemoryStore());
 
   describe("isRedisAvailable", () => {
     it("returns true when Redis is configured", () => {
@@ -36,9 +30,7 @@ describeWithRedis("redis slow query integration", () => {
       const queryHash = hashQuery(uniqueSql);
 
       await recordSlowQuery(uniqueSql, 150);
-
-      // Give Redis time to write (async fire-and-forget)
-      await new Promise((r) => setTimeout(r, 100));
+      await new Promise((r) => setTimeout(r, 200));
 
       const fromRedis = await getSlowQueryFromRedis(queryHash);
       expect(fromRedis).not.toBeNull();
@@ -51,10 +43,10 @@ describeWithRedis("redis slow query integration", () => {
       const queryHash = hashQuery(uniqueSql);
 
       await recordSlowQuery(uniqueSql, 100);
-      await new Promise((r) => setTimeout(r, 50));
+      await new Promise((r) => setTimeout(r, 150));
 
       await recordSlowQuery(uniqueSql, 200);
-      await new Promise((r) => setTimeout(r, 50));
+      await new Promise((r) => setTimeout(r, 150));
 
       const fromRedis = await getSlowQueryFromRedis(queryHash);
       expect(fromRedis).not.toBeNull();
@@ -76,7 +68,7 @@ describeWithRedis("redis slow query integration", () => {
       const queryHash = hashQuery(uniqueSql);
 
       await recordSlowQuery(uniqueSql, 100);
-      await new Promise((r) => setTimeout(r, 100));
+      await new Promise((r) => setTimeout(r, 200));
 
       const keys = await getSlowQueryKeysFromRedis();
       expect(keys).toContain(queryHash);
@@ -90,7 +82,7 @@ describeWithRedis("redis slow query integration", () => {
       const before = new Date();
 
       await recordSlowQuery(uniqueSql, 100);
-      await new Promise((r) => setTimeout(r, 100));
+      await new Promise((r) => setTimeout(r, 200));
 
       const fromRedis = await getSlowQueryFromRedis(queryHash);
       expect(fromRedis).not.toBeNull();

@@ -20,9 +20,22 @@ export interface SlowQueryEntry {
 const REDIS_KEY_PREFIX = "slow_query:";
 const REDIS_TTL_SECONDS = 86400;
 const POSTGRES_FLUSH_INTERVAL = 5000;
+const MAX_MEMORY_ENTRIES = 1000;
 
 const memoryStore = new Map<string, SlowQueryEntry>();
 const postgresQueue = new Map<string, SlowQueryEntry>();
+
+function evictOldestEntries(): void {
+  if (memoryStore.size <= MAX_MEMORY_ENTRIES) return;
+  
+  const entries = Array.from(memoryStore.entries())
+    .sort((a, b) => a[1].lastSeenAt.getTime() - b[1].lastSeenAt.getTime());
+  
+  const toEvict = entries.slice(0, memoryStore.size - MAX_MEMORY_ENTRIES);
+  for (const [hash] of toEvict) {
+    memoryStore.delete(hash);
+  }
+}
 
 let redis: Redis | null = null;
 let redisInitialized = false;
@@ -95,6 +108,7 @@ export async function recordSlowQuery(
       firstSeenAt: now,
       lastSeenAt: now,
     });
+    evictOldestEntries();
   }
 
   const redisClient = getRedis();
@@ -254,4 +268,9 @@ export async function forceFlush(): Promise<void> {
     flushTimeout = null;
   }
   await flushToPostgres();
+}
+
+export function resetRedisState(): void {
+  redis = null;
+  redisInitialized = false;
 }

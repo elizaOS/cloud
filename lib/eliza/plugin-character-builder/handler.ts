@@ -11,6 +11,7 @@ import {
   type UUID,
 } from "@elizaos/core";
 import { v4 } from "uuid";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import {
   setLatestResponseId,
   clearLatestResponseId,
@@ -170,7 +171,7 @@ export async function handleMessage({
       status: "error",
       endTime: Date.now(),
       duration: Date.now() - startTime,
-      error: error instanceof Error ? error.message : String(error),
+      error: extractErrorMessage(error),
       source: "build-mode",
     });
     throw error;

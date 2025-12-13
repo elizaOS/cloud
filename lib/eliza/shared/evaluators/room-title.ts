@@ -152,7 +152,7 @@ async function handler(runtime: IAgentRuntime, message: Memory) {
   } catch (error) {
     logger.error(
       "[RoomTitle] Error generating room title:",
-      error instanceof Error ? error.message : String(error),
+      extractErrorMessage(error),
     );
   }
 }

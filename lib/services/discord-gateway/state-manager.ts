@@ -1,22 +1,11 @@
-/**
- * Discord Gateway State Manager
- *
- * Manages connection state in Redis for resilience across pod restarts.
- */
-
 import { Redis } from "@upstash/redis";
 import { logger } from "@/lib/utils/logger";
 import type { BotConnectionState, PodHeartbeatState } from "./types";
 
-const STATE_TTL = 3600; // 1 hour
-const HEARTBEAT_TTL = 300; // 5 minutes
-const HEARTBEAT_INTERVAL_MS = 30000; // 30 seconds
+const STATE_TTL = 3600;
+const HEARTBEAT_TTL = 300;
+const HEARTBEAT_INTERVAL_MS = 30000;
 
-/**
- * Discord Gateway State Manager
- *
- * Uses Redis to store connection state for session resume and pod coordination.
- */
 export class DiscordStateManager {
   private static instance: DiscordStateManager;
   private redis: Redis | null = null;
@@ -49,21 +38,14 @@ export class DiscordStateManager {
     return DiscordStateManager.instance;
   }
 
-  /** Helper to parse JSON from Redis (handles both string and object responses) */
   private parseJson<T>(data: string | T): T {
     return typeof data === "string" ? JSON.parse(data) : data;
   }
 
-  /** Check if Redis is available */
   private get isEnabled(): boolean {
     return !!this.redis;
   }
 
-  // ===========================================================================
-  // CONNECTION STATE
-  // ===========================================================================
-
-  /** Save connection state for resume. */
   async saveConnectionState(state: BotConnectionState): Promise<void> {
     if (!this.redis) {
       logger.warn("[Discord State Manager] Cannot save state - Redis unavailable", { connectionId: state.connectionId });
@@ -73,7 +55,6 @@ export class DiscordStateManager {
     logger.debug("[Discord State Manager] Saved state", { connectionId: state.connectionId });
   }
 
-  /** Get connection state for resume. */
   async getConnectionState(connectionId: string): Promise<BotConnectionState | null> {
     if (!this.redis) {
       logger.debug("[Discord State Manager] Cannot get state - Redis unavailable", { connectionId });
@@ -83,7 +64,6 @@ export class DiscordStateManager {
     return data ? this.parseJson<BotConnectionState>(data) : null;
   }
 
-  /** Clear connection state. */
   async clearConnectionState(connectionId: string): Promise<void> {
     if (!this.redis) {
       logger.debug("[Discord State Manager] Cannot clear state - Redis unavailable", { connectionId });
@@ -92,7 +72,6 @@ export class DiscordStateManager {
     await this.redis.del(`discord:state:${connectionId}`);
   }
 
-  /** Update sequence number. */
   async updateSequence(connectionId: string, sequence: number): Promise<void> {
     const state = await this.getConnectionState(connectionId);
     if (state) {
@@ -104,7 +83,6 @@ export class DiscordStateManager {
     }
   }
 
-  /** Update session info after READY event. */
   async updateSession(connectionId: string, sessionId: string, resumeGatewayUrl: string): Promise<void> {
     const state = await this.getConnectionState(connectionId);
     if (state) {
@@ -115,7 +93,6 @@ export class DiscordStateManager {
     }
   }
 
-  /** Add guild to connection's guild list. */
   async addGuild(connectionId: string, guildId: string): Promise<void> {
     const state = await this.getConnectionState(connectionId);
     if (state && !state.guilds.includes(guildId)) {
@@ -126,7 +103,6 @@ export class DiscordStateManager {
     }
   }
 
-  /** Remove guild from connection's guild list. */
   async removeGuild(connectionId: string, guildId: string): Promise<void> {
     const state = await this.getConnectionState(connectionId);
     if (state) {
@@ -137,11 +113,6 @@ export class DiscordStateManager {
     }
   }
 
-  // ===========================================================================
-  // POD COORDINATION
-  // ===========================================================================
-
-  /** Start pod heartbeat. */
   startPodHeartbeat(): void {
     if (this.heartbeatInterval) return;
     this.heartbeatInterval = setInterval(() => this.sendPodHeartbeat(), HEARTBEAT_INTERVAL_MS);
@@ -149,7 +120,6 @@ export class DiscordStateManager {
     logger.info("[Discord State Manager] Heartbeat started", { podId: this.podId });
   }
 
-  /** Stop pod heartbeat. */
   stopPodHeartbeat(): void {
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
@@ -157,7 +127,6 @@ export class DiscordStateManager {
     }
   }
 
-  /** Send pod heartbeat. */
   private async sendPodHeartbeat(): Promise<void> {
     if (!this.redis) return;
 
@@ -177,7 +146,6 @@ export class DiscordStateManager {
     await this.redis.expire("discord:active_pods", HEARTBEAT_TTL);
   }
 
-  /** Get connections assigned to this pod. */
   private async getPodConnections(): Promise<string[]> {
     if (!this.redis) return [];
 
@@ -200,33 +168,28 @@ export class DiscordStateManager {
     return connections;
   }
 
-  /** Get all active pods. */
   async getActivePods(): Promise<string[]> {
     if (!this.redis) return [];
     return (await this.redis.smembers("discord:active_pods")) ?? [];
   }
 
-  /** Get pod status. */
   async getPodStatus(podId: string): Promise<PodHeartbeatState | null> {
     if (!this.redis) return null;
     const data = await this.redis.get<string>(`discord:pod:${podId}`);
     return data ? this.parseJson<PodHeartbeatState>(data) : null;
   }
 
-  /** Check if a pod is alive (has recent heartbeat). */
   async isPodAlive(podId: string): Promise<boolean> {
     const status = await this.getPodStatus(podId);
     return status ? Date.now() - status.lastHeartbeat < HEARTBEAT_TTL * 1000 : false;
   }
 
-  /** Find dead pods (no heartbeat). */
   async findDeadPods(): Promise<string[]> {
     const activePods = await this.getActivePods();
     const results = await Promise.all(activePods.map(async (id) => ({ id, alive: await this.isPodAlive(id) })));
     return results.filter((r) => !r.alive).map((r) => r.id);
   }
 
-  /** Claim orphaned connections from dead pods. */
   async claimOrphanedConnections(deadPodId: string): Promise<string[]> {
     if (!this.redis) return [];
 
@@ -257,11 +220,6 @@ export class DiscordStateManager {
     return claimed;
   }
 
-  // ===========================================================================
-  // RATE LIMITING
-  // ===========================================================================
-
-  /** Check and update rate limit for Discord API calls. */
   async checkRateLimit(
     connectionId: string,
     route: string,
@@ -300,10 +258,6 @@ export class DiscordStateManager {
     return { allowed, remaining: Math.max(0, limit - newCount), resetAt: windowStart + windowMs };
   }
 
-  // ===========================================================================
-  // UTILITIES
-  // ===========================================================================
-
   getPodId(): string {
     return this.podId;
   }
@@ -313,6 +267,4 @@ export class DiscordStateManager {
   }
 }
 
-// Export singleton instance
 export const discordStateManager = DiscordStateManager.getInstance();
-

@@ -15,6 +15,7 @@ import {
   type HandlerCallback,
 } from "@elizaos/core";
 import type { DialogueMetadata } from "@/lib/types/message-content";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { v4 } from "uuid";
 import {
   chatPlaygroundSystemPrompt,
@@ -131,7 +132,7 @@ export async function handleMessage({
     await runtime.emitEvent(EventType.RUN_ENDED, {
       runtime, runId, messageId: message.id, roomId: message.roomId, entityId: message.entityId,
       startTime, status: "error", endTime: Date.now(), duration: Date.now() - startTime,
-      error: error instanceof Error ? error.message : String(error),
+      error: extractErrorMessage(error),
       source: "chatPlaygroundWorkflow",
     });
     throw error;
@@ -219,7 +220,7 @@ async function checkAndRunMcpAction(
     );
     return false;
   } catch (error) {
-    logger.error("[ChatPlayground] Error checking/running MCP action", error instanceof Error ? error.message : String(error));
+    logger.error("[ChatPlayground] Error checking/running MCP action", extractErrorMessage(error));
     return false;
   }
 }

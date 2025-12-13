@@ -516,9 +516,6 @@ export class DiscordEventRouter {
     return true;
   }
 
-  /**
-   * Dispatch to running container.
-   */
   private async dispatchToContainer(
     route: DiscordEventRoute,
     event: RoutableEvent
@@ -557,10 +554,6 @@ export class DiscordEventRouter {
     return true;
   }
 
-  /**
-   * Dispatch to internal handler.
-   * Queues events for later processing by background workers or other internal systems.
-   */
   private async dispatchToInternal(
     route: DiscordEventRoute,
     event: RoutableEvent
@@ -615,10 +608,6 @@ export class DiscordEventRouter {
     return false;
   }
 
-  /**
-   * Check if a message mentions the bot.
-   * Uses cached bot user ID when available, falls back to checking any bot mention.
-   */
   private async messageContainsBotMention(
     message: DiscordMessage | undefined,
     platformConnectionId: string
@@ -639,9 +628,6 @@ export class DiscordEventRouter {
     return message.mentions.some((m) => m.bot);
   }
 
-  /**
-   * Invalidate route cache for a guild.
-   */
   private async invalidateRouteCache(
     platformConnectionId: string,
     guildId: string
@@ -650,5 +636,4 @@ export class DiscordEventRouter {
   }
 }
 
-// Export singleton instance
 export const discordEventRouter = DiscordEventRouter.getInstance();

@@ -1,9 +1,3 @@
-/**
- * Discord Message Sender
- *
- * Service for sending messages back to Discord channels.
- */
-
 import { logger } from "@/lib/utils/logger";
 import { DISCORD_API_BASE, discordBotHeaders } from "@/lib/utils/discord-api";
 import { discordGatewayService } from "./gateway-service";
@@ -15,9 +9,6 @@ import type {
   DiscordEmbed,
 } from "./types";
 
-/**
- * Discord Message Sender Service
- */
 export class DiscordMessageSender {
   private static instance: DiscordMessageSender;
 
@@ -30,9 +21,6 @@ export class DiscordMessageSender {
     return DiscordMessageSender.instance;
   }
 
-  /**
-   * Send a message to a Discord channel.
-   */
   async sendMessage(
     connectionId: string,
     request: SendMessageRequest
@@ -120,9 +108,6 @@ export class DiscordMessageSender {
     };
   }
 
-  /**
-   * Edit a message in a Discord channel.
-   */
   async editMessage(
     connectionId: string,
     channelId: string,
@@ -156,9 +141,6 @@ export class DiscordMessageSender {
     return { success: true, messageId: message.id, channelId: message.channel_id };
   }
 
-  /**
-   * Delete a message from a Discord channel.
-   */
   async deleteMessage(
     connectionId: string,
     channelId: string,
@@ -184,9 +166,6 @@ export class DiscordMessageSender {
     return response.ok;
   }
 
-  /**
-   * Add a reaction to a message.
-   */
   async addReaction(
     connectionId: string,
     channelId: string,
@@ -215,9 +194,6 @@ export class DiscordMessageSender {
     return response.ok;
   }
 
-  /**
-   * Remove a reaction from a message.
-   */
   async removeReaction(
     connectionId: string,
     channelId: string,
@@ -248,9 +224,6 @@ export class DiscordMessageSender {
     return response.ok;
   }
 
-  /**
-   * Start typing indicator in a channel.
-   */
   async startTyping(connectionId: string, channelId: string): Promise<boolean> {
     const token = await discordGatewayService.getBotToken(connectionId);
     if (!token) {
@@ -274,9 +247,6 @@ export class DiscordMessageSender {
     return response.ok;
   }
 
-  /**
-   * Create a thread from a message.
-   */
   async createThread(
     connectionId: string,
     channelId: string,
@@ -309,9 +279,6 @@ export class DiscordMessageSender {
     return { success: true, threadId: thread.id };
   }
 
-  /**
-   * Get channel information.
-   */
   async getChannel(
     connectionId: string,
     channelId: string
@@ -328,9 +295,6 @@ export class DiscordMessageSender {
     return await response.json();
   }
 
-  /**
-   * Get messages from a channel.
-   */
   async getMessages(
     connectionId: string,
     channelId: string,
@@ -361,9 +325,6 @@ export class DiscordMessageSender {
     return await response.json();
   }
 
-  /**
-   * Get a single message.
-   */
   async getMessage(
     connectionId: string,
     channelId: string,
@@ -384,9 +345,6 @@ export class DiscordMessageSender {
     return await response.json();
   }
 
-  /**
-   * Get guild member information.
-   */
   async getGuildMember(
     connectionId: string,
     guildId: string,
@@ -411,13 +369,6 @@ export class DiscordMessageSender {
     return await response.json();
   }
 
-  // ===========================================================================
-  // MODERATION ACTIONS
-  // ===========================================================================
-
-  /**
-   * Add a role to a guild member.
-   */
   async addRole(
     connectionId: string,
     guildId: string,
@@ -453,9 +404,6 @@ export class DiscordMessageSender {
     return { success: true };
   }
 
-  /**
-   * Remove a role from a guild member.
-   */
   async removeRole(
     connectionId: string,
     guildId: string,
@@ -491,9 +439,6 @@ export class DiscordMessageSender {
     return { success: true };
   }
 
-  /**
-   * Get all roles in a guild.
-   */
   async getGuildRoles(
     connectionId: string,
     guildId: string
@@ -510,10 +455,6 @@ export class DiscordMessageSender {
     return await response.json();
   }
 
-  /**
-   * Timeout a guild member (Discord's communication disable).
-   * Duration is in seconds, max 28 days (2419200 seconds).
-   */
   async timeoutMember(
     connectionId: string,
     guildId: string,
@@ -557,9 +498,6 @@ export class DiscordMessageSender {
     return { success: true };
   }
 
-  /**
-   * Remove timeout from a guild member.
-   */
   async removeTimeout(
     connectionId: string,
     guildId: string,
@@ -597,9 +535,6 @@ export class DiscordMessageSender {
     return { success: true };
   }
 
-  /**
-   * Kick a member from a guild.
-   */
   async kickMember(
     connectionId: string,
     guildId: string,
@@ -634,10 +569,6 @@ export class DiscordMessageSender {
     return { success: true };
   }
 
-  /**
-   * Ban a user from a guild.
-   * deleteMessageSeconds: Delete messages from user in last N seconds (0-604800, i.e. up to 7 days)
-   */
   async banMember(
     connectionId: string,
     guildId: string,
@@ -679,9 +610,6 @@ export class DiscordMessageSender {
     return { success: true };
   }
 
-  /**
-   * Unban a user from a guild.
-   */
   async unbanMember(
     connectionId: string,
     guildId: string,
@@ -716,10 +644,6 @@ export class DiscordMessageSender {
     return { success: true };
   }
 
-  /**
-   * Send a DM to a user.
-   * First creates a DM channel, then sends the message.
-   */
   async sendDM(
     connectionId: string,
     userId: string,
@@ -745,17 +669,9 @@ export class DiscordMessageSender {
     }
 
     const dmChannel: { id: string } = await dmResponse.json();
-
-    // Send message to DM channel
-    return this.sendMessage(connectionId, {
-      channelId: dmChannel.id,
-      content,
-      embeds,
-    });
+    return this.sendMessage(connectionId, { channelId: dmChannel.id, content, embeds });
   }
 }
 
-// Export singleton instance
 export const discordMessageSender = DiscordMessageSender.getInstance();
-
 

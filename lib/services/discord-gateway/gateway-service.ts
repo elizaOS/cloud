@@ -1,10 +1,3 @@
-/**
- * Discord Gateway Service
- *
- * Core service for managing multi-tenant Discord bot connections.
- * Handles bot registration, status tracking, and coordination with gateway pods.
- */
-
 import { logger } from "@/lib/utils/logger";
 import {
   discordBotConnectionsRepository,
@@ -29,14 +22,9 @@ import type {
   DiscordConnectionStatus,
 } from "@/db/schemas/discord-gateway";
 
-const CACHE_TTL = 300; // 5 minutes
+const CACHE_TTL = 300;
 const CACHE_KEY_PREFIX = "discord:bot:";
 
-/**
- * Discord Gateway Service
- *
- * Manages Discord bot connections for multi-tenant operation.
- */
 export class DiscordGatewayService {
   private static instance: DiscordGatewayService;
 
@@ -49,13 +37,6 @@ export class DiscordGatewayService {
     return DiscordGatewayService.instance;
   }
 
-  // ===========================================================================
-  // BOT REGISTRATION
-  // ===========================================================================
-
-  /**
-   * Register a new Discord bot for an organization.
-   */
   async registerBot(request: BotRegistrationRequest): Promise<BotRegistrationResult> {
     const { organizationId, platformConnectionId, botToken, applicationId, intents } = request;
 
@@ -141,9 +122,6 @@ export class DiscordGatewayService {
     };
   }
 
-  /**
-   * Unregister a Discord bot.
-   */
   async unregisterBot(connectionId: string): Promise<boolean> {
     logger.info("[Discord Gateway] Unregistering bot", { connectionId });
 
@@ -175,13 +153,6 @@ export class DiscordGatewayService {
     return true;
   }
 
-  // ===========================================================================
-  // STATUS & MONITORING
-  // ===========================================================================
-
-  /**
-   * Get bot status for an organization.
-   */
   async getBotStatus(organizationId: string): Promise<BotStatus[]> {
     const connections = await discordBotConnectionsRepository.listByOrganization(
       organizationId
@@ -190,20 +161,13 @@ export class DiscordGatewayService {
     return connections.map((conn) => this.connectionToStatus(conn));
   }
 
-  /**
-   * Get a single bot's status.
-   */
   async getBotStatusById(connectionId: string): Promise<BotStatus | null> {
     const connection = await this.getConnection(connectionId);
     if (!connection) return null;
     return this.connectionToStatus(connection);
   }
 
-  /**
-   * Get gateway health status.
-   */
   async getHealth(): Promise<GatewayHealth> {
-    // Fetch all status types: connected, disconnected, starting, reconnecting, error
     const [connectedBots, disconnectedBots, startingBots, reconnectingBots, errorBots, queueStats] = await Promise.all([
       discordBotConnectionsRepository.listByStatus("connected"),
       discordBotConnectionsRepository.listByStatus("disconnected"),
@@ -256,20 +220,10 @@ export class DiscordGatewayService {
     };
   }
 
-  // ===========================================================================
-  // CONNECTION MANAGEMENT (for gateway pods)
-  // ===========================================================================
-
-  /**
-   * Invalidate cache for a Discord bot connection
-   */
   private async invalidateConnectionCache(connectionId: string): Promise<void> {
     await cache.del(`${CACHE_KEY_PREFIX}${connectionId}`);
   }
 
-  /**
-   * Get connection record by ID.
-   */
   async getConnection(connectionId: string): Promise<DiscordBotConnection | null> {
     const cacheKey = `${CACHE_KEY_PREFIX}${connectionId}`;
     const cached = await cache.get<DiscordBotConnection>(cacheKey);
@@ -282,9 +236,6 @@ export class DiscordGatewayService {
     return connection;
   }
 
-  /**
-   * Get bot token for a connection.
-   */
   async getBotToken(connectionId: string): Promise<string | null> {
     const connection = await this.getConnection(connectionId);
     if (!connection) {
@@ -311,9 +262,6 @@ export class DiscordGatewayService {
     return token;
   }
 
-  /**
-   * Update connection status (called by gateway pods).
-   */
   async updateConnectionStatus(
     connectionId: string,
     status: DiscordConnectionStatus,
@@ -337,16 +285,10 @@ export class DiscordGatewayService {
     });
   }
 
-  /**
-   * Record heartbeat from gateway pod.
-   */
   async recordHeartbeat(connectionId: string, sequenceNumber?: number): Promise<void> {
     await discordBotConnectionsRepository.updateHeartbeat(connectionId, sequenceNumber);
   }
 
-  /**
-   * Update guild count.
-   */
   async updateGuildCount(connectionId: string, guildCount: number): Promise<void> {
     await discordBotConnectionsRepository.updateGuildCount(connectionId, guildCount);
 
@@ -354,9 +296,6 @@ export class DiscordGatewayService {
     await this.invalidateConnectionCache(connectionId);
   }
 
-  /**
-   * Increment event counters.
-   */
   async incrementEventCounters(
     connectionId: string,
     received: number,
@@ -365,16 +304,10 @@ export class DiscordGatewayService {
     await discordBotConnectionsRepository.incrementEventCounters(connectionId, received, routed);
   }
 
-  /**
-   * Get connections that need to be picked up by a pod.
-   */
   async getUnassignedConnections(): Promise<DiscordBotConnection[]> {
     return await discordBotConnectionsRepository.listUnassigned();
   }
 
-  /**
-   * Assign a pod to handle a connection.
-   */
   async assignPod(connectionId: string, podName: string): Promise<boolean> {
     const result = await discordBotConnectionsRepository.assignPod(connectionId, podName);
     if (result) {
@@ -383,20 +316,10 @@ export class DiscordGatewayService {
     return !!result;
   }
 
-  /**
-   * Get all connections assigned to a pod.
-   */
   async getConnectionsByPod(podName: string): Promise<DiscordBotConnection[]> {
     return await discordBotConnectionsRepository.listByPod(podName);
   }
 
-  // ===========================================================================
-  // DISCORD API HELPERS
-  // ===========================================================================
-
-  /**
-   * Validate a bot token by fetching the current user.
-   */
   private async validateBotToken(token: string): Promise<DiscordUser | null> {
     const response = await fetch(`${DISCORD_API_BASE}/users/@me`, {
       headers: discordBotHeaders(token),
@@ -419,9 +342,6 @@ export class DiscordGatewayService {
     return user;
   }
 
-  /**
-   * Get guilds the bot is in (requires valid token).
-   */
   async getGuilds(connectionId: string): Promise<DiscordGuild[]> {
     const token = await this.getBotToken(connectionId);
     if (!token) return [];
@@ -440,10 +360,6 @@ export class DiscordGatewayService {
 
     return await response.json();
   }
-
-  // ===========================================================================
-  // HELPERS
-  // ===========================================================================
 
   private connectionToStatus(conn: DiscordBotConnection): BotStatus {
     return {
@@ -465,6 +381,4 @@ export class DiscordGatewayService {
   }
 }
 
-// Export singleton instance
 export const discordGatewayService = DiscordGatewayService.getInstance();
-

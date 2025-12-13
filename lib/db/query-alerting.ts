@@ -23,10 +23,32 @@ interface SlowQueryAlert {
 }
 
 const ALERT_COOLDOWN_MS = 60000;
+const MAX_RATE_LIMITER_ENTRIES = 500;
 const alertRateLimiter = new Map<string, number>();
 
 let alertConfig: AlertConfig | null = null;
 let configChecked = false;
+
+function cleanupRateLimiter(): void {
+  if (alertRateLimiter.size <= MAX_RATE_LIMITER_ENTRIES) return;
+  
+  const now = Date.now();
+  for (const [hash, timestamp] of alertRateLimiter) {
+    if (now - timestamp > ALERT_COOLDOWN_MS) {
+      alertRateLimiter.delete(hash);
+    }
+  }
+  
+  // If still over limit, remove oldest entries
+  if (alertRateLimiter.size > MAX_RATE_LIMITER_ENTRIES) {
+    const entries = Array.from(alertRateLimiter.entries())
+      .sort((a, b) => a[1] - b[1]);
+    const toRemove = entries.slice(0, alertRateLimiter.size - MAX_RATE_LIMITER_ENTRIES);
+    for (const [hash] of toRemove) {
+      alertRateLimiter.delete(hash);
+    }
+  }
+}
 
 /**
  * Checks and logs alerting configuration. Called once on startup.
@@ -139,6 +161,7 @@ export async function sendSlowQueryAlert(alert: SlowQueryAlert): Promise<void> {
   if (isRateLimited(hash)) return;
 
   alertRateLimiter.set(hash, Date.now());
+  cleanupRateLimiter();
   await Promise.allSettled([sendDiscordAlert(alert), sendSlackAlert(alert)]);
 }
 
