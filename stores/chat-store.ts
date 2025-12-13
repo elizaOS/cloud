@@ -298,6 +298,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (typeof window !== "undefined") {
       window.localStorage.removeItem("elizaEntityId");
       window.localStorage.removeItem("elizaRoomId");
+      window.localStorage.removeItem("eliza-anon-session-token");
     }
 
     // Reset store state
@@ -310,6 +311,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
       selectedCharacterId: null,
       pendingMessage: null,
       loadRoomsPromise: null,
+      anonymousSessionToken: null,
     });
   },
 }));
+
+// Subscribe to migration events to clear anonymous session token
+// This is called when the PrivyProvider successfully migrates an anonymous session
+if (typeof window !== "undefined") {
+  window.addEventListener("anonymous-session-migrated", () => {
+    console.log("[ChatStore] Received anonymous-session-migrated event, clearing token");
+    useChatStore.getState().setAnonymousSessionToken(null);
+  });
+}
