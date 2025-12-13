@@ -106,6 +106,13 @@
       "when": 1761314360145,
       "tag": "0002_perpetual_war_machine",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1761581819368,
+      "tag": "0001_fluffy_proteus",
+      "breakpoints": true
     }
   ]
 }
