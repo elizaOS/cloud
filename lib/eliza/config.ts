@@ -48,7 +48,10 @@ export function getDefaultModels() {
  * These are the curated models we want to offer to users
  */
 export const ALLOWED_CHAT_MODELS = [
+  // OpenAI Models
   "openai/gpt-oss-120b",
+  "openai/gpt-5",
+  "openai/gpt-5-mini",
   // Moonshot AI Models
   "moonshotai/kimi-k2-0905",
   "moonshotai/kimi-k2-turbo",
