@@ -958,6 +958,7 @@ export class CloudFormationService {
       const command = new UpdateStackCommand({
         StackName: stackName,
         TemplateBody: templateBody,
+        Capabilities: ["CAPABILITY_NAMED_IAM"], // Required for IAM role updates
         Parameters: parameters,
         Tags: [
           { Key: "UserId", Value: getParam("UserId") },
