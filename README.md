@@ -1798,6 +1798,130 @@ DATABASE_URL=postgres://prod-url npm run db:migrate
 
 ## 🐛 Troubleshooting
 
+### Deployment Issues
+
+#### 1. Container Deployment Fails
+
+**Error**: "Container deployment failed" or "Deployment timeout"
+
+**Solutions**:
+
+- **Check Cloudflare credentials**: Verify `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` are correct
+- **Verify R2 configuration**: Ensure all R2 environment variables are set correctly:
+  - `R2_ACCOUNT_ID` (usually same as `CLOUDFLARE_ACCOUNT_ID`)
+  - `R2_ACCESS_KEY_ID`
+  - `R2_SECRET_ACCESS_KEY`
+  - `R2_ENDPOINT`
+  - `R2_BUCKET_NAME`
+- **Check API quotas**: Run `elizaos deploy` with `--verbose` to see quota status
+- **View deployment logs**: Check the container deployment log in the dashboard
+- **Verify bootstrapper image**: Ensure `elizaos/bootstrapper:latest` exists and is accessible
+
+**Debug Steps**:
+```bash
+# Check container status via API
+curl https://your-app.com/api/v1/containers/{container-id} \
+  -H "Authorization: Bearer YOUR_API_KEY"
+
+# Check health endpoint
+curl https://your-app.com/api/v1/containers/{container-id}/health \
+  -H "Authorization: Bearer YOUR_API_KEY"
+
+# View artifact stats
+curl https://your-app.com/api/v1/artifacts/stats \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+#### 2. Artifact Upload Fails
+
+**Error**: "Failed to upload artifact" or "Artifact upload timeout"
+
+**Solutions**:
+
+- **Check artifact size**: Maximum size is 500MB. Reduce project size if needed
+- **Verify R2 credentials**: Test R2 access using the AWS CLI:
+  ```bash
+  aws s3 ls --endpoint-url=$R2_ENDPOINT s3://eliza-artifacts/
+  ```
+- **Check network connection**: Ensure your network allows S3 API calls
+- **Verify presigned URL**: Check that URLs are being generated correctly
+- **Increase timeout**: Large artifacts may need more time to upload
+
+**Debug Steps**:
+```bash
+# Test R2 access directly
+aws s3 cp test.txt s3://eliza-artifacts/test/ \
+  --endpoint-url=$R2_ENDPOINT
+
+# Check artifact database records
+# Run in psql or Drizzle Studio
+SELECT id, project_id, version, size, created_at 
+FROM artifacts 
+WHERE organization_id = 'your-org-id'
+ORDER BY created_at DESC
+LIMIT 10;
+```
+
+#### 3. Bootstrapper Container Fails to Start
+
+**Error**: Container status stuck in "building" or "deploying"
+
+**Solutions**:
+
+- **Verify artifact is accessible**: Check that the artifact exists in R2
+- **Check R2 credentials expiration**: Temporary credentials expire after 1 hour
+- **Verify bootstrapper image**: Ensure the image is built and published:
+  ```bash
+  cd eliza-cloud-v2/bootstrapper
+  ./build.sh v1.0.0
+  docker push elizaos/bootstrapper:latest
+  ```
+- **Check container logs**: View Cloudflare Worker logs for error details
+- **Verify environment variables**: Ensure all required env vars are passed to container
+- **Test locally**: Run bootstrapper locally with same configuration:
+  ```bash
+  docker run -it --rm \
+    -e R2_ARTIFACT_URL="..." \
+    -e R2_ACCESS_KEY_ID="..." \
+    -e R2_SECRET_ACCESS_KEY="..." \
+    -e R2_SESSION_TOKEN="..." \
+    -e R2_ENDPOINT="..." \
+    elizaos/bootstrapper:latest
+  ```
+
+#### 4. "Insufficient Credits" Error
+
+**Error**: "Insufficient credits. Required: X, Available: Y"
+
+**Solutions**:
+
+- **Purchase credits**: Visit `/dashboard/credits` to buy more credits
+- **Check credit balance**: View current balance in the dashboard
+- **Review pricing**: Deployment costs are based on container instances and duration
+- **Contact support**: If you believe this is an error
+
+#### 5. "Quota Exceeded" Error
+
+**Error**: "Container limit reached (N). Delete unused containers or contact support."
+
+**Solutions**:
+
+- **Delete unused containers**: Remove stopped or failed containers
+- **Upgrade plan**: Contact sales for higher quotas
+- **Review container usage**: Check which containers are actually needed
+
+#### 6. Health Checks Failing
+
+**Error**: Container marked as "failed" after deployment
+
+**Solutions**:
+
+- **Check health endpoint**: Verify your app responds to `GET /health`
+- **Review health check path**: Default is `/health`, configure if different
+- **Check application logs**: The app may be crashing on startup
+- **Verify PORT environment variable**: Ensure app listens on the correct port
+- **Test locally**: Run your ElizaOS project locally to verify it works
+
 ### Common Issues
 
 #### 1. Database Connection Errors

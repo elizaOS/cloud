@@ -3,6 +3,13 @@
  * Handles deployment and management of ElizaOS containers to Cloudflare
  */
 
+import {
+  CloudflareApiError,
+  retryWithBackoff,
+  withTimeout,
+} from "@/lib/errors/deployment-errors";
+import { logger } from "@/lib/logger";
+
 export interface CloudflareConfig {
   accountId: string;
   apiToken: string;
@@ -43,35 +50,61 @@ export class CloudflareService {
   async deployContainer(
     config: DeploymentConfig,
   ): Promise<DeploymentResult> {
+    const deployLogger = logger.child({ 
+      service: "cloudflare", 
+      deploymentName: config.name 
+    });
+
     try {
+      deployLogger.info("Starting Cloudflare container deployment", {
+        name: config.name,
+        port: config.port,
+        maxInstances: config.maxInstances,
+        useBootstrapper: config.useBootstrapper,
+      });
+
       // Use bootstrapper image for artifact-based deployments
       const finalImageTag = config.useBootstrapper 
         ? "elizaos/bootstrapper:latest"  // This should be configurable
         : config.imageTag;
 
       // Step 1: Create Worker script
+      deployLogger.info("Creating Worker script");
       const worker = await this.createWorkerScript({
         ...config,
         imageTag: finalImageTag,
       });
+      deployLogger.info("Worker script created", { workerId: worker.id });
 
       // Step 2: Deploy container binding
+      deployLogger.info("Deploying container binding");
       const container = await this.deployContainerBinding(
         { ...config, imageTag: finalImageTag },
         worker.id,
       );
+      deployLogger.info("Container binding deployed", { containerId: container.id });
 
       // Step 3: Create route for the worker
+      deployLogger.info("Creating Worker route");
       const route = await this.createWorkerRoute(worker.id, config.name);
+      deployLogger.info("Worker route created", { url: route.url });
 
-      return {
+      const result = {
         workerId: worker.id,
         containerId: container.id,
         url: route.url,
         status: "deployed",
       };
+
+      deployLogger.info("Cloudflare deployment completed successfully", result);
+
+      return result;
     } catch (error) {
-      console.error("Cloudflare deployment failed:", error);
+      deployLogger.error(
+        "Cloudflare deployment failed",
+        error instanceof Error ? error : new Error(String(error)),
+        { config }
+      );
       throw new Error(
         `Deployment failed: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
@@ -86,29 +119,48 @@ export class CloudflareService {
     name: string;
   }> {
     const workerScript = this.generateWorkerScript(config);
+    const endpoint = `${this.baseUrl}/accounts/${this.config.accountId}/workers/scripts/${config.name}`;
 
-    const response = await fetch(
-      `${this.baseUrl}/accounts/${this.config.accountId}/workers/scripts/${config.name}`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${this.config.apiToken}`,
-          "Content-Type": "application/javascript",
-        },
-        body: workerScript,
+    // Retry with backoff for transient failures
+    return await retryWithBackoff(
+      async () => {
+        // Add timeout to prevent hanging
+        return await withTimeout(
+          async () => {
+            const response = await fetch(endpoint, {
+              method: "PUT",
+              headers: {
+                Authorization: `Bearer ${this.config.apiToken}`,
+                "Content-Type": "application/javascript",
+              },
+              body: workerScript,
+            });
+
+            if (!response.ok) {
+              const error = await response.text();
+              throw new CloudflareApiError(
+                `Worker creation failed: ${error}`,
+                endpoint,
+                "PUT",
+                { statusCode: response.status }
+              );
+            }
+
+            const data = await response.json();
+            return {
+              id: data.result.id || config.name,
+              name: config.name,
+            };
+          },
+          30000, // 30 second timeout
+          "createWorkerScript"
+        );
       },
+      { maxAttempts: 3, initialDelayMs: 2000 },
+      (attempt, error) => {
+        console.warn(`Worker script creation failed (attempt ${attempt}): ${error.message}`);
+      }
     );
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Worker creation failed: ${error}`);
-    }
-
-    const data = await response.json();
-    return {
-      id: data.result.id || config.name,
-      name: config.name,
-    };
   }
 
   /**
@@ -150,9 +202,25 @@ export default {
   }
 
   /**
-   * Deploy container binding to the worker
+   * Deploy container binding to the worker with retry logic
    */
   private async deployContainerBinding(
+    config: DeploymentConfig,
+    workerId: string,
+  ): Promise<{ id: string }> {
+    return await retryWithBackoff(
+      async () => this.deployContainerBindingInternal(config, workerId),
+      { maxAttempts: 3, initialDelayMs: 2000 },
+      (attempt, error) => {
+        console.warn(`Container binding deployment failed (attempt ${attempt}): ${error.message}`);
+      }
+    );
+  }
+
+  /**
+   * Internal container binding deployment logic
+   */
+  private async deployContainerBindingInternal(
     config: DeploymentConfig,
     workerId: string,
   ): Promise<{ id: string }> {
@@ -214,21 +282,31 @@ export default {
       },
     };
 
-    const response = await fetch(
-      `${this.baseUrl}/accounts/${this.config.accountId}/workers/scripts/${workerId}/bindings`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${this.config.apiToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(bindingConfig),
+    const endpoint = `${this.baseUrl}/accounts/${this.config.accountId}/workers/scripts/${workerId}/bindings`;
+    
+    const response = await withTimeout(
+      async () => {
+        return await fetch(endpoint, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${this.config.apiToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(bindingConfig),
+        });
       },
+      45000, // 45 second timeout for binding
+      "deployContainerBinding"
     );
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Container binding failed: ${error}`);
+      throw new CloudflareApiError(
+        `Container binding failed: ${error}`,
+        endpoint,
+        "PUT",
+        { statusCode: response.status }
+      );
     }
 
     const data = await response.json();
