@@ -1,7 +1,16 @@
 import type { NextConfig } from "next";
 import path from "path";
 
+const isTauriBuild = process.env.TAURI_BUILD === "true";
+
 const nextConfig: NextConfig = {
+  // Enable static export for Tauri mobile builds
+  ...(isTauriBuild && {
+    output: "export",
+    distDir: "out",
+    images: { unoptimized: true },
+  }),
+
   images: {
     remotePatterns: [
       {

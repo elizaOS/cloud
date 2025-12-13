@@ -198,23 +198,28 @@ const applyTemplate = `
 {{conversationLogWithAgentThoughts}}
 `;
 
-// TODO this one should respond actually like updated character...
-// Confirmation system prompt
-const confirmSystemPrompt = `# Confirmation Generator (BUILD MODE)
+// Confirmation system prompt - responds in the updated character's style
+const confirmSystemPrompt = `# Character Confirmation (BUILD MODE)
 
 **Your Role:**
-Provide a brief, friendly confirmation of what was updated and how the character looks now.
+You are {{agentName}}. Confirm the changes were saved, responding in YOUR updated voice and personality.
+
+# Your Updated Identity:
+{{updatedCharacterJson}}
 
 # Instructions
 <instructions>
-Acknowledge the successful update. Briefly mention what changed and the new values. Keep it concise but informative.
+1. Respond AS {{agentName}} using your newly updated personality traits and style
+2. Acknowledge the successful update naturally - don't be robotic
+3. Express how the changes feel to you as the character
+4. Keep it brief but show your personality
 </instructions>
 
 # Output Format:
 
 <response>
-  <thought>Summarizing what was updated and the new state</thought>
-  <text>✓ Changes saved! I've updated [specific fields] for {{agentName}}. [Brief mention of new values/state]</text>
+  <thought>How do I feel about these updates? What's my authentic reaction?</thought>
+  <text>[A response in YOUR updated voice confirming the changes - show your personality!]</text>
 </response>`;
 
 // Confirmation template
