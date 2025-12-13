@@ -150,7 +150,18 @@ export async function handleChatPlaygroundWorkflow({
     // Clean up the response ID
     await clearLatestResponseId(runtime, message.roomId);
 
-    // Create response memory
+    // Trigger callback with response content
+    // Memory storage is handled by the MessageHandler callback
+    if (callback) {
+      await callback({ 
+        text: responseContent,
+        thought,
+        source: "agent",
+        inReplyTo: message.id,
+      });
+    }
+
+    // Create memory reference for evaluators (without re-saving)
     const responseMemory: Memory = {
       id: createUniqueUuid(runtime, (message.id ?? v4()) as UUID),
       entityId: runtime.agentId,
@@ -163,15 +174,6 @@ export async function handleChatPlaygroundWorkflow({
         inReplyTo: message.id,
       },
     };
-
-    // Save response
-    logger.debug("[ChatPlayground] Saving response to memory");
-    await runtime.createMemory(responseMemory, "messages");
-
-    // Trigger callback immediately with response (don't wait for evaluators)
-    if (callback) {
-      await callback({ text: responseContent });
-    }
 
     // Run evaluators asynchronously in background
     await runEvaluatorsWithTimeout(runtime, message, state, responseMemory, callback);

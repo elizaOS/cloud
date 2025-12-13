@@ -159,14 +159,21 @@ export const characterProvider: Provider = {
         .map((exchange) => {
           return exchange
             .map((msg) => {
+              // Skip messages without text content
+              if (!msg.content?.text) {
+                return null;
+              }
+              
               // Replace placeholders
               let text = `${msg.name}: ${msg.content.text}`;
               text = text.replace(/\{\{user1?\}\}/g, 'User');
               text = text.replace(/\{\{char\}\}/g, character.name);
               return text;
             })
+            .filter((text): text is string => text !== null)
             .join('\n');
         })
+        .filter((exchange) => exchange.length > 0)
         .join('\n\n---\n\n');
 
       return addHeader(
