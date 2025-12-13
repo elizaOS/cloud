@@ -25,12 +25,11 @@ Complete guide to environment variables for ElizaOS Cloud with AWS ECS deploymen
    DATABASE_URL=postgresql://user:pass@host:5432/eliza_platform?sslmode=require&pool_timeout=0
    ```
 
-### Authentication (WorkOS)
+### Authentication (Privy)
 
-- `WORKOS_CLIENT_ID` - WorkOS client ID
-- `WORKOS_API_KEY` - WorkOS API key
-- `WORKOS_REDIRECT_URI` - OAuth redirect URI
-- `WORKOS_COOKIE_PASSWORD` - Cookie encryption password (32+ characters, generate with `openssl rand -base64 32`)
+- `NEXT_PUBLIC_PRIVY_APP_ID` - Privy application ID (public, exposed to frontend)
+- `PRIVY_APP_SECRET` - Privy application secret (server-side only)
+- `PRIVY_WEBHOOK_SECRET` - Webhook secret for user synchronization (32+ characters, generate with `openssl rand -base64 32`)
 
 ### AWS Configuration
 
@@ -142,14 +141,16 @@ Or via API:
 ## Example .env.local File
 
 ```env
-# Database
-DATABASE_URL=postgresql://localhost:5432/eliza_dev
+# Database - Platform
+DATABASE_URL=postgresql://localhost:5432/eliza_platform
 
-# WorkOS Auth
-WORKOS_CLIENT_ID=client_xxxxx
-WORKOS_API_KEY=sk_live_xxxxx
-WORKOS_REDIRECT_URI=http://localhost:3000/callback
-WORKOS_COOKIE_PASSWORD=your-32-char-cookie-password-here
+# Database - Agent (can be same database)
+AGENT_DATABASE_URL=postgresql://localhost:5432/eliza_platform
+
+# Privy Authentication
+NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id
+PRIVY_APP_SECRET=your_privy_app_secret
+PRIVY_WEBHOOK_SECRET=your-32-char-webhook-secret-here
 
 # Stripe
 STRIPE_SECRET_KEY=sk_test_xxxxx
