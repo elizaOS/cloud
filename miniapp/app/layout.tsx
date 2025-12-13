@@ -35,18 +35,18 @@ export const metadata: Metadata = {
   ],
   authors: [
     {
-      name: "CreateACharacter",
+      name: siteConfig.author.name,
       url: siteConfig.url,
     },
   ],
-  creator: "CreateACharacter",
+  creator: siteConfig.author.name,
   openGraph: {
     type: "website",
     locale: "en_US",
     url: siteConfig.url,
     title: siteConfig.name,
     description: siteConfig.description,
-    siteName: "CreateACharacter",
+    siteName: siteConfig.author.name,
     images: [
       {
         url: siteConfig.ogImage,
@@ -61,7 +61,7 @@ export const metadata: Metadata = {
     title: siteConfig.name,
     description: siteConfig.description,
     images: [siteConfig.ogImage],
-    creator: "@createacharacter",
+    creator: siteConfig.author.twitter,
   },
   icons: {
     icon: "/favicon.svg",
