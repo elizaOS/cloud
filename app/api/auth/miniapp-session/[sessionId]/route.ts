@@ -7,6 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { miniappAuthSessionsService } from "@/lib/services/miniapp-auth-sessions";
 
 // CORS headers for miniapp requests
@@ -84,7 +85,7 @@ export async function GET(
       { headers: corsHeaders },
     );
   } catch (error) {
-    console.error("Error getting miniapp auth session:", error);
+    logger.error("Error getting miniapp auth session:", error);
     return NextResponse.json(
       { error: "Failed to get session status" },
       { status: 500, headers: corsHeaders },

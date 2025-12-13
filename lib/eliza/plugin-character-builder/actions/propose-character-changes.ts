@@ -151,7 +151,7 @@ export const proposeCharacterChangesAction = {
       // Restore original system prompt
       runtime.character.system = originalSystemPrompt;
 
-      console.log(
+      logger.info(
         "parsedResponse character we wanna see",
         parsedResponse?.character,
       );

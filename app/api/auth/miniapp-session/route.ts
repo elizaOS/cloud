@@ -7,6 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 import { miniappAuthSessionsService } from "@/lib/services/miniapp-auth-sessions";
 
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
       { status: 201, headers: corsHeaders },
     );
   } catch (error) {
-    console.error("Error creating miniapp auth session:", error);
+    logger.error("Error creating miniapp auth session:", error);
     return NextResponse.json(
       { error: "Failed to create authentication session" },
       { status: 500, headers: corsHeaders },
