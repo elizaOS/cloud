@@ -8,6 +8,7 @@ import {
   logger,
   type UUID,
 } from "@elizaos/core";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 
 /**
  * Room Title Generator Evaluator

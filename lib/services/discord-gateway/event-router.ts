@@ -270,33 +270,23 @@ export class DiscordEventRouter {
     route: DiscordEventRoute,
     event: RoutableEvent
   ): Promise<RouteMatch> {
-    // Check if route is enabled
     if (!route.enabled) {
       return { route, shouldRoute: false, reason: "Route disabled" };
     }
 
-    // Check rate limit
     const rateLimitKey = `discord:rate:${route.id}`;
-    const rateLimit = await checkRateLimitRedis(
-      rateLimitKey,
-      60000, // 1 minute window
-      route.rate_limit_per_minute ?? 60
-    );
-
+    const rateLimit = await checkRateLimitRedis(rateLimitKey, 60000, route.rate_limit_per_minute ?? 60);
     if (!rateLimit.allowed) {
       return { route, shouldRoute: false, reason: "Rate limited" };
     }
 
-    // Check message-specific filters
     if (event.eventType === "MESSAGE_CREATE" && event.data.message) {
       const message = event.data.message;
 
-      // Filter bot messages
       if (route.filter_bot_messages && message.author.bot) {
         return { route, shouldRoute: false, reason: "Bot message filtered" };
       }
 
-      // Filter self messages (from this bot)
       if (route.filter_self_messages) {
         const connection = await discordBotConnectionsRepository.getByPlatformConnection(
           event.platformConnectionId
@@ -306,7 +296,6 @@ export class DiscordEventRouter {
         }
       }
 
-      // Check mention_only filter
       if (route.mention_only) {
         const mentionsBot = await this.messageContainsBotMention(message, event.platformConnectionId);
         if (!mentionsBot) {
@@ -314,7 +303,6 @@ export class DiscordEventRouter {
         }
       }
 
-      // Check command prefix
       if (route.command_prefix) {
         if (!message.content.startsWith(route.command_prefix)) {
           return { route, shouldRoute: false, reason: "No command prefix" };
@@ -325,9 +313,6 @@ export class DiscordEventRouter {
     return { route, shouldRoute: true };
   }
 
-  /**
-   * Dispatch event to a route target.
-   */
   private async dispatchToRoute(
     route: DiscordEventRoute,
     event: RoutableEvent
@@ -374,9 +359,6 @@ export class DiscordEventRouter {
     return result;
   }
 
-  /**
-   * Dispatch to A2A endpoint.
-   */
   private async dispatchToA2A(route: DiscordEventRoute, event: RoutableEvent): Promise<boolean> {
     const message = event.data.message;
     if (!message && event.eventType === "MESSAGE_CREATE") {
@@ -438,9 +420,6 @@ export class DiscordEventRouter {
     return true;
   }
 
-  /**
-   * Dispatch to MCP endpoint.
-   */
   private async dispatchToMCP(route: DiscordEventRoute, event: RoutableEvent): Promise<boolean> {
     const targetUrl = route.route_target.startsWith("http")
       ? route.route_target
@@ -484,9 +463,6 @@ export class DiscordEventRouter {
     return true;
   }
 
-  /**
-   * Dispatch to webhook URL.
-   */
   private async dispatchToWebhook(
     route: DiscordEventRoute,
     event: RoutableEvent

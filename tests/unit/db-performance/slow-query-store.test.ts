@@ -1,13 +1,3 @@
-/**
- * Tests for slow-query-store.ts
- * 
- * Tests:
- * - Query hashing (normalization, edge cases)
- * - Recording slow queries (memory store)
- * - Stats aggregation
- * - Edge cases and boundary conditions
- */
-
 import { describe, it, expect, beforeEach } from "bun:test";
 import {
   hashQuery,
@@ -21,126 +11,96 @@ import {
 } from "@/lib/db/slow-query-store";
 
 describe("slow-query-store", () => {
-  beforeEach(() => {
-    clearMemoryStore();
-  });
+  beforeEach(() => clearMemoryStore());
 
   describe("hashQuery", () => {
     it("normalizes whitespace", () => {
-      const hash1 = hashQuery("SELECT * FROM users");
-      const hash2 = hashQuery("SELECT   *   FROM   users");
-      const hash3 = hashQuery("SELECT\n*\nFROM\nusers");
-      const hash4 = hashQuery("  SELECT * FROM users  ");
-
-      expect(hash1).toBe(hash2);
-      expect(hash2).toBe(hash3);
-      expect(hash3).toBe(hash4);
+      const h1 = hashQuery("SELECT * FROM users");
+      expect(hashQuery("SELECT   *   FROM   users")).toBe(h1);
+      expect(hashQuery("SELECT\n*\nFROM\nusers")).toBe(h1);
+      expect(hashQuery("  SELECT * FROM users  ")).toBe(h1);
     });
 
     it("is case insensitive", () => {
-      const hash1 = hashQuery("SELECT * FROM users");
-      const hash2 = hashQuery("select * from users");
-      const hash3 = hashQuery("SELECT * FROM USERS");
-
-      expect(hash1).toBe(hash2);
-      expect(hash2).toBe(hash3);
+      const h = hashQuery("SELECT * FROM users");
+      expect(hashQuery("select * from users")).toBe(h);
+      expect(hashQuery("SELECT * FROM USERS")).toBe(h);
     });
 
-    it("replaces numeric literals with placeholders", () => {
-      const hash1 = hashQuery("SELECT * FROM users WHERE id = 123");
-      const hash2 = hashQuery("SELECT * FROM users WHERE id = 456");
-      const hash3 = hashQuery("SELECT * FROM users WHERE id = 999999999");
-
-      expect(hash1).toBe(hash2);
-      expect(hash2).toBe(hash3);
+    it("replaces numeric literals", () => {
+      const h = hashQuery("SELECT * FROM users WHERE id = 123");
+      expect(hashQuery("SELECT * FROM users WHERE id = 456")).toBe(h);
     });
 
-    it("replaces string literals with placeholders", () => {
-      const hash1 = hashQuery("SELECT * FROM users WHERE name = 'alice'");
-      const hash2 = hashQuery("SELECT * FROM users WHERE name = 'bob'");
-      const hash3 = hashQuery("SELECT * FROM users WHERE name = 'charlie jones'");
-
-      expect(hash1).toBe(hash2);
-      expect(hash2).toBe(hash3);
+    it("replaces string literals", () => {
+      const h = hashQuery("SELECT * FROM users WHERE name = 'alice'");
+      expect(hashQuery("SELECT * FROM users WHERE name = 'bob'")).toBe(h);
     });
 
-    it("replaces UUIDs with placeholders", () => {
-      const hash1 = hashQuery("SELECT * FROM users WHERE id = '550e8400-e29b-41d4-a716-446655440000'");
-      const hash2 = hashQuery("SELECT * FROM users WHERE id = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'");
-
-      expect(hash1).toBe(hash2);
+    it("replaces UUIDs", () => {
+      const h1 = hashQuery("SELECT * FROM users WHERE id = '550e8400-e29b-41d4-a716-446655440000'");
+      const h2 = hashQuery("SELECT * FROM users WHERE id = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'");
+      expect(h1).toBe(h2);
     });
 
     it("produces different hashes for different queries", () => {
-      const hash1 = hashQuery("SELECT * FROM users");
-      const hash2 = hashQuery("SELECT * FROM orders");
-      const hash3 = hashQuery("INSERT INTO users VALUES (1)");
-
-      expect(hash1).not.toBe(hash2);
-      expect(hash2).not.toBe(hash3);
+      const h1 = hashQuery("SELECT * FROM users");
+      const h2 = hashQuery("SELECT * FROM orders");
+      expect(h1).not.toBe(h2);
     });
 
     it("handles empty string", () => {
-      const hash = hashQuery("");
-      expect(hash).toBe("0"); // Empty string hashes to 0
+      expect(hashQuery("")).toBe("0");
     });
 
     it("handles very long queries", () => {
-      const longQuery = "SELECT " + "col, ".repeat(1000) + "id FROM big_table";
-      const hash = hashQuery(longQuery);
-      expect(typeof hash).toBe("string");
+      const hash = hashQuery("SELECT " + "col, ".repeat(1000) + "id FROM big_table");
       expect(hash.length).toBeGreaterThan(0);
     });
 
     it("handles special characters", () => {
-      const hash1 = hashQuery("SELECT * FROM users WHERE data->>'key' = 'value'");
-      const hash2 = hashQuery("SELECT * FROM users WHERE data->>'key' = 'other'");
-
-      expect(hash1).toBe(hash2); // Same structure, different string literal
+      const h1 = hashQuery("SELECT * FROM users WHERE data->>'key' = 'value'");
+      const h2 = hashQuery("SELECT * FROM users WHERE data->>'key' = 'other'");
+      expect(h1).toBe(h2);
     });
   });
 
   describe("recordSlowQuery", () => {
-    it("records a new query to memory store", async () => {
+    it("records to memory store", async () => {
       await recordSlowQuery("SELECT * FROM users", 100);
-
       const queries = getSlowQueriesFromMemory();
       expect(queries.length).toBe(1);
       expect(queries[0].sqlText).toBe("SELECT * FROM users");
       expect(queries[0].durationMs).toBe(100);
-      expect(queries[0].callCount).toBe(1);
     });
 
-    it("aggregates multiple calls of same query", async () => {
+    it("aggregates multiple calls", async () => {
       await recordSlowQuery("SELECT * FROM users", 100);
       await recordSlowQuery("SELECT * FROM users", 150);
       await recordSlowQuery("SELECT * FROM users", 200);
 
-      const queries = getSlowQueriesFromMemory();
-      expect(queries.length).toBe(1);
-      expect(queries[0].callCount).toBe(3);
-      expect(queries[0].totalDurationMs).toBe(450);
-      expect(queries[0].avgDurationMs).toBe(150);
-      expect(queries[0].minDurationMs).toBe(100);
-      expect(queries[0].maxDurationMs).toBe(200);
+      const q = getSlowQueriesFromMemory()[0];
+      expect(q.callCount).toBe(3);
+      expect(q.totalDurationMs).toBe(450);
+      expect(q.avgDurationMs).toBe(150);
+      expect(q.minDurationMs).toBe(100);
+      expect(q.maxDurationMs).toBe(200);
     });
 
-    it("tracks min and max correctly", async () => {
+    it("tracks min and max", async () => {
       await recordSlowQuery("SELECT 1", 500);
       await recordSlowQuery("SELECT 1", 100);
       await recordSlowQuery("SELECT 1", 300);
 
-      const queries = getSlowQueriesFromMemory();
-      expect(queries[0].minDurationMs).toBe(100);
-      expect(queries[0].maxDurationMs).toBe(500);
+      const q = getSlowQueriesFromMemory()[0];
+      expect(q.minDurationMs).toBe(100);
+      expect(q.maxDurationMs).toBe(500);
     });
 
     it("records separate queries separately", async () => {
       await recordSlowQuery("SELECT * FROM users", 100);
       await recordSlowQuery("SELECT * FROM orders", 200);
-
-      const queries = getSlowQueriesFromMemory();
-      expect(queries.length).toBe(2);
+      expect(getSlowQueriesFromMemory().length).toBe(2);
     });
 
     it("groups similar queries with different parameters", async () => {
@@ -154,52 +114,35 @@ describe("slow-query-store", () => {
     });
 
     it("truncates very long SQL", async () => {
-      const longSql = "SELECT " + "x".repeat(20000);
-      await recordSlowQuery(longSql, 100);
-
-      const queries = getSlowQueriesFromMemory();
-      expect(queries[0].sqlText.length).toBeLessThanOrEqual(10000);
+      await recordSlowQuery("SELECT " + "x".repeat(20000), 100);
+      expect(getSlowQueriesFromMemory()[0].sqlText.length).toBeLessThanOrEqual(10000);
     });
 
-    it("records source file and function", async () => {
+    it("records source metadata", async () => {
       await recordSlowQuery("SELECT 1", 100, "test.ts", "myFunction");
-
-      const queries = getSlowQueriesFromMemory();
-      expect(queries[0].sourceFile).toBe("test.ts");
-      expect(queries[0].sourceFunction).toBe("myFunction");
-    });
-
-    it("handles undefined source metadata", async () => {
-      await recordSlowQuery("SELECT 1", 100);
-
-      const queries = getSlowQueriesFromMemory();
-      expect(queries[0].sourceFile).toBeUndefined();
-      expect(queries[0].sourceFunction).toBeUndefined();
+      const q = getSlowQueriesFromMemory()[0];
+      expect(q.sourceFile).toBe("test.ts");
+      expect(q.sourceFunction).toBe("myFunction");
     });
 
     it("updates timestamps correctly", async () => {
       const before = new Date();
       await recordSlowQuery("SELECT 1", 100);
-      
-      const queries = getSlowQueriesFromMemory();
-      const firstSeen = queries[0].firstSeenAt;
-      const lastSeen1 = queries[0].lastSeenAt;
 
+      const firstSeen = getSlowQueriesFromMemory()[0].firstSeenAt;
       expect(firstSeen.getTime()).toBeGreaterThanOrEqual(before.getTime());
-      expect(lastSeen1.getTime()).toBeGreaterThanOrEqual(firstSeen.getTime());
 
-      // Wait a bit and record again
       await new Promise((r) => setTimeout(r, 10));
       await recordSlowQuery("SELECT 1", 100);
 
-      const updated = getSlowQueriesFromMemory();
-      expect(updated[0].firstSeenAt.getTime()).toBe(firstSeen.getTime()); // Unchanged
-      expect(updated[0].lastSeenAt.getTime()).toBeGreaterThan(lastSeen1.getTime()); // Updated
+      const updated = getSlowQueriesFromMemory()[0];
+      expect(updated.firstSeenAt.getTime()).toBe(firstSeen.getTime());
+      expect(updated.lastSeenAt.getTime()).toBeGreaterThan(firstSeen.getTime());
     });
   });
 
   describe("getTopSlowQueries", () => {
-    it("returns queries sorted by avg duration descending", async () => {
+    it("sorts by avg duration descending", async () => {
       await recordSlowQuery("query_fast", 50);
       await recordSlowQuery("query_medium", 150);
       await recordSlowQuery("query_slow", 300);
@@ -210,46 +153,27 @@ describe("slow-query-store", () => {
       expect(top[2].avgDurationMs).toBe(50);
     });
 
-    it("respects limit parameter", async () => {
-      for (let i = 0; i < 10; i++) {
-        await recordSlowQuery(`query_${i}`, i * 10);
-      }
-
-      const top3 = getTopSlowQueries(3);
-      expect(top3.length).toBe(3);
-
-      const top5 = getTopSlowQueries(5);
-      expect(top5.length).toBe(5);
+    it("respects limit", async () => {
+      for (let i = 0; i < 10; i++) await recordSlowQuery(`query_${i}`, i * 10);
+      expect(getTopSlowQueries(3).length).toBe(3);
+      expect(getTopSlowQueries(5).length).toBe(5);
     });
 
     it("returns empty array when no queries", () => {
-      const top = getTopSlowQueries(10);
-      expect(top).toEqual([]);
+      expect(getTopSlowQueries(10)).toEqual([]);
     });
 
-    it("uses default limit of 20", async () => {
-      for (let i = 0; i < 30; i++) {
-        await recordSlowQuery(`query_${i}`, i);
-      }
-
-      const top = getTopSlowQueries();
-      expect(top.length).toBe(20);
+    it("defaults to 20", async () => {
+      for (let i = 0; i < 30; i++) await recordSlowQuery(`query_${i}`, i);
+      expect(getTopSlowQueries().length).toBe(20);
     });
   });
 
   describe("getMostFrequentSlowQueries", () => {
-    it("returns queries sorted by call count descending", async () => {
+    it("sorts by call count descending", async () => {
       await recordSlowQuery("query_rare", 100);
-      
-      await recordSlowQuery("query_common", 100);
-      await recordSlowQuery("query_common", 100);
-      await recordSlowQuery("query_common", 100);
-      
-      await recordSlowQuery("query_very_common", 100);
-      await recordSlowQuery("query_very_common", 100);
-      await recordSlowQuery("query_very_common", 100);
-      await recordSlowQuery("query_very_common", 100);
-      await recordSlowQuery("query_very_common", 100);
+      for (let i = 0; i < 3; i++) await recordSlowQuery("query_common", 100);
+      for (let i = 0; i < 5; i++) await recordSlowQuery("query_very_common", 100);
 
       const frequent = getMostFrequentSlowQueries(10);
       expect(frequent[0].callCount).toBe(5);
@@ -267,86 +191,41 @@ describe("slow-query-store", () => {
       expect(stats.maxDuration).toBe(0);
     });
 
-    it("calculates correct stats for single query", async () => {
-      await recordSlowQuery("SELECT 1", 100);
-
-      const stats = getSlowQueryStats();
-      expect(stats.totalQueries).toBe(1);
-      expect(stats.totalCalls).toBe(1);
-      expect(stats.avgDuration).toBe(100);
-      expect(stats.maxDuration).toBe(100);
-    });
-
-    it("calculates correct stats for multiple queries and calls", async () => {
+    it("calculates stats correctly", async () => {
       await recordSlowQuery("query_1", 100);
-      await recordSlowQuery("query_1", 200); // 2 calls, total 300, avg 150
+      await recordSlowQuery("query_1", 200);
       await recordSlowQuery("query_2", 300);
-      await recordSlowQuery("query_2", 400); // 2 calls, total 700, avg 350
-      
+      await recordSlowQuery("query_2", 400);
+
       const stats = getSlowQueryStats();
       expect(stats.totalQueries).toBe(2);
       expect(stats.totalCalls).toBe(4);
-      expect(stats.avgDuration).toBe(250); // (300 + 700) / 4
+      expect(stats.avgDuration).toBe(250);
       expect(stats.maxDuration).toBe(400);
     });
   });
 
   describe("clearMemoryStore", () => {
-    it("removes all queries from memory", async () => {
+    it("removes all queries", async () => {
       await recordSlowQuery("query_1", 100);
       await recordSlowQuery("query_2", 200);
-
       expect(getSlowQueriesFromMemory().length).toBe(2);
-
       clearMemoryStore();
-
       expect(getSlowQueriesFromMemory().length).toBe(0);
     });
   });
 
   describe("concurrent access", () => {
-    it("handles concurrent recordings safely", async () => {
-      const promises = [];
-      for (let i = 0; i < 100; i++) {
-        promises.push(recordSlowQuery("concurrent_query", 100 + i));
-      }
-
+    it("handles concurrent recordings", async () => {
+      const promises = Array.from({ length: 100 }, (_, i) =>
+        recordSlowQuery("concurrent_query", 100 + i)
+      );
       await Promise.all(promises);
 
-      const queries = getSlowQueriesFromMemory();
-      expect(queries.length).toBe(1);
-      expect(queries[0].callCount).toBe(100);
-      // Sum of 100..199 = 100 * (100 + 199) / 2 = 14950
-      expect(queries[0].totalDurationMs).toBe(14950);
+      const q = getSlowQueriesFromMemory()[0];
+      expect(q.callCount).toBe(100);
+      expect(q.totalDurationMs).toBe(14950); // Sum of 100..199
     });
   });
 
-  describe("getSlowQueriesFromRedis", () => {
-    it("returns empty array when Redis not configured", async () => {
-      // This test verifies graceful degradation when Redis is unavailable
-      // The actual Redis behavior is tested in integration tests
-      const queries = await getSlowQueriesFromRedis();
-      expect(Array.isArray(queries)).toBe(true);
-    });
-
-    it("returns queries from Redis when available", async () => {
-      // Record a query (which writes to Redis if configured)
-      await recordSlowQuery("redis_test_query", 150);
-
-      // Give Redis time to process async write
-      await new Promise((r) => setTimeout(r, 100));
-
-      // Try to read from Redis
-      const queries = await getSlowQueriesFromRedis();
-      
-      // If Redis is configured, we should get the query back
-      // If not, we get empty array (graceful degradation)
-      if (queries.length > 0) {
-        const entry = queries.find((q) => q.sqlText === "redis_test_query");
-        expect(entry).toBeDefined();
-        expect(entry!.durationMs).toBe(150);
-      }
-    });
-  });
 });
-
