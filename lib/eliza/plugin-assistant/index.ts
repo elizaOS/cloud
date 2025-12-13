@@ -6,7 +6,7 @@ import {
 } from "@elizaos/core";
 import { providersProvider } from "./providers/providers";
 import { actionsProvider } from "./providers/actions";
-import { characterProvider, recentMessagesProvider } from "../shared/providers";
+import { characterProvider, recentMessagesProvider, appConfigProvider } from "../shared/providers";
 import { generateImageAction } from "./actions/image-generation";
 import { affiliateContextProvider } from "./providers/affiliate-context";
 import { currentRunContextProvider } from "./providers/current-run-context";

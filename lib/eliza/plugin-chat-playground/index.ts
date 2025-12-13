@@ -4,7 +4,7 @@ import {
   type MessagePayload,
   type Plugin,
 } from "@elizaos/core";
-import { characterProvider, recentMessagesProvider } from "../shared/providers";
+import { characterProvider, recentMessagesProvider, appConfigProvider } from "../shared/providers";
 import { handleMessage } from "./handler";
 import { roomTitleEvaluator } from "../shared/evaluators";
 
