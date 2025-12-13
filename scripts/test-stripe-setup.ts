@@ -1,11 +1,11 @@
 /**
  * Test Script for Stripe Credit Packs Integration
- * 
+ *
  * This script helps you:
  * 1. Create test Stripe products via API
  * 2. Seed credit packs in database
  * 3. Test API endpoints
- * 
+ *
  * Usage: tsx scripts/test-stripe-setup.ts
  */
 
@@ -24,10 +24,12 @@ if (!STRIPE_SECRET_KEY) {
 }
 
 console.log("🧪 Stripe Credit Packs Test Setup");
-console.log("=" .repeat(50));
+console.log("=".repeat(50));
 console.log(`Stripe Key: ${STRIPE_SECRET_KEY.substring(0, 15)}...`);
-console.log(`Mode: ${STRIPE_SECRET_KEY.startsWith('sk_test_') ? 'TEST' : 'LIVE'}`);
-console.log("=" .repeat(50));
+console.log(
+  `Mode: ${STRIPE_SECRET_KEY.startsWith("sk_test_") ? "TEST" : "LIVE"}`
+);
+console.log("=".repeat(50));
 
 interface StripeProduct {
   id: string;
@@ -44,21 +46,24 @@ interface StripePrice {
 const creditPacksConfig = [
   {
     name: "Small Credit Pack",
-    description: "50,000 credits for AI generations. Perfect for testing and small projects.",
+    description:
+      "50,000 credits for AI generations. Perfect for testing and small projects.",
     credits: 50000,
     price_cents: 4999, // $49.99
     sort_order: 1,
   },
   {
     name: "Medium Credit Pack",
-    description: "150,000 credits for AI generations. Best value for regular usage.",
+    description:
+      "150,000 credits for AI generations. Best value for regular usage.",
     credits: 150000,
     price_cents: 12999, // $129.99
     sort_order: 2,
   },
   {
     name: "Large Credit Pack",
-    description: "500,000 credits for AI generations. Maximum savings for power users.",
+    description:
+      "500,000 credits for AI generations. Maximum savings for power users.",
     credits: 500000,
     price_cents: 39999, // $399.99
     sort_order: 3,
@@ -86,17 +91,20 @@ async function createStripeProducts() {
       console.log(`\n🔨 Creating: ${pack.name}...`);
 
       // Create product
-      const productResponse = await fetch("https://api.stripe.com/v1/products", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${STRIPE_SECRET_KEY}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          name: pack.name,
-          description: pack.description,
-        }),
-      });
+      const productResponse = await fetch(
+        "https://api.stripe.com/v1/products",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            name: pack.name,
+            description: pack.description,
+          }),
+        }
+      );
 
       if (!productResponse.ok) {
         const error = await productResponse.text();
@@ -110,7 +118,7 @@ async function createStripeProducts() {
       const priceResponse = await fetch("https://api.stripe.com/v1/prices", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${STRIPE_SECRET_KEY}`,
+          Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: new URLSearchParams({
@@ -126,7 +134,9 @@ async function createStripeProducts() {
       }
 
       const price: StripePrice = await priceResponse.json();
-      console.log(`  ✓ Price created: ${price.id} ($${(pack.price_cents / 100).toFixed(2)})`);
+      console.log(
+        `  ✓ Price created: ${price.id} ($${(pack.price_cents / 100).toFixed(2)})`
+      );
 
       products.push({
         name: pack.name,
@@ -153,20 +163,24 @@ async function generateSeedScript(products: any[]) {
 
   const seedContent = `import { config } from "dotenv";
 import { db } from "../db/drizzle";
-import * as schema from "../db/schema";
+import * as schema from "../db/sass/schema";
 
 config({ path: ".env.local" });
 
 const creditPacks = [
-${products.map(p => `  {
-    name: "${p.name.replace('Credit Pack', 'Pack')}",
-    description: "${creditPacksConfig.find(c => c.name === p.name)?.description}",
+${products
+  .map(
+    (p) => `  {
+    name: "${p.name.replace("Credit Pack", "Pack")}",
+    description: "${creditPacksConfig.find((c) => c.name === p.name)?.description}",
     credits: ${p.credits},
     price_cents: ${p.priceCents},
     stripe_price_id: "${p.priceId}",
     stripe_product_id: "${p.productId}",
     sort_order: ${p.sortOrder},
-  }`).join(',\n')}
+  }`
+  )
+  .join(",\n")}
 ];
 
 async function seedCreditPacks() {
@@ -200,11 +214,17 @@ seedCreditPacks()
 
   const fs = await import("fs");
   const path = await import("path");
-  
-  const seedPath = path.join(process.cwd(), "scripts", "seed-credit-packs-generated.ts");
+
+  const seedPath = path.join(
+    process.cwd(),
+    "scripts",
+    "seed-credit-packs-generated.ts"
+  );
   fs.writeFileSync(seedPath, seedContent);
-  
-  console.log(`✓ Seed script generated: scripts/seed-credit-packs-generated.ts`);
+
+  console.log(
+    `✓ Seed script generated: scripts/seed-credit-packs-generated.ts`
+  );
   console.log(`\n💡 Run: npm run tsx scripts/seed-credit-packs-generated.ts`);
 
   return seedPath;
@@ -222,7 +242,7 @@ async function testAPIEndpoints() {
   try {
     const response = await fetch(`${BASE_URL}/api/stripe/credit-packs`);
     const data = await response.json();
-    
+
     if (response.ok) {
       console.log(`  ✓ Status: ${response.status}`);
       console.log(`  ✓ Credit packs found: ${data.creditPacks?.length || 0}`);
@@ -253,17 +273,21 @@ async function main() {
   try {
     // Step 1: Create Stripe products
     const products = await createStripeProducts();
-    
+
     if (products.length === 0) {
-      console.log("\n❌ No products were created. Please check your Stripe API key.");
+      console.log(
+        "\n❌ No products were created. Please check your Stripe API key."
+      );
       process.exit(1);
     }
 
     console.log("\n✅ Successfully created all Stripe products!");
     console.log("\nProduct Summary:");
     console.log("=".repeat(80));
-    products.forEach(p => {
-      console.log(`${p.name.padEnd(30)} | ${p.priceId.padEnd(30)} | ${p.productId}`);
+    products.forEach((p) => {
+      console.log(
+        `${p.name.padEnd(30)} | ${p.priceId.padEnd(30)} | ${p.productId}`
+      );
     });
     console.log("=".repeat(80));
 
@@ -276,11 +300,14 @@ async function main() {
     console.log("\n🎉 Setup Complete!");
     console.log("\n📋 Next Steps:");
     console.log("  1. Run database migration: npm run db:push");
-    console.log("  2. Seed credit packs: tsx scripts/seed-credit-packs-generated.ts");
+    console.log(
+      "  2. Seed credit packs: tsx scripts/seed-credit-packs-generated.ts"
+    );
     console.log("  3. Start dev server: npm run dev");
-    console.log("  4. Start Stripe webhooks: stripe listen --forward-to localhost:3000/api/stripe/webhook");
+    console.log(
+      "  4. Start Stripe webhooks: stripe listen --forward-to localhost:3000/api/stripe/webhook"
+    );
     console.log("  5. Visit: http://localhost:3000/dashboard/billing");
-
   } catch (error) {
     console.error("\n❌ Setup failed:", error);
     process.exit(1);
