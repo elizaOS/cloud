@@ -50,7 +50,7 @@ export async function generateMetadata({
         character.name,
         bio,
         character.avatar_url,
-        character.tags || []
+        character.tags || [],
       );
 
       // Override path and add noIndex for dashboard pages
