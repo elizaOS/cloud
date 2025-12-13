@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "ElizaOS Per-User Container Stack - Production Ready - 1 t3.small instance with ECS + Monitoring",
+  "Description": "ElizaOS Per-User Container Stack - Production Ready v2 - ECS with Auto Scaling Group, Capacity Provider, and Monitoring",
   "Parameters": {
     "UserId": {
       "Type": "String",
@@ -160,6 +160,16 @@
             "Value": "enabled"
           }
         ],
+        "CapacityProviders": [
+          { "Ref": "CapacityProvider" }
+        ],
+        "DefaultCapacityProviderStrategy": [
+          {
+            "CapacityProvider": { "Ref": "CapacityProvider" },
+            "Weight": 1,
+            "Base": 0
+          }
+        ],
         "Tags": [
           { "Key": "Name", "Value": { "Fn::Sub": "elizaos-user-${UserId}" } },
           { "Key": "UserId", "Value": { "Ref": "UserId" } },
@@ -205,7 +215,7 @@
           "SecurityGroupIds": [{ "Ref": "UserSecurityGroup" }],
           "UserData": {
             "Fn::Base64": {
-              "Fn::Sub": "#!/bin/bash\nset -x\nset -e\n\n# Log everything\nexec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1\n\nCLUSTER_NAME=elizaos-user-${UserId}\necho \"Configuring ECS for cluster: ${CLUSTER_NAME}\"\n\n# Ensure ECS config exists and is written BEFORE starting agent\nmkdir -p /etc/ecs\ncat > /etc/ecs/ecs.config << EOF\nECS_CLUSTER=${CLUSTER_NAME}\nECS_ENABLE_CONTAINER_METADATA=true\nECS_ENABLE_TASK_IAM_ROLE=true\nECS_ENABLE_TASK_CPU_MEM_LIMIT=true\nECS_CONTAINER_STOP_TIMEOUT=90s\nECS_ENABLE_UNTRACKED_IMAGE_CLEANUP=true\nECS_IMAGE_CLEANUP_INTERVAL=30m\nECS_RESERVED_MEMORY=256\nECS_LOGLEVEL=debug\nECS_AVAILABLE_LOGGING_DRIVERS=[\"awslogs\",\"json-file\"]\nEOF\n\n# If agent started with default config, stop and clear state so it re-registers correctly\nsystemctl stop ecs || true\nrm -rf /var/lib/ecs/data/* || true\n\n# Ensure container runtime is ready (docker or containerd, depending on AMI)\nif systemctl list-units --type=service | grep -q containerd.service; then\n  echo \"Waiting for containerd...\"\n  for i in {1..60}; do\n    if systemctl is-active containerd >/dev/null 2>&1; then\n      echo \"containerd is active\"\n      break\n    fi\n    echo \"Waiting for containerd (attempt $i/60)...\"\n    sleep 2\n  done\nelif systemctl list-units --type=service | grep -q docker.service; then\n  echo \"Waiting for docker...\"\n  for i in {1..60}; do\n    if systemctl is-active docker >/dev/null 2>&1; then\n      echo \"docker is active\"\n      break\n    fi\n    echo \"Waiting for docker (attempt $i/60)...\"\n    sleep 2\n  done\nfi\n\n# Enable and restart ECS agent so it picks up the new config\necho \"Enabling and restarting ecs agent...\"\nsystemctl enable ecs\nsystemctl restart ecs\n\n# Wait for ECS agent to be active\necho \"Waiting for ECS agent to become active...\"\nfor i in {1..60}; do\n  if systemctl is-active ecs >/dev/null 2>&1; then\n    echo \"ECS agent is active\"\n    break\n  fi\n  echo \"Waiting for ECS agent (attempt $i/60)...\"\n  sleep 2\ndone\n\n# Try to read agent introspection endpoint\nfor i in {1..60}; do\n  if curl -s http://localhost:51678/v1/metadata >/dev/null 2>&1; then\n    echo \"ECS agent introspection available\"\n    break\n  fi\n  echo \"Waiting for ECS introspection (attempt $i/60)...\"\n  sleep 2\ndone\n\n# Dump metadata for diagnostics\n( curl -s http://localhost:51678/v1/metadata || true ) | tee /var/log/ecs-introspection.json || true\n\n# Best-effort success signal (do not fail if cfn-signal is missing)\necho \"UserData completed; sending success signal (best-effort)\"\nif [ -x /opt/aws/bin/cfn-signal ]; then\n  /opt/aws/bin/cfn-signal -e 0 --stack ${AWS::StackName} --resource EC2Instance --region ${AWS::Region} || true\nfi\n"
+              "Fn::Sub": "#!/bin/bash\nset -x\n\n# Log everything to file and console\nexec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1\n\necho \"========================================\"\necho \"ElizaOS ECS Instance Bootstrap Starting\"\necho \"Cluster: elizaos-user-${UserId}\"\necho \"Time: $(date)\"\necho \"========================================\"\n\nCLUSTER_NAME=\"elizaos-user-${UserId}\"\nREGION=\"${AWS::Region}\"\nSTACK_NAME=\"${AWS::StackName}\"\n\n# Install cfn-bootstrap tools if not present\nif [ ! -x /opt/aws/bin/cfn-signal ]; then\n  echo \"Installing aws-cfn-bootstrap...\"\n  yum install -y aws-cfn-bootstrap || {\n    echo \"ERROR: Failed to install cfn-bootstrap tools\"\n    exit 1\n  }\nfi\n\n# Signal function for both success and failure\nsignal_result() {\n  local exit_code=$1\n  local message=$2\n  echo \"$message\"\n  /opt/aws/bin/cfn-signal -e $exit_code --stack \"$STACK_NAME\" --resource AutoScalingGroup --region \"$REGION\"\n  exit $exit_code\n}\n\n# Write ECS configuration BEFORE starting the agent\necho \"Configuring ECS agent for cluster: $CLUSTER_NAME\"\nmkdir -p /etc/ecs\ncat > /etc/ecs/ecs.config << EOF\nECS_CLUSTER=$CLUSTER_NAME\nECS_ENABLE_CONTAINER_METADATA=true\nECS_ENABLE_TASK_IAM_ROLE=true\nECS_ENABLE_TASK_CPU_MEM_LIMIT=true\nECS_CONTAINER_STOP_TIMEOUT=90s\nECS_ENABLE_UNTRACKED_IMAGE_CLEANUP=true\nECS_IMAGE_CLEANUP_INTERVAL=30m\nECS_RESERVED_MEMORY=256\nECS_LOGLEVEL=info\nECS_AVAILABLE_LOGGING_DRIVERS=[\"awslogs\",\"json-file\"]\nECS_ENABLE_SPOT_INSTANCE_DRAINING=false\nEOF\n\necho \"ECS configuration written:\"\ncat /etc/ecs/ecs.config\n\n# Stop ECS agent if running and clear any stale state\necho \"Stopping ECS agent and clearing stale state...\"\nsystemctl stop ecs 2>/dev/null || true\nrm -rf /var/lib/ecs/data/agent.db /var/lib/ecs/data/ecs_agent_data.json 2>/dev/null || true\n\n# Wait for Docker/Containerd to be ready\necho \"Waiting for container runtime...\"\nfor i in {1..30}; do\n  if systemctl is-active docker >/dev/null 2>&1 || systemctl is-active containerd >/dev/null 2>&1; then\n    echo \"Container runtime is ready\"\n    break\n  fi\n  if [ $i -eq 30 ]; then\n    signal_result 1 \"ERROR: Container runtime failed to start\"\n  fi\n  sleep 2\ndone\n\n# Start and enable ECS agent\necho \"Starting ECS agent...\"\nsystemctl enable ecs\nsystemctl start ecs\n\n# Wait for ECS agent service to be active\necho \"Waiting for ECS agent service...\"\nfor i in {1..30}; do\n  if systemctl is-active ecs >/dev/null 2>&1; then\n    echo \"ECS agent service is active\"\n    break\n  fi\n  if [ $i -eq 30 ]; then\n    signal_result 1 \"ERROR: ECS agent service failed to start\"\n  fi\n  sleep 2\ndone\n\n# Wait for ECS agent introspection endpoint\necho \"Waiting for ECS agent introspection endpoint...\"\nfor i in {1..30}; do\n  if curl -s http://localhost:51678/v1/metadata >/dev/null 2>&1; then\n    echo \"ECS agent introspection endpoint is responding\"\n    break\n  fi\n  if [ $i -eq 30 ]; then\n    signal_result 1 \"ERROR: ECS agent introspection endpoint not responding\"\n  fi\n  sleep 2\ndone\n\n# Verify registration with ECS cluster\necho \"Verifying ECS cluster registration...\"\nfor i in {1..60}; do\n  METADATA=$(curl -s http://localhost:51678/v1/metadata)\n  if echo \"$METADATA\" | grep -q \"$CLUSTER_NAME\"; then\n    echo \"✅ Successfully registered with cluster: $CLUSTER_NAME\"\n    echo \"$METADATA\" | tee /var/log/ecs-introspection.json\n    \n    # Additional verification: Check if instance appears in cluster\n    sleep 5\n    INSTANCE_ARN=$(echo \"$METADATA\" | grep -o '\"ContainerInstanceArn\":\"[^\"]*\"' | cut -d'\"' -f4)\n    echo \"Container Instance ARN: $INSTANCE_ARN\"\n    \n    signal_result 0 \"✅ ECS instance successfully bootstrapped\"\n  fi\n  if [ $i -eq 60 ]; then\n    echo \"ERROR: Failed to register with cluster after 2 minutes\"\n    echo \"Last metadata response: $METADATA\"\n    signal_result 1 \"ERROR: ECS cluster registration timeout\"\n  fi\n  echo \"Waiting for cluster registration (attempt $i/60)...\"\n  sleep 2\ndone\n"
             }
           },
           "BlockDeviceMappings": [
@@ -260,51 +270,99 @@
         }
       }
     },
-    "EC2Instance": {
-      "Type": "AWS::EC2::Instance",
+    "AutoScalingGroup": {
+      "Type": "AWS::AutoScaling::AutoScalingGroup",
       "CreationPolicy": {
         "ResourceSignal": {
           "Timeout": "PT15M",
           "Count": 1
         }
       },
+      "UpdatePolicy": {
+        "AutoScalingReplacingUpdate": {
+          "WillReplace": true
+        }
+      },
       "Properties": {
+        "AutoScalingGroupName": {
+          "Fn::Sub": "elizaos-user-${UserId}-asg"
+        },
+        "VPCZoneIdentifier": [{ "Ref": "SharedSubnetId" }],
         "LaunchTemplate": {
           "LaunchTemplateId": { "Ref": "LaunchTemplate" },
           "Version": { "Fn::GetAtt": ["LaunchTemplate", "LatestVersionNumber"] }
         },
-        "SubnetId": { "Ref": "SharedSubnetId" },
+        "MinSize": "1",
+        "MaxSize": "1",
+        "DesiredCapacity": "1",
+        "HealthCheckType": "EC2",
+        "HealthCheckGracePeriod": 300,
+        "NewInstancesProtectedFromScaleIn": false,
         "Tags": [
-          { "Key": "Name", "Value": { "Fn::Sub": "elizaos-user-${UserId}" } },
+          {
+            "Key": "Name",
+            "Value": { "Fn::Sub": "elizaos-user-${UserId}" },
+            "PropagateAtLaunch": true
+          },
+          {
+            "Key": "UserId",
+            "Value": { "Ref": "UserId" },
+            "PropagateAtLaunch": true
+          },
+          {
+            "Key": "UserEmail",
+            "Value": { "Ref": "UserEmail" },
+            "PropagateAtLaunch": true
+          },
+          {
+            "Key": "Project",
+            "Value": "ElizaOS",
+            "PropagateAtLaunch": true
+          },
+          {
+            "Key": "Environment",
+            "Value": "production",
+            "PropagateAtLaunch": true
+          },
+          {
+            "Key": "BillingEntity",
+            "Value": "ElizaOS",
+            "PropagateAtLaunch": true
+          },
+          {
+            "Key": "CostCenter",
+            "Value": { "Ref": "UserId" },
+            "PropagateAtLaunch": true
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation",
+            "PropagateAtLaunch": true
+          }
+        ]
+      }
+    },
+    "CapacityProvider": {
+      "Type": "AWS::ECS::CapacityProvider",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "elizaos-user-${UserId}-cp"
+        },
+        "AutoScalingGroupProvider": {
+          "AutoScalingGroupArn": { "Ref": "AutoScalingGroup" },
+          "ManagedScaling": {
+            "Status": "DISABLED",
+            "TargetCapacity": 100
+          },
+          "ManagedTerminationProtection": "DISABLED"
+        },
+        "Tags": [
           { "Key": "UserId", "Value": { "Ref": "UserId" } },
-          { "Key": "UserEmail", "Value": { "Ref": "UserEmail" } },
           { "Key": "Project", "Value": "ElizaOS" },
-          { "Key": "Environment", "Value": "production" },
           { "Key": "BillingEntity", "Value": "ElizaOS" },
           { "Key": "CostCenter", "Value": { "Ref": "UserId" } },
           { "Key": "ManagedBy", "Value": "CloudFormation" }
         ]
-      }
-    },
-    "EC2RecoveryAlarm": {
-      "Type": "AWS::CloudWatch::Alarm",
-      "Properties": {
-        "AlarmName": { "Fn::Sub": "elizaos-${UserId}-ec2-recovery" },
-        "AlarmDescription": "Trigger EC2 recovery if system status check fails",
-        "MetricName": "StatusCheckFailed_System",
-        "Namespace": "AWS/EC2",
-        "Statistic": "Minimum",
-        "Period": 60,
-        "EvaluationPeriods": 2,
-        "Threshold": 1,
-        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
-        "AlarmActions": [
-          { "Fn::Sub": "arn:aws:automate:${AWS::Region}:ec2:recover" }
-        ],
-        "Dimensions": [
-          { "Name": "InstanceId", "Value": { "Ref": "EC2Instance" } }
-        ],
-        "TreatMissingData": "notBreaching"
       }
     },
     "TargetGroup": {
@@ -515,7 +573,7 @@
     },
     "ECSService": {
       "Type": "AWS::ECS::Service",
-      "DependsOn": ["EC2Instance", "ListenerRule", "TargetGroup", "ECSCluster"],
+      "DependsOn": ["AutoScalingGroup", "ListenerRule", "TargetGroup"],
       "Properties": {
         "ServiceName": {
           "Fn::Sub": "elizaos-user-${UserId}"
@@ -523,7 +581,13 @@
         "Cluster": { "Ref": "ECSCluster" },
         "TaskDefinition": { "Ref": "TaskDefinition" },
         "DesiredCount": 1,
-        "LaunchType": "EC2",
+        "CapacityProviderStrategy": [
+          {
+            "CapacityProvider": { "Ref": "CapacityProvider" },
+            "Weight": 1,
+            "Base": 0
+          }
+        ],
         "LoadBalancers": [
           {
             "TargetGroupArn": { "Ref": "TargetGroup" },
@@ -540,6 +604,12 @@
             "Rollback": false
           }
         },
+        "PlacementStrategies": [
+          {
+            "Type": "spread",
+            "Field": "instanceId"
+          }
+        ],
         "Tags": [
           { "Key": "UserId", "Value": { "Ref": "UserId" } },
           { "Key": "Project", "Value": "ElizaOS" },
@@ -559,13 +629,13 @@
       "Description": "ECS Cluster ARN",
       "Value": { "Fn::GetAtt": ["ECSCluster", "Arn"] }
     },
-    "InstanceId": {
-      "Description": "EC2 Instance ID",
-      "Value": { "Ref": "EC2Instance" }
+    "AutoScalingGroupName": {
+      "Description": "Auto Scaling Group Name",
+      "Value": { "Ref": "AutoScalingGroup" }
     },
-    "InstancePublicIp": {
-      "Description": "EC2 Instance Public IP",
-      "Value": { "Fn::GetAtt": ["EC2Instance", "PublicIp"] }
+    "CapacityProviderName": {
+      "Description": "ECS Capacity Provider Name",
+      "Value": { "Ref": "CapacityProvider" }
     },
     "ServiceArn": {
       "Description": "ECS Service ARN",
