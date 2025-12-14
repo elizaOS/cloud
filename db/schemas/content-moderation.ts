@@ -1,6 +1,6 @@
 /**
  * Content Moderation Schema
- * Unified moderation tracking for all content types: images, text, agents, domains
+ * Tracks moderation for all content types: images, text, agents, domains
  */
 
 import {

@@ -5,7 +5,7 @@ import { usageService } from "@/lib/services/usage";
 import { creditsService } from "@/lib/services/credits";
 import { generationsService } from "@/lib/services/generations";
 import { discordService } from "@/lib/services/discord";
-import { unifiedModerationService } from "@/lib/services/unified-moderation";
+import { contentModerationService } from "@/lib/services/moderation";
 import { IMAGE_GENERATION_COST } from "@/lib/pricing";
 import { uploadBase64Image } from "@/lib/blob";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -451,7 +451,7 @@ async function handlePOST(req: NextRequest) {
     // Moderate generated images in background
     if (generationId && uploadResults.length > 0) {
       const firstResult = uploadResults[0];
-      unifiedModerationService.scan({
+      contentModerationService.scan({
         contentType: "image",
         sourceTable: "generations",
         sourceId: generationId,

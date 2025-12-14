@@ -1,4 +1,4 @@
--- Rollback: Content Moderation Unified Schema
+-- Rollback: Content Moderation Schema
 
 DROP INDEX IF EXISTS "user_mod_strikes_content_type_idx";
 DROP INDEX IF EXISTS "user_mod_strikes_created_at_idx";

@@ -18,7 +18,7 @@ import {
   Search,
   Clock,
   Activity,
-  Image,
+  ImageIcon,
   FileWarning,
   CheckCircle,
   XCircle,
@@ -456,7 +456,7 @@ export default function AdminPage() {
             Violations
           </TabsTrigger>
           <TabsTrigger value="content" onClick={() => { loadContentStats(); loadPendingContent(); }}>
-            <Image className="mr-2 h-4 w-4" />
+            <ImageIcon className="mr-2 h-4 w-4" />
             Content
           </TabsTrigger>
           <TabsTrigger value="users" onClick={loadUsers}>
@@ -595,7 +595,7 @@ export default function AdminPage() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">By Type</CardTitle>
-                  <Image className="h-4 w-4 text-blue-500" />
+                  <ImageIcon className="h-4 w-4 text-blue-500" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-xs space-y-1">

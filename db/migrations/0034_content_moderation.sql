@@ -1,4 +1,4 @@
--- Content Moderation Unified Schema
+-- Content Moderation Schema
 -- Adds tables for tracking all content moderation across the platform
 
 -- Enums

@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { adminService } from "@/lib/services/admin";
-import { unifiedModerationService } from "@/lib/services/unified-moderation";
+import { contentModerationService } from "@/lib/services/moderation";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
@@ -45,13 +45,13 @@ export async function GET(request: NextRequest) {
 
   switch (view) {
     case "stats": {
-      const stats = await unifiedModerationService.getStats();
-      const usersWithStrikes = await unifiedModerationService.getUsersWithStrikes(10);
+      const stats = await contentModerationService.getStats();
+      const usersWithStrikes = await contentModerationService.getUsersWithStrikes(10);
       return NextResponse.json({ stats, topRiskUsers: usersWithStrikes });
     }
 
     case "pending": {
-      const items = await unifiedModerationService.getPendingReview(limit);
+      const items = await contentModerationService.getPendingReview(limit);
       return NextResponse.json({ items });
     }
 
@@ -59,12 +59,12 @@ export async function GET(request: NextRequest) {
       if (!userId) {
         return NextResponse.json({ error: "userId required" }, { status: 400 });
       }
-      const profile = await unifiedModerationService.getUserRiskProfile(userId);
+      const profile = await contentModerationService.getUserRiskProfile(userId);
       return NextResponse.json(profile);
     }
 
     case "users-with-strikes": {
-      const users = await unifiedModerationService.getUsersWithStrikes(limit);
+      const users = await contentModerationService.getUsersWithStrikes(limit);
       return NextResponse.json({ users });
     }
 
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid request", details: parsed.error.issues }, { status: 400 });
     }
 
-    await unifiedModerationService.reviewItem(
+    await contentModerationService.reviewItem(
       parsed.data.itemId,
       auth.user!.id,
       parsed.data.decision,
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid request", details: parsed.error.issues }, { status: 400 });
     }
 
-    const result = await unifiedModerationService.scan({
+    const result = await contentModerationService.scan({
       contentType: parsed.data.contentType,
       sourceTable: parsed.data.sourceTable,
       sourceId: parsed.data.sourceId,

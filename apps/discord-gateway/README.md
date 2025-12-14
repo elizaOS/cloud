@@ -93,28 +93,115 @@ bun test integration-real
 bun run build
 ```
 
-## Docker
+## Local Development with Docker
+
+```bash
+# Start locally with docker-compose (includes Redis)
+bun run docker:up
+
+# View logs
+bun run docker:logs
+
+# Stop
+bun run docker:down
+```
+
+Or manually:
 
 ```bash
 # Build image
-docker build -t discord-gateway .
+bun run docker:build
 
 # Run locally
-docker run -p 3000:3000 \
-  -e ELIZA_CLOUD_URL=https://elizacloud.ai \
-  -e INTERNAL_API_KEY=your-key \
-  discord-gateway
+bun run docker:run
+```
+
+## CI/CD Auto-Deployment
+
+The Discord Gateway automatically deploys when changes are pushed:
+
+| Branch | Environment | Trigger |
+|--------|-------------|---------|
+| `dev` | Staging | Push to `dev` branch |
+| `main` | Production | Push to `main` branch |
+| Manual | Either | GitHub Actions "Run workflow" button |
+
+### Workflow: `.github/workflows/discord-gateway.yml`
+
+1. **Test**: Runs all unit and integration tests
+2. **Build**: Builds and pushes Docker image to GHCR
+3. **Deploy**: Updates Kubernetes deployment with new image
+
+### Manual Deployment
+
+You can also trigger a deployment manually from the GitHub Actions tab:
+
+1. Go to **Actions** → **Discord Gateway**
+2. Click **Run workflow**
+3. Select target environment (staging/production)
+4. Click **Run workflow**
+
+### Required GitHub Secrets
+
+| Secret | Description |
+|--------|-------------|
+| `STAGING_KUBECONFIG` | Kubeconfig content for staging cluster |
+| `PRODUCTION_KUBECONFIG` | Kubeconfig content for production cluster |
+
+To set up the secrets:
+
+```bash
+# Get your kubeconfig content
+cat ~/.kube/config
+
+# Then paste it into GitHub Settings > Secrets > Actions > New repository secret
 ```
 
 ## Kubernetes Deployment
 
-See `/packages/deployment/kubernetes/helm/discord-gateway/` for Helm charts.
+### First-Time Setup
 
 ```bash
-# Deploy to testnet
-helm upgrade --install discord-gateway \
-  ./packages/deployment/kubernetes/helm/discord-gateway \
-  -f ./packages/deployment/kubernetes/helm/discord-gateway/values-testnet.yaml
+# 1. Create namespace
+kubectl create namespace discord-gateway
+
+# 2. Create secrets
+kubectl create secret generic discord-gateway-secrets \
+  --namespace discord-gateway \
+  --from-literal=eliza-cloud-url=https://your-eliza-cloud.com \
+  --from-literal=internal-api-key=YOUR_INTERNAL_API_KEY \
+  --from-literal=redis-url=https://your-redis.upstash.io \
+  --from-literal=redis-token=YOUR_REDIS_TOKEN
+
+# 3. Apply all manifests
+kubectl apply -f k8s/ -n discord-gateway
+```
+
+### Updating Manifests
+
+```bash
+# Apply all manifests
+bun run k8s:apply
+
+# Or individually:
+kubectl apply -f k8s/deployment.yaml -n discord-gateway
+kubectl apply -f k8s/hpa.yaml -n discord-gateway
+kubectl apply -f k8s/pdb.yaml -n discord-gateway
+kubectl apply -f k8s/servicemonitor.yaml -n discord-gateway
+kubectl apply -f k8s/alerts.yaml -n discord-gateway
+```
+
+### Verify Deployment
+
+```bash
+# Check pods are running
+kubectl get pods -n discord-gateway
+
+# Check logs
+kubectl logs -n discord-gateway -l app=discord-gateway -f
+
+# Check service
+kubectl get svc -n discord-gateway
 ```
 
 ## How It Works

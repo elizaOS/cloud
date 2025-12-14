@@ -13,7 +13,7 @@ import {
   type NewMediaUpload,
 } from "@/db/repositories";
 import { v4 as uuidv4 } from "uuid";
-import { unifiedModerationService } from "./unified-moderation";
+import { contentModerationService } from "./moderation";
 
 export interface UploadMediaInput {
   organizationId: string;
@@ -172,7 +172,7 @@ class MediaUploadsService {
   }
 
   private async moderateUpload(upload: MediaUpload, data: Buffer): Promise<void> {
-    const result = await unifiedModerationService.scan({
+    const result = await contentModerationService.scan({
       contentType: "image",
       sourceTable: "media_uploads",
       sourceId: upload.id,
