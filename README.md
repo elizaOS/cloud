@@ -707,12 +707,12 @@ Authorization: Bearer eliza_your_api_key
 
 **Features**:
 
-- Multiple Fal.ai models:
-  - `fal-ai/veo3` (Google Veo 3)
-  - `fal-ai/veo3/fast` (faster version)
-  - `fal-ai/kling-video/v2.1/pro/text-to-video` (Kling Pro)
-  - `fal-ai/minimax/hailuo-02/pro/text-to-video` (MiniMax)
-- Automatic Vercel Blob upload
+- Multiple video models:
+  - `google/veo3` (Google Veo 3)
+  - `google/veo3-fast` (faster version)
+  - `kling/v2.1-pro` (Kuaishou Kling Pro)
+  - `minimax/hailuo-pro` (MiniMax Hailuo Pro)
+- Automatic storage upload
 - Progress tracking with queue updates
 - Fallback video on errors
 
@@ -725,7 +725,7 @@ Authorization: Bearer eliza_your_api_key
 
 {
   "prompt": "A cinematic shot of a spaceship flying through stars",
-  "model": "fal-ai/veo3"
+  "model": "google/veo3"
 }
 ```
 
@@ -1538,7 +1538,7 @@ POST /api/v1/generate-image
 POST /api/v1/generate-video
 {
   "prompt": "Cinematic shot of spaceship",
-  "model": "fal-ai/veo3"
+  "model": "google/veo3"
 }
 
 # Available Models

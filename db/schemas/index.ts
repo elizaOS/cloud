@@ -79,3 +79,6 @@ export * from "./app-integrations";
 
 // Performance Monitoring
 export * from "./slow-query-log";
+
+// Content Moderation
+export * from "./content-moderation";

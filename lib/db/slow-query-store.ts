@@ -18,9 +18,9 @@ export interface SlowQueryEntry {
 }
 
 const REDIS_KEY_PREFIX = "slow_query:";
-const REDIS_TTL_SECONDS = 86400;
-const POSTGRES_FLUSH_INTERVAL = 5000;
-const MAX_MEMORY_ENTRIES = 1000;
+const REDIS_TTL_SECONDS = parseInt(process.env.SLOW_QUERY_REDIS_TTL || "86400", 10);
+const POSTGRES_FLUSH_INTERVAL = parseInt(process.env.SLOW_QUERY_FLUSH_INTERVAL || "5000", 10);
+const MAX_MEMORY_ENTRIES = parseInt(process.env.SLOW_QUERY_MAX_MEMORY || "1000", 10);
 
 const memoryStore = new Map<string, SlowQueryEntry>();
 const postgresQueue = new Map<string, SlowQueryEntry>();
@@ -51,10 +51,10 @@ function getRedis(): Redis | null {
 
   if (nativeUrl) {
     redis = Redis.fromEnv();
-    console.log("[SlowQueryStore] Redis initialized (native protocol)");
+    console.info("[SlowQueryStore] Redis initialized (native protocol)");
   } else if (restUrl && restToken) {
     redis = new Redis({ url: restUrl, token: restToken });
-    console.log("[SlowQueryStore] Redis initialized (REST API)");
+    console.info("[SlowQueryStore] Redis initialized (REST API)");
   }
 
   return redis;
@@ -116,7 +116,7 @@ export async function recordSlowQuery(
   if (redisClient && entry) {
     redisClient
       .setex(`${REDIS_KEY_PREFIX}${queryHash}`, REDIS_TTL_SECONDS, JSON.stringify(entry))
-      .catch((e: Error) => console.debug("[SlowQueryStore] Redis write failed:", e.message));
+      .catch((e: Error) => console.warn("[SlowQueryStore] Redis write failed:", e.message));
   }
 
   if (entry) {
@@ -159,7 +159,7 @@ async function flushToPostgres(): Promise<void> {
         last_seen_at = EXCLUDED.last_seen_at
     `
       )
-      .catch((e: Error) => console.debug("[SlowQueryStore] PostgreSQL write failed:", e.message));
+      .catch((e: Error) => console.warn("[SlowQueryStore] PostgreSQL write failed:", e.message));
   }
 }
 
@@ -176,10 +176,17 @@ export async function getSlowQueryKeysFromRedis(): Promise<string[]> {
   if (!redisClient) return [];
 
   try {
-    const keys = await redisClient.keys(`${REDIS_KEY_PREFIX}*`);
+    // Use SCAN instead of KEYS to handle large datasets
+    const keys: string[] = [];
+    let cursor: string | number = 0;
+    do {
+      const [nextCursor, batch] = await redisClient.scan(cursor, { match: `${REDIS_KEY_PREFIX}*`, count: 100 });
+      cursor = typeof nextCursor === "string" ? parseInt(nextCursor, 10) : nextCursor;
+      keys.push(...batch);
+    } while (cursor !== 0);
     return keys.map((k) => k.replace(REDIS_KEY_PREFIX, ""));
   } catch (e) {
-    console.debug("[SlowQueryStore] Redis keys failed:", (e as Error).message);
+    console.debug("[SlowQueryStore] Redis scan failed:", (e as Error).message);
     return [];
   }
 }

@@ -1,7 +1,3 @@
-/**
- * Query Alerting - Real-time alerts for slow queries via Discord/Slack.
- */
-
 export const ALERT_THRESHOLDS = {
   SLOW: 50,
   WARNING: 200,
@@ -39,7 +35,6 @@ function cleanupRateLimiter(): void {
     }
   }
   
-  // If still over limit, remove oldest entries
   if (alertRateLimiter.size > MAX_RATE_LIMITER_ENTRIES) {
     const entries = Array.from(alertRateLimiter.entries())
       .sort((a, b) => a[1] - b[1]);
@@ -50,9 +45,6 @@ function cleanupRateLimiter(): void {
   }
 }
 
-/**
- * Checks and logs alerting configuration. Called once on startup.
- */
 export function checkAlertConfig(): void {
   if (configChecked) return;
   configChecked = true;
@@ -151,9 +143,6 @@ async function sendSlackAlert(alert: SlowQueryAlert): Promise<void> {
   }).catch((e: Error) => console.debug("[QueryAlert] Slack webhook failed:", e.message));
 }
 
-/**
- * Sends slow query alert to configured channels. Rate-limited per query.
- */
 export async function sendSlowQueryAlert(alert: SlowQueryAlert): Promise<void> {
   if (!alertConfig) return;
 
@@ -165,9 +154,6 @@ export async function sendSlowQueryAlert(alert: SlowQueryAlert): Promise<void> {
   await Promise.allSettled([sendDiscordAlert(alert), sendSlackAlert(alert)]);
 }
 
-/**
- * Returns severity level based on query duration.
- */
 export function getAlertSeverity(durationMs: number): "warning" | "critical" | null {
   if (durationMs >= ALERT_THRESHOLDS.CRITICAL) return "critical";
   if (durationMs >= ALERT_THRESHOLDS.WARNING) return "warning";
@@ -178,9 +164,6 @@ export function clearRateLimiter(): void {
   alertRateLimiter.clear();
 }
 
-/**
- * Resets all module state. For testing only.
- */
 export function resetAlertingState(): void {
   alertRateLimiter.clear();
   alertConfig = null;

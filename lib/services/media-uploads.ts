@@ -13,6 +13,7 @@ import {
   type NewMediaUpload,
 } from "@/db/repositories";
 import { v4 as uuidv4 } from "uuid";
+import { unifiedModerationService } from "./unified-moderation";
 
 export interface UploadMediaInput {
   organizationId: string;
@@ -160,7 +161,38 @@ class MediaUploadsService {
       storageUrl,
     });
 
+    // Run moderation in background (fire and forget)
+    if (mediaType === "image") {
+      this.moderateUpload(upload, data).catch(err => {
+        logger.error("[MediaUploads] Background moderation failed", { id: upload.id, error: String(err) });
+      });
+    }
+
     return upload;
+  }
+
+  private async moderateUpload(upload: MediaUpload, data: Buffer): Promise<void> {
+    const result = await unifiedModerationService.scan({
+      contentType: "image",
+      sourceTable: "media_uploads",
+      sourceId: upload.id,
+      organizationId: upload.organization_id,
+      userId: upload.user_id,
+      isPublic: false, // User uploads are private by default
+      contentUrl: upload.storage_url,
+      contentData: data,
+      contentMimeType: upload.mime_type,
+      contentSizeBytes: Number(upload.file_size),
+    });
+
+    if (result.status === "deleted") {
+      // Delete the content
+      await this.delete(upload.id);
+      logger.warn("[MediaUploads] Content deleted due to moderation", { 
+        id: upload.id, 
+        flags: result.flags.map(f => f.type).join(", "),
+      });
+    }
   }
 
   async uploadFromUrl(input: UploadMediaFromUrlInput): Promise<MediaUpload> {

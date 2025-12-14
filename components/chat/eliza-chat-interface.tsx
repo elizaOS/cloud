@@ -1249,10 +1249,6 @@ export function ElizaChatInterface({
                 value={selectedTier}
                 onValueChange={(value) => {
                   setTier(value as "fast" | "pro" | "ultra");
-                  const tier = tiers.find((t) => t.id === value);
-                  if (tier) {
-                    toast.success(`Model: ${tier.name}`);
-                  }
                 }}
                 disabled={isLoadingModels}
               >

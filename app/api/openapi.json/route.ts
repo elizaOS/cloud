@@ -373,7 +373,7 @@ export async function GET() {
             prompt: { type: "string" },
             model: {
               type: "string",
-              default: "fal-ai/flux/schnell",
+              default: "flux/schnell",
             },
             size: {
               type: "string",
@@ -405,7 +405,20 @@ export async function GET() {
           required: ["prompt"],
           properties: {
             prompt: { type: "string" },
-            model: { type: "string", default: "minimax/video-01" },
+            model: {
+              type: "string",
+              default: "google/veo3",
+              enum: [
+                "google/veo3",
+                "google/veo3-fast",
+                "kling/v2.1-master",
+                "kling/v2.1-pro",
+                "kling/v2.1-standard",
+                "minimax/hailuo-standard",
+                "minimax/hailuo-pro",
+              ],
+              description: "Video model (creator/model format)",
+            },
             image_url: { type: "string", description: "Optional image input" },
           },
         },

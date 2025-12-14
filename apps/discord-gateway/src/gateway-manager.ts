@@ -5,6 +5,9 @@ import { logger } from "./logger";
 const metric = (name: string, type: string, help: string, pod: string, value: number): string =>
   `# HELP ${name} ${help}\n# TYPE ${name} ${type}\n${name}{pod="${pod}"} ${value}`;
 
+const FAILOVER_CHECK_INTERVAL_MS = parseInt(process.env.FAILOVER_CHECK_INTERVAL_MS ?? "60000", 10);
+const DEAD_POD_THRESHOLD_MS = parseInt(process.env.DEAD_POD_THRESHOLD_MS ?? "120000", 10);
+
 interface GatewayConfig {
   podName: string;
   elizaCloudUrl: string;
@@ -44,6 +47,7 @@ export class GatewayManager {
   private startTime: Date = new Date();
   private pollInterval: NodeJS.Timeout | null = null;
   private heartbeatInterval: NodeJS.Timeout | null = null;
+  private failoverInterval: NodeJS.Timeout | null = null;
 
   constructor(config: GatewayConfig) {
     this.config = config;
@@ -65,6 +69,12 @@ export class GatewayManager {
     // Start heartbeat
     this.heartbeatInterval = setInterval(() => this.sendHeartbeat(), 30000);
 
+    // Start failover check (claim orphaned connections from dead pods)
+    if (this.redis) {
+      this.failoverInterval = setInterval(() => this.checkForDeadPods(), FAILOVER_CHECK_INTERVAL_MS);
+      logger.info("Failover monitoring enabled", { intervalMs: FAILOVER_CHECK_INTERVAL_MS });
+    }
+
     logger.info("Gateway manager started");
   }
 
@@ -73,12 +83,19 @@ export class GatewayManager {
 
     if (this.pollInterval) clearInterval(this.pollInterval);
     if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
+    if (this.failoverInterval) clearInterval(this.failoverInterval);
 
     // Save session state and disconnect all bots
     for (const [connectionId, conn] of this.connections) {
       await this.saveSessionState(connectionId, conn);
       conn.client.destroy();
       logger.info("Disconnected bot", { connectionId });
+    }
+
+    // Clear pod heartbeat from Redis
+    if (this.redis) {
+      await this.redis.del(`discord:pod:${this.config.podName}`);
+      await this.redis.srem("discord:active_pods", this.config.podName);
     }
 
     this.connections.clear();
@@ -423,7 +440,67 @@ export class GatewayManager {
         lastHeartbeat: Date.now(),
       };
       await this.redis.setex(`discord:pod:${this.config.podName}`, 300, JSON.stringify(podState));
+      await this.redis.sadd("discord:active_pods", this.config.podName);
     }
+  }
+
+  private async checkForDeadPods(): Promise<void> {
+    if (!this.redis) return;
+
+    const activePods = await this.redis.smembers("discord:active_pods");
+    if (!activePods || activePods.length === 0) return;
+
+    for (const podId of activePods) {
+      if (podId === this.config.podName) continue;
+
+      const podState = await this.redis.get<string>(`discord:pod:${podId}`);
+      if (!podState) {
+        // Pod state expired, it's dead
+        await this.claimOrphanedConnections(podId);
+        continue;
+      }
+
+      const state = typeof podState === "string" ? JSON.parse(podState) : podState;
+      const timeSinceHeartbeat = Date.now() - state.lastHeartbeat;
+
+      if (timeSinceHeartbeat > DEAD_POD_THRESHOLD_MS) {
+        logger.warn("Dead pod detected", { podId, timeSinceHeartbeat });
+        await this.claimOrphanedConnections(podId);
+      }
+    }
+  }
+
+  private async claimOrphanedConnections(deadPodId: string): Promise<void> {
+    if (!this.redis) return;
+
+    logger.info("Claiming orphaned connections from dead pod", { deadPodId });
+
+    // Report to backend that this pod is taking over orphaned connections
+    const response = await fetch(
+      `${this.config.elizaCloudUrl}/api/internal/discord/gateway/failover`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Internal-API-Key": this.config.internalApiKey,
+        },
+        body: JSON.stringify({
+          claiming_pod: this.config.podName,
+          dead_pod: deadPodId,
+        }),
+      }
+    );
+
+    if (response.ok) {
+      const data = await response.json() as { claimed: number };
+      logger.info("Claimed orphaned connections", { deadPodId, claimed: data.claimed });
+    } else {
+      logger.error("Failed to claim orphaned connections", { deadPodId, status: response.status });
+    }
+
+    // Clean up dead pod's Redis state
+    await this.redis.srem("discord:active_pods", deadPodId);
+    await this.redis.del(`discord:pod:${deadPodId}`);
   }
 
   getHealth(): HealthStatus {

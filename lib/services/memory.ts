@@ -15,7 +15,7 @@ import { createHash } from "crypto";
 import { conversationsService } from "@/lib/services/conversations";
 import type { ConversationMessage } from "@/db/repositories";
 import { db } from "@/db/client";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { users } from "@/db/schemas/users";
 import { participantTable, memoryTable } from "@/db/schemas/eliza";
 
@@ -355,52 +355,38 @@ export class MemoryService {
         return [];
       }
 
-      const allMemories: Memory[] = [];
       const limit = input.limit || 10;
+      const roomIdArray = Array.from(allowedRoomIds);
 
-      for (const roomId of allowedRoomIds) {
-        logger.info(`[Memory Service] Fetching memories for room: ${roomId}`);
+      // Single query with inArray instead of N+1 loop
+      const results = await db
+        .select()
+        .from(memoryTable)
+        .where(
+          and(
+            inArray(memoryTable.roomId, roomIdArray),
+            eq(memoryTable.agentId, runtime.agentId),
+          ),
+        )
+        .orderBy(desc(memoryTable.createdAt))
+        .limit(limit);
 
-        const results = await db
-          .select()
-          .from(memoryTable)
-          .where(
-            and(
-              eq(memoryTable.roomId, roomId),
-              eq(memoryTable.agentId, runtime.agentId),
-            ),
-          )
-          .orderBy(desc(memoryTable.createdAt))
-          .limit(limit);
-
-        const roomMemories = results.map(
-          (row) =>
-            ({
-              id: row.id as UUID,
-              type: row.type,
-              createdAt: new Date(row.createdAt).getTime(),
-              content: row.content,
-              entityId: row.entityId as UUID,
-              agentId: row.agentId as UUID,
-              roomId: row.roomId as UUID,
-              worldId: row.worldId as UUID | undefined,
-              unique: row.unique,
-            }) as Memory,
-        );
-
-        logger.info(
-          `[Memory Service] Room ${roomId} returned ${roomMemories.length} memories`,
-        );
-        allMemories.push(...roomMemories);
-
-        if (allMemories.length >= limit) {
-          break;
-        }
-      }
-
-      memories = allMemories.slice(0, limit);
+      memories = results.map(
+        (row) =>
+          ({
+            id: row.id as UUID,
+            type: row.type,
+            createdAt: new Date(row.createdAt).getTime(),
+            content: row.content,
+            entityId: row.entityId as UUID,
+            agentId: row.agentId as UUID,
+            roomId: row.roomId as UUID,
+            worldId: row.worldId as UUID | undefined,
+            unique: row.unique,
+          }) as Memory,
+      );
       logger.info(
-        `[Memory Service] Total memories collected: ${memories.length}`,
+        `[Memory Service] Fetched ${memories.length} memories from ${roomIdArray.length} rooms`,
       );
     }
 

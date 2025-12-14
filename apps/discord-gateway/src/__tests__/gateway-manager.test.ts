@@ -1,16 +1,21 @@
-import { describe, expect, it, mock, beforeEach } from "bun:test";
+import { describe, expect, it, mock, beforeEach, afterAll } from "bun:test";
 import { GatewayManager } from "../gateway-manager";
 
-// Mock fetch globally
+const originalFetch = globalThis.fetch;
+
 const mockFetch = mock(() => Promise.resolve({
   ok: true,
   json: () => Promise.resolve({ assignments: [] }),
 }));
-globalThis.fetch = mockFetch as unknown as typeof fetch;
 
 describe("GatewayManager", () => {
   beforeEach(() => {
+    globalThis.fetch = mockFetch as unknown as typeof fetch;
     mockFetch.mockClear();
+  });
+
+  afterAll(() => {
+    globalThis.fetch = originalFetch;
   });
 
   it("should initialize with config", () => {

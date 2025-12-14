@@ -8,7 +8,7 @@ on:
         required: true
         default: 'smoke'
         type: choice
-        options: [smoke, full-platform, stress, spike, soak, throughput, rate-limit]
+        options: [smoke, full-platform, stress, spike, throughput]
       environment:
         description: 'Target environment'
         required: true
@@ -24,15 +24,17 @@ on:
       - 'tests/load/**'
 
   schedule:
-    - cron: '0 2 * * *'
+    - cron: '0 2 * * *' # Nightly at 2 AM UTC
 
 env:
   BUN_VERSION: '1.2'
+  # Universal test API key - created by seed-test-api-key.ts
+  TEST_API_KEY: 'eliza_test_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
 
 jobs:
-  # Framework tests (fast, runs on every trigger)
+  # Framework tests - always run, no server needed
   framework-tests:
-    name: Load Framework Tests
+    name: Framework Tests
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -43,13 +45,13 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run load:test
 
-  # Local load test with full server
-  load-test:
-    name: Load Test (${{ github.event.inputs.scenario || 'smoke' }})
+  # Local load test with full server setup
+  local-load-test:
+    name: Local Load Test (${{ github.event.inputs.scenario || 'smoke' }})
     runs-on: ubuntu-latest
     needs: framework-tests
     timeout-minutes: 30
-    if: github.event.inputs.environment != 'staging'
+    if: github.event.inputs.environment != 'staging' || github.event.inputs.environment == ''
 
     services:
       postgres:
@@ -61,6 +63,13 @@ jobs:
         ports: ['5432:5432']
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
 
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/eliza_test?sslmode=disable
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NODE_ENV: test
+      # Skip optional services that aren't needed for load testing
+      SKIP_MIGRATIONS_CHECK: true
+
     steps:
       - uses: actions/checkout@v4
 
@@ -71,46 +80,76 @@ jobs:
       - name: Install k6
         run: |
           sudo gpg -k
-          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
-          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
           sudo apt-get update && sudo apt-get install -y k6
 
-      - run: bun install --frozen-lockfile
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
 
-      - name: Setup Database
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/eliza_test?sslmode=disable
+      - name: Setup Database Schema
         run: bun run db:push
 
       - name: Seed Test Data
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/eliza_test?sslmode=disable
-        run: bun run db:seed:dev
+        run: bun scripts/seed-test-api-key.ts
+
+      - name: Build Application
+        run: bun run build
 
       - name: Start Server
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/eliza_test?sslmode=disable
-          NEXT_PUBLIC_APP_URL: http://localhost:3000
-          NODE_ENV: test
         run: |
-          bun run build
           bun run start &
-          sleep 15
-          curl -sf http://localhost:3000/.well-known/agent-card.json || exit 1
+          echo "Waiting for server to start..."
+          for i in {1..30}; do
+            if curl -sf http://localhost:3000/.well-known/agent-card.json > /dev/null 2>&1; then
+              echo "✓ Server is ready"
+              break
+            fi
+            echo "  Attempt $i/30..."
+            sleep 2
+          done
+          # Final check
+          curl -sf http://localhost:3000/.well-known/agent-card.json || { echo "❌ Server failed to start"; exit 1; }
 
-      - name: Bundle & Run Load Test
+      - name: Verify Test API Key Works
+        run: |
+          echo "Testing API key authentication..."
+          RESPONSE=$(curl -sf -w "\n%{http_code}" \
+            -H "Authorization: Bearer $TEST_API_KEY" \
+            -H "Content-Type: application/json" \
+            http://localhost:3000/api/credits/balance)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n-1)
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ API key authentication failed"
+            exit 1
+          fi
+          echo "✓ API key authentication works"
+
+      - name: Bundle Load Test Scenario
+        run: |
+          SCENARIO="${{ github.event.inputs.scenario || 'smoke' }}"
+          cd tests/load && mkdir -p dist results
+          bun x esbuild "scenarios/${SCENARIO}.ts" --bundle --outfile="dist/${SCENARIO}.js" \
+            --format=esm --platform=neutral --target=es2020 \
+            --external:k6 --external:'k6/*' --external:'https://jslib.k6.io/*' --minify
+
+      - name: Run Load Test
         env:
           LOAD_TEST_ENV: local
-          API_KEY: ${{ secrets.LOAD_TEST_API_KEY }}
+          API_KEY: ${{ env.TEST_API_KEY }}
           BASE_URL: http://localhost:3000
         run: |
           SCENARIO="${{ github.event.inputs.scenario || 'smoke' }}"
           cd tests/load
-          mkdir -p dist results
-          bun x esbuild "scenarios/${SCENARIO}.ts" --bundle --outfile="dist/${SCENARIO}.js" \
-            --format=esm --platform=neutral --target=es2020 \
-            --external:k6 --external:'k6/*' --external:'https://jslib.k6.io/*' --minify
-          k6 run --out json="results/${SCENARIO}.json" --summary-export="results/summary.json" "dist/${SCENARIO}.js"
+          k6 run \
+            --out json="results/${SCENARIO}.json" \
+            --summary-export="results/summary.json" \
+            "dist/${SCENARIO}.js"
 
       - name: Upload Results
         uses: actions/upload-artifact@v4
@@ -123,16 +162,19 @@ jobs:
       - name: Post Summary
         if: always()
         run: |
+          SCENARIO="${{ github.event.inputs.scenario || 'smoke' }}"
+          echo "### Load Test: ${SCENARIO}" >> $GITHUB_STEP_SUMMARY
           if [ -f tests/load/results/summary.json ]; then
-            echo "### Load Test: ${{ github.event.inputs.scenario || 'smoke' }}" >> $GITHUB_STEP_SUMMARY
             echo '```json' >> $GITHUB_STEP_SUMMARY
-            jq '.' tests/load/results/summary.json >> $GITHUB_STEP_SUMMARY
+            jq '.' tests/load/results/summary.json >> $GITHUB_STEP_SUMMARY 2>/dev/null || cat tests/load/results/summary.json
             echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No summary file generated" >> $GITHUB_STEP_SUMMARY
           fi
 
-  # Staging load test (manual only, requires approval)
+  # Staging load test (manual only, uses real staging API key)
   staging-load-test:
-    name: Staging Load Test
+    name: Staging Load Test (${{ github.event.inputs.scenario }})
     runs-on: ubuntu-latest
     needs: framework-tests
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging'
@@ -149,8 +191,10 @@ jobs:
       - name: Install k6
         run: |
           sudo gpg -k
-          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
-          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
           sudo apt-get update && sudo apt-get install -y k6
 
       - run: bun install --frozen-lockfile
@@ -162,27 +206,29 @@ jobs:
           BASE_URL: https://staging.elizacloud.ai
         run: |
           SCENARIO="${{ github.event.inputs.scenario }}"
-          cd tests/load
-          mkdir -p dist results
+          cd tests/load && mkdir -p dist results
           bun x esbuild "scenarios/${SCENARIO}.ts" --bundle --outfile="dist/${SCENARIO}.js" \
             --format=esm --platform=neutral --target=es2020 \
             --external:k6 --external:'k6/*' --external:'https://jslib.k6.io/*' --minify
-          k6 run --out json="results/staging-${SCENARIO}.json" --summary-export="results/summary.json" "dist/${SCENARIO}.js"
+          k6 run \
+            --out json="results/staging-${SCENARIO}.json" \
+            --summary-export="results/summary.json" \
+            "dist/${SCENARIO}.js"
 
       - name: Upload Results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: staging-load-test-results
+          name: staging-load-test-results-${{ github.event.inputs.scenario }}
           path: tests/load/results/
           retention-days: 30
 
       - name: Post Summary
         if: always()
         run: |
+          echo "### Staging Load Test: ${{ github.event.inputs.scenario }}" >> $GITHUB_STEP_SUMMARY
           if [ -f tests/load/results/summary.json ]; then
-            echo "### Staging Load Test: ${{ github.event.inputs.scenario }}" >> $GITHUB_STEP_SUMMARY
             echo '```json' >> $GITHUB_STEP_SUMMARY
-            jq '.' tests/load/results/summary.json >> $GITHUB_STEP_SUMMARY
+            jq '.' tests/load/results/summary.json >> $GITHUB_STEP_SUMMARY 2>/dev/null || cat tests/load/results/summary.json
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi

@@ -53,6 +53,7 @@ import {
   estimateRequestCost,
   IMAGE_GENERATION_COST,
 } from "@/lib/pricing";
+import { stripProviderPrefix } from "@/lib/utils/model-names";
 import { uploadBase64Image } from "@/lib/blob";
 import {
   MEMORY_SAVE_COST,
@@ -306,8 +307,13 @@ const mcpHandler = createMcpHandler(
             .enum([
               "gpt-4o",
               "gpt-4o-mini",
+              "gpt-4-turbo",
+              "claude-sonnet-4",
+              "claude-haiku-4",
               "claude-3-5-sonnet-20241022",
-              "gemini-2.0-flash-exp",
+              "gemini-2.0-flash",
+              "gemini-1.5-pro",
+              "gemini-1.5-flash",
             ])
             .optional()
             .default("gpt-4o")
@@ -3520,14 +3526,15 @@ const mcpHandler = createMcpHandler(
           model: z
             .string()
             .optional()
-            .default("fal-ai/veo3")
-            .describe("Model to use for generation"),
+            .default("google/veo3")
+            .describe("Model to use (e.g., google/veo3, kling/v2.1-master, minimax/hailuo-standard)"),
         },
       },
       async ({ prompt, model }) => {
         try {
           const { user, apiKey } = getAuthContext();
           const VIDEO_COST = 5;
+          const displayModel = stripProviderPrefix(model);
 
           if (Number(user.organization.credit_balance) < VIDEO_COST) {
             throw new Error(
@@ -3538,8 +3545,8 @@ const mcpHandler = createMcpHandler(
           const deduction = await creditsService.deductCredits({
             organizationId: user.organization_id!,
             amount: VIDEO_COST,
-            description: `MCP video generation: ${model}`,
-            metadata: { user_id: user.id, model },
+            description: `MCP video generation: ${displayModel}`,
+            metadata: { user_id: user.id, model: displayModel },
           });
           if (!deduction.success) throw new Error("Credit deduction failed");
 
@@ -3548,8 +3555,8 @@ const mcpHandler = createMcpHandler(
             user_id: user.id,
             api_key_id: apiKey?.id || null,
             type: "video",
-            model,
-            provider: "fal",
+            model: displayModel,
+            provider: "video",
             prompt,
             status: "pending",
             credits: String(VIDEO_COST),

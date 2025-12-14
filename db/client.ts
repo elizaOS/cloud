@@ -176,12 +176,16 @@ export const db = new Proxy({} as Database, {
     if (typeof value !== "function") return value;
 
     return function (...args: unknown[]) {
-      const result = (value as (...a: unknown[]) => unknown).apply(database, args);
-
-      if (prop === "execute" && args[0] && result instanceof Promise) {
-        const sql = extractSql(args[0]);
-        return wrapWithTiming(() => result, () => sql);
+      // For execute(), wrap timing AROUND the query execution
+      if (prop === "execute" && args[0]) {
+        const sqlText = extractSql(args[0]);
+        return wrapWithTiming(
+          () => (value as (...a: unknown[]) => Promise<unknown>).apply(database, args),
+          () => sqlText
+        );
       }
+
+      const result = (value as (...a: unknown[]) => unknown).apply(database, args);
 
       if (result && typeof result === "object" && !(result instanceof Promise)) {
         return instrumentQueryBuilder(result as object, String(prop));

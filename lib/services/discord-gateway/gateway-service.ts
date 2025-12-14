@@ -251,6 +251,7 @@ export class DiscordGatewayService {
     const secrets = await loadSecrets({
       organizationId: connection.organization_id,
       projectId: connectionId,
+      projectType: "mcp", // Match the projectType used when storing the token
     });
 
     const token = secrets[`discord_bot_token_${connectionId}`];

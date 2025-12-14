@@ -10,8 +10,9 @@ import {
   VIDEO_GENERATION_COST,
   VIDEO_GENERATION_FALLBACK_COST,
 } from "@/lib/pricing";
-import { uploadFromUrl, isFalAiUrl } from "@/lib/blob";
+import { uploadFromUrl, isExternalProviderUrl } from "@/lib/blob";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { stripProviderPrefix } from "@/lib/utils/model-names";
 
 fal.config({
   proxyUrl: "/api/fal/proxy",
@@ -24,21 +25,60 @@ interface VideoGenerationRequest {
   model?: string;
 }
 
-import type { FalVideoData } from "@/lib/types/video";
+interface VideoProviderResponse {
+  video: {
+    url: string;
+    content_type?: string;
+    file_name?: string;
+    file_size?: number;
+    width?: number;
+    height?: number;
+  };
+  seed?: number;
+  has_nsfw_concepts?: boolean[];
+  timings?: Record<string, number> | null;
+  requestId?: string;
+}
 
-const VALID_MODELS = [
-  "fal-ai/veo3",
-  "fal-ai/veo3/fast",
-  "fal-ai/kling-video/v2.1/master/text-to-video",
-  "fal-ai/kling-video/v2.1/pro/text-to-video",
-  "fal-ai/kling-video/v2.1/standard/text-to-video",
-  "fal-ai/minimax/hailuo-02/standard/text-to-video",
-  "fal-ai/minimax/hailuo-02/pro/text-to-video",
-];
+// Map user-facing model IDs (creator/model) to internal API IDs (reseller/model)
+const INTERNAL_MODELS: Record<string, string> = {
+  // Google Veo 3
+  "google/veo3": "fal-ai/veo3",
+  "google/veo3-fast": "fal-ai/veo3/fast",
+  // Kuaishou Kling
+  "kling/v2.1-master": "fal-ai/kling-video/v2.1/master/text-to-video",
+  "kling/v2.1-pro": "fal-ai/kling-video/v2.1/pro/text-to-video",
+  "kling/v2.1-standard": "fal-ai/kling-video/v2.1/standard/text-to-video",
+  // MiniMax Hailuo
+  "minimax/hailuo-standard": "fal-ai/minimax/hailuo-02/standard/text-to-video",
+  "minimax/hailuo-pro": "fal-ai/minimax/hailuo-02/pro/text-to-video",
+};
+
+// User-facing model IDs (what users can request)
+const VALID_MODELS = Object.keys(INTERNAL_MODELS);
+
+/**
+ * Resolves a user-provided model to internal API format.
+ * Accepts both user-friendly IDs (veo3) and legacy format (fal-ai/veo3).
+ */
+function resolveModelId(model: string): { userModel: string; internalModel: string } | null {
+  // Direct match with user-friendly ID
+  if (INTERNAL_MODELS[model]) {
+    return { userModel: model, internalModel: INTERNAL_MODELS[model] };
+  }
+  
+  // Legacy format: strip prefix and check
+  const stripped = stripProviderPrefix(model);
+  if (INTERNAL_MODELS[stripped]) {
+    return { userModel: stripped, internalModel: INTERNAL_MODELS[stripped] };
+  }
+  
+  return null;
+}
 
 /**
  * POST /api/v1/generate-video
- * Generates videos using Fal.ai video generation models.
+ * Generates videos using AI video generation models.
  * Requires authentication with organization.
  *
  * @param request - Request body with prompt and optional model selection.
@@ -51,7 +91,7 @@ async function handlePOST(request: NextRequest) {
       await requireAuthOrApiKeyWithOrg(request);
 
     if (!process.env.FAL_KEY) {
-      logger.error("[VIDEO GENERATION] FAL_KEY is not configured");
+      logger.error("[VIDEO GENERATION] Video generation service not configured");
       return NextResponse.json(
         { error: "Video generation service is not configured" },
         { status: 503 },
@@ -59,7 +99,7 @@ async function handlePOST(request: NextRequest) {
     }
 
     const body: VideoGenerationRequest = await request.json();
-    const { prompt, model = "fal-ai/veo3" } = body;
+    const { prompt, model = "google/veo3" } = body;
 
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
       return NextResponse.json(
@@ -68,7 +108,8 @@ async function handlePOST(request: NextRequest) {
       );
     }
 
-    if (model && !VALID_MODELS.includes(model)) {
+    const resolved = resolveModelId(model);
+    if (!resolved) {
       return NextResponse.json(
         {
           error: "Invalid model specified",
@@ -78,13 +119,15 @@ async function handlePOST(request: NextRequest) {
       );
     }
 
+    const { userModel, internalModel } = resolved;
+
     const generation = await generationsService.create({
       organization_id: user.organization_id!!,
       user_id: user.id,
       api_key_id: apiKey?.id || null,
       type: "video",
-      model: model,
-      provider: "fal",
+      model: userModel,
+      provider: "video",
       prompt: prompt.trim(),
       status: "pending",
       credits: String(VIDEO_GENERATION_COST),
@@ -93,9 +136,9 @@ async function handlePOST(request: NextRequest) {
 
     generationId = generation.id;
 
-    logger.info("[VIDEO GENERATION] Starting generation", { userId: user.id, model });
+    logger.info("[VIDEO GENERATION] Starting generation", { userId: user.id, model: userModel });
 
-    const result = await fal.subscribe(model, {
+    const result = await fal.subscribe(internalModel, {
       input: {
         prompt: prompt.trim(),
       },
@@ -110,10 +153,10 @@ async function handlePOST(request: NextRequest) {
       },
     });
 
-    const data = result.data as FalVideoData;
+    const data = result.data as VideoProviderResponse;
 
     if (!data?.video?.url) {
-      logger.error("[VIDEO GENERATION] No video URL in response:", data);
+      logger.error("[VIDEO GENERATION] No video URL in response");
       return NextResponse.json(
         { error: "No video URL was returned from the generation service" },
         { status: 500 },
@@ -122,7 +165,7 @@ async function handlePOST(request: NextRequest) {
 
     logger.info("[VIDEO GENERATION] Success", { userId: user.id, requestId: result.requestId });
 
-    // Upload video to Vercel Blob (required - we don't expose Fal.ai URLs)
+    // Upload video to our storage (required - we don't expose external provider URLs)
     let blobUrl: string;
     let blobFileSize: bigint | null = null;
 
@@ -132,10 +175,9 @@ async function handlePOST(request: NextRequest) {
       "mp4";
 
     try {
-      // Always upload to our storage - videos come from Fal.ai
-      if (!isFalAiUrl(data.video.url)) {
-        // If for some reason it's not a Fal.ai URL, log a warning but still upload
-        logger.warn("[VIDEO GENERATION] Unexpected non-Fal.ai URL", { url: data.video.url });
+      // Always upload to our storage
+      if (!isExternalProviderUrl(data.video.url)) {
+        logger.warn("[VIDEO GENERATION] Unexpected URL source");
       }
 
       const uploadResult = await uploadFromUrl(data.video.url, {
@@ -148,15 +190,11 @@ async function handlePOST(request: NextRequest) {
       blobUrl = uploadResult.url;
       blobFileSize = BigInt(uploadResult.size);
 
-      logger.info("[VIDEO GENERATION] Uploaded to Vercel Blob", { url: blobUrl, sizeBytes: blobFileSize.toString() });
+      logger.info("[VIDEO GENERATION] Uploaded to storage", { sizeBytes: blobFileSize.toString() });
     } catch (blobError) {
-      logger.error(
-        "[VIDEO GENERATION] Failed to upload to Vercel Blob:",
-        blobError,
-      );
-      // Don't fallback to Fal.ai URL - return error instead
+      logger.error("[VIDEO GENERATION] Failed to upload to storage:", blobError);
       return NextResponse.json(
-        { error: "Failed to store video in our storage. Please try again." },
+        { error: "Failed to store video. Please try again." },
         { status: 500 },
       );
     }
@@ -164,21 +202,17 @@ async function handlePOST(request: NextRequest) {
     const deductionResult = await creditsService.deductCredits({
       organizationId: user.organization_id!!,
       amount: VIDEO_GENERATION_COST,
-      description: `Video generation: ${model}`,
+      description: `Video generation: ${userModel}`,
       metadata: { user_id: user.id },
       session_token,
     });
 
-    // FIXED: Fail the request if credit deduction fails to prevent revenue leak
     if (!deductionResult.success) {
-      logger.error(
-        "[VIDEO GENERATION] Failed to deduct credits - insufficient balance",
-        {
-          organizationId: user.organization_id!!,
-          cost: String(VIDEO_GENERATION_COST),
-          balance: deductionResult.newBalance,
-        },
-      );
+      logger.error("[VIDEO GENERATION] Failed to deduct credits - insufficient balance", {
+        organizationId: user.organization_id!!,
+        cost: String(VIDEO_GENERATION_COST),
+        balance: deductionResult.newBalance,
+      });
 
       return NextResponse.json(
         {
@@ -186,7 +220,7 @@ async function handlePOST(request: NextRequest) {
           required: VIDEO_GENERATION_COST,
           available: deductionResult.newBalance,
         },
-        { status: 402 }, // Payment Required
+        { status: 402 },
       );
     }
 
@@ -195,8 +229,8 @@ async function handlePOST(request: NextRequest) {
       user_id: user.id,
       api_key_id: apiKey?.id || null,
       type: "video",
-      model: model,
-      provider: "fal",
+      model: userModel,
+      provider: "video",
       input_tokens: 0,
       output_tokens: 0,
       input_cost: String(VIDEO_GENERATION_COST),
@@ -223,8 +257,6 @@ async function handlePOST(request: NextRequest) {
             width: data.video.width,
             height: data.video.height,
           },
-          // Note: Original Fal.ai URL stored separately for debugging only, not exposed to clients
-          _originalUrl: data.video.url,
           seed: data.seed,
           has_nsfw_concepts: data.has_nsfw_concepts,
           timings: data.timings,
@@ -245,7 +277,7 @@ async function handlePOST(request: NextRequest) {
           file_name: data.video.file_name,
           file_size: blobFileSize ? Number(blobFileSize) : undefined,
         },
-        // Note: Original Fal.ai URL is NOT exposed to the client
+        model: userModel,
         seed: data.seed,
         has_nsfw_concepts: data.has_nsfw_concepts,
         timings: data.timings,
@@ -271,15 +303,13 @@ async function handlePOST(request: NextRequest) {
       const fallbackDeduction = await creditsService.deductCredits({
         organizationId: fallbackUser.organization_id,
         amount: VIDEO_GENERATION_FALLBACK_COST,
-        description: "Video generation (fallback): fal-ai/veo3",
+        description: "Video generation (fallback)",
         metadata: { user_id: fallbackUser.id },
         session_token: fallbackSessionToken,
       });
 
       if (!fallbackDeduction.success) {
-        logger.error(
-          "[VIDEO GENERATION] Failed to deduct fallback credits - insufficient balance",
-        );
+        logger.error("[VIDEO GENERATION] Failed to deduct fallback credits - insufficient balance");
       }
 
       const fallbackUsageRecord = await usageService.create({
@@ -287,8 +317,8 @@ async function handlePOST(request: NextRequest) {
         user_id: fallbackUser.id,
         api_key_id: fallbackApiKey?.id || null,
         type: "video",
-        model: "fal-ai/veo3",
-        provider: "fal",
+        model: "veo3",
+        provider: "video",
         input_tokens: 0,
         output_tokens: 0,
         input_cost: String(VIDEO_GENERATION_FALLBACK_COST),
@@ -301,7 +331,7 @@ async function handlePOST(request: NextRequest) {
         await generationsService.update(generationId, {
           status: "failed",
           error: errorMessage,
-          storage_url: null, // No storage URL for fallback - generation failed
+          storage_url: null,
           mime_type: "video/mp4",
           dimensions: {
             width: 1920,
@@ -314,7 +344,7 @@ async function handlePOST(request: NextRequest) {
           result: {
             isFallback: true,
             originalError: errorMessage,
-            video: null, // No video URL - generation failed
+            video: null,
           },
         });
       }
@@ -324,10 +354,7 @@ async function handlePOST(request: NextRequest) {
         newBalance: fallbackDeduction.newBalance.toFixed(2) 
       });
     } catch (authError) {
-      logger.error(
-        "[VIDEO GENERATION] Auth error during fallback logging:",
-        authError,
-      );
+      logger.error("[VIDEO GENERATION] Auth error during fallback logging:", authError);
     }
 
     return NextResponse.json(

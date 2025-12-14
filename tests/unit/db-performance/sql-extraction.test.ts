@@ -1,12 +1,3 @@
-/**
- * Tests for SQL extraction logic used in query instrumentation.
- * 
- * Tests:
- * - Query chunk parsing
- * - Edge cases with malformed objects
- * - Performance implications
- */
-
 import { describe, it, expect } from "bun:test";
 import { sql, type SQL } from "drizzle-orm";
 
@@ -37,13 +28,8 @@ describe("drizzle SQL object structure", () => {
   it("chunks contain SQL data", () => {
     const query = sql`SELECT * FROM users`;
     const chunks = (query as unknown as { queryChunks: unknown[] }).queryChunks;
-    
-    // Drizzle chunks may have different structures - just verify we can extract text
     expect(chunks.length).toBeGreaterThan(0);
-    
-    // The extraction logic should be able to get SQL from various formats
-    const sqlString = JSON.stringify(chunks);
-    expect(sqlString).toContain("SELECT");
+    expect(JSON.stringify(chunks)).toContain("SELECT");
   });
 
   it("handles empty SQL", () => {
@@ -92,10 +78,7 @@ describe("drizzle SQL object structure", () => {
 });
 
 describe("SQL text extraction scenarios", () => {
-  /**
-   * This mimics the extraction logic in db/client.ts
-   * Must match the actual implementation to catch regressions
-   */
+  // Mirrors db/client.ts extraction logic
   function extractSqlText(sqlArg: unknown): string {
     if (!sqlArg || typeof sqlArg !== "object") {
       return "[unknown]";
@@ -118,8 +101,6 @@ describe("SQL text extraction scenarios", () => {
       return obj.sql;
     }
 
-    // 3. queryChunks array - sql template literals
-    // Structure: [{ value: ["SELECT..."] }, param, { value: ["..."] }]
     const chunks = obj.queryChunks as unknown[] | undefined;
     if (Array.isArray(chunks)) {
       const parts: string[] = [];
@@ -132,7 +113,6 @@ describe("SQL text extraction scenarios", () => {
           parts.push("?");
         } else if (typeof c === "object") {
           const chunk = c as Record<string, unknown>;
-          // value is an array of strings in Drizzle sql`` templates
           if (Array.isArray(chunk.value)) {
             parts.push(chunk.value.join(""));
           } else if (typeof chunk.value === "string") {
@@ -232,7 +212,6 @@ describe("SQL text extraction scenarios", () => {
   });
 
   it("handles real Drizzle sql template structure", () => {
-    // Matches actual Drizzle output: [{ value: ["SQL..."] }, param, { value: ["..."] }]
     const obj = {
       queryChunks: [
         { value: ["SELECT * FROM users WHERE id = "] },

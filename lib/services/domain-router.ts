@@ -3,6 +3,7 @@ import { managedDomainsRepository } from "@/db/repositories/managed-domains";
 import { containersRepository } from "@/db/repositories/containers";
 import { charactersRepository } from "@/db/repositories/characters";
 import { userMcpsRepository } from "@/db/repositories/user-mcps";
+import { generateSuspensionPage } from "./app-serve";
 import { logger } from "@/lib/utils/logger";
 
 type RouteResult = { success: true; response: NextResponse } | { success: false; status: number; message: string; html: string };
@@ -28,7 +29,7 @@ export async function routeCustomDomain(
   }
 
   if (domain.status === "suspended" || domain.moderationStatus === "suspended") {
-    return fail(403, "Domain suspended", errorPage("Domain Suspended", "This domain has been suspended. Please contact support."));
+    return fail(403, "Domain suspended", generateSuspensionPage(hostname, domain.suspensionReason || undefined));
   }
 
   if (domain.status === "pending" || !domain.verified) {

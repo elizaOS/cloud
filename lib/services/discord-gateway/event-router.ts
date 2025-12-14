@@ -365,7 +365,7 @@ export class DiscordEventRouter {
       return false;
     }
 
-    // Build A2A request
+    // Build A2A request - include connection_id so agent can respond
     const a2aRequest: A2ACallbackRequest = {
       jsonrpc: "2.0",
       method: "message/send",
@@ -375,6 +375,7 @@ export class DiscordEventRouter {
           content: message?.content ?? JSON.stringify(event.data.raw),
           metadata: {
             source: "discord",
+            connection_id: event.platformConnectionId,
             guild_id: event.guildId,
             channel_id: event.channelId ?? "",
             message_id: message?.id ?? event.eventId,
@@ -438,6 +439,7 @@ export class DiscordEventRouter {
         params: {
           name: "discord_message_received",
           arguments: {
+            connection_id: event.platformConnectionId,
             event_type: event.eventType,
             guild_id: event.guildId,
             channel_id: event.channelId,
@@ -487,6 +489,7 @@ export class DiscordEventRouter {
       event_type: event.eventType,
       timestamp,
       organization_id: event.organizationId,
+      connection_id: event.platformConnectionId,
       guild_id: event.guildId,
       channel_id: event.channelId,
       data: event.data.raw,
@@ -532,9 +535,11 @@ export class DiscordEventRouter {
         "Content-Type": "application/json",
         "X-Organization-Id": event.organizationId,
         "X-Discord-Event": event.eventType,
+        "X-Discord-Connection-Id": event.platformConnectionId,
       },
       body: JSON.stringify({
         event_type: event.eventType,
+        connection_id: event.platformConnectionId,
         guild_id: event.guildId,
         channel_id: event.channelId,
         data: event.data.raw,

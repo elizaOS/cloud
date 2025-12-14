@@ -47,6 +47,7 @@ const MOCK_VIDEO_BASE_URL = "https://video-placeholder.eliza.ai";
 const TIMING_KEYS_IN_PRIORITY = ["inference", "total", "duration"] as const;
 
 import type { FalVideoResponse } from "@/lib/types/video";
+import { getDisplayModelName } from "@/lib/utils/model-names";
 
 const parseDurationEstimate = (estimate?: string): number | undefined => {
   if (!estimate) {
@@ -523,7 +524,7 @@ export function VideoPageClient({
                     <span className="flex items-center gap-1 flex-shrink-0">
                       <CheckCircle2 className="h-3.5 w-3.5 text-[#FF5800]" />
                       <span className="truncate max-w-[120px]">
-                        {video.modelId.split("/").pop()}
+                        {getDisplayModelName(video.modelId)}
                       </span>
                     </span>
                     <span className="flex items-center gap-1 flex-shrink-0">

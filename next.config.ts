@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 import path from "path";
 
+// Set turbopack root to monorepo root where bun workspaces manage dependencies
+const monorepoRoot = path.resolve(import.meta.dirname, "../..");
+console.log("[next.config.ts] Setting turbopack root to:", monorepoRoot);
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
@@ -29,7 +33,7 @@ const nextConfig: NextConfig = {
         pathname: "/**",
       },
       // Note: DiceBear removed - using local avatars from /public/avatars/
-      // Note: Fal.ai URLs are no longer allowed - all assets are proxied through our storage
+      // Note: External provider URLs are proxied through our storage
     ],
   },
   // Increase body size limit for container image uploads (max 2GB)
@@ -39,17 +43,18 @@ const nextConfig: NextConfig = {
     },
   },
 
-  // Empty turbopack config to silence warnings (we handle externals via webpack)
-  turbopack: {},
+  // Turbopack config for monorepo workspace (dev mode only, builds use webpack)
+  turbopack: {
+    root: monorepoRoot,
+  },
 
   // Skip TypeScript type checking during build (run separately with check-types)
   typescript: {
     ignoreBuildErrors: true,
   },
 
-  // Disable output file tracing to avoid worker_threads NFT error in Turbopack
-  // This is a workaround for Turbopack bug with Node.js built-in modules
-  outputFileTracingRoot: undefined,
+  // Set output file tracing root to monorepo root (must match turbopack.root)
+  outputFileTracingRoot: monorepoRoot,
   // CRITICAL: Include CloudFormation templates in the serverless function bundle
   // Without this, the template files won't be available when the function runs on Vercel
   outputFileTracingIncludes: {
@@ -59,9 +64,19 @@ const nextConfig: NextConfig = {
   },
   outputFileTracingExcludes: {
     "*": [
-      "node_modules/thread-stream/**/*",
-      "node_modules/pino/**/*",
-      "node_modules/sonic-boom/**/*",
+      // Exclude pino ecosystem - has Node.js-only dependencies
+      "node_modules/**/thread-stream/**/*",
+      "node_modules/**/pino/**/*",
+      "node_modules/**/sonic-boom/**/*",
+      "node_modules/**/pino-pretty/**/*",
+      // Exclude test directories from all packages
+      "node_modules/**/test/**/*",
+      "node_modules/**/tests/**/*",
+      "node_modules/**/__tests__/**/*",
+      // Bun-specific paths
+      "node_modules/.bun/**/thread-stream/**/*",
+      "node_modules/.bun/**/pino/**/*",
+      "node_modules/.bun/**/sonic-boom/**/*",
     ],
   },
 
@@ -82,14 +97,38 @@ const nextConfig: NextConfig = {
     "ipfs-utils",
     "electron-fetch",
     "electron",
-    // pino and related packages cause SSR issues
+    // pino and related packages cause SSR issues with Node.js-only dependencies
     "pino",
     "pino-pretty",
     "thread-stream",
     "sonic-boom",
+    "real-require",
+    "fast-redact",
+    "on-exit-leak-free",
+    "atomic-sleep",
+    // Test dependencies that leak from pino/thread-stream
+    "tape",
     // DOMPurify uses jsdom which has browser-specific dependencies
     "isomorphic-dompurify",
     "jsdom",
+    // x402-mcp uses @modelcontextprotocol/sdk which is server-only
+    "x402-mcp",
+    // fs-related modules that shouldn't be in client bundles
+    "fs",
+    "fs/promises",
+    "path",
+    "os",
+    "child_process",
+    "crypto",
+    "stream",
+    "util",
+    "events",
+    "net",
+    "tls",
+    "http",
+    "https",
+    "zlib",
+    "buffer",
   ],
 
   webpack: (config, { isServer }) => {
@@ -100,6 +139,19 @@ const nextConfig: NextConfig = {
         config.externals.push("worker_threads");
       }
     }
+    
+    // Prevent pino and related packages from being bundled (they have Node.js-only deps)
+    config.resolve = config.resolve || {};
+    config.resolve.alias = config.resolve.alias || {};
+    
+    // Alias pino ecosystem to empty modules for client builds
+    if (!isServer) {
+      config.resolve.alias["pino"] = require.resolve("./lib/empty-module.js");
+      config.resolve.alias["thread-stream"] = require.resolve("./lib/empty-module.js");
+      config.resolve.alias["sonic-boom"] = require.resolve("./lib/empty-module.js");
+      config.resolve.alias["pino-pretty"] = require.resolve("./lib/empty-module.js");
+    }
+    
     return config;
   },
 
@@ -120,7 +172,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
               // Images - allow self, data URIs, blob URIs, Vercel storage, Instagram CDN
               // Note: DiceBear removed - using local avatars from /public/avatars/
-              // Note: Fal.ai URLs are proxied through our storage, so not needed here
+              // Note: External provider URLs are proxied through our storage
               "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://raw.githubusercontent.com https://*.fbcdn.net https://*.cdninstagram.com",
               // Fonts - allow self and Monaco Editor CDN
               "font-src 'self' https://cdn.jsdelivr.net",

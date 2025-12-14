@@ -41,6 +41,14 @@
       "schedule": "0 */6 * * *"
     },
     {
+      "path": "/api/cron/content-scan",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/agent-moderation",
+      "schedule": "0 2 * * 0"
+    },
+    {
       "path": "/api/cron/cleanup-code-sessions",
       "schedule": "*/15 * * * *"
     }

@@ -1,16 +1,4 @@
-/**
- * Agent Registry Service
- *
- * Handles ERC-8004 on-chain registration for public agents.
- * When a user makes their agent public on the marketplace, we:
- * 1. Mint an NFT on the ERC-8004 Identity Registry (Eliza Cloud pays gas)
- * 2. Create A2A and MCP endpoints for the agent
- * 3. Enable monetization if requested
- *
- * This makes agents discoverable by other AI agents across the ecosystem.
- *
- * @see https://eips.ethereum.org/EIPS/eip-8004
- */
+// Agent Registry - ERC-8004 on-chain registration for public agents
 
 import {
   CHAIN_IDS,
@@ -45,10 +33,6 @@ async function getSDK() {
   }
   return SDK;
 }
-
-// ============================================================================
-// Types
-// ============================================================================
 
 export interface AgentRegistrationParams {
   character: UserCharacter;
@@ -121,20 +105,14 @@ export interface AgentCardData {
   };
 }
 
-// ============================================================================
-// Agent Registry Service
-// ============================================================================
+// SDK instance type
 
-// SDK instance type - use InstanceType for proper typing
 type SDKInstance = InstanceType<Awaited<ReturnType<typeof getSDK>>>;
 
 class AgentRegistryService {
   private sdk: SDKInstance | null = null;
   private initPromise: Promise<void> | null = null;
 
-  /**
-   * Initialize SDK with write access for registration
-   */
   private async ensureSDK(network: ERC8004Network): Promise<SDKInstance> {
     const privateKey = process.env.AGENT0_PRIVATE_KEY as
       | `0x${string}`
@@ -182,14 +160,6 @@ class AgentRegistryService {
     return sdk;
   }
 
-  /**
-   * Register an agent on ERC-8004
-   *
-   * This mints an NFT on the Identity Registry, making the agent
-   * discoverable by other AI agents across the ecosystem.
-   *
-   * Eliza Cloud pays the gas fees for registration.
-   */
   async registerAgent(
     params: AgentRegistrationParams,
   ): Promise<AgentRegistrationResult> {
@@ -465,7 +435,8 @@ class AgentRegistryService {
           description: `Chat with ${character.name}`,
           pricing: {
             type: "token-based" as const,
-            inputCostPer1k: 0.005,
+            // Claude Sonnet 4 pricing: $3/$15 per 1M tokens
+            inputCostPer1k: 0.003,
             outputCostPer1k: 0.015,
             ...(hasMonetization && { markupPercentage: markupPct }),
           },
@@ -476,7 +447,7 @@ class AgentRegistryService {
           description: `Generate images as ${character.name}`,
           pricing: {
             type: "fixed" as const,
-            amount: 0.05,
+            amount: 0.01, // $0.01 per image (Gemini Image pricing)
             ...(hasMonetization && { markupPercentage: markupPct }),
           },
         },
@@ -845,9 +816,5 @@ class AgentRegistryService {
     }];
   }
 }
-
-// ============================================================================
-// Singleton Export
-// ============================================================================
 
 export const agentRegistryService = new AgentRegistryService();

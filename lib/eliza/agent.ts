@@ -28,7 +28,7 @@ const character: Character = {
     ELEVENLABS_VOICE_ID:
       process.env.ELEVENLABS_VOICE_ID || "EXAVITQu4vr4xnSDxMaL", // Rachel voice (default)
     ELEVENLABS_MODEL_ID:
-      process.env.ELEVENLABS_MODEL_ID || "eleven_multilingual_v2",
+      process.env.ELEVENLABS_MODEL_ID || "eleven_flash_v2_5",
     ELEVENLABS_VOICE_STABILITY: process.env.ELEVENLABS_VOICE_STABILITY || "0.5",
     ELEVENLABS_VOICE_SIMILARITY_BOOST:
       process.env.ELEVENLABS_VOICE_SIMILARITY_BOOST || "0.75",

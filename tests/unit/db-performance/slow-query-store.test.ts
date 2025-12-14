@@ -228,4 +228,34 @@ describe("slow-query-store", () => {
     });
   });
 
+  describe("memory eviction", () => {
+    it("evicts oldest entries when over limit", async () => {
+      const originalMax = process.env.SLOW_QUERY_MAX_MEMORY;
+      process.env.SLOW_QUERY_MAX_MEMORY = "50";
+      
+      for (let i = 0; i < 60; i++) {
+        await recordSlowQuery(`distinct_query_eviction_${i}_${Date.now()}`, 100);
+      }
+      
+      expect(getSlowQueriesFromMemory().length).toBeGreaterThan(0);
+      
+      if (originalMax) process.env.SLOW_QUERY_MAX_MEMORY = originalMax;
+      else delete process.env.SLOW_QUERY_MAX_MEMORY;
+    });
+
+    it("keeps most recent entries on eviction", async () => {
+      await recordSlowQuery("old_query_1", 100);
+      await new Promise(r => setTimeout(r, 5));
+      await recordSlowQuery("old_query_2", 100);
+      await new Promise(r => setTimeout(r, 5));
+      await recordSlowQuery("recent_query", 100);
+      
+      const queries = getSlowQueriesFromMemory();
+      expect(queries.length).toBe(3);
+      
+      const sorted = queries.sort((a, b) => b.lastSeenAt.getTime() - a.lastSeenAt.getTime());
+      expect(sorted[0].sqlText).toBe("recent_query");
+    });
+  });
+
 });

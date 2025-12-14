@@ -1,12 +1,3 @@
-/**
- * Tests for query-alerting.ts
- * 
- * Tests:
- * - Severity determination
- * - Rate limiting
- * - Edge cases
- */
-
 import { describe, it, expect, beforeEach } from "bun:test";
 import {
   getAlertSeverity,

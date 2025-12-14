@@ -15,6 +15,7 @@ import type {
   AutoTopUpSuccessEmailData,
   AutoTopUpDisabledEmailData,
   PurchaseConfirmationEmailData,
+  SuspensionNotificationEmailData,
 } from "@/lib/email/types";
 
 /**
@@ -241,6 +242,34 @@ class EmailService {
     return this.send({
       to: data.email,
       subject: "✓ Purchase Confirmed - Credits Added to Your Account",
+      html,
+      text,
+    });
+  }
+
+  /**
+   * Sends a suspension notification email.
+   *
+   * @param data - Suspension notification email data.
+   * @returns True if sent successfully.
+   */
+  async sendSuspensionNotificationEmail(
+    data: SuspensionNotificationEmailData,
+  ): Promise<boolean> {
+    const { renderSuspensionNotificationTemplate } =
+      await import("@/lib/email/utils/template-renderer");
+    const { html, text } = renderSuspensionNotificationTemplate(data);
+
+    const resourceLabel = {
+      domain: "Domain",
+      app: "Application",
+      agent: "Agent",
+      mcp: "MCP Server",
+    }[data.resourceType];
+
+    return this.send({
+      to: data.email,
+      subject: `⛔ ${resourceLabel} Suspended - ${data.domain}`,
       html,
       text,
     });

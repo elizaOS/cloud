@@ -27,10 +27,10 @@ function authHeaders() {
   };
 }
 
-test.describe("Fal Proxy API", () => {
+test.describe("Video Proxy API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("POST /api/fal/proxy forwards to Fal.ai", async ({ request }) => {
+  test("POST /api/fal/proxy forwards video generation requests", async ({ request }) => {
     const response = await request.post(`${CLOUD_URL}/api/fal/proxy`, {
       headers: authHeaders(),
       data: {
@@ -48,11 +48,11 @@ test.describe("Fal Proxy API", () => {
     if (response.status() === 200 || response.status() === 201) {
       const data = await response.json();
       expect(data).toBeDefined();
-      console.log("✅ Fal proxy endpoint works");
+      console.log("✅ Video proxy endpoint works");
     } else if (response.status() === 401) {
-      console.log("✅ Fal proxy requires valid Fal.ai API key");
+      console.log("✅ Video proxy requires valid API key");
     } else {
-      console.log(`ℹ️ Fal proxy returned ${response.status()}`);
+      console.log(`ℹ️ Video proxy returned ${response.status()}`);
     }
   });
 });

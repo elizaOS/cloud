@@ -5,12 +5,17 @@ import { usageService } from "@/lib/services/usage";
 import { creditsService } from "@/lib/services/credits";
 import { generationsService } from "@/lib/services/generations";
 import { discordService } from "@/lib/services/discord";
+import { unifiedModerationService } from "@/lib/services/unified-moderation";
 import { IMAGE_GENERATION_COST } from "@/lib/pricing";
 import { uploadBase64Image } from "@/lib/blob";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { logger } from "@/lib/utils/logger";
+import { stripProviderPrefix } from "@/lib/utils/model-names";
 import type { NextRequest } from "next/server";
 import type { UserWithOrganization } from "@/lib/types";
+
+const IMAGE_MODEL = "google/gemini-2.5-flash-image-preview";
+const DISPLAY_MODEL = stripProviderPrefix(IMAGE_MODEL);
 
 export const maxDuration = 30;
 
@@ -115,8 +120,8 @@ async function handlePOST(req: NextRequest) {
         user_id: user.id,
         api_key_id: apiKey?.id || null,
         type: "image",
-        model: "google/gemini-2.5-flash-image-preview",
-        provider: "google",
+        model: DISPLAY_MODEL,
+        provider: "image",
         prompt: prompt,
         status: "pending",
         credits: String(totalCost),
@@ -179,7 +184,7 @@ async function handlePOST(req: NextRequest) {
       mimeType: string;
     } | null> {
       const result = streamText({
-        model: "google/gemini-2.5-flash-image-preview",
+        model: IMAGE_MODEL,
         providerOptions: {
           google: { responseModalities: ["TEXT", "IMAGE"] },
         },
@@ -238,8 +243,8 @@ async function handlePOST(req: NextRequest) {
           user_id: user.id,
           api_key_id: apiKey?.id || null,
           type: "image",
-          model: "google/gemini-2.5-flash-image-preview",
-          provider: "google",
+          model: DISPLAY_MODEL,
+          provider: "image",
           input_tokens: 0,
           output_tokens: 0,
           input_cost: String(0),
@@ -276,7 +281,7 @@ async function handlePOST(req: NextRequest) {
       deductionResult = await creditsService.deductCredits({
         organizationId: user.organization_id,
         amount: actualCost,
-        description: `Image generation (${successfulResults.length}x): google/gemini-2.5-flash-image-preview`,
+        description: `Image generation (${successfulResults.length}x): ${DISPLAY_MODEL}`,
         metadata: { user_id: user.id },
         session_token,
       });
@@ -315,8 +320,8 @@ async function handlePOST(req: NextRequest) {
         user_id: user.id,
         api_key_id: apiKey?.id || null,
         type: "image",
-        model: "google/gemini-2.5-flash-image-preview",
-        provider: "google",
+        model: DISPLAY_MODEL,
+        provider: "image",
         input_tokens: 0,
         output_tokens: 0,
         input_cost: String(actualCost),
@@ -433,7 +438,7 @@ async function handlePOST(req: NextRequest) {
           organizationName: user.organization.name,
           numImages: successfulResults.length,
           aspectRatio: aspectRatio,
-          model: "google/gemini-2.5-flash-image-preview",
+          model: DISPLAY_MODEL,
         })
         .catch((error) => {
           logger.error(
@@ -441,6 +446,30 @@ async function handlePOST(req: NextRequest) {
             error instanceof Error ? error.message : String(error),
           );
         });
+    }
+
+    // Moderate generated images in background
+    if (generationId && uploadResults.length > 0) {
+      const firstResult = uploadResults[0];
+      unifiedModerationService.scan({
+        contentType: "image",
+        sourceTable: "generations",
+        sourceId: generationId,
+        organizationId: user.organization_id ?? undefined,
+        userId: user.id,
+        isPublic: true, // Generated images are public
+        contentUrl: firstResult.blobUrl !== firstResult.imageBase64 ? firstResult.blobUrl : undefined,
+        contentData: firstResult.imageBase64,
+        contentMimeType: firstResult.mimeType,
+        contentSizeBytes: firstResult.fileSize ? Number(firstResult.fileSize) : undefined,
+      }).then(result => {
+        if (result.status === "deleted" && generationId) {
+          generationsService.update(generationId, { status: "deleted" }).catch(() => {});
+          logger.warn("[Generate Image] Content deleted due to moderation", { generationId });
+        }
+      }).catch(err => {
+        logger.error("[Generate Image] Moderation failed", { error: String(err) });
+      });
     }
 
     return Response.json({

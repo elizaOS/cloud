@@ -42,8 +42,12 @@ export async function GET(request: NextRequest) {
     intents: number;
   }> = [];
 
-  // Assign up to 10 bots per poll
-  const toAssign = unassigned.slice(0, 10);
+  // Configurable limit for bots per poll (default 50, max 100)
+  const maxBotsPerPoll = Math.min(
+    parseInt(process.env.MAX_BOTS_PER_POLL ?? "50", 10),
+    100
+  );
+  const toAssign = unassigned.slice(0, maxBotsPerPoll);
 
   let skippedNoToken = 0;
   for (const conn of toAssign) {

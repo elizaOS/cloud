@@ -173,7 +173,7 @@ export class RuntimeFactory {
       ),
       ELEVENLABS_MODEL_ID: getSetting(
         "ELEVENLABS_MODEL_ID",
-        "eleven_multilingual_v2",
+        "eleven_flash_v2_5",
       ),
       ELEVENLABS_VOICE_STABILITY: getSetting(
         "ELEVENLABS_VOICE_STABILITY",

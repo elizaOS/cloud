@@ -195,7 +195,7 @@ async function callClaudeSeoDraft(
   metaTags?: Record<string, string>;
   schema?: Record<string, unknown>;
 }> {
-  const modelId = "claude-3-5-sonnet-20241022";
+  const modelId = "anthropic/claude-sonnet-4";
   const { text } = await generateText({
     model: gateway.languageModel(modelId),
     temperature: 0.3,

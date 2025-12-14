@@ -19,6 +19,7 @@ DROP INDEX IF EXISTS idx_eliza_room_characters_character_id;
 -- cache indexes
 DROP INDEX IF EXISTS idx_cache_expires_at;
 DROP INDEX IF EXISTS idx_cache_created_at;
+DROP INDEX IF EXISTS idx_cache_agent_id;
 
 -- memories indexes
 DROP INDEX IF EXISTS idx_memories_entity_id;

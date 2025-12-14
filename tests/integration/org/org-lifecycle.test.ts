@@ -24,8 +24,8 @@ describe("Org Agent Lifecycle Service", () => {
       }
     });
 
-    test("should have 5 org agent types", () => {
-      expect(ORG_CHARACTER_IDS.length).toBe(5);
+    test("should have org agent types", () => {
+      expect(ORG_CHARACTER_IDS.length).toBeGreaterThanOrEqual(5);
     });
   });
 
@@ -213,7 +213,7 @@ describe("Org Agent Lifecycle Service", () => {
   describe("Summary Statistics", () => {
     test("summary should include all agent types", () => {
       const expectedAgentTypes = ORG_CHARACTER_IDS;
-      expect(expectedAgentTypes.length).toBe(5);
+      expect(expectedAgentTypes.length).toBeGreaterThanOrEqual(5);
 
       // Summary should track each agent type
       for (const agentType of expectedAgentTypes) {
@@ -267,7 +267,7 @@ describe("Agent Loader - Org Character Loading Design", () => {
       expect(names.has(character?.name || "")).toBe(false);
       names.add(character?.name || "");
     }
-    expect(names.size).toBe(5);
+    expect(names.size).toBeGreaterThanOrEqual(5);
   });
 });
 

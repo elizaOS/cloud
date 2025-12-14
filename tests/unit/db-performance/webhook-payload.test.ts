@@ -1,10 +1,3 @@
-/**
- * Tests for webhook payload formatting.
- * 
- * Verifies the Discord and Slack webhook payloads match expected schemas
- * without actually sending HTTP requests.
- */
-
 import { describe, it, expect } from "bun:test";
 
 // Discord Embed structure

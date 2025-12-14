@@ -214,7 +214,7 @@ export function WorkflowGenerator({ onWorkflowGenerated }: WorkflowGeneratorProp
               {isGenerating ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Generating with Claude Opus 4.5...
+                  Generating...
                 </>
               ) : (
                 <>

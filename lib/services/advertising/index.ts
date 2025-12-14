@@ -11,6 +11,8 @@ import {
   type AdCreative,
 } from "@/db/repositories";
 import { metaAdsProvider } from "./providers/meta";
+import { googleAdsProvider } from "./providers/google";
+import { tiktokAdsProvider } from "./providers/tiktok";
 import type {
   AdPlatform,
   AdProvider,
@@ -31,8 +33,8 @@ export * from "./schemas";
 // Provider registry
 const providers: Record<AdPlatform, AdProvider | null> = {
   meta: metaAdsProvider,
-  google: null, // Future implementation
-  tiktok: null, // Future implementation
+  google: googleAdsProvider,
+  tiktok: tiktokAdsProvider,
 };
 
 class AdvertisingService {

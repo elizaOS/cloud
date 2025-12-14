@@ -66,10 +66,13 @@ export const MEMORY_ANALYSIS_COST = 0.1; // $0.10 - Analyze memories
 /**
  * Agent and Chat Configuration (in USD)
  * Token-based pricing for actual AI usage
+ *
+ * Base costs are calculated using Claude Sonnet 4 pricing ($3/$15 per 1M tokens)
+ * which is our default "Pro" tier model.
  */
 export const AGENT_CHAT_MIN_COST = 0.001; // $0.001 minimum
-export const AGENT_CHAT_INPUT_TOKEN_COST = 0.000001; // $0.000001 per input token
-export const AGENT_CHAT_OUTPUT_TOKEN_COST = 0.000003; // $0.000003 per output token
+export const AGENT_CHAT_INPUT_TOKEN_COST = 0.000003; // $0.000003 per input token (Claude Sonnet 4: $3/1M)
+export const AGENT_CHAT_OUTPUT_TOKEN_COST = 0.000015; // $0.000015 per output token (Claude Sonnet 4: $15/1M)
 export const CONVERSATION_SUMMARY_BASE_COST = 0.01; // $0.01 base
 export const CONVERSATION_SUMMARY_MAX_COST = 0.1; // $0.10 max
 

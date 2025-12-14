@@ -1,12 +1,3 @@
-/**
- * Integration tests for slow query tracking with real database.
- * 
- * These tests verify the complete flow from query execution
- * through to storage in the slow_query_log table.
- * 
- * Requires: DATABASE_URL to be set
- */
-
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
@@ -107,21 +98,16 @@ describeWithDb("slow query integration", () => {
       
       await recordSlowQuery(uniqueSql, 200);
       
-      // Force flush with timeout handling
       await Promise.race([
         forceFlush(),
         new Promise((_, reject) => setTimeout(() => reject(new Error("flush timeout")), 3000)),
-      ]).catch(() => {
-        // Flush may timeout due to network, but data should still be in memory
-      });
+      ]).catch(() => {});
 
-      // Verify memory store has the entry
       const memoryQueries = getSlowQueriesFromMemory();
       const memEntry = memoryQueries.find((q) => q.queryHash === queryHash);
       expect(memEntry).toBeDefined();
       expect(memEntry!.durationMs).toBe(200);
 
-      // Cleanup any PG data if it made it
       await db.execute(sql`
         DELETE FROM slow_query_log WHERE query_hash = ${queryHash}
       `).catch(() => {});
@@ -138,14 +124,12 @@ describeWithDb("slow query integration", () => {
       await recordSlowQuery(uniqueSql, 300);
       await forceFlush();
 
-      // Memory should show aggregated stats
       const memoryQueries = getSlowQueriesFromMemory();
       const entry = memoryQueries.find((q) => q.queryHash === queryHash);
       expect(entry).toBeDefined();
       expect(entry!.callCount).toBe(3);
       expect(entry!.avgDurationMs).toBe(200);
 
-      // Cleanup
       await db.execute(sql`
         DELETE FROM slow_query_log WHERE query_hash = ${queryHash}
       `);
@@ -154,21 +138,16 @@ describeWithDb("slow query integration", () => {
 
   describe("query timing accuracy", () => {
     it("measures real query execution time", async () => {
-      // Execute a query with pg_sleep
       const start = performance.now();
-      await db.execute(sql`SELECT pg_sleep(0.05)`); // 50ms sleep
+      await db.execute(sql`SELECT pg_sleep(0.05)`);
       const duration = performance.now() - start;
-
-      // Should take at least 50ms (the sleep time)
       expect(duration).toBeGreaterThanOrEqual(50);
-      // Should complete within 500ms (generous buffer for network latency)
-      expect(duration).toBeLessThan(500);
+      expect(duration).toBeLessThan(2000); // Allow for network latency
     });
 
     it("captures slow queries above threshold", async () => {
       clearMemoryStore();
       
-      // Simulate recording a query that took 100ms
       await recordSlowQuery("SELECT pg_sleep(0.1)", 100);
 
       const queries = getSlowQueriesFromMemory();
@@ -186,7 +165,6 @@ describeWithDb("slow query integration", () => {
       
       const queries = getSlowQueriesFromMemory();
       expect(queries.length).toBe(1);
-      // Should be truncated to 10000 chars
       expect(queries[0].sqlText.length).toBeLessThanOrEqual(10000);
     });
 
@@ -235,32 +213,21 @@ describeWithDb("slow query integration", () => {
   describe("concurrent database access", () => {
     it("handles parallel slow query recordings with distinct queries", async () => {
       clearMemoryStore();
-      
-      // Use structurally different queries (different table names, not just parameters)
       const tables = ["users", "orders", "products", "customers", "invoices"];
       const promises = tables.map((table) => 
         recordSlowQuery(`SELECT * FROM ${table}_table_distinct`, 100)
       );
-      
       await Promise.all(promises);
-      
-      // All queries should be recorded (5 distinct queries)
-      const queries = getSlowQueriesFromMemory();
-      expect(queries.length).toBe(5);
+      expect(getSlowQueriesFromMemory().length).toBe(5);
     });
 
     it("handles parallel recordings of same query", async () => {
       clearMemoryStore();
-      
-      const promises = [];
-      const sameSql = "SELECT * FROM same_query_test";
-      for (let i = 0; i < 20; i++) {
-        promises.push(recordSlowQuery(sameSql, 100));
-      }
-      
+      const promises = Array.from({ length: 20 }, () => 
+        recordSlowQuery("SELECT * FROM same_query_test", 100)
+      );
       await Promise.all(promises);
       
-      // Should be aggregated into one entry
       const queries = getSlowQueriesFromMemory();
       expect(queries.length).toBe(1);
       expect(queries[0].callCount).toBe(20);

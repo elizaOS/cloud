@@ -1,15 +1,5 @@
 #!/usr/bin/env bun
-/**
- * Database Performance Analysis Script
- * 
- * Analyzes PostgreSQL for:
- * - Table statistics (sizes, row counts, dead tuples)
- * - Index usage and effectiveness
- * - Sequential scan detection (potential missing indexes)
- * - pg_stat_statements if available (actual slow queries)
- * - Lock contention
- * - Connection stats
- */
+// Full database performance analysis: table stats, index usage, slow queries, locks
 
 import { config } from "dotenv";
 import { Pool } from "pg";

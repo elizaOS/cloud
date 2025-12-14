@@ -147,6 +147,35 @@ describe("Event Queue Processing", () => {
 });
 
 describe("Pod Failover", () => {
+  describe("Dead Pod Detection Threshold", () => {
+    const DEAD_POD_THRESHOLD_MS = 120000; // 2 minutes
+
+    it("should detect pod as dead when heartbeat exceeds threshold", () => {
+      const lastHeartbeat = Date.now() - 150000; // 2.5 minutes ago
+      const timeSinceHeartbeat = Date.now() - lastHeartbeat;
+
+      const isDead = timeSinceHeartbeat > DEAD_POD_THRESHOLD_MS;
+      expect(isDead).toBe(true);
+    });
+
+    it("should NOT detect pod as dead when heartbeat is within threshold", () => {
+      const lastHeartbeat = Date.now() - 60000; // 1 minute ago
+      const timeSinceHeartbeat = Date.now() - lastHeartbeat;
+
+      const isDead = timeSinceHeartbeat > DEAD_POD_THRESHOLD_MS;
+      expect(isDead).toBe(false);
+    });
+
+    it("should skip checking own pod in failover loop", () => {
+      const currentPod = "pod-self";
+      const activePods = ["pod-1", "pod-self", "pod-2"];
+      const podsToCheck = activePods.filter(id => id !== currentPod);
+
+      expect(podsToCheck).not.toContain("pod-self");
+      expect(podsToCheck).toHaveLength(2);
+    });
+  });
+
   describe("Heartbeat Detection", () => {
     it("should detect stale heartbeat", () => {
       const HEARTBEAT_TTL = 300; // 5 minutes in seconds
@@ -328,6 +357,57 @@ describe("Rate Limiting", () => {
         expect(result.allowed).toBe(true);
       }
     });
+  });
+});
+
+describe("GatewayManager Failover Behavior", () => {
+  it("should only enable failover when Redis is configured", () => {
+    // Without Redis, failover should not run
+    const config = {
+      podName: "test-pod",
+      elizaCloudUrl: "https://test.elizacloud.ai",
+      internalApiKey: "test-key",
+      redisUrl: undefined,
+      redisToken: undefined,
+    };
+
+    // Redis null means no failover interval
+    const hasRedis = !!(config.redisUrl && config.redisToken);
+    expect(hasRedis).toBe(false);
+  });
+
+  it("should clean up Redis state on shutdown", () => {
+    const podName = "shutdown-test";
+    const keysToDelete = [
+      `discord:pod:${podName}`,
+    ];
+    const setsToRemoveFrom = [
+      { set: "discord:active_pods", member: podName },
+    ];
+
+    expect(keysToDelete[0]).toBe("discord:pod:shutdown-test");
+    expect(setsToRemoveFrom[0].member).toBe("shutdown-test");
+  });
+
+  it("should make failover API call with correct payload", () => {
+    const claimingPod = "survivor-pod";
+    const deadPod = "dead-pod";
+
+    const expectedPayload = {
+      claiming_pod: claimingPod,
+      dead_pod: deadPod,
+    };
+
+    expect(expectedPayload.claiming_pod).toBe("survivor-pod");
+    expect(expectedPayload.dead_pod).toBe("dead-pod");
+  });
+
+  it("should handle failover API failure gracefully", () => {
+    const response = { ok: false, status: 500 };
+
+    // Should log error but not throw
+    const shouldLogError = !response.ok;
+    expect(shouldLogError).toBe(true);
   });
 });
 

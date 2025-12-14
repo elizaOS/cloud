@@ -120,7 +120,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   anthropic: "Anthropic",
   google: "Google",
   elevenlabs: "ElevenLabs",
-  fal: "Fal.ai",
+  fal: "Video",
   stripe: "Stripe",
   discord: "Discord",
   telegram: "Telegram",

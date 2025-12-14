@@ -76,9 +76,8 @@ describe("rate limiter", () => {
   it("rate limits per query pattern", async () => {
     const alert = { query: "SELECT * FROM users", durationMs: 1000, timestamp: new Date(), severity: "critical" as const };
     await sendSlowQueryAlert(alert);
-    await sendSlowQueryAlert(alert); // Rate limited
-    await sendSlowQueryAlert({ ...alert, query: "SELECT * FROM orders" }); // Different query
-    expect(true).toBe(true);
+    await sendSlowQueryAlert(alert);
+    await sendSlowQueryAlert({ ...alert, query: "SELECT * FROM orders" });
   });
 
   it("clears rate limits", async () => {
@@ -86,6 +85,5 @@ describe("rate limiter", () => {
     await sendSlowQueryAlert(alert);
     clearRateLimiter();
     await sendSlowQueryAlert(alert);
-    expect(true).toBe(true);
   });
 });

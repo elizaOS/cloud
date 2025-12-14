@@ -148,4 +148,134 @@ export function generateErrorPage(title: string, message: string): string {
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}|elizaOS</title><style>*{margin:0;padding:0;box-sizing:border-box}body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0a0a0a 0%,#1a1a2e 100%);font-family:system-ui,-apple-system,sans-serif;color:#fff}.c{text-align:center;padding:2rem}.i{width:80px;height:80px;margin:0 auto 1.5rem;opacity:.3}h1{font-size:1.5rem;margin-bottom:.5rem;color:#FF5800}p{color:rgba(255,255,255,.6);max-width:400px}a{display:inline-block;margin-top:1.5rem;padding:.75rem 1.5rem;background:#FF5800;color:#fff;text-decoration:none;border-radius:8px;font-weight:500}a:hover{background:#ff6a1a}</style></head><body><div class="c"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><h1>${title}</h1><p>${message}</p><a href="https://elizacloud.ai">Go to elizaOS</a></div></body></html>`;
 }
 
-export const appServeService = { serveApp, getDomainBySubdomain, getDomainByCustomDomain, generateErrorPage };
+const APPEAL_EMAIL = process.env.MODERATION_APPEAL_EMAIL || "appeals@eliza.cloud";
+
+export function generateSuspensionPage(domain: string, reason?: string): string {
+  const appealEmail = APPEAL_EMAIL;
+  const reasonText = reason || "This content has been suspended for violating our content policy.";
+  
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Content Suspended | elizaOS</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0a0a0a;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      color: #fff;
+    }
+    .container {
+      text-align: center;
+      padding: 2rem;
+      max-width: 500px;
+    }
+    .icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 2rem;
+      background: #1a1a1a;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #ef4444;
+    }
+    .icon svg {
+      width: 40px;
+      height: 40px;
+      stroke: #ef4444;
+    }
+    h1 {
+      font-size: 1.75rem;
+      margin-bottom: 0.5rem;
+      color: #ef4444;
+      font-weight: 600;
+    }
+    .domain {
+      font-size: 1rem;
+      color: #666;
+      margin-bottom: 1.5rem;
+      font-family: monospace;
+    }
+    .reason {
+      background: #1a1a1a;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border-left: 4px solid #ef4444;
+      margin-bottom: 2rem;
+      text-align: left;
+    }
+    .reason p {
+      color: #a3a3a3;
+      line-height: 1.6;
+      font-size: 0.9rem;
+    }
+    .appeal {
+      background: #111;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #333;
+    }
+    .appeal h2 {
+      font-size: 1rem;
+      color: #fff;
+      margin-bottom: 0.75rem;
+      font-weight: 500;
+    }
+    .appeal p {
+      color: #666;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+    .appeal a {
+      color: #60a5fa;
+      text-decoration: none;
+    }
+    .appeal a:hover {
+      text-decoration: underline;
+    }
+    .footer {
+      margin-top: 2rem;
+      color: #444;
+      font-size: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+      </svg>
+    </div>
+    <h1>Content Suspended</h1>
+    <p class="domain">${domain}</p>
+    
+    <div class="reason">
+      <p>${reasonText}</p>
+    </div>
+    
+    <div class="appeal">
+      <h2>Think this is a mistake?</h2>
+      <p>
+        If you believe this suspension was made in error, please contact us at 
+        <a href="mailto:${appealEmail}">${appealEmail}</a> with your domain name 
+        and a brief explanation. Appeals are typically reviewed within 24-48 hours.
+      </p>
+    </div>
+    
+    <p class="footer">© ${new Date().getFullYear()} elizaOS</p>
+  </div>
+</body>
+</html>`;
+}
+
+export const appServeService = { serveApp, getDomainBySubdomain, getDomainByCustomDomain, generateErrorPage, generateSuspensionPage };

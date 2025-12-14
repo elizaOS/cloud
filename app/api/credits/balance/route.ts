@@ -1,85 +1,39 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { organizationsRepository } from "@/db/repositories";
+import { cache } from "@/lib/cache/client";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
-/**
- * GET /api/credits/balance
- * Gets the credit balance for the authenticated user's organization.
- *
- * @param req - The Next.js request object.
- * @returns JSON response with balance or error.
- */
 export async function GET(req: NextRequest) {
   try {
-    const user = await requireAuthWithOrg();
-    const organizationId = user.organization_id!;
+    const { user } = await requireAuthOrApiKeyWithOrg(req);
+    const organizationId = user.organization_id;
+    const cacheKey = CacheKeys.org.credits(organizationId);
 
-    const org = await organizationsRepository.findById(organizationId);
-    if (!org) {
-      return NextResponse.json(
-        { error: "Organization not found" },
-        {
-          status: 404,
-          headers: {
-            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-            Pragma: "no-cache",
-            Expires: "0",
-          },
-        },
-      );
+    // Short cache (30s) to reduce DB hits while keeping balance fresh
+    const balance = await cache.getWithSWR<number>(cacheKey, CacheTTL.org.credits, async () => {
+      const org = await organizationsRepository.findById(organizationId);
+      if (!org) return null;
+      return Number(org.credit_balance || 0);
+    });
+
+    if (balance === null) {
+      return NextResponse.json({ error: "Organization not found" }, { status: 404 });
     }
 
-    const balance = Number(org.credit_balance || 0);
-
-    return NextResponse.json(
-      { balance },
-      {
-        headers: {
-          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      },
-    );
+    return NextResponse.json({ balance });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to fetch balance";
-
-    // Return 401 for authentication errors
-    const isAuthError =
-      errorMessage.includes("Unauthorized") ||
-      errorMessage.includes("Authentication required") ||
-      errorMessage.includes("Forbidden");
-
+    const msg = error instanceof Error ? error.message : "Failed to fetch balance";
+    const isAuthError = msg.includes("Unauthorized") || msg.includes("Authentication") || msg.includes("Forbidden");
+    
     if (isAuthError) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        {
-          status: 401,
-          headers: {
-            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-            Pragma: "no-cache",
-            Expires: "0",
-          },
-        },
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     logger.error("[Balance API] Error:", error);
-    return NextResponse.json(
-      { error: errorMessage },
-      {
-        status: 500,
-        headers: {
-          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
-      },
-    );
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

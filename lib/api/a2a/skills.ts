@@ -24,6 +24,7 @@ import {
   estimateRequestCost,
   IMAGE_GENERATION_COST,
 } from "@/lib/pricing";
+import { stripProviderPrefix } from "@/lib/utils/model-names";
 import { seoRequestTypeEnum } from "@/db/schemas/seo";
 // Base URL for internal API calls
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
@@ -575,11 +576,13 @@ export async function executeSkillVideoGeneration(
   ctx: A2AContext
 ): Promise<VideoGenerationResult> {
   const prompt = (dataContent.prompt as string) || textContent;
-  const model = (dataContent.model as string) || "fal-ai/veo3";
+  const model = (dataContent.model as string) || "google/veo3";
 
   if (!prompt) throw new Error("Video prompt required");
 
   const VIDEO_COST = 5; // $5 per video
+  // Use the model as-is (should already be in user-friendly format like "veo3")
+  const displayModel = stripProviderPrefix(model);
 
   if (Number(ctx.user.organization.credit_balance) < VIDEO_COST) {
     throw new Error(`Insufficient credits: need $${VIDEO_COST.toFixed(2)}`);
@@ -589,7 +592,7 @@ export async function executeSkillVideoGeneration(
     organizationId: ctx.user.organization_id,
     amount: VIDEO_COST,
     description: "A2A video generation",
-    metadata: { user_id: ctx.user.id, model },
+    metadata: { user_id: ctx.user.id, model: displayModel },
   });
   if (!deduction.success) throw new Error("Credit deduction failed");
 
@@ -598,8 +601,8 @@ export async function executeSkillVideoGeneration(
     user_id: ctx.user.id,
     api_key_id: ctx.apiKeyId,
     type: "video",
-    model,
-    provider: "fal",
+    model: displayModel,
+    provider: "video",
     prompt,
     status: "pending",
     credits: String(VIDEO_COST),

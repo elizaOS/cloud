@@ -150,22 +150,37 @@ export async function uploadFromBuffer(
 }
 
 /**
- * Checks if a URL is from Fal.ai CDN.
+ * List of known external provider CDN hostnames.
+ * These URLs should be re-uploaded to our storage before being exposed to users.
+ */
+const EXTERNAL_PROVIDER_HOSTNAMES = [
+  "fal.media",
+  "fal.ai",
+  "replicate.delivery",
+  "oaidalleapiprodscus.blob.core.windows.net",
+];
+
+/**
+ * Checks if a URL is from an external provider CDN that should be re-uploaded.
  *
  * @param url - URL to check.
- * @returns True if the URL is from Fal.ai CDN.
+ * @returns True if the URL is from an external provider CDN.
  */
-export function isFalAiUrl(url: string): boolean {
+export function isExternalProviderUrl(url: string): boolean {
   try {
     const urlObj = new URL(url);
-    return (
-      urlObj.hostname.includes("fal.media") ||
-      urlObj.hostname.includes("fal.ai")
+    return EXTERNAL_PROVIDER_HOSTNAMES.some((hostname) =>
+      urlObj.hostname.includes(hostname)
     );
   } catch {
     return false;
   }
 }
+
+/**
+ * @deprecated Use isExternalProviderUrl instead
+ */
+export const isFalAiUrl = isExternalProviderUrl;
 
 /**
  * Downloads content from a URL and uploads it to Vercel Blob storage.
@@ -195,9 +210,9 @@ export async function uploadFromUrl(
 }
 
 /**
- * Ensures a URL is from our storage, not Fal.ai CDN.
+ * Ensures a URL is from our storage, not an external provider CDN.
  *
- * If the URL is from Fal.ai, downloads and uploads it to our storage.
+ * If the URL is from an external provider, downloads and uploads it to our storage.
  * Returns our storage URL or the original URL if it's already ours or upload fails.
  *
  * @param sourceUrl - URL to ensure is from our storage.
@@ -205,31 +220,36 @@ export async function uploadFromUrl(
  * @returns Our storage URL or the original URL if fallback is enabled.
  * @throws Error if upload fails and fallback is disabled.
  */
-export async function ensureElizaCloudUrl(
+export async function ensureLocalStorageUrl(
   sourceUrl: string,
   options: BlobUploadOptions & { fallbackToOriginal?: boolean }
 ): Promise<string> {
-  // If it's not a Fal.ai URL, return as-is
-  if (!isFalAiUrl(sourceUrl)) {
+  // If it's not an external provider URL, return as-is
+  if (!isExternalProviderUrl(sourceUrl)) {
     return sourceUrl;
   }
 
-  // It's a Fal.ai URL - download and upload to our storage
+  // It's an external provider URL - download and upload to our storage
   try {
     const result = await uploadFromUrl(sourceUrl, options);
     return result.url;
   } catch (error) {
-    logger.error("[ensureElizaCloudUrl] Failed to upload Fal.ai URL to our storage", { error });
+    logger.error("[ensureLocalStorageUrl] Failed to upload external URL to our storage", { error });
 
     // If fallback is allowed, return original URL
     if (options.fallbackToOriginal !== false) {
-      logger.warn("[ensureElizaCloudUrl] Falling back to original Fal.ai URL");
+      logger.warn("[ensureLocalStorageUrl] Falling back to original URL");
       return sourceUrl;
     }
 
     throw error;
   }
 }
+
+/**
+ * @deprecated Use ensureLocalStorageUrl instead
+ */
+export const ensureElizaCloudUrl = ensureLocalStorageUrl;
 
 /**
  * Deletes a blob from storage.

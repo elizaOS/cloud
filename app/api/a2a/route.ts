@@ -17,6 +17,11 @@ import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
 import { agentReputationService } from "@/lib/services/agent-reputation";
 import { loadOrgSecrets, isSecretsConfigured } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
+
+// Debug: Check if Zod is available
+if (!z || typeof z.object !== "function") {
+  console.error("[A2A] FATAL: Zod module not properly loaded!", { z });
+}
 import {
   type A2AContext,
   type MessageSendParams,
@@ -82,29 +87,40 @@ const JsonRpcRequestSchema = z.object({
 
 // POST Handler
 export async function POST(request: NextRequest) {
-  // Parse JSON
-  let body: unknown;
-  const bodyText = await request.text();
+  let id: string | number | null = null;
+  
   try {
-    body = JSON.parse(bodyText);
-  } catch {
-    return a2aError(
-      A2AErrorCodes.PARSE_ERROR,
-      "Parse error: Invalid JSON",
-      null,
-    );
-  }
+    logger.info("[A2A] POST request received - Step 1");
+    
+    // Parse JSON
+    let body: unknown;
+    const bodyText = await request.text();
+    logger.info("[A2A] POST request received - Step 2: body read");
+    
+    try {
+      body = JSON.parse(bodyText);
+      logger.info("[A2A] POST request received - Step 3: JSON parsed");
+    } catch {
+      return a2aError(
+        A2AErrorCodes.PARSE_ERROR,
+        "Parse error: Invalid JSON",
+        null,
+      );
+    }
+    
+    logger.info("[A2A] POST request received - Step 4: about to validate schema");
+    const parsed = JsonRpcRequestSchema.safeParse(body);
+    logger.info("[A2A] POST request received - Step 5: schema validated");
+    if (!parsed.success) {
+      return a2aError(
+        A2AErrorCodes.INVALID_REQUEST,
+        "Invalid Request: Does not conform to JSON-RPC 2.0",
+        null,
+      );
+    }
 
-  const parsed = JsonRpcRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    return a2aError(
-      A2AErrorCodes.INVALID_REQUEST,
-      "Invalid Request: Does not conform to JSON-RPC 2.0",
-      null,
-    );
-  }
-
-  const { method, params, id } = parsed.data;
+    const { method, params } = parsed.data;
+    id = parsed.data.id;
 
   // Auth
   let authResult: Awaited<ReturnType<typeof requireAuthOrApiKeyWithOrg>>;
@@ -262,6 +278,16 @@ export async function POST(request: NextRequest) {
       );
 
     return a2aError(code, msg, id, status);
+  }
+  } catch (outerError) {
+    // Catch any uncaught errors (e.g., from secrets loading, reputation service)
+    logger.error("[A2A] Unhandled error:", outerError);
+    return a2aError(
+      A2AErrorCodes.INTERNAL_ERROR,
+      outerError instanceof Error ? outerError.message : "Internal server error",
+      id,
+      500,
+    );
   }
 }
 

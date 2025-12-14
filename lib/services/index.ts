@@ -19,7 +19,6 @@ export * from "./analytics";
 export * from "./container-quota";
 export * from "./memory";
 export * from "./agents";
-export * from "./agent-discovery";
 export { appsService } from "./apps";
 export { appAnalyticsService } from "./app-analytics";
 export { appSignupTrackingService } from "./app-signup-tracking";
@@ -56,3 +55,7 @@ export type {
   AgentStatusResponse,
   AgentEventResponse,
 } from "./agent-monitoring";
+
+// Domain moderation
+export { domainContentModerationService } from "./domain-content-moderation";
+export { suspensionNotificationService } from "./suspension-notification";

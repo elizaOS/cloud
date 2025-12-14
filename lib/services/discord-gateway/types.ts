@@ -415,6 +415,7 @@ export interface A2ACallbackRequest {
       content: string;
       metadata: {
         source: "discord";
+        connection_id: string;
         guild_id: string;
         channel_id: string;
         message_id: string;
@@ -456,6 +457,7 @@ export interface WebhookCallbackRequest {
   event_type: DiscordEventType;
   timestamp: string;
   organization_id: string;
+  connection_id: string;
   guild_id: string;
   channel_id?: string;
   data: unknown;

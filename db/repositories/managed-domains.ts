@@ -1,9 +1,9 @@
 import { eq, and, desc, sql, isNull, lte } from "drizzle-orm";
 import { db } from "../client";
-import { managedDomains, type ManagedDomain, type NewManagedDomain, type DomainModerationFlag, type DnsRecord } from "../schemas/managed-domains";
+import { managedDomains, type ManagedDomain, type NewManagedDomain, type DomainModerationFlag, type DnsRecord, type ContentScanCache, type SuspensionNotification } from "../schemas/managed-domains";
 import { domainModerationEvents, type DomainModerationEvent, type NewDomainModerationEvent } from "../schemas/domain-moderation-events";
 
-export type { ManagedDomain, NewManagedDomain, DomainModerationFlag, DnsRecord };
+export type { ManagedDomain, NewManagedDomain, DomainModerationFlag, DnsRecord, ContentScanCache, SuspensionNotification };
 export type { DomainModerationEvent, NewDomainModerationEvent };
 
 export class ManagedDomainsRepository {
@@ -182,6 +182,106 @@ export class ManagedDomainsRepository {
       where: and(eq(managedDomains.status, "active"), sql`(${managedDomains.lastHealthCheck} IS NULL OR ${managedDomains.lastHealthCheck} < ${cutoff})`),
       orderBy: [managedDomains.lastHealthCheck],
     });
+  }
+
+  async listNeedingContentScan(hoursAgo: number) {
+    const cutoff = new Date();
+    cutoff.setHours(cutoff.getHours() - hoursAgo);
+    return db.query.managedDomains.findMany({
+      where: and(
+        eq(managedDomains.status, "active"),
+        eq(managedDomains.isLive, true),
+        sql`(${managedDomains.lastContentScanAt} IS NULL OR ${managedDomains.lastContentScanAt} < ${cutoff})`
+      ),
+      orderBy: [managedDomains.lastContentScanAt],
+    });
+  }
+
+  async listNeedingAiScan(daysAgo: number) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - daysAgo);
+    return db.query.managedDomains.findMany({
+      where: and(
+        eq(managedDomains.status, "active"),
+        eq(managedDomains.isLive, true),
+        sql`(${managedDomains.lastAiScanAt} IS NULL OR ${managedDomains.lastAiScanAt} < ${cutoff})`
+      ),
+      orderBy: [managedDomains.lastAiScanAt],
+    });
+  }
+
+  async updateContentScan(
+    domainId: string,
+    contentHash: string,
+    cache: ContentScanCache,
+    isAiScan: boolean
+  ) {
+    const now = new Date();
+    const [updated] = await db.update(managedDomains).set({
+      contentHash,
+      lastContentScanAt: now,
+      ...(isAiScan && { lastAiScanAt: now, aiScanModel: cache.model }),
+      contentScanConfidence: cache.confidence,
+      contentScanCache: cache,
+      updatedAt: now,
+    }).where(eq(managedDomains.id, domainId)).returning();
+    return updated;
+  }
+
+  async suspendDomain(
+    domainId: string,
+    reason: string,
+    notification: SuspensionNotification
+  ) {
+    const now = new Date();
+    const [updated] = await db.update(managedDomains).set({
+      status: "suspended",
+      moderationStatus: "suspended",
+      suspendedAt: now,
+      suspensionReason: reason,
+      suspensionNotification: notification,
+      ownerNotifiedAt: now,
+      updatedAt: now,
+    }).where(eq(managedDomains.id, domainId)).returning();
+    return updated;
+  }
+
+  async listSuspended() {
+    return db.query.managedDomains.findMany({
+      where: eq(managedDomains.status, "suspended"),
+      orderBy: [desc(managedDomains.suspendedAt)],
+    });
+  }
+
+  async listSuspendedNotNotified() {
+    return db.query.managedDomains.findMany({
+      where: and(
+        eq(managedDomains.status, "suspended"),
+        isNull(managedDomains.ownerNotifiedAt)
+      ),
+      orderBy: [desc(managedDomains.suspendedAt)],
+    });
+  }
+
+  async markOwnerNotified(domainId: string) {
+    const [updated] = await db.update(managedDomains).set({
+      ownerNotifiedAt: new Date(),
+      updatedAt: new Date(),
+    }).where(eq(managedDomains.id, domainId)).returning();
+    return updated;
+  }
+
+  async reinstateFromSuspension(domainId: string) {
+    const [updated] = await db.update(managedDomains).set({
+      status: "active",
+      moderationStatus: "clean",
+      suspendedAt: null,
+      suspensionReason: null,
+      suspensionNotification: null,
+      moderationFlags: [],
+      updatedAt: new Date(),
+    }).where(eq(managedDomains.id, domainId)).returning();
+    return updated;
   }
 
   async createEvent(data: NewDomainModerationEvent): Promise<DomainModerationEvent> {

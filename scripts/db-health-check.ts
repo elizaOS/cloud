@@ -1,17 +1,5 @@
 #!/usr/bin/env bun
-/**
- * Database Health Check Script
- * 
- * Quick health check for database performance including:
- * - Slow query summary from in-memory store
- * - Redis cache status
- * - PostgreSQL slow query log stats
- * - Connection pool status
- * 
- * Usage:
- *   bun run scripts/db-health-check.ts
- *   bun run scripts/db-health-check.ts --detailed
- */
+// Quick database health check. Use --detailed for slow query list.
 
 import { config } from "dotenv";
 import { Pool } from "pg";

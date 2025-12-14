@@ -105,20 +105,12 @@ export function ServicesMarketplace({
   const protocols = ["all", "mcp", "a2a", "rest"];
   const sources = ["all", "demo", "user", "public"];
 
-  // Apply filters
-  const filteredServices = useMemo(() => {
-    return services.filter((s) => {
-      if (categoryFilter !== "all" && s.category !== categoryFilter)
-        return false;
-      if (
-        protocolFilter !== "all" &&
-        !s.protocols.includes(protocolFilter as "mcp" | "a2a" | "rest")
-      )
-        return false;
-      if (sourceFilter !== "all" && s.source !== sourceFilter) return false;
-      return true;
-    });
-  }, [services, categoryFilter, protocolFilter, sourceFilter]);
+  const filteredServices = services.filter((s) => {
+    if (categoryFilter !== "all" && s.category !== categoryFilter) return false;
+    if (protocolFilter !== "all" && !s.protocols.includes(protocolFilter as "mcp" | "a2a" | "rest")) return false;
+    if (sourceFilter !== "all" && s.source !== sourceFilter) return false;
+    return true;
+  });
 
   const copyEndpoint = async (endpoint: string, serviceId: string) => {
     const baseUrl =

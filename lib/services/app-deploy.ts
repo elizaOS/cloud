@@ -17,6 +17,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 import { nanoid } from "nanoid";
 import { vercelDomainsService } from "./vercel-domains";
+import { mediaCollectionsService } from "./media-collections";
 import type { FragmentSchema } from "@/lib/fragments/schema";
 
 const APP_DOMAIN = process.env.APP_DOMAIN || "apps.elizacloud.ai";
@@ -339,6 +340,22 @@ export async function deployApp(options: DeployAppOptions): Promise<DeployResult
     result.customDomain = customDomain;
     result.verificationRecords = domainSetup.verificationRecords;
   }
+
+  // 10. Create promotional media collection for the app
+  await mediaCollectionsService.create({
+    organizationId,
+    userId,
+    name: `${name} - Promotional Assets`,
+    description: `Media assets for promoting ${name}`,
+    purpose: "advertising",
+    tags: ["app-promotion", subdomain],
+  }).catch((err) => {
+    // Non-critical: log but don't fail deployment
+    logger.warn("[App Deploy] Failed to create media collection", {
+      appId: app.id,
+      error: err.message,
+    });
+  });
 
   return result;
 }

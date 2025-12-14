@@ -11,6 +11,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  real,
   text,
   timestamp,
   uniqueIndex,
@@ -88,11 +89,32 @@ export interface DnsRecord {
 
 // Moderation flag structure
 export interface DomainModerationFlag {
-  type: "expletive" | "trademark" | "suspicious" | "restricted" | "content";
+  type: "expletive" | "trademark" | "suspicious" | "restricted" | "content" | "csam" | "illegal" | "ai_flagged";
   severity: "low" | "medium" | "high" | "critical";
   reason: string;
   detectedAt: string;
   resolvedAt?: string;
+  aiModel?: string;
+  aiConfidence?: number;
+}
+
+// AI scan result for caching
+export interface ContentScanCache {
+  contentHash: string;
+  scannedAt: string;
+  result: "clean" | "flagged" | "needs_review" | "suspended";
+  confidence: number;
+  model?: string;
+  toxicityScore?: number;
+  flags: DomainModerationFlag[];
+}
+
+// Suspension notification tracking
+export interface SuspensionNotification {
+  notifiedAt: string;
+  method: "email" | "in_app" | "both";
+  reason: string;
+  appealEmail: string;
 }
 
 export const managedDomains = pgTable(
@@ -158,6 +180,20 @@ export const managedDomains = pgTable(
     isLive: boolean("is_live").notNull().default(false),
     healthCheckError: text("health_check_error"),
 
+    // Content scanning (AI moderation)
+    contentHash: text("content_hash"),
+    lastContentScanAt: timestamp("last_content_scan_at"),
+    lastAiScanAt: timestamp("last_ai_scan_at"),
+    aiScanModel: text("ai_scan_model"),
+    contentScanConfidence: real("content_scan_confidence"),
+    contentScanCache: jsonb("content_scan_cache").$type<ContentScanCache>(),
+
+    // Suspension tracking
+    suspendedAt: timestamp("suspended_at"),
+    suspensionReason: text("suspension_reason"),
+    suspensionNotification: jsonb("suspension_notification").$type<SuspensionNotification>(),
+    ownerNotifiedAt: timestamp("owner_notified_at"),
+
     // Pricing (for purchased domains)
     purchasePrice: text("purchase_price"), // In cents USD
     renewalPrice: text("renewal_price"), // In cents USD
@@ -180,6 +216,8 @@ export const managedDomains = pgTable(
       table.moderationStatus
     ),
     expiresIdx: index("managed_domains_expires_idx").on(table.expiresAt),
+    contentScanIdx: index("managed_domains_content_scan_idx").on(table.lastContentScanAt),
+    suspendedIdx: index("managed_domains_suspended_idx").on(table.suspendedAt),
   })
 );
 
