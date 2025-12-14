@@ -49,9 +49,14 @@ export default function () {
     check(null, { "agents 200": () => agents !== null }, { type: "auth" });
     sleep(0.3);
 
-    // Use A2A service discovery (GET) which doesn't have the Zod module issue
-    const a2aInfo = httpGet("/api/a2a", { public: true });
-    check(null, { "a2a service 200": () => a2aInfo !== null }, { type: "public" });
+    // A2A tasks/get - should return "not found" error which is a valid response
+    const a2a = httpPost("/api/a2a", {
+      jsonrpc: "2.0",
+      method: "tasks/get",
+      params: { id: "smoke-test-nonexistent" },
+      id: 1,
+    }, { expectedStatus: 404 });
+    check(null, { "a2a responds": () => a2a !== null }, { type: "auth" });
   });
   sleep(1);
 }
