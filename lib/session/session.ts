@@ -35,7 +35,7 @@ const DEFAULT_HOURLY_LIMIT = 10;
 
 const privyClient = new PrivyClient(
   process.env.NEXT_PUBLIC_PRIVY_APP_ID!,
-  process.env.PRIVY_APP_SECRET!
+  process.env.PRIVY_APP_SECRET!,
 );
 
 export interface SessionUser {
@@ -129,7 +129,7 @@ export async function getOrCreateSessionUser(
   options?: {
     tokenSources?: SessionTokenSources;
     createIfMissing?: boolean;
-  }
+  },
 ): Promise<SessionUser> {
   const { tokenSources, createIfMissing = true } = options || {};
   const logPrefix = "[Session]";
@@ -155,10 +155,12 @@ export async function getOrCreateSessionUser(
 
         if (!user && privyIdToken) {
           logger.debug(
-            `${logPrefix} Privy user not in DB, triggering JIT sync...`
+            `${logPrefix} Privy user not in DB, triggering JIT sync...`,
           );
           // Use getUser({idToken}) to avoid rate limits (vs deprecated getUser(userId))
-          const privyUser = await privyClient.getUser({ idToken: privyIdToken });
+          const privyUser = await privyClient.getUser({
+            idToken: privyIdToken,
+          });
           if (privyUser) {
             user = await syncUserFromPrivy(privyUser);
           }
@@ -207,19 +209,21 @@ export async function getOrCreateSessionUser(
   if (providedToken) {
     logger.debug(
       `${logPrefix} Checking provided token:`,
-      providedToken.slice(0, 8) + "..."
+      providedToken.slice(0, 8) + "...",
     );
 
     const session = await anonymousSessionsService.getByToken(providedToken);
     if (session) {
-      const sessionUser = await usersService.getWithOrganization(session.user_id);
+      const sessionUser = await usersService.getWithOrganization(
+        session.user_id,
+      );
       if (sessionUser && sessionUser.is_anonymous) {
         logger.info(
           `${logPrefix} Valid anonymous session from provided token`,
           {
             userId: sessionUser.id,
             messageCount: session.message_count,
-          }
+          },
         );
 
         return buildAnonymousSessionUser(sessionUser, session, providedToken);
@@ -234,12 +238,14 @@ export async function getOrCreateSessionUser(
   if (cookieToken) {
     logger.debug(
       `${logPrefix} Checking cookie token:`,
-      cookieToken.slice(0, 8) + "..."
+      cookieToken.slice(0, 8) + "...",
     );
 
     const session = await anonymousSessionsService.getByToken(cookieToken);
     if (session) {
-      const sessionUser = await usersService.getWithOrganization(session.user_id);
+      const sessionUser = await usersService.getWithOrganization(
+        session.user_id,
+      );
       if (sessionUser && sessionUser.is_anonymous) {
         logger.info(`${logPrefix} Valid anonymous session from cookie`, {
           userId: sessionUser.id,
@@ -264,7 +270,7 @@ export async function getOrCreateSessionUser(
 async function buildAnonymousSessionUser(
   user: UserWithOrganization,
   session: AnonymousSession,
-  token: string
+  token: string,
 ): Promise<SessionUser> {
   // Anonymous users have no organization - construct proper UserWithOrganization
   const anonymousUser: UserWithOrganization = {
@@ -282,7 +288,7 @@ async function buildAnonymousSessionUser(
     messagesLimit: session.messages_limit,
     messagesRemaining: Math.max(
       0,
-      session.messages_limit - session.message_count
+      session.messages_limit - session.message_count,
     ),
     metadata: {
       ipAddress: session.ip_address || undefined,
@@ -299,17 +305,17 @@ async function buildAnonymousSessionUser(
 async function createNewAnonymousSession(): Promise<SessionUser> {
   const sessionToken = nanoid(32);
   const expiresAt = new Date(
-    Date.now() + ANON_SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+    Date.now() + ANON_SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
   );
   const clientInfo = await getClientInfo();
 
   if (clientInfo.ipAddress && process.env.NODE_ENV === "production") {
     const isAbuse = await anonymousSessionsService.checkIpAbuse(
-      clientInfo.ipAddress
+      clientInfo.ipAddress,
     );
     if (isAbuse) {
       throw new Error(
-        "Too many anonymous sessions from this IP. Please sign up."
+        "Too many anonymous sessions from this IP. Please sign up.",
       );
     }
   }
@@ -373,7 +379,7 @@ async function createNewAnonymousSession(): Promise<SessionUser> {
  * Increment message count for a session user
  */
 export async function incrementSessionMessageCount(
-  sessionUser: SessionUser
+  sessionUser: SessionUser,
 ): Promise<{
   allowed: boolean;
   newCount: number;
@@ -400,7 +406,7 @@ export async function incrementSessionMessageCount(
   }
 
   const rateLimitResult = await anonymousSessionsService.checkRateLimit(
-    session.id
+    session.id,
   );
   if (!rateLimitResult.allowed) {
     return {
@@ -412,7 +418,7 @@ export async function incrementSessionMessageCount(
   }
 
   const updatedSession = await anonymousSessionsService.incrementMessageCount(
-    session.id
+    session.id,
   );
 
   logger.debug("[Session] Incremented message count", {
@@ -426,7 +432,7 @@ export async function incrementSessionMessageCount(
     newCount: updatedSession.message_count,
     remaining: Math.max(
       0,
-      session.messages_limit - updatedSession.message_count
+      session.messages_limit - updatedSession.message_count,
     ),
   };
 }
@@ -442,7 +448,7 @@ export async function incrementSessionMessageCount(
  */
 export async function migrateAnonymousSession(
   anonymousUserId: string,
-  privyUserId: string
+  privyUserId: string,
 ): Promise<{
   success: boolean;
   mergedData: {
@@ -481,8 +487,8 @@ export async function migrateAnonymousSession(
           and(
             eq(users.id, anonymousUserId),
             sql`${users.email} LIKE 'affiliate-%@anonymous.elizacloud.ai'`,
-            sql`${users.privy_user_id} IS NULL`
-          )
+            sql`${users.privy_user_id} IS NULL`,
+          ),
         )
         .limit(1);
     }
@@ -569,7 +575,9 @@ export async function migrateAnonymousSession(
       mergedData.charactersTransferred = charResult.length;
     } else {
       if (!realUser.organization_id) {
-        throw new Error(`Cannot migrate to user ${realUser.id} without organization`);
+        throw new Error(
+          `Cannot migrate to user ${realUser.id} without organization`,
+        );
       }
 
       targetUserId = realUser.id;
@@ -692,7 +700,7 @@ export function shouldPromptSignup(sessionUser: SessionUser): {
  * Get session summary for debugging
  */
 export function getSessionDebugInfo(
-  sessionUser: SessionUser
+  sessionUser: SessionUser,
 ): Record<string, unknown> {
   return {
     userId: sessionUser.userId,

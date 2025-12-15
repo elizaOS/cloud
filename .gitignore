@@ -55,3 +55,4 @@ src-tauri/gen/android/
 src-tauri/Cargo.lock
 
 ignore/
+.env*.local

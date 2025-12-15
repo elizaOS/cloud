@@ -11,11 +11,11 @@ export default function Home() {
       <Suspense fallback={null}>
         <ReferralCapture />
       </Suspense>
-      
+
       {/* Combined Hero + Character Creator Section */}
-      <Section 
+      <Section
         id="character-creator"
-        className="relative overflow-hidden !py-0 pt-16 pb-6 lg:pt-20 lg:pb-10 mt-12"
+        className="relative mt-12 overflow-hidden !py-0 pt-16 pb-6 lg:pt-20 lg:pb-10"
       >
         <div className="mx-auto flex max-w-7xl flex-col gap-4 sm:gap-6 lg:flex-row lg:items-start lg:gap-8">
           {/* Left: Hero Content */}

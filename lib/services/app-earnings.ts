@@ -55,27 +55,46 @@ export class AppEarningsService {
     };
   }
 
-  async getEarningsBreakdown(
-    appId: string
-  ): Promise<{
+  async getEarningsBreakdown(appId: string): Promise<{
     today: EarningsBreakdown;
     thisWeek: EarningsBreakdown;
     thisMonth: EarningsBreakdown;
     allTime: EarningsBreakdown;
   }> {
     const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfDay = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
     const startOfWeek = new Date(startOfDay);
     startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay());
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const allTimeStart = new Date(2020, 0, 1); // Far past date
 
-    const [todayTotals, weekTotals, monthTotals, allTimeTotals] = await Promise.all([
-      appEarningsRepository.getTransactionTotalsByType(appId, startOfDay, now),
-      appEarningsRepository.getTransactionTotalsByType(appId, startOfWeek, now),
-      appEarningsRepository.getTransactionTotalsByType(appId, startOfMonth, now),
-      appEarningsRepository.getTransactionTotalsByType(appId, allTimeStart, now),
-    ]);
+    const [todayTotals, weekTotals, monthTotals, allTimeTotals] =
+      await Promise.all([
+        appEarningsRepository.getTransactionTotalsByType(
+          appId,
+          startOfDay,
+          now,
+        ),
+        appEarningsRepository.getTransactionTotalsByType(
+          appId,
+          startOfWeek,
+          now,
+        ),
+        appEarningsRepository.getTransactionTotalsByType(
+          appId,
+          startOfMonth,
+          now,
+        ),
+        appEarningsRepository.getTransactionTotalsByType(
+          appId,
+          allTimeStart,
+          now,
+        ),
+      ]);
 
     return {
       today: {
@@ -107,7 +126,7 @@ export class AppEarningsService {
 
   async getDailyEarningsChart(
     appId: string,
-    days: number = 30
+    days: number = 30,
   ): Promise<
     Array<{
       date: string;
@@ -123,7 +142,7 @@ export class AppEarningsService {
     const data = await appEarningsRepository.getDailyEarnings(
       appId,
       startDate,
-      endDate
+      endDate,
     );
 
     return data.map((d) => ({
@@ -139,21 +158,25 @@ export class AppEarningsService {
     options?: {
       limit?: number;
       offset?: number;
-      type?: "inference_markup" | "purchase_share" | "withdrawal" | "adjustment";
-    }
+      type?:
+        | "inference_markup"
+        | "purchase_share"
+        | "withdrawal"
+        | "adjustment";
+    },
   ): Promise<AppEarningsTransaction[]> {
     if (options?.type) {
       return await appEarningsRepository.listTransactionsByType(
         appId,
         options.type,
-        options?.limit || 50
+        options?.limit || 50,
       );
     }
 
     return await appEarningsRepository.listTransactions(
       appId,
       options?.limit || 50,
-      options?.offset || 0
+      options?.offset || 0,
     );
   }
 
@@ -175,7 +198,7 @@ export class AppEarningsService {
 
   async requestWithdrawal(
     appId: string,
-    amount: number
+    amount: number,
   ): Promise<{ success: boolean; message: string; transactionId?: string }> {
     const app = await appsRepository.findById(appId);
     if (!app) {
@@ -183,7 +206,10 @@ export class AppEarningsService {
     }
 
     if (!app.monetization_enabled) {
-      return { success: false, message: "Monetization is not enabled for this app" };
+      return {
+        success: false,
+        message: "Monetization is not enabled for this app",
+      };
     }
 
     const result = await appEarningsRepository.processWithdrawal(appId, amount);
@@ -199,13 +225,19 @@ export class AppEarningsService {
       metadata: { requested_at: new Date().toISOString(), status: "pending" },
     });
 
-    logger.info("[AppEarnings] Withdrawal requested", { appId, amount, transactionId: transaction.id });
+    logger.info("[AppEarnings] Withdrawal requested", {
+      appId,
+      amount,
+      transactionId: transaction.id,
+    });
 
-    return { success: true, message: `Withdrawal of $${amount.toFixed(2)} requested successfully`, transactionId: transaction.id };
+    return {
+      success: true,
+      message: `Withdrawal of $${amount.toFixed(2)} requested successfully`,
+      transactionId: transaction.id,
+    };
   }
-
 }
 
 // Export singleton instance
 export const appEarningsService = new AppEarningsService();
-

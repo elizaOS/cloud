@@ -51,9 +51,7 @@ export async function generateMetadata({
     .limit(1);
 
   if (character) {
-    const bio = Array.isArray(character.bio)
-      ? character.bio[0]
-      : character.bio;
+    const bio = Array.isArray(character.bio) ? character.bio[0] : character.bio;
     const metadata = generateCharacterMetadata(
       character.id,
       character.name,

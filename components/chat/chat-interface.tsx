@@ -349,21 +349,20 @@ export function ChatInterface({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionToken: sessionTokenFromUrl }),
-      })
-        .then(async (res) => {
-          if (res.ok) {
-            console.log(
-              "[ChatInterface] ✅ Anonymous session cookie set successfully",
-            );
-          } else {
-            const errorData = await res.json();
-            console.error(
-              "[ChatInterface] ❌ Failed to set session cookie:",
-              res.status,
-              errorData,
-            );
-          }
-        });
+      }).then(async (res) => {
+        if (res.ok) {
+          console.log(
+            "[ChatInterface] ✅ Anonymous session cookie set successfully",
+          );
+        } else {
+          const errorData = await res.json();
+          console.error(
+            "[ChatInterface] ❌ Failed to set session cookie:",
+            res.status,
+            errorData,
+          );
+        }
+      });
     }
   }, [sessionTokenFromUrl, user]);
 

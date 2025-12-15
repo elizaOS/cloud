@@ -1,6 +1,6 @@
 /**
  * Agent repositories index.
- * 
+ *
  * Direct database access to ElizaOS tables without spinning up runtime.
  */
 

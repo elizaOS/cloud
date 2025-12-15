@@ -44,7 +44,10 @@ const NETWORKS_TO_CHECK: ERC8004Network[] = ["base-sepolia", "base"];
 // Configuration Check
 // ============================================================================
 
-async function ensureConfiguration(): Promise<{ env: Record<string, string>; primaryNetwork: ERC8004Network }> {
+async function ensureConfiguration(): Promise<{
+  env: Record<string, string>;
+  primaryNetwork: ERC8004Network;
+}> {
   console.log("\n📋 Configuration");
   console.log("================");
 
@@ -67,7 +70,8 @@ async function ensureConfiguration(): Promise<{ env: Record<string, string>; pri
     }
   }
 
-  const primaryNetwork = (env.ERC8004_NETWORK || "base-sepolia") as ERC8004Network;
+  const primaryNetwork = (env.ERC8004_NETWORK ||
+    "base-sepolia") as ERC8004Network;
 
   console.log(`   Primary Network: ${primaryNetwork}`);
   console.log(`   x402 Enabled: ${env.ENABLE_X402_PAYMENTS || "false"}`);
@@ -76,7 +80,9 @@ async function ensureConfiguration(): Promise<{ env: Record<string, string>; pri
   const privateKey = env.AGENT0_PRIVATE_KEY || env.DEPLOYER_PRIVATE_KEY;
   if (privateKey) {
     const account = privateKeyToAccount(privateKey as `0x${string}`);
-    console.log(`   Wallet: ${account.address.slice(0, 10)}...${account.address.slice(-8)}`);
+    console.log(
+      `   Wallet: ${account.address.slice(0, 10)}...${account.address.slice(-8)}`,
+    );
   } else {
     console.log(`   Wallet: Not configured`);
   }
@@ -101,7 +107,10 @@ interface NetworkStatus {
   walletBalance: bigint;
 }
 
-async function checkNetwork(network: ERC8004Network, env: Record<string, string>): Promise<NetworkStatus> {
+async function checkNetwork(
+  network: ERC8004Network,
+  env: Record<string, string>,
+): Promise<NetworkStatus> {
   const status: NetworkStatus = {
     network,
     connected: false,
@@ -134,7 +143,9 @@ async function checkNetwork(network: ERC8004Network, env: Record<string, string>
     const privateKey = env.AGENT0_PRIVATE_KEY || env.DEPLOYER_PRIVATE_KEY;
     if (privateKey) {
       const account = privateKeyToAccount(privateKey as `0x${string}`);
-      status.walletBalance = await publicClient.getBalance({ address: account.address });
+      status.walletBalance = await publicClient.getBalance({
+        address: account.address,
+      });
     }
 
     // Check if already registered
@@ -142,7 +153,8 @@ async function checkNetwork(network: ERC8004Network, env: Record<string, string>
     const existingId = env[envKey] || ELIZA_CLOUD_AGENT_ID[network];
     if (existingId !== null && existingId !== undefined) {
       status.registered = true;
-      status.agentId = typeof existingId === "string" ? parseInt(existingId, 10) : existingId;
+      status.agentId =
+        typeof existingId === "string" ? parseInt(existingId, 10) : existingId;
     }
   } catch {
     // Network not reachable
@@ -153,14 +165,20 @@ async function checkNetwork(network: ERC8004Network, env: Record<string, string>
 
 function getEnvKeyForNetwork(network: ERC8004Network): string {
   switch (network) {
-    case "base-sepolia": return "ELIZA_CLOUD_AGENT_ID_SEPOLIA";
-    case "base": return "ELIZA_CLOUD_AGENT_ID_MAINNET";
-    case "anvil": return "ELIZA_CLOUD_AGENT_ID_ANVIL";
-    default: return `ELIZA_CLOUD_AGENT_ID_${network.toUpperCase().replace("-", "_")}`;
+    case "base-sepolia":
+      return "ELIZA_CLOUD_AGENT_ID_SEPOLIA";
+    case "base":
+      return "ELIZA_CLOUD_AGENT_ID_MAINNET";
+    case "anvil":
+      return "ELIZA_CLOUD_AGENT_ID_ANVIL";
+    default:
+      return `ELIZA_CLOUD_AGENT_ID_${network.toUpperCase().replace("-", "_")}`;
   }
 }
 
-async function checkAllNetworks(env: Record<string, string>): Promise<Record<ERC8004Network, NetworkStatus>> {
+async function checkAllNetworks(
+  env: Record<string, string>,
+): Promise<Record<ERC8004Network, NetworkStatus>> {
   console.log("\n🌐 Network Status");
   console.log("=================");
 
@@ -170,15 +188,28 @@ async function checkAllNetworks(env: Record<string, string>): Promise<Record<ERC
     const status = await checkNetwork(network, env);
     results[network] = status;
 
-    const icon = status.connected && status.contractsDeployed ? "✅" : status.connected ? "⚠️" : "❌";
+    const icon =
+      status.connected && status.contractsDeployed
+        ? "✅"
+        : status.connected
+          ? "⚠️"
+          : "❌";
     const regIcon = status.registered ? "✅" : "❌";
-    
+
     console.log(`   ${network}:`);
-    console.log(`      ${icon} Network: ${status.connected ? "Connected" : "Unreachable"}`);
-    console.log(`      ${status.contractsDeployed ? "✅" : "⚠️"} Contracts: ${status.contractsDeployed ? "Deployed" : "Not deployed"}`);
-    console.log(`      ${regIcon} Agent: ${status.registered ? `ID ${status.agentId}` : "Not registered"}`);
+    console.log(
+      `      ${icon} Network: ${status.connected ? "Connected" : "Unreachable"}`,
+    );
+    console.log(
+      `      ${status.contractsDeployed ? "✅" : "⚠️"} Contracts: ${status.contractsDeployed ? "Deployed" : "Not deployed"}`,
+    );
+    console.log(
+      `      ${regIcon} Agent: ${status.registered ? `ID ${status.agentId}` : "Not registered"}`,
+    );
     if (status.walletBalance > 0n) {
-      console.log(`      💰 Balance: ${formatUnits(status.walletBalance, 18)} ETH`);
+      console.log(
+        `      💰 Balance: ${formatUnits(status.walletBalance, 18)} ETH`,
+      );
     }
   }
 
@@ -202,7 +233,7 @@ function getWalletAddress(env: Record<string, string>): string | null {
 
 async function registerOnNetwork(
   network: ERC8004Network,
-  env: Record<string, string>
+  env: Record<string, string>,
 ): Promise<{ success: boolean; agentId?: number }> {
   const privateKey = env.AGENT0_PRIVATE_KEY || env.DEPLOYER_PRIVATE_KEY;
   if (!privateKey) {
@@ -233,7 +264,8 @@ async function registerOnNetwork(
     chainId,
     rpcUrl: RPC_URLS[network],
     signer: privateKey,
-    registryOverrides: Object.keys(registryOverrides).length > 0 ? registryOverrides : undefined,
+    registryOverrides:
+      Object.keys(registryOverrides).length > 0 ? registryOverrides : undefined,
     ...(pinataJwt && {
       ipfs: "pinata" as const,
       pinataJwt,
@@ -245,7 +277,7 @@ async function registerOnNetwork(
     "Eliza Cloud",
     "AI agent infrastructure: inference, agents, memory, billing. " +
       "Supports REST, MCP, A2A protocols with x402 or API key authentication.",
-    `${baseUrl}/logo.png`
+    `${baseUrl}/logo.png`,
   );
 
   // Configure endpoints
@@ -290,7 +322,7 @@ async function registerOnNetwork(
   // Update env file
   const tokenId = agentId.split(":")[1];
   const envKey = getEnvKeyForNetwork(network);
-  
+
   if (tokenId && tokenId !== "new") {
     updateEnvFile(envKey, tokenId);
     return { success: true, agentId: parseInt(tokenId, 10) };
@@ -301,7 +333,7 @@ async function registerOnNetwork(
 
 async function ensureAllRegistered(
   networkStatuses: Record<ERC8004Network, NetworkStatus>,
-  env: Record<string, string>
+  env: Record<string, string>,
 ): Promise<void> {
   console.log("\n🤖 Auto-Registration Check");
   console.log("==========================");
@@ -315,7 +347,7 @@ async function ensureAllRegistered(
 
   for (const network of NETWORKS_TO_CHECK) {
     const status = networkStatuses[network];
-    
+
     if (!status.connected) {
       console.log(`   ${network}: ⏭️  Network not reachable - skipping`);
       continue;
@@ -327,7 +359,9 @@ async function ensureAllRegistered(
     }
 
     if (status.registered) {
-      console.log(`   ${network}: ✅ Already registered (Agent ID: ${status.agentId})`);
+      console.log(
+        `   ${network}: ✅ Already registered (Agent ID: ${status.agentId})`,
+      );
       continue;
     }
 
@@ -336,17 +370,21 @@ async function ensureAllRegistered(
     if (status.walletBalance < minBalance) {
       console.log(`   ${network}: ⚠️  Insufficient ETH for registration`);
       if (network === "base-sepolia") {
-        console.log(`      Get test ETH: https://www.coinbase.com/faucets/base-ethereum-goerli-faucet`);
+        console.log(
+          `      Get test ETH: https://www.coinbase.com/faucets/base-ethereum-goerli-faucet`,
+        );
       }
       continue;
     }
 
     console.log(`   ${network}: 📝 Registering...`);
-    
+
     try {
       const result = await registerOnNetwork(network, env);
       if (result.success) {
-        console.log(`   ${network}: ✅ Registration submitted${result.agentId ? ` (Agent ID: ${result.agentId})` : ""}`);
+        console.log(
+          `   ${network}: ✅ Registration submitted${result.agentId ? ` (Agent ID: ${result.agentId})` : ""}`,
+        );
       } else {
         console.log(`   ${network}: ❌ Registration failed`);
       }
@@ -377,11 +415,13 @@ async function main() {
   // Summary
   console.log("\n📊 Summary");
   console.log("==========");
-  
+
   const walletAddress = getWalletAddress(env);
-  console.log(`   Wallet: ${walletAddress ? `${walletAddress.slice(0, 10)}...${walletAddress.slice(-8)}` : "Not configured"}`);
+  console.log(
+    `   Wallet: ${walletAddress ? `${walletAddress.slice(0, 10)}...${walletAddress.slice(-8)}` : "Not configured"}`,
+  );
   console.log(`   Primary Network: ${primaryNetwork}`);
-  
+
   let hasRegistration = false;
   for (const network of NETWORKS_TO_CHECK) {
     const status = networkStatuses[network];
@@ -397,7 +437,9 @@ async function main() {
 
   if (!hasRegistration && walletAddress) {
     console.log("\n💡 To register on testnet:");
-    console.log("   1. Get test ETH: https://www.coinbase.com/faucets/base-ethereum-goerli-faucet");
+    console.log(
+      "   1. Get test ETH: https://www.coinbase.com/faucets/base-ethereum-goerli-faucet",
+    );
     console.log("   2. Run: bun run dev:erc8004");
   } else if (!walletAddress) {
     console.log("\n💡 To enable auto-registration:");

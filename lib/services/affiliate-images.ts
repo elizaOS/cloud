@@ -119,11 +119,15 @@ async function uploadSingleImage(
     return result.url;
   } else if (isValidHttpUrl(imageData)) {
     if (isVercelBlobUrl(imageData)) {
-      logger.debug(`[AffiliateImages] URL image ${index} already on Vercel Blob`);
+      logger.debug(
+        `[AffiliateImages] URL image ${index} already on Vercel Blob`,
+      );
       return imageData;
     }
 
-    logger.info(`[AffiliateImages] Re-uploading external URL ${index} to blob storage`);
+    logger.info(
+      `[AffiliateImages] Re-uploading external URL ${index} to blob storage`,
+    );
     const result = await uploadWithTimeout(
       uploadFromUrl(imageData, {
         filename,

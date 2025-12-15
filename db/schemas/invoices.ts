@@ -11,7 +11,7 @@ import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
 /**
  * Invoices table schema.
- * 
+ *
  * Stores Stripe invoice records with credit purchase tracking.
  */
 export const invoices = pgTable(

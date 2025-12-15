@@ -47,18 +47,14 @@ async function handlePOST(req: NextRequest) {
     const systemMessages = request.messages.filter(
       (msg) => msg.role === "system",
     );
-    const userMessages = request.messages.filter(
-      (msg) => msg.role === "user",
-    );
+    const userMessages = request.messages.filter((msg) => msg.role === "user");
     const assistantMessages = request.messages.filter(
       (msg) => msg.role === "assistant",
     );
-    const toolMessages = request.messages.filter(
-      (msg) => msg.role === "tool",
-    );
+    const toolMessages = request.messages.filter((msg) => msg.role === "tool");
 
     // Helper to get content as string for logging
-    const getContentString = (content: OpenAIChatMessage["content"]): string => 
+    const getContentString = (content: OpenAIChatMessage["content"]): string =>
       typeof content === "string" ? content : JSON.stringify(content);
 
     logger.info("[Chat Completions API] 📝 PROMPT BREAKDOWN", {
@@ -158,13 +154,17 @@ async function handlePOST(req: NextRequest) {
 
     // Check if user is blocked due to moderation violations
     if (await contentModerationService.shouldBlockUser(user.id)) {
-      logger.warn("[Chat Completions API] User blocked due to moderation violations", {
-        userId: user.id,
-      });
+      logger.warn(
+        "[Chat Completions API] User blocked due to moderation violations",
+        {
+          userId: user.id,
+        },
+      );
       return Response.json(
         {
           error: {
-            message: "Your account has been suspended due to policy violations. Please contact support.",
+            message:
+              "Your account has been suspended due to policy violations. Please contact support.",
             type: "account_suspended",
             code: "moderation_violation",
           },
@@ -174,24 +174,30 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Start async content moderation (runs in background, doesn't block)
-    const lastUserMessage = [...request.messages].reverse().find(m => m.role === "user");
+    const lastUserMessage = [...request.messages]
+      .reverse()
+      .find((m) => m.role === "user");
     if (lastUserMessage?.content) {
-      const messageText = typeof lastUserMessage.content === "string" 
-        ? lastUserMessage.content 
-        : lastUserMessage.content.find(c => c.type === "text")?.text || "";
-      
+      const messageText =
+        typeof lastUserMessage.content === "string"
+          ? lastUserMessage.content
+          : lastUserMessage.content.find((c) => c.type === "text")?.text || "";
+
       if (messageText) {
         contentModerationService.moderateInBackground(
           messageText,
           user.id,
           undefined,
           (result) => {
-            logger.warn("[Chat Completions API] Async moderation detected violation", {
-              userId: user.id,
-              categories: result.flaggedCategories,
-              action: result.action,
-            });
-          }
+            logger.warn(
+              "[Chat Completions API] Async moderation detected violation",
+              {
+                userId: user.id,
+                categories: result.flaggedCategories,
+                action: result.action,
+              },
+            );
+          },
         );
       }
     }

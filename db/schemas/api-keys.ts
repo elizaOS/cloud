@@ -15,7 +15,7 @@ import { users } from "./users";
 
 /**
  * API keys table schema.
- * 
+ *
  * Stores API keys for programmatic access. Keys are hashed for security
  * and can have expiration dates and usage limits.
  */

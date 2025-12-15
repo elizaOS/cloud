@@ -13,7 +13,10 @@
       "required": ["name", "description"],
       "properties": {
         "name": { "type": "string", "description": "Agent service name" },
-        "description": { "type": "string", "description": "Agent service description" },
+        "description": {
+          "type": "string",
+          "description": "Agent service description"
+        },
         "image": { "type": "string", "description": "Path to logo image" },
         "version": { "type": "string", "description": "Service version" },
         "category": { "type": "string", "description": "OASF category" },
@@ -24,7 +27,9 @@
         },
         "supportedTrust": {
           "type": "array",
-          "items": { "enum": ["reputation", "crypto-economic", "tee-attestation"] },
+          "items": {
+            "enum": ["reputation", "crypto-economic", "tee-attestation"]
+          },
           "description": "Supported trust mechanisms"
         }
       }
@@ -75,4 +80,3 @@
     }
   }
 }
-

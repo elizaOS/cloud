@@ -83,7 +83,7 @@ export class ApiKeysRepository {
 
   /**
    * Atomically increments the usage count for an API key.
-   * 
+   *
    * Uses SQL atomic increment to prevent race conditions.
    */
   async incrementUsage(id: string): Promise<void> {

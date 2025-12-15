@@ -606,9 +606,7 @@ const handler = createPaidMcpHandler(
           const validResults = results.filter(
             (r): r is ValidWeatherResult => !("error" in r),
           );
-          validResults.sort(
-            (a, b) => b.temperature - a.temperature,
-          );
+          validResults.sort((a, b) => b.temperature - a.temperature);
 
           return {
             content: [

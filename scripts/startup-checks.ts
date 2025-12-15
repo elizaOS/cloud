@@ -36,7 +36,10 @@ interface NetworkStatus {
   agentId: number | null;
 }
 
-async function checkNetwork(network: ERC8004Network, env: Record<string, string>): Promise<NetworkStatus> {
+async function checkNetwork(
+  network: ERC8004Network,
+  env: Record<string, string>,
+): Promise<NetworkStatus> {
   const name = network === "base-sepolia" ? "Base Sepolia" : "Base Mainnet";
   const status: NetworkStatus = {
     network,
@@ -67,11 +70,15 @@ async function checkNetwork(network: ERC8004Network, env: Record<string, string>
     }
 
     // Check if already registered
-    const envKey = network === "base-sepolia" ? "ELIZA_CLOUD_AGENT_ID_SEPOLIA" : "ELIZA_CLOUD_AGENT_ID_MAINNET";
+    const envKey =
+      network === "base-sepolia"
+        ? "ELIZA_CLOUD_AGENT_ID_SEPOLIA"
+        : "ELIZA_CLOUD_AGENT_ID_MAINNET";
     const existingId = env[envKey] || ELIZA_CLOUD_AGENT_ID[network];
     if (existingId !== null && existingId !== undefined) {
       status.registered = true;
-      status.agentId = typeof existingId === "string" ? parseInt(existingId, 10) : existingId;
+      status.agentId =
+        typeof existingId === "string" ? parseInt(existingId, 10) : existingId;
     }
   } catch {
     // Network not reachable
@@ -82,12 +89,12 @@ async function checkNetwork(network: ERC8004Network, env: Record<string, string>
 
 async function main() {
   const env = readEnvFile();
-  
+
   console.log("\n⚡ ERC-8004 Quick Status Check");
   console.log("──────────────────────────────");
 
   const results: NetworkStatus[] = [];
-  
+
   for (const network of NETWORKS) {
     const status = await checkNetwork(network, env);
     results.push(status);
@@ -95,13 +102,13 @@ async function main() {
 
   // Print compact status
   let hasIssues = false;
-  
+
   for (const status of results) {
     if (!status.contractsDeployed) {
       console.log(`   ${status.name}: ⏭️  No contracts`);
       continue;
     }
-    
+
     if (status.registered) {
       console.log(`   ${status.name}: ✅ Agent #${status.agentId}`);
     } else {
@@ -112,7 +119,9 @@ async function main() {
 
   // Check wallet
   const privateKey = env.AGENT0_PRIVATE_KEY || env.DEPLOYER_PRIVATE_KEY;
-  const walletAddress = privateKey ? privateKeyToAccount(privateKey as `0x${string}`).address : null;
+  const walletAddress = privateKey
+    ? privateKeyToAccount(privateKey as `0x${string}`).address
+    : null;
 
   if (hasIssues && walletAddress) {
     console.log(`\n💡 Run 'bun run dev:erc8004' to auto-register`);
@@ -126,4 +135,3 @@ async function main() {
 main().catch(() => {
   // Silent fail - don't block dev server startup
 });
-

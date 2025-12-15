@@ -65,8 +65,14 @@ export function useModelTier(): UseModelTierResult {
     () => getModelIdFromTier(selectedTier),
     [selectedTier],
   );
-  const selectedConfig = useMemo(() => MODEL_TIERS[selectedTier], [selectedTier]);
-  const displayInfo = useMemo(() => getTierDisplayInfo(selectedTier), [selectedTier]);
+  const selectedConfig = useMemo(
+    () => MODEL_TIERS[selectedTier],
+    [selectedTier],
+  );
+  const displayInfo = useMemo(
+    () => getTierDisplayInfo(selectedTier),
+    [selectedTier],
+  );
 
   return {
     selectedTier,

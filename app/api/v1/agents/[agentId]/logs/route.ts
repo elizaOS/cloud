@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { agentMonitoringService, type AgentLogEntry } from "@/lib/services/agent-monitoring";
+import {
+  agentMonitoringService,
+  type AgentLogEntry,
+} from "@/lib/services/agent-monitoring";
 import type { AgentLogLevel } from "@/db/repositories/agent-events";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +26,7 @@ interface LogsResponse {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ agentId: string }> }
+  { params }: { params: Promise<{ agentId: string }> },
 ): Promise<NextResponse<LogsResponse>> {
   try {
     const { agentId } = await params;
@@ -44,7 +47,7 @@ export async function GET(
         limit,
         since,
         level: level || undefined,
-      }
+      },
     );
 
     return NextResponse.json(
@@ -65,7 +68,7 @@ export async function GET(
         headers: {
           "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
         },
-      }
+      },
     );
   } catch (error) {
     logger.error("[Agent Logs API] Error:", error);
@@ -79,7 +82,7 @@ export async function GET(
         success: false,
         error: message,
       },
-      { status }
+      { status },
     );
   }
 }

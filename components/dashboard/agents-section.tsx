@@ -92,7 +92,7 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
           </div>
         </div>
         <LockOnButton
-          onClick={() => (window.location.href = "/dashboard/my-agents")}
+          onClick={() => (window.location.href = "/dashboard/build")}
           icon={<Plus className="h-4 w-4" />}
         >
           New Agent
@@ -228,7 +228,7 @@ function GettingStartedSection() {
             <ExternalLink className="h-3 w-3" />
           </a>
           <Link
-            href="/dashboard/character-creator"
+            href="/dashboard/build"
             className="inline-flex items-center gap-1.5 text-xs text-white/50 hover:text-[#FF5800] transition-colors"
           >
             <Sparkles className="h-3.5 w-3.5" />
@@ -360,9 +360,7 @@ function AgentsEmptyState() {
           </p>
           <div className="flex gap-2">
             <BrandButton
-              onClick={() =>
-                (window.location.href = "/dashboard/character-creator")
-              }
+              onClick={() => (window.location.href = "/dashboard/build")}
               size="sm"
               className="h-8 text-xs"
             >

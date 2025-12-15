@@ -209,9 +209,7 @@ export class MemoryService {
         },
       );
       await runtime.createMemory(memory, "memories", true);
-      logger.info(
-        `[Memory Service] Saved memory to PostgreSQL: ${memory.id}`,
-      );
+      logger.info(`[Memory Service] Saved memory to PostgreSQL: ${memory.id}`);
     }
 
     const ttl = input.ttl || CacheTTL.memory.item;
@@ -468,9 +466,7 @@ export class MemoryService {
       limit: depth,
     });
 
-    const participants = await runtime.getParticipantsForRoom(
-      roomId as UUID,
-    );
+    const participants = await runtime.getParticipantsForRoom(roomId as UUID);
 
     const rooms = await runtime.getRoomsByIds([roomId as UUID]);
     const room = rooms && rooms.length > 0 ? rooms[0] : null;

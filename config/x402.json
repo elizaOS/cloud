@@ -1,12 +1,12 @@
 {
   "$schema": "./x402.schema.json",
   "_comment": "x402 Payment Configuration. Secrets (wallet private keys) go in .env.local",
-  
+
   "pricing": {
     "creditsPerDollar": 100,
     "topupPrice": "$1.00"
   },
-  
+
   "networks": {
     "base-sepolia": {
       "name": "Base Sepolia",
@@ -41,4 +41,3 @@
     "productionNetwork": "base"
   }
 }
-

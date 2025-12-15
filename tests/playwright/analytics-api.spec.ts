@@ -29,7 +29,9 @@ function authHeaders() {
 test.describe("Analytics Overview API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /api/analytics/overview returns overview metrics", async ({ request }) => {
+  test("GET /api/analytics/overview returns overview metrics", async ({
+    request,
+  }) => {
     const response = await request.get(`${CLOUD_URL}/api/analytics/overview`, {
       headers: authHeaders(),
     });
@@ -62,7 +64,7 @@ test.describe("Analytics Overview API", () => {
       `${CLOUD_URL}/api/analytics/overview?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect([200, 400, 404, 500, 501]).toContain(response.status());
@@ -72,7 +74,9 @@ test.describe("Analytics Overview API", () => {
       expect(data).toBeDefined();
       console.log("✅ Analytics overview with date filter works");
     } else {
-      console.log(`ℹ️ Analytics overview with filter returned ${response.status()}`);
+      console.log(
+        `ℹ️ Analytics overview with filter returned ${response.status()}`,
+      );
     }
   });
 });
@@ -80,7 +84,9 @@ test.describe("Analytics Overview API", () => {
 test.describe("Analytics Breakdown API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /api/analytics/breakdown returns usage breakdown", async ({ request }) => {
+  test("GET /api/analytics/breakdown returns usage breakdown", async ({
+    request,
+  }) => {
     const response = await request.get(`${CLOUD_URL}/api/analytics/breakdown`, {
       headers: authHeaders(),
     });
@@ -112,7 +118,7 @@ test.describe("Analytics Breakdown API", () => {
         `${CLOUD_URL}/api/analytics/breakdown?groupBy=${groupBy}`,
         {
           headers: authHeaders(),
-        }
+        },
       );
 
       expect([200, 400, 404, 500, 501]).toContain(response.status());
@@ -127,10 +133,15 @@ test.describe("Analytics Breakdown API", () => {
 test.describe("Analytics Projections API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /api/analytics/projections returns usage projections", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/analytics/projections`, {
-      headers: authHeaders(),
-    });
+  test("GET /api/analytics/projections returns usage projections", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      `${CLOUD_URL}/api/analytics/projections`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 404, 500, 501]).toContain(response.status());
 
@@ -159,7 +170,7 @@ test.describe("Analytics Projections API", () => {
         `${CLOUD_URL}/api/analytics/projections?period=${period}`,
         {
           headers: authHeaders(),
-        }
+        },
       );
 
       expect([200, 400, 404, 500, 501]).toContain(response.status());
@@ -214,7 +225,9 @@ test.describe("Analytics Config API", () => {
 test.describe("Analytics Export API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /api/analytics/export returns exportable data", async ({ request }) => {
+  test("GET /api/analytics/export returns exportable data", async ({
+    request,
+  }) => {
     const response = await request.get(`${CLOUD_URL}/api/analytics/export`, {
       headers: authHeaders(),
     });
@@ -240,9 +253,12 @@ test.describe("Analytics Export API", () => {
     const formats = ["json", "csv"];
 
     for (const format of formats) {
-      const response = await request.get(`${CLOUD_URL}/api/analytics/export?format=${format}`, {
-        headers: authHeaders(),
-      });
+      const response = await request.get(
+        `${CLOUD_URL}/api/analytics/export?format=${format}`,
+        {
+          headers: authHeaders(),
+        },
+      );
 
       expect([200, 400, 404, 500, 501]).toContain(response.status());
 
@@ -283,7 +299,9 @@ test.describe("Analytics Dashboard UI", () => {
     }
 
     // Look for chart elements
-    const charts = page.locator('[class*="chart"], canvas, svg, [class*="Chart"]');
+    const charts = page.locator(
+      '[class*="chart"], canvas, svg, [class*="Chart"]',
+    );
     const chartCount = await charts.count();
 
     console.log(`✅ Found ${chartCount} chart elements on analytics page`);
@@ -302,7 +320,7 @@ test.describe("Analytics Dashboard UI", () => {
 
     // Look for date picker or range selector
     const datePickers = page.locator(
-      'input[type="date"], [role="combobox"], button:has-text("Last"), button:has-text("This")'
+      'input[type="date"], [role="combobox"], button:has-text("Last"), button:has-text("This")',
     );
     const pickerCount = await datePickers.count();
 
@@ -322,7 +340,7 @@ test.describe("Analytics Dashboard UI", () => {
 
     // Look for export button
     const exportButton = page.locator(
-      'button:has-text("Export"), button:has-text("Download"), a:has-text("Export")'
+      'button:has-text("Export"), button:has-text("Download"), a:has-text("Export")',
     );
     const hasExport = await exportButton.isVisible().catch(() => false);
 
@@ -342,7 +360,7 @@ test.describe("Analytics Dashboard UI", () => {
 
     // Look for metric cards
     const metricCards = page.locator(
-      '[class*="metric"], [class*="stat"], [class*="card"], [class*="Card"]'
+      '[class*="metric"], [class*="stat"], [class*="card"], [class*="Card"]',
     );
     const cardCount = await metricCards.count();
 
@@ -367,5 +385,3 @@ test.describe("Analytics Dashboard UI", () => {
     console.log(`✅ Found ${tableCount} data tables on analytics page`);
   });
 });
-
-

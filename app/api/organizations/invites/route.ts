@@ -120,7 +120,7 @@ async function handleGET() {
      * The repository query uses `with: { inviter }` but Drizzle's base return type
      * doesn't include relations. This type extends the base invite with the relation.
      */
-    type InviteWithInviter = typeof invites[number] & {
+    type InviteWithInviter = (typeof invites)[number] & {
       inviter?: {
         id: string;
         name: string | null;

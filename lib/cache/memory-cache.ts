@@ -131,9 +131,9 @@ export class MemoryCache {
   ): Promise<MemoryRoomContext | null> {
     const keys = await this.getRoomContextKeys(roomId, organizationId);
     for (const key of keys) {
-      const cached = await cache.get<
-        MemoryRoomContext & { timestamp: string }
-      >(key);
+      const cached = await cache.get<MemoryRoomContext & { timestamp: string }>(
+        key,
+      );
       if (cached) {
         logger.debug(`[Memory Cache] Room context HIT: ${key}`);
         return {
@@ -307,9 +307,7 @@ export class MemoryCache {
   async invalidateConversation(conversationId: string): Promise<void> {
     const pattern = `memory:*:conv:${conversationId}:*`;
     await cache.delPattern(pattern);
-    logger.debug(
-      `[Memory Cache] Invalidated conversation pattern: ${pattern}`,
-    );
+    logger.debug(`[Memory Cache] Invalidated conversation pattern: ${pattern}`);
   }
 
   private async getRoomContextKeys(

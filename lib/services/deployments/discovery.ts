@@ -261,25 +261,26 @@ export class CharacterDeploymentDiscoveryService {
     }
 
     // Determine deployment status
-    const status: "deployed" | "stopped" | "draft" = 
+    const status: "deployed" | "stopped" | "draft" =
       container.status === "running" ? "deployed" : "stopped";
 
     // Character is deployed - fetch statistics from database directly
 
     // Get message count for this character's agent across all rooms
-    const messageCount = await memoriesRepository.countMessagesByAgent(characterId);
+    const messageCount =
+      await memoriesRepository.countMessagesByAgent(characterId);
 
     // Get room count
     const roomCount = await roomsRepository.countByAgentId(characterId);
 
     // Determine last active time from most recent message
-    const lastActiveAt = await memoriesRepository.getLastMessageTime(characterId);
+    const lastActiveAt =
+      await memoriesRepository.getLastMessageTime(characterId);
 
     // Calculate uptime (time since last deployment)
     let uptime = 0;
     if (container?.last_deployed_at && status === "deployed") {
-      uptime =
-        Date.now() - new Date(container.last_deployed_at).getTime();
+      uptime = Date.now() - new Date(container.last_deployed_at).getTime();
     }
 
     const stats: AgentStats = {
@@ -328,8 +329,7 @@ export class CharacterDeploymentDiscoveryService {
     }
 
     // Get containers for all uncached characters in one query
-    const containers =
-      await containersService.listByCharacterIds(uncachedIds);
+    const containers = await containersService.listByCharacterIds(uncachedIds);
     const containerMap = new Map(containers.map((c) => [c.character_id!, c]));
 
     // Process each uncached character

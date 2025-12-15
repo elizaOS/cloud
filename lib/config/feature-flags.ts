@@ -17,7 +17,7 @@ type FeatureFlagsMap = Record<FeatureFlag, FeatureFlagConfig>;
 
 const parseEnvFlag = (
   envVar: string | undefined,
-  defaultValue: boolean
+  defaultValue: boolean,
 ): boolean => {
   if (envVar === undefined) return defaultValue;
   return envVar === "true" || envVar === "1";
@@ -32,7 +32,7 @@ export const FEATURE_FLAGS: FeatureFlagsMap = {
   characterBuilder: {
     enabled: parseEnvFlag(
       process.env.NEXT_PUBLIC_FEATURE_CHARACTER_BUILDER,
-      true
+      true,
     ),
     name: "Character Builder",
     description: "Visual character creation and editing tool",
@@ -70,13 +70,13 @@ export function isFeatureEnabled(flag: FeatureFlag): boolean {
 
 export function getEnabledFeatures(): FeatureFlag[] {
   return (Object.keys(FEATURE_FLAGS) as FeatureFlag[]).filter(
-    (key) => FEATURE_FLAGS[key].enabled
+    (key) => FEATURE_FLAGS[key].enabled,
   );
 }
 
 export function getDisabledFeatures(): FeatureFlag[] {
   return (Object.keys(FEATURE_FLAGS) as FeatureFlag[]).filter(
-    (key) => !FEATURE_FLAGS[key].enabled
+    (key) => !FEATURE_FLAGS[key].enabled,
   );
 }
 
@@ -89,7 +89,7 @@ export const FEATURE_ROUTE_MAP: Record<
     api: ["/api/mcp", "/api/v1/mcp"],
   },
   characterBuilder: {
-    frontend: ["/dashboard/character-creator"],
+    frontend: ["/dashboard/build"],
     api: [],
   },
   containers: {

@@ -28,11 +28,12 @@ export async function GET() {
     configured: isX402Configured(),
     network,
     chainId: CHAIN_IDS[network],
-    
+
     // Configuration details
     config: {
       recipientAddress: X402_RECIPIENT_ADDRESS,
-      recipientConfigured: X402_RECIPIENT_ADDRESS !== "0x0000000000000000000000000000000000000000",
+      recipientConfigured:
+        X402_RECIPIENT_ADDRESS !== "0x0000000000000000000000000000000000000000",
       usdcAddress: USDC_ADDRESSES[network],
       topupPrice: TOPUP_PRICE,
       creditsPerDollar: CREDITS_PER_DOLLAR,
@@ -66,8 +67,10 @@ export async function GET() {
 }
 
 function isValidAddress(address: string): boolean {
-  return /^0x[a-fA-F0-9]{40}$/.test(address) && 
-         address !== "0x0000000000000000000000000000000000000000";
+  return (
+    /^0x[a-fA-F0-9]{40}$/.test(address) &&
+    address !== "0x0000000000000000000000000000000000000000"
+  );
 }
 
 export async function OPTIONS() {
@@ -80,4 +83,3 @@ export async function OPTIONS() {
     },
   });
 }
-

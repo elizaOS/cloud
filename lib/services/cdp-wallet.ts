@@ -1,3 +1,16 @@
+/**
+ * CDP (Coinbase Developer Platform) Wallet Service
+ * 
+ * This service provides direct on-chain payment verification using CDP.
+ * Currently not actively used in the crypto payment flow (OxaPay is the primary provider).
+ * 
+ * Maintained for potential future use cases:
+ * - Direct USDC payments on Base/Base Sepolia
+ * - Payment verification without third-party dependencies
+ * - Custom wallet integrations
+ * 
+ * @deprecated Consider using OxaPay service for production workloads
+ */
 import { logger } from "@/lib/utils/logger";
 import {
   createPublicClient,
@@ -10,6 +23,8 @@ import {
 import { mnemonicToAccount, privateKeyToAccount } from "viem/accounts";
 import { base, baseSepolia } from "viem/chains";
 import { createHash } from "crypto";
+import Decimal from "decimal.js";
+import { PAYMENT_EXPIRATION_MS } from "@/lib/config/crypto";
 
 export type CdpNetwork = "base" | "base-sepolia";
 
@@ -19,6 +34,8 @@ interface NetworkConfig {
   usdcAddress: Address;
   rpcUrl: string;
   isTestnet: boolean;
+  minimumConfirmations: number;
+  tolerancePercent: number;
 }
 
 const NETWORK_CONFIGS: Record<CdpNetwork, NetworkConfig> = {
@@ -28,6 +45,8 @@ const NETWORK_CONFIGS: Record<CdpNetwork, NetworkConfig> = {
     usdcAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     rpcUrl: "https://mainnet.base.org",
     isTestnet: false,
+    minimumConfirmations: Number(process.env.CDP_BASE_MIN_CONFIRMATIONS || 10),
+    tolerancePercent: 0.5,
   },
   "base-sepolia": {
     chain: baseSepolia,
@@ -35,6 +54,10 @@ const NETWORK_CONFIGS: Record<CdpNetwork, NetworkConfig> = {
     usdcAddress: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
     rpcUrl: "https://sepolia.base.org",
     isTestnet: true,
+    minimumConfirmations: Number(
+      process.env.CDP_BASE_SEPOLIA_MIN_CONFIRMATIONS || 3,
+    ),
+    tolerancePercent: 1.0,
   },
 };
 
@@ -45,7 +68,10 @@ const ERC20_ABI = parseAbi([
   "event Transfer(address indexed from, address indexed to, uint256 value)",
 ]);
 
-function getWalletConfig(): { type: "mnemonic"; value: string } | { type: "privateKey"; value: Hex } | null {
+function getWalletConfig():
+  | { type: "mnemonic"; value: string }
+  | { type: "privateKey"; value: Hex }
+  | null {
   const mnemonic = process.env.CRYPTO_WALLET_MNEMONIC;
   const privateKey = process.env.CRYPTO_WALLET_PRIVATE_KEY;
 
@@ -101,7 +127,7 @@ class CdpWalletService {
       );
     }
 
-    logger.info("[Crypto Wallet] Creating payment address", { network });
+    logger.info("[CDP Wallet] Creating payment address", { network });
 
     let address: Address;
 
@@ -115,9 +141,9 @@ class CdpWalletService {
       address = account.address;
     }
 
-    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + PAYMENT_EXPIRATION_MS);
 
-    logger.info("[Crypto Wallet] Payment address created", {
+    logger.info("[CDP Wallet] Payment address created", {
       address,
       network,
       expiresAt,
@@ -187,10 +213,14 @@ class CdpWalletService {
 
     const { balance } = await this.getUsdcBalance(paymentAddress, network);
 
-    const receivedAmount = parseFloat(balance);
-    const threshold = expectedAmount * 0.99;
+    const receivedAmount = new Decimal(balance);
+    const expectedDecimal = new Decimal(expectedAmount);
+    const toleranceMultiplier = new Decimal(1).minus(
+      new Decimal(networkConfig.tolerancePercent).dividedBy(100),
+    );
+    const threshold = expectedDecimal.times(toleranceMultiplier);
 
-    if (receivedAmount >= threshold) {
+    if (receivedAmount.greaterThanOrEqualTo(threshold)) {
       try {
         const currentBlock = await publicClient.getBlockNumber();
         const fromBlock = currentBlock > 10000n ? currentBlock - 10000n : 0n;
@@ -222,7 +252,7 @@ class CdpWalletService {
           blockNumber: latestTransfer?.blockNumber?.toString(),
         };
       } catch (error) {
-        logger.warn("[Crypto Wallet] Failed to fetch transfer logs", { error });
+        logger.warn("[CDP Wallet] Failed to fetch transfer logs", { error });
         return {
           received: true,
           amount: balance,
@@ -246,6 +276,7 @@ class CdpWalletService {
     amount?: string;
     blockNumber?: string;
     confirmations?: number;
+    meetsMinimumConfirmations: boolean;
   }> {
     const networkConfig = NETWORK_CONFIGS[network];
 
@@ -260,7 +291,7 @@ class CdpWalletService {
       });
 
       if (receipt.status !== "success") {
-        return { verified: false };
+        return { verified: false, meetsMinimumConfirmations: false };
       }
 
       const logs = receipt.logs.filter(
@@ -279,30 +310,46 @@ class CdpWalletService {
             const amount = BigInt(log.data);
             const decimals = 6;
             const amountFormatted = formatUnits(amount, decimals);
-            const threshold = expectedAmount * 0.99;
+            
+            const receivedDecimal = new Decimal(amountFormatted);
+            const expectedDecimal = new Decimal(expectedAmount);
+            const toleranceMultiplier = new Decimal(1).minus(
+              new Decimal(networkConfig.tolerancePercent).dividedBy(100),
+            );
+            const threshold = expectedDecimal.times(toleranceMultiplier);
 
-            if (parseFloat(amountFormatted) >= threshold) {
+            if (receivedDecimal.greaterThanOrEqualTo(threshold)) {
               const currentBlock = await publicClient.getBlockNumber();
               const confirmations = Number(currentBlock - receipt.blockNumber);
+              const meetsMinimumConfirmations =
+                confirmations >= networkConfig.minimumConfirmations;
+
+              logger.info("[CDP Wallet] Transaction verification", {
+                txHash,
+                confirmations,
+                minimumRequired: networkConfig.minimumConfirmations,
+                meets Minimum: meetsMinimumConfirmations,
+              });
 
               return {
                 verified: true,
                 amount: amountFormatted,
                 blockNumber: receipt.blockNumber.toString(),
                 confirmations,
+                meetsMinimumConfirmations,
               };
             }
           }
         }
       }
 
-      return { verified: false };
+      return { verified: false, meetsMinimumConfirmations: false };
     } catch (error) {
-      logger.error("[Crypto Wallet] Transaction verification failed", {
+      logger.error("[CDP Wallet] Transaction verification failed", {
         txHash,
         error,
       });
-      return { verified: false };
+      return { verified: false, meetsMinimumConfirmations: false };
     }
   }
 

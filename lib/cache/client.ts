@@ -113,8 +113,7 @@ export class CacheClient {
     }
 
     // Parse JSON string back to object
-    const parsed: T =
-      typeof value === "string" ? JSON.parse(value) : value;
+    const parsed: T = typeof value === "string" ? JSON.parse(value) : value;
 
     if (!this.isValidCacheValue(parsed)) {
       logger.warn(`[Cache] Invalid cached value for key ${key}, deleting`);
@@ -201,10 +200,7 @@ export class CacheClient {
         });
 
         // Race revalidation against timeout
-        const revalidationPromise = Promise.race([
-          revalidate(),
-          timeoutPromise,
-        ])
+        const revalidationPromise = Promise.race([revalidate(), timeoutPromise])
           .then((fresh) => {
             if (fresh !== null) {
               return this.set(

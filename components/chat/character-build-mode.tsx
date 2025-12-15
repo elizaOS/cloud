@@ -9,7 +9,7 @@
 
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { BuildModeAssistant } from "@/components/chat/build-mode-assistant";
 import { CharacterEditor } from "@/components/chat/character-editor";
 import { toast } from "sonner";
@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { usePrivy } from "@privy-io/react-auth";
 import { createDefaultCharacter } from "@/lib/utils/character-names";
+import { useRouter } from "next/navigation";
 
 interface CharacterBuildModeProps {
   initialCharacters: ElizaCharacter[];
@@ -40,9 +41,13 @@ export function CharacterBuildMode({
   initialCharacters,
   onUnsavedChanges,
 }: CharacterBuildModeProps) {
-  const { selectedCharacterId, setSelectedCharacterId } = useChatStore();
+  const { selectedCharacterId } = useChatStore();
   const { user } = usePrivy();
   const userId = user?.id || "";
+  const router = useRouter();
+
+  // Ref to get the builder room ID from BuildModeAssistant
+  const builderRoomIdRef = useRef<string | null>(null);
 
   // Mobile view state: 'assistant' or 'editor'
   const [mobileView, setMobileView] = useState<"assistant" | "editor">(
@@ -59,6 +64,10 @@ export function CharacterBuildMode({
     }
     return createDefaultCharacter();
   }, [selectedCharacterId, initialCharacters]);
+
+  // Creator mode: no selected character from database (creating new)
+  // Build mode: editing an existing character from database
+  const isCreatorMode = !selectedCharacterId;
 
   const [character, setCharacter] = useState<ElizaCharacter>(initialCharacter);
 
@@ -98,18 +107,34 @@ export function CharacterBuildMode({
         await updateCharacter(selectedCharacterId, character);
         toast.success("Character updated successfully!");
       } else {
-        // Create new character
+        // Create new character (creator mode)
         const saved = await createCharacter(character);
 
-        // Update selection to the newly created character
         if (saved.id) {
-          setSelectedCharacterId(saved.id);
-        }
+          // Lock the builder room if we have one
+          const roomId = builderRoomIdRef.current;
+          if (roomId) {
+            await fetch(`/api/eliza/rooms/${roomId}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                metadata: {
+                  locked: true,
+                  createdCharacterId: saved.id,
+                  createdCharacterName: saved.name,
+                  lockedAt: Date.now(),
+                },
+              }),
+            });
+          }
 
-        toast.success("Character created successfully!", {
-          description: "You can now chat with your new character!",
-          duration: 4000,
-        });
+          toast.success("Character created! Redirecting to chat...", {
+            duration: 2000,
+          });
+
+          // Redirect to chat with the new agent
+          router.push(`/dashboard/chat?characterId=${saved.id}`);
+        }
       }
     } catch (error) {
       console.error("Error saving character:", error);
@@ -122,7 +147,7 @@ export function CharacterBuildMode({
 
     // Mark changes as saved after successful save
     onUnsavedChanges?.(false);
-  }, [character, selectedCharacterId, setSelectedCharacterId, onUnsavedChanges]);
+  }, [character, selectedCharacterId, onUnsavedChanges, router]);
 
   const handleCharacterRefresh = useCallback(async () => {
     if (!character.id) {
@@ -135,6 +160,11 @@ export function CharacterBuildMode({
     // Update local state with fresh data from database
     setCharacter(refreshedCharacter);
   }, [character.id]);
+
+  // Callback to receive the builder room ID from BuildModeAssistant
+  const handleRoomIdChange = useCallback((roomId: string) => {
+    builderRoomIdRef.current = roomId;
+  }, []);
 
   return (
     <div className="flex h-full w-full min-h-0 overflow-hidden flex-col">
@@ -153,7 +183,7 @@ export function CharacterBuildMode({
           className={cn(
             "flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors",
             mobileView === "assistant"
-              ? "bg-[#E500FF] text-white"
+              ? "bg-[#FF5800] text-white"
               : "text-white/60 hover:text-white hover:bg-white/5",
           )}
         >
@@ -165,7 +195,7 @@ export function CharacterBuildMode({
           className={cn(
             "flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-l border-[#353535]",
             mobileView === "editor"
-              ? "bg-[#E500FF] text-white"
+              ? "bg-[#FF5800] text-white"
               : "text-white/60 hover:text-white hover:bg-white/5",
           )}
         >
@@ -182,7 +212,9 @@ export function CharacterBuildMode({
               character={character}
               onCharacterUpdate={handleCharacterUpdate}
               onCharacterRefresh={handleCharacterRefresh}
+              onRoomIdChange={handleRoomIdChange}
               userId={userId}
+              isCreatorMode={isCreatorMode}
             />
           </div>
         ) : (
@@ -206,7 +238,9 @@ export function CharacterBuildMode({
                 character={character}
                 onCharacterUpdate={handleCharacterUpdate}
                 onCharacterRefresh={handleCharacterRefresh}
+                onRoomIdChange={handleRoomIdChange}
                 userId={userId}
+                isCreatorMode={isCreatorMode}
               />
             </div>
           </ResizablePanel>

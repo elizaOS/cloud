@@ -77,9 +77,8 @@ export class UsersService {
 
     // Check if this was the last user in the organization
     if (organizationId) {
-      const remainingUsers = await usersRepository.listByOrganization(
-        organizationId,
-      );
+      const remainingUsers =
+        await usersRepository.listByOrganization(organizationId);
 
       // If no users remain, delete the organization
       if (remainingUsers.length === 0) {

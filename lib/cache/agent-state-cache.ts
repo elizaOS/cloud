@@ -131,9 +131,13 @@ export class AgentStateCache {
             };
             return {
               text:
-                typeof content.text === "string" ? content.text : String(msg.content),
-              action: typeof content.action === "string" ? content.action : undefined,
-              source: typeof content.source === "string" ? content.source : undefined,
+                typeof content.text === "string"
+                  ? content.text
+                  : String(msg.content),
+              action:
+                typeof content.action === "string" ? content.action : undefined,
+              source:
+                typeof content.source === "string" ? content.source : undefined,
             };
           }
           return {
@@ -162,9 +166,7 @@ export class AgentStateCache {
     const key = CacheKeys.agent.roomContext(roomId);
 
     await cacheClient.del(key);
-    logger.debug(
-      `[Agent State Cache] Invalidated room context for ${roomId}`,
-    );
+    logger.debug(`[Agent State Cache] Invalidated room context for ${roomId}`);
   }
 
   /**
@@ -234,10 +236,7 @@ export class AgentStateCache {
    * @param entityId - User/entity ID
    * @param session - Session data
    */
-  async setUserSession(
-    entityId: string,
-    session: UserSession,
-  ): Promise<void> {
+  async setUserSession(entityId: string, session: UserSession): Promise<void> {
     const key = CacheKeys.agent.userSession(entityId);
 
     await cacheClient.set(key, session, CacheTTL.agent.userSession);

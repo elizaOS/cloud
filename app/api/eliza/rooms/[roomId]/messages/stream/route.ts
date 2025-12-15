@@ -1,10 +1,17 @@
 import { roomsRepository } from "@/db/repositories";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { checkAnonymousLimit, getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
+import {
+  checkAnonymousLimit,
+  getAnonymousUser,
+  getOrCreateAnonymousUser,
+} from "@/lib/auth-anonymous";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { usersService } from "@/lib/services/users";
 import type { AgentModeConfig } from "@/lib/eliza/agent-mode-types";
-import { AgentMode, isValidAgentModeConfig } from "@/lib/eliza/agent-mode-types";
+import {
+  AgentMode,
+  isValidAgentModeConfig,
+} from "@/lib/eliza/agent-mode-types";
 import { createMessageHandler } from "@/lib/eliza/message-handler";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { userContextService } from "@/lib/eliza/user-context";
@@ -14,6 +21,13 @@ import { contentModerationService } from "@/lib/services/content-moderation";
 import { organizationsService } from "@/lib/services/organizations";
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
+import { z } from "zod";
+import {
+  IMAGE_GENERATION_VIBES,
+  DEFAULT_VIBE,
+  MAX_PROMPT_LENGTH,
+  MAX_RESPONSE_STYLE_LENGTH,
+} from "@/lib/constants/image-generation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -32,7 +46,7 @@ export const maxDuration = 60;
  */
 export async function POST(
   request: NextRequest,
-  ctx: { params: Promise<{ roomId: string }> }
+  ctx: { params: Promise<{ roomId: string }> },
 ) {
   const encoder = new TextEncoder();
 
@@ -47,16 +61,156 @@ export async function POST(
       sessionToken,
       attachments,
       appId: bodyAppId,
+      appPromptConfig,
     } = body;
 
     // App ID can come from body OR X-App-Id header (miniapp proxy uses header)
-    const appId = bodyAppId || request.headers.get("X-App-Id");
+    const rawAppId = bodyAppId || request.headers.get("X-App-Id");
+
+    // Validate appId format if provided (must be UUID)
+    let appId: string | undefined;
+    if (rawAppId) {
+      const appIdValidation = z.string().uuid().safeParse(rawAppId);
+      if (!appIdValidation.success) {
+        return new Response(
+          JSON.stringify({
+            error: "Invalid appId format - must be a valid UUID",
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      appId = appIdValidation.data;
+    }
 
     if (!roomId || !text?.trim()) {
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: { "Content-Type": "application/json" } },
       );
+    }
+
+    // Validate appPromptConfig if provided
+    if (appPromptConfig) {
+      // Sanitization helper to prevent prompt injection
+      const sanitizePromptString = (val: string) => {
+        // Normalize Unicode before any checks to prevent bypass via different encodings
+        val = val.normalize("NFC");
+
+        // Check length - reject suspiciously long prompts
+        if (val.length > MAX_PROMPT_LENGTH) {
+          return false;
+        }
+
+        // Block RTL override and bidirectional control characters (can hide malicious content)
+        if (/[\u202A-\u202E\u2066-\u2069\u200E\u200F]/.test(val)) {
+          return false;
+        }
+
+        // Block zero-width characters that can hide content
+        if (/[\u200B-\u200D\uFEFF]/.test(val)) {
+          return false;
+        }
+
+        // Dangerous literal patterns (case-insensitive)
+        const dangerousPatterns = [
+          "</system>",
+          "<|im_end|>",
+          "<|endoftext|>",
+          "[INST]",
+          "[/INST]",
+          "### Instruction:",
+          "### Response:",
+          "<|assistant|>",
+          "<|user|>",
+          "\\n\\nHuman:",
+          "\\n\\nAssistant:",
+        ];
+
+        const lowerVal = val.toLowerCase();
+        for (const pattern of dangerousPatterns) {
+          if (lowerVal.includes(pattern.toLowerCase())) {
+            return false;
+          }
+        }
+
+        // Check for encoded versions that could bypass literal checks
+        const encodedPatterns = [
+          /%3C%7C/i, // <|
+          /%5D%5D/i, // ]]
+          /\\u003c/i, // unicode <
+          /\\x3c/i, // hex <
+        ];
+
+        for (const pattern of encodedPatterns) {
+          if (pattern.test(val)) {
+            return false;
+          }
+        }
+
+        // Reject excessive whitespace or control characters
+        if (/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/.test(val)) {
+          return false;
+        }
+
+        return true;
+      };
+
+      const AppPromptConfigSchema = z
+        .object({
+          systemPrefix: z
+            .string()
+            .max(MAX_PROMPT_LENGTH)
+            .refine(sanitizePromptString, {
+              message: "Invalid characters or patterns in systemPrefix",
+            })
+            .optional(),
+          systemSuffix: z
+            .string()
+            .max(MAX_PROMPT_LENGTH)
+            .refine(sanitizePromptString, {
+              message: "Invalid characters or patterns in systemSuffix",
+            })
+            .optional(),
+          responseStyle: z
+            .string()
+            .max(MAX_RESPONSE_STYLE_LENGTH)
+            .refine(sanitizePromptString, {
+              message: "Invalid characters or patterns in responseStyle",
+            })
+            .optional(),
+          flirtiness: z.enum(["low", "medium", "high"]).optional(),
+          romanticMode: z.boolean().optional(),
+          imageGeneration: z
+            .object({
+              enabled: z.boolean(),
+              autoGenerate: z.boolean(),
+              defaultVibe: z
+                .enum([
+                  "flirty",
+                  "shy",
+                  "bold",
+                  "spicy",
+                  "romantic",
+                  "playful",
+                  "mysterious",
+                  "intellectual",
+                ])
+                .optional(),
+            })
+            .optional(),
+        })
+        .strict();
+
+      const validated = AppPromptConfigSchema.safeParse(appPromptConfig);
+      if (!validated.success) {
+        return new Response(
+          JSON.stringify({
+            error: "Invalid appPromptConfig format",
+            details: validated.error.issues,
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        );
+      }
     }
 
     // Validate agentMode if provided, default to CHAT
@@ -65,7 +219,7 @@ export async function POST(
       if (!isValidAgentModeConfig(agentMode)) {
         return new Response(
           JSON.stringify({ error: "Invalid agent mode configuration" }),
-          { status: 400, headers: { "Content-Type": "application/json" } }
+          { status: 400, headers: { "Content-Type": "application/json" } },
         );
       }
       agentModeConfig = agentMode;
@@ -82,12 +236,12 @@ export async function POST(
 
     // Step 2: Authentication & Context Building
     logger.info(
-      `[Stream] 📊 Session token from body: ${sessionToken ? `${sessionToken.slice(0, 8)}...` : "N/A"}`
+      `[Stream] 📊 Session token from body: ${sessionToken ? `${sessionToken.slice(0, 8)}...` : "N/A"}`,
     );
     const userContext = await authenticateAndBuildContext(
       request,
       agentModeConfig.mode,
-      { sessionToken, appId }
+      { sessionToken, appId, appPromptConfig },
     );
 
     logger.info("[Stream] 📊 UserContext after auth:", {
@@ -104,7 +258,8 @@ export async function POST(
       });
       return new Response(
         JSON.stringify({
-          error: "Your account has been suspended due to policy violations. Please contact support.",
+          error:
+            "Your account has been suspended due to policy violations. Please contact support.",
         }),
         { status: 403, headers: { "Content-Type": "application/json" } },
       );
@@ -116,7 +271,7 @@ export async function POST(
     const moderationCheck = contentModerationService.startModerationCheck(
       text,
       userContext.userId,
-      roomId
+      roomId,
     );
 
     // The moderation continues in background - violations are logged and tracked
@@ -156,7 +311,7 @@ export async function POST(
             requiresSignup: true,
             reason: limitCheck.reason,
           }),
-          { status: 429, headers: { "Content-Type": "application/json" } }
+          { status: 429, headers: { "Content-Type": "application/json" } },
         );
       }
     }
@@ -175,7 +330,7 @@ export async function POST(
         const balanceCheck = await appCreditsService.checkBalance(
           userContext.appId,
           userContext.userId,
-          MINIMUM_MESSAGE_COST
+          MINIMUM_MESSAGE_COST,
         );
 
         if (!balanceCheck.sufficient) {
@@ -192,7 +347,7 @@ export async function POST(
               details: `Your balance ($${balanceCheck.balance.toFixed(2)}) is too low. Please purchase more credits to continue.`,
               requiresPurchase: true,
             }),
-            { status: 402, headers: { "Content-Type": "application/json" } }
+            { status: 402, headers: { "Content-Type": "application/json" } },
           );
         }
       }
@@ -202,24 +357,53 @@ export async function POST(
     const room = await roomsRepository.findById(roomId);
     let characterId: string | undefined = room?.agentId || undefined;
 
+    // Step 4.1: Check if room is locked (character was created/saved)
+    // Locked rooms should not accept new messages
+    const roomMetadata = room?.metadata as { locked?: boolean } | undefined;
+    if (roomMetadata?.locked) {
+      logger.info("[Stream] Room is locked - rejecting message", { roomId });
+      return new Response(
+        JSON.stringify({
+          error: "This conversation has ended. Please start a new chat.",
+          roomLocked: true,
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
     // Step 4.5: Check if this is an affiliate character and switch to ASSISTANT mode
     // Affiliate characters need ASSISTANT mode for image generation capability
-    // The image generation action's validate function ensures images are only generated
-    // when explicitly requested (e.g., "send me a pic", "generate an image")
+    // Check both character_data.affiliate (legacy) and settings.affiliateData (miniapp)
     if (characterId && agentModeConfig.mode === AgentMode.CHAT) {
       try {
         const character = await charactersService.getById(characterId);
         if (character) {
+          // Check legacy location: character_data.affiliate
           const characterData = character.character_data as
             | Record<string, unknown>
             | undefined;
-          const affiliateData = characterData?.affiliate as
+          const legacyAffiliateData = characterData?.affiliate as
             | Record<string, unknown>
             | undefined;
 
+          // Check new location: settings.affiliateData (used by miniapp)
+          const settings = character.settings as
+            | Record<string, unknown>
+            | undefined;
+          const settingsAffiliateData = settings?.affiliateData as
+            | Record<string, unknown>
+            | undefined;
+
+          // Use whichever has data
+          const affiliateData = settingsAffiliateData || legacyAffiliateData;
+
           if (affiliateData && Object.keys(affiliateData).length > 0) {
             logger.info(
-              "[Stream] 🎭 Detected affiliate character - switching to ASSISTANT mode for image generation"
+              "[Stream] 🎭 Detected affiliate character - switching to ASSISTANT mode for image generation",
+              {
+                hasAutoImage: affiliateData.autoImage,
+                hasImageUrls: !!(affiliateData.imageUrls as unknown[])?.length,
+              },
             );
             agentModeConfig = { mode: AgentMode.ASSISTANT };
             // CRITICAL: Also update userContext so runtime loads correct plugins
@@ -239,7 +423,7 @@ export async function POST(
     ) {
       characterId = String(agentModeConfig.metadata.targetCharacterId);
       logger.info(
-        `[Stream] BUILD mode - Using character from metadata: ${characterId}`
+        `[Stream] BUILD mode - Using character from metadata: ${characterId}`,
       );
 
       // Update room agentId for build mode (proper column, not metadata)
@@ -247,12 +431,12 @@ export async function POST(
         try {
           await roomsRepository.update(roomId, { agentId: characterId });
           logger.info(
-            `[Stream] BUILD mode - Updated room agentId: room ${roomId} → agent ${characterId}`
+            `[Stream] BUILD mode - Updated room agentId: room ${roomId} → agent ${characterId}`,
           );
         } catch (error) {
           logger.error(
             "[Stream] BUILD mode - Failed to update room agentId:",
-            error
+            error,
           );
         }
       }
@@ -260,7 +444,9 @@ export async function POST(
 
     logger.info(
       `[Stream] Room ${roomId} - Character lookup:`,
-      characterId ? `Using character ${characterId}` : "Using default character"
+      characterId
+        ? `Using character ${characterId}`
+        : "Using default character",
     );
 
     // Step 5: Apply model preferences if provided
@@ -272,7 +458,7 @@ export async function POST(
       logger.info(`[Stream] User selected model: ${model}`);
     } else if (userContext.modelPreferences) {
       logger.info(
-        `[Stream] Using stored model preferences: ${userContext.modelPreferences.smallModel} / ${userContext.modelPreferences.largeModel}`
+        `[Stream] Using stored model preferences: ${userContext.modelPreferences.smallModel} / ${userContext.modelPreferences.largeModel}`,
       );
     } else {
       logger.info("[Stream] No model preference set, using defaults");
@@ -405,7 +591,7 @@ export async function POST(
           if (result.usage && !userContext.isAnonymous) {
             // This is just for the warning event, actual credit deduction happened in MessageHandler
             const remainingCredits = await checkUserCredits(
-              userContext.organizationId
+              userContext.organizationId,
             );
             if (remainingCredits < 1.0) {
               sendEvent("warning", {
@@ -443,7 +629,7 @@ export async function POST(
       JSON.stringify({
         error: error instanceof Error ? error.message : "Request failed",
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
 }
@@ -463,7 +649,11 @@ export async function POST(
 async function authenticateAndBuildContext(
   request: NextRequest,
   agentMode: AgentMode,
-  body?: { sessionToken?: string; appId?: string }
+  body?: {
+    sessionToken?: string;
+    appId?: string;
+    appPromptConfig?: Record<string, unknown>;
+  },
 ) {
   const headerToken = request.headers.get("X-Anonymous-Session");
   const bodyToken = body?.sessionToken;
@@ -487,13 +677,13 @@ async function authenticateAndBuildContext(
         userId: authResult.user.id,
         authMethod: authResult.authMethod,
         isAnonymous: authResult.user.is_anonymous,
-      }
+      },
     );
 
     // Double-check the user is not anonymous (migration should have set this to false)
     if (authResult.user.is_anonymous) {
       logger.warn(
-        "[Stream Auth] ⚠️ User is authenticated but still marked as anonymous - this may indicate incomplete migration"
+        "[Stream Auth] ⚠️ User is authenticated but still marked as anonymous - this may indicate incomplete migration",
       );
     }
 
@@ -502,11 +692,12 @@ async function authenticateAndBuildContext(
       isAnonymous: false,
       agentMode,
       appId: body?.appId,
+      appPromptConfig: body?.appPromptConfig,
     });
   } catch (error) {
     logger.info(
       "[Stream Auth] ❌ Privy auth failed, falling back to anonymous:",
-      error instanceof Error ? error.message : String(error)
+      error instanceof Error ? error.message : String(error),
     );
   }
 
@@ -519,7 +710,7 @@ async function authenticateAndBuildContext(
   // Try provided session token first
   if (providedToken) {
     logger.info(
-      `[Stream] 🔑 Session token provided in request: ${providedToken.slice(0, 8)}...`
+      `[Stream] 🔑 Session token provided in request: ${providedToken.slice(0, 8)}...`,
     );
 
     const session = await anonymousSessionsService.getByToken(providedToken);
@@ -542,7 +733,7 @@ async function authenticateAndBuildContext(
             sessionId: session.id,
             convertedAt: session.converted_at,
             isActive: session.is_active,
-          }
+          },
         );
         // This session was migrated - the user should authenticate via Privy
         // Don't use this session, fall through to create new anonymous or fail
@@ -567,22 +758,23 @@ async function authenticateAndBuildContext(
             isAnonymous: true,
             agentMode,
             appId: body?.appId,
+            appPromptConfig: body?.appPromptConfig,
           });
         }
 
         logger.warn(
           "[Stream] ⚠️ User not found or not anonymous for session:",
-          session.id
+          session.id,
         );
       }
     } else {
       logger.warn(
-        `[Stream] ⚠️ Session not found for provided token: ${providedToken.slice(0, 8)}...`
+        `[Stream] ⚠️ Session not found for provided token: ${providedToken.slice(0, 8)}...`,
       );
     }
 
     logger.warn(
-      "[Stream] ⚠️ Provided session token invalid or converted, falling back to cookie"
+      "[Stream] ⚠️ Provided session token invalid or converted, falling back to cookie",
     );
   }
 
@@ -618,6 +810,7 @@ async function authenticateAndBuildContext(
     isAnonymous: true,
     agentMode,
     appId: body?.appId,
+    appPromptConfig: body?.appPromptConfig,
   });
 }
 

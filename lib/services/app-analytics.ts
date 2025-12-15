@@ -67,10 +67,10 @@ export class AppAnalyticsService {
 
   /**
    * Aggregate analytics for a time period
-   * 
+   *
    * Real-time aggregation is handled at the request level via trackRequest().
    * The app's total_requests, total_credits_used, and total_users are updated atomically.
-   * 
+   *
    * For periodic snapshots, query the app directly via appsRepository.findById()
    * which returns the always-current totals.
    */
@@ -113,10 +113,7 @@ export class AppAnalyticsService {
    * Calculate pricing for app usage
    * Takes into account custom pricing markup if enabled
    */
-  calculateAppPricing(params: {
-    baseCost: number;
-    app: App;
-  }): {
+  calculateAppPricing(params: { baseCost: number; app: App }): {
     baseCost: number;
     markup: number;
     finalCost: number;

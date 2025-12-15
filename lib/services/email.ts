@@ -23,7 +23,8 @@ import type {
 class EmailService {
   private initialized = false;
   private fromEmail: string | null = null;
-  private smtpTransporter: Transporter<SMTPTransport.SentMessageInfo> | null = null;
+  private smtpTransporter: Transporter<SMTPTransport.SentMessageInfo> | null =
+    null;
   private useSmtp = false;
 
   private initialize(): void {

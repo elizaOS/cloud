@@ -7,7 +7,7 @@ import { logger } from "@/lib/utils/logger";
 // Generate realistic test data for verifying the earnings dashboard UI
 function generateTestData(days: number) {
   const now = new Date();
-  
+
   // Generate chart data with realistic variance over the period
   const chartData: Array<{
     date: string;
@@ -15,7 +15,7 @@ function generateTestData(days: number) {
     purchaseEarnings: number;
     total: number;
   }> = [];
-  
+
   let totalInference = 0;
   let totalPurchase = 0;
   let todayInference = 0;
@@ -24,34 +24,34 @@ function generateTestData(days: number) {
   let weekPurchase = 0;
   let monthInference = 0;
   let monthPurchase = 0;
-  
+
   for (let i = days - 1; i >= 0; i--) {
     const date = new Date(now);
     date.setDate(date.getDate() - i);
     const dateStr = date.toISOString().split("T")[0];
-    
+
     // Generate varied daily earnings with some randomness
     // More recent days tend to have higher earnings (simulating growth)
     const dayFactor = (days - i) / days;
     const randomFactor = 0.5 + Math.random();
-    
+
     const inferenceEarnings = parseFloat(
-      (dayFactor * randomFactor * 2.5 + Math.random() * 0.5).toFixed(4)
+      (dayFactor * randomFactor * 2.5 + Math.random() * 0.5).toFixed(4),
     );
     const purchaseEarnings = parseFloat(
-      (dayFactor * randomFactor * 1.2 + Math.random() * 0.3).toFixed(4)
+      (dayFactor * randomFactor * 1.2 + Math.random() * 0.3).toFixed(4),
     );
-    
+
     chartData.push({
       date: dateStr,
       inferenceEarnings,
       purchaseEarnings,
       total: parseFloat((inferenceEarnings + purchaseEarnings).toFixed(4)),
     });
-    
+
     totalInference += inferenceEarnings;
     totalPurchase += purchaseEarnings;
-    
+
     // Track period totals
     if (i === 0) {
       todayInference = inferenceEarnings;
@@ -66,14 +66,14 @@ function generateTestData(days: number) {
       monthPurchase += purchaseEarnings;
     }
   }
-  
+
   const totalLifetime = totalInference + totalPurchase;
   const pendingBalance = parseFloat((totalLifetime * 0.15).toFixed(2));
   const totalWithdrawn = parseFloat((totalLifetime * 0.3).toFixed(2));
   const withdrawableBalance = parseFloat(
-    (totalLifetime - pendingBalance - totalWithdrawn).toFixed(2)
+    (totalLifetime - pendingBalance - totalWithdrawn).toFixed(2),
   );
-  
+
   const summary = {
     totalLifetimeEarnings: parseFloat(totalLifetime.toFixed(2)),
     totalInferenceEarnings: parseFloat(totalInference.toFixed(2)),
@@ -83,7 +83,7 @@ function generateTestData(days: number) {
     totalWithdrawn,
     payoutThreshold: 10.0,
   };
-  
+
   const breakdown = {
     today: {
       period: "day",
@@ -110,21 +110,26 @@ function generateTestData(days: number) {
       total: parseFloat(totalLifetime.toFixed(2)),
     },
   };
-  
+
   // Generate realistic recent transactions
   const recentTransactions = [];
-  
+
   for (let i = 0; i < 10; i++) {
     const txDate = new Date(now);
     txDate.setHours(txDate.getHours() - i * 3 - Math.floor(Math.random() * 3));
-    
+
     // Weight towards inference_markup (most common)
     const typeRoll = Math.random();
-    const type = typeRoll < 0.6 ? "inference_markup" : typeRoll < 0.9 ? "purchase_share" : "withdrawal";
-    
+    const type =
+      typeRoll < 0.6
+        ? "inference_markup"
+        : typeRoll < 0.9
+          ? "purchase_share"
+          : "withdrawal";
+
     let amount: number;
     let description: string;
-    
+
     if (type === "inference_markup") {
       amount = parseFloat((0.001 + Math.random() * 0.05).toFixed(4));
       description = `Inference markup from API call`;
@@ -135,7 +140,7 @@ function generateTestData(days: number) {
       amount = parseFloat((-5 - Math.random() * 20).toFixed(4));
       description = `Withdrawal to wallet`;
     }
-    
+
     recentTransactions.push({
       id: `test-tx-${i}-${Date.now()}`,
       type,
@@ -145,7 +150,7 @@ function generateTestData(days: number) {
       metadata: { test_data: true },
     });
   }
-  
+
   return {
     summary,
     breakdown,
@@ -170,15 +175,17 @@ function generateTestData(days: number) {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
-    
+
     const daysParam = request.nextUrl.searchParams.get("days");
-    const days = daysParam ? Math.min(Math.max(parseInt(daysParam, 10), 1), 90) : 30;
-    
+    const days = daysParam
+      ? Math.min(Math.max(parseInt(daysParam, 10), 1), 90)
+      : 30;
+
     // Check for testData flag - only via URL parameter, not persisted
     const testDataParam = request.nextUrl.searchParams.get("testData");
     const useTestData = testDataParam === "true";
@@ -188,21 +195,21 @@ export async function GET(
     if (!app) {
       return NextResponse.json(
         { success: false, error: "App not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (app.organization_id !== user.organization_id) {
       return NextResponse.json(
         { success: false, error: "Access denied" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     // Return test data if requested (for UI verification)
     if (useTestData) {
       const testData = generateTestData(days);
-      
+
       return NextResponse.json({
         success: true,
         testData: true, // Flag to indicate this is test data
@@ -218,12 +225,13 @@ export async function GET(
       });
     }
 
-    const [summary, breakdown, recentTransactions, chartData] = await Promise.all([
-      appEarningsService.getEarningsSummary(id),
-      appEarningsService.getEarningsBreakdown(id),
-      appEarningsService.getTransactionHistory(id, { limit: 10 }),
-      appEarningsService.getDailyEarningsChart(id, days),
-    ]);
+    const [summary, breakdown, recentTransactions, chartData] =
+      await Promise.all([
+        appEarningsService.getEarningsSummary(id),
+        appEarningsService.getEarningsBreakdown(id),
+        appEarningsService.getTransactionHistory(id, { limit: 10 }),
+        appEarningsService.getDailyEarningsChart(id, days),
+      ]);
 
     return NextResponse.json({
       success: true,
@@ -242,10 +250,10 @@ export async function GET(
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to get app earnings",
+        error:
+          error instanceof Error ? error.message : "Failed to get app earnings",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

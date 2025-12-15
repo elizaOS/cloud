@@ -44,7 +44,14 @@ export type {
   NewProviderHealth,
 } from "@/db/schemas/provider-health";
 
-export type { App, NewApp, AppUser, NewAppUser, AppAnalytics, NewAppAnalytics } from "@/db/schemas/apps";
+export type {
+  App,
+  NewApp,
+  AppUser,
+  NewAppUser,
+  AppAnalytics,
+  NewAppAnalytics,
+} from "@/db/schemas/apps";
 
 export type { Invoice, NewInvoice } from "@/db/schemas/invoices";
 

@@ -31,10 +31,7 @@ export default function ChatBuildLayout({
   return (
     <div className="flex h-screen w-full bg-[#0A0A0A] overflow-hidden">
       {/* Chat Sidebar */}
-      <ChatSidebar
-        isOpen={sidebarOpen}
-        onToggle={handleToggleSidebar}
-      />
+      <ChatSidebar isOpen={sidebarOpen} onToggle={handleToggleSidebar} />
 
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden">

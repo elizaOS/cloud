@@ -52,24 +52,27 @@ export function CharacterLibraryCard({
   }, [router, character.id]);
 
   const handleEdit = useCallback(() => {
-    router.push(`/dashboard/character-creator?id=${character.id}`);
+    router.push(`/dashboard/build?characterId=${character.id}`);
   }, [router, character.id]);
 
   const handleDuplicate = useCallback(async () => {
     toast.info("Duplicating character...");
-    
-    const response = await fetch(`/api/my-agents/characters/${character.id}/clone`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: `${character.name} (Copy)` }),
-    });
-    
+
+    const response = await fetch(
+      `/api/my-agents/characters/${character.id}/clone`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: `${character.name} (Copy)` }),
+      },
+    );
+
     if (response.ok) {
       const data = await response.json();
       toast.success(`Created "${data.data.character.name}"`);
       router.refresh();
       // Navigate to edit the new character
-      router.push(`/dashboard/character-creator?id=${data.data.character.id}`);
+      router.push(`/dashboard/build?characterId=${data.data.character.id}`);
     } else {
       const error = await response.json();
       toast.error(error.error || "Failed to duplicate character");
@@ -98,11 +101,11 @@ export function CharacterLibraryCard({
     }
 
     setIsDeleting(true);
-    
+
     const response = await fetch(`/api/my-agents/characters/${character.id}`, {
       method: "DELETE",
     });
-    
+
     if (response.ok) {
       toast.success(`Deleted ${character.name}`);
       router.refresh();

@@ -42,7 +42,8 @@ export async function generateMetadata({
 
   return {
     title: `${app.name} - App Details | Eliza Cloud`,
-    description: app.description || `Manage ${app.name} app settings and analytics`,
+    description:
+      app.description || `Manage ${app.name} app settings and analytics`,
     robots: { index: false, follow: false },
   };
 }

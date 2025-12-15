@@ -18,7 +18,7 @@ const eslintConfig = [
   // React Hooks Rules - Critical for preventing unnecessary re-renders and API spam
   {
     plugins: {
-      "react": reactPlugin,
+      react: reactPlugin,
       "react-hooks": reactHooksPlugin,
     },
     settings: {

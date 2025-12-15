@@ -103,7 +103,7 @@ async function fetchDashboardDataInternal(
   const usageStats = await usageService.getStatsByOrganization(
     organizationId,
     twentyFourHoursAgo,
-    new Date()
+    new Date(),
   );
   const apiCalls24h = usageStats.totalRequests;
 
@@ -114,7 +114,9 @@ async function fetchDashboardDataInternal(
   if (characterIds.length > 0) {
     try {
       const statsMap =
-        await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(characterIds);
+        await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(
+          characterIds,
+        );
       statsMap.forEach((stats, id) => {
         agentStatsMap.set(id, {
           roomCount: stats.roomCount,

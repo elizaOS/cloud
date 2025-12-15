@@ -141,7 +141,7 @@ interface VerificationResult {
 async function verifyNetwork(
   networkKey: string,
   config: NetworkConfig,
-  walletAddress: Address
+  walletAddress: Address,
 ): Promise<VerificationResult> {
   const result: VerificationResult = {
     network: config.name,
@@ -207,10 +207,12 @@ async function verifyNetwork(
     if (balance < BigInt(1e15)) {
       result.issues.push("Low ETH balance for gas");
       if (config.isLocal) {
-        result.recommendations.push("Anvil provides 10000 ETH to test accounts");
+        result.recommendations.push(
+          "Anvil provides 10000 ETH to test accounts",
+        );
       } else if (networkKey === "base-sepolia") {
         result.recommendations.push(
-          "Get testnet ETH: https://www.coinbase.com/faucets/base-ethereum-goerli-faucet"
+          "Get testnet ETH: https://www.coinbase.com/faucets/base-ethereum-goerli-faucet",
         );
       } else {
         result.recommendations.push("Fund wallet with ETH on Base mainnet");
@@ -309,14 +311,14 @@ async function verifyNetwork(
     } else {
       console.log(`   Agent ID: Not configured`);
       result.recommendations.push(
-        `Register agent: bun run erc8004:register --network ${networkKey}`
+        `Register agent: bun run erc8004:register --network ${networkKey}`,
       );
     }
   } else {
     console.log(`   ⚠️ No Identity Registry configured`);
     if (networkKey === "base") {
       result.recommendations.push(
-        "Deploy contracts: cd docs/docs/erc-8004-contracts && npm run deploy:upgradeable:base"
+        "Deploy contracts: cd docs/docs/erc-8004-contracts && npm run deploy:upgradeable:base",
       );
     }
   }
@@ -324,7 +326,9 @@ async function verifyNetwork(
   return result;
 }
 
-async function verifyEndpoints(baseUrl: string): Promise<Record<string, boolean>> {
+async function verifyEndpoints(
+  baseUrl: string,
+): Promise<Record<string, boolean>> {
   console.log(`\n🌐 Endpoint Verification:`);
   console.log(`   Base URL: ${baseUrl}`);
 
@@ -348,7 +352,9 @@ async function verifyEndpoints(baseUrl: string): Promise<Record<string, boolean>
       const accessible =
         response.ok || response.status === 401 || response.status === 402;
       results[name] = accessible;
-      console.log(`   ${name}: ${accessible ? "✅" : "❌"} (${response.status})`);
+      console.log(
+        `   ${name}: ${accessible ? "✅" : "❌"} (${response.status})`,
+      );
     } catch (error) {
       results[name] = false;
       const message = error instanceof Error ? error.message : "Unknown error";
@@ -375,7 +381,8 @@ async function main() {
     ?.split("=")[1];
 
   // Get wallet address
-  const privateKey = process.env.AGENT0_PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY;
+  const privateKey =
+    process.env.AGENT0_PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY;
   let walletAddress: Address;
 
   if (privateKey) {
@@ -423,18 +430,16 @@ async function main() {
 
   for (const result of results) {
     const contracts = result.contractsDeployed ? "✅ Yes" : "❌ No";
-    const agent = result.agentRegistered
-      ? `✅ ${result.agentId}`
-      : "❌ No";
+    const agent = result.agentRegistered ? `✅ ${result.agentId}` : "❌ No";
     const balance = `${parseFloat(result.walletBalance).toFixed(4)} ETH`;
     console.log(
-      `| ${result.network.padEnd(14)} | ${contracts.padEnd(9)} | ${agent.padEnd(5)} | ${balance.padEnd(10)} |`
+      `| ${result.network.padEnd(14)} | ${contracts.padEnd(9)} | ${agent.padEnd(5)} | ${balance.padEnd(10)} |`,
     );
   }
 
   // Issues
   const allIssues = results.flatMap((r) =>
-    r.issues.map((i) => `[${r.network}] ${i}`)
+    r.issues.map((i) => `[${r.network}] ${i}`),
   );
   if (allIssues.length > 0) {
     console.log("\n⚠️  Issues Found:");
@@ -445,7 +450,7 @@ async function main() {
 
   // Recommendations
   const allRecs = results.flatMap((r) =>
-    r.recommendations.map((rec) => `[${r.network}] ${rec}`)
+    r.recommendations.map((rec) => `[${r.network}] ${rec}`),
   );
   if (allRecs.length > 0) {
     console.log("\n💡 Recommendations:");
@@ -463,14 +468,19 @@ async function main() {
   // Config location
   console.log(`\n📁 Configuration:`);
   console.log(`   Config file: config/erc8004.json`);
-  console.log(`   Secrets: .env.local (AGENT0_PRIVATE_KEY, X402_RECIPIENT_ADDRESS)`);
+  console.log(
+    `   Secrets: .env.local (AGENT0_PRIVATE_KEY, X402_RECIPIENT_ADDRESS)`,
+  );
 
   // Overall status
   const allContractsDeployed = results.every(
-    (r) => r.contractsDeployed || r.network === "Local Anvil"
+    (r) => r.contractsDeployed || r.network === "Local Anvil",
   );
   const allAgentsRegistered = results.every(
-    (r) => r.agentRegistered || r.network === "Local Anvil" || r.network === "Base Mainnet"
+    (r) =>
+      r.agentRegistered ||
+      r.network === "Local Anvil" ||
+      r.network === "Base Mainnet",
   );
 
   console.log(`\n${"═".repeat(60)}`);

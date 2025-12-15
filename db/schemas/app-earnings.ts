@@ -14,7 +14,7 @@ import { users } from "./users";
 
 /**
  * App earnings table schema.
- * 
+ *
  * Tracks earnings for third-party apps from inference markup and purchase shares.
  */
 export const appEarnings = pgTable(
@@ -63,12 +63,12 @@ export const appEarnings = pgTable(
   },
   (table) => ({
     app_unique: uniqueIndex("app_earnings_app_idx").on(table.app_id),
-  })
+  }),
 );
 
 /**
  * App earnings transactions table schema.
- * 
+ *
  * Records individual earnings transactions including inference markup, purchase shares, and withdrawals.
  */
 export const appEarningsTransactions = pgTable(
@@ -94,11 +94,11 @@ export const appEarningsTransactions = pgTable(
     app_idx: index("app_earnings_transactions_app_idx").on(table.app_id),
     app_created_idx: index("app_earnings_transactions_app_created_idx").on(
       table.app_id,
-      table.created_at
+      table.created_at,
     ),
     user_idx: index("app_earnings_transactions_user_idx").on(table.user_id),
     type_idx: index("app_earnings_transactions_type_idx").on(table.type),
-  })
+  }),
 );
 
 export type AppEarnings = InferSelectModel<typeof appEarnings>;
@@ -109,4 +109,3 @@ export type AppEarningsTransaction = InferSelectModel<
 export type NewAppEarningsTransaction = InferInsertModel<
   typeof appEarningsTransactions
 >;
-

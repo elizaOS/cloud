@@ -8,6 +8,7 @@ import { logger } from "@/lib/utils/logger";
 import type { AgentMode } from "./agent-mode-types";
 import type { UserWithOrganization, ApiKey } from "@/lib/types";
 import type { AnonymousSession } from "@/db/schemas";
+import type { PromptConfig } from "@/miniapp/app/config";
 
 export interface UserContext {
   // Core identity
@@ -38,6 +39,9 @@ export interface UserContext {
 
   // App monetization context (for miniapp billing)
   appId?: string;
+
+  // App-specific prompt configuration
+  appPromptConfig?: PromptConfig;
 }
 
 export class UserContextService {
@@ -61,6 +65,7 @@ export class UserContextService {
     anonymousSession?: AnonymousSession;
     agentMode: AgentMode;
     appId?: string;
+    appPromptConfig?: PromptConfig;
   }): Promise<UserContext> {
     if (authResult.isAnonymous && authResult.anonymousSession) {
       return this.buildAnonymousContext(
@@ -68,6 +73,7 @@ export class UserContextService {
         authResult.anonymousSession,
         authResult.agentMode,
         authResult.appId,
+        authResult.appPromptConfig,
       );
     }
 
@@ -104,6 +110,7 @@ export class UserContextService {
       name: authResult.user.name,
       email: authResult.user.email,
       appId: authResult.appId,
+      appPromptConfig: authResult.appPromptConfig,
     };
   }
 
@@ -154,6 +161,7 @@ export class UserContextService {
     session: AnonymousSession,
     agentMode: AgentMode,
     appId?: string,
+    appPromptConfig?: PromptConfig,
   ): UserContext {
     const entityId = session.id || user.id;
 
@@ -172,6 +180,7 @@ export class UserContextService {
       name: user.name || "Anonymous",
       email: user.email,
       appId,
+      appPromptConfig,
     };
   }
 

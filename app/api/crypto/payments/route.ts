@@ -73,9 +73,21 @@ async function handleCreatePayment(req: NextRequest) {
     });
   } catch (error) {
     logger.error("[Crypto Payments API] Create payment error:", error);
-    const message =
-      error instanceof Error ? error.message : "Failed to create payment";
-    return NextResponse.json({ error: message }, { status: 500 });
+    
+    if (error instanceof Error) {
+      if (
+        error.message.includes("Invalid") ||
+        error.message.includes("must be") ||
+        error.message.includes("not configured")
+      ) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+    }
+    
+    return NextResponse.json(
+      { error: "Failed to process payment request" },
+      { status: 500 },
+    );
   }
 }
 
@@ -97,8 +109,13 @@ async function handleListPayments(req: NextRequest) {
     return NextResponse.json({ payments });
   } catch (error) {
     logger.error("[Crypto Payments API] List payments error:", error);
+    
+    if (error instanceof Error && error.message.includes("Invalid")) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    
     return NextResponse.json(
-      { error: "Failed to list payments" },
+      { error: "Failed to retrieve payments" },
       { status: 500 },
     );
   }

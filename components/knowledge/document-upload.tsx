@@ -139,9 +139,7 @@ export function DocumentUpload({
     setSelectedFiles([]);
 
     // Reset file input
-    const fileInput = document.getElementById(
-      "file-input",
-    ) as HTMLInputElement;
+    const fileInput = document.getElementById("file-input") as HTMLInputElement;
     if (fileInput) {
       fileInput.value = "";
     }

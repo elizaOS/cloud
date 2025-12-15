@@ -36,9 +36,15 @@ test.describe("Social Login", () => {
     const discordBtn = page.locator(LoginSelectors.discordButton);
     const githubBtn = page.locator(LoginSelectors.githubButton);
 
-    const googleVisible = await googleBtn.isVisible({ timeout: 30000 }).catch(() => false);
-    const discordVisible = await discordBtn.isVisible({ timeout: 30000 }).catch(() => false);
-    const githubVisible = await githubBtn.isVisible({ timeout: 30000 }).catch(() => false);
+    const googleVisible = await googleBtn
+      .isVisible({ timeout: 30000 })
+      .catch(() => false);
+    const discordVisible = await discordBtn
+      .isVisible({ timeout: 30000 })
+      .catch(() => false);
+    const githubVisible = await githubBtn
+      .isVisible({ timeout: 30000 })
+      .catch(() => false);
 
     if (googleVisible) {
       await expect(googleBtn).toBeEnabled();
@@ -68,13 +74,15 @@ test.describe("Social Login", () => {
 
     // Click Google login button
     const googleButton = page.locator(LoginSelectors.googleButton);
-    const isVisible = await googleButton.isVisible({ timeout: 30000 }).catch(() => false);
-    
+    const isVisible = await googleButton
+      .isVisible({ timeout: 30000 })
+      .catch(() => false);
+
     if (!isVisible) {
       console.log("ℹ️ Google button not found, skipping OAuth flow test");
       return;
     }
-    
+
     await googleButton.click({ force: true });
 
     // Wait for OAuth flow to start
@@ -123,13 +131,15 @@ test.describe("Social Login", () => {
 
     // Click Discord login button
     const discordButton = page.locator(LoginSelectors.discordButton);
-    const isVisible = await discordButton.isVisible({ timeout: 30000 }).catch(() => false);
-    
+    const isVisible = await discordButton
+      .isVisible({ timeout: 30000 })
+      .catch(() => false);
+
     if (!isVisible) {
       console.log("ℹ️ Discord button not found, skipping OAuth flow test");
       return;
     }
-    
+
     await discordButton.click();
 
     await page.waitForTimeout(3000);
@@ -152,13 +162,15 @@ test.describe("Social Login", () => {
 
     // Verify GitHub button exists and is clickable
     const githubButton = page.locator(LoginSelectors.githubButton);
-    const isVisible = await githubButton.isVisible({ timeout: 30000 }).catch(() => false);
-    
+    const isVisible = await githubButton
+      .isVisible({ timeout: 30000 })
+      .catch(() => false);
+
     if (!isVisible) {
       console.log("ℹ️ GitHub button not found, skipping OAuth flow test");
       return;
     }
-    
+
     await expect(githubButton).toBeEnabled();
 
     // Verify button text
@@ -177,13 +189,15 @@ test.describe("Social Login", () => {
 
     // Google OAuth button should be visible and enabled
     const googleButton = page.locator(LoginSelectors.googleButton);
-    const isVisible = await googleButton.isVisible({ timeout: 30000 }).catch(() => false);
-    
+    const isVisible = await googleButton
+      .isVisible({ timeout: 30000 })
+      .catch(() => false);
+
     if (!isVisible) {
       console.log("ℹ️ Google button not found, skipping OAuth flow test");
       return;
     }
-    
+
     await expect(googleButton).toBeEnabled();
 
     // Click triggers OAuth - this will cause a redirect or popup
@@ -208,7 +222,9 @@ test.describe("Email Login", () => {
 
     // Verify email input is visible
     const emailInput = page.locator(LoginSelectors.emailInput);
-    const inputVisible = await emailInput.isVisible({ timeout: 30000 }).catch(() => false);
+    const inputVisible = await emailInput
+      .isVisible({ timeout: 30000 })
+      .catch(() => false);
     if (!inputVisible) {
       console.log("ℹ️ Email input not visible - skipping");
       return;
@@ -230,7 +246,9 @@ test.describe("Email Login", () => {
     const emailInput = page.locator(LoginSelectors.emailInput);
     const sendCodeButton = page.locator(LoginSelectors.sendCodeButton);
 
-    const inputVisible = await emailInput.isVisible({ timeout: 30000 }).catch(() => false);
+    const inputVisible = await emailInput
+      .isVisible({ timeout: 30000 })
+      .catch(() => false);
     if (!inputVisible) {
       console.log("ℹ️ Email input not visible - skipping");
       return;
@@ -260,7 +278,9 @@ test.describe("Email Login", () => {
     const emailInput = page.locator(LoginSelectors.emailInput);
     const sendCodeButton = page.locator(LoginSelectors.sendCodeButton);
 
-    const inputVisible = await emailInput.isVisible({ timeout: 30000 }).catch(() => false);
+    const inputVisible = await emailInput
+      .isVisible({ timeout: 30000 })
+      .catch(() => false);
     if (!inputVisible) {
       console.log("ℹ️ Email input not visible - skipping");
       return;
@@ -295,7 +315,9 @@ test.describe("Email Login", () => {
 
     // Email input should be visible on initial load
     const emailInput = page.locator(LoginSelectors.emailInput);
-    const inputVisible = await emailInput.isVisible({ timeout: 30000 }).catch(() => false);
+    const inputVisible = await emailInput
+      .isVisible({ timeout: 30000 })
+      .catch(() => false);
     if (!inputVisible) {
       console.log("ℹ️ Email input not visible - skipping");
       return;
@@ -350,22 +372,30 @@ test.describe("Login Page Navigation", () => {
     const termsLink = page.locator('a[href="/terms-of-service"]');
     const privacyLink = page.locator('a[href="/privacy-policy"]');
 
-    const termsVisible = await termsLink.isVisible({ timeout: 10000 }).catch(() => false);
-    const privacyVisible = await privacyLink.isVisible({ timeout: 10000 }).catch(() => false);
-    
+    const termsVisible = await termsLink
+      .isVisible({ timeout: 10000 })
+      .catch(() => false);
+    const privacyVisible = await privacyLink
+      .isVisible({ timeout: 10000 })
+      .catch(() => false);
+
     if (termsVisible) {
       await expect(termsLink).toBeVisible();
     }
     if (privacyVisible) {
       await expect(privacyLink).toBeVisible();
     }
-    
-    console.log(`✅ Terms link: ${termsVisible}, Privacy link: ${privacyVisible}`);
+
+    console.log(
+      `✅ Terms link: ${termsVisible}, Privacy link: ${privacyVisible}`,
+    );
   });
 
   test("should handle signup intent parameter", async ({ page }) => {
     // Visit login with signup intent
-    const response = await page.goto("/login?intent=signup", { timeout: 30000 }).catch(() => null);
+    const response = await page
+      .goto("/login?intent=signup", { timeout: 30000 })
+      .catch(() => null);
     if (!response) {
       console.log("ℹ️ Page navigation failed - skipping");
       return;
@@ -375,7 +405,11 @@ test.describe("Login Page Navigation", () => {
 
     // Should show "Sign Up" text instead of "Welcome back"
     const pageContent = await page.textContent("body").catch(() => "");
-    const hasLoginContent = pageContent?.includes("Sign Up") || pageContent?.includes("Create") || pageContent?.includes("Login") || pageContent?.includes("Email");
+    const hasLoginContent =
+      pageContent?.includes("Sign Up") ||
+      pageContent?.includes("Create") ||
+      pageContent?.includes("Login") ||
+      pageContent?.includes("Email");
     console.log(`✅ Signup intent page loaded: ${hasLoginContent}`);
     expect(hasLoginContent).toBe(true);
   });

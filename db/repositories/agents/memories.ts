@@ -1,6 +1,6 @@
 /**
  * Repository for ElizaOS memories table (non-message memories).
- * 
+ *
  * Handles all database operations for memories without spinning up runtime.
  */
 
@@ -172,7 +172,7 @@ export class MemoriesRepository {
 
   /**
    * Deletes all messages in a room.
-   * 
+   *
    * @returns Number of messages deleted.
    */
   async deleteMessages(roomId: string): Promise<number> {
@@ -305,7 +305,7 @@ export class MemoriesRepository {
 
   /**
    * Deletes a memory.
-   * 
+   *
    * @returns True if memory was deleted, false if not found.
    */
   async delete(memoryId: string): Promise<boolean> {
@@ -319,9 +319,9 @@ export class MemoriesRepository {
 
   /**
    * Deletes memories by room (when deleting room).
-   * 
+   *
    * Only deletes non-message memories. Messages are preserved.
-   * 
+   *
    * @returns Number of memories deleted.
    */
   async deleteByRoomId(roomId: string): Promise<number> {
@@ -340,7 +340,7 @@ export class MemoriesRepository {
 
   /**
    * Deletes memories by agent (excluding messages).
-   * 
+   *
    * @returns Number of memories deleted.
    */
   async deleteByAgentId(agentId: string): Promise<number> {
@@ -419,7 +419,7 @@ export class MemoriesRepository {
 
   /**
    * Deletes old memories based on retention policy.
-   * 
+   *
    * @param agentId - Agent ID to delete memories for.
    * @param days - Minimum age in days for memories to be deleted.
    * @param types - Optional array of memory types to delete (all types if not specified).
@@ -453,7 +453,7 @@ export class MemoriesRepository {
 
   /**
    * Gets the last message for a single room.
-   * 
+   *
    * @returns Raw Memory object or null if no messages found.
    */
   async findLastMessageForRoom(roomId: string): Promise<Memory | null> {

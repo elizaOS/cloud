@@ -186,7 +186,7 @@ export class UsageQuotasRepository {
 
   /**
    * Gets current usage breakdown for an organization.
-   * 
+   *
    * Returns global quota usage and model-specific quota usage.
    */
   async getCurrentUsage(organizationId: string): Promise<{

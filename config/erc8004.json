@@ -1,7 +1,7 @@
 {
   "$schema": "./erc8004.schema.json",
   "_comment": "ERC-8004 Agent Registration Configuration. Secrets should be in .env, not here.",
-  
+
   "service": {
     "name": "Eliza Cloud",
     "description": "AI agent infrastructure: inference, agents, memory, billing. Supports REST, MCP, A2A protocols with x402 or API key authentication.",
@@ -83,4 +83,3 @@
     "productionNetwork": "base"
   }
 }
-

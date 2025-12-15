@@ -27,7 +27,7 @@ const UpdateMonetizationSchema = z.object({
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ agentId: string }> }
+  { params }: { params: Promise<{ agentId: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { agentId } = await params;
@@ -36,15 +36,18 @@ export async function GET(
   if (!agent) {
     return NextResponse.json(
       { success: false, error: "Agent not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
   // Check ownership
-  if (agent.user_id !== user.id && agent.organization_id !== user.organization_id) {
+  if (
+    agent.user_id !== user.id &&
+    agent.organization_id !== user.organization_id
+  ) {
     return NextResponse.json(
       { success: false, error: "Not authorized to view this agent" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -73,7 +76,7 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ agentId: string }> }
+  { params }: { params: Promise<{ agentId: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { agentId } = await params;
@@ -88,20 +91,20 @@ export async function PUT(
         error: "Invalid request",
         details: validation.error.format(),
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   const result = await agentMonetizationService.updateSettings(
     agentId,
     user.id,
-    validation.data
+    validation.data,
   );
 
   if (!result.success) {
     return NextResponse.json(
       { success: false, error: result.error },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -124,4 +127,3 @@ export async function PUT(
     },
   });
 }
-

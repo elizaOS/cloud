@@ -1,6 +1,6 @@
 /**
  * Dashboard API endpoint.
- * 
+ *
  * Provides dashboard data for mobile apps and client-side fetching.
  * GET /api/v1/dashboard
  */
@@ -43,23 +43,28 @@ export async function GET() {
   const usageStats = await usageService.getStatsByOrganization(
     organizationId,
     twentyFourHoursAgo,
-    new Date()
+    new Date(),
   );
   const apiCalls24h = usageStats.totalRequests;
 
   // Fetch agent stats in batch
   const characterIds = userCharacters.map((c) => c.id);
-  const agentStatsMap = new Map<string, {
-    roomCount: number;
-    messageCount: number;
-    deploymentStatus: string;
-    lastActiveAt: Date | null;
-  }>();
+  const agentStatsMap = new Map<
+    string,
+    {
+      roomCount: number;
+      messageCount: number;
+      deploymentStatus: string;
+      lastActiveAt: Date | null;
+    }
+  >();
 
   if (characterIds.length > 0) {
     try {
       const statsMap =
-        await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(characterIds);
+        await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(
+          characterIds,
+        );
       statsMap.forEach((stats, id) => {
         agentStatsMap.set(id, {
           roomCount: stats.roomCount,
@@ -86,7 +91,7 @@ export async function GET() {
     onboarding: {
       hasAgents: userCharacters.length > 0,
       hasApiKey: apiKeys.some(
-        (key) => key.name !== "Default API Key" || (key.usage_count ?? 0) > 0
+        (key) => key.name !== "Default API Key" || (key.usage_count ?? 0) > 0,
       ),
       hasChatHistory: chatRoomCount > 0,
     },

@@ -16,4 +16,3 @@ export interface ParsedLogEntry {
   message: string;
   metadata?: Record<string, unknown>;
 }
-

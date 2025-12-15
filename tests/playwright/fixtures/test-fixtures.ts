@@ -29,7 +29,9 @@ export type { MetaMask };
  */
 export async function waitForPageLoad(page: Page): Promise<void> {
   await page.waitForLoadState("domcontentloaded").catch(() => {});
-  await page.waitForLoadState("networkidle", { timeout: 30000 }).catch(() => {});
+  await page
+    .waitForLoadState("networkidle", { timeout: 30000 })
+    .catch(() => {});
 }
 
 /**

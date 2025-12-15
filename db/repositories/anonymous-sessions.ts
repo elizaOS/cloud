@@ -71,10 +71,10 @@ export class AnonymousSessionsRepository {
 
   /**
    * Atomically increments message count for a session.
-   * 
+   *
    * Uses SQL increment to prevent race conditions when multiple
    * requests try to increment simultaneously.
-   * 
+   *
    * @throws Error if session not found.
    */
   async incrementMessageCount(sessionId: string): Promise<AnonymousSession> {
@@ -96,10 +96,10 @@ export class AnonymousSessionsRepository {
 
   /**
    * Atomically increments hourly message count for rate limiting.
-   * 
+   *
    * Resets hourly counter if hour has passed. Uses atomic operations
    * to minimize race conditions.
-   * 
+   *
    * @throws Error if session not found.
    */
   async incrementHourlyCount(
@@ -155,7 +155,7 @@ export class AnonymousSessionsRepository {
 
   /**
    * Atomically tracks token usage for analytics (not billing).
-   * 
+   *
    * @throws Error if session not found.
    */
   async addTokenUsage(sessionId: string, tokens: number): Promise<void> {
@@ -174,7 +174,7 @@ export class AnonymousSessionsRepository {
 
   /**
    * Atomically increments signup prompt count and updates timestamp.
-   * 
+   *
    * @throws Error if session not found.
    */
   async incrementSignupPrompt(sessionId: string): Promise<void> {
@@ -219,7 +219,7 @@ export class AnonymousSessionsRepository {
 
   /**
    * Deletes expired sessions (cleanup job).
-   * 
+   *
    * @returns Number of sessions deleted.
    */
   async deleteExpired(): Promise<number> {

@@ -1,6 +1,6 @@
 /**
  * Repository for ElizaOS participants table.
- * 
+ *
  * Handles all database operations for participants without spinning up runtime.
  */
 
@@ -37,7 +37,7 @@ export class ParticipantsRepository {
 
   /**
    * Gets all room IDs for an entity (user).
-   * 
+   *
    * @param entityId - User's database ID (UUID).
    */
   async findRoomsByEntityId(entityId: string): Promise<string[]> {
@@ -51,7 +51,7 @@ export class ParticipantsRepository {
 
   /**
    * Gets all room IDs for multiple entities.
-   * 
+   *
    * @returns Map of entity ID to array of room IDs.
    */
   async findRoomsByEntityIds(
@@ -97,7 +97,7 @@ export class ParticipantsRepository {
 
   /**
    * Adds a participant to a room.
-   * 
+   *
    * @param input - Participant creation input (entityId should be user's database UUID).
    * @returns Existing participant if already present, otherwise new participant.
    */
@@ -135,7 +135,7 @@ export class ParticipantsRepository {
 
   /**
    * Removes a participant from a room.
-   * 
+   *
    * @returns True if participant was removed, false if not found.
    */
   async delete(roomId: string, entityId: string): Promise<boolean> {
@@ -154,7 +154,7 @@ export class ParticipantsRepository {
 
   /**
    * Deletes all participants for a room (when deleting room).
-   * 
+   *
    * @returns Number of participants deleted.
    */
   async deleteByRoomId(roomId: string): Promise<number> {

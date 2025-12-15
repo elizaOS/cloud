@@ -161,7 +161,7 @@ class DiscordService {
       type: number;
       message?: { content: string };
     }
-    
+
     const threadData: ThreadCreateData = {
       name: data.name.slice(0, 100), // Discord thread name limit
       auto_archive_duration: data.autoArchiveDuration || 1440, // 24 hours default

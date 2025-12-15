@@ -35,18 +35,27 @@ export async function GET(
     const app = await appsService.getById(id);
 
     if (!app) {
-      return NextResponse.json({ success: false, error: "App not found" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "App not found" },
+        { status: 404 },
+      );
     }
 
     if (app.organization_id !== user.organization_id) {
-      return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: "Access denied" },
+        { status: 403 },
+      );
     }
 
     return NextResponse.json({ success: true, app });
   } catch (error) {
     logger.error("Failed to get app:", error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Failed to get app" },
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to get app",
+      },
       { status: 500 },
     );
   }
@@ -72,11 +81,17 @@ export async function PUT(
     const existingApp = await appsService.getById(id);
 
     if (!existingApp) {
-      return NextResponse.json({ success: false, error: "App not found" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "App not found" },
+        { status: 404 },
+      );
     }
 
     if (existingApp.organization_id !== user.organization_id) {
-      return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: "Access denied" },
+        { status: 403 },
+      );
     }
 
     const body = await request.json();
@@ -84,20 +99,31 @@ export async function PUT(
 
     if (!validationResult.success) {
       return NextResponse.json(
-        { success: false, error: "Invalid request data", details: validationResult.error.format() },
+        {
+          success: false,
+          error: "Invalid request data",
+          details: validationResult.error.format(),
+        },
         { status: 400 },
       );
     }
 
     const updatedApp = await appsService.update(id, validationResult.data);
 
-    logger.info(`Updated app: ${id}`, { appId: id, userId: user.id, organizationId: user.organization_id });
+    logger.info(`Updated app: ${id}`, {
+      appId: id,
+      userId: user.id,
+      organizationId: user.organization_id,
+    });
 
     return NextResponse.json({ success: true, app: updatedApp });
   } catch (error) {
     logger.error("Failed to update app:", error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Failed to update app" },
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to update app",
+      },
       { status: 500 },
     );
   }
@@ -123,22 +149,38 @@ export async function DELETE(
     const existingApp = await appsService.getById(id);
 
     if (!existingApp) {
-      return NextResponse.json({ success: false, error: "App not found" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "App not found" },
+        { status: 404 },
+      );
     }
 
     if (existingApp.organization_id !== user.organization_id) {
-      return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: "Access denied" },
+        { status: 403 },
+      );
     }
 
     await appsService.delete(id);
 
-    logger.info(`Deleted app: ${id}`, { appId: id, userId: user.id, organizationId: user.organization_id });
+    logger.info(`Deleted app: ${id}`, {
+      appId: id,
+      userId: user.id,
+      organizationId: user.organization_id,
+    });
 
-    return NextResponse.json({ success: true, message: "App deleted successfully" });
+    return NextResponse.json({
+      success: true,
+      message: "App deleted successfully",
+    });
   } catch (error) {
     logger.error("Failed to delete app:", error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Failed to delete app" },
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to delete app",
+      },
       { status: 500 },
     );
   }

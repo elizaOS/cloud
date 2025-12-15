@@ -52,9 +52,12 @@ test.describe("Invoices API", () => {
   });
 
   test("invoices list supports pagination", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/invoices/list?limit=10&offset=0`, {
-      headers: authHeaders(),
-    });
+    const response = await request.get(
+      `${CLOUD_URL}/api/invoices/list?limit=10&offset=0`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 404, 500, 501]).toContain(response.status());
 
@@ -87,9 +90,12 @@ test.describe("Invoices API", () => {
     const invoiceId = invoices[0].id;
 
     // Get details
-    const response = await request.get(`${CLOUD_URL}/api/invoices/${invoiceId}`, {
-      headers: authHeaders(),
-    });
+    const response = await request.get(
+      `${CLOUD_URL}/api/invoices/${invoiceId}`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 404]).toContain(response.status());
 
@@ -106,10 +112,15 @@ test.describe("Invoices API", () => {
 test.describe("Payment Methods API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /api/payment-methods/list returns payment methods", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/payment-methods/list`, {
-      headers: authHeaders(),
-    });
+  test("GET /api/payment-methods/list returns payment methods", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      `${CLOUD_URL}/api/payment-methods/list`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 404, 500, 501]).toContain(response.status());
 
@@ -128,15 +139,20 @@ test.describe("Payment Methods API", () => {
     }
   });
 
-  test("POST /api/payment-methods/attach adds payment method", async ({ request }) => {
+  test("POST /api/payment-methods/attach adds payment method", async ({
+    request,
+  }) => {
     // This test would need a valid Stripe payment method token
     // We'll test the endpoint exists
-    const response = await request.post(`${CLOUD_URL}/api/payment-methods/attach`, {
-      headers: authHeaders(),
-      data: {
-        paymentMethodId: "pm_test_invalid",
+    const response = await request.post(
+      `${CLOUD_URL}/api/payment-methods/attach`,
+      {
+        headers: authHeaders(),
+        data: {
+          paymentMethodId: "pm_test_invalid",
+        },
       },
-    });
+    );
 
     expect([200, 201, 400, 404, 500, 501]).toContain(response.status());
 
@@ -149,13 +165,18 @@ test.describe("Payment Methods API", () => {
     }
   });
 
-  test("POST /api/payment-methods/remove removes payment method", async ({ request }) => {
-    const response = await request.post(`${CLOUD_URL}/api/payment-methods/remove`, {
-      headers: authHeaders(),
-      data: {
-        paymentMethodId: "pm_test_invalid",
+  test("POST /api/payment-methods/remove removes payment method", async ({
+    request,
+  }) => {
+    const response = await request.post(
+      `${CLOUD_URL}/api/payment-methods/remove`,
+      {
+        headers: authHeaders(),
+        data: {
+          paymentMethodId: "pm_test_invalid",
+        },
       },
-    });
+    );
 
     expect([200, 204, 400, 404, 500, 501]).toContain(response.status());
 
@@ -168,11 +189,16 @@ test.describe("Payment Methods API", () => {
     }
   });
 
-  test("POST /api/payment-methods/set-default sets default method", async ({ request }) => {
+  test("POST /api/payment-methods/set-default sets default method", async ({
+    request,
+  }) => {
     // First get payment methods
-    const listResponse = await request.get(`${CLOUD_URL}/api/payment-methods/list`, {
-      headers: authHeaders(),
-    });
+    const listResponse = await request.get(
+      `${CLOUD_URL}/api/payment-methods/list`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     if (listResponse.status() !== 200) {
       return;
@@ -188,19 +214,24 @@ test.describe("Payment Methods API", () => {
 
     const methodId = methods[0].id;
 
-    const response = await request.post(`${CLOUD_URL}/api/payment-methods/set-default`, {
-      headers: authHeaders(),
-      data: {
-        paymentMethodId: methodId,
+    const response = await request.post(
+      `${CLOUD_URL}/api/payment-methods/set-default`,
+      {
+        headers: authHeaders(),
+        data: {
+          paymentMethodId: methodId,
+        },
       },
-    });
+    );
 
     expect([200, 400, 404, 500, 501]).toContain(response.status());
 
     if (response.status() === 200) {
       console.log("✅ Set default payment method works");
     } else {
-      console.log(`ℹ️ Set default payment method returned ${response.status()}`);
+      console.log(
+        `ℹ️ Set default payment method returned ${response.status()}`,
+      );
     }
   });
 });
@@ -208,7 +239,9 @@ test.describe("Payment Methods API", () => {
 test.describe("Purchases API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("POST /api/purchases/create creates purchase intent", async ({ request }) => {
+  test("POST /api/purchases/create creates purchase intent", async ({
+    request,
+  }) => {
     const response = await request.post(`${CLOUD_URL}/api/purchases/create`, {
       headers: authHeaders(),
       data: {
@@ -255,10 +288,15 @@ test.describe("Purchases API", () => {
     }
   });
 
-  test("GET /api/purchases/status returns purchase status", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/purchases/status?purchaseId=test-id`, {
-      headers: authHeaders(),
-    });
+  test("GET /api/purchases/status returns purchase status", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      `${CLOUD_URL}/api/purchases/status?purchaseId=test-id`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 400, 404, 500, 501]).toContain(response.status());
 
@@ -356,9 +394,9 @@ test.describe("Invoices Dashboard UI", () => {
 
     // Look for invoice items or empty state
     const invoiceItems = page.locator(
-      '[class*="invoice"], [class*="row"], table tr, [class*="card"]'
+      '[class*="invoice"], [class*="row"], table tr, [class*="card"]',
     );
-    const emptyState = page.locator('text=/no invoice|empty|nothing/i');
+    const emptyState = page.locator("text=/no invoice|empty|nothing/i");
 
     const itemCount = await invoiceItems.count();
     const hasEmpty = await emptyState.isVisible().catch(() => false);
@@ -416,17 +454,19 @@ test.describe("Billing Page Comprehensive", () => {
     }
 
     // Check for key billing sections
-    const balanceSection = page.locator('text=/balance|credit/i');
-    const packSection = page.locator('text=/pack|purchase|buy/i');
-    const historySection = page.locator('text=/history|transaction/i');
-    const topUpSection = page.locator('text=/auto.*top|top.*up/i');
+    const balanceSection = page.locator("text=/balance|credit/i");
+    const packSection = page.locator("text=/pack|purchase|buy/i");
+    const historySection = page.locator("text=/history|transaction/i");
+    const topUpSection = page.locator("text=/auto.*top|top.*up/i");
 
     const hasBalance = await balanceSection.isVisible().catch(() => false);
     const hasPacks = await packSection.isVisible().catch(() => false);
     const hasHistory = await historySection.isVisible().catch(() => false);
     const hasTopUp = await topUpSection.isVisible().catch(() => false);
 
-    console.log(`✅ Billing sections - Balance: ${hasBalance}, Packs: ${hasPacks}, History: ${hasHistory}, Auto Top-Up: ${hasTopUp}`);
+    console.log(
+      `✅ Billing sections - Balance: ${hasBalance}, Packs: ${hasPacks}, History: ${hasHistory}, Auto Top-Up: ${hasTopUp}`,
+    );
   });
 
   test("payment method section exists", async ({ page }) => {
@@ -441,13 +481,19 @@ test.describe("Billing Page Comprehensive", () => {
     }
 
     // Look for payment method section
-    const paymentSection = page.locator('text=/payment.*method|card|credit.*card/i');
-    const addCardButton = page.locator('button:has-text("Add"), button:has-text("Card")');
+    const paymentSection = page.locator(
+      "text=/payment.*method|card|credit.*card/i",
+    );
+    const addCardButton = page.locator(
+      'button:has-text("Add"), button:has-text("Card")',
+    );
 
     const hasSection = await paymentSection.isVisible().catch(() => false);
     const hasButton = await addCardButton.isVisible().catch(() => false);
 
-    console.log(`✅ Payment method section: ${hasSection}, Add button: ${hasButton}`);
+    console.log(
+      `✅ Payment method section: ${hasSection}, Add button: ${hasButton}`,
+    );
   });
 
   test("credit pack purchase buttons work", async ({ page }) => {
@@ -463,7 +509,7 @@ test.describe("Billing Page Comprehensive", () => {
 
     // Look for purchase buttons
     const purchaseButtons = page.locator(
-      'button:has-text("Buy"), button:has-text("Purchase"), button:has-text("Get")'
+      'button:has-text("Buy"), button:has-text("Purchase"), button:has-text("Get")',
     );
     const buttonCount = await purchaseButtons.count();
 
@@ -475,5 +521,3 @@ test.describe("Billing Page Comprehensive", () => {
     }
   });
 });
-
-

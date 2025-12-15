@@ -109,7 +109,7 @@ class AbuseDetectionService {
   }
 
   private async checkEmailAbuse(
-    email: string
+    email: string,
   ): Promise<{ flags: string[]; riskScore: number }> {
     const flags: string[] = [];
     let riskScore = 0;
@@ -140,7 +140,7 @@ class AbuseDetectionService {
   }
 
   private async checkIpAbuse(
-    ipAddress: string
+    ipAddress: string,
   ): Promise<{ flags: string[]; riskScore: number }> {
     const flags: string[] = [];
     let riskScore = 0;
@@ -156,8 +156,8 @@ class AbuseDetectionService {
       .where(
         and(
           sql`${organizations.settings}->>'signup_ip' = ${ipAddress}`,
-          gte(organizations.created_at, twentyFourHoursAgo)
-        )
+          gte(organizations.created_at, twentyFourHoursAgo),
+        ),
       );
 
     const signupCount = recentSignups?.count || 0;
@@ -174,7 +174,7 @@ class AbuseDetectionService {
   }
 
   private async checkFingerprintAbuse(
-    fingerprint: string
+    fingerprint: string,
   ): Promise<{ flags: string[]; riskScore: number }> {
     const flags: string[] = [];
     let riskScore = 0;
@@ -190,8 +190,8 @@ class AbuseDetectionService {
       .where(
         and(
           sql`${organizations.settings}->>'signup_fingerprint' = ${fingerprint}`,
-          gte(organizations.created_at, twentyFourHoursAgo)
-        )
+          gte(organizations.created_at, twentyFourHoursAgo),
+        ),
       );
 
     const signupCount = recentSignups?.count || 0;
@@ -209,7 +209,7 @@ class AbuseDetectionService {
 
   async recordSignupMetadata(
     organizationId: string,
-    context: SignupContext
+    context: SignupContext,
   ): Promise<void> {
     try {
       const [org] = await db
@@ -268,12 +268,12 @@ class AbuseDetectionService {
         const conditions = [];
         if (signupContext.ipAddress) {
           conditions.push(
-            sql`${organizations.settings}->>'signup_ip' = ${signupContext.ipAddress}`
+            sql`${organizations.settings}->>'signup_ip' = ${signupContext.ipAddress}`,
           );
         }
         if (signupContext.fingerprint) {
           conditions.push(
-            sql`${organizations.settings}->>'signup_fingerprint' = ${signupContext.fingerprint}`
+            sql`${organizations.settings}->>'signup_fingerprint' = ${signupContext.fingerprint}`,
           );
         }
 

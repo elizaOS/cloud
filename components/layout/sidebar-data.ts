@@ -10,7 +10,6 @@ import {
   Bot,
   Code,
   Mic,
-  Store,
   Puzzle,
   Grid3x3,
   Shield,
@@ -53,26 +52,18 @@ export const sidebarSections: SidebarSection[] = [
     title: "Agents",
     items: [
       {
-        id: "chat",
-        label: "Chat",
-        href: "/dashboard/chat",
-        icon: Bot,
-        freeAllowed: true, // Free tier can access Chat
-      },
-      {
         id: "my-agents",
         label: "My Agents",
         href: "/dashboard/my-agents",
-        icon: Store,
+        icon: Bot,
         freeAllowed: false, // Requires signup
       },
       {
-        id: "character-creator",
-        label: "Creator",
-        href: "/dashboard/character-creator",
+        id: "agent-creator",
+        label: "Agent Creator",
+        href: "/dashboard/build",
         icon: UserCog,
-        freeAllowed: false,
-        featureFlag: "characterBuilder",
+        freeAllowed: true,
       },
       {
         id: "api-explorer",

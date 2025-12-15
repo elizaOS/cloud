@@ -2,14 +2,14 @@ import { test, expect } from "@playwright/test";
 
 /**
  * Containers & Deployment E2E Tests
- * 
+ *
  * Tests container creation, deployment, and management:
  * - Container creation
  * - Deployment status tracking
  * - Container logs viewing
  * - Start/stop/restart operations
  * - Container quota management
- * 
+ *
  * Prerequisites:
  * - TEST_API_KEY environment variable required
  * - Cloud running on port 3000
@@ -42,9 +42,11 @@ test.describe("Containers Dashboard Page", () => {
     const onContainersPage = url.includes("/containers");
 
     // Accept any of: redirect to login, redirect to home, or stay on containers page
-    expect(redirectedToLogin || redirectedToHome || onContainersPage).toBe(true);
+    expect(redirectedToLogin || redirectedToHome || onContainersPage).toBe(
+      true,
+    );
     console.log(
-      `✅ Containers page auth check: ${redirectedToLogin ? "redirects to login" : redirectedToHome ? "redirects to home" : "shows containers"}`
+      `✅ Containers page auth check: ${redirectedToLogin ? "redirects to login" : redirectedToHome ? "redirects to home" : "shows containers"}`,
     );
   });
 
@@ -54,7 +56,7 @@ test.describe("Containers Dashboard Page", () => {
     await page.waitForTimeout(2000);
 
     const createButton = page.locator(
-      'button:has-text("Create"), button:has-text("New Container"), a:has-text("Create")'
+      'button:has-text("Create"), button:has-text("New Container"), a:has-text("Create")',
     );
     const hasCreateButton = await createButton.isVisible().catch(() => false);
 
@@ -78,9 +80,12 @@ test.describe("Container CRUD Operations", () => {
 
   test.afterEach(async ({ request }) => {
     if (testContainerId) {
-      await request.delete(`${CLOUD_URL}/api/v1/containers/${testContainerId}`, {
-        headers: authHeaders(),
-      });
+      await request.delete(
+        `${CLOUD_URL}/api/v1/containers/${testContainerId}`,
+        {
+          headers: authHeaders(),
+        },
+      );
       testContainerId = null;
     }
   });
@@ -98,7 +103,11 @@ test.describe("Container CRUD Operations", () => {
     // May return 200, 201, or not be implemented
     expect([200, 201, 404, 501]).toContain(response.status());
 
-    if (response.status() === 200 || response.status() === 201 || response.status() === 202) {
+    if (
+      response.status() === 200 ||
+      response.status() === 201 ||
+      response.status() === 202
+    ) {
       const data = await response.json();
       expect(data.success).toBe(true);
       // Containers API returns { success, data: container }
@@ -132,15 +141,22 @@ test.describe("Container CRUD Operations", () => {
 
   test("GET /containers/:id returns container details", async ({ request }) => {
     // First create a container
-    const createResponse = await request.post(`${CLOUD_URL}/api/v1/containers`, {
-      headers: authHeaders(),
-      data: {
-        name: "Detail Test Container",
-        image: "nginx:latest",
+    const createResponse = await request.post(
+      `${CLOUD_URL}/api/v1/containers`,
+      {
+        headers: authHeaders(),
+        data: {
+          name: "Detail Test Container",
+          image: "nginx:latest",
+        },
       },
-    });
+    );
 
-    if (createResponse.status() !== 200 && createResponse.status() !== 201 && createResponse.status() !== 202) {
+    if (
+      createResponse.status() !== 200 &&
+      createResponse.status() !== 201 &&
+      createResponse.status() !== 202
+    ) {
       return;
     }
 
@@ -148,14 +164,17 @@ test.describe("Container CRUD Operations", () => {
     if (!createData.success || !createData.data) {
       return;
     }
-    
+
     const containerId = createData.data.id;
     testContainerId = containerId;
 
     // Get details
-    const response = await request.get(`${CLOUD_URL}/api/v1/containers/${containerId}`, {
-      headers: authHeaders(),
-    });
+    const response = await request.get(
+      `${CLOUD_URL}/api/v1/containers/${containerId}`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 404]).toContain(response.status());
 
@@ -171,15 +190,22 @@ test.describe("Container CRUD Operations", () => {
 
   test("DELETE /containers/:id deletes container", async ({ request }) => {
     // Create container
-    const createResponse = await request.post(`${CLOUD_URL}/api/v1/containers`, {
-      headers: authHeaders(),
-      data: {
-        name: "Delete Test Container",
-        image: "nginx:latest",
+    const createResponse = await request.post(
+      `${CLOUD_URL}/api/v1/containers`,
+      {
+        headers: authHeaders(),
+        data: {
+          name: "Delete Test Container",
+          image: "nginx:latest",
+        },
       },
-    });
+    );
 
-    if (createResponse.status() !== 200 && createResponse.status() !== 201 && createResponse.status() !== 202) {
+    if (
+      createResponse.status() !== 200 &&
+      createResponse.status() !== 201 &&
+      createResponse.status() !== 202
+    ) {
       return;
     }
 
@@ -187,13 +213,16 @@ test.describe("Container CRUD Operations", () => {
     if (!createData.success || !createData.data) {
       return;
     }
-    
+
     const containerId = createData.data.id;
 
     // Delete it
-    const deleteResponse = await request.delete(`${CLOUD_URL}/api/v1/containers/${containerId}`, {
-      headers: authHeaders(),
-    });
+    const deleteResponse = await request.delete(
+      `${CLOUD_URL}/api/v1/containers/${containerId}`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 204, 404]).toContain(deleteResponse.status());
 
@@ -221,7 +250,11 @@ test.describe("Container Deployment Status", () => {
       },
     });
 
-    if (response.status() === 200 || response.status() === 201 || response.status() === 202) {
+    if (
+      response.status() === 200 ||
+      response.status() === 201 ||
+      response.status() === 202
+    ) {
       const data = await response.json();
       if (data.success && data.data) {
         testContainerId = data.data.id;
@@ -231,9 +264,12 @@ test.describe("Container Deployment Status", () => {
 
   test.afterAll(async ({ request }) => {
     if (testContainerId) {
-      await request.delete(`${CLOUD_URL}/api/v1/containers/${testContainerId}`, {
-        headers: authHeaders(),
-      });
+      await request.delete(
+        `${CLOUD_URL}/api/v1/containers/${testContainerId}`,
+        {
+          headers: authHeaders(),
+        },
+      );
     }
   });
 
@@ -246,7 +282,7 @@ test.describe("Container Deployment Status", () => {
       `${CLOUD_URL}/api/v1/containers/${testContainerId}/status`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect([200, 404, 501]).toContain(response.status());
@@ -254,7 +290,9 @@ test.describe("Container Deployment Status", () => {
     if (response.status() === 200) {
       const data = await response.json();
       expect(data).toHaveProperty("status");
-      expect(["running", "stopped", "starting", "stopping", "error"]).toContain(data.status);
+      expect(["running", "stopped", "starting", "stopping", "error"]).toContain(
+        data.status,
+      );
       console.log(`✅ Container status: ${data.status}`);
     } else {
       console.log(`ℹ️ Status endpoint returned ${response.status()}`);
@@ -276,7 +314,11 @@ test.describe("Container Operations", () => {
       },
     });
 
-    if (response.status() === 200 || response.status() === 201 || response.status() === 202) {
+    if (
+      response.status() === 200 ||
+      response.status() === 201 ||
+      response.status() === 202
+    ) {
       const data = await response.json();
       if (data.success && data.data) {
         testContainerId = data.data.id;
@@ -286,9 +328,12 @@ test.describe("Container Operations", () => {
 
   test.afterAll(async ({ request }) => {
     if (testContainerId) {
-      await request.delete(`${CLOUD_URL}/api/v1/containers/${testContainerId}`, {
-        headers: authHeaders(),
-      });
+      await request.delete(
+        `${CLOUD_URL}/api/v1/containers/${testContainerId}`,
+        {
+          headers: authHeaders(),
+        },
+      );
     }
   });
 
@@ -301,7 +346,7 @@ test.describe("Container Operations", () => {
       `${CLOUD_URL}/api/v1/containers/${testContainerId}/start`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect([200, 404, 501]).toContain(response.status());
@@ -322,7 +367,7 @@ test.describe("Container Operations", () => {
       `${CLOUD_URL}/api/v1/containers/${testContainerId}/stop`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect([200, 404, 501]).toContain(response.status());
@@ -334,7 +379,9 @@ test.describe("Container Operations", () => {
     }
   });
 
-  test("POST /containers/:id/restart restarts container", async ({ request }) => {
+  test("POST /containers/:id/restart restarts container", async ({
+    request,
+  }) => {
     if (!testContainerId) {
       return;
     }
@@ -343,7 +390,7 @@ test.describe("Container Operations", () => {
       `${CLOUD_URL}/api/v1/containers/${testContainerId}/restart`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect([200, 404, 501]).toContain(response.status());
@@ -370,7 +417,11 @@ test.describe("Container Logs", () => {
       },
     });
 
-    if (response.status() === 200 || response.status() === 201 || response.status() === 202) {
+    if (
+      response.status() === 200 ||
+      response.status() === 201 ||
+      response.status() === 202
+    ) {
       const data = await response.json();
       if (data.success && data.data) {
         testContainerId = data.data.id;
@@ -380,13 +431,18 @@ test.describe("Container Logs", () => {
 
   test.afterAll(async ({ request }) => {
     if (testContainerId) {
-      await request.delete(`${CLOUD_URL}/api/v1/containers/${testContainerId}`, {
-        headers: authHeaders(),
-      });
+      await request.delete(
+        `${CLOUD_URL}/api/v1/containers/${testContainerId}`,
+        {
+          headers: authHeaders(),
+        },
+      );
     }
   });
 
-  test("GET /containers/:id/logs returns container logs", async ({ request }) => {
+  test("GET /containers/:id/logs returns container logs", async ({
+    request,
+  }) => {
     if (!testContainerId) {
       return;
     }
@@ -395,7 +451,7 @@ test.describe("Container Logs", () => {
       `${CLOUD_URL}/api/v1/containers/${testContainerId}/logs`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect([200, 404, 501]).toContain(response.status());
@@ -403,7 +459,9 @@ test.describe("Container Logs", () => {
     if (response.status() === 200) {
       const data = await response.json();
       expect(data).toHaveProperty("logs");
-      expect(Array.isArray(data.logs) || typeof data.logs === "string").toBe(true);
+      expect(Array.isArray(data.logs) || typeof data.logs === "string").toBe(
+        true,
+      );
       console.log("✅ Container logs retrieved");
     } else {
       console.log(`ℹ️ Logs endpoint returned ${response.status()}`);
@@ -419,7 +477,7 @@ test.describe("Container Logs", () => {
       `${CLOUD_URL}/api/v1/containers/${testContainerId}/logs?limit=100&offset=0`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect([200, 404, 501]).toContain(response.status());
@@ -433,7 +491,9 @@ test.describe("Container Logs", () => {
 test.describe("Container Quota Management", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /containers/quota returns quota information", async ({ request }) => {
+  test("GET /containers/quota returns quota information", async ({
+    request,
+  }) => {
     const response = await request.get(`${CLOUD_URL}/api/v1/containers/quota`, {
       headers: authHeaders(),
     });
@@ -455,10 +515,15 @@ test.describe("Container Quota Management", () => {
 test.describe("Container Credentials", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /containers/credentials returns credentials", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/v1/containers/credentials`, {
-      headers: authHeaders(),
-    });
+  test("GET /containers/credentials returns credentials", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      `${CLOUD_URL}/api/v1/containers/credentials`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 404, 501]).toContain(response.status());
 
