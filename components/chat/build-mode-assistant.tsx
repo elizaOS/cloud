@@ -84,15 +84,13 @@ export function BuildModeAssistant({
   const [lockedRoom, setLockedRoom] = useState<LockedRoomInfo | null>(null); // Track if room is locked after character creation
 
   // Determine display info based on mode
-  // Show Eliza until character is actually saved (has source from database)
-  const isCharacterSaved =
-    !isCreatorMode &&
-    character?.id &&
-    (character as { source?: string })?.source;
-  const displayName = isCharacterSaved
+  // In creator mode, always show Eliza (we're creating a new character)
+  // In build mode, show the character being edited (even if not fully saved yet)
+  const shouldShowCharacter = !isCreatorMode && character?.id;
+  const displayName = shouldShowCharacter
     ? character?.name || "Build Assistant"
     : DEFAULT_ELIZA.name;
-  const displayAvatar = isCharacterSaved
+  const displayAvatar = shouldShowCharacter
     ? character?.avatarUrl || character?.avatar_url
     : DEFAULT_ELIZA.avatarUrl;
 
@@ -977,7 +975,9 @@ export function BuildModeAssistant({
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    handleSubmit(e);
+                    if (!isLoading) {
+                      handleSubmit(e);
+                    }
                   }
                 }}
                 onInput={(e) => {
@@ -987,8 +987,7 @@ export function BuildModeAssistant({
                     Math.min(target.scrollHeight, 140) + "px";
                 }}
                 placeholder="Describe your character or ask for help..."
-                disabled={isLoading}
-                className="w-full bg-transparent px-4 py-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
+                className="w-full bg-transparent px-4 py-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none resize-none leading-relaxed"
                 style={{
                   minHeight: "44px",
                   maxHeight: "140px",

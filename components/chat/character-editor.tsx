@@ -31,7 +31,7 @@ interface CharacterEditorProps {
   onSave: () => Promise<void>;
 }
 
-type MainTab = "character" | "plugins" | "knowledge";
+type MainTab = "character" | "plugins" | "files";
 
 export function CharacterEditor({
   character,
@@ -41,7 +41,7 @@ export function CharacterEditor({
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") as MainTab | null;
   const [activeTab, setActiveTab] = useState<MainTab>(
-    initialTab && ["character", "plugins", "knowledge"].includes(initialTab)
+    initialTab && ["character", "plugins", "files"].includes(initialTab)
       ? initialTab
       : "character",
   );
@@ -51,7 +51,7 @@ export function CharacterEditor({
   // Update tab when URL changes
   useEffect(() => {
     const tab = searchParams.get("tab") as MainTab | null;
-    if (tab && ["character", "plugins", "knowledge"].includes(tab)) {
+    if (tab && ["character", "plugins", "files"].includes(tab)) {
       // Schedule state update to avoid synchronous setState in effect
       const rafId = requestAnimationFrame(() => setActiveTab(tab));
       return () => cancelAnimationFrame(rafId);
@@ -70,8 +70,8 @@ export function CharacterEditor({
       icon: <Puzzle className="h-4 w-4" />,
     },
     {
-      value: "knowledge",
-      label: "Knowledge",
+      value: "files",
+      label: "Files",
       icon: <BookOpen className="h-4 w-4" />,
     },
   ];
@@ -192,7 +192,7 @@ export function CharacterEditor({
                 onSave={onSave}
               />
             )}
-            {activeTab === "knowledge" && (
+            {activeTab === "files" && (
               <UploadsTab characterId={character.id || null} />
             )}
           </>
