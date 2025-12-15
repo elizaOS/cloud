@@ -408,6 +408,12 @@ class CryptoPaymentsService {
   /**
    * Verify and confirm a payment using a provided transaction hash.
    * This allows users to manually confirm payments by providing their transaction hash.
+   * 
+   * SECURITY: This method performs on-chain verification via OxaPay API to ensure:
+   * - The transaction hash exists and is associated with this payment
+   * - The transaction has sufficient confirmations
+   * - The amount received matches the expected amount
+   * - Uses database transaction with row-level locking to prevent race conditions
    */
   async verifyAndConfirmByTxHash(
     paymentId: string,
@@ -415,53 +421,204 @@ class CryptoPaymentsService {
   ): Promise<{ success: boolean; message: string }> {
     validateUuid(paymentId, "payment ID");
 
-    const payment = await cryptoPaymentsRepository.findById(paymentId);
-    if (!payment) {
-      return { success: false, message: "Payment not found" };
-    }
-
-    if (payment.status === "confirmed") {
-      return { success: true, message: "Payment already confirmed" };
-    }
-
-    if (payment.status === "expired") {
-      return { success: false, message: "Payment has expired" };
-    }
-
-    if (payment.status === "failed") {
-      return { success: false, message: "Payment has failed" };
-    }
-
-    const existingTx = await cryptoPaymentsRepository.findByTransactionHash(txHash);
-    if (existingTx && existingTx.id !== paymentId) {
-      logger.warn("[Crypto Payments] Transaction hash already used", {
-        paymentId,
-        txHash,
-        existingPaymentId: existingTx.id,
-      });
-      return {
-        success: false,
-        message: "Transaction hash already used for another payment",
-      };
-    }
-
     try {
-      await this.confirmPayment(
-        paymentId,
-        txHash,
-        "0",
-        payment.expected_amount,
-      );
+      // Use a database transaction with row-level locking to prevent race conditions
+      // This ensures only one request can process the confirmation at a time
+      return await db.transaction(async (tx) => {
+        // Acquire a row-level lock on the payment record
+        const paymentResult = await tx
+          .select()
+          .from(cryptoPayments)
+          .where(eq(cryptoPayments.id, paymentId))
+          .for("update");
 
-      logger.info("[Crypto Payments] Manual confirmation successful", {
-        paymentId,
-        txHash,
+        const payment = paymentResult[0];
+
+        if (!payment) {
+          return { success: false, message: "Payment not found" };
+        }
+
+        if (payment.status === "confirmed") {
+          return { success: true, message: "Payment already confirmed" };
+        }
+
+        if (payment.status === "expired") {
+          return { success: false, message: "Payment has expired" };
+        }
+
+        if (payment.status === "failed") {
+          return { success: false, message: "Payment has failed" };
+        }
+
+        // Get the OxaPay track ID to verify on-chain
+        let trackId: string;
+        try {
+          trackId = getTrackId(payment.metadata);
+        } catch {
+          logger.error("[Crypto Payments] Missing track ID for on-chain verification", {
+            paymentId,
+            txHash,
+          });
+          return { success: false, message: "Payment configuration error - missing track ID" };
+        }
+
+        // Verify the transaction on-chain via OxaPay API
+        const oxaStatus = await oxaPayService.getPaymentStatus(trackId);
+        
+        // Check if the payment is confirmed on OxaPay's side
+        if (!oxaPayService.isPaymentConfirmed(oxaStatus.status)) {
+          logger.warn("[Crypto Payments] On-chain verification failed - payment not confirmed", {
+            paymentId,
+            txHash,
+            trackId,
+            oxaPayStatus: oxaStatus.status,
+          });
+          return { 
+            success: false, 
+            message: `Payment not yet confirmed by blockchain. Current status: ${oxaStatus.status}`,
+          };
+        }
+
+        // Verify the provided transaction hash matches one from OxaPay
+        const matchingTx = oxaStatus.transactions.find(
+          (txn) => txn.txHash.toLowerCase() === txHash.toLowerCase()
+        );
+
+        if (!matchingTx) {
+          // List the valid transaction hashes for debugging
+          const validHashes = oxaStatus.transactions.map(txn => txn.txHash);
+          logger.warn("[Crypto Payments] Transaction hash not found in OxaPay records", {
+            paymentId,
+            providedTxHash: txHash,
+            trackId,
+            validTransactions: validHashes,
+          });
+          return {
+            success: false,
+            message: "Transaction hash not found in payment records. Please ensure you submitted the correct transaction hash.",
+          };
+        }
+
+        // Verify the transaction has enough confirmations (at least 1 for confirmed status)
+        if (matchingTx.confirmations < 1) {
+          logger.warn("[Crypto Payments] Transaction has insufficient confirmations", {
+            paymentId,
+            txHash,
+            confirmations: matchingTx.confirmations,
+          });
+          return {
+            success: false,
+            message: `Transaction needs more confirmations. Current: ${matchingTx.confirmations}`,
+          };
+        }
+
+        // Verify the amount is correct (with tolerance for minor differences)
+        const expectedAmount = new Decimal(payment.expected_amount);
+        const receivedAmount = new Decimal(matchingTx.amount);
+        const tolerance = expectedAmount.mul(0.01); // 1% tolerance for fees
+        
+        if (receivedAmount.lt(expectedAmount.minus(tolerance))) {
+          logger.warn("[Crypto Payments] Received amount less than expected", {
+            paymentId,
+            txHash,
+            expected: expectedAmount.toString(),
+            received: receivedAmount.toString(),
+          });
+          return {
+            success: false,
+            message: `Received amount (${receivedAmount}) is less than expected (${expectedAmount})`,
+          };
+        }
+
+        // Check if this transaction hash is already used by another payment
+        const existingTxResult = await tx
+          .select()
+          .from(cryptoPayments)
+          .where(eq(cryptoPayments.transaction_hash, txHash))
+          .for("update");
+
+        if (existingTxResult.length > 0 && existingTxResult[0].id !== paymentId) {
+          logger.error("[Crypto Payments] Double-spend attempt detected", {
+            paymentId,
+            txHash,
+            existingPaymentId: existingTxResult[0].id,
+          });
+          return {
+            success: false,
+            message: "Transaction already processed for another payment",
+          };
+        }
+
+        logger.info("[Crypto Payments] On-chain verification successful", {
+          paymentId,
+          txHash,
+          trackId,
+          confirmations: matchingTx.confirmations,
+          receivedAmount: matchingTx.amount,
+        });
+
+        // Update the payment record
+        await tx
+          .update(cryptoPayments)
+          .set({
+            status: "confirmed",
+            transaction_hash: txHash,
+            block_number: "0",
+            received_amount: matchingTx.amount.toString(),
+            confirmed_at: new Date(),
+          })
+          .where(eq(cryptoPayments.id, paymentId));
+
+        // Add credits
+        const creditsDecimal = new Decimal(payment.credits_to_add);
+        await creditsService.addCredits({
+          organizationId: payment.organization_id,
+          amount: creditsDecimal.toNumber(),
+          description: `Crypto payment (${payment.token} on ${payment.network})`,
+          metadata: {
+            crypto_payment_id: payment.id,
+            transaction_hash: txHash,
+            network: payment.network,
+            token: payment.token,
+            received_amount: matchingTx.amount.toString(),
+            oxapay_track_id: trackId,
+          },
+        });
+
+        // Create invoice
+        await invoicesService.create({
+          organization_id: payment.organization_id,
+          stripe_invoice_id: `crypto_${payment.id}`,
+          stripe_customer_id: `org_${payment.organization_id}`,
+          stripe_payment_intent_id: txHash,
+          amount_due: payment.credits_to_add,
+          amount_paid: matchingTx.amount.toString(),
+          currency: payment.token.toLowerCase(),
+          status: "paid",
+          invoice_type: "crypto_payment",
+          credits_added: payment.credits_to_add,
+          metadata: {
+            payment_method: "crypto",
+            provider: "oxapay",
+            network: payment.network,
+            token: payment.token,
+            transaction_hash: txHash,
+            oxapay_track_id: trackId,
+          },
+        });
+
+        logger.info("[Crypto Payments] Manual confirmation successful", {
+          paymentId,
+          txHash,
+          creditsAdded: creditsDecimal.toString(),
+          organizationId: payment.organization_id,
+        });
+
+        return {
+          success: true,
+          message: "Payment confirmed successfully",
+        };
       });
-
-      return {
-        success: true,
-        message: "Payment confirmed successfully",
-      };
     } catch (error) {
       logger.error("[Crypto Payments] Manual confirmation failed", {
         paymentId,
