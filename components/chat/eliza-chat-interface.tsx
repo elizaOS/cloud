@@ -1219,7 +1219,9 @@ export function ElizaChatInterface({
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    sendMessage();
+                    if (!loadingState.isSending && !recorder.isRecording) {
+                      sendMessage();
+                    }
                   }
                 }}
                 onInput={(e) => {
@@ -1233,7 +1235,7 @@ export function ElizaChatInterface({
                     ? "Recording... Click stop when done"
                     : "Type your message..."
                 }
-                disabled={loadingState.isSending || recorder.isRecording}
+                disabled={recorder.isRecording}
                 className="w-full bg-transparent px-4 py-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
                 style={{
                   minHeight: "44px",
