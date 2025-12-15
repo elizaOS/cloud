@@ -5,6 +5,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uuid,
 } from "drizzle-orm/pg-core";
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
@@ -58,6 +59,9 @@ export const cryptoPayments = pgTable(
       table.payment_address,
     ),
     tx_hash_idx: index("crypto_payments_tx_hash_idx").on(
+      table.transaction_hash,
+    ),
+    unique_tx_hash: unique("crypto_payments_tx_hash_unique").on(
       table.transaction_hash,
     ),
   }),

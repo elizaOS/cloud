@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { cryptoPaymentsService } from "@/lib/services/crypto-payments";
 import { isOxaPayConfigured } from "@/lib/services/oxapay";
 import { logger } from "@/lib/utils/logger";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { createHmac } from "crypto";
 
 function verifyOxaPaySignature(
@@ -9,9 +10,10 @@ function verifyOxaPaySignature(
   signature: string | null,
 ): boolean {
   const secret = process.env.OXAPAY_WEBHOOK_SECRET;
+  
   if (!secret) {
-    logger.warn("[Crypto Webhook] No webhook secret configured, skipping verification");
-    return true;
+    logger.error("[Crypto Webhook] Webhook secret not configured - rejecting request");
+    return false;
   }
 
   if (!signature) {
@@ -26,11 +28,11 @@ function verifyOxaPaySignature(
   return signature === expectedSignature;
 }
 
-export async function POST(req: NextRequest) {
+async function handleWebhook(req: NextRequest) {
   try {
     if (!isOxaPayConfigured()) {
       return NextResponse.json(
-        { error: "Crypto payments not configured" },
+        { error: "Service unavailable" },
         { status: 503 },
       );
     }
@@ -40,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     if (!verifyOxaPaySignature(rawBody, signature)) {
       logger.warn("[Crypto Webhook] Invalid signature");
-      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     let payload: {
@@ -55,7 +57,7 @@ export async function POST(req: NextRequest) {
     try {
       payload = JSON.parse(rawBody);
     } catch {
-      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     }
 
     if (!payload.track_id || !payload.status) {
@@ -81,6 +83,8 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export const POST = withRateLimit(handleWebhook, RateLimitPresets.AGGRESSIVE);
 
 export async function GET() {
   return NextResponse.json({ status: "ok", message: "OxaPay webhook endpoint" });
