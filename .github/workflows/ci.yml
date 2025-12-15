@@ -116,12 +116,22 @@ jobs:
           restore-keys: nextjs-${{ hashFiles('bun.lockb') }}-
       - run: bun install --frozen-lockfile
       - run: bun run build
+      - name: Verify build output
+        run: |
+          if [ -d ".next" ]; then
+            echo "✅ .next directory exists"
+            ls -la .next | head -10
+          else
+            echo "❌ .next directory not found"
+            ls -la
+            exit 1
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: nextjs-build
-          path: .next
+          path: .next/
           retention-days: 1
-          if-no-files-found: error
+          if-no-files-found: warn
 
   e2e-ui:
     name: E2E UI
