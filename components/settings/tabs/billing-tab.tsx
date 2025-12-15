@@ -176,7 +176,8 @@ export function BillingTab({ user }: BillingTabProps) {
           expiresAt: data.expiresAt,
         });
         setIsProcessingCheckout(false);
-      } catch {
+      } catch (error) {
+        console.error("Failed to create crypto payment:", error);
         toast.error("Failed to create crypto payment");
         setIsProcessingCheckout(false);
       }
