@@ -10,11 +10,12 @@
 
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import type { UserWithOrganization } from "@/lib/types";
-import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle, Wallet } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
+import type { CryptoStatusResponse } from "@/app/api/crypto/status/route";
 
 interface BillingTabProps {
   user: UserWithOrganization;
@@ -47,6 +48,13 @@ export function BillingTab({ user }: BillingTabProps) {
   const [purchaseAmount, setPurchaseAmount] = useState("");
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
 
+  // Crypto payment state
+  const [cryptoStatus, setCryptoStatus] = useState<CryptoStatusResponse | null>(
+    null
+  );
+  const [selectedCurrency, setSelectedCurrency] = useState<string>("");
+  const [cryptoAmount, setCryptoAmount] = useState("");
+
   const [balance, setBalance] = useState(
     Number(user.organization?.credit_balance || 0),
   );
@@ -71,13 +79,26 @@ export function BillingTab({ user }: BillingTabProps) {
     setLoadingInvoices(false);
   }, []);
 
+  const fetchCryptoStatus = useCallback(async () => {
+    const response = await fetch("/api/crypto/status");
+    if (response.ok) {
+      const data: CryptoStatusResponse = await response.json();
+      setCryptoStatus(data);
+      // Set default selected currency to first supported token
+      if (data.supportedTokens.length > 0 && !selectedCurrency) {
+        setSelectedCurrency(data.supportedTokens[0]);
+      }
+    }
+  }, [selectedCurrency]);
+
   useEffect(() => {
     // Use queueMicrotask to defer execution and avoid synchronous setState
     queueMicrotask(() => {
       fetchInvoices();
       fetchBalance();
+      fetchCryptoStatus();
     });
-  }, [fetchInvoices, fetchBalance]);
+  }, [fetchInvoices, fetchBalance, fetchCryptoStatus]);
 
   const handleBuyCredits = async () => {
     const amount = parseFloat(purchaseAmount);
@@ -247,6 +268,101 @@ export function BillingTab({ user }: BillingTabProps) {
           </div>
         </div>
       </BrandCard>
+
+      {/* Crypto Payment Card */}
+      {cryptoStatus?.enabled && cryptoStatus.supportedTokens.length > 0 && (
+        <BrandCard className="relative">
+          <CornerBrackets size="sm" className="opacity-50" />
+
+          <div className="relative z-10 space-y-6">
+            {/* Header */}
+            <div className="flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-[#FF5800]" />
+              <h3 className="text-base font-mono text-[#e1e1e1] uppercase">
+                Pay with Crypto
+              </h3>
+              {cryptoStatus.isTestnet && (
+                <span className="px-2 py-0.5 text-xs font-mono bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+                  TESTNET
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <p className="text-sm text-white/60">
+                Add credits using cryptocurrency on {cryptoStatus.networkName}.
+              </p>
+
+              {/* Currency Selection - Dynamic from API */}
+              <div className="flex flex-wrap gap-2">
+                {cryptoStatus.supportedTokens.map((currency) => (
+                  <button
+                    key={currency}
+                    type="button"
+                    onClick={() => setSelectedCurrency(currency)}
+                    className={`px-3 py-1.5 font-mono text-xs border transition-colors ${
+                      selectedCurrency === currency
+                        ? "bg-[#FF5800] border-[#FF5800] text-white"
+                        : "bg-transparent border-[rgba(255,255,255,0.15)] text-white/50 hover:border-[rgba(255,255,255,0.3)]"
+                    }`}
+                  >
+                    {currency}
+                  </button>
+                ))}
+              </div>
+
+              {/* Amount Input */}
+              <div className="flex flex-col sm:flex-row items-stretch gap-4">
+                <div className="relative flex-1 max-w-xs">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#717171] font-mono">
+                    $
+                  </span>
+                  <Input
+                    type="number"
+                    step="1"
+                    min={AMOUNT_LIMITS.MIN}
+                    max={AMOUNT_LIMITS.MAX}
+                    value={cryptoAmount}
+                    onChange={(e) => setCryptoAmount(e.target.value)}
+                    className="pl-7 backdrop-blur-sm bg-[rgba(29,29,29,0.3)] border border-[rgba(255,255,255,0.15)] text-[#e1e1e1] h-11 font-mono"
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    toast.info(
+                      `Crypto payments with ${selectedCurrency} coming soon!`
+                    );
+                  }}
+                  disabled={
+                    !selectedCurrency ||
+                    !cryptoAmount ||
+                    parseFloat(cryptoAmount) < AMOUNT_LIMITS.MIN
+                  }
+                  className="relative bg-[#e1e1e1] px-6 py-2.5 overflow-hidden hover:bg-white transition-colors w-full sm:w-auto flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <div
+                    className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
+                    style={{
+                      backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
+                      backgroundSize: "2.915576934814453px 2.915576934814453px",
+                    }}
+                  />
+                  <span className="relative z-10 text-black font-mono font-medium text-base whitespace-nowrap">
+                    Pay with {selectedCurrency || "Crypto"}
+                  </span>
+                </button>
+              </div>
+
+              <p className="text-xs text-white/40 font-mono">
+                Supported tokens: {cryptoStatus.supportedTokens.join(", ")}
+              </p>
+            </div>
+          </div>
+        </BrandCard>
+      )}
 
       {/* Invoices Card */}
       <BrandCard className="relative">
