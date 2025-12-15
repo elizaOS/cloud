@@ -6,14 +6,8 @@ import { logger } from "@/lib/utils/logger";
 /**
  * Cron job to clean up expired pending crypto payments.
  * Should be scheduled to run every 5-10 minutes.
- * 
- * Vercel Cron format (vercel.json):
- * {
- *   "crons": [{
- *     "path": "/api/cron/cleanup-expired-crypto-payments",
- *     "schedule": "*/10 * * * *"
- *   }]
- * }
+ *
+ * Vercel Cron: schedule "0/10 * * * *" at path "/api/cron/cleanup-expired-crypto-payments"
  */
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
