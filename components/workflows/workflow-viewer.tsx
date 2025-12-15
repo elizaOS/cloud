@@ -392,15 +392,15 @@ export function WorkflowViewer({
                               execution.status.slice(1)}
                           </p>
                           <p className="text-xs text-white/40">
-                            {safeFormatDistanceToNow(execution.started_at)} ago
-                            {execution.duration_ms &&
-                              ` • ${execution.duration_ms}ms`}
+                            {safeFormatDistanceToNow(execution.startedAt)} ago
+                            {execution.durationMs &&
+                              ` • ${execution.durationMs}ms`}
                           </p>
                         </div>
                       </div>
-                      {execution.error && (
+                      {execution.errorMessage && (
                         <span className="text-xs text-red-400 truncate max-w-[200px]">
-                          {execution.error}
+                          {execution.errorMessage}
                         </span>
                       )}
                     </div>

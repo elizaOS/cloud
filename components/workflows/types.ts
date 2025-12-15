@@ -38,10 +38,10 @@ export interface WorkflowVersion {
 export interface WorkflowExecution {
   id: string;
   status: string;
-  started_at: string;
-  completed_at: string | null;
-  duration_ms: number | null;
-  error: string | null;
+  startedAt: string;
+  finishedAt: string | null;
+  durationMs: number | null;
+  errorMessage: string | null;
 }
 
 export interface TestResult {
