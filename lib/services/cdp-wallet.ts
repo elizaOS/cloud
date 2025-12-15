@@ -328,7 +328,7 @@ class CdpWalletService {
                 txHash,
                 confirmations,
                 minimumRequired: networkConfig.minimumConfirmations,
-                meets Minimum: meetsMinimumConfirmations,
+                meetsMinimum: meetsMinimumConfirmations,
               });
 
               return {
