@@ -13,6 +13,8 @@ const eslintConfig = [
       "build/**",
       "next-env.d.ts",
       "docs/**",
+      "tests/playwright/test-reports/**",
+      "tests/playwright/test-results/**",
     ],
   },
   // React Hooks Rules - Critical for preventing unnecessary re-renders and API spam
