@@ -977,7 +977,9 @@ export function BuildModeAssistant({
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    handleSubmit(e);
+                    if (!isLoading) {
+                      handleSubmit(e);
+                    }
                   }
                 }}
                 onInput={(e) => {
@@ -987,8 +989,7 @@ export function BuildModeAssistant({
                     Math.min(target.scrollHeight, 140) + "px";
                 }}
                 placeholder="Describe your character or ask for help..."
-                disabled={isLoading}
-                className="w-full bg-transparent px-4 py-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
+                className="w-full bg-transparent px-4 py-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none resize-none leading-relaxed"
                 style={{
                   minHeight: "44px",
                   maxHeight: "140px",
