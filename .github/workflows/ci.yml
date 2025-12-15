@@ -131,7 +131,8 @@ jobs:
           name: nextjs-build
           path: .next/
           retention-days: 1
-          if-no-files-found: warn
+          if-no-files-found: error
+          include-hidden-files: true
 
   e2e-ui:
     name: E2E UI
