@@ -140,7 +140,7 @@ export function KnowledgePageClient({
   if (!pageState.serviceAvailable && !pageState.loading) {
     return (
       <div className="container mx-auto py-8 space-y-4">
-        <h1 className="text-2xl font-bold">Knowledge Base</h1>
+      <h1 className="text-2xl font-bold">File Management</h1>
         <Alert variant="destructive">
           <InfoIcon className="h-4 w-4" />
           <AlertDescription>
@@ -158,10 +158,9 @@ export function KnowledgePageClient({
     <div className="container mx-auto py-8 space-y-6">
       <div className="space-y-4">
         <div>
-          <h1 className="text-3xl font-bold">Knowledge Management</h1>
+          <h1 className="text-3xl font-bold">File Management</h1>
           <p className="text-muted-foreground mt-2">
-            Manage your RAG knowledge base. Upload documents and query them for
-            enhanced AI responses.
+            Upload and manage documents for your agents. These files provide context and information for enhanced AI responses.
           </p>
         </div>
 
@@ -189,7 +188,7 @@ export function KnowledgePageClient({
           <Alert>
             <InfoIcon className="h-4 w-4" />
             <AlertDescription>
-              Please select an agent to manage its knowledge base.
+              Please select an agent to manage its files.
             </AlertDescription>
           </Alert>
         )}
@@ -275,7 +274,7 @@ export function KnowledgePageClient({
         <TabsContent value="documents" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Knowledge Documents</CardTitle>
+              <CardTitle>Uploaded Files</CardTitle>
             </CardHeader>
             <CardContent>
               {pageState.error ? (
@@ -311,7 +310,7 @@ export function KnowledgePageClient({
         <TabsContent value="query" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Query Knowledge Base</CardTitle>
+              <CardTitle>Search Files</CardTitle>
             </CardHeader>
             <CardContent>
               <KnowledgeQuery characterId={pageState.selectedCharacterId} />
