@@ -7,7 +7,7 @@ import {
   codeAgentCommands,
   interpreterExecutions,
 } from "@/db/schemas/code-agent-sessions";
-import { eq, and, gte, lte, desc, sql, count } from "drizzle-orm";
+import { eq, and, gte, lte, desc, sql, count, inArray } from "drizzle-orm";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 
@@ -137,7 +137,7 @@ class CodeAgentAnalyticsService {
       return { total: 0, successful: 0, failed: 0, avgDurationMs: 0 };
 
     const ids = sessions.map((s) => s.id);
-    const cond = [sql`${codeAgentCommands.session_id} = ANY(${ids})`];
+    const cond = [inArray(codeAgentCommands.session_id, ids)];
     if (range)
       cond.push(
         gte(codeAgentCommands.created_at, range.start),

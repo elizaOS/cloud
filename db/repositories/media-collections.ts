@@ -1,4 +1,4 @@
-import { eq, desc, and, sql, count } from "drizzle-orm";
+import { eq, desc, and, sql, count, inArray } from "drizzle-orm";
 import { db } from "../client";
 import {
   mediaCollections,
@@ -117,12 +117,12 @@ export class MediaCollectionsRepository {
     const [gens, uploads] = await Promise.all([
       genIds.length > 0
         ? db.query.generations.findMany({
-            where: sql`${generations.id} = ANY(${genIds})`,
+            where: inArray(generations.id, genIds),
           })
         : [],
       uploadIds.length > 0
         ? db.query.mediaUploads.findMany({
-            where: sql`${mediaUploads.id} = ANY(${uploadIds})`,
+            where: inArray(mediaUploads.id, uploadIds),
           })
         : [],
     ]);
@@ -256,7 +256,7 @@ export class MediaCollectionsRepository {
       .where(
         and(
           eq(mediaCollectionItems.collection_id, collectionId),
-          sql`${mediaCollectionItems.id} = ANY(${itemIds})`,
+          inArray(mediaCollectionItems.id, itemIds),
         ),
       );
 

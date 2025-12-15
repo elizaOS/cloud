@@ -560,59 +560,6 @@ export class CreditsService {
       });
   }
 
-  /**
-   * Refund credits (e.g., when a generation fails after deduction)
-   * Creates a credit transaction to restore the amount
-   */
-  async refundCredits(params: AddCreditsParams): Promise<{
-    transaction: CreditTransaction;
-    newBalance: number;
-  }> {
-    const { organizationId, amount, description, metadata } = params;
-
-    if (amount <= 0) {
-      throw new Error("Refund amount must be positive");
-    }
-
-    return await db.transaction(async (tx) => {
-      // Lock the organization row
-      const [org] = await tx
-        .select()
-        .from(organizations)
-        .where(eq(organizations.id, organizationId))
-        .for("update");
-
-      if (!org) {
-        throw new Error("Organization not found");
-      }
-
-      const newBalance = org.credit_balance + amount;
-
-      // Update balance
-      await tx
-        .update(organizations)
-        .set({
-          credit_balance: newBalance,
-          updated_at: new Date(),
-        })
-        .where(eq(organizations.id, organizationId));
-
-      // Create refund transaction record
-      const [transaction] = await tx
-        .insert(creditTransactions)
-        .values({
-          organization_id: organizationId,
-          amount: amount,
-          type: "refund",
-          description,
-          metadata: metadata || {},
-          created_at: new Date(),
-        })
-        .returning();
-
-      return { transaction, newBalance };
-    });
-  }
 
   // Credit Packs
   async getCreditPackById(id: string): Promise<CreditPack | undefined> {

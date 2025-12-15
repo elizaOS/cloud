@@ -32,6 +32,7 @@ export interface WorkflowVersion {
   version: number;
   changes_summary: string | null;
   created_at: string;
+  created_by: string;
 }
 
 export interface WorkflowExecution {

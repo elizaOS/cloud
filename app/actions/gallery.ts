@@ -29,7 +29,7 @@ export interface GalleryItem {
     duration?: number;
   };
   mimeType?: string;
-  fileSize?: bigint;
+  fileSize?: string;
 }
 
 /**
@@ -97,7 +97,7 @@ async function fetchGalleryItemsInternal(
               completedAt: gen.completed_at || undefined,
               dimensions: gen.dimensions || undefined,
               mimeType: gen.mime_type || undefined,
-              fileSize: gen.file_size || undefined,
+              fileSize: gen.file_size?.toString(),
             })),
           );
         }),
@@ -127,7 +127,7 @@ async function fetchGalleryItemsInternal(
               createdAt: upload.created_at,
               dimensions: upload.dimensions || undefined,
               mimeType: upload.mime_type || undefined,
-              fileSize: upload.file_size || undefined,
+              fileSize: upload.file_size?.toString(),
             })),
           );
         }),
@@ -299,7 +299,7 @@ export async function uploadMedia(formData: FormData): Promise<GalleryItem> {
     createdAt: upload.created_at,
     dimensions: upload.dimensions || undefined,
     mimeType: upload.mime_type || undefined,
-    fileSize: upload.file_size || undefined,
+    fileSize: upload.file_size?.toString(),
   };
 }
 

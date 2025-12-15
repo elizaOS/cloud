@@ -54,9 +54,9 @@ export async function GET(
         versions: versions.map((v) => ({
           id: v.id,
           version: v.version,
-          changeDescription: v.change_description,
-          createdAt: v.created_at,
-          createdBy: v.created_by,
+          changes_summary: v.change_description,
+          created_at: v.created_at,
+          created_by: v.created_by,
         })),
       },
       { headers: corsHeaders },

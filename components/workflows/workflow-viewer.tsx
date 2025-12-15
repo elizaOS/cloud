@@ -19,10 +19,18 @@ import {
 } from "lucide-react";
 import { WorkflowChatEditor } from "./workflow-chat-editor";
 import { WorkflowTriggers } from "./workflow-triggers";
+import { MonacoJsonEditor } from "@/components/chat/monaco-json-editor";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import type { Workflow, WorkflowVersion, WorkflowExecution } from "./types";
 import { getStatusColor } from "./types";
+
+function safeFormatDistanceToNow(dateValue: string | undefined | null): string {
+  if (!dateValue) return "Unknown";
+  const date = new Date(dateValue);
+  if (isNaN(date.getTime())) return "Unknown";
+  return formatDistanceToNow(date);
+}
 
 interface WorkflowViewerProps {
   workflowId: string;
@@ -232,13 +240,13 @@ export function WorkflowViewer({
                   <div className="flex justify-between text-sm">
                     <span className="text-white/40">Created</span>
                     <span className="text-white/80">
-                      {formatDistanceToNow(new Date(workflow.createdAt))} ago
+                      {safeFormatDistanceToNow(workflow.createdAt)} ago
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-white/40">Last Updated</span>
                     <span className="text-white/80">
-                      {formatDistanceToNow(new Date(workflow.updatedAt))} ago
+                      {safeFormatDistanceToNow(workflow.updatedAt)} ago
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
@@ -310,10 +318,12 @@ export function WorkflowViewer({
                   Copy
                 </Button>
               </div>
-              <div className="bg-black/30 rounded-lg p-4 overflow-auto max-h-[500px]">
-                <pre className="text-sm text-white/80 font-mono">
-                  {JSON.stringify(workflow.workflowData, null, 2)}
-                </pre>
+              <div className="rounded-lg overflow-hidden bg-black/30">
+                <MonacoJsonEditor
+                  value={JSON.stringify(workflow.workflowData, null, 2)}
+                  readOnly
+                  height="500px"
+                />
               </div>
             </div>
           </BrandCard>
@@ -344,8 +354,7 @@ export function WorkflowViewer({
                             {version.changes_summary || "No summary"}
                           </p>
                           <p className="text-xs text-white/40">
-                            {formatDistanceToNow(new Date(version.created_at))}{" "}
-                            ago
+                            {safeFormatDistanceToNow(version.created_at)} ago
                           </p>
                         </div>
                       </div>
@@ -391,10 +400,7 @@ export function WorkflowViewer({
                               execution.status.slice(1)}
                           </p>
                           <p className="text-xs text-white/40">
-                            {formatDistanceToNow(
-                              new Date(execution.started_at),
-                            )}{" "}
-                            ago
+                            {safeFormatDistanceToNow(execution.started_at)} ago
                             {execution.duration_ms &&
                               ` • ${execution.duration_ms}ms`}
                           </p>
