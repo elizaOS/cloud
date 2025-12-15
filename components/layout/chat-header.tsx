@@ -236,7 +236,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                 : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white"
             )}
             style={{
-              fontFamily: "'Roboto Mono', monospace",
+
               fontWeight: 500,
               fontSize: "14px",
               lineHeight: "18px",
