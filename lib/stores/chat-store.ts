@@ -46,6 +46,7 @@ interface ChatState {
   setSelectedCharacterId: (characterId: string | null) => void;
   setPendingMessage: (message: string | null) => void;
   setAnonymousSessionToken: (token: string | null) => void;
+  updateCharacterAvatar: (characterId: string, avatarUrl: string) => void;
   loadRooms: (force?: boolean) => Promise<void>;
   createRoom: (characterId?: string | null) => Promise<string | null>;
   deleteRoom: (roomId: string) => Promise<void>;
@@ -78,6 +79,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ selectedCharacterId: characterId }),
   setPendingMessage: (message) => set({ pendingMessage: message }),
   setAnonymousSessionToken: (token) => set({ anonymousSessionToken: token }),
+
+  // Update a character's avatar URL (used when avatar is generated in build mode)
+  updateCharacterAvatar: (characterId, avatarUrl) => {
+    const { availableCharacters } = get();
+    const updatedCharacters = availableCharacters.map((char) =>
+      char.id === characterId ? { ...char, avatarUrl } : char,
+    );
+    set({ availableCharacters: updatedCharacters });
+  },
 
   // Load rooms from API
   // entityId is now derived from authenticated user on the server

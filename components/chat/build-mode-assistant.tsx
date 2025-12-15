@@ -35,6 +35,7 @@ import {
 import { ElizaAvatar } from "./eliza-avatar";
 import { DEFAULT_AVATAR } from "@/lib/utils/default-avatar";
 import Link from "next/link";
+import { useChatStore } from "@/lib/stores/chat-store";
 
 // Default Eliza configuration for creator mode
 const DEFAULT_ELIZA = {
@@ -51,11 +52,19 @@ interface BuildModeAssistantProps {
   isCreatorMode?: boolean;
 }
 
+interface MessageAttachment {
+  id: string;
+  url: string;
+  title?: string;
+  contentType?: string;
+}
+
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: number;
+  attachments?: MessageAttachment[];
 }
 
 interface LockedRoomInfo {
@@ -78,6 +87,9 @@ export function BuildModeAssistant({
   const [inputText, setInputText] = useState("");
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  
+  // Get store method to update character avatar in sidebar/dropdown
+  const updateCharacterAvatar = useChatStore((state) => state.updateCharacterAvatar);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true); // Loading state for initial welcome
   const [builderRoomId, setBuilderRoomId] = useState<string>("");
@@ -202,12 +214,21 @@ export function BuildModeAssistant({
                 text?: string;
                 source?: string;
                 metadata?: { type?: string };
+                attachments?: Array<{
+                  id?: string;
+                  url: string;
+                  title?: string;
+                  contentType?: string;
+                }>;
               };
               createdAt: number;
               isAgent: boolean;
             }) => {
               const text = msg.content?.text;
-              if (!text || typeof text !== "string") {
+              const attachments = msg.content?.attachments;
+              
+              // Allow messages with text OR attachments
+              if ((!text || typeof text !== "string") && (!attachments || attachments.length === 0)) {
                 return null;
               }
 
@@ -225,8 +246,14 @@ export function BuildModeAssistant({
                 role: isAgentMessage
                   ? ("assistant" as const)
                   : ("user" as const),
-                content: text,
+                content: text || "",
                 timestamp: msg.createdAt,
+                attachments: attachments?.map((att) => ({
+                  id: att.id || `att-${msg.id}`,
+                  url: att.url,
+                  title: att.title,
+                  contentType: att.contentType,
+                })),
               };
             },
           )
@@ -292,6 +319,7 @@ export function BuildModeAssistant({
         let detectedCharacterCreated = false;
         let createdCharacterId: string | null = null;
         let proposedCharacterUpdate: Partial<ElizaCharacter> | null = null;
+        let messageAttachments: MessageAttachment[] = [];
 
         while (true) {
           const { done, value } = await reader.read();
@@ -321,7 +349,7 @@ export function BuildModeAssistant({
               try {
                 const data = JSON.parse(eventData);
 
-                if (data.type === "agent" && data.content?.text) {
+                if (data.type === "agent" && (data.content?.text || data.content?.attachments?.length)) {
                   // Skip action result messages from UI but process metadata
                   if (data.content?.metadata?.type === "action_result") {
                     // Check for character creation in action results
@@ -341,8 +369,20 @@ export function BuildModeAssistant({
                     continue;
                   }
 
-                  assistantMessage = data.content.text;
+                  assistantMessage = data.content.text || "";
                   assistantMessageId = data.id;
+
+                  // Capture attachments (images, etc.)
+                  if (data.content?.attachments?.length) {
+                    messageAttachments = data.content.attachments.map(
+                      (att: { id?: string; url: string; title?: string; contentType?: string }) => ({
+                        id: att.id || `att-${Date.now()}`,
+                        url: att.url,
+                        title: att.title,
+                        contentType: att.contentType,
+                      })
+                    );
+                  }
 
                   // Check for SAVE_CHANGES action
                   if (
@@ -371,6 +411,18 @@ export function BuildModeAssistant({
                   ) {
                     proposedCharacterUpdate = data.content.metadata.changes;
                   }
+
+                  // Check for GENERATE_AVATAR with avatar URL
+                  if (
+                    data.content?.metadata?.action === "GENERATE_AVATAR" &&
+                    data.content?.metadata?.changes?.avatarUrl
+                  ) {
+                    proposedCharacterUpdate = data.content.metadata.changes;
+                    // Track if avatar was auto-saved
+                    if (data.content?.metadata?.avatarSaved) {
+                      (proposedCharacterUpdate as Record<string, unknown>).__avatarSaved = true;
+                    }
+                  }
                 }
               } catch {
                 // Silently ignore parse errors during streaming
@@ -379,21 +431,39 @@ export function BuildModeAssistant({
 
             // Handle done event
             if (eventType === "done") {
-              if (assistantMessage) {
+              if (assistantMessage || messageAttachments.length > 0) {
                 const newAssistantMessage: Message = {
                   id: assistantMessageId || `assistant-${Date.now()}`,
                   role: "assistant",
                   content: assistantMessage,
                   timestamp: Date.now(),
+                  attachments: messageAttachments.length > 0 ? messageAttachments : undefined,
                 };
                 setMessages((prev) => [...prev, newAssistantMessage]);
 
                 // Apply character updates to editor
                 if (proposedCharacterUpdate) {
+                  // Check for avatar saved flag and remove it before updating
+                  const updateWithMeta = proposedCharacterUpdate as Record<string, unknown>;
+                  const avatarWasSaved = updateWithMeta.__avatarSaved;
+                  delete updateWithMeta.__avatarSaved;
+                  
                   onCharacterUpdate(proposedCharacterUpdate);
-                  toast.success("Character preview updated!", {
-                    duration: 4000,
-                  });
+                  const isAvatarUpdate = "avatarUrl" in proposedCharacterUpdate;
+                  
+                  if (isAvatarUpdate) {
+                    // Update sidebar/dropdown avatar if saved in build mode (not creator mode)
+                    if (avatarWasSaved && !isCreatorMode && character?.id) {
+                      updateCharacterAvatar(character.id, updateWithMeta.avatarUrl as string);
+                    }
+                    
+                    toast.success(
+                      avatarWasSaved ? "Avatar generated and saved!" : "Avatar preview updated!",
+                      { duration: 4000 },
+                    );
+                  } else {
+                    toast.success("Character preview updated!", { duration: 4000 });
+                  }
                 }
 
                 // Handle character creation in creator mode - lock the room
@@ -670,7 +740,26 @@ export function BuildModeAssistant({
                       </div>
 
                       <div className="flex flex-col gap-1.5">
+                        {/* Message Attachments (Images) */}
+                        {message.attachments && message.attachments.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {message.attachments.map((attachment) => (
+                              <div
+                                key={attachment.id}
+                                className="relative rounded-lg overflow-hidden border border-white/[0.08] bg-white/[0.02]"
+                              >
+                                <img
+                                  src={attachment.url}
+                                  alt={attachment.title || "Generated image"}
+                                  className="max-w-[280px] max-h-[280px] object-cover"
+                                  loading="lazy"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        )}
                         {/* Message Text */}
+                        {content && (
                         <div className="py-3 px-4 bg-white/[0.03] border border-white/[0.06] rounded-lg transition-colors hover:bg-white/[0.05] hover:border-white/[0.08] overflow-hidden">
                           <style jsx>{`
                             .build-mode-content :global(pre) {
@@ -823,6 +912,7 @@ export function BuildModeAssistant({
                             </ReactMarkdown>
                           </div>
                         </div>
+                        )}
                         {/* Time and Actions */}
                         <div className="flex items-center gap-2 pl-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
                           <span className="text-xs text-white/40">
