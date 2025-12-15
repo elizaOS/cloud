@@ -16,6 +16,10 @@ import {
   validatePaymentAmount,
   type OxaPayNetwork as ConfigOxaPayNetwork,
 } from "@/lib/config/crypto";
+import {
+  createCryptoInvoiceId,
+  createCryptoCustomerId,
+} from "@/lib/constants/invoice-ids";
 import Decimal from "decimal.js";
 import { validate as uuidValidate } from "uuid";
 import { z } from "zod";
@@ -375,10 +379,12 @@ class CryptoPaymentsService {
         },
       });
 
+      // Create invoice with clearly namespaced IDs to distinguish from Stripe invoices.
+      // These are NOT actual Stripe IDs - they use OXAPAY_* prefix for clarity.
       await invoicesService.create({
         organization_id: payment.organization_id,
-        stripe_invoice_id: `crypto_${payment.id}`,
-        stripe_customer_id: `org_${payment.organization_id}`,
+        stripe_invoice_id: createCryptoInvoiceId(payment.id),
+        stripe_customer_id: createCryptoCustomerId(payment.organization_id),
         stripe_payment_intent_id: txHash,
         amount_due: payment.credits_to_add,
         amount_paid: receivedAmount,
@@ -585,11 +591,12 @@ class CryptoPaymentsService {
           },
         });
 
-        // Create invoice
+        // Create invoice with clearly namespaced IDs to distinguish from Stripe invoices.
+        // These are NOT actual Stripe IDs - they use OXAPAY_* prefix for clarity.
         await invoicesService.create({
           organization_id: payment.organization_id,
-          stripe_invoice_id: `crypto_${payment.id}`,
-          stripe_customer_id: `org_${payment.organization_id}`,
+          stripe_invoice_id: createCryptoInvoiceId(payment.id),
+          stripe_customer_id: createCryptoCustomerId(payment.organization_id),
           stripe_payment_intent_id: txHash,
           amount_due: payment.credits_to_add,
           amount_paid: matchingTx.amount.toString(),
