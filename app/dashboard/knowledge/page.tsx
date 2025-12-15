@@ -5,9 +5,9 @@ import { KnowledgePageClient } from "@/components/knowledge/knowledge-page-clien
 import { generatePageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = generatePageMetadata({
-  title: "Knowledge Management - elizaOS Cloud",
+  title: "File Management - elizaOS Cloud",
   description:
-    "Manage your RAG knowledge base. Upload documents and query them for enhanced AI responses.",
+    "Upload and manage documents for your agents. These files provide context and information for enhanced AI responses.",
   path: "/dashboard/knowledge",
   noIndex: true,
 });
@@ -16,7 +16,7 @@ export const metadata: Metadata = generatePageMetadata({
 export const dynamic = "force-dynamic";
 
 /**
- * Knowledge Management page for managing RAG knowledge base.
+ * File Management page for uploading and managing agent documents.
  * Allows users to upload documents and query them for enhanced AI responses.
  *
  * @returns The rendered knowledge page client component, or an authentication required message.
@@ -32,7 +32,7 @@ export default async function KnowledgePage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Authentication Required</h1>
           <p className="text-muted-foreground">
-            Please log in to manage your knowledge base.
+            Please log in to manage your files.
           </p>
         </div>
       </div>

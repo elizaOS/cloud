@@ -26,7 +26,7 @@ import {
   Zap,
   Sparkles,
   Crown,
-  BookOpen,
+  Paperclip,
 } from "lucide-react";
 import Link from "next/link";
 import { ElizaAvatar } from "./eliza-avatar";
@@ -90,6 +90,8 @@ interface AgentInfoDisplay {
 interface CharacterData {
   id: string;
   name: string;
+  avatarUrl?: string;
+  avatar_url?: string;
   character_data?: {
     bio?: string | string[];
     personality?: string;
@@ -197,6 +199,8 @@ export function ElizaChatInterface({
         : null,
     customVoices: [],
   }));
+
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
 
   const messageAudioUrls = useRef<Map<string, string>>(new Map());
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
@@ -644,6 +648,38 @@ export function ElizaChatInterface({
       }
     }
   }, [recorder]);
+
+  const handleFileUpload = useCallback(async (files: File[]) => {
+    if (!selectedCharacterId || files.length === 0) return;
+
+    setIsUploadingFiles(true);
+    
+    const formData = new FormData();
+    formData.append("characterId", selectedCharacterId);
+
+    for (const file of files) {
+      formData.append("files", file, file.name);
+    }
+
+    const response = await fetch("/api/v1/knowledge/upload-file", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      toast.success(`${files.length} file(s) uploaded`, {
+        description: "Files are now searchable",
+      });
+    } else {
+      const data = await response.json();
+      toast.error("Upload failed", {
+        description: data.error || "Failed to upload files",
+      });
+    }
+    
+    setIsUploadingFiles(false);
+  }, [selectedCharacterId]);
 
   // Process audio blob when it becomes available after recording stops
   useEffect(() => {
@@ -1292,6 +1328,38 @@ export function ElizaChatInterface({
 
               {/* Action Buttons - Bottom Right */}
               <div className="flex items-center gap-1.5">
+                <input
+                  type="file"
+                  id="chat-file-upload"
+                  multiple
+                  accept=".pdf,.txt,.md,.doc,.docx,.json,.xml,.yaml,.yml,.csv"
+                  onChange={(e) => {
+                    const files = e.target.files;
+                    if (files && files.length > 0) {
+                      handleFileUpload(Array.from(files));
+                      e.target.value = "";
+                    }
+                  }}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={isUploadingFiles || loadingState.isSending}
+                  onClick={() => {
+                    document.getElementById("chat-file-upload")?.click();
+                  }}
+                  className="h-9 w-9 rounded-lg border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06] disabled:opacity-40 transition-colors"
+                  title="Upload files"
+                >
+                  {isUploadingFiles ? (
+                    <Loader2 className="h-4 w-4 text-white/60 animate-spin" />
+                  ) : (
+                    <Paperclip className="h-4 w-4 text-white/60" />
+                  )}
+                </Button>
+
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -1394,19 +1462,6 @@ export function ElizaChatInterface({
                             </div>
                           )}
                         </div>
-                      </div>
-
-                      <div className="border-t pt-3">
-                        <h4 className="font-medium mb-3 text-sm">
-                          Knowledge Base
-                        </h4>
-                        <Link
-                          href={`/dashboard/build?characterId=${selectedCharacterId}&tab=knowledge`}
-                          className="inline-flex items-center gap-2 px-3 py-2 text-sm border border-white/10 bg-transparent text-white/70 hover:bg-white/5 hover:text-white rounded-md transition-colors"
-                        >
-                          <BookOpen className="h-4 w-4" />
-                          Knowledge (RAG)
-                        </Link>
                       </div>
                     </div>
                   </DropdownMenuContent>
