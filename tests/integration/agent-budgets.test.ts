@@ -40,6 +40,7 @@ mock.module("@/lib/services/credits", () => ({
     deductCredits: mock(() => Promise.resolve({ success: true, newBalance: 100 })),
     addCredits: mock(() => Promise.resolve({ success: true })),
     refundCredits: mock(() => Promise.resolve({ success: true })),
+    reserveAndDeductCredits: mock(() => Promise.resolve({ success: true, newBalance: 100, transaction: null })),
   },
 }));
 

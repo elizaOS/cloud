@@ -376,48 +376,46 @@ export function CryptoPaymentModal({
                 </p>
               </div>
 
-              {isEvmNetwork && (
-                <>
-                  {hasWallet ? (
-                    <button
-                      type="button"
-                      onClick={handlePayWithWallet}
-                      disabled={isSendingTx}
-                      className="w-full bg-[#FF5800] hover:bg-[#FF5800]/80 disabled:opacity-50 px-4 py-3 text-white font-mono text-sm flex items-center justify-center gap-2 transition-colors"
-                    >
-                      {isSendingTx ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Confirm in Wallet...
-                        </>
-                      ) : (
-                        <>
-                          <Wallet className="h-4 w-4" />
-                          Pay with Wallet
-                        </>
-                      )}
-                    </button>
+              {isEvmNetwork && hasWallet && (
+                <button
+                  type="button"
+                  onClick={handlePayWithWallet}
+                  disabled={isSendingTx}
+                  className="w-full bg-[#FF5800] hover:bg-[#FF5800]/80 disabled:opacity-50 px-4 py-3 text-white font-mono text-sm flex items-center justify-center gap-2 transition-colors"
+                >
+                  {isSendingTx ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Confirm in Wallet...
+                    </>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={handleConnectWallet}
-                      disabled={isConnecting || !privyReady}
-                      className="w-full bg-[#FF5800] hover:bg-[#FF5800]/80 disabled:opacity-50 px-4 py-3 text-white font-mono text-sm flex items-center justify-center gap-2 transition-colors"
-                    >
-                      {isConnecting ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Connecting...
-                        </>
-                      ) : (
-                        <>
-                          <Wallet className="h-4 w-4" />
-                          Connect Wallet to Pay
-                        </>
-                      )}
-                    </button>
+                    <>
+                      <Wallet className="h-4 w-4" />
+                      Pay with Wallet
+                    </>
                   )}
-                </>
+                </button>
+              )}
+
+              {isEvmNetwork && !hasWallet && (
+                <button
+                  type="button"
+                  onClick={handleConnectWallet}
+                  disabled={isConnecting || !privyReady}
+                  className="w-full bg-[#FF5800] hover:bg-[#FF5800]/80 disabled:opacity-50 px-4 py-3 text-white font-mono text-sm flex items-center justify-center gap-2 transition-colors"
+                >
+                  {isConnecting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    <>
+                      <Wallet className="h-4 w-4" />
+                      Connect Wallet to Pay
+                    </>
+                  )}
+                </button>
               )}
 
               {txHash && (
