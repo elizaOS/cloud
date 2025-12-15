@@ -126,6 +126,11 @@ jobs:
             ls -la
             exit 1
           fi
+      - name: Clean invalid artifact characters
+        run: |
+          # Remove files with colons in names (invalid for NTFS/GitHub artifacts)
+          find .next -name '*:*' -delete 2>/dev/null || true
+          echo "Cleaned files with invalid characters"
       - uses: actions/upload-artifact@v4
         with:
           name: nextjs-build
