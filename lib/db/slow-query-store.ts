@@ -1,3 +1,24 @@
+/**
+ * Slow Query Store - Multi-tier storage for slow query tracking
+ * 
+ * Architecture: Memory → Redis → PostgreSQL
+ * - Memory: Immediate access, bounded to MAX_MEMORY_ENTRIES (default 1000)
+ * - Redis: Persistent cache with TTL (default 24h), fire-and-forget writes
+ * - PostgreSQL: Permanent storage, batched writes every FLUSH_INTERVAL (default 5s)
+ * 
+ * Limitations:
+ * - Memory store is per-process (serverless: each instance has its own)
+ * - Redis writes are async/fire-and-forget (may be lost on crash)
+ * - PostgreSQL flush interval means up to 5s of data loss on crash
+ * - LRU eviction discards oldest entries when over limit
+ * 
+ * Configuration (env vars):
+ * - SLOW_QUERY_THRESHOLD_MS: Min duration to track (default 50)
+ * - SLOW_QUERY_REDIS_TTL: Redis TTL in seconds (default 86400)
+ * - SLOW_QUERY_FLUSH_INTERVAL: PG flush interval ms (default 5000)
+ * - SLOW_QUERY_MAX_MEMORY: Max in-memory entries (default 1000)
+ */
+
 import { Redis } from "@upstash/redis";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
@@ -24,8 +45,15 @@ const MAX_MEMORY_ENTRIES = parseInt(process.env.SLOW_QUERY_MAX_MEMORY || "1000",
 
 const memoryStore = new Map<string, SlowQueryEntry>();
 const postgresQueue = new Map<string, SlowQueryEntry>();
+let memoryWarningLogged = false;
 
 function evictOldestEntries(): void {
+  // Warn at 80% capacity (once per process)
+  if (!memoryWarningLogged && memoryStore.size > MAX_MEMORY_ENTRIES * 0.8) {
+    console.warn(`[SlowQueryStore] Memory store at ${memoryStore.size}/${MAX_MEMORY_ENTRIES} entries`);
+    memoryWarningLogged = true;
+  }
+
   if (memoryStore.size <= MAX_MEMORY_ENTRIES) return;
   
   const entries = Array.from(memoryStore.entries())

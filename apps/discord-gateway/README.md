@@ -162,33 +162,34 @@ cat ~/.kube/config
 ### First-Time Setup
 
 ```bash
-# 1. Create namespace
-kubectl create namespace discord-gateway
+# 1. Apply namespace
+kubectl apply -f k8s/namespace.yaml
 
 # 2. Create secrets
 kubectl create secret generic discord-gateway-secrets \
-  --namespace discord-gateway \
+  -n discord-gateway \
   --from-literal=eliza-cloud-url=https://your-eliza-cloud.com \
   --from-literal=internal-api-key=YOUR_INTERNAL_API_KEY \
   --from-literal=redis-url=https://your-redis.upstash.io \
   --from-literal=redis-token=YOUR_REDIS_TOKEN
 
 # 3. Apply all manifests
-kubectl apply -f k8s/ -n discord-gateway
+kubectl apply -f k8s/
 ```
 
 ### Updating Manifests
 
 ```bash
-# Apply all manifests
+# Apply all manifests (includes namespace)
 bun run k8s:apply
 
 # Or individually:
-kubectl apply -f k8s/deployment.yaml -n discord-gateway
-kubectl apply -f k8s/hpa.yaml -n discord-gateway
-kubectl apply -f k8s/pdb.yaml -n discord-gateway
-kubectl apply -f k8s/servicemonitor.yaml -n discord-gateway
-kubectl apply -f k8s/alerts.yaml -n discord-gateway
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/hpa.yaml
+kubectl apply -f k8s/pdb.yaml
+kubectl apply -f k8s/servicemonitor.yaml
+kubectl apply -f k8s/alerts.yaml
 ```
 
 ### Verify Deployment
@@ -202,6 +203,22 @@ kubectl logs -n discord-gateway -l app=discord-gateway -f
 
 # Check service
 kubectl get svc -n discord-gateway
+
+# Check HPA status
+kubectl get hpa -n discord-gateway
+```
+
+### Rollback
+
+```bash
+# View rollout history
+kubectl rollout history deployment/discord-gateway -n discord-gateway
+
+# Rollback to previous version
+kubectl rollout undo deployment/discord-gateway -n discord-gateway
+
+# Rollback to specific revision
+kubectl rollout undo deployment/discord-gateway -n discord-gateway --to-revision=2
 ```
 
 ## How It Works
@@ -227,27 +244,7 @@ kubectl get svc -n discord-gateway
 
 - Kubernetes 1.24+
 - kube-prometheus-stack (for alerts/monitoring)
-- Secrets configured
-
-### Kubernetes Configuration
-
-```bash
-# Create secrets first
-kubectl create secret generic discord-gateway-secrets \
-  --from-literal=eliza-cloud-url=https://elizacloud.ai \
-  --from-literal=internal-api-key=YOUR_KEY \
-  --from-literal=redis-url=YOUR_REDIS_URL \
-  --from-literal=redis-token=YOUR_REDIS_TOKEN
-
-# Apply K8s manifests
-kubectl apply -f k8s/deployment.yaml
-kubectl apply -f k8s/hpa.yaml
-kubectl apply -f k8s/pdb.yaml
-
-# Apply monitoring (requires kube-prometheus-stack)
-kubectl apply -f k8s/servicemonitor.yaml
-kubectl apply -f k8s/alerts.yaml
-```
+- Upstash Redis or compatible Redis instance
 
 ## Crash Recovery
 

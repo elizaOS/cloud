@@ -1,3 +1,21 @@
+/**
+ * Query Alerting - Real-time alerts for slow queries
+ * 
+ * Features:
+ * - Discord/Slack webhook integration
+ * - Rate limiting per query pattern (60s cooldown)
+ * - Severity levels: WARNING (200ms+), CRITICAL (1000ms+)
+ * 
+ * Limitations:
+ * - Rate limiter is per-process (serverless: duplicates possible)
+ * - Webhook failures are logged but don't block query execution
+ * - Rate limiter bounded to 500 entries (warns at 80%)
+ * 
+ * Configuration (env vars):
+ * - DB_SLOW_QUERY_DISCORD_WEBHOOK: Discord webhook URL
+ * - DB_SLOW_QUERY_SLACK_WEBHOOK: Slack webhook URL
+ */
+
 export const ALERT_THRESHOLDS = {
   SLOW: 50,
   WARNING: 200,
@@ -25,7 +43,15 @@ const alertRateLimiter = new Map<string, number>();
 let alertConfig: AlertConfig | null = null;
 let configChecked = false;
 
+let rateLimiterWarningLogged = false;
+
 function cleanupRateLimiter(): void {
+  // Warn at 80% capacity (once per process)
+  if (!rateLimiterWarningLogged && alertRateLimiter.size > MAX_RATE_LIMITER_ENTRIES * 0.8) {
+    console.warn(`[QueryAlert] Rate limiter at ${alertRateLimiter.size}/${MAX_RATE_LIMITER_ENTRIES} entries`);
+    rateLimiterWarningLogged = true;
+  }
+
   if (alertRateLimiter.size <= MAX_RATE_LIMITER_ENTRIES) return;
   
   const now = Date.now();
@@ -53,20 +79,10 @@ export function checkAlertConfig(): void {
   const slackUrl = process.env.DB_SLOW_QUERY_SLACK_WEBHOOK;
 
   if (!discordUrl && !slackUrl) {
-    console.warn(
-      "\n" +
-        "╔══════════════════════════════════════════════════════════════════════════════╗\n" +
-        "║  ⚠️  DATABASE SLOW QUERY ALERTS NOT CONFIGURED                                ║\n" +
-        "╠══════════════════════════════════════════════════════════════════════════════╣\n" +
-        "║  Queries >200ms won't trigger real-time alerts.                              ║\n" +
-        "║                                                                              ║\n" +
-        "║  To enable, add to .env.local:                                               ║\n" +
-        "║    DB_SLOW_QUERY_DISCORD_WEBHOOK=https://discord.com/api/webhooks/...        ║\n" +
-        "║    DB_SLOW_QUERY_SLACK_WEBHOOK=https://hooks.slack.com/services/...          ║\n" +
-        "║                                                                              ║\n" +
-        "║  Slow queries are still tracked in slow_query_log table.                     ║\n" +
-        "╚══════════════════════════════════════════════════════════════════════════════╝\n"
-    );
+    // Only show hint in dev, not a loud warning - alerts are optional
+    if (process.env.NODE_ENV === "development") {
+      console.info("[DB] ℹ Slow query alerts not configured (optional - queries still tracked in slow_query_log)");
+    }
     return;
   }
 
@@ -168,4 +184,5 @@ export function resetAlertingState(): void {
   alertRateLimiter.clear();
   alertConfig = null;
   configChecked = false;
+  rateLimiterWarningLogged = false;
 }

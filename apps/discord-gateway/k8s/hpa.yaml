@@ -2,6 +2,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: discord-gateway
+  namespace: discord-gateway
 spec:
   scaleTargetRef:
     apiVersion: apps/v1

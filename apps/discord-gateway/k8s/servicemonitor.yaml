@@ -2,6 +2,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: discord-gateway
+  namespace: discord-gateway
   labels:
     app: discord-gateway
 spec:

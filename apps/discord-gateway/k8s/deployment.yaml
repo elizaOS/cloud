@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: discord-gateway
+  namespace: discord-gateway
   labels:
     app: discord-gateway
 spec:
@@ -92,6 +93,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: discord-gateway
+  namespace: discord-gateway
   labels:
     app: discord-gateway
 spec:
