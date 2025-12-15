@@ -3,6 +3,8 @@ import {
   type CryptoPayment,
 } from "@/db/repositories/crypto-payments";
 import { db } from "@/db/client";
+import { cryptoPayments } from "@/db/schemas/crypto-payments";
+import { eq } from "drizzle-orm";
 import { creditsService } from "./credits";
 import { invoicesService } from "./invoices";
 import { oxaPayService, isOxaPayConfigured, type OxaPayNetwork } from "./oxapay";
@@ -16,6 +18,7 @@ import {
 } from "@/lib/config/crypto";
 import Decimal from "decimal.js";
 import { validate as uuidValidate } from "uuid";
+import { z } from "zod";
 
 export interface CreatePaymentParams {
   organizationId: string;
@@ -43,23 +46,31 @@ export interface PaymentStatus {
   confirmedAt?: Date;
 }
 
-interface PaymentMetadata {
-  oxapay_track_id?: string;
-  qr_code?: string;
-  rate?: number;
-  fiat_currency?: string;
-  fiat_amount?: number;
-  [key: string]: unknown;
-}
+const paymentMetadataSchema = z.object({
+  oxapay_track_id: z.string().optional(),
+  qr_code: z.string().optional(),
+  rate: z.number().optional(),
+  fiat_currency: z.string().optional(),
+  fiat_amount: z.number().optional(),
+}).passthrough();
+
+type PaymentMetadata = z.infer<typeof paymentMetadataSchema>;
 
 /**
- * Type guard to safely extract metadata with proper typing.
+ * Safely extract metadata with runtime validation.
  */
 function extractMetadata(metadata: unknown): PaymentMetadata {
   if (!metadata || typeof metadata !== "object") {
     return {};
   }
-  return metadata as PaymentMetadata;
+  
+  const result = paymentMetadataSchema.safeParse(metadata);
+  if (!result.success) {
+    logger.warn("[Crypto Payments] Invalid metadata format", { error: result.error });
+    return {};
+  }
+  
+  return result.data;
 }
 
 /**
@@ -285,6 +296,7 @@ class CryptoPaymentsService {
 
   /**
    * Confirm a payment with database transaction to prevent race conditions.
+   * Uses row-level locking to prevent double-spending attacks.
    */
   async confirmPayment(
     paymentId: string,
@@ -295,7 +307,14 @@ class CryptoPaymentsService {
     validateUuid(paymentId, "payment ID");
 
     await db.transaction(async (tx) => {
-      const payment = await cryptoPaymentsRepository.findById(paymentId);
+      const paymentResult = await tx
+        .select()
+        .from(cryptoPayments)
+        .where(eq(cryptoPayments.id, paymentId))
+        .for("update");
+
+      const payment = paymentResult[0];
+
       if (!payment) {
         throw new Error("Payment not found");
       }
@@ -307,18 +326,39 @@ class CryptoPaymentsService {
         return;
       }
 
-      const existingTx =
-        await cryptoPaymentsRepository.findByTransactionHash(txHash);
-      if (existingTx && existingTx.id !== paymentId) {
+      if (payment.expires_at < new Date()) {
+        logger.error("[Crypto Payments] Cannot confirm expired payment", {
+          paymentId,
+          expiresAt: payment.expires_at,
+        });
+        throw new Error("Payment has expired");
+      }
+
+      const existingTx = await tx
+        .select()
+        .from(cryptoPayments)
+        .where(eq(cryptoPayments.transaction_hash, txHash))
+        .for("update");
+
+      if (existingTx.length > 0 && existingTx[0].id !== paymentId) {
+        logger.error("[Crypto Payments] Double-spend attempt detected", {
+          paymentId,
+          txHash,
+          existingPaymentId: existingTx[0].id,
+        });
         throw new Error("Transaction already processed for another payment");
       }
 
-      await cryptoPaymentsRepository.markAsConfirmed(
-        paymentId,
-        txHash,
-        blockNumber,
-        receivedAmount,
-      );
+      await tx
+        .update(cryptoPayments)
+        .set({
+          status: "confirmed",
+          transaction_hash: txHash,
+          block_number: blockNumber,
+          received_amount: receivedAmount,
+          confirmed_at: new Date(),
+        })
+        .where(eq(cryptoPayments.id, paymentId));
 
       const creditsDecimal = new Decimal(payment.credits_to_add);
       await creditsService.addCredits({
@@ -365,6 +405,77 @@ class CryptoPaymentsService {
     });
   }
 
+  /**
+   * Verify and confirm a payment using a provided transaction hash.
+   * This allows users to manually confirm payments by providing their transaction hash.
+   */
+  async verifyAndConfirmByTxHash(
+    paymentId: string,
+    txHash: string,
+  ): Promise<{ success: boolean; message: string }> {
+    validateUuid(paymentId, "payment ID");
+
+    const payment = await cryptoPaymentsRepository.findById(paymentId);
+    if (!payment) {
+      return { success: false, message: "Payment not found" };
+    }
+
+    if (payment.status === "confirmed") {
+      return { success: true, message: "Payment already confirmed" };
+    }
+
+    if (payment.status === "expired") {
+      return { success: false, message: "Payment has expired" };
+    }
+
+    if (payment.status === "failed") {
+      return { success: false, message: "Payment has failed" };
+    }
+
+    const existingTx = await cryptoPaymentsRepository.findByTransactionHash(txHash);
+    if (existingTx && existingTx.id !== paymentId) {
+      logger.warn("[Crypto Payments] Transaction hash already used", {
+        paymentId,
+        txHash,
+        existingPaymentId: existingTx.id,
+      });
+      return {
+        success: false,
+        message: "Transaction hash already used for another payment",
+      };
+    }
+
+    try {
+      await this.confirmPayment(
+        paymentId,
+        txHash,
+        "0",
+        payment.expected_amount,
+      );
+
+      logger.info("[Crypto Payments] Manual confirmation successful", {
+        paymentId,
+        txHash,
+      });
+
+      return {
+        success: true,
+        message: "Payment confirmed successfully",
+      };
+    } catch (error) {
+      logger.error("[Crypto Payments] Manual confirmation failed", {
+        paymentId,
+        txHash,
+        error,
+      });
+
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Confirmation failed",
+      };
+    }
+  }
+
   async handleWebhook(payload: {
     track_id: string;
     status: string;
@@ -381,17 +492,21 @@ class CryptoPaymentsService {
 
     logger.info("[Crypto Payments] Webhook received", { track_id, status });
 
-    const payments = await cryptoPaymentsRepository.listPendingPayments();
-    const payment = payments.find((p) => {
-      const metadata = extractMetadata(p.metadata);
-      return metadata.oxapay_track_id === track_id;
-    });
+    const payment = await cryptoPaymentsRepository.findByTrackId(track_id);
 
     if (!payment) {
       logger.warn("[Crypto Payments] Payment not found for webhook", {
         track_id,
       });
       return { success: false, message: "Payment not found" };
+    }
+
+    if (payment.status !== "pending") {
+      logger.info("[Crypto Payments] Payment already processed", {
+        track_id,
+        status: payment.status,
+      });
+      return { success: true, message: "Payment already processed" };
     }
 
     try {

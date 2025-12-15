@@ -75,12 +75,22 @@ async function handleCreatePayment(req: NextRequest) {
     logger.error("[Crypto Payments API] Create payment error:", error);
     
     if (error instanceof Error) {
-      if (
-        error.message.includes("Invalid") ||
-        error.message.includes("must be") ||
-        error.message.includes("not configured")
-      ) {
-        return NextResponse.json({ error: error.message }, { status: 400 });
+      const errorMessage = error.message.toLowerCase();
+      
+      if (errorMessage.includes("invalid") && errorMessage.includes("uuid")) {
+        return NextResponse.json({ error: "Invalid request format" }, { status: 400 });
+      }
+      
+      if (errorMessage.includes("amount must be at least")) {
+        return NextResponse.json({ error: "Amount too small" }, { status: 400 });
+      }
+      
+      if (errorMessage.includes("amount must not exceed")) {
+        return NextResponse.json({ error: "Amount too large" }, { status: 400 });
+      }
+      
+      if (errorMessage.includes("not configured") || errorMessage.includes("service not")) {
+        return NextResponse.json({ error: "Service temporarily unavailable" }, { status: 503 });
       }
     }
     
@@ -110,8 +120,12 @@ async function handleListPayments(req: NextRequest) {
   } catch (error) {
     logger.error("[Crypto Payments API] List payments error:", error);
     
-    if (error instanceof Error && error.message.includes("Invalid")) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error instanceof Error) {
+      const errorMessage = error.message.toLowerCase();
+      
+      if (errorMessage.includes("invalid") && errorMessage.includes("uuid")) {
+        return NextResponse.json({ error: "Invalid request format" }, { status: 400 });
+      }
     }
     
     return NextResponse.json(
