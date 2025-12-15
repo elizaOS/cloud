@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Loader2, Copy, CheckCircle, AlertCircle, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import Image from "next/image";
@@ -202,9 +202,31 @@ export function CryptoPaymentModal({
 
   const hasWallet = walletsReady && !!evmWallet;
 
+  // Track in-flight request to prevent concurrent polling
+  const isCheckingRef = useRef(false);
+  // AbortController for cancelling in-flight requests on unmount or refresh
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const checkPaymentStatus = useCallback(async () => {
+    // Prevent concurrent requests - if a check is already in progress, skip this one
+    if (isCheckingRef.current) {
+      console.log("[Crypto Payment] Skipping status check - request already in progress");
+      return;
+    }
+
+    // Cancel any previous in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new AbortController for this request
+    abortControllerRef.current = new AbortController();
+    isCheckingRef.current = true;
+
     try {
-      const response = await fetch(`/api/crypto/payments/${paymentId}`);
+      const response = await fetch(`/api/crypto/payments/${paymentId}`, {
+        signal: abortControllerRef.current.signal,
+      });
       if (response.ok) {
         const data = await response.json();
         setStatus(data);
@@ -223,7 +245,14 @@ export function CryptoPaymentModal({
         console.error("[Crypto Payment] Status check failed:", response.status);
       }
     } catch (error) {
+      // Ignore abort errors - they're expected when component unmounts or we cancel
+      if (error instanceof Error && error.name === "AbortError") {
+        console.log("[Crypto Payment] Status check aborted");
+        return;
+      }
       console.error("[Crypto Payment] Status check error:", error);
+    } finally {
+      isCheckingRef.current = false;
     }
   }, [paymentId, onSuccess]);
 
@@ -249,7 +278,17 @@ export function CryptoPaymentModal({
 
     scheduleNext();
 
-    return () => clearTimeout(timeoutId);
+    return () => {
+      // Clear the timeout
+      clearTimeout(timeoutId);
+      // Abort any in-flight request when component unmounts or polling stops
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      // Reset the checking flag
+      isCheckingRef.current = false;
+    };
   }, [checkPaymentStatus, isPolling]);
 
   useEffect(() => {

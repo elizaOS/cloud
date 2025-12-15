@@ -3,7 +3,12 @@ import { cryptoPaymentsService } from "@/lib/services/crypto-payments";
 import { isOxaPayConfigured } from "@/lib/services/oxapay";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHmac, timingSafeEqual, randomBytes } from "crypto";
+
+// Generate a random key for audit hashing if OXAPAY_MERCHANT_API_KEY is not configured
+// This ensures audit hashes are still unique per-instance but not predictable
+const AUDIT_HASH_KEY = process.env.OXAPAY_MERCHANT_API_KEY || randomBytes(32).toString("hex");
+let auditKeyWarningLogged = false;
 
 function getClientIp(req: NextRequest): string {
   return (
@@ -69,9 +74,15 @@ async function handleWebhook(req: NextRequest) {
     const rawBody = await req.text();
     const signature = req.headers.get("hmac");
     
+    // Log warning once if using fallback audit key
+    if (!process.env.OXAPAY_MERCHANT_API_KEY && !auditKeyWarningLogged) {
+      logger.warn("[Crypto Webhook] OXAPAY_MERCHANT_API_KEY not configured - using random audit key for this instance");
+      auditKeyWarningLogged = true;
+    }
+    
     // Generate unique hash for audit logging (not for authentication)
     // Authentication is done via OxaPay signature verification below
-    const payloadHash = createHmac("sha256", process.env.OXAPAY_MERCHANT_API_KEY || "audit")
+    const payloadHash = createHmac("sha256", AUDIT_HASH_KEY)
       .update(rawBody)
       .digest("hex")
       .slice(0, 16);

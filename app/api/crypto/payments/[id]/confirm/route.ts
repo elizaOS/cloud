@@ -13,18 +13,37 @@ interface RouteContext {
 /**
  * Transaction Hash Validation Patterns
  * 
- * SECURITY NOTE: These patterns only validate FORMAT, not blockchain validity.
- * For production security, consider adding:
- * - On-chain verification via RPC nodes
- * - Block explorer API validation
- * - Confirmation that tx recipient matches payment address
- * - Verification that tx amount matches expected amount
+ * ⚠️ SECURITY WARNING: These patterns only validate FORMAT, not blockchain validity.
+ * Users can provide fake transaction hashes that pass format validation but do not
+ * exist on-chain. This is a known limitation.
+ * 
+ * IMPORTANT: The actual on-chain verification should be performed by the
+ * cryptoPaymentsService.verifyAndConfirmByTxHash() method, which should:
+ * - Verify the transaction exists on-chain via RPC nodes or block explorer APIs
+ * - Confirm that tx recipient matches the payment address
+ * - Verify that tx amount matches expected amount
+ * - Check transaction has sufficient confirmations
+ * 
+ * If on-chain verification is not implemented in verifyAndConfirmByTxHash(),
+ * manual confirmation should require admin approval or additional verification.
+ * 
+ * TODO: Implement on-chain verification in cryptoPaymentsService.verifyAndConfirmByTxHash()
  */
 const ethereumTxHashRegex = /^0x[a-fA-F0-9]{64}$/;
 const tronTxHashRegex = /^[A-Za-z0-9]{64}$/;
 const solanaTxHashRegex = /^[1-9A-HJ-NP-Za-km-z]{87,88}$/;
 
-function validateTransactionHash(hash: string, network: string): boolean {
+/**
+ * Validates the FORMAT of a transaction hash for the given network.
+ * 
+ * ⚠️ This does NOT verify the transaction exists on-chain.
+ * On-chain verification must be done separately.
+ * 
+ * @param hash - The transaction hash to validate
+ * @param network - The blockchain network (e.g., "ERC20", "TRC20", "SOLANA")
+ * @returns true if the hash format is valid for the network
+ */
+function validateTransactionHashFormat(hash: string, network: string): boolean {
   const normalizedNetwork = network.toUpperCase();
   
   if (normalizedNetwork.includes("ERC20") || 
@@ -44,6 +63,7 @@ function validateTransactionHash(hash: string, network: string): boolean {
     return solanaTxHashRegex.test(hash);
   }
   
+  // Default to Ethereum format for unknown networks
   return ethereumTxHashRegex.test(hash);
 }
 
@@ -120,7 +140,8 @@ async function handleConfirmPayment(req: NextRequest, context: RouteContext) {
 
     const { transactionHash } = validation.data;
 
-    if (!validateTransactionHash(transactionHash, payment.network)) {
+    // Note: This only validates FORMAT. On-chain verification is done by verifyAndConfirmByTxHash()
+    if (!validateTransactionHashFormat(transactionHash, payment.network)) {
       logger.warn("[Crypto Payments API] Invalid transaction hash format for network", {
         paymentId: id,
         ip,

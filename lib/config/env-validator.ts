@@ -4,6 +4,8 @@
  * Validates required environment variables on application startup.
  */
 
+import { logger } from "@/lib/utils/logger";
+
 /**
  * Error information for a validation failure.
  */
@@ -91,6 +93,28 @@ const ENV_VARS = {
     description: "Stripe webhook secret",
     validate: (value: string) => value.startsWith("whsec_"),
     errorMessage: "Must start with 'whsec_'",
+  },
+
+  // OxaPay Crypto Payments (optional - for crypto payment feature)
+  OXAPAY_MERCHANT_API_KEY: {
+    required: false,
+    description: "OxaPay merchant API key for crypto payments",
+    validate: (value: string) => value.length >= 32,
+    errorMessage: "Must be at least 32 characters",
+  },
+  OXAPAY_WEBHOOK_SECRET: {
+    required: false,
+    description: "OxaPay webhook secret for payment notifications",
+    validate: (value: string) => value.length >= 16,
+    errorMessage: "Must be at least 16 characters for security",
+  },
+
+  // Cron Jobs
+  CRON_SECRET: {
+    required: false,
+    description: "Secret for authenticating cron job requests",
+    validate: (value: string) => value.length >= 32,
+    errorMessage: "Must be at least 32 characters for security",
   },
 } as const;
 
@@ -220,6 +244,12 @@ export function isFeatureConfigured(feature: string): boolean {
       return !!(
         process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET
       );
+    case "crypto":
+      return !!(
+        process.env.OXAPAY_MERCHANT_API_KEY && process.env.OXAPAY_WEBHOOK_SECRET
+      );
+    case "cron":
+      return !!process.env.CRON_SECRET;
     case "blob":
       return !!process.env.BLOB_READ_WRITE_TOKEN;
     case "ai":
@@ -235,7 +265,7 @@ export function isFeatureConfigured(feature: string): boolean {
  * @returns Array of configured feature names.
  */
 export function getConfiguredFeatures(): string[] {
-  const features = ["containers", "stripe", "blob", "ai"];
+  const features = ["containers", "stripe", "crypto", "cron", "blob", "ai"];
   return features.filter((f) => isFeatureConfigured(f));
 }
 
@@ -250,6 +280,8 @@ export function logConfigurationStatus(): void {
   const features = [
     { name: "Container Deployments", key: "containers" },
     { name: "Stripe Payments", key: "stripe" },
+    { name: "Crypto Payments (OxaPay)", key: "crypto" },
+    { name: "Cron Jobs", key: "cron" },
     { name: "Blob Storage", key: "blob" },
     { name: "AI Services", key: "ai" },
   ];
