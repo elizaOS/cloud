@@ -61,6 +61,8 @@ export const cryptoPayments = pgTable(
     tx_hash_idx: index("crypto_payments_tx_hash_idx").on(
       table.transaction_hash,
     ),
+    metadata_gin_idx: index("crypto_payments_metadata_gin_idx")
+      .using("gin", table.metadata),
     unique_tx_hash: unique("crypto_payments_tx_hash_unique").on(
       table.transaction_hash,
     ),

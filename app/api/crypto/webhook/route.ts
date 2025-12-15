@@ -68,7 +68,8 @@ async function handleWebhook(req: NextRequest) {
 
     const rawBody = await req.text();
     const signature = req.headers.get("hmac");
-    const payloadHash = createHmac("sha256", "audit")
+    const auditSecret = process.env.WEBHOOK_AUDIT_SECRET || process.env.CRON_SECRET || "default-audit-secret";
+    const payloadHash = createHmac("sha256", auditSecret)
       .update(rawBody)
       .digest("hex")
       .slice(0, 16);

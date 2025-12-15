@@ -326,6 +326,14 @@ class CryptoPaymentsService {
         return;
       }
 
+      if (payment.expires_at < new Date()) {
+        logger.error("[Crypto Payments] Cannot confirm expired payment", {
+          paymentId,
+          expiresAt: payment.expires_at,
+        });
+        throw new Error("Payment has expired");
+      }
+
       const existingTx = await tx
         .select()
         .from(cryptoPayments)
@@ -483,17 +491,21 @@ class CryptoPaymentsService {
 
     logger.info("[Crypto Payments] Webhook received", { track_id, status });
 
-    const payments = await cryptoPaymentsRepository.listPendingPayments();
-    const payment = payments.find((p) => {
-      const metadata = extractMetadata(p.metadata);
-      return metadata.oxapay_track_id === track_id;
-    });
+    const payment = await cryptoPaymentsRepository.findByTrackId(track_id);
 
     if (!payment) {
       logger.warn("[Crypto Payments] Payment not found for webhook", {
         track_id,
       });
       return { success: false, message: "Payment not found" };
+    }
+
+    if (payment.status !== "pending") {
+      logger.info("[Crypto Payments] Payment already processed", {
+        track_id,
+        status: payment.status,
+      });
+      return { success: true, message: "Payment already processed" };
     }
 
     try {

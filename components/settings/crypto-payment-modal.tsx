@@ -132,8 +132,15 @@ function encodeTransferData(to: string, amount: bigint): string {
   return `${functionSelector}${paddedTo}${paddedAmount}`;
 }
 
-function parseTokenAmount(amount: string, decimals: number = 18): bigint {
+function parseTokenAmount(amount: string, decimals = 18): bigint {
   const [whole, fraction = ""] = amount.split(".");
+  
+  if (fraction.length > decimals) {
+    console.warn(
+      `[Crypto Payment] Precision loss: ${amount} truncated to ${decimals} decimals`
+    );
+  }
+  
   const paddedFraction = fraction.padEnd(decimals, "0").slice(0, decimals);
   return BigInt(whole + paddedFraction);
 }
@@ -208,16 +215,37 @@ export function CryptoPaymentModal({
           setIsPolling(false);
           toast.error("Payment failed");
         }
+      } else {
+        console.error("[Crypto Payment] Status check failed:", response.status);
       }
-    } catch {
+    } catch (error) {
+      console.error("[Crypto Payment] Status check error:", error);
     }
   }, [paymentId, onSuccess]);
 
   useEffect(() => {
+    if (!isPolling) return;
+
     checkPaymentStatus();
-    const interval = setInterval(checkPaymentStatus, 10000);
-    return () => clearInterval(interval);
-  }, [checkPaymentStatus]);
+    
+    const intervals = [5000, 10000, 15000, 30000, 60000];
+    let currentIntervalIndex = 0;
+    let timeoutId: NodeJS.Timeout;
+
+    const scheduleNext = () => {
+      const delay = intervals[Math.min(currentIntervalIndex, intervals.length - 1)];
+      currentIntervalIndex++;
+      
+      timeoutId = setTimeout(() => {
+        checkPaymentStatus();
+        scheduleNext();
+      }, delay);
+    };
+
+    scheduleNext();
+    
+    return () => clearTimeout(timeoutId);
+  }, [checkPaymentStatus, isPolling]);
 
   useEffect(() => {
     const expires = new Date(expiresAt).getTime();

@@ -1,4 +1,4 @@
-import { eq, desc, and, lt, isNull } from "drizzle-orm";
+import { eq, desc, and, lt, isNull, sql } from "drizzle-orm";
 import { db } from "../client";
 import {
   cryptoPayments,
@@ -30,6 +30,15 @@ export class CryptoPaymentsRepository {
     return await db.query.cryptoPayments.findFirst({
       where: eq(cryptoPayments.transaction_hash, txHash),
     });
+  }
+
+  async findByTrackId(trackId: string): Promise<CryptoPayment | undefined> {
+    const [payment] = await db
+      .select()
+      .from(cryptoPayments)
+      .where(sql`${cryptoPayments.metadata}->>'oxapay_track_id' = ${trackId}`)
+      .limit(1);
+    return payment;
   }
 
   async findPendingByAddress(
@@ -130,11 +139,14 @@ export class CryptoPaymentsRepository {
     id: string,
     reason?: string,
   ): Promise<CryptoPayment | undefined> {
+    const existing = await this.findById(id);
     const [payment] = await db
       .update(cryptoPayments)
       .set({
         status: "failed",
-        metadata: reason ? { failureReason: reason } : undefined,
+        metadata: reason
+          ? { ...existing?.metadata, failureReason: reason }
+          : existing?.metadata,
         updated_at: new Date(),
       })
       .where(eq(cryptoPayments.id, id))
