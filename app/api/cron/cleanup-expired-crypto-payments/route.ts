@@ -11,7 +11,7 @@ import { logger } from "@/lib/utils/logger";
  * {
  *   "crons": [{
  *     "path": "/api/cron/cleanup-expired-crypto-payments",
- *     "schedule": "* /10 * * * *"
+ *     "schedule": "*/10 * * * *"
  *   }]
  * }
  */

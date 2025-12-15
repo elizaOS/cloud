@@ -68,8 +68,10 @@ async function handleWebhook(req: NextRequest) {
 
     const rawBody = await req.text();
     const signature = req.headers.get("hmac");
-    const auditSecret = process.env.WEBHOOK_AUDIT_SECRET || process.env.CRON_SECRET || "default-audit-secret";
-    const payloadHash = createHmac("sha256", auditSecret)
+    
+    // Generate unique hash for audit logging (not for authentication)
+    // Authentication is done via OxaPay signature verification below
+    const payloadHash = createHmac("sha256", process.env.OXAPAY_MERCHANT_API_KEY || "audit")
       .update(rawBody)
       .digest("hex")
       .slice(0, 16);

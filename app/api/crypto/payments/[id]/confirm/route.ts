@@ -10,6 +10,16 @@ interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
+/**
+ * Transaction Hash Validation Patterns
+ * 
+ * SECURITY NOTE: These patterns only validate FORMAT, not blockchain validity.
+ * For production security, consider adding:
+ * - On-chain verification via RPC nodes
+ * - Block explorer API validation
+ * - Confirmation that tx recipient matches payment address
+ * - Verification that tx amount matches expected amount
+ */
 const ethereumTxHashRegex = /^0x[a-fA-F0-9]{64}$/;
 const tronTxHashRegex = /^[A-Za-z0-9]{64}$/;
 const solanaTxHashRegex = /^[1-9A-HJ-NP-Za-km-z]{87,88}$/;

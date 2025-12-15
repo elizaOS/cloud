@@ -337,7 +337,8 @@ class CryptoPaymentsService {
       const existingTx = await tx
         .select()
         .from(cryptoPayments)
-        .where(eq(cryptoPayments.transaction_hash, txHash));
+        .where(eq(cryptoPayments.transaction_hash, txHash))
+        .for("update");
 
       if (existingTx.length > 0 && existingTx[0].id !== paymentId) {
         logger.error("[Crypto Payments] Double-spend attempt detected", {
