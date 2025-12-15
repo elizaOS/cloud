@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Copy, CheckCircle, AlertCircle } from "lucide-react";
+import { Loader2, Copy, CheckCircle, AlertCircle, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import Image from "next/image";
+import { useWallets, usePrivy } from "@privy-io/react-auth";
 
 interface CryptoPaymentModalProps {
   paymentId: string;
@@ -26,6 +27,94 @@ interface PaymentStatus {
   transactionHash?: string;
 }
 
+interface NetworkInfo {
+  chainId: number;
+  name: string;
+  nativeCurrency: string;
+}
+
+const NETWORK_CONFIG: Record<string, NetworkInfo> = {
+  "ERC20": { chainId: 1, name: "Ethereum", nativeCurrency: "ETH" },
+  "ETH": { chainId: 1, name: "Ethereum", nativeCurrency: "ETH" },
+  "Ethereum": { chainId: 1, name: "Ethereum", nativeCurrency: "ETH" },
+  "Ethereum Network": { chainId: 1, name: "Ethereum", nativeCurrency: "ETH" },
+  "BEP20": { chainId: 56, name: "BNB Smart Chain", nativeCurrency: "BNB" },
+  "BSC": { chainId: 56, name: "BNB Smart Chain", nativeCurrency: "BNB" },
+  "BNB Smart Chain": { chainId: 56, name: "BNB Smart Chain", nativeCurrency: "BNB" },
+  "Binance Smart Chain": { chainId: 56, name: "BNB Smart Chain", nativeCurrency: "BNB" },
+  "POLYGON": { chainId: 137, name: "Polygon", nativeCurrency: "MATIC" },
+  "Polygon": { chainId: 137, name: "Polygon", nativeCurrency: "MATIC" },
+  "Polygon Network": { chainId: 137, name: "Polygon", nativeCurrency: "MATIC" },
+  "MATIC": { chainId: 137, name: "Polygon", nativeCurrency: "MATIC" },
+  "BASE": { chainId: 8453, name: "Base", nativeCurrency: "ETH" },
+  "Base": { chainId: 8453, name: "Base", nativeCurrency: "ETH" },
+  "Base Network": { chainId: 8453, name: "Base", nativeCurrency: "ETH" },
+  "ARB": { chainId: 42161, name: "Arbitrum", nativeCurrency: "ETH" },
+  "Arbitrum": { chainId: 42161, name: "Arbitrum", nativeCurrency: "ETH" },
+  "Arbitrum Network": { chainId: 42161, name: "Arbitrum", nativeCurrency: "ETH" },
+  "Arbitrum One": { chainId: 42161, name: "Arbitrum", nativeCurrency: "ETH" },
+  "OP": { chainId: 10, name: "Optimism", nativeCurrency: "ETH" },
+  "Optimism": { chainId: 10, name: "Optimism", nativeCurrency: "ETH" },
+  "Optimism Network": { chainId: 10, name: "Optimism", nativeCurrency: "ETH" },
+  "TRC20": { chainId: 0, name: "Tron", nativeCurrency: "TRX" },
+  "Tron": { chainId: 0, name: "Tron", nativeCurrency: "TRX" },
+  "TRON": { chainId: 0, name: "Tron", nativeCurrency: "TRX" },
+  "Tron Network": { chainId: 0, name: "Tron", nativeCurrency: "TRX" },
+  "SOL": { chainId: 0, name: "Solana", nativeCurrency: "SOL" },
+  "Solana": { chainId: 0, name: "Solana", nativeCurrency: "SOL" },
+  "Solana Network": { chainId: 0, name: "Solana", nativeCurrency: "SOL" },
+};
+
+const TOKEN_CONTRACTS: Record<string, Record<number, string>> = {
+  USDT: {
+    1: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+    56: "0x55d398326f99059fF775485246999027B3197955",
+    137: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+    42161: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+    10: "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+  },
+  USDC: {
+    1: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    56: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
+    137: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+    8453: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    42161: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+    10: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+  },
+};
+
+const NATIVE_TOKENS = ["ETH", "BNB", "MATIC", "AVAX"];
+
+function encodeTransferData(to: string, amount: bigint): string {
+  const functionSelector = "0xa9059cbb";
+  const paddedTo = to.toLowerCase().replace("0x", "").padStart(64, "0");
+  const paddedAmount = amount.toString(16).padStart(64, "0");
+  return `${functionSelector}${paddedTo}${paddedAmount}`;
+}
+
+function parseTokenAmount(amount: string, decimals: number = 18): bigint {
+  const [whole, fraction = ""] = amount.split(".");
+  const paddedFraction = fraction.padEnd(decimals, "0").slice(0, decimals);
+  return BigInt(whole + paddedFraction);
+}
+
+function getNetworkInfo(network: string): NetworkInfo | null {
+  if (NETWORK_CONFIG[network]) {
+    return NETWORK_CONFIG[network];
+  }
+  const upperNetwork = network.toUpperCase();
+  for (const [key, value] of Object.entries(NETWORK_CONFIG)) {
+    if (key.toUpperCase() === upperNetwork) {
+      return value;
+    }
+  }
+  return null;
+}
+
+function isNativeToken(currency: string): boolean {
+  return NATIVE_TOKENS.includes(currency.toUpperCase());
+}
+
 export function CryptoPaymentModal({
   paymentId,
   trackId,
@@ -39,10 +128,25 @@ export function CryptoPaymentModal({
   onClose,
   onSuccess,
 }: CryptoPaymentModalProps) {
+  const { wallets, ready: walletsReady } = useWallets();
+  const { connectWallet, ready: privyReady } = usePrivy();
   const [status, setStatus] = useState<PaymentStatus | null>(null);
   const [isPolling, setIsPolling] = useState(true);
   const [copied, setCopied] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState<number>(0);
+  const [isSendingTx, setIsSendingTx] = useState(false);
+  const [txHash, setTxHash] = useState<string | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  const networkInfo = getNetworkInfo(network);
+  const isEvmNetwork = networkInfo !== null && networkInfo.chainId > 0;
+
+  const evmWallet = wallets.find((w) => {
+    if (w.walletClientType === "solana") return false;
+    return true;
+  });
+
+  const hasWallet = walletsReady && !!evmWallet;
 
   const checkPaymentStatus = useCallback(async () => {
     try {
@@ -100,25 +204,123 @@ export function CryptoPaymentModal({
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const getNetworkDisplayName = (net: string): string => {
-    const names: Record<string, string> = {
-      ERC20: "Ethereum",
-      TRC20: "Tron",
-      BEP20: "BNB Smart Chain",
-      POLYGON: "Polygon",
-      SOL: "Solana",
-      BASE: "Base",
-      ARB: "Arbitrum",
-      OP: "Optimism",
-    };
-    return names[net] || net;
+  const getNetworkDisplayName = (): string => {
+    return networkInfo?.name || network;
+  };
+
+  const handleConnectWallet = async () => {
+    if (!privyReady) return;
+    setIsConnecting(true);
+    try {
+      await connectWallet();
+      toast.success("Wallet connected!");
+    } catch (error) {
+      console.error("Failed to connect wallet:", error);
+      toast.error("Failed to connect wallet");
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handlePayWithWallet = async () => {
+    if (!evmWallet || !networkInfo) return;
+
+    setIsSendingTx(true);
+
+    try {
+      const provider = await evmWallet.getEthereumProvider();
+
+      const currentChainId = await provider.request({ method: "eth_chainId" });
+      const targetChainId = `0x${networkInfo.chainId.toString(16)}`;
+
+      if (currentChainId !== targetChainId) {
+        try {
+          await provider.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: targetChainId }],
+          });
+        } catch (switchError: unknown) {
+          const code = (switchError as { code?: number })?.code;
+          if (code === 4902) {
+            toast.error(`Please add ${networkInfo.name} network to your wallet`);
+          } else {
+            toast.error(`Please switch to ${networkInfo.name} network`);
+          }
+          setIsSendingTx(false);
+          return;
+        }
+      }
+
+      const accounts = await provider.request({ method: "eth_accounts" }) as string[];
+      if (!accounts || accounts.length === 0) {
+        toast.error("No wallet account found");
+        setIsSendingTx(false);
+        return;
+      }
+
+      let txHashResult: string;
+
+      if (isNativeToken(payCurrency)) {
+        const amountWei = parseTokenAmount(payAmount, 18);
+        txHashResult = await provider.request({
+          method: "eth_sendTransaction",
+          params: [
+            {
+              from: accounts[0],
+              to: paymentAddress,
+              value: `0x${amountWei.toString(16)}`,
+            },
+          ],
+        }) as string;
+      } else {
+        const tokenContract = TOKEN_CONTRACTS[payCurrency.toUpperCase()]?.[networkInfo.chainId];
+
+        if (!tokenContract) {
+          toast.error(`${payCurrency} not supported on ${networkInfo.name}`);
+          setIsSendingTx(false);
+          return;
+        }
+
+        const decimals = payCurrency.toUpperCase() === "USDT" || payCurrency.toUpperCase() === "USDC" ? 6 : 18;
+        const amount = parseTokenAmount(payAmount, decimals);
+        const data = encodeTransferData(paymentAddress, amount);
+
+        txHashResult = await provider.request({
+          method: "eth_sendTransaction",
+          params: [
+            {
+              from: accounts[0],
+              to: tokenContract,
+              data,
+            },
+          ],
+        }) as string;
+      }
+
+      setTxHash(txHashResult);
+      toast.success("Transaction sent! Waiting for confirmation...");
+
+      setTimeout(() => {
+        checkPaymentStatus();
+      }, 5000);
+    } catch (error: unknown) {
+      console.error("Wallet payment error:", error);
+      const errorMessage = (error as { message?: string })?.message || "Transaction failed";
+      if (errorMessage.includes("rejected") || errorMessage.includes("denied")) {
+        toast.error("Transaction rejected");
+      } else {
+        toast.error(errorMessage.slice(0, 100));
+      }
+    } finally {
+      setIsSendingTx(false);
+    }
   };
 
   const isExpired = timeLeft === 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-      <div className="w-full max-w-md backdrop-blur-sm bg-[rgba(10,10,10,0.95)] border border-brand-surface p-6 relative">
+      <div className="w-full max-w-md backdrop-blur-sm bg-[rgba(10,10,10,0.95)] border border-brand-surface p-6 relative max-h-[90vh] overflow-y-auto">
         <button
           type="button"
           onClick={onClose}
@@ -166,12 +368,72 @@ export function CryptoPaymentModal({
                   {payAmount} <span className="text-sm text-white/60">{payCurrency}</span>
                 </p>
                 <p className="text-sm text-white/60 mt-1">
-                  on {getNetworkDisplayName(network)}
+                  on {getNetworkDisplayName()}
                 </p>
                 <p className="text-xs text-white/40 mt-1">
                   ≈ ${creditsToAdd} USD
                 </p>
               </div>
+
+              {isEvmNetwork && (
+                <>
+                  {hasWallet ? (
+                    <button
+                      type="button"
+                      onClick={handlePayWithWallet}
+                      disabled={isSendingTx}
+                      className="w-full bg-[#FF5800] hover:bg-[#FF5800]/80 disabled:opacity-50 px-4 py-3 text-white font-mono text-sm flex items-center justify-center gap-2 transition-colors"
+                    >
+                      {isSendingTx ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Confirm in Wallet...
+                        </>
+                      ) : (
+                        <>
+                          <Wallet className="h-4 w-4" />
+                          Pay with Wallet
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleConnectWallet}
+                      disabled={isConnecting || !privyReady}
+                      className="w-full bg-[#FF5800] hover:bg-[#FF5800]/80 disabled:opacity-50 px-4 py-3 text-white font-mono text-sm flex items-center justify-center gap-2 transition-colors"
+                    >
+                      {isConnecting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Connecting...
+                        </>
+                      ) : (
+                        <>
+                          <Wallet className="h-4 w-4" />
+                          Connect Wallet to Pay
+                        </>
+                      )}
+                    </button>
+                  )}
+                </>
+              )}
+
+              {txHash && (
+                <div className="bg-green-900/20 border border-green-500/30 p-3 rounded">
+                  <p className="text-xs text-green-400 font-mono">
+                    Transaction sent! Hash: {txHash.slice(0, 10)}...{txHash.slice(-8)}
+                  </p>
+                </div>
+              )}
+
+              {isEvmNetwork && (
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-white/10" />
+                  <span className="text-xs text-white/40 font-mono">OR PAY MANUALLY</span>
+                  <div className="flex-1 h-px bg-white/10" />
+                </div>
+              )}
 
               {qrCode && (
                 <div className="flex justify-center">
@@ -179,9 +441,9 @@ export function CryptoPaymentModal({
                     <Image
                       src={qrCode}
                       alt="Payment QR Code"
-                      width={180}
-                      height={180}
-                      className="w-[180px] h-[180px]"
+                      width={150}
+                      height={150}
+                      className="w-[150px] h-[150px]"
                     />
                   </div>
                 </div>
@@ -193,7 +455,7 @@ export function CryptoPaymentModal({
                     Send {payCurrency} to this address
                   </label>
                   <div className="flex items-center gap-2 bg-[rgba(29,29,29,0.5)] border border-[rgba(255,255,255,0.1)] p-3">
-                    <code className="text-sm text-white font-mono flex-1 break-all">
+                    <code className="text-xs text-white font-mono flex-1 break-all">
                       {paymentAddress}
                     </code>
                     <button
