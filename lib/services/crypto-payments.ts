@@ -4,33 +4,29 @@ import {
 } from "@/db/repositories/crypto-payments";
 import { creditsService } from "./credits";
 import { invoicesService } from "./invoices";
-import {
-  cdpWalletService,
-  type CdpNetwork,
-  getDefaultNetwork,
-  isCdpConfigured,
-} from "./cdp-wallet";
+import { oxaPayService, isOxaPayConfigured, type OxaPayNetwork } from "./oxapay";
 import { logger } from "@/lib/utils/logger";
-import { v4 as uuidv4 } from "uuid";
-
-const PAYMENT_EXPIRY_MINUTES = 30;
 
 export interface CreatePaymentParams {
   organizationId: string;
   userId?: string;
   amount: number;
-  network?: CdpNetwork;
+  currency?: string;
+  payCurrency?: string;
+  network?: OxaPayNetwork;
 }
 
 export interface PaymentStatus {
   id: string;
-  status: CryptoPayment["status"];
+  trackId: string;
+  status: string;
   paymentAddress: string;
   expectedAmount: string;
   receivedAmount?: string;
   creditsToAdd: string;
   network: string;
   token: string;
+  qrCode?: string;
   transactionHash?: string;
   expiresAt: Date;
   createdAt: Date;
@@ -41,51 +37,83 @@ class CryptoPaymentsService {
   async createPayment(params: CreatePaymentParams): Promise<{
     payment: CryptoPayment;
     paymentAddress: string;
-    network: CdpNetwork;
+    payAmount: number;
+    payCurrency: string;
+    network: string;
+    qrCode: string;
     expiresAt: Date;
-    usdcAddress: string;
+    trackId: string;
   }> {
-    const { organizationId, userId, amount, network = getDefaultNetwork() } = params;
+    const {
+      organizationId,
+      userId,
+      amount,
+      currency = "USD",
+      payCurrency = "USDT",
+      network,
+    } = params;
 
-    if (!isCdpConfigured()) {
-      throw new Error("CDP wallet service not configured");
+    if (!isOxaPayConfigured()) {
+      throw new Error("OxaPay payment service not configured");
     }
 
-    if (amount < 5 || amount > 1000) {
-      throw new Error("Amount must be between $5 and $1000");
+    if (amount < 1 || amount > 10000) {
+      throw new Error("Amount must be between $1 and $10,000");
     }
 
-    const { address, expiresAt } = await cdpWalletService.createPaymentAddress(network);
-    const networkConfig = cdpWalletService.getNetworkConfig(network);
+    const callbackUrl =
+      process.env.OXAPAY_CALLBACK_URL ||
+      `${process.env.NEXT_PUBLIC_APP_URL}/api/crypto/webhook`;
+
+    const oxaPayment = await oxaPayService.createPayment({
+      amount,
+      currency,
+      payCurrency,
+      network,
+      orderId: `${organizationId.replace(/-/g, "").slice(0, 12)}_${Date.now()}`,
+      description: `Credit purchase - $${amount}`,
+      callbackUrl,
+      lifetime: 1800,
+    });
 
     const payment = await cryptoPaymentsRepository.create({
       organization_id: organizationId,
       user_id: userId,
-      payment_address: address,
-      expected_amount: amount.toFixed(6),
+      payment_address: oxaPayment.address,
+      expected_amount: oxaPayment.payAmount.toString(),
       credits_to_add: amount.toFixed(2),
-      network,
-      token: "USDC",
-      token_address: networkConfig.usdcAddress,
+      network: oxaPayment.network,
+      token: oxaPayment.payCurrency,
+      token_address: null,
       status: "pending",
-      expires_at: expiresAt,
-      metadata: {},
+      expires_at: oxaPayment.expiresAt,
+      metadata: {
+        oxapay_track_id: oxaPayment.trackId,
+        qr_code: oxaPayment.qrCode,
+        rate: oxaPayment.rate,
+        fiat_currency: currency,
+        fiat_amount: amount,
+      },
     });
 
-    logger.info("[Crypto Payments] Payment created", {
+    logger.info("[Crypto Payments] Payment created via OxaPay", {
       paymentId: payment.id,
+      trackId: oxaPayment.trackId,
       organizationId,
       amount,
-      network,
-      address,
+      payCurrency,
+      network: oxaPayment.network,
     });
 
     return {
       payment,
-      paymentAddress: address,
-      network,
-      expiresAt,
-      usdcAddress: networkConfig.usdcAddress,
+      paymentAddress: oxaPayment.address,
+      payAmount: oxaPayment.payAmount,
+      payCurrency: oxaPayment.payCurrency,
+      network: oxaPayment.network,
+      qrCode: oxaPayment.qrCode,
+      expiresAt: oxaPayment.expiresAt,
+      trackId: oxaPayment.trackId,
     };
   }
 
@@ -105,41 +133,72 @@ class CryptoPaymentsService {
       throw new Error("Payment not found");
     }
 
-    if (payment.status !== "pending") {
+    if (payment.status === "confirmed") {
       return {
-        confirmed: payment.status === "confirmed",
+        confirmed: true,
         payment: this.formatPaymentStatus(payment),
       };
     }
 
-    if (new Date() > payment.expires_at) {
-      await cryptoPaymentsRepository.markAsExpired(payment.id);
-      const updatedPayment = await cryptoPaymentsRepository.findById(payment.id);
+    if (payment.status === "expired" || payment.status === "failed") {
       return {
         confirmed: false,
-        payment: this.formatPaymentStatus(updatedPayment!),
+        payment: this.formatPaymentStatus(payment),
       };
     }
 
-    const result = await cdpWalletService.checkForPayment(
-      payment.payment_address,
-      parseFloat(payment.expected_amount),
-      payment.network as CdpNetwork,
-    );
+    const trackId = (payment.metadata as Record<string, unknown>)
+      ?.oxapay_track_id as string;
+    if (!trackId) {
+      throw new Error("Missing OxaPay track ID");
+    }
 
-    if (result.received && result.transactionHash) {
-      await this.confirmPayment(
-        payment.id,
-        result.transactionHash,
-        result.blockNumber || "0",
-        result.amount,
-      );
+    try {
+      const oxaStatus = await oxaPayService.getPaymentStatus(trackId);
 
-      const confirmedPayment = await cryptoPaymentsRepository.findById(payment.id);
-      return {
-        confirmed: true,
-        payment: this.formatPaymentStatus(confirmedPayment!),
-      };
+      if (oxaPayService.isPaymentConfirmed(oxaStatus.status)) {
+        const tx = oxaStatus.transactions[0];
+        await this.confirmPayment(
+          payment.id,
+          tx?.txHash || trackId,
+          "0",
+          payment.expected_amount,
+        );
+
+        const confirmedPayment = await cryptoPaymentsRepository.findById(
+          payment.id,
+        );
+        return {
+          confirmed: true,
+          payment: this.formatPaymentStatus(confirmedPayment!),
+        };
+      }
+
+      if (oxaPayService.isPaymentExpired(oxaStatus.status)) {
+        await cryptoPaymentsRepository.markAsExpired(payment.id);
+        const expiredPayment = await cryptoPaymentsRepository.findById(
+          payment.id,
+        );
+        return {
+          confirmed: false,
+          payment: this.formatPaymentStatus(expiredPayment!),
+        };
+      }
+
+      if (oxaPayService.isPaymentFailed(oxaStatus.status)) {
+        await cryptoPaymentsRepository.markAsFailed(payment.id, oxaStatus.status);
+        const failedPayment = await cryptoPaymentsRepository.findById(payment.id);
+        return {
+          confirmed: false,
+          payment: this.formatPaymentStatus(failedPayment!),
+        };
+      }
+    } catch (error) {
+      logger.error("[Crypto Payments] Failed to check OxaPay status", {
+        paymentId,
+        trackId,
+        error,
+      });
     }
 
     return {
@@ -180,13 +239,15 @@ class CryptoPaymentsService {
     await creditsService.addCredits({
       organizationId: payment.organization_id,
       amount: creditsToAdd,
-      description: `USDC payment on ${payment.network}`,
+      description: `Crypto payment (${payment.token} on ${payment.network})`,
       metadata: {
         crypto_payment_id: payment.id,
         transaction_hash: txHash,
         network: payment.network,
         token: payment.token,
         received_amount: receivedAmount,
+        oxapay_track_id: (payment.metadata as Record<string, unknown>)
+          ?.oxapay_track_id,
       },
     });
 
@@ -195,18 +256,20 @@ class CryptoPaymentsService {
       stripe_invoice_id: `crypto_${payment.id}`,
       stripe_customer_id: `org_${payment.organization_id}`,
       stripe_payment_intent_id: txHash,
-      amount_due: payment.expected_amount,
+      amount_due: payment.credits_to_add,
       amount_paid: receivedAmount,
-      currency: "usdc",
+      currency: payment.token.toLowerCase(),
       status: "paid",
       invoice_type: "crypto_payment",
       credits_added: payment.credits_to_add,
       metadata: {
         payment_method: "crypto",
+        provider: "oxapay",
         network: payment.network,
         token: payment.token,
         transaction_hash: txHash,
-        block_number: blockNumber,
+        oxapay_track_id: (payment.metadata as Record<string, unknown>)
+          ?.oxapay_track_id,
       },
     });
 
@@ -218,78 +281,83 @@ class CryptoPaymentsService {
     });
   }
 
-  async verifyAndConfirmByTxHash(
-    paymentId: string,
-    txHash: string,
-  ): Promise<{
-    success: boolean;
-    message: string;
-  }> {
-    const payment = await cryptoPaymentsRepository.findById(paymentId);
+  async handleWebhook(payload: {
+    track_id: string;
+    status: string;
+    amount?: number;
+    pay_amount?: number;
+    address?: string;
+    txID?: string;
+  }): Promise<{ success: boolean; message: string }> {
+    const { track_id, status, txID } = payload;
+
+    logger.info("[Crypto Payments] Webhook received", { track_id, status });
+
+    const payments = await cryptoPaymentsRepository.listPendingPayments();
+    const payment = payments.find(
+      (p) =>
+        (p.metadata as Record<string, unknown>)?.oxapay_track_id === track_id,
+    );
+
     if (!payment) {
+      logger.warn("[Crypto Payments] Payment not found for webhook", {
+        track_id,
+      });
       return { success: false, message: "Payment not found" };
     }
 
-    if (payment.status === "confirmed") {
-      return { success: true, message: "Payment already confirmed" };
+    if (oxaPayService.isPaymentConfirmed(status)) {
+      await this.confirmPayment(
+        payment.id,
+        txID || track_id,
+        "0",
+        payment.expected_amount,
+      );
+      return { success: true, message: "Payment confirmed" };
     }
 
-    const verification = await cdpWalletService.verifyTransaction(
-      txHash,
-      payment.payment_address,
-      parseFloat(payment.expected_amount),
-      payment.network as CdpNetwork,
-    );
-
-    if (!verification.verified) {
-      return { success: false, message: "Transaction verification failed" };
+    if (oxaPayService.isPaymentExpired(status)) {
+      await cryptoPaymentsRepository.markAsExpired(payment.id);
+      return { success: true, message: "Payment marked as expired" };
     }
 
-    if ((verification.confirmations || 0) < 1) {
-      return { success: false, message: "Waiting for confirmation" };
+    if (oxaPayService.isPaymentFailed(status)) {
+      await cryptoPaymentsRepository.markAsFailed(payment.id, status);
+      return { success: true, message: "Payment marked as failed" };
     }
 
-    await this.confirmPayment(
-      payment.id,
-      txHash,
-      verification.blockNumber || "0",
-      verification.amount || payment.expected_amount,
-    );
-
-    return { success: true, message: "Payment confirmed" };
+    return { success: true, message: "Webhook processed" };
   }
 
-  async listPaymentsByOrganization(organizationId: string): Promise<PaymentStatus[]> {
-    const payments = await cryptoPaymentsRepository.listByOrganization(organizationId);
+  async listPaymentsByOrganization(
+    organizationId: string,
+  ): Promise<PaymentStatus[]> {
+    const payments =
+      await cryptoPaymentsRepository.listByOrganization(organizationId);
     return payments.map((p) => this.formatPaymentStatus(p));
   }
 
-  async expirePendingPayments(): Promise<number> {
-    const expired = await cryptoPaymentsRepository.listExpiredPendingPayments();
-    let count = 0;
+  async getSupportedCurrencies() {
+    return oxaPayService.getSupportedCurrencies();
+  }
 
-    for (const payment of expired) {
-      await cryptoPaymentsRepository.markAsExpired(payment.id);
-      count++;
-    }
-
-    if (count > 0) {
-      logger.info("[Crypto Payments] Expired pending payments", { count });
-    }
-
-    return count;
+  async getSystemStatus() {
+    return oxaPayService.getSystemStatus();
   }
 
   private formatPaymentStatus(payment: CryptoPayment): PaymentStatus {
+    const metadata = payment.metadata as Record<string, unknown>;
     return {
       id: payment.id,
-      status: payment.status as PaymentStatus["status"],
+      trackId: (metadata?.oxapay_track_id as string) || "",
+      status: payment.status,
       paymentAddress: payment.payment_address,
       expectedAmount: payment.expected_amount,
       receivedAmount: payment.received_amount || undefined,
       creditsToAdd: payment.credits_to_add,
       network: payment.network,
       token: payment.token,
+      qrCode: (metadata?.qr_code as string) || undefined,
       transactionHash: payment.transaction_hash || undefined,
       expiresAt: payment.expires_at,
       createdAt: payment.created_at,

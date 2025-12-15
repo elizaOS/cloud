@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { cryptoPaymentsService } from "@/lib/services/crypto-payments";
-import { isCdpConfigured, getDefaultNetwork } from "@/lib/services/cdp-wallet";
+import { isOxaPayConfigured } from "@/lib/services/oxapay";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
@@ -9,9 +9,13 @@ import { logger } from "@/lib/utils/logger";
 const createPaymentSchema = z.object({
   amount: z
     .number()
-    .min(5, "Minimum amount is $5")
-    .max(1000, "Maximum amount is $1000"),
-  network: z.enum(["base", "base-sepolia"]).optional(),
+    .min(1, "Minimum amount is $1")
+    .max(10000, "Maximum amount is $10,000"),
+  currency: z.string().default("USD"),
+  payCurrency: z.string().default("USDT"),
+  network: z
+    .enum(["ERC20", "TRC20", "BEP20", "POLYGON", "SOL", "BASE", "ARB", "OP"])
+    .optional(),
 });
 
 async function handleCreatePayment(req: NextRequest) {
@@ -25,7 +29,7 @@ async function handleCreatePayment(req: NextRequest) {
       );
     }
 
-    if (!isCdpConfigured()) {
+    if (!isOxaPayConfigured()) {
       return NextResponse.json(
         { error: "Crypto payments not available" },
         { status: 503 },
@@ -45,30 +49,33 @@ async function handleCreatePayment(req: NextRequest) {
       );
     }
 
-    const { amount, network } = validation.data;
+    const { amount, currency, payCurrency, network } = validation.data;
 
     const result = await cryptoPaymentsService.createPayment({
       organizationId: user.organization_id,
       userId: user.id,
       amount,
-      network: network || getDefaultNetwork(),
+      currency,
+      payCurrency,
+      network,
     });
 
     return NextResponse.json({
       paymentId: result.payment.id,
+      trackId: result.trackId,
       paymentAddress: result.paymentAddress,
-      expectedAmount: amount.toFixed(6),
+      payAmount: result.payAmount,
+      payCurrency: result.payCurrency,
       network: result.network,
-      token: "USDC",
-      tokenAddress: result.usdcAddress,
+      qrCode: result.qrCode,
       expiresAt: result.expiresAt.toISOString(),
+      creditsToAdd: amount,
     });
   } catch (error) {
     logger.error("[Crypto Payments API] Create payment error:", error);
-    return NextResponse.json(
-      { error: "Failed to create payment" },
-      { status: 500 },
-    );
+    const message =
+      error instanceof Error ? error.message : "Failed to create payment";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 

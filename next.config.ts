@@ -27,8 +27,12 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/**",
       },
-      // Note: DiceBear removed - using local avatars from /public/avatars/
-      // Note: Fal.ai URLs are no longer allowed - all assets are proxied through our storage
+      {
+        protocol: "https",
+        hostname: "api.qrserver.com",
+        port: "",
+        pathname: "/**",
+      },
     ],
   },
   // Increase body size limit for container image uploads (max 2GB)
@@ -81,6 +85,8 @@ const nextConfig: NextConfig = {
     "ipfs-utils",
     "electron-fetch",
     "electron",
+    // oxapay uses __dirname + fs.readFile for method info JSON
+    "oxapay",
   ],
 
   webpack: (config, { isServer }) => {

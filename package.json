@@ -173,6 +173,7 @@
     "nextjs-toploader": "^3.9.17",
     "nodemailer": "^7.0.11",
     "openai": "^6.9.1",
+    "oxapay": "^1.0.3",
     "react": "19.2.1",
     "react-day-picker": "^9.11.3",
     "react-dom": "19.2.1",
