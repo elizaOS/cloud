@@ -84,15 +84,13 @@ export function BuildModeAssistant({
   const [lockedRoom, setLockedRoom] = useState<LockedRoomInfo | null>(null); // Track if room is locked after character creation
 
   // Determine display info based on mode
-  // Show Eliza until character is actually saved (has source from database)
-  const isCharacterSaved =
-    !isCreatorMode &&
-    character?.id &&
-    (character as { source?: string })?.source;
-  const displayName = isCharacterSaved
+  // In creator mode, always show Eliza (we're creating a new character)
+  // In build mode, show the character being edited (even if not fully saved yet)
+  const shouldShowCharacter = !isCreatorMode && character?.id;
+  const displayName = shouldShowCharacter
     ? character?.name || "Build Assistant"
     : DEFAULT_ELIZA.name;
-  const displayAvatar = isCharacterSaved
+  const displayAvatar = shouldShowCharacter
     ? character?.avatarUrl || character?.avatar_url
     : DEFAULT_ELIZA.avatarUrl;
 
