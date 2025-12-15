@@ -3,9 +3,9 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Send, ArrowLeft, Bot, User, RefreshCw, Sparkles } from "lucide-react";
+import { Send, ArrowLeft, Bot, RefreshCw, Loader2, Clock, Copy, Check } from "lucide-react";
 import { useAuth } from "@/lib/use-auth";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const CLOUD_URL = process.env.NEXT_PUBLIC_CLOUD_URL || "http://localhost:3000";
 
@@ -150,19 +150,22 @@ export default function ChatPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="border-b border-border/50 backdrop-blur-sm sticky top-0 z-40 bg-background/80">
+      <header className="border-b border-white/10 backdrop-blur-sm sticky top-0 z-40 bg-background/80">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-4">
           <Link
             href="/dashboard"
-            className="p-2 rounded-lg hover:bg-muted transition-colors"
+            className="p-2 hover:bg-white/10 transition-colors text-white/70 hover:text-white"
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>
-          <div className="flex items-center gap-2 flex-1">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center">
+          <div className="flex items-center gap-3 flex-1">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#FF5800] to-orange-600 flex items-center justify-center">
               <Bot className="h-5 w-5 text-white" />
             </div>
-            <span className="font-semibold">Task Assistant</span>
+            <div>
+              <span className="font-semibold text-white">Task Assistant</span>
+              <p className="text-xs text-white/50">Powered by Eliza</p>
+            </div>
           </div>
         </div>
       </header>
@@ -170,54 +173,18 @@ export default function ChatPage() {
       <main className="flex-1 overflow-auto">
         <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
           {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
-            >
-              {message.role === "assistant" && (
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center flex-shrink-0">
-                  <Bot className="h-4 w-4 text-white" />
-                </div>
-              )}
-              <div
-                className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                  message.role === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-card border border-border"
-                }`}
-              >
-                <p className="whitespace-pre-wrap">{message.content}</p>
-                <p className="text-xs opacity-60 mt-1">
-                  {message.timestamp.toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </p>
-              </div>
-              {message.role === "user" && (
-                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                  <User className="h-4 w-4" />
-                </div>
-              )}
-            </div>
+            <ChatBubble key={message.id} message={message} />
           ))}
 
           {isThinking && (
-            <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center">
-                <Sparkles className="h-4 w-4 text-white animate-pulse" />
+            <div className="flex gap-3 justify-start animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#FF5800] to-orange-600 flex items-center justify-center flex-shrink-0">
+                <Bot className="h-5 w-5 text-white" />
               </div>
-              <div className="bg-card border border-border rounded-2xl px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" />
-                  <div
-                    className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce"
-                    style={{ animationDelay: "0.1s" }}
-                  />
-                  <div
-                    className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce"
-                    style={{ animationDelay: "0.2s" }}
-                  />
+              <div className="rounded-none px-4 py-3 max-w-[80%] border bg-black/40 border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="h-4 w-4 rounded-full border-2 border-[#FF5800] border-t-transparent animate-spin" />
+                  <p className="text-sm text-white/70">Assistant is thinking...</p>
                 </div>
               </div>
             </div>
@@ -226,29 +193,160 @@ export default function ChatPage() {
         </div>
       </main>
 
-      <div className="border-t border-border/50 bg-background/80 backdrop-blur-sm">
-        <div className="max-w-2xl mx-auto px-4 py-4">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask me to create, complete, or list tasks..."
-              className="flex-1 px-4 py-3 rounded-xl bg-card border border-border focus:border-primary focus:outline-none transition-colors"
-              disabled={isThinking}
-            />
-            <Button
-              onClick={sendMessage}
-              disabled={!input.trim() || isThinking}
-              size="lg"
-              className="px-4"
-            >
-              <Send className="h-5 w-5" />
-            </Button>
-          </div>
+      <div className="border-t border-white/10 bg-background/80 backdrop-blur-sm">
+        <div className="max-w-2xl mx-auto p-4">
+          <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }}>
+            <div className="group relative bg-black/40 transition-all duration-300 ease-out hover:bg-black/60 border border-white/20 hover:border-white/30 flex items-end gap-3 p-4">
+              {/* HUD Corner Brackets */}
+              <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-white/40 group-hover:border-[#FF5800] transition-colors" />
+              <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-white/40 group-hover:border-[#FF5800] transition-colors" />
+              <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-white/40 group-hover:border-[#FF5800] transition-colors" />
+              <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-white/40 group-hover:border-[#FF5800] transition-colors" />
+
+              {/* Robot Eye Visor Scanner - Only show when waiting for agent */}
+              {isThinking && (
+                <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none">
+                  <div
+                    className="absolute h-full w-20 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
+                    style={{
+                      animation: "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                      boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.6)",
+                    }}
+                  />
+                  <div
+                    className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
+                    style={{
+                      animation: "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
+                      boxShadow: "0 0 8px 2px rgba(255, 88, 0, 0.4)",
+                      filter: "blur(1px)",
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Text Input */}
+              <textarea
+                rows={1}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = "24px";
+                  target.style.height = Math.min(target.scrollHeight, 128) + "px";
+                }}
+                placeholder="Ask me to create, complete, or list tasks..."
+                disabled={isThinking}
+                className={cn(
+                  "flex-1 bg-transparent border-0 text-white placeholder:text-white/40 resize-none",
+                  "focus:outline-none focus:ring-0 text-sm leading-relaxed py-1",
+                  "disabled:opacity-50 max-h-32",
+                )}
+                style={{
+                  minHeight: "24px",
+                  maxHeight: "128px",
+                }}
+              />
+
+              {/* Send Button */}
+              <button
+                type="submit"
+                disabled={isThinking || !input.trim()}
+                className="h-10 w-10 border-0 bg-[#FF580040] hover:brightness-125 active:brightness-150 transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isThinking ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-[#FF5800]" />
+                ) : (
+                  <Send className="h-5 w-5 text-[#FF5800]" />
+                )}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Chat bubble component matching main app style
+function ChatBubble({ message }: { message: Message }) {
+  const [isCopied, setIsCopied] = useState(false);
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (error) {
+      console.error("Failed to copy:", error);
+    }
+  };
+
+  return (
+    <div
+      className={cn(
+        "flex gap-3 animate-in fade-in slide-in-from-bottom-4 duration-500",
+        message.role === "user" ? "justify-end" : "justify-start",
+      )}
+    >
+      {message.role === "assistant" && (
+        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#FF5800] to-orange-600 flex items-center justify-center flex-shrink-0">
+          <Bot className="h-5 w-5 text-white" />
+        </div>
+      )}
+
+      <div
+        className={cn(
+          "rounded-none px-4 py-3 max-w-[80%] border transition-all",
+          message.role === "assistant"
+            ? "bg-black/40 border-white/10"
+            : "bg-[#FF580020] border-[#FF5800] text-white",
+        )}
+      >
+        <p className="text-sm text-white leading-relaxed whitespace-pre-wrap">
+          {message.content}
+        </p>
+        <div
+          className={cn(
+            "flex items-center justify-between gap-2 text-xs mt-3 pt-3 border-t",
+            message.role === "assistant"
+              ? "border-white/10 text-white/50"
+              : "border-[#FF5800]/20 text-white/70",
+          )}
+        >
+          <div className="flex items-center gap-2">
+            <Clock className="h-3 w-3" />
+            <span>
+              {message.timestamp.toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+          </div>
+          <button
+            onClick={copyToClipboard}
+            className="h-6 w-6 p-0 hover:bg-white/10 text-white/70 hover:text-white rounded flex items-center justify-center transition-colors"
+            title="Copy message"
+          >
+            {isCopied ? (
+              <Check className="h-3 w-3 text-green-500" />
+            ) : (
+              <Copy className="h-3 w-3" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {message.role === "user" && (
+        <div className="flex-shrink-0 w-9 h-9 rounded-full bg-[#FF5800] flex items-center justify-center">
+          <span className="h-5 w-5 text-white font-bold flex items-center justify-center text-sm">U</span>
+        </div>
+      )}
     </div>
   );
 }

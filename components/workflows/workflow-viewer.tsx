@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabsContent } from "@/components/ui/tabs";
+import { BrandTabsResponsive } from "@/components/brand/brand-tabs-responsive";
 import {
   Loader2,
   ArrowLeft,
@@ -142,36 +143,33 @@ export function WorkflowViewer({
 
   return (
     <div className="space-y-6">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onBack}
+        className="h-6 w-6 text-white/40 hover:text-white"
+      >
+        <ArrowLeft className="h-3 w-3" />
+      </Button>
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onBack}
-            className="text-white/60 hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <div>
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl font-semibold text-white">
-                {workflow.name}
-              </h2>
-              <Badge
-                variant="outline"
-                className={`text-xs ${getStatusColor(workflow.status)}`}
-              >
-                {workflow.status}
-              </Badge>
-              <span className="text-xs text-white/40">v{workflow.version}</span>
-            </div>
-            {workflow.description && (
-              <p className="text-sm text-white/60 mt-1">
-                {workflow.description}
-              </p>
-            )}
+        <div>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-semibold text-white">
+              {workflow.name}
+            </h2>
+            <Badge
+              variant="outline"
+              className={`text-xs ${getStatusColor(workflow.status)}`}
+            >
+              {workflow.status}
+            </Badge>
+            <span className="text-xs text-white/40">v{workflow.version}</span>
           </div>
+          {workflow.description && (
+            <p className="text-sm text-white/60 mt-1">
+              {workflow.description}
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -189,44 +187,38 @@ export function WorkflowViewer({
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-white/5 border border-white/10">
-          <TabsTrigger
-            value="overview"
-            className="data-[state=active]:bg-[#FF5800]"
-          >
-            <Settings className="h-4 w-4 mr-2" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger
-            value="triggers"
-            className="data-[state=active]:bg-[#FF5800]"
-          >
-            <Zap className="h-4 w-4 mr-2" />
-            Triggers
-          </TabsTrigger>
-          <TabsTrigger
-            value="code"
-            className="data-[state=active]:bg-[#FF5800]"
-          >
-            <Code className="h-4 w-4 mr-2" />
-            JSON
-          </TabsTrigger>
-          <TabsTrigger
-            value="versions"
-            className="data-[state=active]:bg-[#FF5800]"
-          >
-            <History className="h-4 w-4 mr-2" />
-            Versions
-          </TabsTrigger>
-          <TabsTrigger
-            value="executions"
-            className="data-[state=active]:bg-[#FF5800]"
-          >
-            <Activity className="h-4 w-4 mr-2" />
-            Executions
-          </TabsTrigger>
-        </TabsList>
+      <BrandTabsResponsive
+        id="workflow-viewer-tabs"
+        tabs={[
+          {
+            value: "overview",
+            label: "Overview",
+            icon: <Settings className="h-4 w-4" />,
+          },
+          {
+            value: "triggers",
+            label: "Triggers",
+            icon: <Zap className="h-4 w-4" />,
+          },
+          {
+            value: "code",
+            label: "JSON",
+            icon: <Code className="h-4 w-4" />,
+          },
+          {
+            value: "versions",
+            label: "Versions",
+            icon: <History className="h-4 w-4" />,
+          },
+          {
+            value: "executions",
+            label: "Executions",
+            icon: <Activity className="h-4 w-4" />,
+          },
+        ]}
+        value={activeTab}
+        onValueChange={setActiveTab}
+      >
 
         <TabsContent value="overview" className="mt-6">
           <div className="grid md:grid-cols-2 gap-6">
@@ -422,7 +414,7 @@ export function WorkflowViewer({
             </div>
           </BrandCard>
         </TabsContent>
-      </Tabs>
+      </BrandTabsResponsive>
     </div>
   );
 }

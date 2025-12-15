@@ -92,6 +92,65 @@ export async function PUT(
   });
 }
 
+export async function PATCH(
+  request: NextRequest,
+  ctx: { params: Promise<{ id: string }> },
+) {
+  const { user } = await requireAuthOrApiKeyWithOrg(request);
+  const { id } = await ctx.params;
+
+  const existingWorkflow = await n8nWorkflowsService.getWorkflow(id);
+  if (
+    !existingWorkflow ||
+    existingWorkflow.organization_id !== user.organization_id
+  ) {
+    return NextResponse.json(ErrorResponses.workflowNotFound, { status: 404 });
+  }
+
+  const body = await request.json();
+  const validation = UpdateWorkflowSchema.safeParse(body);
+  if (!validation.success) {
+    return NextResponse.json(
+      ErrorResponses.invalidRequest(validation.error.format()),
+      { status: 400 },
+    );
+  }
+
+  if (validation.data.workflowData) {
+    const validationResult = await n8nWorkflowsService.validateWorkflow(
+      validation.data.workflowData,
+    );
+    if (!validationResult.valid) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid workflow structure",
+          errors: validationResult.errors,
+        },
+        { status: 400 },
+      );
+    }
+  }
+
+  const workflow = await n8nWorkflowsService.updateWorkflow(
+    id,
+    validation.data,
+  );
+
+  return NextResponse.json({
+    success: true,
+    workflow: {
+      id: workflow.id,
+      name: workflow.name,
+      description: workflow.description,
+      status: workflow.status,
+      version: workflow.version,
+      tags: workflow.tags,
+      updatedAt: workflow.updated_at,
+    },
+  });
+}
+
 export async function DELETE(
   request: NextRequest,
   ctx: { params: Promise<{ id: string }> },
