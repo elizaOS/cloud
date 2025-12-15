@@ -289,10 +289,9 @@ jobs:
           bun run start &
           MAIN_PID=$!
 
-          # Start miniapp on port 3001
-          cd miniapp && bun run start -p 3001 &
+          # Start miniapp on port 3001 (use subshell to preserve working directory)
+          (cd miniapp && bun run start -p 3001) &
           MINIAPP_PID=$!
-          cd ..
 
           # Wait for servers to be ready
           echo "Waiting for servers to start..."
@@ -312,7 +311,7 @@ jobs:
             sleep 2
           done
 
-          # Run tests
+          # Run tests from root directory
           bun run test:playwright:miniapp || TEST_EXIT=$?
 
           # Cleanup
