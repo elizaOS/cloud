@@ -134,20 +134,20 @@ function encodeTransferData(to: string, amount: bigint): string {
 
 function parseTokenAmount(amount: string, decimals = 18): bigint {
   const [whole, fraction = ""] = amount.split(".");
-  
+
   if (fraction.length > decimals) {
     console.warn(
       `[Crypto Payment] Precision loss: ${amount} truncated to ${decimals} decimals`
     );
   }
-  
+
   const paddedFraction = fraction.padEnd(decimals, "0").slice(0, decimals);
   return BigInt(whole + paddedFraction);
 }
 
 function getNetworkInfo(network: string): NetworkInfo | null {
   const normalized = network.toUpperCase().replace(/[_\s]+/g, "");
-  
+
   for (const config of Object.values(NETWORK_CONFIG)) {
     const match = config.aliases.some(
       (alias) => alias.toUpperCase().replace(/[_\s]+/g, "") === normalized
@@ -156,7 +156,7 @@ function getNetworkInfo(network: string): NetworkInfo | null {
       return config;
     }
   }
-  
+
   return null;
 }
 
@@ -190,11 +190,15 @@ export function CryptoPaymentModal({
   const networkInfo = getNetworkInfo(network);
   const isEvmNetwork = networkInfo !== null && networkInfo.chainId > 0;
 
-  const evmWallet = wallets.find((w) => {
-    if (w.walletClientType === "solana") return false;
-    if (w.walletClientType === "privy") return false;
-    return true;
-  }) || wallets.find((w) => w.walletClientType !== "solana" && w.walletClientType !== "privy");
+  const evmWallet =
+    wallets.find((w) => {
+      if (w.walletClientType === "solana") return false;
+      if (w.walletClientType === "privy") return false;
+      return true;
+    }) ||
+    wallets.find(
+      (w) => w.walletClientType !== "solana" && w.walletClientType !== "privy"
+    );
 
   const hasWallet = walletsReady && !!evmWallet;
 
@@ -227,15 +231,16 @@ export function CryptoPaymentModal({
     if (!isPolling) return;
 
     checkPaymentStatus();
-    
+
     const intervals = [5000, 10000, 15000, 30000, 60000];
     let currentIntervalIndex = 0;
     let timeoutId: NodeJS.Timeout;
 
     const scheduleNext = () => {
-      const delay = intervals[Math.min(currentIntervalIndex, intervals.length - 1)];
+      const delay =
+        intervals[Math.min(currentIntervalIndex, intervals.length - 1)];
       currentIntervalIndex++;
-      
+
       timeoutId = setTimeout(() => {
         checkPaymentStatus();
         scheduleNext();
@@ -243,7 +248,7 @@ export function CryptoPaymentModal({
     };
 
     scheduleNext();
-    
+
     return () => clearTimeout(timeoutId);
   }, [checkPaymentStatus, isPolling]);
 
@@ -313,7 +318,9 @@ export function CryptoPaymentModal({
         } catch (switchError: unknown) {
           const code = (switchError as { code?: number })?.code;
           if (code === 4902) {
-            toast.error(`Please add ${networkInfo.name} network to your wallet`);
+            toast.error(
+              `Please add ${networkInfo.name} network to your wallet`
+            );
           } else {
             toast.error(`Please switch to ${networkInfo.name} network`);
           }
@@ -322,7 +329,9 @@ export function CryptoPaymentModal({
         }
       }
 
-      const accounts = await provider.request({ method: "eth_accounts" }) as string[];
+      const accounts = (await provider.request({
+        method: "eth_accounts",
+      })) as string[];
       if (!accounts || accounts.length === 0) {
         toast.error("No wallet account found");
         setIsSendingTx(false);
@@ -334,7 +343,7 @@ export function CryptoPaymentModal({
       if (isNativeToken(payCurrency)) {
         const decimals = getTokenDecimals(payCurrency);
         const amountWei = parseTokenAmount(payAmount, decimals);
-        txHashResult = await provider.request({
+        txHashResult = (await provider.request({
           method: "eth_sendTransaction",
           params: [
             {
@@ -343,7 +352,7 @@ export function CryptoPaymentModal({
               value: `0x${amountWei.toString(16)}`,
             },
           ],
-        }) as string;
+        })) as string;
       } else {
         const tokenConfig = TOKEN_CONFIG[payCurrency.toUpperCase()];
         const tokenContract = tokenConfig?.contracts[networkInfo.chainId];
@@ -358,7 +367,7 @@ export function CryptoPaymentModal({
         const amount = parseTokenAmount(payAmount, decimals);
         const data = encodeTransferData(paymentAddress, amount);
 
-        txHashResult = await provider.request({
+        txHashResult = (await provider.request({
           method: "eth_sendTransaction",
           params: [
             {
@@ -367,7 +376,7 @@ export function CryptoPaymentModal({
               data,
             },
           ],
-        }) as string;
+        })) as string;
       }
 
       setTxHash(txHashResult);
@@ -378,8 +387,12 @@ export function CryptoPaymentModal({
       }, 5000);
     } catch (error: unknown) {
       console.error("Wallet payment error:", error);
-      const errorMessage = (error as { message?: string })?.message || "Transaction failed";
-      if (errorMessage.includes("rejected") || errorMessage.includes("denied")) {
+      const errorMessage =
+        (error as { message?: string })?.message || "Transaction failed";
+      if (
+        errorMessage.includes("rejected") ||
+        errorMessage.includes("denied")
+      ) {
         toast.error("Transaction rejected");
       } else {
         toast.error(errorMessage.slice(0, 100));
@@ -438,7 +451,8 @@ export function CryptoPaymentModal({
             <>
               <div className="text-center">
                 <p className="text-3xl font-mono text-white">
-                  {payAmount} <span className="text-sm text-white/60">{payCurrency}</span>
+                  {payAmount}{" "}
+                  <span className="text-sm text-white/60">{payCurrency}</span>
                 </p>
                 <p className="text-sm text-white/60 mt-1">
                   on {getNetworkDisplayName()}
@@ -493,7 +507,8 @@ export function CryptoPaymentModal({
               {txHash && (
                 <div className="bg-green-900/20 border border-green-500/30 p-3 rounded">
                   <p className="text-xs text-green-400 font-mono">
-                    Transaction sent! Hash: {txHash.slice(0, 10)}...{txHash.slice(-8)}
+                    Transaction sent! Hash: {txHash.slice(0, 10)}...
+                    {txHash.slice(-8)}
                   </p>
                 </div>
               )}
@@ -501,7 +516,9 @@ export function CryptoPaymentModal({
               {isEvmNetwork && (
                 <div className="flex items-center gap-3">
                   <div className="flex-1 h-px bg-white/10" />
-                  <span className="text-xs text-white/40 font-mono">OR PAY MANUALLY</span>
+                  <span className="text-xs text-white/40 font-mono">
+                    OR PAY MANUALLY
+                  </span>
                   <div className="flex-1 h-px bg-white/10" />
                 </div>
               )}
@@ -566,8 +583,12 @@ export function CryptoPaymentModal({
                 </div>
 
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-white/60 font-mono">Time remaining</span>
-                  <span className={`font-mono ${timeLeft < 300 ? "text-red-400" : "text-white"}`}>
+                  <span className="text-white/60 font-mono">
+                    Time remaining
+                  </span>
+                  <span
+                    className={`font-mono ${timeLeft < 300 ? "text-red-400" : "text-white"}`}
+                  >
                     {formatTime(timeLeft)}
                   </span>
                 </div>
