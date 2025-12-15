@@ -284,7 +284,7 @@ export function BillingTab({ user }: BillingTabProps) {
                 {paymentMethod === "crypto" && cryptoStatus?.networks && (
                   <div className="space-y-3">
                     <div className="flex flex-wrap gap-2">
-                      {["USDT", "USDC", "BTC", "ETH"].map((currency) => (
+                      {cryptoStatus.supportedTokens.map((currency) => (
                         <button
                           key={currency}
                           type="button"
