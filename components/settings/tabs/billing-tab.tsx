@@ -10,7 +10,7 @@
 
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import type { UserWithOrganization } from "@/lib/types";
-import { Loader2, AlertCircle, CheckCircle, Wallet } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle, Wallet, CreditCard } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -43,17 +43,6 @@ const AMOUNT_LIMITS = {
 
 type PaymentMethod = "card" | "crypto";
 
-interface CryptoStatus {
-  enabled: boolean;
-  networks: Array<{
-    id: string;
-    name: string;
-    chainId: number | null;
-  }>;
-  supportedTokens: string[];
-  provider?: string;
-}
-
 interface CryptoPaymentData {
   paymentId: string;
   trackId: string;
@@ -73,16 +62,10 @@ export function BillingTab({ user }: BillingTabProps) {
   const [purchaseAmount, setPurchaseAmount] = useState("");
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
-  const [cryptoStatus, setCryptoStatus] = useState<CryptoStatus | null>(null);
+  const [cryptoStatus, setCryptoStatus] = useState<CryptoStatusResponse | null>(null);
   const [cryptoPayment, setCryptoPayment] = useState<CryptoPaymentData | null>(null);
   const [selectedNetwork, setSelectedNetwork] = useState<string>("TRC20");
   const [selectedCurrency, setSelectedCurrency] = useState<string>("USDT");
-
-  // Crypto payment state
-  const [cryptoStatus, setCryptoStatus] = useState<CryptoStatusResponse | null>(
-    null
-  );
-  const [selectedCurrency, setSelectedCurrency] = useState<string>("");
   const [cryptoAmount, setCryptoAmount] = useState("");
 
   const [balance, setBalance] = useState(
