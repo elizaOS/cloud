@@ -1,8 +1,6 @@
 import {
   index,
-  integer,
   jsonb,
-  numeric,
   pgTable,
   text,
   timestamp,
@@ -15,7 +13,7 @@ import { users } from "./users";
 /**
  * Crypto payments table schema.
  *
- * Stores cryptocurrency payment records for credit purchases.
+ * Stores cryptocurrency payment records for credit purchases via OxaPay.
  */
 export const cryptoPayments = pgTable(
   "crypto_payments",
@@ -24,38 +22,35 @@ export const cryptoPayments = pgTable(
     organization_id: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    user_id: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    user_id: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
 
-    wallet_address: text("wallet_address").notNull(),
-    token_address: text("token_address").notNull(),
-    token_symbol: text("token_symbol").notNull(),
+    // Payment address provided by OxaPay for receiving funds
+    payment_address: text("payment_address").notNull(),
+    // Token contract address (nullable for native tokens)
+    token_address: text("token_address"),
+    // Token symbol (e.g., USDT, BTC)
+    token: text("token").notNull(),
+    // Network name (e.g., TRC20, ERC20, BEP20)
+    network: text("network").notNull(),
 
-    amount_crypto: text("amount_crypto").notNull(),
-    amount_usd: numeric("amount_usd", { precision: 10, scale: 2 }).notNull(),
-    amount_credits: integer("amount_credits").notNull(),
+    // Amount expected to be received (in token units)
+    expected_amount: text("expected_amount").notNull(),
+    // Amount actually received (in token units)
+    received_amount: text("received_amount"),
+    // Credits to add to the organization upon payment confirmation
+    credits_to_add: text("credits_to_add").notNull(),
 
-    chain_id: integer("chain_id").notNull(),
     transaction_hash: text("transaction_hash"),
-    block_number: integer("block_number"),
-    block_confirmations: integer("block_confirmations").default(0),
+    block_number: text("block_number"),
 
     status: text("status").notNull(),
 
-    // Dedicated column for OxaPay tracking ID - used for webhook lookups and payment verification
-    oxapay_track_id: text("oxapay_track_id"),
-
-    wallet_type: text("wallet_type"),
-    slippage_tolerance: numeric("slippage_tolerance", {
-      precision: 3,
-      scale: 1,
-    }),
-
     created_at: timestamp("created_at").notNull().defaultNow(),
+    updated_at: timestamp("updated_at").notNull().defaultNow(),
     confirmed_at: timestamp("confirmed_at"),
     expires_at: timestamp("expires_at").notNull(),
 
+    // Stores OxaPay-specific data: oxapay_track_id, qr_code, rate, fiat_currency, fiat_amount
     metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
   },
   (table) => ({
@@ -63,20 +58,16 @@ export const cryptoPayments = pgTable(
       table.organization_id
     ),
     user_idx: index("crypto_payments_user_id_idx").on(table.user_id),
-    wallet_idx: index("crypto_payments_wallet_address_idx").on(
-      table.wallet_address
+    payment_address_idx: index("crypto_payments_payment_address_idx").on(
+      table.payment_address
     ),
     status_idx: index("crypto_payments_status_idx").on(table.status),
     tx_hash_idx: index("crypto_payments_transaction_hash_idx").on(
       table.transaction_hash
     ),
-    chain_idx: index("crypto_payments_chain_id_idx").on(table.chain_id),
+    network_idx: index("crypto_payments_network_idx").on(table.network),
     created_idx: index("crypto_payments_created_at_idx").on(table.created_at),
     expires_idx: index("crypto_payments_expires_at_idx").on(table.expires_at),
-    // Index for efficient OxaPay webhook lookups
-    oxapay_track_idx: index("crypto_payments_oxapay_track_id_idx").on(
-      table.oxapay_track_id
-    ),
   })
 );
 
