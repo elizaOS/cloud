@@ -5,26 +5,58 @@ import { Counter, Trend } from "k6/metrics";
 const webhooksProcessed = new Counter("discord_webhooks_processed");
 const webhookLatency = new Trend("discord_webhook_latency");
 
-interface DiscordEvent { type: number; d: Record<string, unknown>; t?: string }
+interface DiscordEvent {
+  type: number;
+  d: Record<string, unknown>;
+  t?: string;
+}
 
-function createMessageEvent(content: string, guildId: string, channelId: string): DiscordEvent {
+function createMessageEvent(
+  content: string,
+  guildId: string,
+  channelId: string,
+): DiscordEvent {
   return {
-    type: 0, t: "MESSAGE_CREATE",
+    type: 0,
+    t: "MESSAGE_CREATE",
     d: {
-      id: `${Date.now()}`, channel_id: channelId, guild_id: guildId,
-      author: { id: "123456789", username: "loadtest", discriminator: "0000", bot: false },
-      content, timestamp: new Date().toISOString(), tts: false, mention_everyone: false,
-      mentions: [], mention_roles: [], attachments: [], embeds: [], type: 0,
+      id: `${Date.now()}`,
+      channel_id: channelId,
+      guild_id: guildId,
+      author: {
+        id: "123456789",
+        username: "loadtest",
+        discriminator: "0000",
+        bot: false,
+      },
+      content,
+      timestamp: new Date().toISOString(),
+      tts: false,
+      mention_everyone: false,
+      mentions: [],
+      mention_roles: [],
+      attachments: [],
+      embeds: [],
+      type: 0,
     },
   };
 }
 
-function createInteractionEvent(customId: string, guildId: string): DiscordEvent {
+function createInteractionEvent(
+  customId: string,
+  guildId: string,
+): DiscordEvent {
   return {
-    type: 0, t: "INTERACTION_CREATE",
+    type: 0,
+    t: "INTERACTION_CREATE",
     d: {
-      id: `${Date.now()}`, type: 3, guild_id: guildId, channel_id: "1234567890",
-      member: { user: { id: "123456789", username: "loadtest", discriminator: "0000" } },
+      id: `${Date.now()}`,
+      type: 3,
+      guild_id: guildId,
+      channel_id: "1234567890",
+      member: {
+        user: { id: "123456789", username: "loadtest", discriminator: "0000" },
+      },
       data: { custom_id: customId, component_type: 2 },
     },
   };
@@ -32,10 +64,16 @@ function createInteractionEvent(customId: string, guildId: string): DiscordEvent
 
 function createMemberJoinEvent(guildId: string): DiscordEvent {
   return {
-    type: 0, t: "GUILD_MEMBER_ADD",
+    type: 0,
+    t: "GUILD_MEMBER_ADD",
     d: {
       guild_id: guildId,
-      user: { id: `${Date.now()}`, username: `loadtest_${Date.now()}`, discriminator: "0000", bot: false },
+      user: {
+        id: `${Date.now()}`,
+        username: `loadtest_${Date.now()}`,
+        discriminator: "0000",
+        bot: false,
+      },
       joined_at: new Date().toISOString(),
     },
   };
@@ -44,7 +82,10 @@ function createMemberJoinEvent(guildId: string): DiscordEvent {
 export function sendDiscordEvent(event: DiscordEvent): boolean {
   const start = Date.now();
   const body = httpPost("/api/internal/discord/events", event, {
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${__ENV.INTERNAL_API_KEY || "local-dev-internal-key"}` },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${__ENV.INTERNAL_API_KEY || "local-dev-internal-key"}`,
+    },
     tags: { endpoint: "discord" },
   });
   webhookLatency.add(Date.now() - start);
@@ -55,7 +96,8 @@ export function sendDiscordEvent(event: DiscordEvent): boolean {
 
 export function discordMessageTraffic() {
   group("Discord Messages", () => {
-    const guildId = "1234567890123456789", channelId = "9876543210987654321";
+    const guildId = "1234567890123456789",
+      channelId = "9876543210987654321";
     for (const msg of ["Hello!", "How are you?", "Thanks!"]) {
       sendDiscordEvent(createMessageEvent(msg, guildId, channelId));
       sleep(0.1);
@@ -78,13 +120,18 @@ export function discordInteractionTraffic() {
 export function discordMemberJoinBurst() {
   group("Discord Member Burst", () => {
     const guildId = "1234567890123456789";
-    for (let i = 0; i < 10; i++) sendDiscordEvent(createMemberJoinEvent(guildId));
+    for (let i = 0; i < 10; i++)
+      sendDiscordEvent(createMemberJoinEvent(guildId));
   });
   sleep(1);
 }
 
 export function discordWebhookCycle() {
-  const ops = [discordMessageTraffic, discordInteractionTraffic, discordMemberJoinBurst];
+  const ops = [
+    discordMessageTraffic,
+    discordInteractionTraffic,
+    discordMemberJoinBurst,
+  ];
   ops[__ITER % ops.length]();
 }
 

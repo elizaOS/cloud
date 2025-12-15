@@ -16,31 +16,36 @@ const WORKFLOW_TEMPLATES = [
     id: "webhook-ai-storage",
     name: "Webhook → AI → Storage",
     description: "Process webhook data with AI and store results",
-    prompt: "Create a workflow that: 1) Receives data via webhook, 2) Processes it with the chat API to extract insights, 3) Stores the results in IPFS storage",
+    prompt:
+      "Create a workflow that: 1) Receives data via webhook, 2) Processes it with the chat API to extract insights, 3) Stores the results in IPFS storage",
   },
   {
     id: "scheduled-report",
     name: "Scheduled Report",
     description: "Generate and send periodic reports",
-    prompt: "Create a workflow that runs on a schedule (every day at 9am) to: 1) Query an API for data, 2) Generate a summary report using AI, 3) Send results via HTTP POST to a notification endpoint",
+    prompt:
+      "Create a workflow that runs on a schedule (every day at 9am) to: 1) Query an API for data, 2) Generate a summary report using AI, 3) Send results via HTTP POST to a notification endpoint",
   },
   {
     id: "data-pipeline",
     name: "Data Pipeline",
     description: "ETL workflow with transformation",
-    prompt: "Create a data pipeline workflow that: 1) Fetches data from an HTTP API, 2) Transforms the data using a code node (filter and map), 3) Splits into batches for processing, 4) Makes API calls for each batch",
+    prompt:
+      "Create a data pipeline workflow that: 1) Fetches data from an HTTP API, 2) Transforms the data using a code node (filter and map), 3) Splits into batches for processing, 4) Makes API calls for each batch",
   },
   {
     id: "content-moderation",
     name: "Content Moderation",
     description: "AI-powered content review pipeline",
-    prompt: "Create a content moderation workflow: 1) Receive content via webhook, 2) Use AI to analyze for policy violations, 3) Branch based on result (approve/flag/reject), 4) Store decision and notify via HTTP",
+    prompt:
+      "Create a content moderation workflow: 1) Receive content via webhook, 2) Use AI to analyze for policy violations, 3) Branch based on result (approve/flag/reject), 4) Store decision and notify via HTTP",
   },
   {
     id: "agent-orchestration",
     name: "Agent Orchestration",
     description: "Multi-step AI agent workflow",
-    prompt: "Create an agent orchestration workflow: 1) Receive a task via webhook, 2) Use AI to break it into subtasks, 3) Execute each subtask with separate AI calls, 4) Merge results and return comprehensive response",
+    prompt:
+      "Create an agent orchestration workflow: 1) Receive a task via webhook, 2) Use AI to break it into subtasks, 3) Execute each subtask with separate AI calls, 4) Merge results and return comprehensive response",
   },
 ];
 
@@ -71,12 +76,15 @@ interface GeneratedWorkflow {
   };
 }
 
-export function WorkflowGenerator({ onWorkflowGenerated }: WorkflowGeneratorProps) {
+export function WorkflowGenerator({
+  onWorkflowGenerated,
+}: WorkflowGeneratorProps) {
   const [prompt, setPrompt] = useState("");
   const [workflowName, setWorkflowName] = useState("");
   const [autoSave, setAutoSave] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedWorkflow, setGeneratedWorkflow] = useState<GeneratedWorkflow | null>(null);
+  const [generatedWorkflow, setGeneratedWorkflow] =
+    useState<GeneratedWorkflow | null>(null);
 
   async function handleGenerate() {
     if (!prompt.trim()) {
@@ -111,16 +119,22 @@ export function WorkflowGenerator({ onWorkflowGenerated }: WorkflowGeneratorProp
       onWorkflowGenerated?.(result);
 
       if (result.savedWorkflow) {
-        toast.success(`Workflow "${result.savedWorkflow.name}" saved successfully!`);
+        toast.success(
+          `Workflow "${result.savedWorkflow.name}" saved successfully!`,
+        );
       } else {
         toast.success("Workflow generated successfully!");
       }
 
       if (!result.validation.valid) {
-        toast.warning(`Validation warnings: ${result.validation.errors.join(", ")}`);
+        toast.warning(
+          `Validation warnings: ${result.validation.errors.join(", ")}`,
+        );
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to generate workflow");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to generate workflow",
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -136,7 +150,9 @@ export function WorkflowGenerator({ onWorkflowGenerated }: WorkflowGeneratorProp
               <Wand2 className="h-5 w-5 text-[#FF5800]" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-white">AI Workflow Generator</h3>
+              <h3 className="text-lg font-semibold text-white">
+                AI Workflow Generator
+              </h3>
               <p className="text-sm text-white/60">
                 Describe your workflow in natural language and let AI build it
               </p>
@@ -154,14 +170,18 @@ export function WorkflowGenerator({ onWorkflowGenerated }: WorkflowGeneratorProp
                     "p-3 rounded-lg border text-left transition-all",
                     prompt === template.prompt
                       ? "bg-[#FF5800]/20 border-[#FF5800]/50"
-                      : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"
+                      : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20",
                   )}
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <FileCode className="h-4 w-4 text-[#FF5800]" />
-                    <span className="text-sm font-medium text-white">{template.name}</span>
+                    <span className="text-sm font-medium text-white">
+                      {template.name}
+                    </span>
                   </div>
-                  <p className="text-xs text-white/50">{template.description}</p>
+                  <p className="text-xs text-white/50">
+                    {template.description}
+                  </p>
                 </button>
               ))}
             </div>
@@ -188,7 +208,10 @@ export function WorkflowGenerator({ onWorkflowGenerated }: WorkflowGeneratorProp
                   checked={autoSave}
                   onCheckedChange={setAutoSave}
                 />
-                <Label htmlFor="auto-save" className="text-white/80 cursor-pointer">
+                <Label
+                  htmlFor="auto-save"
+                  className="text-white/80 cursor-pointer"
+                >
                   Auto-save workflow
                 </Label>
               </div>
@@ -232,7 +255,9 @@ export function WorkflowGenerator({ onWorkflowGenerated }: WorkflowGeneratorProp
           <CornerBrackets size="sm" className="opacity-20" />
           <div className="relative z-10 p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">Generated Workflow</h3>
+              <h3 className="text-lg font-semibold text-white">
+                Generated Workflow
+              </h3>
               <div className="flex items-center gap-2">
                 {generatedWorkflow.validation.valid ? (
                   <span className="px-2 py-1 text-xs rounded-full bg-green-500/20 text-green-400">
@@ -258,7 +283,8 @@ export function WorkflowGenerator({ onWorkflowGenerated }: WorkflowGeneratorProp
             {generatedWorkflow.savedWorkflow && (
               <div className="flex items-center gap-2 text-sm text-green-400">
                 <Save className="h-4 w-4" />
-                Saved as &quot;{generatedWorkflow.savedWorkflow.name}&quot; (v{generatedWorkflow.savedWorkflow.version})
+                Saved as &quot;{generatedWorkflow.savedWorkflow.name}&quot; (v
+                {generatedWorkflow.savedWorkflow.version})
               </div>
             )}
 
@@ -278,4 +304,3 @@ export function WorkflowGenerator({ onWorkflowGenerated }: WorkflowGeneratorProp
     </div>
   );
 }
-

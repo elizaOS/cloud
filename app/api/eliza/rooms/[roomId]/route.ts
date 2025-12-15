@@ -36,10 +36,7 @@ export async function GET(
   const limit = searchParams.get("limit");
 
   if (!roomId) {
-    return NextResponse.json(
-      { error: "roomId is required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "roomId is required" }, { status: 400 });
   }
 
   // Access control: verify user is a participant of the room
@@ -62,24 +59,18 @@ export async function GET(
   );
 
   if (!roomData) {
-    return NextResponse.json(
-      { error: "Room not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ error: "Room not found" }, { status: 404 });
   }
 
   // Get character ID from room agentId (single source of truth)
   const characterId = roomData.room.agentId || undefined;
 
   if (characterId) {
-    logger.info(
-      "[Eliza Room API] Loading room with character:",
-      characterId,
-    );
+    logger.info("[Eliza Room API] Loading room with character:", characterId);
   } else {
     logger.info("[Eliza Room API] Loading room with default character");
   }
-  
+
   // Transform messages for API response
   const messages = roomData.messages.map((msg: Memory) => {
     const content = parseMessageContent(msg.content);
@@ -87,7 +78,7 @@ export async function GET(
     // Debug: Log attachment info for agent messages
     if (content?.source === "agent" && content?.attachments) {
       logger.info(
-        `[Eliza Room API] 📎 Message ${msg.id?.substring(0, 8)} has ${content.attachments.length} attachment(s)`
+        `[Eliza Room API] 📎 Message ${msg.id?.substring(0, 8)} has ${content.attachments.length} attachment(s)`,
       );
     }
 
@@ -108,7 +99,7 @@ export async function GET(
   });
 
   logger.info(
-    `[Eliza Room API] ✅ Returning ${messages.length} messages for room ${roomId}`
+    `[Eliza Room API] ✅ Returning ${messages.length} messages for room ${roomId}`,
   );
 
   // Get agent display info from database (no runtime needed!)
@@ -163,7 +154,9 @@ export async function PATCH(
   } catch {
     // Fallback to session user - require existing session for PATCH
     try {
-      const sessionUser = await getOrCreateSessionUser(request, { createIfMissing: false });
+      const sessionUser = await getOrCreateSessionUser(request, {
+        createIfMissing: false,
+      });
       userId = sessionUser.userId;
     } catch {
       return NextResponse.json(
@@ -176,10 +169,7 @@ export async function PATCH(
   const { roomId } = await ctx.params;
 
   if (!roomId) {
-    return NextResponse.json(
-      { error: "roomId is required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "roomId is required" }, { status: 400 });
   }
 
   // Access control: verify user is a participant of the room
@@ -194,8 +184,8 @@ export async function PATCH(
     );
   }
 
-  const body = await request.json() as { metadata?: Record<string, unknown> };
-  
+  const body = (await request.json()) as { metadata?: Record<string, unknown> };
+
   if (!body.metadata || typeof body.metadata !== "object") {
     return NextResponse.json(
       { error: "metadata object is required" },
@@ -233,7 +223,9 @@ export async function DELETE(
   } catch {
     // Fallback to session user - require existing session for DELETE
     try {
-      const sessionUser = await getOrCreateSessionUser(request, { createIfMissing: false });
+      const sessionUser = await getOrCreateSessionUser(request, {
+        createIfMissing: false,
+      });
       userId = sessionUser.userId;
     } catch {
       return NextResponse.json(
@@ -246,10 +238,7 @@ export async function DELETE(
   const { roomId } = await ctx.params;
 
   if (!roomId) {
-    return NextResponse.json(
-      { error: "roomId is required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "roomId is required" }, { status: 400 });
   }
 
   // Access control: verify user is a participant of the room

@@ -12,7 +12,10 @@ import { logger } from "@/lib/utils/logger";
 import { telegramService } from "@/lib/services/telegram";
 import { botsService } from "@/lib/services/bots";
 import { db } from "@/db";
-import { orgPlatformConnections, orgPlatformServers } from "@/db/schemas/org-platforms";
+import {
+  orgPlatformConnections,
+  orgPlatformServers,
+} from "@/db/schemas/org-platforms";
 import { eq, and } from "drizzle-orm";
 
 interface TelegramUpdate {
@@ -76,7 +79,9 @@ function verifyTelegramToken(request: NextRequest): boolean {
   const expectedToken = process.env.TELEGRAM_WEBHOOK_SECRET;
 
   if (!expectedToken) {
-    logger.error("[Telegram Webhook] SECURITY: TELEGRAM_WEBHOOK_SECRET not configured - rejecting request");
+    logger.error(
+      "[Telegram Webhook] SECURITY: TELEGRAM_WEBHOOK_SECRET not configured - rejecting request",
+    );
     return false;
   }
 
@@ -84,7 +89,7 @@ function verifyTelegramToken(request: NextRequest): boolean {
   if (token === null || token.length !== expectedToken.length) {
     return false;
   }
-  
+
   // Simple constant-time string comparison
   let result = 0;
   for (let i = 0; i < token.length; i++) {
@@ -104,8 +109,8 @@ async function findOrgConnection(botId: string) {
       and(
         eq(orgPlatformConnections.platform, "telegram"),
         eq(orgPlatformConnections.platform_bot_id, botId),
-        eq(orgPlatformConnections.status, "active")
-      )
+        eq(orgPlatformConnections.status, "active"),
+      ),
     )
     .limit(1);
 
@@ -115,7 +120,10 @@ async function findOrgConnection(botId: string) {
 /**
  * Check if chat is enabled for the organization
  */
-async function isChatEnabled(connectionId: string, chatId: string): Promise<boolean> {
+async function isChatEnabled(
+  connectionId: string,
+  chatId: string,
+): Promise<boolean> {
   const [server] = await db
     .select()
     .from(orgPlatformServers)
@@ -123,8 +131,8 @@ async function isChatEnabled(connectionId: string, chatId: string): Promise<bool
       and(
         eq(orgPlatformServers.connection_id, connectionId),
         eq(orgPlatformServers.server_id, chatId),
-        eq(orgPlatformServers.enabled, true)
-      )
+        eq(orgPlatformServers.enabled, true),
+      ),
     )
     .limit(1);
 
@@ -140,25 +148,33 @@ function extractCommand(message: TelegramMessage): string | null {
   const commandEntity = message.entities.find((e) => e.type === "bot_command");
   if (!commandEntity) return null;
 
-  return message.text.slice(commandEntity.offset, commandEntity.offset + commandEntity.length);
+  return message.text.slice(
+    commandEntity.offset,
+    commandEntity.offset + commandEntity.length,
+  );
 }
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ botId: string }> }
+  { params }: { params: Promise<{ botId: string }> },
 ) {
   const { botId } = await params;
 
   // Verify webhook token
   if (!verifyTelegramToken(request)) {
     logger.warn("[Telegram Webhook] Invalid webhook token", { botId });
-    return NextResponse.json({ error: "Invalid webhook token" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Invalid webhook token" },
+      { status: 401 },
+    );
   }
 
   // Find the org connection for this bot
   const connection = await findOrgConnection(botId);
   if (!connection) {
-    logger.warn("[Telegram Webhook] No active connection found for bot", { botId });
+    logger.warn("[Telegram Webhook] No active connection found for bot", {
+      botId,
+    });
     return NextResponse.json({ ok: true }); // Acknowledge but don't process
   }
 
@@ -179,10 +195,13 @@ export async function POST(
 
     // Check if this chat is enabled for the org
     const chatEnabled = await isChatEnabled(connection.id, chatId);
-    
+
     if (!chatEnabled && message.chat.type !== "private") {
       // For group chats, only respond if explicitly enabled
-      logger.debug("[Telegram Webhook] Chat not enabled, ignoring", { chatId, botId });
+      logger.debug("[Telegram Webhook] Chat not enabled, ignoring", {
+        chatId,
+        botId,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -206,7 +225,7 @@ export async function POST(
             connection.organization_id,
             message.chat.id,
             `Hello ${message.from.first_name}! I'm ready to assist you.`,
-            { parse_mode: "HTML" }
+            { parse_mode: "HTML" },
           );
           break;
 
@@ -216,13 +235,16 @@ export async function POST(
             connection.organization_id,
             message.chat.id,
             "Available commands:\n/start - Start the bot\n/help - Show this help message",
-            { parse_mode: "HTML" }
+            { parse_mode: "HTML" },
           );
           break;
 
         default:
           // Unknown command - could route to agent for handling
-          logger.debug("[Telegram Webhook] Unknown command", { command, chatId });
+          logger.debug("[Telegram Webhook] Unknown command", {
+            command,
+            chatId,
+          });
       }
     } else if (messageText) {
       // Check if this is a reply to a notification message
@@ -230,7 +252,8 @@ export async function POST(
         const replyToMessageId = String(message.reply_to_message.message_id);
 
         // Check if the reply is to a social notification message
-        const { replyRouterService } = await import("@/lib/services/social-feed/reply-router");
+        const { replyRouterService } =
+          await import("@/lib/services/social-feed/reply-router");
 
         const result = await replyRouterService.processIncomingReply({
           platform: "telegram",
@@ -277,7 +300,10 @@ export async function POST(
   // Handle callback queries (button presses)
   if (update.callback_query) {
     const { callback_query } = update;
-    const token = await botsService.getBotToken(connection.id, connection.organization_id);
+    const token = await botsService.getBotToken(
+      connection.id,
+      connection.organization_id,
+    );
 
     logger.info("[Telegram Webhook] Processing callback", {
       callbackId: callback_query.id,
@@ -286,7 +312,10 @@ export async function POST(
     });
 
     // Handle reply confirmation buttons
-    if (callback_query.data?.startsWith("reply_confirm:") || callback_query.data?.startsWith("reply_reject:")) {
+    if (
+      callback_query.data?.startsWith("reply_confirm:") ||
+      callback_query.data?.startsWith("reply_reject:")
+    ) {
       const [action, confirmationId] = callback_query.data.split(":");
       const isConfirm = action === "reply_confirm";
       const chatId = callback_query.message?.chat.id;
@@ -296,14 +325,15 @@ export async function POST(
         text: isConfirm ? "Posting reply..." : "Cancelling...",
       });
 
-      const { replyRouterService } = await import("@/lib/services/social-feed/reply-router");
+      const { replyRouterService } =
+        await import("@/lib/services/social-feed/reply-router");
 
       if (isConfirm) {
         const result = await replyRouterService.handleConfirmation(
           confirmationId,
           connection.organization_id,
           String(callback_query.from.id),
-          callback_query.from.username
+          callback_query.from.username,
         );
 
         const message = result.success
@@ -317,14 +347,14 @@ export async function POST(
             chatId,
             callback_query.message.message_id,
             message,
-            { parse_mode: "HTML" }
+            { parse_mode: "HTML" },
           );
         }
       } else {
         await replyRouterService.handleRejection(
           confirmationId,
           connection.organization_id,
-          String(callback_query.from.id)
+          String(callback_query.from.id),
         );
 
         if (chatId && callback_query.message) {
@@ -334,7 +364,7 @@ export async function POST(
             chatId,
             callback_query.message.message_id,
             "❌ Reply was not sent.",
-            { parse_mode: "HTML" }
+            { parse_mode: "HTML" },
           );
         }
       }
@@ -373,7 +403,7 @@ export async function POST(
  */
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ botId: string }> }
+  { params }: { params: Promise<{ botId: string }> },
 ) {
   const { botId } = await params;
 

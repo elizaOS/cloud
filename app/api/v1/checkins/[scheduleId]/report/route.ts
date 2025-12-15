@@ -16,7 +16,7 @@ const ReportSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ scheduleId: string }> }
+  { params }: { params: Promise<{ scheduleId: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { scheduleId } = await params;
@@ -24,7 +24,10 @@ export async function POST(
   const body = await request.json();
   const parsed = ReportSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid request", details: parsed.error.format() }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request", details: parsed.error.format() },
+      { status: 400 },
+    );
   }
 
   const report = await checkinsService.generateReport(
@@ -33,9 +36,8 @@ export async function POST(
     {
       start: new Date(parsed.data.startDate),
       end: new Date(parsed.data.endDate),
-    }
+    },
   );
 
   return NextResponse.json({ report });
 }
-

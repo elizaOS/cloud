@@ -2,20 +2,23 @@ import { describe, expect, it } from "bun:test";
 
 /**
  * Discord Messages API Tests
- * 
+ *
  * Tests the message sending API validation and structure.
  */
 
 describe("Messages API Validation", () => {
   describe("SendMessageSchema", () => {
-    const validateSendMessage = (data: unknown): { success: boolean; error?: string } => {
+    const validateSendMessage = (
+      data: unknown,
+    ): { success: boolean; error?: string } => {
       const obj = data as Record<string, unknown>;
-      
+
       // connection_id validation
       if (!obj.connection_id || typeof obj.connection_id !== "string") {
         return { success: false, error: "connection_id required" };
       }
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(obj.connection_id)) {
         return { success: false, error: "connection_id must be UUID" };
       }
@@ -26,7 +29,11 @@ describe("Messages API Validation", () => {
       }
 
       // content validation (optional but max 2000)
-      if (obj.content && typeof obj.content === "string" && obj.content.length > 2000) {
+      if (
+        obj.content &&
+        typeof obj.content === "string" &&
+        obj.content.length > 2000
+      ) {
         return { success: false, error: "content too long" };
       }
 
@@ -121,9 +128,11 @@ describe("Messages API Validation", () => {
   });
 
   describe("EditMessageSchema", () => {
-    const validateEditMessage = (data: unknown): { success: boolean; error?: string } => {
+    const validateEditMessage = (
+      data: unknown,
+    ): { success: boolean; error?: string } => {
       const obj = data as Record<string, unknown>;
-      
+
       if (!obj.connection_id || typeof obj.connection_id !== "string") {
         return { success: false, error: "connection_id required" };
       }
@@ -172,7 +181,7 @@ describe("Message Payload Construction", () => {
     };
 
     const payload: Record<string, unknown> = {};
-    
+
     if (request.content) {
       payload.content = request.content;
     }
@@ -183,7 +192,9 @@ describe("Message Payload Construction", () => {
     }
 
     expect(payload.content).toBe("Hello!");
-    expect(payload.message_reference).toEqual({ message_id: "987654321098765432" });
+    expect(payload.message_reference).toEqual({
+      message_id: "987654321098765432",
+    });
   });
 
   it("should handle embeds in payload", () => {
@@ -278,7 +289,7 @@ describe("Rate Limiting", () => {
     const windowMs = 5000;
 
     const rateLimitKey = `channel:${channelId}:messages`;
-    
+
     expect(rateLimitKey).toBe("channel:123456789:messages");
     expect(limit).toBe(5);
     expect(windowMs).toBe(5000);

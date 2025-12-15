@@ -84,7 +84,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -104,7 +104,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!updated) {
     return NextResponse.json(
       { error: "Failed to update route" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -139,7 +139,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   if (!deleted) {
     return NextResponse.json(
       { error: "Failed to delete route" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 

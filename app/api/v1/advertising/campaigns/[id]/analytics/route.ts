@@ -28,7 +28,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   const metrics = await advertisingService.getCampaignMetrics(
     id,
     user.organization_id!,
-    dateRange
+    dateRange,
   );
 
   return NextResponse.json({

@@ -8,23 +8,37 @@ const config = getConfig();
 const apiKeysCreated = new Counter("api_keys_created");
 const apiKeysDeleted = new Counter("api_keys_deleted");
 
-interface ApiKey { id: string; name: string }
-interface CreateResult { apiKey: ApiKey; plainKey: string }
+interface ApiKey {
+  id: string;
+  name: string;
+}
+interface CreateResult {
+  apiKey: ApiKey;
+  plainKey: string;
+}
 
 export function listApiKeys(): ApiKey[] {
-  const body = httpGet<{ apiKeys: ApiKey[] }>("/api/v1/api-keys", { tags: { endpoint: "api-keys" } });
+  const body = httpGet<{ apiKeys: ApiKey[] }>("/api/v1/api-keys", {
+    tags: { endpoint: "api-keys" },
+  });
   return body?.apiKeys ?? [];
 }
 
 export function createApiKey(name?: string): CreateResult | null {
-  const body = httpPost<CreateResult>("/api/v1/api-keys", { name: name || generateApiKeyName() }, { tags: { endpoint: "api-keys" } });
+  const body = httpPost<CreateResult>(
+    "/api/v1/api-keys",
+    { name: name || generateApiKeyName() },
+    { tags: { endpoint: "api-keys" } },
+  );
   if (!body) return null;
   apiKeysCreated.add(1);
   return body;
 }
 
 export function deleteApiKey(keyId: string): boolean {
-  const deleted = httpDelete(`/api/v1/api-keys/${keyId}`, { tags: { endpoint: "api-keys" } });
+  const deleted = httpDelete(`/api/v1/api-keys/${keyId}`, {
+    tags: { endpoint: "api-keys" },
+  });
   if (deleted) apiKeysDeleted.add(1);
   return deleted;
 }

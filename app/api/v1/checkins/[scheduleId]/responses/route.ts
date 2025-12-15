@@ -23,24 +23,32 @@ const RecordSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ scheduleId: string }> }
+  { params }: { params: Promise<{ scheduleId: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { scheduleId } = await params;
   const searchParams = Object.fromEntries(request.nextUrl.searchParams);
 
-  const startDate = searchParams.startDate ? new Date(searchParams.startDate) : undefined;
-  const endDate = searchParams.endDate ? new Date(searchParams.endDate) : undefined;
+  const startDate = searchParams.startDate
+    ? new Date(searchParams.startDate)
+    : undefined;
+  const endDate = searchParams.endDate
+    ? new Date(searchParams.endDate)
+    : undefined;
   const limit = searchParams.limit ? parseInt(searchParams.limit) : 50;
 
-  const responses = await checkinsService.listResponses(scheduleId, user.organization_id, {
-    startDate,
-    endDate,
-    limit,
-  });
+  const responses = await checkinsService.listResponses(
+    scheduleId,
+    user.organization_id,
+    {
+      startDate,
+      endDate,
+      limit,
+    },
+  );
 
   return NextResponse.json({
-    responses: responses.map(r => ({
+    responses: responses.map((r) => ({
       id: r.id,
       scheduleId: r.schedule_id,
       responderPlatformId: r.responder_platform_id,
@@ -56,7 +64,7 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ scheduleId: string }> }
+  { params }: { params: Promise<{ scheduleId: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { scheduleId } = await params;
@@ -64,7 +72,10 @@ export async function POST(
   const body = await request.json();
   const parsed = RecordSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid request", details: parsed.error.format() }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request", details: parsed.error.format() },
+      { status: 400 },
+    );
   }
 
   const data = parsed.data;
@@ -81,14 +92,16 @@ export async function POST(
     checkinDate: data.checkinDate ? new Date(data.checkinDate) : undefined,
   });
 
-  return NextResponse.json({
-    response: {
-      id: response.id,
-      scheduleId: response.schedule_id,
-      responderPlatformId: response.responder_platform_id,
-      responderPlatform: response.responder_platform,
-      checkinDate: response.checkin_date.toISOString(),
+  return NextResponse.json(
+    {
+      response: {
+        id: response.id,
+        scheduleId: response.schedule_id,
+        responderPlatformId: response.responder_platform_id,
+        responderPlatform: response.responder_platform,
+        checkinDate: response.checkin_date.toISOString(),
+      },
     },
-  }, { status: 201 });
+    { status: 201 },
+  );
 }
-

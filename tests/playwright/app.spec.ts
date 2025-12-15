@@ -31,7 +31,7 @@ test.beforeAll(async ({ request }) => {
 
   const appResponse = await request.get(APP_URL).catch(() => null);
   appAvailable = appResponse?.ok() ?? false;
-  
+
   if (!appAvailable) {
     console.log(
       `⚠️ App not available at ${APP_URL}. Skipping app tests. Start with: cd app && bun run dev`,
@@ -112,18 +112,13 @@ test.describe("App Pages", () => {
 });
 
 test.describe("Pass-Through Auth Flow", () => {
-  test("POST /api/auth/app-session creates session", async ({
-    request,
-  }) => {
-    const response = await request.post(
-      `${CLOUD_URL}/api/auth/app-session`,
-      {
-        data: {
-          callbackUrl: `${APP_URL}/auth/callback`,
-          appId: "test-app",
-        },
+  test("POST /api/auth/app-session creates session", async ({ request }) => {
+    const response = await request.post(`${CLOUD_URL}/api/auth/app-session`, {
+      data: {
+        callbackUrl: `${APP_URL}/auth/callback`,
+        appId: "test-app",
       },
-    );
+    });
 
     expect(response.status()).toBe(201);
 
@@ -134,9 +129,7 @@ test.describe("Pass-Through Auth Flow", () => {
     expect(data.loginUrl).toContain("/auth/app-login");
   });
 
-  test("GET /api/auth/app-session/:id returns status", async ({
-    request,
-  }) => {
+  test("GET /api/auth/app-session/:id returns status", async ({ request }) => {
     // First create a session
     const createResponse = await request.post(
       `${CLOUD_URL}/api/auth/app-session`,
@@ -358,9 +351,7 @@ test.describe("Navigation", () => {
   });
 
   test("connecting page renders with animation", async ({ page }) => {
-    await page.goto(
-      `${APP_URL}/connecting?characterId=test-id&name=TestChar`,
-    );
+    await page.goto(`${APP_URL}/connecting?characterId=test-id&name=TestChar`);
 
     // Should show connecting animation
     const heading = page.locator("h1");

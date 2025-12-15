@@ -74,7 +74,9 @@ export function QuickActionsGrid() {
         </div>
         <div>
           <h2 className="text-xl font-semibold text-white">Quick Actions</h2>
-          <p className="text-sm text-white/50">Create, deploy, monetize, and publicize</p>
+          <p className="text-sm text-white/50">
+            Create, deploy, monetize, and publicize
+          </p>
         </div>
       </div>
 
@@ -108,21 +110,34 @@ function ActionCard({
   onCopy?: (cmd: string) => void;
 }) {
   const content = (
-    <div className={cn(
-      "group relative h-full overflow-hidden border border-white/10 bg-black/40 transition-all duration-300",
-      action.href && "hover:border-white/20 hover:shadow-lg"
-    )}>
-      <CornerBrackets size="md" color="#E1E1E1" hoverColor={action.href ? "#FF5800" : undefined} />
+    <div
+      className={cn(
+        "group relative h-full overflow-hidden border border-white/10 bg-black/40 transition-all duration-300",
+        action.href && "hover:border-white/20 hover:shadow-lg",
+      )}
+    >
+      <CornerBrackets
+        size="md"
+        color="#E1E1E1"
+        hoverColor={action.href ? "#FF5800" : undefined}
+      />
 
-      <div className={cn(
-        "absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-60",
-        action.href && "group-hover:opacity-100 transition-opacity",
-        action.gradient
-      )} />
+      <div
+        className={cn(
+          "absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-60",
+          action.href && "group-hover:opacity-100 transition-opacity",
+          action.gradient,
+        )}
+      />
 
       <div className="relative z-10 p-5">
         <div className="flex items-start justify-between mb-4">
-          <div className={cn("p-3 rounded-lg bg-gradient-to-br text-white", action.gradient)}>
+          <div
+            className={cn(
+              "p-3 rounded-lg bg-gradient-to-br text-white",
+              action.gradient,
+            )}
+          >
             {action.icon}
           </div>
           {action.badge && (
@@ -133,13 +148,17 @@ function ActionCard({
           )}
         </div>
 
-        <h3 className={cn(
-          "text-lg font-semibold text-white mb-1",
-          action.href && "group-hover:text-[#FF5800] transition-colors"
-        )}>
+        <h3
+          className={cn(
+            "text-lg font-semibold text-white mb-1",
+            action.href && "group-hover:text-[#FF5800] transition-colors",
+          )}
+        >
           {action.title}
         </h3>
-        <p className="text-sm text-white/50 leading-relaxed mb-4">{action.description}</p>
+        <p className="text-sm text-white/50 leading-relaxed mb-4">
+          {action.description}
+        </p>
 
         {action.cliCommands && onCopy && (
           <>
@@ -153,7 +172,9 @@ function ActionCard({
                     <span className="text-[10px] text-white/40 uppercase tracking-wider shrink-0">
                       {cmd.label}
                     </span>
-                    <code className="text-xs font-mono text-emerald-400 truncate">{cmd.command}</code>
+                    <code className="text-xs font-mono text-emerald-400 truncate">
+                      {cmd.command}
+                    </code>
                   </div>
                   <button
                     onClick={() => onCopy(cmd.command)}
@@ -191,7 +212,11 @@ function ActionCard({
   );
 
   if (action.href) {
-    return <Link href={action.href} className="block h-full">{content}</Link>;
+    return (
+      <Link href={action.href} className="block h-full">
+        {content}
+      </Link>
+    );
   }
 
   return content;
@@ -215,7 +240,9 @@ export function QuickActionsGridSkeleton() {
               <div className="h-12 w-12 bg-white/10 animate-pulse rounded-lg mb-4" />
               <div className="h-5 w-32 bg-white/10 animate-pulse rounded mb-2" />
               <div className="h-4 w-full bg-white/10 animate-pulse rounded" />
-              {row === 1 && <div className="h-10 w-full bg-white/10 animate-pulse rounded mt-4" />}
+              {row === 1 && (
+                <div className="h-10 w-full bg-white/10 animate-pulse rounded mt-4" />
+              )}
             </div>
           ))}
         </div>

@@ -1,17 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
-import { engagementEventService, type SocialEngagementType } from "@/lib/services/social-feed";
+import {
+  engagementEventService,
+  type SocialEngagementType,
+} from "@/lib/services/social-feed";
 
 const ListEngagementsQuerySchema = z.object({
   feedConfigId: z.string().uuid().optional(),
-  eventType: z.enum(["mention", "reply", "quote_tweet", "repost", "like", "comment", "follow"]).optional(),
+  eventType: z
+    .enum([
+      "mention",
+      "reply",
+      "quote_tweet",
+      "repost",
+      "like",
+      "comment",
+      "follow",
+    ])
+    .optional(),
   authorId: z.string().optional(),
   since: z.string().datetime().optional(),
   until: z.string().datetime().optional(),
-  notificationSent: z.string().optional().transform((v) => v === "true" ? true : v === "false" ? false : undefined),
-  limit: z.string().optional().transform((v) => v ? parseInt(v, 10) : 50),
-  offset: z.string().optional().transform((v) => v ? parseInt(v, 10) : 0),
+  notificationSent: z
+    .string()
+    .optional()
+    .transform((v) =>
+      v === "true" ? true : v === "false" ? false : undefined,
+    ),
+  limit: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : 50)),
+  offset: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : 0)),
 });
 
 export async function GET(request: NextRequest) {

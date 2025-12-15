@@ -132,8 +132,7 @@ class AppAuthSessionsService {
    * Get session status (for polling)
    */
   async getSessionStatus(sessionId: string) {
-    const session =
-      await appAuthSessionsRepository.getBySessionId(sessionId);
+    const session = await appAuthSessionsRepository.getBySessionId(sessionId);
 
     if (!session) {
       return { status: "not_found" as const };

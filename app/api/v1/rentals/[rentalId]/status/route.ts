@@ -4,15 +4,15 @@
  * Get status of a specific rental including training progress.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 interface RentalStatus {
   rentalId: string;
-  status: 'provisioning' | 'running' | 'completed' | 'failed';
+  status: "provisioning" | "running" | "completed" | "failed";
   modelCID?: string;
   modelHash?: string;
   logs?: string;
@@ -31,11 +31,11 @@ const rentalStatuses = new Map<string, RentalStatus>();
  */
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ rentalId: string }> }
+  { params }: { params: Promise<{ rentalId: string }> },
 ) {
   const user = await requireAuth().catch(() => null);
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { rentalId } = await params;
@@ -51,7 +51,7 @@ export async function GET(
     if (randomProgress < 0.3) {
       status = {
         rentalId,
-        status: 'running',
+        status: "running",
         progress: Math.floor(Math.random() * 50),
         currentEpoch: Math.floor(Math.random() * 5),
         totalEpochs: 10,
@@ -59,16 +59,22 @@ export async function GET(
     } else if (randomProgress < 0.9) {
       status = {
         rentalId,
-        status: 'completed',
-        modelCID: `Qm${Array(44).fill(0).map(() => 'abcdef0123456789'[Math.floor(Math.random() * 16)]).join('')}`,
-        modelHash: `0x${Array(64).fill(0).map(() => 'abcdef0123456789'[Math.floor(Math.random() * 16)]).join('')}`,
+        status: "completed",
+        modelCID: `Qm${Array(44)
+          .fill(0)
+          .map(() => "abcdef0123456789"[Math.floor(Math.random() * 16)])
+          .join("")}`,
+        modelHash: `0x${Array(64)
+          .fill(0)
+          .map(() => "abcdef0123456789"[Math.floor(Math.random() * 16)])
+          .join("")}`,
         progress: 100,
       };
     } else {
       status = {
         rentalId,
-        status: 'failed',
-        error: 'Training failed: GPU memory exhausted',
+        status: "failed",
+        error: "Training failed: GPU memory exhausted",
       };
     }
 
@@ -84,12 +90,12 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ rentalId: string }> }
+  { params }: { params: Promise<{ rentalId: string }> },
 ) {
   // Verify internal auth (would check compute node signature)
-  const authHeader = request.headers.get('X-Compute-Signature');
+  const authHeader = request.headers.get("X-Compute-Signature");
   if (!authHeader) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { rentalId } = await params;
@@ -97,7 +103,7 @@ export async function PUT(
 
   const existing = rentalStatuses.get(rentalId) ?? {
     rentalId,
-    status: 'provisioning' as const,
+    status: "provisioning" as const,
   };
 
   const updated: RentalStatus = {

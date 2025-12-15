@@ -14,9 +14,13 @@ import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
 import { PageHeaderProvider } from "@/components/layout/page-header-context";
 
-// Import render tracker for profiling (dev only)
+// Import render tracker for profiling (dev only, controlled by env flag)
+const isRenderTrackingEnabled =
+  process.env.NODE_ENV === "development" &&
+  process.env.NEXT_PUBLIC_ENABLE_RENDER_TRACKING === "true";
+
 let onRenderCallback: ProfilerOnRenderCallback | undefined;
-if (process.env.NODE_ENV === "development") {
+if (isRenderTrackingEnabled) {
   const tracker = require("@/lib/debug/render-tracker");
   onRenderCallback = tracker.onRenderCallback;
 }
@@ -101,7 +105,7 @@ export default function DashboardLayout({
   // For chat/build pages, render children directly without standard layout
   if (isCustomLayoutPage) {
     const content = <PageHeaderProvider>{children}</PageHeaderProvider>;
-    if (process.env.NODE_ENV === "development" && onRenderCallback) {
+    if (isRenderTrackingEnabled && onRenderCallback) {
       return (
         <Profiler id="Dashboard-Chat-Build" onRender={onRenderCallback}>
           {content}
@@ -112,39 +116,61 @@ export default function DashboardLayout({
   }
 
   // Standard dashboard layout for all other pages
+  // Only wrap with Profilers if render tracking is enabled
+  const sidebarElement =
+    isRenderTrackingEnabled && onRenderCallback ? (
+      <Profiler id="Sidebar" onRender={onRenderCallback}>
+        <Sidebar isOpen={sidebarOpen} onToggle={handleToggleSidebar} />
+      </Profiler>
+    ) : (
+      <Sidebar isOpen={sidebarOpen} onToggle={handleToggleSidebar} />
+    );
+
+  const headerElement =
+    isRenderTrackingEnabled && onRenderCallback ? (
+      <Profiler id="Header" onRender={onRenderCallback}>
+        <Header
+          onToggleSidebar={handleToggleSidebar}
+          isAnonymous={!authenticated}
+        />
+      </Profiler>
+    ) : (
+      <Header
+        onToggleSidebar={handleToggleSidebar}
+        isAnonymous={!authenticated}
+      />
+    );
+
+  const mainContentElement =
+    isRenderTrackingEnabled && onRenderCallback ? (
+      <Profiler id="Dashboard-Main" onRender={onRenderCallback}>
+        <div className="h-full px-2 py-3 md:px-6 md:py-6">{children}</div>
+      </Profiler>
+    ) : (
+      <div className="h-full px-2 py-3 md:px-6 md:py-6">{children}</div>
+    );
+
   const dashboardContent = (
     <PageHeaderProvider>
       <div className="flex h-screen w-full bg-[#0A0A0A]">
         {/* Sidebar */}
-        <Profiler id="Sidebar" onRender={onRenderCallback || (() => {})}>
-          <Sidebar isOpen={sidebarOpen} onToggle={handleToggleSidebar} />
-        </Profiler>
+        {sidebarElement}
 
         {/* Main Content */}
         <div className="flex flex-1 flex-col overflow-hidden">
           {/* Header - pass auth state for signup button */}
-          <Profiler id="Header" onRender={onRenderCallback || (() => {})}>
-            <Header
-              onToggleSidebar={handleToggleSidebar}
-              isAnonymous={!authenticated}
-            />
-          </Profiler>
+          {headerElement}
 
           {/* Main Content Area */}
           <main className="flex-1 overflow-y-auto bg-[#0A0A0A]">
-            <Profiler
-              id="Dashboard-Main"
-              onRender={onRenderCallback || (() => {})}
-            >
-              <div className="h-full px-2 py-3 md:px-6 md:py-6">{children}</div>
-            </Profiler>
+            {mainContentElement}
           </main>
         </div>
       </div>
     </PageHeaderProvider>
   );
 
-  if (process.env.NODE_ENV === "development" && onRenderCallback) {
+  if (isRenderTrackingEnabled && onRenderCallback) {
     return (
       <Profiler id="Dashboard-Layout" onRender={onRenderCallback}>
         {dashboardContent}

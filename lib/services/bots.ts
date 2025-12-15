@@ -19,7 +19,11 @@ import {
 import { secretsService, type AuditContext } from "./secrets";
 import { logger } from "@/lib/utils/logger";
 import { extractErrorMessage } from "@/lib/utils/error-handling";
-import { DISCORD_API_BASE, discordBearerApiRequest, discordBotApiRequest } from "@/lib/utils/discord-api";
+import {
+  DISCORD_API_BASE,
+  discordBearerApiRequest,
+  discordBotApiRequest,
+} from "@/lib/utils/discord-api";
 
 // Default audit context for system operations
 const SYSTEM_AUDIT: AuditContext = {
@@ -108,7 +112,7 @@ import { telegramBotApiGet } from "@/lib/utils/telegram-api";
  * Validate a Discord bot token and get bot info
  */
 export async function validateDiscordBotToken(
-  botToken: string
+  botToken: string,
 ): Promise<DiscordBotInfo> {
   return discordBotApiRequest<DiscordBotInfo>("/users/@me", botToken);
 }
@@ -117,7 +121,7 @@ export async function validateDiscordBotToken(
  * Validate a Telegram bot token and get bot info
  */
 export async function validateTelegramBotToken(
-  botToken: string
+  botToken: string,
 ): Promise<TelegramBotInfo> {
   return telegramBotApiGet<TelegramBotInfo>(botToken, "getMe");
 }
@@ -126,7 +130,7 @@ export async function validateTelegramBotToken(
  * Get Discord guilds the bot is in
  */
 export async function getDiscordBotGuilds(
-  botToken: string
+  botToken: string,
 ): Promise<DiscordGuild[]> {
   return discordBotApiRequest<DiscordGuild[]>("/users/@me/guilds", botToken);
 }
@@ -135,7 +139,7 @@ export async function getDiscordBotGuilds(
  * Get Telegram updates to discover groups (requires bot to be in groups)
  */
 export async function getTelegramUpdates(
-  botToken: string
+  botToken: string,
 ): Promise<TelegramChat[]> {
   interface TelegramUpdate {
     message?: {
@@ -146,7 +150,7 @@ export async function getTelegramUpdates(
   const updates = await telegramApiRequest<TelegramUpdate[]>(
     "getUpdates",
     botToken,
-    { limit: 100 }
+    { limit: 100 },
   );
 
   // Extract unique chats from updates
@@ -175,7 +179,9 @@ class BotsService {
   /**
    * Connect a Discord bot to an organization
    */
-  async connectDiscord(params: ConnectDiscordParams): Promise<OrgPlatformConnection> {
+  async connectDiscord(
+    params: ConnectDiscordParams,
+  ): Promise<OrgPlatformConnection> {
     const {
       organizationId,
       userId,
@@ -202,7 +208,7 @@ class BotsService {
         projectType: "org-app",
         createdBy: userId,
       },
-      SYSTEM_AUDIT
+      SYSTEM_AUDIT,
     );
 
     let refreshTokenSecretId: string | undefined;
@@ -216,7 +222,7 @@ class BotsService {
           projectType: "org-app",
           createdBy: userId,
         },
-        SYSTEM_AUDIT
+        SYSTEM_AUDIT,
       );
       refreshTokenSecretId = refreshTokenSecret.id;
     }
@@ -229,8 +235,8 @@ class BotsService {
         and(
           eq(orgPlatformConnections.organization_id, organizationId),
           eq(orgPlatformConnections.platform, "discord"),
-          eq(orgPlatformConnections.platform_bot_id, botInfo.id)
-        )
+          eq(orgPlatformConnections.platform_bot_id, botInfo.id),
+        ),
       )
       .limit(1);
 
@@ -279,7 +285,9 @@ class BotsService {
   /**
    * Connect a Telegram bot to an organization
    */
-  async connectTelegram(params: ConnectTelegramParams): Promise<OrgPlatformConnection> {
+  async connectTelegram(
+    params: ConnectTelegramParams,
+  ): Promise<OrgPlatformConnection> {
     const { organizationId, userId, botToken, botInfo } = params;
 
     logger.info("[OrgPlatforms] Connecting Telegram bot", {
@@ -298,7 +306,7 @@ class BotsService {
         projectType: "org-app",
         createdBy: userId,
       },
-      SYSTEM_AUDIT
+      SYSTEM_AUDIT,
     );
 
     // Check for existing connection
@@ -309,8 +317,8 @@ class BotsService {
         and(
           eq(orgPlatformConnections.organization_id, organizationId),
           eq(orgPlatformConnections.platform, "telegram"),
-          eq(orgPlatformConnections.platform_bot_id, String(botInfo.id))
-        )
+          eq(orgPlatformConnections.platform_bot_id, String(botInfo.id)),
+        ),
       )
       .limit(1);
 
@@ -362,7 +370,14 @@ class BotsService {
     password: string;
     twoFactorSecret?: string;
   }): Promise<OrgPlatformConnection> {
-    const { organizationId, userId, username, password, email, twoFactorSecret } = params;
+    const {
+      organizationId,
+      userId,
+      username,
+      password,
+      email,
+      twoFactorSecret,
+    } = params;
 
     logger.info("[OrgPlatforms] Connecting Twitter account", {
       organizationId,
@@ -379,7 +394,7 @@ class BotsService {
         projectType: "org-app",
         createdBy: userId,
       },
-      SYSTEM_AUDIT
+      SYSTEM_AUDIT,
     );
 
     if (email) {
@@ -392,7 +407,7 @@ class BotsService {
           projectType: "org-app",
           createdBy: userId,
         },
-        SYSTEM_AUDIT
+        SYSTEM_AUDIT,
       );
     }
 
@@ -406,7 +421,7 @@ class BotsService {
           projectType: "org-app",
           createdBy: userId,
         },
-        SYSTEM_AUDIT
+        SYSTEM_AUDIT,
       );
     }
 
@@ -418,8 +433,8 @@ class BotsService {
         and(
           eq(orgPlatformConnections.organization_id, organizationId),
           eq(orgPlatformConnections.platform, "twitter"),
-          eq(orgPlatformConnections.platform_bot_username, username)
-        )
+          eq(orgPlatformConnections.platform_bot_username, username),
+        ),
       )
       .limit(1);
 
@@ -465,7 +480,10 @@ class BotsService {
   /**
    * Disconnect a platform connection
    */
-  async disconnect(connectionId: string, organizationId: string): Promise<void> {
+  async disconnect(
+    connectionId: string,
+    organizationId: string,
+  ): Promise<void> {
     logger.info("[OrgPlatforms] Disconnecting platform", {
       connectionId,
       organizationId,
@@ -482,8 +500,8 @@ class BotsService {
       .where(
         and(
           eq(orgPlatformConnections.id, connectionId),
-          eq(orgPlatformConnections.organization_id, organizationId)
-        )
+          eq(orgPlatformConnections.organization_id, organizationId),
+        ),
       );
 
     // Disable all servers for this connection
@@ -499,15 +517,17 @@ class BotsService {
   /**
    * Get all platform connections for an organization
    */
-  async getConnections(organizationId: string): Promise<OrgPlatformConnection[]> {
+  async getConnections(
+    organizationId: string,
+  ): Promise<OrgPlatformConnection[]> {
     return db
       .select()
       .from(orgPlatformConnections)
       .where(
         and(
           eq(orgPlatformConnections.organization_id, organizationId),
-          isNull(orgPlatformConnections.disconnected_at)
-        )
+          isNull(orgPlatformConnections.disconnected_at),
+        ),
       )
       .orderBy(desc(orgPlatformConnections.connected_at));
   }
@@ -517,7 +537,7 @@ class BotsService {
    */
   async getConnection(
     connectionId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<OrgPlatformConnection | null> {
     const [connection] = await db
       .select()
@@ -525,8 +545,8 @@ class BotsService {
       .where(
         and(
           eq(orgPlatformConnections.id, connectionId),
-          eq(orgPlatformConnections.organization_id, organizationId)
-        )
+          eq(orgPlatformConnections.organization_id, organizationId),
+        ),
       )
       .limit(1);
 
@@ -538,7 +558,7 @@ class BotsService {
    */
   async getConnectionByPlatform(
     organizationId: string,
-    platform: PlatformType
+    platform: PlatformType,
   ): Promise<OrgPlatformConnection | null> {
     const [connection] = await db
       .select()
@@ -547,8 +567,8 @@ class BotsService {
         and(
           eq(orgPlatformConnections.organization_id, organizationId),
           eq(orgPlatformConnections.platform, platform),
-          eq(orgPlatformConnections.status, "active")
-        )
+          eq(orgPlatformConnections.status, "active"),
+        ),
       )
       .limit(1);
 
@@ -564,7 +584,7 @@ class BotsService {
    */
   async syncDiscordGuilds(
     connectionId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<OrgPlatformServer[]> {
     const connection = await this.getConnection(connectionId, organizationId);
     if (!connection || connection.platform !== "discord") {
@@ -574,7 +594,7 @@ class BotsService {
     // Get bot token from secrets
     const botToken = await secretsService.getDecryptedValue(
       connection.oauth_access_token_secret_id!,
-      organizationId
+      organizationId,
     );
 
     // Fetch guilds from Discord
@@ -594,8 +614,8 @@ class BotsService {
         .where(
           and(
             eq(orgPlatformServers.connection_id, connectionId),
-            eq(orgPlatformServers.server_id, guild.id)
-          )
+            eq(orgPlatformServers.server_id, guild.id),
+          ),
         )
         .limit(1);
 
@@ -643,7 +663,7 @@ class BotsService {
   async addTelegramGroup(
     connectionId: string,
     organizationId: string,
-    chat: TelegramChat
+    chat: TelegramChat,
   ): Promise<OrgPlatformServer> {
     const connection = await this.getConnection(connectionId, organizationId);
     if (!connection || connection.platform !== "telegram") {
@@ -657,8 +677,8 @@ class BotsService {
       .where(
         and(
           eq(orgPlatformServers.connection_id, connectionId),
-          eq(orgPlatformServers.server_id, String(chat.id))
-        )
+          eq(orgPlatformServers.server_id, String(chat.id)),
+        ),
       )
       .limit(1);
 
@@ -709,7 +729,7 @@ class BotsService {
       .from(orgPlatformServers)
       .innerJoin(
         orgPlatformConnections,
-        eq(orgPlatformServers.connection_id, orgPlatformConnections.id)
+        eq(orgPlatformServers.connection_id, orgPlatformConnections.id),
       )
       .where(eq(orgPlatformServers.organization_id, organizationId))
       .orderBy(desc(orgPlatformServers.created_at));
@@ -726,7 +746,7 @@ class BotsService {
   async updateServer(
     serverId: string,
     organizationId: string,
-    updates: Partial<NewOrgPlatformServer>
+    updates: Partial<NewOrgPlatformServer>,
   ): Promise<OrgPlatformServer> {
     const [updated] = await db
       .update(orgPlatformServers)
@@ -737,8 +757,8 @@ class BotsService {
       .where(
         and(
           eq(orgPlatformServers.id, serverId),
-          eq(orgPlatformServers.organization_id, organizationId)
-        )
+          eq(orgPlatformServers.organization_id, organizationId),
+        ),
       )
       .returning();
 
@@ -755,7 +775,7 @@ class BotsService {
   async setServerEnabled(
     serverId: string,
     organizationId: string,
-    enabled: boolean
+    enabled: boolean,
   ): Promise<OrgPlatformServer> {
     return this.updateServer(serverId, organizationId, { enabled });
   }
@@ -766,9 +786,11 @@ class BotsService {
   async updateAgentSettings(
     serverId: string,
     organizationId: string,
-    agentSettings: OrgPlatformServer["agent_settings"]
+    agentSettings: OrgPlatformServer["agent_settings"],
   ): Promise<OrgPlatformServer> {
-    return this.updateServer(serverId, organizationId, { agent_settings: agentSettings });
+    return this.updateServer(serverId, organizationId, {
+      agent_settings: agentSettings,
+    });
   }
 
   // ===========================================================================
@@ -780,7 +802,7 @@ class BotsService {
    */
   async checkConnectionHealth(
     connectionId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<{ healthy: boolean; error?: string }> {
     const connection = await this.getConnection(connectionId, organizationId);
     if (!connection) {
@@ -791,13 +813,13 @@ class BotsService {
       if (connection.platform === "discord") {
         const token = await secretsService.getDecryptedValue(
           connection.oauth_access_token_secret_id!,
-          organizationId
+          organizationId,
         );
         await validateDiscordBotToken(token);
       } else if (connection.platform === "telegram") {
         const token = await secretsService.getDecryptedValue(
           connection.bot_token_secret_id!,
-          organizationId
+          organizationId,
         );
         await validateTelegramBotToken(token);
       }
@@ -834,7 +856,7 @@ class BotsService {
    */
   async getBotToken(
     connectionId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<string> {
     const connection = await this.getConnection(connectionId, organizationId);
     if (!connection) {
@@ -859,4 +881,3 @@ class BotsService {
 // =============================================================================
 
 export const botsService = new BotsService();
-

@@ -2,16 +2,22 @@ import { describe, expect, it, mock, beforeEach, afterEach } from "bun:test";
 
 describe("Event Forwarding", () => {
   const originalFetch = globalThis.fetch;
-  let mockResponses: Array<{ ok: boolean; json: () => Promise<Record<string, unknown>> }> = [];
+  let mockResponses: Array<{
+    ok: boolean;
+    json: () => Promise<Record<string, unknown>>;
+  }> = [];
   let fetchCalls: Array<{ url: string; options: RequestInit }> = [];
 
   beforeEach(() => {
     fetchCalls = [];
     mockResponses = [];
-    
+
     globalThis.fetch = mock((url: string, options?: RequestInit) => {
       fetchCalls.push({ url, options: options ?? {} });
-      const response = mockResponses.shift() ?? { ok: true, json: () => Promise.resolve({}) };
+      const response = mockResponses.shift() ?? {
+        ok: true,
+        json: () => Promise.resolve({}),
+      };
       return Promise.resolve(response as Response);
     }) as unknown as typeof fetch;
   });

@@ -98,7 +98,7 @@ export default function CreateServicePage() {
   const [newToolName, setNewToolName] = useState("");
   const [newToolDescription, setNewToolDescription] = useState("");
   const [pricingType, setPricingType] = useState<"free" | "credits" | "x402">(
-    "credits"
+    "credits",
   );
   const [creditsPerRequest, setCreditsPerRequest] = useState("1");
   const [x402Enabled, setX402Enabled] = useState(false);
@@ -118,7 +118,7 @@ export default function CreateServicePage() {
       value
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)/g, "")
+        .replace(/(^-|-$)/g, ""),
     );
   };
 
@@ -300,34 +300,36 @@ export default function CreateServicePage() {
               </div>
 
               <div className="grid gap-3 md:grid-cols-3">
-                {ENDPOINT_OPTIONS.map(({ key, label, description, icon: Icon, color }) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() =>
-                      setEndpoints((prev) => ({ ...prev, [key]: !prev[key] }))
-                    }
-                    className={`p-4 rounded-lg border text-left transition-all ${
-                      endpoints[key]
-                        ? "border-cyan-500/50 bg-cyan-500/10"
-                        : "border-white/10 bg-white/5 hover:bg-white/10"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 mb-2">
-                      <div
-                        className="p-2 rounded border"
-                        style={{
-                          backgroundColor: `${color}15`,
-                          borderColor: `${color}40`,
-                        }}
-                      >
-                        <Icon className="h-4 w-4" style={{ color }} />
+                {ENDPOINT_OPTIONS.map(
+                  ({ key, label, description, icon: Icon, color }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() =>
+                        setEndpoints((prev) => ({ ...prev, [key]: !prev[key] }))
+                      }
+                      className={`p-4 rounded-lg border text-left transition-all ${
+                        endpoints[key]
+                          ? "border-cyan-500/50 bg-cyan-500/10"
+                          : "border-white/10 bg-white/5 hover:bg-white/10"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <div
+                          className="p-2 rounded border"
+                          style={{
+                            backgroundColor: `${color}15`,
+                            borderColor: `${color}40`,
+                          }}
+                        >
+                          <Icon className="h-4 w-4" style={{ color }} />
+                        </div>
+                        <span className="font-medium text-white">{label}</span>
                       </div>
-                      <span className="font-medium text-white">{label}</span>
-                    </div>
-                    <p className="text-xs text-white/50">{description}</p>
-                  </button>
-                ))}
+                      <p className="text-xs text-white/50">{description}</p>
+                    </button>
+                  ),
+                )}
               </div>
             </div>
 
@@ -445,7 +447,10 @@ export default function CreateServicePage() {
               </div>
 
               <div className="flex items-center gap-3">
-                <Switch checked={x402Enabled} onCheckedChange={setX402Enabled} />
+                <Switch
+                  checked={x402Enabled}
+                  onCheckedChange={setX402Enabled}
+                />
                 <Label className="text-white/70">
                   Enable x402 Micropayments
                 </Label>
@@ -498,4 +503,3 @@ export default function CreateServicePage() {
     </>
   );
 }
-

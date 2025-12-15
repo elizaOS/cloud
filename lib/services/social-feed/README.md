@@ -37,19 +37,19 @@ Migration: `db/migrations/0024_social_feed_management.sql`
 
 ### REST API
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/org/feeds` | List feed configurations |
-| POST | `/api/v1/org/feeds` | Create feed configuration |
-| GET | `/api/v1/org/feeds/[id]` | Get feed configuration |
-| PATCH | `/api/v1/org/feeds/[id]` | Update feed configuration |
-| DELETE | `/api/v1/org/feeds/[id]` | Delete feed configuration |
-| POST | `/api/v1/org/feeds/poll` | Manually trigger polling |
-| GET | `/api/v1/org/engagements` | List engagement events |
-| GET | `/api/v1/org/engagements/[id]` | Get engagement event |
-| GET | `/api/v1/org/replies` | List pending replies |
-| PATCH | `/api/v1/org/replies/[id]` | Confirm/reject reply |
-| POST | `/api/v1/org/notifications/process` | Process unnotified events |
+| Method | Endpoint                            | Description               |
+| ------ | ----------------------------------- | ------------------------- |
+| GET    | `/api/v1/org/feeds`                 | List feed configurations  |
+| POST   | `/api/v1/org/feeds`                 | Create feed configuration |
+| GET    | `/api/v1/org/feeds/[id]`            | Get feed configuration    |
+| PATCH  | `/api/v1/org/feeds/[id]`            | Update feed configuration |
+| DELETE | `/api/v1/org/feeds/[id]`            | Delete feed configuration |
+| POST   | `/api/v1/org/feeds/poll`            | Manually trigger polling  |
+| GET    | `/api/v1/org/engagements`           | List engagement events    |
+| GET    | `/api/v1/org/engagements/[id]`      | Get engagement event      |
+| GET    | `/api/v1/org/replies`               | List pending replies      |
+| PATCH  | `/api/v1/org/replies/[id]`          | Confirm/reject reply      |
+| POST   | `/api/v1/org/notifications/process` | Process unnotified events |
 
 ### Cron Job
 
@@ -61,11 +61,13 @@ Authorization: Bearer $CRON_SECRET
 ```
 
 Runs every minute to:
+
 1. Poll feeds due for polling
 2. Send notifications for new engagements
 3. Expire pending reply confirmations
 
 Returns:
+
 ```json
 {
   "success": true,
@@ -81,6 +83,7 @@ Returns:
 ### Webhooks
 
 Reply detection is handled in existing webhook handlers:
+
 - `app/api/webhooks/telegram/[botId]/route.ts`
 - `app/api/webhooks/discord/route.ts`
 - `app/api/webhooks/slack/route.ts`
@@ -89,6 +92,7 @@ Reply detection is handled in existing webhook handlers:
 ## MCP Tools
 
 Available in the org MCP server:
+
 - `create_feed_config` - Create feed monitoring config
 - `update_feed_config` - Update feed config
 - `list_feed_configs` - List feed configs
@@ -104,6 +108,7 @@ Available in the org MCP server:
 Feeds with more than 5 consecutive poll errors are automatically skipped until manually reset.
 
 To reset a feed's error count:
+
 ```typescript
 await feedConfigService.resetErrorCount(configId);
 ```
@@ -113,14 +118,14 @@ await feedConfigService.resetErrorCount(configId);
 Platform-specific rate limits are enforced (see `lib/services/social-media/rate-limit.ts`):
 
 | Platform | Requests | Window |
-|----------|----------|--------|
-| Twitter | 300 | 15 min |
-| Bluesky | 3000 | 5 min |
-| Discord | 50 | 1 sec |
-| Telegram | 30 | 1 sec |
-| Slack | 50 | 1 min |
-| Reddit | 60 | 1 min |
-| Mastodon | 300 | 5 min |
+| -------- | -------- | ------ |
+| Twitter  | 300      | 15 min |
+| Bluesky  | 3000     | 5 min  |
+| Discord  | 50       | 1 sec  |
+| Telegram | 30       | 1 sec  |
+| Slack    | 50       | 1 min  |
+| Reddit   | 60       | 1 min  |
+| Mastodon | 300      | 5 min  |
 
 ## Assumptions
 

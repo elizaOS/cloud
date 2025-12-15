@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { n8nWorkflowApiKeysRepository } from "@/db/repositories/n8n-workflows";
 import { logger } from "@/lib/utils/logger";
-import { UpdateApiKeySchema, formatApiKey, ErrorResponses } from "@/lib/n8n/schemas";
+import {
+  UpdateApiKeySchema,
+  formatApiKey,
+  ErrorResponses,
+} from "@/lib/n8n/schemas";
 
 export async function PATCH(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await ctx.params;
@@ -19,22 +23,32 @@ export async function PATCH(
   const body = await request.json();
   const validation = UpdateApiKeySchema.safeParse(body);
   if (!validation.success) {
-    return NextResponse.json(ErrorResponses.invalidRequest(validation.error.format()), { status: 400 });
+    return NextResponse.json(
+      ErrorResponses.invalidRequest(validation.error.format()),
+      { status: 400 },
+    );
   }
 
   const updates: Record<string, unknown> = {};
-  if (validation.data.isActive !== undefined) updates.is_active = validation.data.isActive;
+  if (validation.data.isActive !== undefined)
+    updates.is_active = validation.data.isActive;
   if (validation.data.name !== undefined) updates.name = validation.data.name;
 
   const updated = await n8nWorkflowApiKeysRepository.update(id, updates);
-  logger.info(`[N8N API Keys] Updated API key: ${id}`, { isActive: updates.is_active, nameChanged: !!updates.name });
+  logger.info(`[N8N API Keys] Updated API key: ${id}`, {
+    isActive: updates.is_active,
+    nameChanged: !!updates.name,
+  });
 
-  return NextResponse.json({ success: true, apiKey: updated ? formatApiKey(updated) : null });
+  return NextResponse.json({
+    success: true,
+    apiKey: updated ? formatApiKey(updated) : null,
+  });
 }
 
 export async function DELETE(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await ctx.params;
@@ -48,5 +62,3 @@ export async function DELETE(
   logger.info(`[N8N API Keys] Deleted API key: ${id}`);
   return NextResponse.json({ success: true });
 }
-
-

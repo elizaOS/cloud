@@ -38,7 +38,13 @@ interface MockMessage {
     bot: boolean;
   };
   mentions: Array<{ id: string; username: string; bot: boolean }>;
-  attachments: Array<{ id: string; filename: string; url: string; content_type?: string; size: number }>;
+  attachments: Array<{
+    id: string;
+    filename: string;
+    url: string;
+    content_type?: string;
+    size: number;
+  }>;
   referenced_message?: { id: string } | null;
 }
 
@@ -78,7 +84,9 @@ const createMockRoute = (overrides: Partial<MockRoute> = {}): MockRoute => ({
   ...overrides,
 });
 
-const createMockMessage = (overrides: Partial<MockMessage> = {}): MockMessage => ({
+const createMockMessage = (
+  overrides: Partial<MockMessage> = {},
+): MockMessage => ({
   id: "msg-123",
   content: "Hello world",
   author: {
@@ -94,7 +102,9 @@ const createMockMessage = (overrides: Partial<MockMessage> = {}): MockMessage =>
   ...overrides,
 });
 
-const createMockEvent = (overrides: Partial<MockRoutableEvent> = {}): MockRoutableEvent => ({
+const createMockEvent = (
+  overrides: Partial<MockRoutableEvent> = {},
+): MockRoutableEvent => ({
   eventType: "MESSAGE_CREATE",
   eventId: "event-123",
   guildId: "guild-111",
@@ -127,7 +137,13 @@ describe("Event Router Logic", () => {
     it("should block bot messages when filter_bot_messages is true", () => {
       const route = createMockRoute({ filter_bot_messages: true });
       const message = createMockMessage({
-        author: { id: "bot-123", username: "TestBot", discriminator: "0000", avatar: null, bot: true },
+        author: {
+          id: "bot-123",
+          username: "TestBot",
+          discriminator: "0000",
+          avatar: null,
+          bot: true,
+        },
       });
 
       const shouldFilter = route.filter_bot_messages && message.author.bot;
@@ -137,7 +153,13 @@ describe("Event Router Logic", () => {
     it("should allow bot messages when filter_bot_messages is false", () => {
       const route = createMockRoute({ filter_bot_messages: false });
       const message = createMockMessage({
-        author: { id: "bot-123", username: "TestBot", discriminator: "0000", avatar: null, bot: true },
+        author: {
+          id: "bot-123",
+          username: "TestBot",
+          discriminator: "0000",
+          avatar: null,
+          bot: true,
+        },
       });
 
       const shouldFilter = route.filter_bot_messages && message.author.bot;
@@ -150,11 +172,18 @@ describe("Event Router Logic", () => {
       const botUserId = "bot-self-123";
       const route = createMockRoute({ filter_self_messages: true });
       const message = createMockMessage({
-        author: { id: botUserId, username: "OwnBot", discriminator: "0000", avatar: null, bot: true },
+        author: {
+          id: botUserId,
+          username: "OwnBot",
+          discriminator: "0000",
+          avatar: null,
+          bot: true,
+        },
       });
 
       // Simulating the check done in evaluateRoute
-      const isSelfMessage = route.filter_self_messages && message.author.id === botUserId;
+      const isSelfMessage =
+        route.filter_self_messages && message.author.id === botUserId;
       expect(isSelfMessage).toBe(true);
     });
 
@@ -162,10 +191,17 @@ describe("Event Router Logic", () => {
       const botUserId = "bot-self-123";
       const route = createMockRoute({ filter_self_messages: true });
       const message = createMockMessage({
-        author: { id: "user-other-456", username: "OtherUser", discriminator: "0001", avatar: null, bot: false },
+        author: {
+          id: "user-other-456",
+          username: "OtherUser",
+          discriminator: "0001",
+          avatar: null,
+          bot: false,
+        },
       });
 
-      const isSelfMessage = route.filter_self_messages && message.author.id === botUserId;
+      const isSelfMessage =
+        route.filter_self_messages && message.author.id === botUserId;
       expect(isSelfMessage).toBe(false);
     });
 
@@ -173,10 +209,17 @@ describe("Event Router Logic", () => {
       const botUserId = "bot-self-123";
       const route = createMockRoute({ filter_self_messages: false });
       const message = createMockMessage({
-        author: { id: botUserId, username: "OwnBot", discriminator: "0000", avatar: null, bot: true },
+        author: {
+          id: botUserId,
+          username: "OwnBot",
+          discriminator: "0000",
+          avatar: null,
+          bot: true,
+        },
       });
 
-      const isSelfMessage = route.filter_self_messages && message.author.id === botUserId;
+      const isSelfMessage =
+        route.filter_self_messages && message.author.id === botUserId;
       expect(isSelfMessage).toBe(false);
     });
   });
@@ -237,7 +280,9 @@ describe("Event Router Logic", () => {
       const route = createMockRoute({ command_prefix: "!" });
       const message = createMockMessage({ content: "!help" });
 
-      const hasPrefix = !route.command_prefix || message.content.startsWith(route.command_prefix);
+      const hasPrefix =
+        !route.command_prefix ||
+        message.content.startsWith(route.command_prefix);
       expect(hasPrefix).toBe(true);
     });
 
@@ -245,7 +290,9 @@ describe("Event Router Logic", () => {
       const route = createMockRoute({ command_prefix: "!" });
       const message = createMockMessage({ content: "hello everyone" });
 
-      const hasPrefix = !route.command_prefix || message.content.startsWith(route.command_prefix);
+      const hasPrefix =
+        !route.command_prefix ||
+        message.content.startsWith(route.command_prefix);
       expect(hasPrefix).toBe(false);
     });
 
@@ -270,7 +317,9 @@ describe("Event Router Logic", () => {
       const route = createMockRoute({ command_prefix: null });
       const message = createMockMessage({ content: "any message" });
 
-      const hasPrefix = !route.command_prefix || message.content.startsWith(route.command_prefix);
+      const hasPrefix =
+        !route.command_prefix ||
+        message.content.startsWith(route.command_prefix);
       expect(hasPrefix).toBe(true);
     });
 
@@ -309,14 +358,26 @@ describe("Event Router Logic", () => {
       // Message that passes all filters
       const validMessage = createMockMessage({
         content: "!help <@bot-self-123>",
-        author: { id: "user-456", username: "Human", discriminator: "0001", avatar: null, bot: false },
+        author: {
+          id: "user-456",
+          username: "Human",
+          discriminator: "0001",
+          avatar: null,
+          bot: false,
+        },
         mentions: [{ id: botUserId, username: "OwnBot", bot: true }],
       });
 
       const passesEnabled = route.enabled;
-      const passesBotFilter = !(route.filter_bot_messages && validMessage.author.bot);
-      const passesMentionFilter = !route.mention_only || validMessage.mentions.some((m) => m.id === botUserId);
-      const passesPrefixFilter = !route.command_prefix || validMessage.content.startsWith(route.command_prefix);
+      const passesBotFilter = !(
+        route.filter_bot_messages && validMessage.author.bot
+      );
+      const passesMentionFilter =
+        !route.mention_only ||
+        validMessage.mentions.some((m) => m.id === botUserId);
+      const passesPrefixFilter =
+        !route.command_prefix ||
+        validMessage.content.startsWith(route.command_prefix);
 
       expect(passesEnabled).toBe(true);
       expect(passesBotFilter).toBe(true);
@@ -336,11 +397,19 @@ describe("Event Router Logic", () => {
       // Message from a bot (fails bot filter)
       const botMessage = createMockMessage({
         content: "!help <@bot-self-123>",
-        author: { id: "other-bot-789", username: "OtherBot", discriminator: "0000", avatar: null, bot: true },
+        author: {
+          id: "other-bot-789",
+          username: "OtherBot",
+          discriminator: "0000",
+          avatar: null,
+          bot: true,
+        },
         mentions: [{ id: botUserId, username: "OwnBot", bot: true }],
       });
 
-      const passesBotFilter = !(route.filter_bot_messages && botMessage.author.bot);
+      const passesBotFilter = !(
+        route.filter_bot_messages && botMessage.author.bot
+      );
       expect(passesBotFilter).toBe(false);
     });
   });
@@ -350,7 +419,9 @@ describe("Event Router Logic", () => {
 
     validRouteTypes.forEach((routeType) => {
       it(`should accept valid route type: ${routeType}`, () => {
-        const route = createMockRoute({ route_type: routeType as MockRoute["route_type"] });
+        const route = createMockRoute({
+          route_type: routeType as MockRoute["route_type"],
+        });
         expect(validRouteTypes).toContain(route.route_type);
       });
     });
@@ -389,7 +460,8 @@ describe("Event Router Logic", () => {
 
       // Wildcard should conceptually match any event
       eventTypes.forEach((eventType) => {
-        const matches = route.event_type === "*" || route.event_type === eventType;
+        const matches =
+          route.event_type === "*" || route.event_type === eventType;
         expect(matches).toBe(true);
       });
     });
@@ -401,7 +473,8 @@ describe("Event Router Logic", () => {
       const event = createMockEvent({ channelId: "channel-123" });
 
       // null channel_id means "any channel"
-      const matches = route.channel_id === null || route.channel_id === event.channelId;
+      const matches =
+        route.channel_id === null || route.channel_id === event.channelId;
       expect(matches).toBe(true);
     });
 
@@ -409,7 +482,8 @@ describe("Event Router Logic", () => {
       const route = createMockRoute({ channel_id: "channel-123" });
       const event = createMockEvent({ channelId: "channel-123" });
 
-      const matches = route.channel_id === null || route.channel_id === event.channelId;
+      const matches =
+        route.channel_id === null || route.channel_id === event.channelId;
       expect(matches).toBe(true);
     });
 
@@ -417,7 +491,8 @@ describe("Event Router Logic", () => {
       const route = createMockRoute({ channel_id: "channel-123" });
       const event = createMockEvent({ channelId: "channel-456" });
 
-      const matches = route.channel_id === null || route.channel_id === event.channelId;
+      const matches =
+        route.channel_id === null || route.channel_id === event.channelId;
       expect(matches).toBe(false);
     });
 
@@ -456,7 +531,9 @@ describe("Event Router Logic", () => {
 
   describe("Route Target URL Handling", () => {
     it("should accept full HTTP URLs", () => {
-      const route = createMockRoute({ route_target: "https://agent.example.com/a2a" });
+      const route = createMockRoute({
+        route_target: "https://agent.example.com/a2a",
+      });
       const isFullUrl = route.route_target.startsWith("http");
       expect(isFullUrl).toBe(true);
     });
@@ -468,7 +545,9 @@ describe("Event Router Logic", () => {
     });
 
     it("should handle localhost URLs", () => {
-      const route = createMockRoute({ route_target: "http://localhost:3000/webhook" });
+      const route = createMockRoute({
+        route_target: "http://localhost:3000/webhook",
+      });
       const isFullUrl = route.route_target.startsWith("http");
       expect(isFullUrl).toBe(true);
     });
@@ -481,7 +560,9 @@ describe("Event Router Logic", () => {
 
       const baseUrl = "https://{id}.containers.elizacloud.ai";
       const containerUrl = baseUrl.replace("{id}", route.route_target);
-      expect(containerUrl).toBe("https://container-abc-123.containers.elizacloud.ai");
+      expect(containerUrl).toBe(
+        "https://container-abc-123.containers.elizacloud.ai",
+      );
     });
   });
 
@@ -559,8 +640,20 @@ describe("Event Router Logic", () => {
     it("should handle message with multiple attachments", () => {
       const message = createMockMessage({
         attachments: [
-          { id: "att-1", filename: "image.png", url: "https://cdn.discord.com/1.png", content_type: "image/png", size: 1024 },
-          { id: "att-2", filename: "doc.pdf", url: "https://cdn.discord.com/2.pdf", content_type: "application/pdf", size: 2048 },
+          {
+            id: "att-1",
+            filename: "image.png",
+            url: "https://cdn.discord.com/1.png",
+            content_type: "image/png",
+            size: 1024,
+          },
+          {
+            id: "att-2",
+            filename: "doc.pdf",
+            url: "https://cdn.discord.com/2.pdf",
+            content_type: "application/pdf",
+            size: 2048,
+          },
         ],
       });
       expect(message.attachments).toHaveLength(2);
@@ -569,7 +662,12 @@ describe("Event Router Logic", () => {
     it("should handle attachment without content_type", () => {
       const message = createMockMessage({
         attachments: [
-          { id: "att-1", filename: "unknown", url: "https://cdn.discord.com/1", size: 100 },
+          {
+            id: "att-1",
+            filename: "unknown",
+            url: "https://cdn.discord.com/1",
+            size: 100,
+          },
         ],
       });
       expect(message.attachments[0].content_type).toBeUndefined();
@@ -578,7 +676,12 @@ describe("Event Router Logic", () => {
     it("should handle very large attachment sizes", () => {
       const message = createMockMessage({
         attachments: [
-          { id: "att-1", filename: "large.zip", url: "https://cdn.discord.com/1.zip", size: 100 * 1024 * 1024 }, // 100MB
+          {
+            id: "att-1",
+            filename: "large.zip",
+            url: "https://cdn.discord.com/1.zip",
+            size: 100 * 1024 * 1024,
+          }, // 100MB
         ],
       });
       expect(message.attachments[0].size).toBe(100 * 1024 * 1024);
@@ -648,7 +751,11 @@ describe("A2A Request Building", () => {
       author_username: "testuser",
       mentions_bot: false,
       attachments: [
-        { url: "https://cdn.discord.com/1.png", filename: "image.png", content_type: "image/png" },
+        {
+          url: "https://cdn.discord.com/1.png",
+          filename: "image.png",
+          content_type: "image/png",
+        },
       ],
     };
 
@@ -744,4 +851,3 @@ describe("Queue Event Structure", () => {
     expect(queueItem.channel_id).toBeUndefined();
   });
 });
-

@@ -2,7 +2,7 @@
  * N8N Workflow Webhook Endpoint
  *
  * POST /api/v1/n8n/webhooks/:key - Trigger workflow via webhook
- * 
+ *
  * SECURITY FEATURES:
  * - HMAC signature verification (optional, configurable per trigger)
  * - Rate limiting (60 requests/minute per IP)
@@ -46,40 +46,40 @@ function isIpAllowed(clientIp: string, allowedIps?: string[]): boolean {
 function webhookError(
   message: string,
   status: number,
-  details?: Record<string, unknown>
+  details?: Record<string, unknown>,
 ): NextResponse {
   // Log with details, respond without
   if (details) {
     logger.warn(`[N8N Webhooks] ${message}`, details);
   }
-  
+
   // Return generic message to prevent enumeration attacks
   return NextResponse.json(
-    { 
-      success: false, 
+    {
+      success: false,
       error: status === 404 ? "Webhook unavailable" : message,
     },
-    { status }
+    { status },
   );
 }
 
 async function handleWebhook(
   request: NextRequest,
-  ctx: { params: Promise<{ key: string }> }
+  ctx: { params: Promise<{ key: string }> },
 ): Promise<Response> {
   const startTime = Date.now();
   const clientIp = getClientIp(request);
-  
+
   const { key } = await ctx.params;
 
   // Find trigger by key
   const trigger = await n8nWorkflowsService.findTriggerByKey(key);
-  
-  // SECURITY: Return same response for "not found" and "inactive" 
+
+  // SECURITY: Return same response for "not found" and "inactive"
   // to prevent enumeration attacks
   if (!trigger || !trigger.is_active) {
     // Add small random delay to prevent timing attacks
-    await new Promise(resolve => setTimeout(resolve, Math.random() * 50));
+    await new Promise((resolve) => setTimeout(resolve, Math.random() * 50));
     return webhookError("Webhook unavailable", 404, {
       keyPrefix: key.slice(0, 8) + "...",
       reason: !trigger ? "not_found" : "inactive",
@@ -111,7 +111,7 @@ async function handleWebhook(
   // SECURITY: Signature verification (if required)
   if (config.requireSignature && config.webhookSecret) {
     const signature = getSignatureFromHeaders(request.headers);
-    
+
     if (!signature) {
       return webhookError("Missing webhook signature", 401, {
         triggerId: trigger.id,
@@ -148,7 +148,7 @@ async function handleWebhook(
   try {
     const execution = await n8nWorkflowsService.executeWorkflowTrigger(
       trigger.id,
-      inputData
+      inputData,
     );
 
     const duration = Date.now() - startTime;
@@ -177,8 +177,9 @@ async function handleWebhook(
 
     return NextResponse.json(response);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Execution failed";
-    
+    const errorMessage =
+      error instanceof Error ? error.message : "Execution failed";
+
     logger.error(`[N8N Webhooks] Execution failed`, {
       triggerId: trigger.id,
       workflowId: trigger.workflow_id,
@@ -189,13 +190,19 @@ async function handleWebhook(
 
     // Check for specific error types
     if (errorMessage.includes("Insufficient credits")) {
-      return webhookError("Insufficient credits", 402, { triggerId: trigger.id });
+      return webhookError("Insufficient credits", 402, {
+        triggerId: trigger.id,
+      });
     }
     if (errorMessage.includes("daily execution limit")) {
-      return webhookError("Daily execution limit exceeded", 429, { triggerId: trigger.id });
+      return webhookError("Daily execution limit exceeded", 429, {
+        triggerId: trigger.id,
+      });
     }
     if (errorMessage.includes("Organization")) {
-      return webhookError("Organization not active", 403, { triggerId: trigger.id });
+      return webhookError("Organization not active", 403, {
+        triggerId: trigger.id,
+      });
     }
 
     return webhookError("Workflow execution failed", 500, {
@@ -223,17 +230,17 @@ export const POST = withRateLimit(handleWebhook, WEBHOOK_RATE_LIMIT);
 // Also support GET for health checks / webhook validation
 export async function GET(
   request: NextRequest,
-  ctx: { params: Promise<{ key: string }> }
+  ctx: { params: Promise<{ key: string }> },
 ): Promise<Response> {
   const { key } = await ctx.params;
-  
+
   // Just verify the webhook exists and is active
   const trigger = await n8nWorkflowsService.findTriggerByKey(key);
-  
+
   if (!trigger || !trigger.is_active || trigger.trigger_type !== "webhook") {
     return NextResponse.json(
       { success: false, error: "Webhook unavailable" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -241,6 +248,7 @@ export async function GET(
   return NextResponse.json({
     success: true,
     active: true,
-    requiresSignature: (trigger.config as WebhookTriggerConfig).requireSignature ?? true,
+    requiresSignature:
+      (trigger.config as WebhookTriggerConfig).requireSignature ?? true,
   });
 }

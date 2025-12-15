@@ -4,7 +4,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { addCorsHeaders, validateOrigin, createPreflightResponse } from "@/lib/middleware/cors-apps";
+import {
+  addCorsHeaders,
+  validateOrigin,
+  createPreflightResponse,
+} from "@/lib/middleware/cors-apps";
 
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
@@ -16,7 +20,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const { user, organization } = await requireAuthOrApiKeyWithOrg(request);
-    
+
     const response = NextResponse.json({
       success: true,
       user: {
@@ -32,7 +36,10 @@ export async function GET(request: NextRequest) {
 
     return addCorsHeaders(response, corsResult.origin);
   } catch {
-    const response = NextResponse.json({ success: false, user: null }, { status: 401 });
+    const response = NextResponse.json(
+      { success: false, user: null },
+      { status: 401 },
+    );
     return addCorsHeaders(response, corsResult.origin);
   }
 }

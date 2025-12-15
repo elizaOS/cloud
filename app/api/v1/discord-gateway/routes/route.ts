@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -127,6 +127,6 @@ export async function POST(request: NextRequest) {
       enabled: route.enabled,
       createdAt: route.created_at.toISOString(),
     },
-    { status: 201 }
+    { status: 201 },
   );
 }

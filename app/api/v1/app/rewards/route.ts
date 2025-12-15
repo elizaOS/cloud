@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { socialRewardsService, referralsService, REWARDS } from "@/lib/services/referrals";
-import { addCorsHeaders, validateOrigin, createPreflightResponse } from "@/lib/middleware/cors-apps";
+import {
+  socialRewardsService,
+  referralsService,
+  REWARDS,
+} from "@/lib/services/referrals";
+import {
+  addCorsHeaders,
+  validateOrigin,
+  createPreflightResponse,
+} from "@/lib/middleware/cors-apps";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -71,13 +79,21 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     logger.error("[App Rewards] Error getting rewards status", { error });
 
-    const status = error instanceof Error && error.message.includes("Unauthorized") ? 401 : 500;
+    const status =
+      error instanceof Error && error.message.includes("Unauthorized")
+        ? 401
+        : 500;
     const response = NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Failed to get rewards status" },
-      { status }
+      {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to get rewards status",
+      },
+      { status },
     );
 
     return addCorsHeaders(response, corsResult.origin);
   }
 }
-

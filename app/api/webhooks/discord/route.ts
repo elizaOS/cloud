@@ -10,7 +10,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { db } from "@/db";
-import { orgPlatformConnections, orgPlatformServers } from "@/db/schemas/org-platforms";
+import {
+  orgPlatformConnections,
+  orgPlatformServers,
+} from "@/db/schemas/org-platforms";
 import { eq, and } from "drizzle-orm";
 import nacl from "tweetnacl";
 
@@ -74,7 +77,7 @@ const RESPONSE_TYPES = {
 function verifyDiscordSignature(
   body: string,
   signature: string,
-  timestamp: string
+  timestamp: string,
 ): boolean {
   if (!DISCORD_PUBLIC_KEY) {
     logger.error("[Discord Webhook] DISCORD_PUBLIC_KEY not configured");
@@ -99,8 +102,8 @@ async function findOrgConnection(applicationId: string) {
       and(
         eq(orgPlatformConnections.platform, "discord"),
         eq(orgPlatformConnections.platform_bot_id, applicationId),
-        eq(orgPlatformConnections.status, "active")
-      )
+        eq(orgPlatformConnections.status, "active"),
+      ),
     )
     .limit(1);
 
@@ -110,7 +113,10 @@ async function findOrgConnection(applicationId: string) {
 /**
  * Check if a guild/server is enabled for the organization
  */
-async function isServerEnabled(connectionId: string, guildId: string): Promise<boolean> {
+async function isServerEnabled(
+  connectionId: string,
+  guildId: string,
+): Promise<boolean> {
   const [server] = await db
     .select()
     .from(orgPlatformServers)
@@ -118,8 +124,8 @@ async function isServerEnabled(connectionId: string, guildId: string): Promise<b
       and(
         eq(orgPlatformServers.connection_id, connectionId),
         eq(orgPlatformServers.server_id, guildId),
-        eq(orgPlatformServers.enabled, true)
-      )
+        eq(orgPlatformServers.enabled, true),
+      ),
     )
     .limit(1);
 
@@ -133,7 +139,7 @@ async function sendFollowup(
   applicationId: string,
   interactionToken: string,
   content: string,
-  ephemeral = false
+  ephemeral = false,
 ): Promise<void> {
   const url = `https://discord.com/api/v10/webhooks/${applicationId}/${interactionToken}`;
 
@@ -154,7 +160,7 @@ async function updateInteractionMessage(
   applicationId: string,
   interactionToken: string,
   content: string,
-  removeComponents = false
+  removeComponents = false,
 ): Promise<void> {
   const url = `https://discord.com/api/v10/webhooks/${applicationId}/${interactionToken}/messages/@original`;
 
@@ -178,15 +184,12 @@ export async function POST(request: NextRequest) {
   if (!signature || !timestamp) {
     return NextResponse.json(
       { error: "Missing signature headers" },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
   if (!verifyDiscordSignature(body, signature, timestamp)) {
-    return NextResponse.json(
-      { error: "Invalid signature" },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
   const interaction: DiscordInteraction = JSON.parse(body);
@@ -206,13 +209,17 @@ export async function POST(request: NextRequest) {
   // Find org connection for this Discord application
   const connection = await findOrgConnection(interaction.application_id);
   if (!connection) {
-    logger.warn("[Discord Webhook] No active connection found for application", {
-      applicationId: interaction.application_id,
-    });
+    logger.warn(
+      "[Discord Webhook] No active connection found for application",
+      {
+        applicationId: interaction.application_id,
+      },
+    );
     return NextResponse.json({
       type: RESPONSE_TYPES.CHANNEL_MESSAGE,
       data: {
-        content: "This bot is not configured. Please contact the administrator.",
+        content:
+          "This bot is not configured. Please contact the administrator.",
         flags: 64,
       },
     });
@@ -220,7 +227,10 @@ export async function POST(request: NextRequest) {
 
   // Check if guild is enabled (if in a guild)
   if (interaction.guild_id) {
-    const serverEnabled = await isServerEnabled(connection.id, interaction.guild_id);
+    const serverEnabled = await isServerEnabled(
+      connection.id,
+      interaction.guild_id,
+    );
     if (!serverEnabled) {
       logger.debug("[Discord Webhook] Server not enabled", {
         guildId: interaction.guild_id,
@@ -253,9 +263,10 @@ export async function POST(request: NextRequest) {
     void (async () => {
       // Basic command handling - in production, route to org agent
       let responseContent = `Command \`/${commandName}\` received. Agent routing not yet implemented.`;
-      
+
       if (commandName === "help") {
-        responseContent = "Available commands:\n• `/help` - Show this help message\n• `/ping` - Check bot status";
+        responseContent =
+          "Available commands:\n• `/help` - Show this help message\n• `/ping` - Check bot status";
       } else if (commandName === "ping") {
         responseContent = "Pong! 🏓 Bot is online and responding.";
       }
@@ -263,7 +274,7 @@ export async function POST(request: NextRequest) {
       await sendFollowup(
         interaction.application_id,
         interaction.token,
-        responseContent
+        responseContent,
       );
     })();
 
@@ -276,7 +287,8 @@ export async function POST(request: NextRequest) {
   if (interaction.type === INTERACTION_TYPES.MESSAGE_COMPONENT) {
     const customId = interaction.data?.custom_id;
     const userId = interaction.member?.user?.id || interaction.user?.id;
-    const username = interaction.member?.user?.username || interaction.user?.username;
+    const username =
+      interaction.member?.user?.username || interaction.user?.username;
 
     logger.info("[Discord Webhook] Processing component interaction", {
       customId,
@@ -285,20 +297,24 @@ export async function POST(request: NextRequest) {
     });
 
     // Handle reply confirmation buttons
-    if (customId?.startsWith("reply_confirm:") || customId?.startsWith("reply_reject:")) {
+    if (
+      customId?.startsWith("reply_confirm:") ||
+      customId?.startsWith("reply_reject:")
+    ) {
       const [action, confirmationId] = customId.split(":");
       const isConfirm = action === "reply_confirm";
 
       // Defer immediately, then process
       void (async () => {
-        const { replyRouterService } = await import("@/lib/services/social-feed/reply-router");
+        const { replyRouterService } =
+          await import("@/lib/services/social-feed/reply-router");
 
         if (isConfirm) {
           const result = await replyRouterService.handleConfirmation(
             confirmationId,
             connection.organization_id,
             userId ?? "unknown",
-            username
+            username,
           );
 
           const message = result.success
@@ -309,20 +325,20 @@ export async function POST(request: NextRequest) {
             interaction.application_id,
             interaction.token,
             message,
-            true
+            true,
           );
         } else {
           await replyRouterService.handleRejection(
             confirmationId,
             connection.organization_id,
-            userId ?? "unknown"
+            userId ?? "unknown",
           );
 
           await updateInteractionMessage(
             interaction.application_id,
             interaction.token,
             "❌ Reply was not sent.",
-            true
+            true,
           );
         }
       })();
@@ -355,4 +371,3 @@ export async function POST(request: NextRequest) {
     },
   });
 }
-

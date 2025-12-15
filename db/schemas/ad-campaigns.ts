@@ -135,21 +135,23 @@ export const adCampaigns = pgTable(
   },
   (table) => ({
     organization_idx: index("ad_campaigns_organization_idx").on(
-      table.organization_id
+      table.organization_id,
     ),
-    ad_account_idx: index("ad_campaigns_ad_account_idx").on(table.ad_account_id),
+    ad_account_idx: index("ad_campaigns_ad_account_idx").on(
+      table.ad_account_id,
+    ),
     platform_idx: index("ad_campaigns_platform_idx").on(table.platform),
     status_idx: index("ad_campaigns_status_idx").on(table.status),
     external_id_idx: index("ad_campaigns_external_id_idx").on(
-      table.external_campaign_id
+      table.external_campaign_id,
     ),
     app_idx: index("ad_campaigns_app_idx").on(table.app_id),
     created_at_idx: index("ad_campaigns_created_at_idx").on(table.created_at),
     org_status_idx: index("ad_campaigns_org_status_idx").on(
       table.organization_id,
-      table.status
+      table.status,
     ),
-  })
+  }),
 );
 
 export type AdCampaign = InferSelectModel<typeof adCampaigns>;

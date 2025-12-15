@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
-import { feedConfigService, type NotificationChannel } from "@/lib/services/social-feed";
+import {
+  feedConfigService,
+  type NotificationChannel,
+} from "@/lib/services/social-feed";
 import { logger } from "@/lib/utils/logger";
 
 const CreateFeedConfigSchema = z.object({
@@ -14,12 +17,14 @@ const CreateFeedConfigSchema = z.object({
   monitorQuoteTweets: z.boolean().optional().default(true),
   monitorReposts: z.boolean().optional().default(false),
   monitorLikes: z.boolean().optional().default(false),
-  notificationChannels: z.array(z.object({
-    platform: z.enum(["discord", "telegram", "slack"]),
-    channelId: z.string(),
-    serverId: z.string().optional(),
-    connectionId: z.string().optional(),
-  })),
+  notificationChannels: z.array(
+    z.object({
+      platform: z.enum(["discord", "telegram", "slack"]),
+      channelId: z.string(),
+      serverId: z.string().optional(),
+      connectionId: z.string().optional(),
+    }),
+  ),
   pollingIntervalSeconds: z.number().optional().default(60),
   minFollowerCount: z.number().optional(),
   filterKeywords: z.array(z.string()).optional(),
@@ -28,9 +33,20 @@ const CreateFeedConfigSchema = z.object({
 
 const ListFeedsQuerySchema = z.object({
   sourcePlatform: z.string().optional(),
-  enabled: z.string().optional().transform((v) => v === "true" ? true : v === "false" ? false : undefined),
-  limit: z.string().optional().transform((v) => v ? parseInt(v, 10) : 50),
-  offset: z.string().optional().transform((v) => v ? parseInt(v, 10) : 0),
+  enabled: z
+    .string()
+    .optional()
+    .transform((v) =>
+      v === "true" ? true : v === "false" ? false : undefined,
+    ),
+  limit: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : 50)),
+  offset: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : 0)),
 });
 
 export async function GET(request: NextRequest) {
@@ -113,14 +129,17 @@ export async function POST(request: NextRequest) {
     createdBy: user.id,
   });
 
-  return NextResponse.json({
-    success: true,
-    data: {
-      id: config.id,
-      sourcePlatform: config.source_platform,
-      sourceAccountId: config.source_account_id,
-      enabled: config.enabled,
-      createdAt: config.created_at,
+  return NextResponse.json(
+    {
+      success: true,
+      data: {
+        id: config.id,
+        sourcePlatform: config.source_platform,
+        sourceAccountId: config.source_account_id,
+        enabled: config.enabled,
+        createdAt: config.created_at,
+      },
     },
-  }, { status: 201 });
+    { status: 201 },
+  );
 }

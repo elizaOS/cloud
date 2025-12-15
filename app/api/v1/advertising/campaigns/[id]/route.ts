@@ -65,7 +65,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -80,7 +80,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         : undefined,
       endDate: parsed.data.endDate ? new Date(parsed.data.endDate) : undefined,
       targeting: parsed.data.targeting,
-    }
+    },
   );
 
   logger.info("[Advertising API] Campaign updated", { campaignId: id });

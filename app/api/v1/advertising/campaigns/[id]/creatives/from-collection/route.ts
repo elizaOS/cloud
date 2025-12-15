@@ -24,16 +24,18 @@ const CreateFromCollectionSchema = z.object({
   headline: z.string().max(30).optional(),
   primaryText: z.string().max(500).optional(),
   description: z.string().max(90).optional(),
-  callToAction: z.enum([
-    "LEARN_MORE",
-    "SHOP_NOW",
-    "SIGN_UP",
-    "SUBSCRIBE",
-    "CONTACT_US",
-    "GET_OFFER",
-    "BOOK_NOW",
-    "DOWNLOAD",
-  ]).optional(),
+  callToAction: z
+    .enum([
+      "LEARN_MORE",
+      "SHOP_NOW",
+      "SIGN_UP",
+      "SUBSCRIBE",
+      "CONTACT_US",
+      "GET_OFFER",
+      "BOOK_NOW",
+      "DOWNLOAD",
+    ])
+    .optional(),
   destinationUrl: z.string().url(),
   namePrefix: z.string().max(50).optional(),
 });
@@ -52,25 +54,27 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   // Verify collection ownership
   const isOwner = await mediaCollectionsService.validateOwnership(
     parsed.data.collectionId,
-    user.organization_id!
+    user.organization_id!,
   );
 
   if (!isOwner) {
     return NextResponse.json(
       { error: "Collection not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
   // Get collection items
-  const allItems = await mediaCollectionsService.getItems(parsed.data.collectionId);
+  const allItems = await mediaCollectionsService.getItems(
+    parsed.data.collectionId,
+  );
   const items = parsed.data.itemIds
     ? allItems.filter((item) => parsed.data.itemIds!.includes(item.id))
     : allItems;
@@ -78,7 +82,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (items.length === 0) {
     return NextResponse.json(
       { error: "No items found in collection" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -116,7 +120,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             order: 0,
           },
         ],
-      }
+      },
     );
 
     createdCreatives.push({
@@ -132,9 +136,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     count: createdCreatives.length,
   });
 
-  return NextResponse.json({
-    creatives: createdCreatives,
-    count: createdCreatives.length,
-  }, { status: 201 });
+  return NextResponse.json(
+    {
+      creatives: createdCreatives,
+      count: createdCreatives.length,
+    },
+    { status: 201 },
+  );
 }
-

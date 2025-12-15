@@ -100,18 +100,18 @@ export const orgPlatformConnections = pgTable(
   },
   (table) => ({
     org_platform_idx: index("org_platform_connections_org_idx").on(
-      table.organization_id
+      table.organization_id,
     ),
     platform_idx: index("org_platform_connections_platform_idx").on(
-      table.platform
+      table.platform,
     ),
     unique_org_platform: uniqueIndex("org_platform_connections_unique").on(
       table.organization_id,
       table.platform,
-      table.platform_bot_id
+      table.platform_bot_id,
     ),
     status_idx: index("org_platform_connections_status_idx").on(table.status),
-  })
+  }),
 );
 
 // =============================================================================
@@ -143,7 +143,7 @@ export const orgPlatformServers = pgTable(
 
     // Configuration
     enabled: boolean("enabled").notNull().default(true),
-    
+
     // Agent configuration - which agents are active on this server
     enabled_agents: jsonb("enabled_agents")
       .$type<string[]>()
@@ -167,7 +167,9 @@ export const orgPlatformServers = pgTable(
         support_channel_ids?: string[];
         knowledge_base_enabled?: boolean;
       };
-      [key: string]: Record<string, string | boolean | string[] | undefined> | undefined;
+      [key: string]:
+        | Record<string, string | boolean | string[] | undefined>
+        | undefined;
     }>(),
 
     // Channel mappings
@@ -193,17 +195,18 @@ export const orgPlatformServers = pgTable(
   },
   (table) => ({
     connection_idx: index("org_platform_servers_connection_idx").on(
-      table.connection_id
+      table.connection_id,
     ),
     org_idx: index("org_platform_servers_org_idx").on(table.organization_id),
     server_id_idx: index("org_platform_servers_server_id_idx").on(
-      table.server_id
+      table.server_id,
     ),
-    unique_connection_server: uniqueIndex(
-      "org_platform_servers_unique"
-    ).on(table.connection_id, table.server_id),
+    unique_connection_server: uniqueIndex("org_platform_servers_unique").on(
+      table.connection_id,
+      table.server_id,
+    ),
     enabled_idx: index("org_platform_servers_enabled_idx").on(table.enabled),
-  })
+  }),
 );
 
 // =============================================================================
@@ -275,13 +278,13 @@ export const orgTodos = pgTable(
     status_idx: index("org_todos_status_idx").on(table.status),
     assignee_idx: index("org_todos_assignee_idx").on(
       table.assignee_platform_id,
-      table.assignee_platform
+      table.assignee_platform,
     ),
     due_date_idx: index("org_todos_due_date_idx").on(table.due_date),
     created_by_idx: index("org_todos_created_by_idx").on(
-      table.created_by_user_id
+      table.created_by_user_id,
     ),
-  })
+  }),
 );
 
 // =============================================================================
@@ -322,8 +325,12 @@ export const orgCheckinSchedules = pgTable(
 
     // Schedule config
     name: text("name").notNull(),
-    checkin_type: orgCheckinTypeEnum("checkin_type").notNull().default("standup"),
-    frequency: orgCheckinFrequencyEnum("frequency").notNull().default("weekdays"),
+    checkin_type: orgCheckinTypeEnum("checkin_type")
+      .notNull()
+      .default("standup"),
+    frequency: orgCheckinFrequencyEnum("frequency")
+      .notNull()
+      .default("weekdays"),
     time_utc: text("time_utc").notNull().default("09:00"), // HH:MM in UTC
     timezone: text("timezone").default("UTC"),
 
@@ -332,11 +339,13 @@ export const orgCheckinSchedules = pgTable(
     report_channel_id: text("report_channel_id"), // Where to post reports
 
     // Questions/prompts
-    questions: jsonb("questions").$type<string[]>().default([
-      "What did you accomplish yesterday?",
-      "What are you working on today?",
-      "Any blockers?",
-    ]),
+    questions: jsonb("questions")
+      .$type<string[]>()
+      .default([
+        "What did you accomplish yesterday?",
+        "What are you working on today?",
+        "Any blockers?",
+      ]),
 
     // Status
     enabled: boolean("enabled").notNull().default(true),
@@ -353,9 +362,9 @@ export const orgCheckinSchedules = pgTable(
     server_idx: index("org_checkin_schedules_server_idx").on(table.server_id),
     enabled_idx: index("org_checkin_schedules_enabled_idx").on(table.enabled),
     next_run_idx: index("org_checkin_schedules_next_run_idx").on(
-      table.next_run_at
+      table.next_run_at,
     ),
-  })
+  }),
 );
 
 // =============================================================================
@@ -402,15 +411,15 @@ export const orgCheckinResponses = pgTable(
   },
   (table) => ({
     schedule_idx: index("org_checkin_responses_schedule_idx").on(
-      table.schedule_id
+      table.schedule_id,
     ),
     org_idx: index("org_checkin_responses_org_idx").on(table.organization_id),
     responder_idx: index("org_checkin_responses_responder_idx").on(
       table.responder_platform_id,
-      table.responder_platform
+      table.responder_platform,
     ),
     date_idx: index("org_checkin_responses_date_idx").on(table.checkin_date),
-  })
+  }),
 );
 
 // =============================================================================
@@ -459,7 +468,8 @@ export const orgTeamMembers = pgTable(
     checkin_streak: text("checkin_streak").default("0"),
 
     // Metadata
-    metadata: jsonb("metadata").$type<Record<string, string | number | boolean>>(),
+    metadata:
+      jsonb("metadata").$type<Record<string, string | number | boolean>>(),
 
     // Timestamps
     created_at: timestamp("created_at").notNull().defaultNow(),
@@ -470,14 +480,14 @@ export const orgTeamMembers = pgTable(
     server_idx: index("org_team_members_server_idx").on(table.server_id),
     platform_user_idx: index("org_team_members_platform_user_idx").on(
       table.platform_user_id,
-      table.platform
+      table.platform,
     ),
     unique_member: uniqueIndex("org_team_members_unique").on(
       table.server_id,
       table.platform_user_id,
-      table.platform
+      table.platform,
     ),
-  })
+  }),
 );
 
 // =============================================================================
@@ -485,7 +495,8 @@ export const orgTeamMembers = pgTable(
 // =============================================================================
 
 export type OrgPlatformConnection = typeof orgPlatformConnections.$inferSelect;
-export type NewOrgPlatformConnection = typeof orgPlatformConnections.$inferInsert;
+export type NewOrgPlatformConnection =
+  typeof orgPlatformConnections.$inferInsert;
 
 export type OrgPlatformServer = typeof orgPlatformServers.$inferSelect;
 export type NewOrgPlatformServer = typeof orgPlatformServers.$inferInsert;
@@ -501,4 +512,3 @@ export type NewOrgCheckinResponse = typeof orgCheckinResponses.$inferInsert;
 
 export type OrgTeamMember = typeof orgTeamMembers.$inferSelect;
 export type NewOrgTeamMember = typeof orgTeamMembers.$inferInsert;
-

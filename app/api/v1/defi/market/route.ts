@@ -12,10 +12,15 @@ const QuerySchema = z.object({
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const parsed = QuerySchema.safeParse({ source: searchParams.get("source") ?? "coingecko" });
+  const parsed = QuerySchema.safeParse({
+    source: searchParams.get("source") ?? "coingecko",
+  });
 
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid parameters", details: parsed.error.format() }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid parameters", details: parsed.error.format() },
+      { status: 400 },
+    );
   }
 
   const result = await fetchMarketOverview(parsed.data.source);

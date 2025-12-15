@@ -31,12 +31,16 @@ function getRedisClient(): Redis | null {
 
   if (redisUrl) {
     redis = Redis.fromEnv();
-    logger.info("[A2A TaskStore] ✓ Redis task store initialized (native protocol)");
+    logger.info(
+      "[A2A TaskStore] ✓ Redis task store initialized (native protocol)",
+    );
   } else if (restUrl && restToken) {
     redis = new Redis({ url: restUrl, token: restToken });
     logger.info("[A2A TaskStore] ✓ Redis task store initialized (REST API)");
   } else {
-    logger.warn("[A2A TaskStore] ⚠️ Redis not available, using in-memory fallback");
+    logger.warn(
+      "[A2A TaskStore] ⚠️ Redis not available, using in-memory fallback",
+    );
     redis = null;
   }
 
@@ -57,7 +61,10 @@ if (typeof setInterval !== "undefined") {
 }
 
 class A2ATaskStoreService {
-  async get(taskId: string, organizationId: string): Promise<TaskStoreEntry | null> {
+  async get(
+    taskId: string,
+    organizationId: string,
+  ): Promise<TaskStoreEntry | null> {
     const client = getRedisClient();
     const key = `${TASK_KEY_PREFIX}${taskId}`;
 
@@ -65,7 +72,8 @@ class A2ATaskStoreService {
       const value = await client.get<string>(key);
       if (!value) return null;
 
-      const entry: TaskStoreEntry = typeof value === "string" ? JSON.parse(value) : value;
+      const entry: TaskStoreEntry =
+        typeof value === "string" ? JSON.parse(value) : value;
 
       // Verify organization access
       if (entry.organizationId !== organizationId) {
@@ -117,7 +125,7 @@ class A2ATaskStoreService {
   async update(
     taskId: string,
     organizationId: string,
-    updater: (entry: TaskStoreEntry) => TaskStoreEntry
+    updater: (entry: TaskStoreEntry) => TaskStoreEntry,
   ): Promise<TaskStoreEntry | null> {
     const existing = await this.get(taskId, organizationId);
     if (!existing) return null;
@@ -157,7 +165,7 @@ class A2ATaskStoreService {
 
   async listByOrganization(
     organizationId: string,
-    limit = 50
+    limit = 50,
   ): Promise<TaskStoreEntry[]> {
     const client = getRedisClient();
 
@@ -194,7 +202,10 @@ class A2ATaskStoreService {
     }
 
     return entries
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      )
       .slice(0, limit);
   }
 
@@ -202,7 +213,7 @@ class A2ATaskStoreService {
     taskId: string,
     organizationId: string,
     state: Task["status"]["state"],
-    message?: Task["status"]["message"]
+    message?: Task["status"]["message"],
   ): Promise<Task | null> {
     const result = await this.update(taskId, organizationId, (entry) => ({
       ...entry,
@@ -222,7 +233,7 @@ class A2ATaskStoreService {
   async addArtifact(
     taskId: string,
     organizationId: string,
-    artifact: Task["artifacts"] extends (infer A)[] | undefined ? A : never
+    artifact: Task["artifacts"] extends (infer A)[] | undefined ? A : never,
   ): Promise<Task | null> {
     const result = await this.update(taskId, organizationId, (entry) => ({
       ...entry,
@@ -238,7 +249,7 @@ class A2ATaskStoreService {
   async addMessageToHistory(
     taskId: string,
     organizationId: string,
-    message: Task["history"] extends (infer M)[] | undefined ? M : never
+    message: Task["history"] extends (infer M)[] | undefined ? M : never,
   ): Promise<void> {
     await this.update(taskId, organizationId, (entry) => ({
       ...entry,
@@ -255,4 +266,3 @@ class A2ATaskStoreService {
 }
 
 export const a2aTaskStoreService = new A2ATaskStoreService();
-

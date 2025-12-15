@@ -81,10 +81,7 @@ export async function POST(request: NextRequest) {
   const corsResult = await validateOrigin(request);
 
   // Rate limiting
-  const rateLimitResult = await checkAppRateLimit(
-    request,
-    APP_RATE_LIMITS,
-  );
+  const rateLimitResult = await checkAppRateLimit(request, APP_RATE_LIMITS);
   if (!rateLimitResult.allowed) {
     return createRateLimitErrorResponse(
       rateLimitResult,
@@ -110,8 +107,13 @@ export async function POST(request: NextRequest) {
       return addCorsHeaders(response, corsResult.origin);
     }
 
-    const { creditPackId, amount, successUrl, cancelUrl, appId: bodyAppId } =
-      validationResult.data;
+    const {
+      creditPackId,
+      amount,
+      successUrl,
+      cancelUrl,
+      appId: bodyAppId,
+    } = validationResult.data;
 
     // App ID can come from body OR X-App-Id header (proxy adds header automatically)
     const headerAppId = request.headers.get("X-App-Id");
@@ -126,9 +128,13 @@ export async function POST(request: NextRequest) {
     // Determine if this is an app-specific purchase
     const isAppPurchase = !!appId;
     const purchaseSource = isAppPurchase ? "app_app" : "app";
-    
+
     if (isAppPurchase) {
-      logger.info("[App Billing] App-specific checkout", { appId, headerAppId, bodyAppId });
+      logger.info("[App Billing] App-specific checkout", {
+        appId,
+        headerAppId,
+        bodyAppId,
+      });
     }
 
     if (creditPackId) {
@@ -159,8 +165,8 @@ export async function POST(request: NextRequest) {
       };
     } else if (amount) {
       // For app purchases, customize the product name to show app context
-      const productName = isAppPurchase 
-        ? "App Credits Top-up" 
+      const productName = isAppPurchase
+        ? "App Credits Top-up"
         : "Account Balance Top-up";
       const productDescription = isAppPurchase
         ? `Add $${amount.toFixed(2)} credits to your app balance`

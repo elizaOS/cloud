@@ -42,12 +42,7 @@ describe("Token Validation", () => {
     });
 
     it("should reject JWT with empty segments", () => {
-      const invalidJwts = [
-        ".middle.end",
-        "start..end",
-        "start.middle.",
-        "..",
-      ];
+      const invalidJwts = [".middle.end", "start..end", "start.middle.", ".."];
 
       invalidJwts.forEach((jwt) => {
         const parts = jwt.split(".");
@@ -93,9 +88,7 @@ describe("Authorization Header Parsing", () => {
   describe("Bearer Token", () => {
     it("should extract bearer token", () => {
       const header = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9";
-      const token = header.startsWith("Bearer ")
-        ? header.substring(7)
-        : null;
+      const token = header.startsWith("Bearer ") ? header.substring(7) : null;
 
       expect(token).toBe("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9");
     });
@@ -154,12 +147,7 @@ describe("Authorization Header Parsing", () => {
     });
 
     it("should handle case-insensitive header names", () => {
-      const variants = [
-        "X-API-Key",
-        "x-api-key",
-        "X-Api-Key",
-        "x-API-key",
-      ];
+      const variants = ["X-API-Key", "x-api-key", "X-Api-Key", "x-API-key"];
 
       variants.forEach((header) => {
         expect(header.toLowerCase()).toBe("x-api-key");
@@ -281,7 +269,7 @@ describe("Rate Limiting Patterns", () => {
       let tokens = 50;
       const refilled = Math.min(
         MAX_TOKENS,
-        tokens + REFILL_RATE * elapsedSeconds
+        tokens + REFILL_RATE * elapsedSeconds,
       );
 
       expect(refilled).toBe(100);
@@ -362,12 +350,7 @@ describe("Session Handling", () => {
     });
 
     it("should reject invalid session tokens", () => {
-      const invalidTokens = [
-        "",
-        "token_abc",
-        "SESS_abc",
-        "session_abc",
-      ];
+      const invalidTokens = ["", "token_abc", "SESS_abc", "session_abc"];
 
       invalidTokens.forEach((token) => {
         expect(token.startsWith("sess_")).toBe(false);
@@ -464,7 +447,7 @@ describe("Permission Checking", () => {
     it("should check permission for role", () => {
       const hasPermission = (
         role: keyof typeof ROLES,
-        permission: string
+        permission: string,
       ): boolean => {
         return ROLES[role].includes(permission);
       };
@@ -560,9 +543,7 @@ describe("Permission Checking", () => {
       const tokenScopes = ["read", "write"];
       const requiredScopes = ["read"];
 
-      const hasAllScopes = requiredScopes.every((s) =>
-        tokenScopes.includes(s)
-      );
+      const hasAllScopes = requiredScopes.every((s) => tokenScopes.includes(s));
 
       expect(hasAllScopes).toBe(true);
     });
@@ -571,9 +552,7 @@ describe("Permission Checking", () => {
       const tokenScopes = ["read"];
       const requiredScopes = ["read", "write"];
 
-      const hasAllScopes = requiredScopes.every((s) =>
-        tokenScopes.includes(s)
-      );
+      const hasAllScopes = requiredScopes.every((s) => tokenScopes.includes(s));
 
       expect(hasAllScopes).toBe(false);
     });
@@ -607,7 +586,7 @@ describe("Concurrent Authentication", () => {
       authRequests.map(async (req) => {
         await new Promise((r) => setTimeout(r, Math.random() * 10));
         return { token: req.token, valid: true };
-      })
+      }),
     );
 
     expect(results.length).toBe(20);
@@ -671,7 +650,8 @@ describe("Concurrent Authentication", () => {
 describe("Anonymous Sessions", () => {
   describe("Session Creation", () => {
     it("should create anonymous session with fingerprint", () => {
-      const fingerprint = "fp_" + crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+      const fingerprint =
+        "fp_" + crypto.randomUUID().replace(/-/g, "").slice(0, 16);
       const session = {
         id: crypto.randomUUID(),
         fingerprint,

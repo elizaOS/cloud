@@ -563,4 +563,3 @@ export interface HeliusBalance {
     tokenAccount: string;
   }>;
 }
-

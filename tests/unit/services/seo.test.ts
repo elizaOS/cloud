@@ -79,7 +79,10 @@ beforeEach(() => {
     return r;
   };
   seoRequestsRepository.findById = async (id: string) => requestsStore.get(id);
-  seoRequestsRepository.findByIdempotency = async (orgId: string, key: string) =>
+  seoRequestsRepository.findByIdempotency = async (
+    orgId: string,
+    key: string,
+  ) =>
     [...requestsStore.values()].find(
       (r) => r.organization_id === orgId && r.idempotency_key === key,
     );
@@ -159,7 +162,12 @@ beforeEach(() => {
               result: [
                 {
                   keyword_data: [
-                    { keyword: "alpha", search_volume: 100, cpc: 1.2, competition: 0.5 },
+                    {
+                      keyword: "alpha",
+                      search_volume: 100,
+                      cpc: 1.2,
+                      competition: 0.5,
+                    },
                   ],
                 },
               ],
@@ -174,7 +182,12 @@ beforeEach(() => {
       return new Response(
         JSON.stringify({
           organic_results: [
-            { position: 1, title: "Result 1", link: "https://example.com", snippet: "Snippet" },
+            {
+              position: 1,
+              title: "Result 1",
+              link: "https://example.com",
+              snippet: "Snippet",
+            },
           ],
         }),
         { status: 200 },
@@ -201,16 +214,20 @@ afterAll(() => {
   // Restore originals
   seoRequestsRepository.create = originalRequestsRepo.create;
   seoRequestsRepository.findById = originalRequestsRepo.findById;
-  seoRequestsRepository.findByIdempotency = originalRequestsRepo.findByIdempotency;
+  seoRequestsRepository.findByIdempotency =
+    originalRequestsRepo.findByIdempotency;
   seoRequestsRepository.updateStatus = originalRequestsRepo.updateStatus;
-  seoRequestsRepository.listByOrganization = originalRequestsRepo.listByOrganization;
+  seoRequestsRepository.listByOrganization =
+    originalRequestsRepo.listByOrganization;
 
   seoArtifactsRepository.create = originalArtifactsRepo.create;
   seoArtifactsRepository.listByRequest = originalArtifactsRepo.listByRequest;
 
   seoProviderCallsRepository.create = originalProviderCallsRepo.create;
-  seoProviderCallsRepository.listByRequest = originalProviderCallsRepo.listByRequest;
-  seoProviderCallsRepository.updateStatus = originalProviderCallsRepo.updateStatus;
+  seoProviderCallsRepository.listByRequest =
+    originalProviderCallsRepo.listByRequest;
+  seoProviderCallsRepository.updateStatus =
+    originalProviderCallsRepo.updateStatus;
 
   creditsService.deductCredits = originalDeductCredits;
 });
@@ -242,7 +259,9 @@ describe("SeoService edge cases", () => {
     });
 
     expect(second.request.id).toBe(first.request.id);
-    expect(await seoArtifactsRepository.listByRequest(first.request.id)).toHaveLength(1);
+    expect(
+      await seoArtifactsRepository.listByRequest(first.request.id),
+    ).toHaveLength(1);
   });
 
   it("rejects SERP snapshot when no query or keywords provided", async () => {
@@ -270,4 +289,3 @@ describe("SeoService edge cases", () => {
     });
   });
 });
-

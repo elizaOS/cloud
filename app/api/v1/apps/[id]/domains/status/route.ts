@@ -1,6 +1,6 @@
 /**
  * Domain Status API
- * 
+ *
  * Check the current status of a domain's DNS configuration.
  * Returns verification status, SSL status, and required DNS records.
  */
@@ -12,7 +12,11 @@ import { vercelDomainsService } from "@/lib/services/vercel-domains";
 import { z } from "zod";
 
 const StatusSchema = z.object({
-  domain: z.string().min(4).max(253).transform((d) => d.toLowerCase().trim()),
+  domain: z
+    .string()
+    .min(4)
+    .max(253)
+    .transform((d) => d.toLowerCase().trim()),
 });
 
 interface RouteParams {
@@ -25,7 +29,7 @@ interface RouteParams {
  */
 export async function POST(
   request: NextRequest,
-  { params }: RouteParams
+  { params }: RouteParams,
 ): Promise<NextResponse> {
   const user = await requireAuthWithOrg(request);
   const { id: appId } = await params;
@@ -34,7 +38,7 @@ export async function POST(
   if (!app || app.organization_id !== user.organization_id) {
     return NextResponse.json(
       { success: false, error: "App not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -44,7 +48,7 @@ export async function POST(
   if (!validation.success) {
     return NextResponse.json(
       { success: false, error: "Invalid domain format" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -53,11 +57,11 @@ export async function POST(
   // Check if Vercel is configured
   if (!process.env.VERCEL_TOKEN || !process.env.VERCEL_APP_PROJECT_ID) {
     return NextResponse.json(
-      { 
-        success: false, 
-        error: "Domain management is not configured" 
+      {
+        success: false,
+        error: "Domain management is not configured",
       },
-      { status: 503 }
+      { status: 503 },
     );
   }
 
@@ -65,7 +69,10 @@ export async function POST(
 
   // Get DNS instructions based on domain type
   const isApex = vercelDomainsService.isApexDomain(domain);
-  const dnsInstructions = vercelDomainsService.getDnsInstructions(domain, isApex);
+  const dnsInstructions = vercelDomainsService.getDnsInstructions(
+    domain,
+    isApex,
+  );
 
   // If verified, sync status to database
   if (status.verified) {

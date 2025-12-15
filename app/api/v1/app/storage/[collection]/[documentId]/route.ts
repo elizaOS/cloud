@@ -7,7 +7,8 @@ import { logger } from "@/lib/utils/logger";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, PUT, PATCH, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-App-Token, X-Api-Key",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, X-App-Token, X-Api-Key",
 };
 
 async function getAppForUser(organizationId: string) {
@@ -29,7 +30,7 @@ export async function OPTIONS() {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<RouteParams> }
+  { params }: { params: Promise<RouteParams> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { collection: collectionName, documentId } = await params;
@@ -38,7 +39,7 @@ export async function GET(
   if (!app) {
     return NextResponse.json(
       { success: false, error: "No app found for this organization" },
-      { status: 404, headers: corsHeaders }
+      { status: 404, headers: corsHeaders },
     );
   }
 
@@ -47,7 +48,7 @@ export async function GET(
   if (!document) {
     return NextResponse.json(
       { success: false, error: "Document not found" },
-      { status: 404, headers: corsHeaders }
+      { status: 404, headers: corsHeaders },
     );
   }
 
@@ -56,7 +57,7 @@ export async function GET(
       success: true,
       document: {
         id: document.id,
-        ...document.data as Record<string, unknown>,
+        ...(document.data as Record<string, unknown>),
         _meta: {
           collection: collectionName,
           createdAt: document.created_at,
@@ -66,13 +67,13 @@ export async function GET(
         },
       },
     },
-    { headers: corsHeaders }
+    { headers: corsHeaders },
   );
 }
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<RouteParams> }
+  { params }: { params: Promise<RouteParams> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { collection: collectionName, documentId } = await params;
@@ -81,7 +82,7 @@ export async function PATCH(
   if (!app) {
     return NextResponse.json(
       { success: false, error: "No app found for this organization" },
-      { status: 404, headers: corsHeaders }
+      { status: 404, headers: corsHeaders },
     );
   }
 
@@ -94,7 +95,7 @@ export async function PATCH(
     app.id,
     documentId,
     updateData,
-    user.id
+    user.id,
   );
 
   logger.info(`[App Storage API] Updated document`, {
@@ -109,7 +110,7 @@ export async function PATCH(
       success: true,
       document: {
         id: document.id,
-        ...document.data as Record<string, unknown>,
+        ...(document.data as Record<string, unknown>),
         _meta: {
           collection: collectionName,
           createdAt: document.created_at,
@@ -119,13 +120,13 @@ export async function PATCH(
         },
       },
     },
-    { headers: corsHeaders }
+    { headers: corsHeaders },
   );
 }
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<RouteParams> }
+  { params }: { params: Promise<RouteParams> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { collection: collectionName, documentId } = await params;
@@ -134,7 +135,7 @@ export async function PUT(
   if (!app) {
     return NextResponse.json(
       { success: false, error: "No app found for this organization" },
-      { status: 404, headers: corsHeaders }
+      { status: 404, headers: corsHeaders },
     );
   }
 
@@ -147,7 +148,7 @@ export async function PUT(
     app.id,
     documentId,
     newData,
-    user.id
+    user.id,
   );
 
   logger.info(`[App Storage API] Replaced document`, {
@@ -162,7 +163,7 @@ export async function PUT(
       success: true,
       document: {
         id: document.id,
-        ...document.data as Record<string, unknown>,
+        ...(document.data as Record<string, unknown>),
         _meta: {
           collection: collectionName,
           createdAt: document.created_at,
@@ -172,13 +173,13 @@ export async function PUT(
         },
       },
     },
-    { headers: corsHeaders }
+    { headers: corsHeaders },
   );
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<RouteParams> }
+  { params }: { params: Promise<RouteParams> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { collection: collectionName, documentId } = await params;
@@ -187,7 +188,7 @@ export async function DELETE(
   if (!app) {
     return NextResponse.json(
       { success: false, error: "No app found for this organization" },
-      { status: 404, headers: corsHeaders }
+      { status: 404, headers: corsHeaders },
     );
   }
 
@@ -217,6 +218,6 @@ export async function DELETE(
       message: hardDelete ? "Document permanently deleted" : "Document deleted",
       documentId,
     },
-    { headers: corsHeaders }
+    { headers: corsHeaders },
   );
 }

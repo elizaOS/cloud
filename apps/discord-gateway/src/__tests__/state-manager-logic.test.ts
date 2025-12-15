@@ -35,7 +35,9 @@ interface RateLimitState {
   windowStart: number;
 }
 
-const createMockConnectionState = (overrides: Partial<BotConnectionState> = {}): BotConnectionState => ({
+const createMockConnectionState = (
+  overrides: Partial<BotConnectionState> = {},
+): BotConnectionState => ({
   connectionId: "conn-123",
   organizationId: "org-456",
   applicationId: "app-789",
@@ -79,7 +81,9 @@ describe("State Manager Logic", () => {
       const parsed = JSON.parse(json) as BotConnectionState;
 
       expect(parsed.sessionId).toBe("session-123");
-      expect(parsed.resumeGatewayUrl).toBe("wss://gateway.discord.gg/?v=10&encoding=json");
+      expect(parsed.resumeGatewayUrl).toBe(
+        "wss://gateway.discord.gg/?v=10&encoding=json",
+      );
       expect(parsed.sequence).toBe(42);
       expect(parsed.guilds).toHaveLength(3);
       expect(parsed.status).toBe("connected");
@@ -217,7 +221,9 @@ describe("State Manager Logic", () => {
     });
 
     it("should remove guild from list", () => {
-      const state = createMockConnectionState({ guilds: ["guild-1", "guild-2", "guild-3"] });
+      const state = createMockConnectionState({
+        guilds: ["guild-1", "guild-2", "guild-3"],
+      });
 
       // Remove guild
       state.guilds = state.guilds.filter((g) => g !== "guild-2");
@@ -374,7 +380,10 @@ describe("State Manager Logic", () => {
       const connections = [
         createMockConnectionState({ connectionId: "conn-1", podId: deadPodId }),
         createMockConnectionState({ connectionId: "conn-2", podId: deadPodId }),
-        createMockConnectionState({ connectionId: "conn-3", podId: "pod-alive" }),
+        createMockConnectionState({
+          connectionId: "conn-3",
+          podId: "pod-alive",
+        }),
       ];
 
       const claimed: string[] = [];
@@ -561,7 +570,9 @@ describe("State Manager Logic", () => {
       const connectionId = "conn-123";
       const route = "POST:/channels/456/messages";
       const key = `discord:ratelimit:${connectionId}:${route}`;
-      expect(key).toBe("discord:ratelimit:conn-123:POST:/channels/456/messages");
+      expect(key).toBe(
+        "discord:ratelimit:conn-123:POST:/channels/456/messages",
+      );
     });
 
     it("should handle special characters in keys", () => {
@@ -591,7 +602,12 @@ describe("State Manager Logic", () => {
   });
 
   describe("Connection Status Transitions", () => {
-    const validStatuses = ["disconnected", "connecting", "connected", "error"] as const;
+    const validStatuses = [
+      "disconnected",
+      "connecting",
+      "connected",
+      "error",
+    ] as const;
 
     it("should handle disconnected -> connecting transition", () => {
       const state = createMockConnectionState({ status: "disconnected" });
@@ -651,7 +667,7 @@ describe("State Manager Logic", () => {
           connectionId: `conn-shard-${i}`,
           shardId: i,
           shardCount,
-        })
+        }),
       );
 
       expect(states).toHaveLength(4);
@@ -677,4 +693,3 @@ describe("State Manager Logic", () => {
     });
   });
 });
-

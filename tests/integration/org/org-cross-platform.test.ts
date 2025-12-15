@@ -1,13 +1,13 @@
 /**
  * ORG Cross-Platform Integration Tests
- * 
+ *
  * Tests the integration between:
  * - Web UI (org-app)
  * - Discord bot
  * - Telegram bot
  * - Cloud APIs
  * - MCP tools
- * 
+ *
  * Verifies that:
  * - Todos created via one platform appear in others
  * - Check-in responses sync across platforms
@@ -42,16 +42,18 @@ let authValid = false;
 async function apiRequest(
   endpoint: string,
   method: "GET" | "POST" | "PATCH" | "DELETE" = "GET",
-  body?: Record<string, unknown>
+  body?: Record<string, unknown>,
 ): Promise<Response> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
   if (APP_TOKEN) {
     headers["X-App-Token"] = APP_TOKEN;
   } else if (API_KEY) {
     headers["Authorization"] = `Bearer ${API_KEY}`;
   }
-  
+
   return fetch(`${SERVER_URL}/api/v1/app${endpoint}`, {
     method,
     headers,
@@ -60,18 +62,23 @@ async function apiRequest(
   });
 }
 
-async function mcpToolCall(toolName: string, args: Record<string, unknown> = {}): Promise<{
+async function mcpToolCall(
+  toolName: string,
+  args: Record<string, unknown> = {},
+): Promise<{
   success: boolean;
   [key: string]: unknown;
 }> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
   if (APP_TOKEN) {
     headers["X-App-Token"] = APP_TOKEN;
   } else if (API_KEY) {
     headers["Authorization"] = `Bearer ${API_KEY}`;
   }
-  
+
   const response = await fetch(`${SERVER_URL}/api/mcp/org/sse`, {
     method: "POST",
     headers,
@@ -82,7 +89,7 @@ async function mcpToolCall(toolName: string, args: Record<string, unknown> = {})
       id: Date.now(),
     }),
   });
-  
+
   const data = await response.json();
   const text = data.result?.content?.[0]?.text;
   if (!text) throw new Error("No MCP response");
@@ -148,7 +155,7 @@ describe("Cross-Platform Todo Sync", () => {
       description: "Testing cross-platform sync",
       priority: "high",
     });
-    
+
     expect(createResponse.status).toBe(200);
     const { todo: createdTodo } = await createResponse.json();
     createdResources.todos.push(createdTodo.id);
@@ -158,7 +165,7 @@ describe("Cross-Platform Todo Sync", () => {
     expect(mcpResult.success).toBe(true);
 
     const found = (mcpResult.todos as Array<{ id: string }>).find(
-      (t) => t.id === createdTodo.id
+      (t) => t.id === createdTodo.id,
     );
     expect(found).toBeDefined();
   });
@@ -172,7 +179,7 @@ describe("Cross-Platform Todo Sync", () => {
       description: "Testing reverse sync",
       priority: "low",
     });
-    
+
     expect(mcpResult.success).toBe(true);
     const todoId = (mcpResult.todo as { id: string }).id;
     createdResources.todos.push(todoId);
@@ -203,10 +210,10 @@ describe("Cross-Platform Todo Sync", () => {
 
     // Verify via MCP list
     const mcpResult = await mcpToolCall("list_todos", { limit: 50 });
-    const found = (mcpResult.todos as Array<{ id: string; status: string; priority: string }>).find(
-      (t) => t.id === createdTodo.id
-    );
-    
+    const found = (
+      mcpResult.todos as Array<{ id: string; status: string; priority: string }>
+    ).find((t) => t.id === createdTodo.id);
+
     expect(found).toBeDefined();
     expect(found!.status).toBe("in_progress");
     expect(found!.priority).toBe("urgent");
@@ -231,7 +238,7 @@ describe("Cross-Platform Todo Sync", () => {
     // Verify via API
     const getResponse = await apiRequest(`/tasks/${createdTodo.id}`);
     const { todo } = await getResponse.json();
-    
+
     expect(todo.status).toBe("completed");
     expect(todo.completedAt).not.toBeNull();
   });
@@ -247,9 +254,15 @@ describe("Cross-Platform Todo Sync", () => {
     const mcpResult = await mcpToolCall("get_todo_stats", {});
 
     // Compare key metrics
-    expect(apiData.stats.total).toBe((mcpResult.stats as { total: number }).total);
-    expect(apiData.stats.pending).toBe((mcpResult.stats as { pending: number }).pending);
-    expect(apiData.stats.completed).toBe((mcpResult.stats as { completed: number }).completed);
+    expect(apiData.stats.total).toBe(
+      (mcpResult.stats as { total: number }).total,
+    );
+    expect(apiData.stats.pending).toBe(
+      (mcpResult.stats as { pending: number }).pending,
+    );
+    expect(apiData.stats.completed).toBe(
+      (mcpResult.stats as { completed: number }).completed,
+    );
   });
 });
 
@@ -265,7 +278,7 @@ describe("Platform Source Tracking", () => {
       title: "Web-sourced Todo",
       sourcePlatform: "web",
     });
-    
+
     const { todo } = await response.json();
     createdResources.todos.push(todo.id);
 
@@ -282,7 +295,7 @@ describe("Platform Source Tracking", () => {
       sourceChannelId: "987654321",
       sourceMessageId: "111222333",
     });
-    
+
     const { todo } = await response.json();
     createdResources.todos.push(todo.id);
 
@@ -299,7 +312,7 @@ describe("Platform Source Tracking", () => {
       sourceServerId: "-1001234567890",
       sourceMessageId: "444",
     });
-    
+
     const { todo } = await response.json();
     createdResources.todos.push(todo.id);
 
@@ -347,7 +360,7 @@ describe("Assignee Cross-Platform", () => {
       assigneePlatform: "discord",
       assigneeName: "DiscordUser#1234",
     });
-    
+
     const { todo } = await response.json();
     createdResources.todos.push(todo.id);
 
@@ -366,7 +379,7 @@ describe("Assignee Cross-Platform", () => {
       assigneePlatform: "telegram",
       assigneeName: "@telegramuser",
     });
-    
+
     const { todo } = await response.json();
     createdResources.todos.push(todo.id);
 
@@ -391,12 +404,14 @@ describe("Assignee Cross-Platform", () => {
 
     // Filter
     const filterResponse = await apiRequest(
-      `/tasks?assigneePlatformId=${assigneeId}`
+      `/tasks?assigneePlatformId=${assigneeId}`,
     );
     const filterData = await filterResponse.json();
 
     expect(filterData.todos.length).toBeGreaterThanOrEqual(1);
-    const found = filterData.todos.find((t: { id: string }) => t.id === todo.id);
+    const found = filterData.todos.find(
+      (t: { id: string }) => t.id === todo.id,
+    );
     expect(found).toBeDefined();
   });
 });
@@ -435,9 +450,7 @@ describe("Bot Connection Status", () => {
     const mcpResult = await mcpToolCall("get_platform_status", {});
 
     // Compare counts
-    expect(apiData.bots.length).toBe(
-      (mcpResult.platforms as unknown[]).length
-    );
+    expect(apiData.bots.length).toBe((mcpResult.platforms as unknown[]).length);
   });
 });
 
@@ -450,12 +463,14 @@ describe("Data Consistency", () => {
     if (skip()) return;
 
     // Create multiple todos rapidly
-    const createPromises = Array(5).fill(null).map((_, i) =>
-      apiRequest("/tasks", "POST", {
-        title: `Rapid Create Test ${i}`,
-        priority: i % 2 === 0 ? "high" : "low",
-      })
-    );
+    const createPromises = Array(5)
+      .fill(null)
+      .map((_, i) =>
+        apiRequest("/tasks", "POST", {
+          title: `Rapid Create Test ${i}`,
+          priority: i % 2 === 0 ? "high" : "low",
+        }),
+      );
 
     const responses = await Promise.all(createPromises);
     const todos = await Promise.all(
@@ -463,7 +478,7 @@ describe("Data Consistency", () => {
         const data = await r.json();
         createdResources.todos.push(data.todo.id);
         return data.todo;
-      })
+      }),
     );
 
     // Verify all were created
@@ -474,7 +489,9 @@ describe("Data Consistency", () => {
     const listData = await listResponse.json();
 
     for (const todo of todos) {
-      const found = listData.todos.find((t: { id: string }) => t.id === todo.id);
+      const found = listData.todos.find(
+        (t: { id: string }) => t.id === todo.id,
+      );
       expect(found).toBeDefined();
     }
   });
@@ -507,4 +524,3 @@ describe("Data Consistency", () => {
     expect(finalTodo.status).toBe("in_progress");
   });
 });
-

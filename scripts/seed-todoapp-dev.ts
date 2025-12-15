@@ -17,7 +17,10 @@ import { organizations } from "@/db/schemas/organizations";
 import { users } from "@/db/schemas/users";
 import { apps, type NewApp } from "@/db/schemas/apps";
 import { apiKeys, type NewApiKey } from "@/db/schemas/api-keys";
-import { userCharacters, type NewUserCharacter } from "@/db/schemas/user-characters";
+import {
+  userCharacters,
+  type NewUserCharacter,
+} from "@/db/schemas/user-characters";
 // Note: app_collections requires running migrations first
 // import { appCollections, type CollectionSchema, type CollectionIndex } from "@/db/schemas/app-storage";
 import * as crypto from "crypto";
@@ -148,7 +151,9 @@ async function seedTodoAppDev() {
     logger.info(`[Seed Todo App] Created API key: ${apiKey?.id}`);
   } else {
     logger.info(`[Seed Todo App] Using existing API key: ${apiKey.id}`);
-    logger.info("[Seed Todo App] Note: Cannot retrieve existing key value. Delete and re-run if needed.");
+    logger.info(
+      "[Seed Todo App] Note: Cannot retrieve existing key value. Delete and re-run if needed.",
+    );
   }
 
   // ============================================
@@ -187,7 +192,12 @@ Be encouraging and celebrate completions! Use the gamification system to motivat
       ],
       message_examples: [
         [
-          { user: "user", content: { text: "Add a task to review the quarterly report by Friday" } },
+          {
+            user: "user",
+            content: {
+              text: "Add a task to review the quarterly report by Friday",
+            },
+          },
           {
             user: "Task Assistant",
             content: {
@@ -196,7 +206,10 @@ Be encouraging and celebrate completions! Use the gamification system to motivat
           },
         ],
         [
-          { user: "user", content: { text: "I want to exercise every morning" } },
+          {
+            user: "user",
+            content: { text: "I want to exercise every morning" },
+          },
           {
             user: "Task Assistant",
             content: {
@@ -214,8 +227,20 @@ Be encouraging and celebrate completions! Use the gamification system to motivat
           },
         ],
       ],
-      topics: ["productivity", "task management", "habits", "goals", "time management"],
-      adjectives: ["helpful", "encouraging", "organized", "motivating", "friendly"],
+      topics: [
+        "productivity",
+        "task management",
+        "habits",
+        "goals",
+        "time management",
+      ],
+      adjectives: [
+        "helpful",
+        "encouraging",
+        "organized",
+        "motivating",
+        "friendly",
+      ],
       style: {
         all: [
           "Be encouraging and positive",
@@ -252,7 +277,10 @@ Be encouraging and celebrate completions! Use the gamification system to motivat
       mcp_enabled: true,
     };
 
-    const [newAgent] = await db.insert(userCharacters).values(characterData).returning();
+    const [newAgent] = await db
+      .insert(userCharacters)
+      .values(characterData)
+      .returning();
     agent = newAgent;
     logger.info(`[Seed Todo App] Created agent: ${agent?.id}`);
   } else {
@@ -262,7 +290,9 @@ Be encouraging and celebrate completions! Use the gamification system to motivat
   // ============================================
   // 6. Storage collections (skipped - created on-demand by storage API)
   // ============================================
-  logger.info("[Seed Todo App] Note: Collections will be created on-demand via storage API");
+  logger.info(
+    "[Seed Todo App] Note: Collections will be created on-demand via storage API",
+  );
 
   // ============================================
   // 7. Write .env.local file

@@ -1,12 +1,16 @@
 import { describe, it, expect, beforeEach, mock } from "bun:test";
-import { SecretsService, type AuditContext } from "@/lib/services/secrets/secrets";
+import {
+  SecretsService,
+  type AuditContext,
+} from "@/lib/services/secrets/secrets";
 import {
   SecretsEncryptionService,
   LocalKMSProvider,
 } from "@/lib/services/secrets/encryption";
 import type { SecretProjectType } from "@/db/schemas/secrets";
 
-const TEST_KEY = "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210";
+const TEST_KEY =
+  "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210";
 const ORG_ID = "org-test-bindings";
 const USER_ID = "user-test-bindings";
 
@@ -15,9 +19,13 @@ const mockSecretsFindById = mock(() => Promise.resolve(undefined));
 const mockSecretsCreate = mock(() => Promise.resolve({} as never));
 const mockSecretsFindByName = mock(() => Promise.resolve(undefined));
 const mockSecretsFindByContext = mock(() => Promise.resolve([] as never[]));
-const mockSecretsListByOrganization = mock(() => Promise.resolve([] as never[]));
+const mockSecretsListByOrganization = mock(() =>
+  Promise.resolve([] as never[]),
+);
 const mockSecretsListByProject = mock(() => Promise.resolve([] as never[]));
-const mockSecretsListFiltered = mock(() => Promise.resolve({ secrets: [], total: 0 } as never));
+const mockSecretsListFiltered = mock(() =>
+  Promise.resolve({ secrets: [], total: 0 } as never),
+);
 const mockSecretsUpdate = mock(() => Promise.resolve({} as never));
 const mockSecretsDelete = mock(() => Promise.resolve(true));
 const mockSecretsRecordAccess = mock(() => Promise.resolve());
@@ -26,9 +34,13 @@ const mockBindingsCreate = mock(() => Promise.resolve({} as never));
 const mockBindingsFindById = mock(() => Promise.resolve(undefined));
 const mockBindingsFindByIdAndOrg = mock(() => Promise.resolve(undefined));
 const mockBindingsFindByProject = mock(() => Promise.resolve([] as never[]));
-const mockBindingsFindByOrgAndProject = mock(() => Promise.resolve({ bindings: [], total: 0 } as never));
+const mockBindingsFindByOrgAndProject = mock(() =>
+  Promise.resolve({ bindings: [], total: 0 } as never),
+);
 const mockBindingsFindBySecret = mock(() => Promise.resolve([] as never[]));
-const mockBindingsFindBySecretAndProject = mock(() => Promise.resolve(undefined));
+const mockBindingsFindBySecretAndProject = mock(() =>
+  Promise.resolve(undefined),
+);
 const mockBindingsDelete = mock(() => Promise.resolve());
 
 const mockAppReqsCreate = mock(() => Promise.resolve({} as never));
@@ -107,18 +119,45 @@ mock.module("@/db/repositories/secrets", () => ({
 
 const resetMocks = () => {
   [
-    mockSecretsFindById, mockSecretsCreate, mockSecretsFindByName,
-    mockSecretsFindByContext, mockSecretsListByOrganization, mockSecretsListByProject,
-    mockSecretsListFiltered, mockSecretsUpdate, mockSecretsDelete, mockSecretsRecordAccess,
-    mockBindingsCreate, mockBindingsFindById, mockBindingsFindByIdAndOrg, mockBindingsFindByProject,
-    mockBindingsFindByOrgAndProject, mockBindingsFindBySecret, mockBindingsFindBySecretAndProject, mockBindingsDelete,
-    mockAppReqsCreate, mockAppReqsFindById, mockAppReqsFindByAppAndName,
-    mockAppReqsFindByApp, mockAppReqsFindApprovedByApp, mockAppReqsSyncRequirements,
-    mockAppReqsApprove, mockAppReqsRevoke, mockAppReqsUpdate, mockAppReqsDelete,
-    mockAuditCreate, mockAuditFindBySecret, mockAuditFindByOrg,
-    mockOauthFindByOrgAndProvider, mockOauthCreate, mockOauthUpdate,
-    mockOauthRecordUsage, mockOauthRevoke, mockOauthFindById, mockOauthListByOrganization,
-  ].forEach(m => m.mockReset());
+    mockSecretsFindById,
+    mockSecretsCreate,
+    mockSecretsFindByName,
+    mockSecretsFindByContext,
+    mockSecretsListByOrganization,
+    mockSecretsListByProject,
+    mockSecretsListFiltered,
+    mockSecretsUpdate,
+    mockSecretsDelete,
+    mockSecretsRecordAccess,
+    mockBindingsCreate,
+    mockBindingsFindById,
+    mockBindingsFindByIdAndOrg,
+    mockBindingsFindByProject,
+    mockBindingsFindByOrgAndProject,
+    mockBindingsFindBySecret,
+    mockBindingsFindBySecretAndProject,
+    mockBindingsDelete,
+    mockAppReqsCreate,
+    mockAppReqsFindById,
+    mockAppReqsFindByAppAndName,
+    mockAppReqsFindByApp,
+    mockAppReqsFindApprovedByApp,
+    mockAppReqsSyncRequirements,
+    mockAppReqsApprove,
+    mockAppReqsRevoke,
+    mockAppReqsUpdate,
+    mockAppReqsDelete,
+    mockAuditCreate,
+    mockAuditFindBySecret,
+    mockAuditFindByOrg,
+    mockOauthFindByOrgAndProvider,
+    mockOauthCreate,
+    mockOauthUpdate,
+    mockOauthRecordUsage,
+    mockOauthRevoke,
+    mockOauthFindById,
+    mockOauthListByOrganization,
+  ].forEach((m) => m.mockReset());
 };
 
 const auditCtx: AuditContext = {
@@ -132,7 +171,9 @@ describe("Secret Bindings", () => {
 
   beforeEach(() => {
     resetMocks();
-    const encryption = new SecretsEncryptionService(new LocalKMSProvider(TEST_KEY));
+    const encryption = new SecretsEncryptionService(
+      new LocalKMSProvider(TEST_KEY),
+    );
     service = new SecretsService(encryption);
   });
 
@@ -157,12 +198,15 @@ describe("Secret Bindings", () => {
         created_at: new Date(),
       } as never);
 
-      const result = await service.bindSecret({
-        secretId,
-        projectId,
-        projectType: "app",
-        createdBy: USER_ID,
-      }, auditCtx);
+      const result = await service.bindSecret(
+        {
+          secretId,
+          projectId,
+          projectType: "app",
+          createdBy: USER_ID,
+        },
+        auditCtx,
+      );
 
       expect(result.id).toBe("binding-789");
       expect(result.secretId).toBe(secretId);
@@ -175,17 +219,26 @@ describe("Secret Bindings", () => {
       mockSecretsFindById.mockResolvedValue(undefined);
 
       await expect(
-        service.bindSecret({
-          secretId: "nonexistent",
-          projectId: "project-1",
-          projectType: "app",
-          createdBy: USER_ID,
-        }, auditCtx)
+        service.bindSecret(
+          {
+            secretId: "nonexistent",
+            projectId: "project-1",
+            projectType: "app",
+            createdBy: USER_ID,
+          },
+          auditCtx,
+        ),
       ).rejects.toThrow("Secret not found");
     });
 
     it("supports all project types", async () => {
-      const projectTypes: SecretProjectType[] = ["character", "app", "workflow", "container", "mcp"];
+      const projectTypes: SecretProjectType[] = [
+        "character",
+        "app",
+        "workflow",
+        "container",
+        "mcp",
+      ];
 
       for (const projectType of projectTypes) {
         mockSecretsFindById.mockResolvedValue({
@@ -204,12 +257,15 @@ describe("Secret Bindings", () => {
           created_at: new Date(),
         } as never);
 
-        const result = await service.bindSecret({
-          secretId: "secret-123",
-          projectId: `project-${projectType}`,
-          projectType,
-          createdBy: USER_ID,
-        }, auditCtx);
+        const result = await service.bindSecret(
+          {
+            secretId: "secret-123",
+            projectId: `project-${projectType}`,
+            projectType,
+            createdBy: USER_ID,
+          },
+          auditCtx,
+        );
 
         expect(result.projectType).toBe(projectType);
       }
@@ -222,29 +278,35 @@ describe("Secret Bindings", () => {
       const projectId = "project-bulk";
 
       let callCount = 0;
-      mockSecretsFindById.mockImplementation(async () => ({
-        id: secretIds[callCount++] || "s1",
-        organization_id: ORG_ID,
-        name: `KEY_${callCount}`,
-      } as never));
+      mockSecretsFindById.mockImplementation(
+        async () =>
+          ({
+            id: secretIds[callCount++] || "s1",
+            organization_id: ORG_ID,
+            name: `KEY_${callCount}`,
+          }) as never,
+      );
 
       let bindCount = 0;
-      mockBindingsCreate.mockImplementation(async () => ({
-        id: `binding-${++bindCount}`,
-        secret_id: secretIds[bindCount - 1],
-        organization_id: ORG_ID,
-        project_id: projectId,
-        project_type: "workflow",
-        created_by: USER_ID,
-        created_at: new Date(),
-      } as never));
+      mockBindingsCreate.mockImplementation(
+        async () =>
+          ({
+            id: `binding-${++bindCount}`,
+            secret_id: secretIds[bindCount - 1],
+            organization_id: ORG_ID,
+            project_id: projectId,
+            project_type: "workflow",
+            created_by: USER_ID,
+            created_at: new Date(),
+          }) as never,
+      );
 
       const result = await service.bindSecrets(
         secretIds,
         projectId,
         "workflow",
         USER_ID,
-        auditCtx
+        auditCtx,
       );
 
       expect(result.bound.length).toBe(3);
@@ -281,7 +343,7 @@ describe("Secret Bindings", () => {
         "project-1",
         "app",
         USER_ID,
-        auditCtx
+        auditCtx,
       );
 
       expect(result.bound.length).toBe(2);
@@ -296,7 +358,7 @@ describe("Secret Bindings", () => {
         "project-1",
         "app",
         USER_ID,
-        auditCtx
+        auditCtx,
       );
 
       expect(result.bound.length).toBe(0);
@@ -323,7 +385,7 @@ describe("Secret Bindings", () => {
       mockBindingsFindByIdAndOrg.mockResolvedValue(undefined);
 
       await expect(
-        service.unbindSecret("nonexistent", ORG_ID, auditCtx)
+        service.unbindSecret("nonexistent", ORG_ID, auditCtx),
       ).rejects.toThrow("Binding not found");
     });
 
@@ -331,7 +393,7 @@ describe("Secret Bindings", () => {
       mockBindingsFindByIdAndOrg.mockResolvedValue(undefined);
 
       await expect(
-        service.unbindSecret("binding-123", ORG_ID, auditCtx)
+        service.unbindSecret("binding-123", ORG_ID, auditCtx),
       ).rejects.toThrow("Binding not found");
     });
   });
@@ -362,11 +424,14 @@ describe("Secret Bindings", () => {
         total: 2,
       } as never);
 
-      mockSecretsFindById.mockImplementation(async (id) => ({
-        id,
-        name: id === "s1" ? "API_KEY" : "DATABASE_URL",
-        organization_id: ORG_ID,
-      } as never));
+      mockSecretsFindById.mockImplementation(
+        async (id) =>
+          ({
+            id,
+            name: id === "s1" ? "API_KEY" : "DATABASE_URL",
+            organization_id: ORG_ID,
+          }) as never,
+      );
 
       const result = await service.listBindings(ORG_ID, "project-1");
 
@@ -377,11 +442,20 @@ describe("Secret Bindings", () => {
     });
 
     it("filters by project type", async () => {
-      mockBindingsFindByOrgAndProject.mockResolvedValue({ bindings: [], total: 0 } as never);
+      mockBindingsFindByOrgAndProject.mockResolvedValue({
+        bindings: [],
+        total: 0,
+      } as never);
 
       await service.listBindings(ORG_ID, "project-1", "workflow");
 
-      expect(mockBindingsFindByOrgAndProject).toHaveBeenCalledWith(ORG_ID, "project-1", "workflow", 100, 0);
+      expect(mockBindingsFindByOrgAndProject).toHaveBeenCalledWith(
+        ORG_ID,
+        "project-1",
+        "workflow",
+        100,
+        0,
+      );
     });
   });
 });
@@ -391,7 +465,9 @@ describe("listFiltered", () => {
 
   beforeEach(() => {
     resetMocks();
-    const encryption = new SecretsEncryptionService(new LocalKMSProvider(TEST_KEY));
+    const encryption = new SecretsEncryptionService(
+      new LocalKMSProvider(TEST_KEY),
+    );
     service = new SecretsService(encryption);
   });
 
@@ -425,7 +501,10 @@ describe("listFiltered", () => {
   });
 
   it("passes all filter parameters", async () => {
-    mockSecretsListFiltered.mockResolvedValue({ secrets: [], total: 0 } as never);
+    mockSecretsListFiltered.mockResolvedValue({
+      secrets: [],
+      total: 0,
+    } as never);
 
     await service.listFiltered({
       organizationId: ORG_ID,
@@ -448,14 +527,17 @@ describe("listFiltered", () => {
   });
 
   it("passes through undefined for optional parameters", async () => {
-    mockSecretsListFiltered.mockResolvedValue({ secrets: [], total: 0 } as never);
+    mockSecretsListFiltered.mockResolvedValue({
+      secrets: [],
+      total: 0,
+    } as never);
 
     await service.listFiltered({ organizationId: ORG_ID });
 
     expect(mockSecretsListFiltered).toHaveBeenCalledWith(
       expect.objectContaining({
         organizationId: ORG_ID,
-      })
+      }),
     );
   });
 });
@@ -465,7 +547,9 @@ describe("App Secret Requirements", () => {
 
   beforeEach(() => {
     resetMocks();
-    const encryption = new SecretsEncryptionService(new LocalKMSProvider(TEST_KEY));
+    const encryption = new SecretsEncryptionService(
+      new LocalKMSProvider(TEST_KEY),
+    );
     service = new SecretsService(encryption);
   });
 
@@ -537,10 +621,16 @@ describe("App Secret Requirements", () => {
         },
       ] as never[]);
 
-      const synced = await service.syncAppSecretRequirements("app-123", manifestReqs);
+      const synced = await service.syncAppSecretRequirements(
+        "app-123",
+        manifestReqs,
+      );
 
       expect(synced.length).toBe(2);
-      expect(mockAppReqsSyncRequirements).toHaveBeenCalledWith("app-123", manifestReqs);
+      expect(mockAppReqsSyncRequirements).toHaveBeenCalledWith(
+        "app-123",
+        manifestReqs,
+      );
     });
   });
 
@@ -558,7 +648,10 @@ describe("App Secret Requirements", () => {
         updated_at: new Date(),
       } as never);
 
-      const result = await service.approveAppSecretRequirement("req-1", USER_ID);
+      const result = await service.approveAppSecretRequirement(
+        "req-1",
+        USER_ID,
+      );
 
       expect(result.approved).toBe(true);
       expect(result.approved_by).toBe(USER_ID);
@@ -587,8 +680,18 @@ describe("App Secret Requirements", () => {
   describe("getApprovedAppSecrets", () => {
     it("returns only approved secret names", async () => {
       mockAppReqsFindApprovedByApp.mockResolvedValue([
-        { id: "req-1", app_id: "app-123", secret_name: "APPROVED_1", approved: true },
-        { id: "req-3", app_id: "app-123", secret_name: "APPROVED_2", approved: true },
+        {
+          id: "req-1",
+          app_id: "app-123",
+          secret_name: "APPROVED_1",
+          approved: true,
+        },
+        {
+          id: "req-3",
+          app_id: "app-123",
+          secret_name: "APPROVED_2",
+          approved: true,
+        },
       ] as never[]);
 
       const approved = await service.getApprovedAppSecrets("app-123");
@@ -600,7 +703,12 @@ describe("App Secret Requirements", () => {
   describe("getAppSecrets", () => {
     it("returns decrypted values only for approved secrets", async () => {
       mockAppReqsFindApprovedByApp.mockResolvedValue([
-        { id: "req-1", app_id: "app-123", secret_name: "APPROVED_KEY", approved: true },
+        {
+          id: "req-1",
+          app_id: "app-123",
+          secret_name: "APPROVED_KEY",
+          approved: true,
+        },
       ] as never[]);
 
       const enc = await service["encryption"].encrypt("secret-value");
@@ -629,7 +737,9 @@ describe("bulkCreate", () => {
 
   beforeEach(() => {
     resetMocks();
-    const encryption = new SecretsEncryptionService(new LocalKMSProvider(TEST_KEY));
+    const encryption = new SecretsEncryptionService(
+      new LocalKMSProvider(TEST_KEY),
+    );
     service = new SecretsService(encryption);
   });
 
@@ -637,24 +747,30 @@ describe("bulkCreate", () => {
     mockSecretsFindByName.mockResolvedValue(undefined);
 
     let createCount = 0;
-    mockSecretsCreate.mockImplementation(async () => ({
-      id: `secret-${++createCount}`,
-      organization_id: ORG_ID,
-      name: `KEY_${createCount}`,
-      version: 1,
-      created_at: new Date(),
-      updated_at: new Date(),
-    } as never));
+    mockSecretsCreate.mockImplementation(
+      async () =>
+        ({
+          id: `secret-${++createCount}`,
+          organization_id: ORG_ID,
+          name: `KEY_${createCount}`,
+          version: 1,
+          created_at: new Date(),
+          updated_at: new Date(),
+        }) as never,
+    );
 
-    const result = await service.bulkCreate({
-      organizationId: ORG_ID,
-      secrets: [
-        { name: "KEY_1", value: "value1" },
-        { name: "KEY_2", value: "value2" },
-        { name: "KEY_3", value: "value3", description: "Third key" },
-      ],
-      createdBy: USER_ID,
-    }, auditCtx);
+    const result = await service.bulkCreate(
+      {
+        organizationId: ORG_ID,
+        secrets: [
+          { name: "KEY_1", value: "value1" },
+          { name: "KEY_2", value: "value2" },
+          { name: "KEY_3", value: "value3", description: "Third key" },
+        ],
+        createdBy: USER_ID,
+      },
+      auditCtx,
+    );
 
     expect(result.created.length).toBe(3);
     expect(result.errors.length).toBe(0);
@@ -681,15 +797,18 @@ describe("bulkCreate", () => {
       updated_at: new Date(),
     } as never);
 
-    const result = await service.bulkCreate({
-      organizationId: ORG_ID,
-      secrets: [
-        { name: "KEY_1", value: "value1" },
-        { name: "DUPLICATE", value: "value2" },
-        { name: "KEY_3", value: "value3" },
-      ],
-      createdBy: USER_ID,
-    }, auditCtx);
+    const result = await service.bulkCreate(
+      {
+        organizationId: ORG_ID,
+        secrets: [
+          { name: "KEY_1", value: "value1" },
+          { name: "DUPLICATE", value: "value2" },
+          { name: "KEY_3", value: "value3" },
+        ],
+        createdBy: USER_ID,
+      },
+      auditCtx,
+    );
 
     expect(result.created.length).toBe(2);
     expect(result.errors.length).toBe(1);
@@ -700,13 +819,16 @@ describe("bulkCreate", () => {
   it("validates secret size limits", async () => {
     mockSecretsFindByName.mockResolvedValue(undefined);
 
-    const result = await service.bulkCreate({
-      organizationId: ORG_ID,
-      secrets: [
-        { name: "TOO_LARGE", value: "x".repeat(65537) }, // Over 64KB
-      ],
-      createdBy: USER_ID,
-    }, auditCtx);
+    const result = await service.bulkCreate(
+      {
+        organizationId: ORG_ID,
+        secrets: [
+          { name: "TOO_LARGE", value: "x".repeat(65537) }, // Over 64KB
+        ],
+        createdBy: USER_ID,
+      },
+      auditCtx,
+    );
 
     expect(result.created.length).toBe(0);
     expect(result.errors.length).toBe(1);
@@ -714,11 +836,14 @@ describe("bulkCreate", () => {
   });
 
   it("handles empty array", async () => {
-    const result = await service.bulkCreate({
-      organizationId: ORG_ID,
-      secrets: [],
-      createdBy: USER_ID,
-    }, auditCtx);
+    const result = await service.bulkCreate(
+      {
+        organizationId: ORG_ID,
+        secrets: [],
+        createdBy: USER_ID,
+      },
+      auditCtx,
+    );
 
     expect(result.created.length).toBe(0);
     expect(result.errors.length).toBe(0);
@@ -730,37 +855,48 @@ describe("Concurrent Binding Operations", () => {
 
   beforeEach(() => {
     resetMocks();
-    const encryption = new SecretsEncryptionService(new LocalKMSProvider(TEST_KEY));
+    const encryption = new SecretsEncryptionService(
+      new LocalKMSProvider(TEST_KEY),
+    );
     service = new SecretsService(encryption);
   });
 
   it("handles parallel binding operations", async () => {
     const secrets = Array.from({ length: 10 }, (_, i) => `secret-${i}`);
 
-    mockSecretsFindById.mockImplementation(async (id) => ({
-      id,
-      organization_id: ORG_ID,
-      name: `KEY_${id}`,
-    } as never));
+    mockSecretsFindById.mockImplementation(
+      async (id) =>
+        ({
+          id,
+          organization_id: ORG_ID,
+          name: `KEY_${id}`,
+        }) as never,
+    );
 
     let bindCount = 0;
-    mockBindingsCreate.mockImplementation(async () => ({
-      id: `binding-${++bindCount}`,
-      secret_id: `secret-${bindCount - 1}`,
-      organization_id: ORG_ID,
-      project_id: "project-1",
-      project_type: "app",
-      created_by: USER_ID,
-      created_at: new Date(),
-    } as never));
+    mockBindingsCreate.mockImplementation(
+      async () =>
+        ({
+          id: `binding-${++bindCount}`,
+          secret_id: `secret-${bindCount - 1}`,
+          organization_id: ORG_ID,
+          project_id: "project-1",
+          project_type: "app",
+          created_by: USER_ID,
+          created_at: new Date(),
+        }) as never,
+    );
 
     const operations = secrets.map((secretId) =>
-      service.bindSecret({
-        secretId,
-        projectId: "project-1",
-        projectType: "app",
-        createdBy: USER_ID,
-      }, auditCtx)
+      service.bindSecret(
+        {
+          secretId,
+          projectId: "project-1",
+          projectType: "app",
+          createdBy: USER_ID,
+        },
+        auditCtx,
+      ),
     );
 
     const results = await Promise.all(operations);
@@ -792,15 +928,30 @@ describe("Concurrent Binding Operations", () => {
     } as never);
 
     const operations = [
-      service.bindSecret({ secretId: "secret-1", projectId: "p1", projectType: "app", createdBy: USER_ID }, auditCtx),
+      service.bindSecret(
+        {
+          secretId: "secret-1",
+          projectId: "p1",
+          projectType: "app",
+          createdBy: USER_ID,
+        },
+        auditCtx,
+      ),
       service.unbindSecret("binding-old", ORG_ID, auditCtx),
-      service.bindSecret({ secretId: "secret-1", projectId: "p2", projectType: "app", createdBy: USER_ID }, auditCtx),
+      service.bindSecret(
+        {
+          secretId: "secret-1",
+          projectId: "p2",
+          projectType: "app",
+          createdBy: USER_ID,
+        },
+        auditCtx,
+      ),
     ];
 
     const results = await Promise.allSettled(operations);
 
-    const fulfilled = results.filter(r => r.status === "fulfilled");
+    const fulfilled = results.filter((r) => r.status === "fulfilled");
     expect(fulfilled.length).toBe(3);
   });
 });
-

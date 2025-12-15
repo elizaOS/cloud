@@ -7,7 +7,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { codeAgentAnalyticsService } from "@/lib/services/code-agent/analytics";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit-redis";
+import {
+  withRateLimit,
+  RateLimitPresets,
+} from "@/lib/middleware/rate-limit-redis";
 
 interface RouteParams {
   params: Promise<{ sessionId: string }>;
@@ -19,7 +22,7 @@ async function handleGET(request: NextRequest, { params }: RouteParams) {
 
   const analytics = await codeAgentAnalyticsService.getSessionAnalytics(
     sessionId,
-    user.organization_id
+    user.organization_id,
   );
 
   if (!analytics) {
@@ -30,4 +33,3 @@ async function handleGET(request: NextRequest, { params }: RouteParams) {
 }
 
 export const GET = withRateLimit(handleGET, RateLimitPresets.RELAXED);
-

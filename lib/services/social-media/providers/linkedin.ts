@@ -42,19 +42,26 @@ interface LinkedInUploadResponse {
   };
 }
 
-async function linkedinApiRequest<T>(endpoint: string, accessToken: string, options: RequestInit = {}): Promise<T> {
-  const url = endpoint.startsWith("http") ? endpoint : `${LINKEDIN_API_BASE}${endpoint}`;
+async function linkedinApiRequest<T>(
+  endpoint: string,
+  accessToken: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const url = endpoint.startsWith("http")
+    ? endpoint
+    : `${LINKEDIN_API_BASE}${endpoint}`;
 
   const { data } = await withRetry<T | { id: string }>(
-    () => fetch(url, {
-      ...options,
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-        "X-Restli-Protocol-Version": "2.0.0",
-        ...options.headers,
-      },
-    }),
+    () =>
+      fetch(url, {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+          "X-Restli-Protocol-Version": "2.0.0",
+          ...options.headers,
+        },
+      }),
     async (response) => {
       if (response.status === 201) {
         const locationHeader = response.headers.get("x-restli-id");
@@ -64,7 +71,7 @@ async function linkedinApiRequest<T>(endpoint: string, accessToken: string, opti
       if (json.message && json.status >= 400) throw new Error(json.message);
       return json;
     },
-    { platform: "linkedin", maxRetries: 3 }
+    { platform: "linkedin", maxRetries: 3 },
   );
 
   return data as T;
@@ -74,7 +81,6 @@ async function getPersonUrn(accessToken: string): Promise<string> {
   const profile = await linkedinApiRequest<LinkedInProfile>("/me", accessToken);
   return `urn:li:person:${profile.id}`;
 }
-
 
 export const linkedinProvider: SocialMediaProvider = {
   platform: "linkedin",
@@ -87,7 +93,7 @@ export const linkedinProvider: SocialMediaProvider = {
     try {
       const profile = await linkedinApiRequest<LinkedInProfile>(
         "/me",
-        credentials.accessToken
+        credentials.accessToken,
       );
 
       return {
@@ -109,10 +115,14 @@ export const linkedinProvider: SocialMediaProvider = {
   async createPost(
     credentials: SocialCredentials,
     content: PostContent,
-    options?: PlatformPostOptions
+    options?: PlatformPostOptions,
   ): Promise<PostResult> {
     if (!credentials.accessToken) {
-      return { platform: "linkedin", success: false, error: "Access token required" };
+      return {
+        platform: "linkedin",
+        success: false,
+        error: "Access token required",
+      };
     }
 
     try {
@@ -202,7 +212,7 @@ export const linkedinProvider: SocialMediaProvider = {
                       ],
                     },
                   }),
-                }
+                },
               );
 
             const uploadUrl =
@@ -249,7 +259,7 @@ export const linkedinProvider: SocialMediaProvider = {
         {
           method: "POST",
           body: JSON.stringify(ugcPost),
-        }
+        },
       );
 
       // Extract the share ID
@@ -280,7 +290,7 @@ export const linkedinProvider: SocialMediaProvider = {
       await linkedinApiRequest(
         `/ugcPosts/${encodeURIComponent(postId)}`,
         credentials.accessToken,
-        { method: "DELETE" }
+        { method: "DELETE" },
       );
 
       return { success: true };
@@ -294,7 +304,7 @@ export const linkedinProvider: SocialMediaProvider = {
 
   async getPostAnalytics(
     credentials: SocialCredentials,
-    postId: string
+    postId: string,
   ): Promise<PostAnalytics | null> {
     if (!credentials.accessToken) {
       return null;
@@ -309,7 +319,7 @@ export const linkedinProvider: SocialMediaProvider = {
         }>;
       }>(
         `/socialActions/${encodeURIComponent(postId)}`,
-        credentials.accessToken
+        credentials.accessToken,
       );
 
       const element = response.elements?.[0];
@@ -330,7 +340,7 @@ export const linkedinProvider: SocialMediaProvider = {
   },
 
   async getAccountAnalytics(
-    credentials: SocialCredentials
+    credentials: SocialCredentials,
   ): Promise<AccountAnalytics | null> {
     if (!credentials.accessToken) {
       return null;
@@ -339,7 +349,7 @@ export const linkedinProvider: SocialMediaProvider = {
     try {
       const profile = await linkedinApiRequest<LinkedInProfile>(
         "/me",
-        credentials.accessToken
+        credentials.accessToken,
       );
 
       // LinkedIn doesn't provide follower counts via the basic API
@@ -365,26 +375,25 @@ export const linkedinProvider: SocialMediaProvider = {
     const authorUrn = await getPersonUrn(credentials.accessToken);
 
     // Register upload
-    const registerResponse =
-      await linkedinApiRequest<LinkedInUploadResponse>(
-        "/assets?action=registerUpload",
-        credentials.accessToken,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            registerUploadRequest: {
-              recipes: ["urn:li:digitalmediaRecipe:feedshare-image"],
-              owner: authorUrn,
-              serviceRelationships: [
-                {
-                  relationshipType: "OWNER",
-                  identifier: "urn:li:userGeneratedContent",
-                },
-              ],
-            },
-          }),
-        }
-      );
+    const registerResponse = await linkedinApiRequest<LinkedInUploadResponse>(
+      "/assets?action=registerUpload",
+      credentials.accessToken,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          registerUploadRequest: {
+            recipes: ["urn:li:digitalmediaRecipe:feedshare-image"],
+            owner: authorUrn,
+            serviceRelationships: [
+              {
+                relationshipType: "OWNER",
+                identifier: "urn:li:userGeneratedContent",
+              },
+            ],
+          },
+        }),
+      },
+    );
 
     const uploadUrl =
       registerResponse.value.uploadMechanism[
@@ -421,10 +430,14 @@ export const linkedinProvider: SocialMediaProvider = {
   async replyToPost(
     credentials: SocialCredentials,
     postId: string,
-    content: PostContent
+    content: PostContent,
   ): Promise<PostResult> {
     if (!credentials.accessToken) {
-      return { platform: "linkedin", success: false, error: "Access token required" };
+      return {
+        platform: "linkedin",
+        success: false,
+        error: "Access token required",
+      };
     }
 
     try {
@@ -439,7 +452,7 @@ export const linkedinProvider: SocialMediaProvider = {
             actor: authorUrn,
             message: { text: content.text },
           }),
-        }
+        },
       );
 
       return {
@@ -472,7 +485,7 @@ export const linkedinProvider: SocialMediaProvider = {
           body: JSON.stringify({
             actor: authorUrn,
           }),
-        }
+        },
       );
 
       return { success: true };
@@ -484,4 +497,3 @@ export const linkedinProvider: SocialMediaProvider = {
     }
   },
 };
-

@@ -32,7 +32,14 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Share2, Search, Megaphone, CheckCircle, AlertCircle } from "lucide-react";
+import {
+  Loader2,
+  Share2,
+  Search,
+  Megaphone,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 
 interface PromoteAppDialogProps {
@@ -84,10 +91,26 @@ const SOCIAL_PLATFORMS = [
 ];
 
 const AD_OBJECTIVES = [
-  { id: "awareness", name: "Brand Awareness", description: "Reach new audiences" },
-  { id: "traffic", name: "Website Traffic", description: "Drive visits to your app" },
-  { id: "engagement", name: "Engagement", description: "Get likes, comments, shares" },
-  { id: "app_promotion", name: "App Installs", description: "Promote app downloads" },
+  {
+    id: "awareness",
+    name: "Brand Awareness",
+    description: "Reach new audiences",
+  },
+  {
+    id: "traffic",
+    name: "Website Traffic",
+    description: "Drive visits to your app",
+  },
+  {
+    id: "engagement",
+    name: "Engagement",
+    description: "Get likes, comments, shares",
+  },
+  {
+    id: "app_promotion",
+    name: "App Installs",
+    description: "Promote app downloads",
+  },
 ];
 
 export function PromoteAppDialog({
@@ -96,7 +119,9 @@ export function PromoteAppDialog({
   app,
   adAccounts = [],
 }: PromoteAppDialogProps) {
-  const [step, setStep] = useState<"channels" | "configure" | "review" | "result">("channels");
+  const [step, setStep] = useState<
+    "channels" | "configure" | "review" | "result"
+  >("channels");
   const [isLoading, setIsLoading] = useState(false);
   const [config, setConfig] = useState<PromotionConfig>({
     channels: [],
@@ -173,7 +198,7 @@ export function PromoteAppDialog({
       cost += 0.03;
     }
     if (config.channels.includes("advertising") && config.advertising) {
-      cost += 0.5 + (config.advertising.budget * 1.15); // Setup + budget with markup
+      cost += 0.5 + config.advertising.budget * 1.15; // Setup + budget with markup
     }
     return cost.toFixed(2);
   };
@@ -208,7 +233,9 @@ export function PromoteAppDialog({
                 <p className="text-sm text-muted-foreground">
                   Post to Twitter, LinkedIn, Discord...
                 </p>
-                <Badge variant="secondary" className="mt-2">~$0.02/post</Badge>
+                <Badge variant="secondary" className="mt-2">
+                  ~$0.02/post
+                </Badge>
               </button>
 
               {/* SEO Channel */}
@@ -225,7 +252,9 @@ export function PromoteAppDialog({
                 <p className="text-sm text-muted-foreground">
                   Optimize for search engines
                 </p>
-                <Badge variant="secondary" className="mt-2">~$0.03</Badge>
+                <Badge variant="secondary" className="mt-2">
+                  ~$0.03
+                </Badge>
               </button>
 
               {/* Advertising Channel */}
@@ -244,9 +273,13 @@ export function PromoteAppDialog({
                   Run paid ad campaigns
                 </p>
                 {adAccounts.length === 0 ? (
-                  <Badge variant="outline" className="mt-2">Connect account first</Badge>
+                  <Badge variant="outline" className="mt-2">
+                    Connect account first
+                  </Badge>
                 ) : (
-                  <Badge variant="secondary" className="mt-2">Custom budget</Badge>
+                  <Badge variant="secondary" className="mt-2">
+                    Custom budget
+                  </Badge>
                 )}
               </button>
             </div>
@@ -297,8 +330,12 @@ export function PromoteAppDialog({
                         }`}
                       >
                         <Checkbox
-                          checked={config.social?.platforms?.includes(platform.id)}
-                          onCheckedChange={() => toggleSocialPlatform(platform.id)}
+                          checked={config.social?.platforms?.includes(
+                            platform.id,
+                          )}
+                          onCheckedChange={() =>
+                            toggleSocialPlatform(platform.id)
+                          }
                         />
                         <span className="text-lg">{platform.icon}</span>
                         <span className="text-sm">{platform.name}</span>
@@ -308,7 +345,9 @@ export function PromoteAppDialog({
                 </div>
 
                 <div>
-                  <Label htmlFor="customMessage">Custom Message (optional)</Label>
+                  <Label htmlFor="customMessage">
+                    Custom Message (optional)
+                  </Label>
                   <Textarea
                     id="customMessage"
                     placeholder="Leave blank to auto-generate..."
@@ -316,7 +355,11 @@ export function PromoteAppDialog({
                     onChange={(e) =>
                       setConfig((prev) => ({
                         ...prev,
-                        social: { ...prev.social, platforms: prev.social?.platforms || [], customMessage: e.target.value },
+                        social: {
+                          ...prev.social,
+                          platforms: prev.social?.platforms || [],
+                          customMessage: e.target.value,
+                        },
                       }))
                     }
                     className="mt-1"
@@ -334,7 +377,13 @@ export function PromoteAppDialog({
                       onCheckedChange={(checked) =>
                         setConfig((prev) => ({
                           ...prev,
-                          seo: { ...prev.seo, generateMeta: !!checked, generateSchema: prev.seo?.generateSchema ?? true, submitToIndexNow: prev.seo?.submitToIndexNow ?? true },
+                          seo: {
+                            ...prev.seo,
+                            generateMeta: !!checked,
+                            generateSchema: prev.seo?.generateSchema ?? true,
+                            submitToIndexNow:
+                              prev.seo?.submitToIndexNow ?? true,
+                          },
                         }))
                       }
                     />
@@ -352,12 +401,20 @@ export function PromoteAppDialog({
                       onCheckedChange={(checked) =>
                         setConfig((prev) => ({
                           ...prev,
-                          seo: { ...prev.seo, generateSchema: !!checked, generateMeta: prev.seo?.generateMeta ?? true, submitToIndexNow: prev.seo?.submitToIndexNow ?? true },
+                          seo: {
+                            ...prev.seo,
+                            generateSchema: !!checked,
+                            generateMeta: prev.seo?.generateMeta ?? true,
+                            submitToIndexNow:
+                              prev.seo?.submitToIndexNow ?? true,
+                          },
                         }))
                       }
                     />
                     <div>
-                      <div className="font-medium">Generate Schema.org Data</div>
+                      <div className="font-medium">
+                        Generate Schema.org Data
+                      </div>
                       <div className="text-sm text-muted-foreground">
                         Structured data for rich search results
                       </div>
@@ -370,7 +427,12 @@ export function PromoteAppDialog({
                       onCheckedChange={(checked) =>
                         setConfig((prev) => ({
                           ...prev,
-                          seo: { ...prev.seo, submitToIndexNow: !!checked, generateMeta: prev.seo?.generateMeta ?? true, generateSchema: prev.seo?.generateSchema ?? true },
+                          seo: {
+                            ...prev.seo,
+                            submitToIndexNow: !!checked,
+                            generateMeta: prev.seo?.generateMeta ?? true,
+                            generateSchema: prev.seo?.generateSchema ?? true,
+                          },
                         }))
                       }
                     />
@@ -426,7 +488,10 @@ export function PromoteAppDialog({
                       onValueChange={(value) =>
                         setConfig((prev) => ({
                           ...prev,
-                          advertising: { ...prev.advertising!, objective: value },
+                          advertising: {
+                            ...prev.advertising!,
+                            objective: value,
+                          },
                         }))
                       }
                     >
@@ -470,7 +535,10 @@ export function PromoteAppDialog({
                       onValueChange={(value: "daily" | "lifetime") =>
                         setConfig((prev) => ({
                           ...prev,
-                          advertising: { ...prev.advertising!, budgetType: value },
+                          advertising: {
+                            ...prev.advertising!,
+                            budgetType: value,
+                          },
                         }))
                       }
                     >
@@ -491,9 +559,7 @@ export function PromoteAppDialog({
               <Button variant="outline" onClick={() => setStep("channels")}>
                 Back
               </Button>
-              <Button onClick={() => setStep("review")}>
-                Review & Launch
-              </Button>
+              <Button onClick={() => setStep("review")}>Review & Launch</Button>
             </div>
           </div>
         )}
@@ -510,7 +576,9 @@ export function PromoteAppDialog({
                 </div>
                 <div className="flex justify-between">
                   <span>URL:</span>
-                  <span className="font-medium text-blue-500">{app.app_url}</span>
+                  <span className="font-medium text-blue-500">
+                    {app.app_url}
+                  </span>
                 </div>
               </div>
 
@@ -518,9 +586,7 @@ export function PromoteAppDialog({
                 {config.channels.includes("social") && (
                   <div className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-green-500" />
-                    <span>
-                      Social: {config.social?.platforms?.join(", ")}
-                    </span>
+                    <span>Social: {config.social?.platforms?.join(", ")}</span>
                   </div>
                 )}
                 {config.channels.includes("seo") && (
@@ -583,30 +649,35 @@ export function PromoteAppDialog({
             </div>
 
             <div className="space-y-3">
-              {Object.entries(result.channels).map(([channel, status]) => (
-                status && (
-                  <div
-                    key={channel}
-                    className={`p-3 rounded-lg border ${
-                      status.success
-                        ? "border-green-200 bg-green-50 dark:bg-green-950"
-                        : "border-red-200 bg-red-50 dark:bg-red-950"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium capitalize">{channel}</span>
-                      {status.success ? (
-                        <Badge variant="default">Success</Badge>
-                      ) : (
-                        <Badge variant="destructive">Failed</Badge>
+              {Object.entries(result.channels).map(
+                ([channel, status]) =>
+                  status && (
+                    <div
+                      key={channel}
+                      className={`p-3 rounded-lg border ${
+                        status.success
+                          ? "border-green-200 bg-green-50 dark:bg-green-950"
+                          : "border-red-200 bg-red-50 dark:bg-red-950"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium capitalize">
+                          {channel}
+                        </span>
+                        {status.success ? (
+                          <Badge variant="default">Success</Badge>
+                        ) : (
+                          <Badge variant="destructive">Failed</Badge>
+                        )}
+                      </div>
+                      {status.error && (
+                        <p className="text-sm text-red-600 mt-1">
+                          {status.error}
+                        </p>
                       )}
                     </div>
-                    {status.error && (
-                      <p className="text-sm text-red-600 mt-1">{status.error}</p>
-                    )}
-                  </div>
-                )
-              ))}
+                  ),
+              )}
             </div>
 
             <div className="flex justify-center pt-4 border-t">
@@ -618,4 +689,3 @@ export function PromoteAppDialog({
     </Dialog>
   );
 }
-

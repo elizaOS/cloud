@@ -63,8 +63,12 @@ export const seoRequests = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     app_id: uuid("app_id").references(() => apps.id, { onDelete: "set null" }),
-    user_id: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
-    api_key_id: uuid("api_key_id").references(() => apiKeys.id, { onDelete: "set null" }),
+    user_id: uuid("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    api_key_id: uuid("api_key_id").references(() => apiKeys.id, {
+      onDelete: "set null",
+    }),
     type: seoRequestTypeEnum("type").notNull(),
     status: seoRequestStatusEnum("status").notNull().default("pending"),
     page_url: text("page_url"),
@@ -127,7 +131,8 @@ export const seoProviderCalls = pgTable(
     external_id: text("external_id"),
     cost: numeric("cost", { precision: 10, scale: 4 }).notNull().default("0"),
     request_payload: jsonb("request_payload").$type<Record<string, unknown>>(),
-    response_payload: jsonb("response_payload").$type<Record<string, unknown>>(),
+    response_payload:
+      jsonb("response_payload").$type<Record<string, unknown>>(),
     error: text("error"),
     started_at: timestamp("started_at").notNull().defaultNow(),
     completed_at: timestamp("completed_at"),
@@ -148,4 +153,3 @@ export type NewSeoArtifact = InferInsertModel<typeof seoArtifacts>;
 
 export type SeoProviderCall = InferSelectModel<typeof seoProviderCalls>;
 export type NewSeoProviderCall = InferInsertModel<typeof seoProviderCalls>;
-

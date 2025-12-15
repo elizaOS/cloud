@@ -167,7 +167,9 @@ describe("Event Payload Validation", () => {
             },
           ],
         });
-        expect(payload.data.attachments[0].content_type).toBe(type.content_type);
+        expect(payload.data.attachments[0].content_type).toBe(
+          type.content_type,
+        );
       });
     });
 

@@ -1,6 +1,7 @@
 // Universal test API key - created by scripts/seed-test-api-key.ts
 // Use this for local development and CI testing
-const UNIVERSAL_TEST_KEY = "eliza_test_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+const UNIVERSAL_TEST_KEY =
+  "eliza_test_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
 export function getApiKey(): string {
   // Explicit API key override takes precedence
@@ -20,7 +21,10 @@ export function getApiKey(): string {
 }
 
 export function getAuthHeaders() {
-  return { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` };
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${getApiKey()}`,
+  };
 }
 
 export function getPublicHeaders() {
@@ -29,6 +33,10 @@ export function getPublicHeaders() {
 
 export function getInternalHeaders() {
   const key = __ENV.INTERNAL_API_KEY;
-  if (!key && __ENV.LOAD_TEST_ENV !== "local") throw new Error("INTERNAL_API_KEY required");
-  return { "Content-Type": "application/json", Authorization: `Bearer ${key || "local-dev-internal-key"}` };
+  if (!key && __ENV.LOAD_TEST_ENV !== "local")
+    throw new Error("INTERNAL_API_KEY required");
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${key || "local-dev-internal-key"}`,
+  };
 }

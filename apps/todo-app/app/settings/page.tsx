@@ -67,7 +67,9 @@ export default function SettingsPage() {
   const router = useRouter();
   const { isLoading, isAuthenticated, token } = useAuth();
   const [integrations, setIntegrations] = useState<Integration[]>(INTEGRATIONS);
-  const [loadingIntegration, setLoadingIntegration] = useState<string | null>(null);
+  const [loadingIntegration, setLoadingIntegration] = useState<string | null>(
+    null,
+  );
   const [twilioConfig, setTwilioConfig] = useState({
     TWILIO_ACCOUNT_SID: "",
     TWILIO_AUTH_TOKEN: "",
@@ -87,17 +89,20 @@ export default function SettingsPage() {
     if (!token) return;
 
     // Check Google Calendar status
-    const response = await fetch(`${CLOUD_URL}/api/v1/credentials?platform=google_calendar`, {
-      headers: { "X-App-Token": token },
-    }).catch(() => null);
+    const response = await fetch(
+      `${CLOUD_URL}/api/v1/credentials?platform=google_calendar`,
+      {
+        headers: { "X-App-Token": token },
+      },
+    ).catch(() => null);
 
     if (response?.ok) {
       const data = await response.json();
       if (data.credentials?.length > 0) {
         setIntegrations((prev) =>
           prev.map((i) =>
-            i.id === "google_calendar" ? { ...i, connected: true } : i
-          )
+            i.id === "google_calendar" ? { ...i, connected: true } : i,
+          ),
         );
       }
     }
@@ -105,7 +110,7 @@ export default function SettingsPage() {
     // Check push notification permission
     if ("Notification" in window && Notification.permission === "granted") {
       setIntegrations((prev) =>
-        prev.map((i) => (i.id === "reminders" ? { ...i, connected: true } : i))
+        prev.map((i) => (i.id === "reminders" ? { ...i, connected: true } : i)),
       );
     }
   };
@@ -165,7 +170,7 @@ export default function SettingsPage() {
     }
 
     setIntegrations((prev) =>
-      prev.map((i) => (i.id === "twilio" ? { ...i, connected: true } : i))
+      prev.map((i) => (i.id === "twilio" ? { ...i, connected: true } : i)),
     );
     toast.success("Twilio configuration saved");
   };
@@ -182,10 +187,12 @@ export default function SettingsPage() {
 
     if (permission === "granted") {
       setIntegrations((prev) =>
-        prev.map((i) => (i.id === "reminders" ? { ...i, connected: true } : i))
+        prev.map((i) => (i.id === "reminders" ? { ...i, connected: true } : i)),
       );
       toast.success("Notifications enabled");
-      new Notification("Todo App", { body: "You will now receive task reminders" });
+      new Notification("Todo App", {
+        body: "You will now receive task reminders",
+      });
     } else {
       toast.error("Notification permission denied");
     }
@@ -193,7 +200,9 @@ export default function SettingsPage() {
 
   const disconnectIntegration = async (integrationId: string) => {
     setIntegrations((prev) =>
-      prev.map((i) => (i.id === integrationId ? { ...i, connected: false } : i))
+      prev.map((i) =>
+        i.id === integrationId ? { ...i, connected: false } : i,
+      ),
     );
     toast.success("Integration disconnected");
   };
@@ -210,7 +219,10 @@ export default function SettingsPage() {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border/50 backdrop-blur-sm sticky top-0 z-40 bg-background/80">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-4">
-          <Link href="/dashboard" className="p-2 rounded-lg hover:bg-muted transition-colors">
+          <Link
+            href="/dashboard"
+            className="p-2 rounded-lg hover:bg-muted transition-colors"
+          >
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div className="flex items-center gap-2">
@@ -302,7 +314,9 @@ export default function SettingsPage() {
                       <input
                         type={field.type}
                         className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm"
-                        value={twilioConfig[field.key as keyof typeof twilioConfig]}
+                        value={
+                          twilioConfig[field.key as keyof typeof twilioConfig]
+                        }
                         onChange={(e) =>
                           setTwilioConfig((prev) => ({
                             ...prev,
@@ -345,4 +359,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-

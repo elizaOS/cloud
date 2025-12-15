@@ -1,6 +1,6 @@
 /**
  * App Serving Route - Subdomain
- * 
+ *
  * Serves app content for subdomain requests (e.g., myapp.apps.elizacloud.ai).
  */
 
@@ -19,7 +19,7 @@ interface RouteParams {
 
 export async function GET(
   _request: NextRequest,
-  { params }: RouteParams
+  { params }: RouteParams,
 ): Promise<NextResponse> {
   const { subdomain } = await params;
 
@@ -28,11 +28,14 @@ export async function GET(
 
   if (!domain) {
     return new NextResponse(
-      generateErrorPage("App Not Found", `No app found at ${subdomain}.${APP_DOMAIN}`),
+      generateErrorPage(
+        "App Not Found",
+        `No app found at ${subdomain}.${APP_DOMAIN}`,
+      ),
       {
         status: 404,
         headers: { "Content-Type": "text/html" },
-      }
+      },
     );
   }
 
@@ -51,4 +54,3 @@ export async function GET(
     headers: result.data.headers,
   });
 }
-

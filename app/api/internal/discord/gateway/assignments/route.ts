@@ -8,7 +8,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
-import { discordGatewayService, DEFAULT_INTENTS } from "@/lib/services/discord-gateway";
+import {
+  discordGatewayService,
+  DEFAULT_INTENTS,
+} from "@/lib/services/discord-gateway";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +30,10 @@ export async function GET(request: NextRequest) {
   const podName = request.nextUrl.searchParams.get("pod");
 
   if (!podName) {
-    return NextResponse.json({ error: "Missing pod parameter" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Missing pod parameter" },
+      { status: 400 },
+    );
   }
 
   logger.info("[Gateway Assignments] Fetching assignments", { podName });
@@ -45,7 +51,7 @@ export async function GET(request: NextRequest) {
   // Configurable limit for bots per poll (default 50, max 100)
   const maxBotsPerPoll = Math.min(
     parseInt(process.env.MAX_BOTS_PER_POLL ?? "50", 10),
-    100
+    100,
   );
   const toAssign = unassigned.slice(0, maxBotsPerPoll);
 
@@ -88,10 +94,13 @@ export async function GET(request: NextRequest) {
   }
 
   if (skippedNoToken > 0) {
-    logger.warn("[Gateway Assignments] Skipped connections with missing tokens", {
-      podName,
-      skippedCount: skippedNoToken,
-    });
+    logger.warn(
+      "[Gateway Assignments] Skipped connections with missing tokens",
+      {
+        podName,
+        skippedCount: skippedNoToken,
+      },
+    );
   }
 
   logger.info("[Gateway Assignments] Returning assignments", {
@@ -101,4 +110,3 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({ assignments });
 }
-

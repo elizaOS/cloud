@@ -4,9 +4,17 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services/apps";
 import { AppsTable } from "@/components/apps/apps-table";
 import { AppsSkeleton } from "@/components/apps/apps-skeleton";
-import { Grid3x3, Users, TrendingUp, Activity, Sparkles } from "lucide-react";
+import {
+  Grid3x3,
+  Users,
+  TrendingUp,
+  Activity,
+  Sparkles,
+  Server,
+} from "lucide-react";
 import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
 import { CreateAppButton } from "@/components/apps/create-app-button";
+import { CreateServiceButton } from "@/components/apps/create-service-button";
 
 export const dynamic = "force-dynamic";
 
@@ -51,7 +59,8 @@ export default async function AppsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/dashboard/fragments">
+          <CreateServiceButton />
+          <Link href="/dashboard/apps/create">
             <BrandButton variant="hud">
               <Sparkles className="h-4 w-4 mr-2" />
               Build with AI

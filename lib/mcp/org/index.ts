@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { tasksService, TodoPriority, TodoStatus } from "@/lib/services/tasks";
-import { checkinsService, CheckinType, CheckinFrequency } from "@/lib/services/checkins";
+import {
+  checkinsService,
+  CheckinType,
+  CheckinFrequency,
+} from "@/lib/services/checkins";
 import { botsService } from "@/lib/services/bots";
 import { seoService } from "@/lib/services/seo";
 import {
@@ -26,7 +30,10 @@ export interface MCPToolDefinition {
   name: string;
   description: string;
   inputSchema: z.ZodType;
-  handler: (params: Record<string, unknown>, context: MCPContext) => Promise<unknown>;
+  handler: (
+    params: Record<string, unknown>,
+    context: MCPContext,
+  ) => Promise<unknown>;
 }
 
 export interface MCPResourceDefinition {
@@ -62,7 +69,10 @@ const CreateTodoSchema = z.object({
     .optional()
     .describe("Priority level"),
   dueDate: z.string().datetime().optional().describe("Due date in ISO format"),
-  assigneePlatformId: z.string().optional().describe("Platform user ID to assign to"),
+  assigneePlatformId: z
+    .string()
+    .optional()
+    .describe("Platform user ID to assign to"),
   assigneePlatform: z
     .enum(["discord", "telegram"])
     .optional()
@@ -76,7 +86,9 @@ const UpdateTodoSchema = z.object({
   todoId: z.string().uuid().describe("ID of the todo to update"),
   title: z.string().min(1).max(500).optional(),
   description: z.string().max(5000).optional(),
-  status: z.enum(["pending", "in_progress", "completed", "cancelled"]).optional(),
+  status: z
+    .enum(["pending", "in_progress", "completed", "cancelled"])
+    .optional(),
   priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
   dueDate: z.string().datetime().optional().nullable(),
   tags: z.array(z.string()).optional(),
@@ -96,10 +108,19 @@ const ListTodosSchema = z.object({
 });
 
 const CreateCheckinScheduleSchema = z.object({
-  serverId: z.string().uuid().describe("Server/group ID to create schedule for"),
+  serverId: z
+    .string()
+    .uuid()
+    .describe("Server/group ID to create schedule for"),
   name: z.string().min(1).max(200).describe("Name of the check-in schedule"),
   checkinType: z
-    .enum(["standup", "sprint", "mental_health", "project_status", "retrospective"])
+    .enum([
+      "standup",
+      "sprint",
+      "mental_health",
+      "project_status",
+      "retrospective",
+    ])
     .optional()
     .default("standup")
     .describe("Type of check-in"),
@@ -108,7 +129,10 @@ const CreateCheckinScheduleSchema = z.object({
     .optional()
     .default("weekdays")
     .describe("How often to run check-ins"),
-  timeUtc: z.string().regex(/^\d{2}:\d{2}$/).describe("Time in HH:MM UTC format"),
+  timeUtc: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/)
+    .describe("Time in HH:MM UTC format"),
   checkinChannelId: z.string().describe("Channel ID to post check-in prompts"),
   reportChannelId: z.string().optional().describe("Channel ID to post reports"),
   questions: z.array(z.string()).optional().describe("Custom questions to ask"),
@@ -117,7 +141,9 @@ const CreateCheckinScheduleSchema = z.object({
 const RecordCheckinResponseSchema = z.object({
   scheduleId: z.string().uuid().describe("Schedule ID to record response for"),
   responderPlatformId: z.string().describe("Platform user ID of responder"),
-  responderPlatform: z.enum(["discord", "telegram"]).describe("Platform of responder"),
+  responderPlatform: z
+    .enum(["discord", "telegram"])
+    .describe("Platform of responder"),
   responderName: z.string().optional().describe("Display name of responder"),
   answers: z.record(z.string(), z.string()).describe("Question-answer pairs"),
 });
@@ -139,16 +165,21 @@ const AddTeamMemberSchema = z.object({
 });
 
 const GetPlatformStatusSchema = z.object({
-  platform: z.enum(["discord", "telegram"]).optional().describe("Filter by platform"),
+  platform: z
+    .enum(["discord", "telegram"])
+    .optional()
+    .describe("Filter by platform"),
 });
 
 // TOOL HANDLERS
 
 async function handleCreateTodo(
   params: z.infer<typeof CreateTodoSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
-  logger.info("[OrgMCP] Creating todo", { organizationId: context.organizationId });
+  logger.info("[OrgMCP] Creating todo", {
+    organizationId: context.organizationId,
+  });
 
   const todo = await tasksService.create({
     organizationId: context.organizationId,
@@ -181,16 +212,24 @@ async function handleCreateTodo(
 
 async function handleUpdateTodo(
   params: z.infer<typeof UpdateTodoSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
-  const todo = await tasksService.update(params.todoId, context.organizationId, {
-    title: params.title,
-    description: params.description,
-    status: params.status as TodoStatus | undefined,
-    priority: params.priority as TodoPriority | undefined,
-    dueDate: params.dueDate ? new Date(params.dueDate) : params.dueDate === null ? null : undefined,
-    tags: params.tags,
-  });
+  const todo = await tasksService.update(
+    params.todoId,
+    context.organizationId,
+    {
+      title: params.title,
+      description: params.description,
+      status: params.status as TodoStatus | undefined,
+      priority: params.priority as TodoPriority | undefined,
+      dueDate: params.dueDate
+        ? new Date(params.dueDate)
+        : params.dueDate === null
+          ? null
+          : undefined,
+      tags: params.tags,
+    },
+  );
 
   return {
     success: true,
@@ -206,7 +245,7 @@ async function handleUpdateTodo(
 
 async function handleListTodos(
   params: z.infer<typeof ListTodosSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const { todos, total } = await tasksService.list({
     organizationId: context.organizationId,
@@ -232,9 +271,12 @@ async function handleListTodos(
 
 async function handleCompleteTodo(
   params: { todoId: string },
-  context: MCPContext
+  context: MCPContext,
 ) {
-  const todo = await tasksService.complete(params.todoId, context.organizationId);
+  const todo = await tasksService.complete(
+    params.todoId,
+    context.organizationId,
+  );
 
   return {
     success: true,
@@ -249,7 +291,7 @@ async function handleCompleteTodo(
 
 async function handleCreateCheckinSchedule(
   params: z.infer<typeof CreateCheckinScheduleSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const schedule = await checkinsService.createSchedule({
     organizationId: context.organizationId,
@@ -278,7 +320,7 @@ async function handleCreateCheckinSchedule(
 
 async function handleRecordCheckinResponse(
   params: z.infer<typeof RecordCheckinResponseSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const response = await checkinsService.recordResponse({
     scheduleId: params.scheduleId,
@@ -302,7 +344,7 @@ async function handleRecordCheckinResponse(
 
 async function handleListCheckinSchedules(
   params: { serverId?: string },
-  context: MCPContext
+  context: MCPContext,
 ) {
   const schedules = params.serverId
     ? await checkinsService.listServerSchedules(params.serverId)
@@ -324,7 +366,7 @@ async function handleListCheckinSchedules(
 
 async function handleGenerateReport(
   params: z.infer<typeof GenerateReportSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const report = await checkinsService.generateReport(
     params.scheduleId,
@@ -332,7 +374,7 @@ async function handleGenerateReport(
     {
       start: new Date(params.startDate),
       end: new Date(params.endDate),
-    }
+    },
   );
 
   return {
@@ -359,7 +401,7 @@ async function handleGenerateReport(
 
 async function handleAddTeamMember(
   params: z.infer<typeof AddTeamMemberSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const member = await checkinsService.upsertTeamMember({
     organizationId: context.organizationId,
@@ -385,7 +427,7 @@ async function handleAddTeamMember(
 
 async function handleListTeamMembers(
   params: { serverId: string },
-  context: MCPContext
+  context: MCPContext,
 ) {
   const members = await checkinsService.getTeamMembers(params.serverId);
 
@@ -410,7 +452,7 @@ async function handleListTeamMembers(
 
 async function handleGetPlatformStatus(
   params: z.infer<typeof GetPlatformStatusSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const connections = await botsService.getConnections(context.organizationId);
 
@@ -430,12 +472,15 @@ async function handleGetPlatformStatus(
           status: c.status,
           serverCount: servers.filter((s) => s.enabled).length,
         };
-      })
+      }),
     ),
   };
 }
 
-async function handleGetTodoStats(params: Record<string, never>, context: MCPContext) {
+async function handleGetTodoStats(
+  params: Record<string, never>,
+  context: MCPContext,
+) {
   const stats = await tasksService.getStats(context.organizationId);
 
   return {
@@ -447,22 +492,37 @@ async function handleGetTodoStats(params: Record<string, never>, context: MCPCon
 // SOCIAL MEDIA TOOLS
 
 const DraftSocialPostSchema = z.object({
-  content: z.string().min(1).max(280).describe("Post content (max 280 chars for Twitter)"),
-  platform: z.enum(["twitter", "discord", "telegram"]).describe("Target platform"),
+  content: z
+    .string()
+    .min(1)
+    .max(280)
+    .describe("Post content (max 280 chars for Twitter)"),
+  platform: z
+    .enum(["twitter", "discord", "telegram"])
+    .describe("Target platform"),
   channelId: z.string().optional().describe("Channel ID for Discord/Telegram"),
-  scheduledFor: z.string().datetime().optional().describe("ISO datetime to schedule post"),
+  scheduledFor: z
+    .string()
+    .datetime()
+    .optional()
+    .describe("ISO datetime to schedule post"),
   tags: z.array(z.string()).optional().describe("Tags for categorization"),
 });
 
 const ReviewPostSchema = z.object({
   content: z.string().describe("Draft post content to review"),
-  platform: z.enum(["twitter", "discord", "telegram"]).describe("Target platform"),
-  guidelines: z.array(z.string()).optional().describe("Brand guidelines to check against"),
+  platform: z
+    .enum(["twitter", "discord", "telegram"])
+    .describe("Target platform"),
+  guidelines: z
+    .array(z.string())
+    .optional()
+    .describe("Brand guidelines to check against"),
 });
 
 async function handleDraftSocialPost(
   params: z.infer<typeof DraftSocialPostSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   logger.info("[OrgMCP] Drafting social post", { platform: params.platform });
 
@@ -492,13 +552,15 @@ async function handleDraftSocialPost(
 
 async function handleReviewPost(
   params: z.infer<typeof ReviewPostSchema>,
-  _context: MCPContext
+  _context: MCPContext,
 ) {
   const issues: string[] = [];
   const suggestions: string[] = [];
 
   if (params.platform === "twitter" && params.content.length > 280) {
-    issues.push(`Content exceeds Twitter's 280 character limit (${params.content.length} chars)`);
+    issues.push(
+      `Content exceeds Twitter's 280 character limit (${params.content.length} chars)`,
+    );
   }
 
   if (/moon|lambo|pump|100x|guaranteed/i.test(params.content)) {
@@ -507,14 +569,19 @@ async function handleReviewPost(
   }
 
   if (/\$\d+|price|profit|roi|returns/i.test(params.content)) {
-    issues.push("Contains price/profit references that may require legal review");
+    issues.push(
+      "Contains price/profit references that may require legal review",
+    );
   }
 
   if (params.content.split(/[!?]/).length > 3) {
-    suggestions.push("Consider reducing exclamation points for a more professional tone");
+    suggestions.push(
+      "Consider reducing exclamation points for a more professional tone",
+    );
   }
 
-  const emojiCount = (params.content.match(/[\u{1F600}-\u{1F6FF}]/gu) || []).length;
+  const emojiCount = (params.content.match(/[\u{1F600}-\u{1F6FF}]/gu) || [])
+    .length;
   if (emojiCount > 2) {
     suggestions.push("Consider reducing emoji usage for cleaner messaging");
   }
@@ -535,36 +602,61 @@ async function handleReviewPost(
 // COMMUNITY MANAGEMENT TOOLS
 
 const LogCommunityEventSchema = z.object({
-  eventType: z.enum(["new_member", "dispute", "moderation", "feedback", "highlight"]).describe("Type of community event"),
+  eventType: z
+    .enum(["new_member", "dispute", "moderation", "feedback", "highlight"])
+    .describe("Type of community event"),
   description: z.string().describe("Description of the event"),
   involvedUsers: z.array(z.string()).optional().describe("User IDs involved"),
-  platform: z.enum(["discord", "telegram", "web"]).describe("Platform where event occurred"),
+  platform: z
+    .enum(["discord", "telegram", "web"])
+    .describe("Platform where event occurred"),
   channelId: z.string().optional().describe("Channel/group ID"),
-  severity: z.enum(["low", "medium", "high"]).optional().describe("Severity for moderation events"),
+  severity: z
+    .enum(["low", "medium", "high"])
+    .optional()
+    .describe("Severity for moderation events"),
   resolution: z.string().optional().describe("How the event was resolved"),
 });
 
 const GetCommunityHealthSchema = z.object({
-  platform: z.enum(["discord", "telegram"]).optional().describe("Filter by platform"),
-  period: z.enum(["day", "week", "month"]).optional().default("week").describe("Time period for metrics"),
+  platform: z
+    .enum(["discord", "telegram"])
+    .optional()
+    .describe("Filter by platform"),
+  period: z
+    .enum(["day", "week", "month"])
+    .optional()
+    .default("week")
+    .describe("Time period for metrics"),
 });
 
 async function handleLogCommunityEvent(
   params: z.infer<typeof LogCommunityEventSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
-  logger.info("[OrgMCP] Logging community event", { eventType: params.eventType });
+  logger.info("[OrgMCP] Logging community event", {
+    eventType: params.eventType,
+  });
 
-  const priority = params.severity === "high" ? "urgent" : params.severity === "medium" ? "high" : "medium";
+  const priority =
+    params.severity === "high"
+      ? "urgent"
+      : params.severity === "medium"
+        ? "high"
+        : "medium";
 
   const todo = await tasksService.create({
     organizationId: context.organizationId,
     title: `Community: ${params.eventType}`,
     description: [
       params.description,
-      params.involvedUsers?.length ? `Involved users: ${params.involvedUsers.join(", ")}` : null,
+      params.involvedUsers?.length
+        ? `Involved users: ${params.involvedUsers.join(", ")}`
+        : null,
       params.resolution ? `Resolution: ${params.resolution}` : null,
-    ].filter(Boolean).join("\n\n"),
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
     priority,
     tags: ["community", params.eventType, params.platform],
     createdByUserId: context.userId,
@@ -586,7 +678,7 @@ async function handleLogCommunityEvent(
 
 async function handleGetCommunityHealth(
   params: z.infer<typeof GetCommunityHealthSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const { todos } = await tasksService.list({
     organizationId: context.organizationId,
@@ -594,22 +686,30 @@ async function handleGetCommunityHealth(
   });
 
   const communityEvents = todos.filter((t) => t.tags?.includes("community"));
-  const periodDays = params.period === "day" ? 1 : params.period === "week" ? 7 : 30;
+  const periodDays =
+    params.period === "day" ? 1 : params.period === "week" ? 7 : 30;
   const cutoff = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
 
   const recentEvents = communityEvents.filter(
-    (t) => new Date(t.created_at) >= cutoff
+    (t) => new Date(t.created_at) >= cutoff,
   );
 
   const eventsByType = recentEvents.reduce(
     (acc, t) => {
-      const type = t.tags?.find((tag) => 
-        ["new_member", "dispute", "moderation", "feedback", "highlight"].includes(tag)
-      ) || "other";
+      const type =
+        t.tags?.find((tag) =>
+          [
+            "new_member",
+            "dispute",
+            "moderation",
+            "feedback",
+            "highlight",
+          ].includes(tag),
+        ) || "other";
       acc[type] = (acc[type] || 0) + 1;
       return acc;
     },
-    {} as Record<string, number>
+    {} as Record<string, number>,
   );
 
   return {
@@ -618,7 +718,8 @@ async function handleGetCommunityHealth(
       period: params.period,
       totalEvents: recentEvents.length,
       eventsByType,
-      unresolvedIssues: recentEvents.filter((t) => t.status !== "completed").length,
+      unresolvedIssues: recentEvents.filter((t) => t.status !== "completed")
+        .length,
       newMembers: eventsByType["new_member"] || 0,
       disputes: eventsByType["dispute"] || 0,
     },
@@ -641,13 +742,37 @@ import { replyRouterService } from "@/lib/services/social-feed/reply-router";
 const CreateFeedConfigSchema = z.object({
   sourcePlatform: SocialPlatformSchema.describe("Platform to monitor"),
   sourceAccountId: z.string().describe("Account ID to monitor"),
-  sourceUsername: z.string().optional().describe("Display username for reference"),
-  monitorMentions: z.boolean().optional().default(true).describe("Monitor mentions"),
-  monitorReplies: z.boolean().optional().default(true).describe("Monitor replies"),
-  monitorQuoteTweets: z.boolean().optional().default(true).describe("Monitor quote tweets"),
-  notificationChannels: z.array(NotificationChannelSchema).describe("Channels to notify on engagement"),
-  pollingIntervalSeconds: z.number().optional().default(60).describe("Polling interval in seconds"),
-  minFollowerCount: z.number().optional().describe("Minimum follower count to notify"),
+  sourceUsername: z
+    .string()
+    .optional()
+    .describe("Display username for reference"),
+  monitorMentions: z
+    .boolean()
+    .optional()
+    .default(true)
+    .describe("Monitor mentions"),
+  monitorReplies: z
+    .boolean()
+    .optional()
+    .default(true)
+    .describe("Monitor replies"),
+  monitorQuoteTweets: z
+    .boolean()
+    .optional()
+    .default(true)
+    .describe("Monitor quote tweets"),
+  notificationChannels: z
+    .array(NotificationChannelSchema)
+    .describe("Channels to notify on engagement"),
+  pollingIntervalSeconds: z
+    .number()
+    .optional()
+    .default(60)
+    .describe("Polling interval in seconds"),
+  minFollowerCount: z
+    .number()
+    .optional()
+    .describe("Minimum follower count to notify"),
 });
 
 const UpdateFeedConfigSchema = z.object({
@@ -656,11 +781,15 @@ const UpdateFeedConfigSchema = z.object({
   monitorMentions: z.boolean().optional(),
   monitorReplies: z.boolean().optional(),
   monitorQuoteTweets: z.boolean().optional(),
-  notificationChannels: z.array(z.object({
-    platform: z.enum(["discord", "telegram", "slack"]),
-    channelId: z.string(),
-    serverId: z.string().optional(),
-  })).optional(),
+  notificationChannels: z
+    .array(
+      z.object({
+        platform: z.enum(["discord", "telegram", "slack"]),
+        channelId: z.string(),
+        serverId: z.string().optional(),
+      }),
+    )
+    .optional(),
   pollingIntervalSeconds: z.number().optional(),
   minFollowerCount: z.number().optional().nullable(),
 });
@@ -673,13 +802,27 @@ const ListFeedConfigsSchema = z.object({
 
 const ListEngagementsSchema = z.object({
   feedConfigId: z.string().uuid().optional().describe("Filter by feed config"),
-  eventType: z.enum(["mention", "reply", "quote_tweet", "repost", "like", "comment", "follow"]).optional().describe("Filter by event type"),
+  eventType: z
+    .enum([
+      "mention",
+      "reply",
+      "quote_tweet",
+      "repost",
+      "like",
+      "comment",
+      "follow",
+    ])
+    .optional()
+    .describe("Filter by event type"),
   since: z.string().datetime().optional().describe("Start date filter"),
   limit: z.number().optional().default(50).describe("Max results"),
 });
 
 const ListPendingRepliesSchema = z.object({
-  status: z.enum(["pending", "confirmed", "rejected", "expired", "sent", "failed"]).optional().describe("Filter by status"),
+  status: z
+    .enum(["pending", "confirmed", "rejected", "expired", "sent", "failed"])
+    .optional()
+    .describe("Filter by status"),
   limit: z.number().optional().default(20),
 });
 
@@ -690,15 +833,21 @@ const ConfirmReplySchema = z.object({
 const SendManualReplySchema = z.object({
   targetPlatform: SocialPlatformSchema.describe("Platform to post reply to"),
   targetPostId: z.string().describe("Post ID to reply to"),
-  targetPostUrl: z.string().url().optional().describe("URL of post (for reference)"),
+  targetPostUrl: z
+    .string()
+    .url()
+    .optional()
+    .describe("URL of post (for reference)"),
   replyContent: z.string().min(1).max(500).describe("Reply content"),
 });
 
 async function handleCreateFeedConfig(
   params: z.infer<typeof CreateFeedConfigSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
-  logger.info("[OrgMCP] Creating feed config", { organizationId: context.organizationId });
+  logger.info("[OrgMCP] Creating feed config", {
+    organizationId: context.organizationId,
+  });
 
   const config = await feedConfigService.create({
     organizationId: context.organizationId,
@@ -728,17 +877,23 @@ async function handleCreateFeedConfig(
 
 async function handleUpdateFeedConfig(
   params: z.infer<typeof UpdateFeedConfigSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
-  const config = await feedConfigService.update(params.configId, context.organizationId, {
-    enabled: params.enabled,
-    monitorMentions: params.monitorMentions,
-    monitorReplies: params.monitorReplies,
-    monitorQuoteTweets: params.monitorQuoteTweets,
-    notificationChannels: params.notificationChannels as NotificationChannel[] | undefined,
-    pollingIntervalSeconds: params.pollingIntervalSeconds,
-    minFollowerCount: params.minFollowerCount,
-  });
+  const config = await feedConfigService.update(
+    params.configId,
+    context.organizationId,
+    {
+      enabled: params.enabled,
+      monitorMentions: params.monitorMentions,
+      monitorReplies: params.monitorReplies,
+      monitorQuoteTweets: params.monitorQuoteTweets,
+      notificationChannels: params.notificationChannels as
+        | NotificationChannel[]
+        | undefined,
+      pollingIntervalSeconds: params.pollingIntervalSeconds,
+      minFollowerCount: params.minFollowerCount,
+    },
+  );
 
   return {
     success: true,
@@ -752,7 +907,7 @@ async function handleUpdateFeedConfig(
 
 async function handleDeleteFeedConfig(
   params: { configId: string },
-  context: MCPContext
+  context: MCPContext,
 ) {
   await feedConfigService.delete(params.configId, context.organizationId);
   return { success: true };
@@ -760,7 +915,7 @@ async function handleDeleteFeedConfig(
 
 async function handleListFeedConfigs(
   params: z.infer<typeof ListFeedConfigsSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const { configs, total } = await feedConfigService.list({
     organizationId: context.organizationId,
@@ -789,7 +944,7 @@ async function handleListFeedConfigs(
 
 async function handleListEngagements(
   params: z.infer<typeof ListEngagementsSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const { events, total } = await engagementEventService.list({
     organizationId: context.organizationId,
@@ -819,9 +974,12 @@ async function handleListEngagements(
 
 async function handleGetEngagement(
   params: { engagementId: string },
-  context: MCPContext
+  context: MCPContext,
 ) {
-  const event = await engagementEventService.get(params.engagementId, context.organizationId);
+  const event = await engagementEventService.get(
+    params.engagementId,
+    context.organizationId,
+  );
   if (!event) {
     return { success: false, error: "Engagement not found" };
   }
@@ -852,11 +1010,18 @@ async function handleGetEngagement(
 
 async function handleListPendingReplies(
   params: z.infer<typeof ListPendingRepliesSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const { confirmations, total } = await replyConfirmationService.list({
     organizationId: context.organizationId,
-    status: params.status as "pending" | "confirmed" | "rejected" | "expired" | "sent" | "failed" | undefined,
+    status: params.status as
+      | "pending"
+      | "confirmed"
+      | "rejected"
+      | "expired"
+      | "sent"
+      | "failed"
+      | undefined,
     limit: params.limit,
   });
 
@@ -879,13 +1044,13 @@ async function handleListPendingReplies(
 
 async function handleConfirmReply(
   params: z.infer<typeof ConfirmReplySchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const result = await replyRouterService.handleConfirmation(
     params.confirmationId,
     context.organizationId,
     context.userId || "agent",
-    "Agent"
+    "Agent",
   );
 
   return {
@@ -898,13 +1063,13 @@ async function handleConfirmReply(
 
 async function handleRejectReply(
   params: { confirmationId: string; reason?: string },
-  context: MCPContext
+  context: MCPContext,
 ) {
   await replyRouterService.handleRejection(
     params.confirmationId,
     context.organizationId,
     context.userId || "agent",
-    params.reason
+    params.reason,
   );
 
   return { success: true };
@@ -912,7 +1077,7 @@ async function handleRejectReply(
 
 async function handleSendManualReply(
   params: z.infer<typeof SendManualReplySchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const confirmation = await replyConfirmationService.create({
     organizationId: context.organizationId,
@@ -938,7 +1103,7 @@ async function handleSendManualReply(
 
 async function handlePollFeeds(
   _params: Record<string, never>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const { configs } = await feedConfigService.list({
     organizationId: context.organizationId,
@@ -965,7 +1130,7 @@ async function handlePollFeeds(
 
 async function handleProcessNotifications(
   _params: Record<string, never>,
-  _context: MCPContext
+  _context: MCPContext,
 ) {
   const result = await socialNotificationService.processUnnotifiedEvents();
 
@@ -981,14 +1146,25 @@ async function handleProcessNotifications(
 
 const KeywordResearchSchema = z.object({
   keywords: z.array(z.string()).min(1).max(50).describe("Keywords to research"),
-  locale: z.string().optional().default("en-US").describe("Locale (e.g., en-US)"),
-  locationCode: z.number().optional().describe("DataForSEO location code (default: 2840 for US)"),
+  locale: z
+    .string()
+    .optional()
+    .default("en-US")
+    .describe("Locale (e.g., en-US)"),
+  locationCode: z
+    .number()
+    .optional()
+    .describe("DataForSEO location code (default: 2840 for US)"),
 });
 
 const SerpSnapshotSchema = z.object({
   query: z.string().describe("Search query to snapshot"),
   locale: z.string().optional().default("en").describe("Search locale"),
-  searchEngine: z.string().optional().default("google").describe("Search engine"),
+  searchEngine: z
+    .string()
+    .optional()
+    .default("google")
+    .describe("Search engine"),
   device: z.enum(["desktop", "mobile", "tablet"]).optional().default("desktop"),
 });
 
@@ -1013,7 +1189,7 @@ const GetSeoRequestSchema = z.object({
 
 async function handleKeywordResearch(
   params: z.infer<typeof KeywordResearchSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const result = await seoService.createRequest({
     organizationId: context.organizationId,
@@ -1028,14 +1204,14 @@ async function handleKeywordResearch(
     success: true,
     requestId: result.request.id,
     status: result.request.status,
-    keywords: result.artifacts.find(a => a.type === "keywords")?.data ?? null,
+    keywords: result.artifacts.find((a) => a.type === "keywords")?.data ?? null,
     cost: result.request.total_cost,
   };
 }
 
 async function handleSerpSnapshot(
   params: z.infer<typeof SerpSnapshotSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const result = await seoService.createRequest({
     organizationId: context.organizationId,
@@ -1051,14 +1227,15 @@ async function handleSerpSnapshot(
     success: true,
     requestId: result.request.id,
     status: result.request.status,
-    results: result.artifacts.find(a => a.type === "serp_snapshot")?.data ?? null,
+    results:
+      result.artifacts.find((a) => a.type === "serp_snapshot")?.data ?? null,
     cost: result.request.total_cost,
   };
 }
 
 async function handleGenerateSeoMeta(
   params: z.infer<typeof SeoPageSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const result = await seoService.createRequest({
     organizationId: context.organizationId,
@@ -1074,14 +1251,14 @@ async function handleGenerateSeoMeta(
     success: true,
     requestId: result.request.id,
     status: result.request.status,
-    meta: result.artifacts.find(a => a.type === "meta")?.data ?? null,
+    meta: result.artifacts.find((a) => a.type === "meta")?.data ?? null,
     cost: result.request.total_cost,
   };
 }
 
 async function handleGenerateSeoSchema(
   params: z.infer<typeof SeoPageSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const result = await seoService.createRequest({
     organizationId: context.organizationId,
@@ -1097,14 +1274,14 @@ async function handleGenerateSeoSchema(
     success: true,
     requestId: result.request.id,
     status: result.request.status,
-    schema: result.artifacts.find(a => a.type === "schema")?.data ?? null,
+    schema: result.artifacts.find((a) => a.type === "schema")?.data ?? null,
     cost: result.request.total_cost,
   };
 }
 
 async function handlePublishSeoBundle(
   params: z.infer<typeof SeoPageSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const result = await seoService.createRequest({
     organizationId: context.organizationId,
@@ -1120,14 +1297,17 @@ async function handlePublishSeoBundle(
     success: true,
     requestId: result.request.id,
     status: result.request.status,
-    artifacts: result.artifacts.map(a => ({ type: a.type, provider: a.provider })),
+    artifacts: result.artifacts.map((a) => ({
+      type: a.type,
+      provider: a.provider,
+    })),
     cost: result.request.total_cost,
   };
 }
 
 async function handleIndexNow(
   params: z.infer<typeof IndexNowSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const result = await seoService.createRequest({
     organizationId: context.organizationId,
@@ -1140,13 +1320,15 @@ async function handleIndexNow(
     success: true,
     requestId: result.request.id,
     status: result.request.status,
-    submitted: result.artifacts.find(a => a.type === "indexnow_submission")?.data ?? null,
+    submitted:
+      result.artifacts.find((a) => a.type === "indexnow_submission")?.data ??
+      null,
   };
 }
 
 async function handleSeoHealthCheck(
   params: z.infer<typeof SeoHealthCheckSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const result = await seoService.createRequest({
     organizationId: context.organizationId,
@@ -1159,15 +1341,17 @@ async function handleSeoHealthCheck(
     success: true,
     requestId: result.request.id,
     status: result.request.status,
-    health: result.artifacts.find(a => a.type === "health_report")?.data ?? null,
+    health:
+      result.artifacts.find((a) => a.type === "health_report")?.data ?? null,
   };
 }
 
 async function handleGetSeoRequest(
   params: z.infer<typeof GetSeoRequestSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
-  const { seoRequestsRepository, seoArtifactsRepository } = await import("@/db/repositories");
+  const { seoRequestsRepository, seoArtifactsRepository } =
+    await import("@/db/repositories");
 
   const request = await seoRequestsRepository.findById(params.requestId);
   if (!request || request.organization_id !== context.organizationId) {
@@ -1189,7 +1373,7 @@ async function handleGetSeoRequest(
       createdAt: request.created_at,
       completedAt: request.completed_at,
     },
-    artifacts: artifacts.map(a => ({
+    artifacts: artifacts.map((a) => ({
       type: a.type,
       provider: a.provider,
       data: a.data,
@@ -1206,7 +1390,9 @@ const OrgListAdAccountsSchema = z.object({
 const OrgListCampaignsSchema = z.object({
   adAccountId: z.string().uuid().optional().describe("Filter by ad account"),
   platform: AdPlatformSchema.optional().describe("Filter by platform"),
-  status: z.enum(["pending", "active", "paused", "ended", "archived"]).optional(),
+  status: z
+    .enum(["pending", "active", "paused", "ended", "archived"])
+    .optional(),
 });
 
 const OrgCreateCampaignSchema = z.object({
@@ -1238,16 +1424,16 @@ const OrgCreateCreativeSchema = z.object({
 
 async function handleListAdAccounts(
   params: z.infer<typeof OrgListAdAccountsSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const accounts = await advertisingService.listAccounts(
     context.organizationId,
-    { platform: params.platform as AdPlatform | undefined }
+    { platform: params.platform as AdPlatform | undefined },
   );
 
   return {
     success: true,
-    accounts: accounts.map(a => ({
+    accounts: accounts.map((a) => ({
       id: a.id,
       platform: a.platform,
       externalAccountId: a.external_account_id,
@@ -1260,7 +1446,7 @@ async function handleListAdAccounts(
 
 async function handleListCampaigns(
   params: z.infer<typeof OrgListCampaignsSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const campaigns = await advertisingService.listCampaigns(
     context.organizationId,
@@ -1268,12 +1454,12 @@ async function handleListCampaigns(
       adAccountId: params.adAccountId,
       platform: params.platform as AdPlatform | undefined,
       status: params.status,
-    }
+    },
   );
 
   return {
     success: true,
-    campaigns: campaigns.map(c => ({
+    campaigns: campaigns.map((c) => ({
       id: c.id,
       name: c.name,
       platform: c.platform,
@@ -1294,7 +1480,7 @@ async function handleListCampaigns(
 
 async function handleCreateCampaign(
   params: z.infer<typeof OrgCreateCampaignSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const campaign = await advertisingService.createCampaign({
     organizationId: context.organizationId,
@@ -1322,11 +1508,11 @@ async function handleCreateCampaign(
 
 async function handleStartCampaign(
   params: z.infer<typeof OrgCampaignActionSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const campaign = await advertisingService.startCampaign(
     params.campaignId,
-    context.organizationId
+    context.organizationId,
   );
 
   return {
@@ -1341,11 +1527,11 @@ async function handleStartCampaign(
 
 async function handlePauseCampaign(
   params: z.infer<typeof OrgCampaignActionSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const campaign = await advertisingService.pauseCampaign(
     params.campaignId,
-    context.organizationId
+    context.organizationId,
   );
 
   return {
@@ -1360,11 +1546,11 @@ async function handlePauseCampaign(
 
 async function handleDeleteCampaign(
   params: z.infer<typeof OrgCampaignActionSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   await advertisingService.deleteCampaign(
     params.campaignId,
-    context.organizationId
+    context.organizationId,
   );
 
   return { success: true };
@@ -1372,14 +1558,14 @@ async function handleDeleteCampaign(
 
 async function handleGetCampaignAnalytics(
   params: z.infer<typeof OrgGetCampaignAnalyticsSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const metrics = await advertisingService.getCampaignMetrics(
     params.campaignId,
     context.organizationId,
     params.startDate && params.endDate
       ? { start: new Date(params.startDate), end: new Date(params.endDate) }
-      : undefined
+      : undefined,
   );
 
   return {
@@ -1389,21 +1575,26 @@ async function handleGetCampaignAnalytics(
       impressions: metrics.impressions,
       clicks: metrics.clicks,
       conversions: metrics.conversions,
-      ctr: metrics.impressions > 0 ? (metrics.clicks / metrics.impressions) * 100 : 0,
+      ctr:
+        metrics.impressions > 0
+          ? (metrics.clicks / metrics.impressions) * 100
+          : 0,
       cpc: metrics.clicks > 0 ? metrics.spend / metrics.clicks : 0,
-      cpm: metrics.impressions > 0 ? (metrics.spend / metrics.impressions) * 1000 : 0,
+      cpm:
+        metrics.impressions > 0
+          ? (metrics.spend / metrics.impressions) * 1000
+          : 0,
     },
   };
 }
 
 async function handleGetAdStats(
   params: { platform?: string },
-  context: MCPContext
+  context: MCPContext,
 ) {
-  const stats = await advertisingService.getStats(
-    context.organizationId,
-    { platform: params.platform as AdPlatform | undefined }
-  );
+  const stats = await advertisingService.getStats(context.organizationId, {
+    platform: params.platform as AdPlatform | undefined,
+  });
 
   return {
     success: true,
@@ -1414,16 +1605,17 @@ async function handleGetAdStats(
       totalImpressions: stats.totalImpressions,
       totalClicks: stats.totalClicks,
       totalConversions: stats.totalConversions,
-      overallCtr: stats.totalImpressions > 0 
-        ? (stats.totalClicks / stats.totalImpressions) * 100 
-        : 0,
+      overallCtr:
+        stats.totalImpressions > 0
+          ? (stats.totalClicks / stats.totalImpressions) * 100
+          : 0,
     },
   };
 }
 
 async function handleCreateCreative(
   params: z.infer<typeof OrgCreateCreativeSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const creative = await advertisingService.createCreative(
     context.organizationId,
@@ -1437,7 +1629,7 @@ async function handleCreateCreative(
       callToAction: params.callToAction,
       destinationUrl: params.destinationUrl,
       media: params.media,
-    }
+    },
   );
 
   return {
@@ -1454,11 +1646,16 @@ async function handleCreateCreative(
 // ANALYTICS TOOLS
 
 const UsageOverviewSchema = z.object({
-  timeRange: z.enum(["daily", "weekly", "monthly"]).optional().default("weekly"),
+  timeRange: z
+    .enum(["daily", "weekly", "monthly"])
+    .optional()
+    .default("weekly"),
 });
 
 const CostBreakdownSchema = z.object({
-  dimension: z.enum(["model", "provider", "user", "apiKey"]).describe("Breakdown dimension"),
+  dimension: z
+    .enum(["model", "provider", "user", "apiKey"])
+    .describe("Breakdown dimension"),
   startDate: z.string().datetime().optional().describe("Start date filter"),
   endDate: z.string().datetime().optional().describe("End date filter"),
   sortBy: z.enum(["cost", "requests", "tokens"]).optional().default("cost"),
@@ -1468,16 +1665,19 @@ const CostBreakdownSchema = z.object({
 const UsageTrendsSchema = z.object({
   startDate: z.string().datetime().describe("Trend start date"),
   endDate: z.string().datetime().describe("Trend end date"),
-  granularity: z.enum(["hour", "day", "week", "month"]).optional().default("day"),
+  granularity: z
+    .enum(["hour", "day", "week", "month"])
+    .optional()
+    .default("day"),
 });
 
 async function handleGetUsageOverview(
   params: z.infer<typeof UsageOverviewSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const overview = await analyticsService.getOverview(
     context.organizationId,
-    params.timeRange
+    params.timeRange,
   );
 
   return {
@@ -1493,7 +1693,7 @@ async function handleGetUsageOverview(
 
 async function handleGetCostBreakdown(
   params: z.infer<typeof CostBreakdownSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const breakdown = await analyticsService.getCostBreakdown(
     context.organizationId,
@@ -1503,13 +1703,13 @@ async function handleGetCostBreakdown(
       endDate: params.endDate ? new Date(params.endDate) : undefined,
       sortBy: params.sortBy,
       limit: params.limit,
-    }
+    },
   );
 
   return {
     success: true,
     dimension: params.dimension,
-    breakdown: breakdown.map(item => ({
+    breakdown: breakdown.map((item) => ({
       name: item.name,
       cost: item.cost,
       requests: item.requests,
@@ -1521,7 +1721,7 @@ async function handleGetCostBreakdown(
 
 async function handleGetUsageTrends(
   params: z.infer<typeof UsageTrendsSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const timeSeries = await analyticsService.getUsageTimeSeries(
     context.organizationId,
@@ -1529,13 +1729,13 @@ async function handleGetUsageTrends(
       startDate: new Date(params.startDate),
       endDate: new Date(params.endDate),
       granularity: params.granularity,
-    }
+    },
   );
 
   return {
     success: true,
     granularity: params.granularity,
-    data: timeSeries.map(point => ({
+    data: timeSeries.map((point) => ({
       timestamp: point.timestamp,
       requests: point.totalRequests,
       cost: point.totalCost,
@@ -1547,19 +1747,19 @@ async function handleGetUsageTrends(
 
 async function handleGetProviderStats(
   params: { startDate?: string; endDate?: string },
-  context: MCPContext
+  context: MCPContext,
 ) {
   const breakdown = await analyticsService.getProviderBreakdown(
     context.organizationId,
     {
       startDate: params.startDate ? new Date(params.startDate) : undefined,
       endDate: params.endDate ? new Date(params.endDate) : undefined,
-    }
+    },
   );
 
   return {
     success: true,
-    providers: breakdown.map(p => ({
+    providers: breakdown.map((p) => ({
       provider: p.provider,
       requests: p.totalRequests,
       cost: p.totalCost,
@@ -1572,21 +1772,28 @@ async function handleGetProviderStats(
 // SECRETS MANAGEMENT TOOLS
 
 const StoreSecretSchema = z.object({
-  name: z.string().min(1).max(100).describe("Secret name (e.g., TWITTER_API_KEY)"),
+  name: z
+    .string()
+    .min(1)
+    .max(100)
+    .describe("Secret name (e.g., TWITTER_API_KEY)"),
   value: z.string().min(1).describe("Secret value"),
   description: z.string().optional().describe("Description of the secret"),
-  environment: z.enum(["development", "preview", "production"]).optional().describe("Environment scope"),
+  environment: z
+    .enum(["development", "preview", "production"])
+    .optional()
+    .describe("Environment scope"),
 });
 
 async function handleListSecrets(
   _params: Record<string, never>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const secrets = await secretsService.list(context.organizationId);
 
   return {
     success: true,
-    secrets: secrets.map(s => ({
+    secrets: secrets.map((s) => ({
       id: s.id,
       name: s.name,
       description: s.description,
@@ -1601,7 +1808,7 @@ async function handleListSecrets(
 
 async function handleStoreSecret(
   params: z.infer<typeof StoreSecretSchema>,
-  context: MCPContext
+  context: MCPContext,
 ) {
   const secret = await secretsService.create(
     {
@@ -1616,7 +1823,7 @@ async function handleStoreSecret(
       actorType: "user",
       actorId: context.userId || "agent",
       source: "org-mcp",
-    }
+    },
   );
 
   return {
@@ -1632,13 +1839,15 @@ async function handleStoreSecret(
 
 async function handleListOAuthConnections(
   _params: Record<string, never>,
-  context: MCPContext
+  context: MCPContext,
 ) {
-  const connections = await secretsService.listOAuthConnections(context.organizationId);
+  const connections = await secretsService.listOAuthConnections(
+    context.organizationId,
+  );
 
   return {
     success: true,
-    connections: connections.map(c => ({
+    connections: connections.map((c) => ({
       id: c.id,
       provider: c.provider,
       providerAccountId: c.providerAccountId,
@@ -1668,13 +1877,15 @@ export const orgMcpServer: MCPServerDefinition = {
     },
     {
       name: "update_todo",
-      description: "Update an existing todo item's properties including status, priority, and due date.",
+      description:
+        "Update an existing todo item's properties including status, priority, and due date.",
       inputSchema: UpdateTodoSchema,
       handler: handleUpdateTodo as MCPToolDefinition["handler"],
     },
     {
       name: "list_todos",
-      description: "List todos with optional filtering by status, priority, or assignee.",
+      description:
+        "List todos with optional filtering by status, priority, or assignee.",
       inputSchema: ListTodosSchema,
       handler: handleListTodos as MCPToolDefinition["handler"],
     },
@@ -1686,7 +1897,8 @@ export const orgMcpServer: MCPServerDefinition = {
     },
     {
       name: "get_todo_stats",
-      description: "Get statistics about todos including counts by status and overdue items.",
+      description:
+        "Get statistics about todos including counts by status and overdue items.",
       inputSchema: z.object({}),
       handler: handleGetTodoStats as MCPToolDefinition["handler"],
     },
@@ -1699,13 +1911,15 @@ export const orgMcpServer: MCPServerDefinition = {
     },
     {
       name: "record_checkin_response",
-      description: "Record a team member's check-in response with their answers to the check-in questions.",
+      description:
+        "Record a team member's check-in response with their answers to the check-in questions.",
       inputSchema: RecordCheckinResponseSchema,
       handler: handleRecordCheckinResponse as MCPToolDefinition["handler"],
     },
     {
       name: "list_checkin_schedules",
-      description: "List all check-in schedules, optionally filtered by server.",
+      description:
+        "List all check-in schedules, optionally filtered by server.",
       inputSchema: z.object({ serverId: z.string().uuid().optional() }),
       handler: handleListCheckinSchedules as MCPToolDefinition["handler"],
     },
@@ -1724,49 +1938,57 @@ export const orgMcpServer: MCPServerDefinition = {
     },
     {
       name: "list_team_members",
-      description: "List all team members in a server/group with their check-in stats.",
+      description:
+        "List all team members in a server/group with their check-in stats.",
       inputSchema: z.object({ serverId: z.string().uuid() }),
       handler: handleListTeamMembers as MCPToolDefinition["handler"],
     },
     {
       name: "get_platform_status",
-      description: "Get the connection status of platforms (Discord, Telegram) and their servers.",
+      description:
+        "Get the connection status of platforms (Discord, Telegram) and their servers.",
       inputSchema: GetPlatformStatusSchema,
       handler: handleGetPlatformStatus as MCPToolDefinition["handler"],
     },
     {
       name: "draft_social_post",
-      description: "Create a draft social media post for review before publishing.",
+      description:
+        "Create a draft social media post for review before publishing.",
       inputSchema: DraftSocialPostSchema,
       handler: handleDraftSocialPost as MCPToolDefinition["handler"],
     },
     {
       name: "review_post",
-      description: "Review a draft post against brand guidelines and platform best practices.",
+      description:
+        "Review a draft post against brand guidelines and platform best practices.",
       inputSchema: ReviewPostSchema,
       handler: handleReviewPost as MCPToolDefinition["handler"],
     },
     {
       name: "log_community_event",
-      description: "Log a community event such as new member joins, disputes, moderation actions, or highlights.",
+      description:
+        "Log a community event such as new member joins, disputes, moderation actions, or highlights.",
       inputSchema: LogCommunityEventSchema,
       handler: handleLogCommunityEvent as MCPToolDefinition["handler"],
     },
     {
       name: "get_community_health",
-      description: "Get community health metrics including event counts, unresolved issues, and trends.",
+      description:
+        "Get community health metrics including event counts, unresolved issues, and trends.",
       inputSchema: GetCommunityHealthSchema,
       handler: handleGetCommunityHealth as MCPToolDefinition["handler"],
     },
     {
       name: "create_feed_config",
-      description: "Create a feed configuration to monitor a social media account for engagement (mentions, replies, quote tweets). Notifications are sent to configured Discord/Telegram/Slack channels.",
+      description:
+        "Create a feed configuration to monitor a social media account for engagement (mentions, replies, quote tweets). Notifications are sent to configured Discord/Telegram/Slack channels.",
       inputSchema: CreateFeedConfigSchema,
       handler: handleCreateFeedConfig as MCPToolDefinition["handler"],
     },
     {
       name: "update_feed_config",
-      description: "Update a feed configuration's settings including enabled status and notification channels.",
+      description:
+        "Update a feed configuration's settings including enabled status and notification channels.",
       inputSchema: UpdateFeedConfigSchema,
       handler: handleUpdateFeedConfig as MCPToolDefinition["handler"],
     },
@@ -1778,19 +2000,22 @@ export const orgMcpServer: MCPServerDefinition = {
     },
     {
       name: "list_feed_configs",
-      description: "List all feed configurations for monitoring social accounts.",
+      description:
+        "List all feed configurations for monitoring social accounts.",
       inputSchema: ListFeedConfigsSchema,
       handler: handleListFeedConfigs as MCPToolDefinition["handler"],
     },
     {
       name: "list_engagements",
-      description: "List engagement events (mentions, replies, quote tweets) from monitored feeds.",
+      description:
+        "List engagement events (mentions, replies, quote tweets) from monitored feeds.",
       inputSchema: ListEngagementsSchema,
       handler: handleListEngagements as MCPToolDefinition["handler"],
     },
     {
       name: "get_engagement",
-      description: "Get detailed information about a specific engagement event.",
+      description:
+        "Get detailed information about a specific engagement event.",
       inputSchema: z.object({ engagementId: z.string().uuid() }),
       handler: handleGetEngagement as MCPToolDefinition["handler"],
     },
@@ -1809,7 +2034,7 @@ export const orgMcpServer: MCPServerDefinition = {
     {
       name: "reject_reply",
       description: "Reject a pending reply - it will not be sent.",
-      inputSchema: z.object({ 
+      inputSchema: z.object({
         confirmationId: z.string().uuid(),
         reason: z.string().optional().describe("Reason for rejection"),
       }),
@@ -1817,56 +2042,65 @@ export const orgMcpServer: MCPServerDefinition = {
     },
     {
       name: "send_manual_reply",
-      description: "Create a manual reply to a post on an external platform. Requires confirmation before sending.",
+      description:
+        "Create a manual reply to a post on an external platform. Requires confirmation before sending.",
       inputSchema: SendManualReplySchema,
       handler: handleSendManualReply as MCPToolDefinition["handler"],
     },
     {
       name: "poll_feeds",
-      description: "Manually trigger polling of all enabled feed configurations for new engagements.",
+      description:
+        "Manually trigger polling of all enabled feed configurations for new engagements.",
       inputSchema: z.object({}),
       handler: handlePollFeeds as MCPToolDefinition["handler"],
     },
     {
       name: "process_notifications",
-      description: "Process and send notifications for unnotified engagement events.",
+      description:
+        "Process and send notifications for unnotified engagement events.",
       inputSchema: z.object({}),
       handler: handleProcessNotifications as MCPToolDefinition["handler"],
     },
     // SEO Tools
     {
       name: "keyword_research",
-      description: "Research keywords using DataForSEO to get search volume, CPC, and competition data.",
+      description:
+        "Research keywords using DataForSEO to get search volume, CPC, and competition data.",
       inputSchema: KeywordResearchSchema,
       handler: handleKeywordResearch as MCPToolDefinition["handler"],
     },
     {
       name: "serp_snapshot",
-      description: "Take a snapshot of search engine results for a query using SerpApi.",
+      description:
+        "Take a snapshot of search engine results for a query using SerpApi.",
       inputSchema: SerpSnapshotSchema,
       handler: handleSerpSnapshot as MCPToolDefinition["handler"],
     },
     {
       name: "generate_seo_meta",
-      description: "Generate SEO meta tags (title, description, keywords) for a page using Claude.",
+      description:
+        "Generate SEO meta tags (title, description, keywords) for a page using Claude.",
       inputSchema: SeoPageSchema,
       handler: handleGenerateSeoMeta as MCPToolDefinition["handler"],
     },
     {
       name: "generate_seo_schema",
-      description: "Generate JSON-LD structured data schema for a page using Claude.",
+      description:
+        "Generate JSON-LD structured data schema for a page using Claude.",
       inputSchema: SeoPageSchema,
       handler: handleGenerateSeoSchema as MCPToolDefinition["handler"],
     },
     {
       name: "publish_seo_bundle",
-      description: "Generate complete SEO bundle (meta + schema) and submit to IndexNow for indexing.",
+      description:
+        "Generate complete SEO bundle (meta + schema) and submit to IndexNow for indexing.",
       inputSchema: SeoPageSchema,
       handler: handlePublishSeoBundle as MCPToolDefinition["handler"],
     },
     {
       name: "submit_to_index",
-      description: "Submit a URL to IndexNow for immediate search engine indexing.",
+      description:
+        "Submit a URL to IndexNow for immediate search engine indexing.",
       inputSchema: IndexNowSchema,
       handler: handleIndexNow as MCPToolDefinition["handler"],
     },
@@ -1885,7 +2119,8 @@ export const orgMcpServer: MCPServerDefinition = {
     // Advertising Tools
     {
       name: "list_ad_accounts",
-      description: "List connected advertising accounts (Meta, Google, TikTok).",
+      description:
+        "List connected advertising accounts (Meta, Google, TikTok).",
       inputSchema: OrgListAdAccountsSchema,
       handler: handleListAdAccounts as MCPToolDefinition["handler"],
     },
@@ -1897,7 +2132,8 @@ export const orgMcpServer: MCPServerDefinition = {
     },
     {
       name: "create_campaign",
-      description: "Create a new advertising campaign. Requires an ad account and allocates budget from credits.",
+      description:
+        "Create a new advertising campaign. Requires an ad account and allocates budget from credits.",
       inputSchema: OrgCreateCampaignSchema,
       handler: handleCreateCampaign as MCPToolDefinition["handler"],
     },
@@ -1915,13 +2151,15 @@ export const orgMcpServer: MCPServerDefinition = {
     },
     {
       name: "delete_campaign",
-      description: "Delete an advertising campaign. Unused budget is refunded to credits.",
+      description:
+        "Delete an advertising campaign. Unused budget is refunded to credits.",
       inputSchema: OrgCampaignActionSchema,
       handler: handleDeleteCampaign as MCPToolDefinition["handler"],
     },
     {
       name: "get_campaign_analytics",
-      description: "Get performance metrics for an advertising campaign (spend, impressions, clicks, conversions).",
+      description:
+        "Get performance metrics for an advertising campaign (spend, impressions, clicks, conversions).",
       inputSchema: OrgGetCampaignAnalyticsSchema,
       handler: handleGetCampaignAnalytics as MCPToolDefinition["handler"],
     },
@@ -1933,14 +2171,16 @@ export const orgMcpServer: MCPServerDefinition = {
     },
     {
       name: "create_creative",
-      description: "Create an ad creative (image, video, carousel) for a campaign.",
+      description:
+        "Create an ad creative (image, video, carousel) for a campaign.",
       inputSchema: OrgCreateCreativeSchema,
       handler: handleCreateCreative as MCPToolDefinition["handler"],
     },
     // Analytics Tools
     {
       name: "get_usage_overview",
-      description: "Get usage analytics overview with summary, trends, and top providers/models.",
+      description:
+        "Get usage analytics overview with summary, trends, and top providers/models.",
       inputSchema: UsageOverviewSchema,
       handler: handleGetUsageOverview as MCPToolDefinition["handler"],
     },
@@ -1968,19 +2208,22 @@ export const orgMcpServer: MCPServerDefinition = {
     // Secrets Management Tools
     {
       name: "list_secrets",
-      description: "List all stored secrets (names only, not values) for the organization.",
+      description:
+        "List all stored secrets (names only, not values) for the organization.",
       inputSchema: z.object({}),
       handler: handleListSecrets as MCPToolDefinition["handler"],
     },
     {
       name: "store_secret",
-      description: "Store a new secret (API key, token, etc.) securely encrypted.",
+      description:
+        "Store a new secret (API key, token, etc.) securely encrypted.",
       inputSchema: StoreSecretSchema,
       handler: handleStoreSecret as MCPToolDefinition["handler"],
     },
     {
       name: "list_oauth_connections",
-      description: "List OAuth connections (social platforms, ad platforms, etc.).",
+      description:
+        "List OAuth connections (social platforms, ad platforms, etc.).",
       inputSchema: z.object({}),
       handler: handleListOAuthConnections as MCPToolDefinition["handler"],
     },
@@ -2009,7 +2252,7 @@ export const orgMcpServer: MCPServerDefinition = {
       mimeType: "application/json",
       handler: async (uri, context) => {
         const schedules = await checkinsService.listSchedules(
-          context.organizationId
+          context.organizationId,
         );
         return { schedules };
       },
@@ -2017,11 +2260,12 @@ export const orgMcpServer: MCPServerDefinition = {
     {
       uri: "org://platforms",
       name: "Platform Connections",
-      description: "Connected platforms (Discord, Telegram) for the organization",
+      description:
+        "Connected platforms (Discord, Telegram) for the organization",
       mimeType: "application/json",
       handler: async (uri, context) => {
         const connections = await botsService.getConnections(
-          context.organizationId
+          context.organizationId,
         );
         return { platforms: connections };
       },
@@ -2072,7 +2316,9 @@ export const orgMcpServer: MCPServerDefinition = {
       description: "Connected advertising platform accounts",
       mimeType: "application/json",
       handler: async (uri, context) => {
-        const accounts = await advertisingService.listAccounts(context.organizationId);
+        const accounts = await advertisingService.listAccounts(
+          context.organizationId,
+        );
         return { accounts };
       },
     },
@@ -2082,7 +2328,9 @@ export const orgMcpServer: MCPServerDefinition = {
       description: "Advertising campaigns across all platforms",
       mimeType: "application/json",
       handler: async (uri, context) => {
-        const campaigns = await advertisingService.listCampaigns(context.organizationId);
+        const campaigns = await advertisingService.listCampaigns(
+          context.organizationId,
+        );
         return { campaigns };
       },
     },
@@ -2092,7 +2340,10 @@ export const orgMcpServer: MCPServerDefinition = {
       description: "Organization usage analytics overview",
       mimeType: "application/json",
       handler: async (uri, context) => {
-        const overview = await analyticsService.getOverview(context.organizationId, "weekly");
+        const overview = await analyticsService.getOverview(
+          context.organizationId,
+          "weekly",
+        );
         return { analytics: overview };
       },
     },
@@ -2103,12 +2354,16 @@ export const orgMcpServer: MCPServerDefinition = {
       mimeType: "application/json",
       handler: async (uri, context) => {
         const secrets = await secretsService.list(context.organizationId);
-        return { secrets: secrets.map(s => ({ id: s.id, name: s.name, scope: s.scope })) };
+        return {
+          secrets: secrets.map((s) => ({
+            id: s.id,
+            name: s.name,
+            scope: s.scope,
+          })),
+        };
       },
     },
   ],
 };
 
-
 export default orgMcpServer;
-

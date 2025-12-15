@@ -3,7 +3,11 @@ import { check, group, sleep } from "k6";
 import { Options } from "k6/options";
 import { getBaseUrl, getConfig } from "../config/environments";
 import { getAuthHeaders } from "../helpers/auth";
-import { rateLimitHits, rateLimitRate, recordHttpError } from "../helpers/metrics";
+import {
+  rateLimitHits,
+  rateLimitRate,
+  recordHttpError,
+} from "../helpers/metrics";
 import { Counter, Rate, Trend } from "k6/metrics";
 
 const baseUrl = getBaseUrl();
@@ -15,8 +19,20 @@ const rateLimitRecoveryTime = new Trend("rate_limit_recovery_time");
 const rateLimitResponses = new Rate("rate_limit_response_rate");
 
 export const options: Options = {
-  scenarios: { rate_limit_test: { executor: "constant-arrival-rate", rate: 200, timeUnit: "1s", duration: "2m", preAllocatedVUs: 50, maxVUs: 200 } },
-  thresholds: { http_req_failed: ["rate<0.5"], rate_limit_response_rate: ["rate<0.3"] },
+  scenarios: {
+    rate_limit_test: {
+      executor: "constant-arrival-rate",
+      rate: 200,
+      timeUnit: "1s",
+      duration: "2m",
+      preAllocatedVUs: 50,
+      maxVUs: 200,
+    },
+  },
+  thresholds: {
+    http_req_failed: ["rate<0.5"],
+    rate_limit_response_rate: ["rate<0.3"],
+  },
 };
 
 export function setup() {
@@ -24,7 +40,10 @@ export function setup() {
 }
 
 function makeRequest() {
-  const res = http.get(`${baseUrl}/api/credits/balance`, { headers, tags: { endpoint: "rate_limit_test" } });
+  const res = http.get(`${baseUrl}/api/credits/balance`, {
+    headers,
+    tags: { endpoint: "rate_limit_test" },
+  });
   if (res.status === 429) {
     rateLimitHits.add(1);
     rateLimitRate.add(1);
@@ -41,7 +60,9 @@ function makeRequest() {
 }
 
 export function burstTest() {
-  group("Burst", () => { for (let i = 0; i < 20; i++) makeRequest(); });
+  group("Burst", () => {
+    for (let i = 0; i < 20; i++) makeRequest();
+  });
   sleep(0.1);
 }
 
@@ -52,7 +73,9 @@ export function recoveryTest() {
       if (res.status === 429) break;
     }
     sleep(5);
-    check(http.get(`${baseUrl}/api/credits/balance`, { headers }), { "recovered": (r) => r.status === 200 });
+    check(http.get(`${baseUrl}/api/credits/balance`, { headers }), {
+      recovered: (r) => r.status === 200,
+    });
   });
   sleep(10);
 }

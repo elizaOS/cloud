@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { n8nWorkflowsService } from "@/lib/services/n8n-workflows";
 import { logger } from "@/lib/utils/logger";
-import { UpdateTriggerSchema, formatTrigger, ErrorResponses } from "@/lib/n8n/schemas";
+import {
+  UpdateTriggerSchema,
+  formatTrigger,
+  ErrorResponses,
+} from "@/lib/n8n/schemas";
 
 export async function GET(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: triggerId } = await ctx.params;
@@ -21,7 +25,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: triggerId } = await ctx.params;
@@ -29,15 +33,25 @@ export async function PATCH(
   const body = await request.json();
   const validation = UpdateTriggerSchema.safeParse(body);
   if (!validation.success) {
-    return NextResponse.json(ErrorResponses.invalidRequest(validation.error.format()), { status: 400 });
+    return NextResponse.json(
+      ErrorResponses.invalidRequest(validation.error.format()),
+      { status: 400 },
+    );
   }
 
   const { isActive, config } = validation.data;
   if (isActive === undefined && config === undefined) {
-    return NextResponse.json({ success: false, error: "No fields to update" }, { status: 400 });
+    return NextResponse.json(
+      { success: false, error: "No fields to update" },
+      { status: 400 },
+    );
   }
 
-  const updated = await n8nWorkflowsService.updateTrigger(triggerId, user.organization_id, { isActive, config });
+  const updated = await n8nWorkflowsService.updateTrigger(
+    triggerId,
+    user.organization_id,
+    { isActive, config },
+  );
 
   logger.info(`[N8N Triggers] Trigger updated`, {
     triggerId,
@@ -51,7 +65,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: triggerId } = await ctx.params;
@@ -64,6 +78,8 @@ export async function DELETE(
     organizationId: user.organization_id,
   });
 
-  return NextResponse.json({ success: true, message: "Trigger deleted successfully" });
+  return NextResponse.json({
+    success: true,
+    message: "Trigger deleted successfully",
+  });
 }
-

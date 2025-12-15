@@ -278,7 +278,10 @@ async function handlePOST(req: NextRequest) {
       const sessionUser = await getOrCreateSessionUser(req);
       user = sessionUser.user;
       isAnonymous = sessionUser.isAnonymous;
-      logger.info("[Responses API] Session user:", { userId: user.id, isAnonymous });
+      logger.info("[Responses API] Session user:", {
+        userId: user.id,
+        isAnonymous,
+      });
     }
 
     // 2. Parse AI SDK request

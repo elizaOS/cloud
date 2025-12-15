@@ -26,7 +26,9 @@ export function setup() {
   // Connectivity check
   const res = http.get(`${baseUrl}/.well-known/agent-card.json`);
   if (res.status !== 200) {
-    throw new Error(`Server not responding at ${baseUrl} (status: ${res.status})`);
+    throw new Error(
+      `Server not responding at ${baseUrl} (status: ${res.status})`,
+    );
   }
   console.log("✓ Server connectivity verified\n");
 }
@@ -50,12 +52,16 @@ export default function () {
     sleep(0.3);
 
     // A2A tasks/get - should return "not found" error which is a valid response
-    const a2a = httpPost("/api/a2a", {
-      jsonrpc: "2.0",
-      method: "tasks/get",
-      params: { id: "smoke-test-nonexistent" },
-      id: 1,
-    }, { expectedStatus: 404 });
+    const a2a = httpPost(
+      "/api/a2a",
+      {
+        jsonrpc: "2.0",
+        method: "tasks/get",
+        params: { id: "smoke-test-nonexistent" },
+        id: 1,
+      },
+      { expectedStatus: 404 },
+    );
     check(null, { "a2a responds": () => a2a !== null }, { type: "auth" });
   });
   sleep(1);

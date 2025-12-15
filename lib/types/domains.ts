@@ -21,7 +21,12 @@ export const RegistrantInfoSchema = z.object({
 
 export type RegistrantInfo = z.infer<typeof RegistrantInfoSchema>;
 
-export const DomainResourceTypes = ["app", "container", "agent", "mcp"] as const;
+export const DomainResourceTypes = [
+  "app",
+  "container",
+  "agent",
+  "mcp",
+] as const;
 export type DomainResourceType = (typeof DomainResourceTypes)[number];
 
 export const AssignDomainSchema = z.object({
@@ -47,7 +52,11 @@ export const UpdateDomainSchema = z.object({
 
 // Utilities
 export const normalizeDomain = (domain: string): string =>
-  domain.toLowerCase().trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  domain
+    .toLowerCase()
+    .trim()
+    .replace(/^https?:\/\//, "")
+    .replace(/\/.*$/, "");
 
 export const isApexDomain = (domain: string): boolean =>
   domain.split(".").length === 2;
@@ -55,14 +64,22 @@ export const isApexDomain = (domain: string): boolean =>
 export { extractErrorMessage } from "@/lib/utils/error-handling";
 
 // API response helpers
-export const domainNotFound = () => NextResponse.json({ error: "Domain not found" }, { status: 404 });
-export const invalidJson = () => NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-export const validationError = (issues: z.ZodIssue[]) => NextResponse.json({ error: "Invalid request", details: issues }, { status: 400 });
+export const domainNotFound = () =>
+  NextResponse.json({ error: "Domain not found" }, { status: 404 });
+export const invalidJson = () =>
+  NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+export const validationError = (issues: z.ZodIssue[]) =>
+  NextResponse.json(
+    { error: "Invalid request", details: issues },
+    { status: 400 },
+  );
 
 export async function parseJsonBody<T>(
   request: Request,
-  schema: z.ZodSchema<T>
-): Promise<{ success: true; data: T } | { success: false; response: NextResponse }> {
+  schema: z.ZodSchema<T>,
+): Promise<
+  { success: true; data: T } | { success: false; response: NextResponse }
+> {
   let body: unknown;
   try {
     body = await request.json();
@@ -70,11 +87,11 @@ export async function parseJsonBody<T>(
     return { success: false, response: invalidJson() };
   }
   const parsed = schema.safeParse(body);
-  if (!parsed.success) return { success: false, response: validationError(parsed.error.issues) };
+  if (!parsed.success)
+    return { success: false, response: validationError(parsed.error.issues) };
   return { success: true, data: parsed.data };
 }
 
 export interface DomainRouteParams {
   params: Promise<{ id: string }>;
 }
-

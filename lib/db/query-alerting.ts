@@ -27,18 +27,22 @@ let configChecked = false;
 
 function cleanupRateLimiter(): void {
   if (alertRateLimiter.size <= MAX_RATE_LIMITER_ENTRIES) return;
-  
+
   const now = Date.now();
   for (const [hash, timestamp] of alertRateLimiter) {
     if (now - timestamp > ALERT_COOLDOWN_MS) {
       alertRateLimiter.delete(hash);
     }
   }
-  
+
   if (alertRateLimiter.size > MAX_RATE_LIMITER_ENTRIES) {
-    const entries = Array.from(alertRateLimiter.entries())
-      .sort((a, b) => a[1] - b[1]);
-    const toRemove = entries.slice(0, alertRateLimiter.size - MAX_RATE_LIMITER_ENTRIES);
+    const entries = Array.from(alertRateLimiter.entries()).sort(
+      (a, b) => a[1] - b[1],
+    );
+    const toRemove = entries.slice(
+      0,
+      alertRateLimiter.size - MAX_RATE_LIMITER_ENTRIES,
+    );
     for (const [hash] of toRemove) {
       alertRateLimiter.delete(hash);
     }
@@ -53,26 +57,14 @@ export function checkAlertConfig(): void {
   const slackUrl = process.env.DB_SLOW_QUERY_SLACK_WEBHOOK;
 
   if (!discordUrl && !slackUrl) {
-    console.warn(
-      "\n" +
-        "╔══════════════════════════════════════════════════════════════════════════════╗\n" +
-        "║  ⚠️  DATABASE SLOW QUERY ALERTS NOT CONFIGURED                                ║\n" +
-        "╠══════════════════════════════════════════════════════════════════════════════╣\n" +
-        "║  Queries >200ms won't trigger real-time alerts.                              ║\n" +
-        "║                                                                              ║\n" +
-        "║  To enable, add to .env.local:                                               ║\n" +
-        "║    DB_SLOW_QUERY_DISCORD_WEBHOOK=https://discord.com/api/webhooks/...        ║\n" +
-        "║    DB_SLOW_QUERY_SLACK_WEBHOOK=https://hooks.slack.com/services/...          ║\n" +
-        "║                                                                              ║\n" +
-        "║  Slow queries are still tracked in slow_query_log table.                     ║\n" +
-        "╚══════════════════════════════════════════════════════════════════════════════╝\n"
-    );
     return;
   }
 
   alertConfig = { discordWebhookUrl: discordUrl, slackWebhookUrl: slackUrl };
 
-  const channels = [discordUrl && "Discord", slackUrl && "Slack"].filter(Boolean);
+  const channels = [discordUrl && "Discord", slackUrl && "Slack"].filter(
+    Boolean,
+  );
   console.info(`[DB] ✓ Slow query alerts enabled via: ${channels.join(", ")}`);
 }
 
@@ -80,7 +72,7 @@ function hashForRateLimit(query: string): string {
   const normalized = query.replace(/\s+/g, " ").trim().substring(0, 100);
   let hash = 0;
   for (let i = 0; i < normalized.length; i++) {
-    hash = ((hash << 5) - hash) + normalized.charCodeAt(i);
+    hash = (hash << 5) - hash + normalized.charCodeAt(i);
     hash = hash & hash;
   }
   return hash.toString(36);
@@ -96,7 +88,10 @@ async function sendDiscordAlert(alert: SlowQueryAlert): Promise<void> {
 
   const color = alert.severity === "critical" ? 0xff0000 : 0xffaa00;
   const emoji = alert.severity === "critical" ? "🔴" : "🟡";
-  const truncated = alert.query.length > 500 ? alert.query.substring(0, 500) + "..." : alert.query;
+  const truncated =
+    alert.query.length > 500
+      ? alert.query.substring(0, 500) + "..."
+      : alert.query;
 
   await fetch(alertConfig.discordWebhookUrl, {
     method: "POST",
@@ -108,39 +103,64 @@ async function sendDiscordAlert(alert: SlowQueryAlert): Promise<void> {
           color,
           fields: [
             { name: "Duration", value: `${alert.durationMs}ms`, inline: true },
-            { name: "Severity", value: alert.severity.toUpperCase(), inline: true },
+            {
+              name: "Severity",
+              value: alert.severity.toUpperCase(),
+              inline: true,
+            },
             { name: "Query", value: `\`\`\`sql\n${truncated}\n\`\`\`` },
           ],
           timestamp: alert.timestamp.toISOString(),
         },
       ],
     }),
-  }).catch((e: Error) => console.debug("[QueryAlert] Discord webhook failed:", e.message));
+  }).catch((e: Error) =>
+    console.debug("[QueryAlert] Discord webhook failed:", e.message),
+  );
 }
 
 async function sendSlackAlert(alert: SlowQueryAlert): Promise<void> {
   if (!alertConfig?.slackWebhookUrl) return;
 
-  const emoji = alert.severity === "critical" ? ":red_circle:" : ":large_yellow_circle:";
-  const truncated = alert.query.length > 500 ? alert.query.substring(0, 500) + "..." : alert.query;
+  const emoji =
+    alert.severity === "critical" ? ":red_circle:" : ":large_yellow_circle:";
+  const truncated =
+    alert.query.length > 500
+      ? alert.query.substring(0, 500) + "..."
+      : alert.query;
 
   await fetch(alertConfig.slackWebhookUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       blocks: [
-        { type: "header", text: { type: "plain_text", text: `${emoji} Slow Database Query`, emoji: true } },
+        {
+          type: "header",
+          text: {
+            type: "plain_text",
+            text: `${emoji} Slow Database Query`,
+            emoji: true,
+          },
+        },
         {
           type: "section",
           fields: [
             { type: "mrkdwn", text: `*Duration:*\n${alert.durationMs}ms` },
-            { type: "mrkdwn", text: `*Severity:*\n${alert.severity.toUpperCase()}` },
+            {
+              type: "mrkdwn",
+              text: `*Severity:*\n${alert.severity.toUpperCase()}`,
+            },
           ],
         },
-        { type: "section", text: { type: "mrkdwn", text: `*Query:*\n\`\`\`${truncated}\`\`\`` } },
+        {
+          type: "section",
+          text: { type: "mrkdwn", text: `*Query:*\n\`\`\`${truncated}\`\`\`` },
+        },
       ],
     }),
-  }).catch((e: Error) => console.debug("[QueryAlert] Slack webhook failed:", e.message));
+  }).catch((e: Error) =>
+    console.debug("[QueryAlert] Slack webhook failed:", e.message),
+  );
 }
 
 export async function sendSlowQueryAlert(alert: SlowQueryAlert): Promise<void> {
@@ -154,7 +174,9 @@ export async function sendSlowQueryAlert(alert: SlowQueryAlert): Promise<void> {
   await Promise.allSettled([sendDiscordAlert(alert), sendSlackAlert(alert)]);
 }
 
-export function getAlertSeverity(durationMs: number): "warning" | "critical" | null {
+export function getAlertSeverity(
+  durationMs: number,
+): "warning" | "critical" | null {
   if (durationMs >= ALERT_THRESHOLDS.CRITICAL) return "critical";
   if (durationMs >= ALERT_THRESHOLDS.WARNING) return "warning";
   return null;

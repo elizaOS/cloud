@@ -20,6 +20,7 @@ import { z } from "zod";
 
 /**
  * Middleware to check admin access
+ * Optimized: Uses single cached getAdminStatus() call instead of separate isAdmin + getAdminRole.
  */
 async function requireAdmin(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
@@ -34,7 +35,11 @@ async function requireAdmin(request: NextRequest) {
     };
   }
 
-  const isAdmin = await adminService.isAdmin(user.wallet_address);
+  // Single cached call instead of two separate DB queries
+  const { isAdmin, role } = await adminService.getAdminStatus(
+    user.wallet_address,
+  );
+
   if (!isAdmin) {
     return {
       error: "Admin access required",
@@ -44,8 +49,6 @@ async function requireAdmin(request: NextRequest) {
       role: null,
     };
   }
-
-  const role = await adminService.getAdminRole(user.wallet_address);
 
   return {
     error: null,
@@ -356,15 +359,44 @@ export async function POST(request: NextRequest) {
 /**
  * HEAD /api/v1/admin/moderation
  * Quick check if current user is an admin.
+ * Returns 200 with X-Is-Admin header for status checks (not 403 for non-admins).
+ *
+ * Optimized: Uses single cached getAdminStatus() call instead of separate isAdmin + getAdminRole.
  */
 export async function HEAD(request: NextRequest) {
-  const auth = await requireAdmin(request);
+  try {
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
 
-  return new NextResponse(null, {
-    status: auth.isAdmin ? 200 : 403,
-    headers: {
-      "X-Is-Admin": String(auth.isAdmin),
-      "X-Admin-Role": auth.role || "",
-    },
-  });
+    if (!user.wallet_address) {
+      return new NextResponse(null, {
+        status: 200,
+        headers: {
+          "X-Is-Admin": "false",
+          "X-Admin-Role": "",
+        },
+      });
+    }
+
+    // Single cached call instead of two separate DB queries
+    const { isAdmin, role } = await adminService.getAdminStatus(
+      user.wallet_address,
+    );
+
+    return new NextResponse(null, {
+      status: 200,
+      headers: {
+        "X-Is-Admin": String(isAdmin),
+        "X-Admin-Role": role || "",
+      },
+    });
+  } catch {
+    // Not authenticated - return 200 with not-admin status
+    return new NextResponse(null, {
+      status: 200,
+      headers: {
+        "X-Is-Admin": "false",
+        "X-Admin-Role": "",
+      },
+    });
+  }
 }

@@ -139,19 +139,22 @@ const nextConfig: NextConfig = {
         config.externals.push("worker_threads");
       }
     }
-    
+
     // Prevent pino and related packages from being bundled (they have Node.js-only deps)
     config.resolve = config.resolve || {};
     config.resolve.alias = config.resolve.alias || {};
-    
+
     // Alias pino ecosystem to empty modules for client builds
     if (!isServer) {
       config.resolve.alias["pino"] = require.resolve("./lib/empty-module.js");
-      config.resolve.alias["thread-stream"] = require.resolve("./lib/empty-module.js");
-      config.resolve.alias["sonic-boom"] = require.resolve("./lib/empty-module.js");
-      config.resolve.alias["pino-pretty"] = require.resolve("./lib/empty-module.js");
+      config.resolve.alias["thread-stream"] =
+        require.resolve("./lib/empty-module.js");
+      config.resolve.alias["sonic-boom"] =
+        require.resolve("./lib/empty-module.js");
+      config.resolve.alias["pino-pretty"] =
+        require.resolve("./lib/empty-module.js");
     }
-    
+
     return config;
   },
 

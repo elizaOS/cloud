@@ -1,6 +1,6 @@
 /**
  * Twilio SMS Service
- * 
+ *
  * Sends SMS messages for task reminders and notifications.
  */
 
@@ -20,7 +20,9 @@ interface TwilioCredentials {
 }
 
 class TwilioService {
-  private async getCredentials(organizationId: string): Promise<TwilioCredentials | null> {
+  private async getCredentials(
+    organizationId: string,
+  ): Promise<TwilioCredentials | null> {
     const [accountSid, authToken, fromNumber] = await Promise.all([
       secretsService.getSecret(organizationId, "TWILIO_ACCOUNT_SID"),
       secretsService.getSecret(organizationId, "TWILIO_AUTH_TOKEN"),
@@ -34,7 +36,9 @@ class TwilioService {
     return { accountSid, authToken, fromNumber };
   }
 
-  async sendSms(params: SendSmsParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  async sendSms(
+    params: SendSmsParams,
+  ): Promise<{ success: boolean; messageId?: string; error?: string }> {
     const { to, body, organizationId } = params;
 
     const credentials = await this.getCredentials(organizationId);
@@ -64,9 +68,9 @@ class TwilioService {
       return { success: false, error: `Twilio API error: ${response.status}` };
     }
 
-    const data = await response.json() as { sid: string };
+    const data = (await response.json()) as { sid: string };
     logger.info("[TwilioService] SMS sent", { messageId: data.sid, to });
-    
+
     return { success: true, messageId: data.sid };
   }
 
@@ -77,4 +81,3 @@ class TwilioService {
 }
 
 export const twilioService = new TwilioService();
-

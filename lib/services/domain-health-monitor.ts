@@ -1,4 +1,7 @@
-import { managedDomainsRepository, type ManagedDomain } from "@/db/repositories/managed-domains";
+import {
+  managedDomainsRepository,
+  type ManagedDomain,
+} from "@/db/repositories/managed-domains";
 import { domainModerationService } from "./domain-moderation";
 import { logger } from "@/lib/utils/logger";
 import { extractErrorMessage } from "@/lib/types/domains";
@@ -43,7 +46,12 @@ const createStats = (): HealthMonitorStats => ({
 
 const toHealthCheckResult = (
   domain: string,
-  result: { isLive: boolean; sslValid?: boolean; responseTimeMs?: number; error?: string }
+  result: {
+    isLive: boolean;
+    sslValid?: boolean;
+    responseTimeMs?: number;
+    error?: string;
+  },
 ): HealthCheckBatchResult => ({
   domain,
   isLive: result.isLive,
@@ -60,10 +68,15 @@ class DomainHealthMonitorService {
     logger.info("[DomainHealthMonitor] Starting health check run");
 
     try {
-      const domainsToCheck = await managedDomainsRepository.listNeedingHealthCheck(HEALTH_CHECK_INTERVAL_HOURS);
+      const domainsToCheck =
+        await managedDomainsRepository.listNeedingHealthCheck(
+          HEALTH_CHECK_INTERVAL_HOURS,
+        );
       stats.totalDomains = domainsToCheck.length;
 
-      logger.info("[DomainHealthMonitor] Found domains to check", { count: domainsToCheck.length });
+      logger.info("[DomainHealthMonitor] Found domains to check", {
+        count: domainsToCheck.length,
+      });
 
       // Process in batches with timeout protection
       for (let i = 0; i < domainsToCheck.length; i += BATCH_SIZE) {
@@ -94,25 +107,35 @@ class DomainHealthMonitorService {
     return stats;
   }
 
-  private async processBatch(domains: ManagedDomain[], stats: HealthMonitorStats): Promise<void> {
-    await Promise.all(domains.map(async (d) => {
-      try {
-        const result = await domainModerationService.performHealthCheck(d.id);
-        stats.domainsChecked++;
-        result.isLive ? stats.domainsLive++ : stats.domainsDown++;
-        if (result.sslValid === false) stats.sslIssues++;
-        return toHealthCheckResult(d.domain, result);
-      } catch (error) {
-        stats.errors++;
-        return toHealthCheckResult(d.domain, { isLive: false, sslValid: false, error: extractErrorMessage(error) });
-      }
-    }));
+  private async processBatch(
+    domains: ManagedDomain[],
+    stats: HealthMonitorStats,
+  ): Promise<void> {
+    await Promise.all(
+      domains.map(async (d) => {
+        try {
+          const result = await domainModerationService.performHealthCheck(d.id);
+          stats.domainsChecked++;
+          result.isLive ? stats.domainsLive++ : stats.domainsDown++;
+          if (result.sslValid === false) stats.sslIssues++;
+          return toHealthCheckResult(d.domain, result);
+        } catch (error) {
+          stats.errors++;
+          return toHealthCheckResult(d.domain, {
+            isLive: false,
+            sslValid: false,
+            error: extractErrorMessage(error),
+          });
+        }
+      }),
+    );
   }
 
   private async checkExpirations(stats: HealthMonitorStats): Promise<void> {
-    const expiringDomains = await managedDomainsRepository.listExpiringWithinDays(
-      EXPIRATION_WARNING_DAYS
-    );
+    const expiringDomains =
+      await managedDomainsRepository.listExpiringWithinDays(
+        EXPIRATION_WARNING_DAYS,
+      );
 
     for (const domain of expiringDomains) {
       stats.expirationWarnings++;
@@ -122,13 +145,13 @@ class DomainHealthMonitorService {
       const recentWarning = events.find(
         (e) =>
           e.eventType === "expiration_warning" &&
-          e.createdAt > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Within last 7 days
+          e.createdAt > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Within last 7 days
       );
 
       if (!recentWarning) {
         const daysUntilExpiry = domain.expiresAt
           ? Math.ceil(
-              (domain.expiresAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000)
+              (domain.expiresAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000),
             )
           : 0;
 
@@ -156,29 +179,43 @@ class DomainHealthMonitorService {
     logger.info("[DomainHealthMonitor] Starting content scan run");
 
     try {
-      const activeDomains = await managedDomainsRepository.listByStatus("active");
+      const activeDomains =
+        await managedDomainsRepository.listByStatus("active");
       const liveDomains = activeDomains.filter((d) => d.isLive);
       stats.totalDomains = liveDomains.length;
 
-      logger.info("[DomainHealthMonitor] Found live domains to scan", { count: liveDomains.length });
+      logger.info("[DomainHealthMonitor] Found live domains to scan", {
+        count: liveDomains.length,
+      });
 
       for (const domain of liveDomains) {
         if (Date.now() - startTime > MAX_RUNTIME_MS) {
           stats.timedOut = true;
-          logger.warn("[DomainHealthMonitor] Content scan timeout", { scanned: stats.contentScanned, remaining: liveDomains.length - stats.contentScanned });
+          logger.warn("[DomainHealthMonitor] Content scan timeout", {
+            scanned: stats.contentScanned,
+            remaining: liveDomains.length - stats.contentScanned,
+          });
           break;
         }
 
         try {
-          const result = await domainModerationService.scanDomainContent(domain.id);
+          const result = await domainModerationService.scanDomainContent(
+            domain.id,
+          );
           stats.contentScanned++;
 
           if (result.status === "flagged") {
             stats.contentFlagged++;
-            logger.warn("[DomainHealthMonitor] Content flagged", { domain: domain.domain, flags: result.flags.length });
+            logger.warn("[DomainHealthMonitor] Content flagged", {
+              domain: domain.domain,
+              flags: result.flags.length,
+            });
           } else if (result.status === "failed") {
             stats.errors++;
-            logger.warn("[DomainHealthMonitor] Content scan failed", { domain: domain.domain, error: result.error });
+            logger.warn("[DomainHealthMonitor] Content scan failed", {
+              domain: domain.domain,
+              error: result.error,
+            });
           }
         } catch (error) {
           stats.errors++;
@@ -198,7 +235,9 @@ class DomainHealthMonitorService {
     return stats;
   }
 
-  async checkSingleDomain(domainId: string): Promise<HealthCheckBatchResult | null> {
+  async checkSingleDomain(
+    domainId: string,
+  ): Promise<HealthCheckBatchResult | null> {
     const domain = await managedDomainsRepository.findById(domainId);
     if (!domain) return null;
     const result = await domainModerationService.performHealthCheck(domainId);
@@ -225,7 +264,7 @@ class DomainHealthMonitorService {
     const liveDomains = active.filter((d) => d.isLive);
     const downDomains = active.filter((d) => !d.isLive);
     const sslIssues = active.filter(
-      (d) => d.sslStatus === "error" || d.sslStatus === "pending"
+      (d) => d.sslStatus === "error" || d.sslStatus === "pending",
     );
 
     return {
@@ -255,7 +294,7 @@ class DomainHealthMonitorService {
     return {
       down: active.filter((d) => !d.isLive),
       sslIssues: active.filter(
-        (d) => d.sslStatus === "error" || d.sslStatus === "pending"
+        (d) => d.sslStatus === "error" || d.sslStatus === "pending",
       ),
       flagged,
       expiringSoon: expiring,
@@ -264,4 +303,3 @@ class DomainHealthMonitorService {
 }
 
 export const domainHealthMonitorService = new DomainHealthMonitorService();
-

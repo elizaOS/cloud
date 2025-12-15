@@ -1,9 +1,9 @@
 /**
  * Org App Development Seed Script
- * 
+ *
  * Seeds the database with test data for org-app local development.
  * Similar to seed-app-dev.ts but for the org app.
- * 
+ *
  * Usage: bun run db:orgapp:seed
  */
 
@@ -29,7 +29,7 @@ async function main() {
 
   if (!testUser) {
     console.log("Creating test organization...");
-    
+
     // Create organization first
     const [org] = await db
       .insert(organizations)
@@ -38,7 +38,7 @@ async function main() {
         is_active: true,
       })
       .returning();
-    
+
     organization = org;
     console.log(`✅ Created organization: ${org.name} (${org.id})`);
 
@@ -103,4 +103,3 @@ main().catch((error) => {
   console.error("❌ Seeding failed:", error);
   process.exit(1);
 });
-

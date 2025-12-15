@@ -19,7 +19,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   const campaign = await advertisingService.startCampaign(
     id,
-    user.organization_id!
+    user.organization_id!,
   );
 
   logger.info("[Advertising API] Campaign started", { campaignId: id });

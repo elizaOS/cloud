@@ -1,21 +1,25 @@
 #!/usr/bin/env bun
 /**
  * CLI tool for testing the moderation system
- * 
+ *
  * Usage:
  *   bun run scripts/test-moderation.ts --text "content to test"
  *   bun run scripts/test-moderation.ts --image-url "https://example.com/image.jpg"
  *   bun run scripts/test-moderation.ts --file /path/to/image.jpg
  */
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.AI_GATEWAY_API_KEY;
+const OPENAI_API_KEY =
+  process.env.OPENAI_API_KEY || process.env.AI_GATEWAY_API_KEY;
 
 if (!OPENAI_API_KEY) {
   console.error("❌ OPENAI_API_KEY not set");
   process.exit(1);
 }
 
-const THRESHOLDS: Record<string, { threshold: number; severity: string; emoji: string }> = {
+const THRESHOLDS: Record<
+  string,
+  { threshold: number; severity: string; emoji: string }
+> = {
   "sexual/minors": { threshold: 0.1, severity: "critical", emoji: "🚨" },
   "self-harm/instructions": { threshold: 0.3, severity: "high", emoji: "⚠️" },
   "self-harm/intent": { threshold: 0.4, severity: "high", emoji: "⚠️" },
@@ -24,7 +28,9 @@ const THRESHOLDS: Record<string, { threshold: number; severity: string; emoji: s
   "illicit/violent": { threshold: 0.5, severity: "high", emoji: "⚠️" },
 };
 
-async function testModeration(input: string | { type: "image_url"; image_url: { url: string } }[]) {
+async function testModeration(
+  input: string | { type: "image_url"; image_url: { url: string } }[],
+) {
   console.log("\n🔍 Testing moderation...\n");
   const startTime = Date.now();
 
@@ -62,18 +68,24 @@ async function testModeration(input: string | { type: "image_url"; image_url: { 
 
   // Check each category
   const flagged: string[] = [];
-  
+
   console.log("Category Scores:");
   console.log("─".repeat(60));
-  
+
   for (const [category, config] of Object.entries(THRESHOLDS)) {
     const score = result.category_scores[category] ?? 0;
     const isFlagged = score >= config.threshold;
-    const bar = "█".repeat(Math.floor(score * 30)) + "░".repeat(30 - Math.floor(score * 30));
-    const status = isFlagged ? `${config.emoji} FLAGGED (${config.severity.toUpperCase()})` : "✅ OK";
-    
-    console.log(`${category.padEnd(25)} [${bar}] ${(score * 100).toFixed(1).padStart(5)}% ${status}`);
-    
+    const bar =
+      "█".repeat(Math.floor(score * 30)) +
+      "░".repeat(30 - Math.floor(score * 30));
+    const status = isFlagged
+      ? `${config.emoji} FLAGGED (${config.severity.toUpperCase()})`
+      : "✅ OK";
+
+    console.log(
+      `${category.padEnd(25)} [${bar}] ${(score * 100).toFixed(1).padStart(5)}% ${status}`,
+    );
+
     if (isFlagged) {
       flagged.push(category);
     }
@@ -85,11 +97,13 @@ async function testModeration(input: string | { type: "image_url"; image_url: { 
   if (flagged.length > 0) {
     console.log(`🚫 FLAGGED CATEGORIES: ${flagged.join(", ")}`);
     console.log();
-    
+
     // Determine action
-    const hasCritical = flagged.some(c => THRESHOLDS[c]?.severity === "critical");
-    const hasHigh = flagged.some(c => THRESHOLDS[c]?.severity === "high");
-    
+    const hasCritical = flagged.some(
+      (c) => THRESHOLDS[c]?.severity === "critical",
+    );
+    const hasHigh = flagged.some((c) => THRESHOLDS[c]?.severity === "high");
+
     if (hasCritical) {
       console.log("🚨 Action: CONTENT DELETED + USER STRIKE (CRITICAL)");
     } else if (hasHigh) {
@@ -143,7 +157,7 @@ Examples:
   } else if (fileIdx !== -1 && args[fileIdx + 1]) {
     const filePath = args[fileIdx + 1];
     const file = Bun.file(filePath);
-    
+
     if (!(await file.exists())) {
       console.error(`❌ File not found: ${filePath}`);
       process.exit(1);
@@ -152,23 +166,24 @@ Examples:
     const buffer = await file.arrayBuffer();
     const base64 = Buffer.from(buffer).toString("base64");
     const mimeType = file.type || "image/jpeg";
-    
+
     console.log(`📷 Testing local file: ${filePath}`);
     console.log(`   Size: ${(buffer.byteLength / 1024).toFixed(1)}KB`);
     console.log(`   Type: ${mimeType}`);
-    
-    await testModeration([{ 
-      type: "image_url", 
-      image_url: { url: `data:${mimeType};base64,${base64}` } 
-    }]);
+
+    await testModeration([
+      {
+        type: "image_url",
+        image_url: { url: `data:${mimeType};base64,${base64}` },
+      },
+    ]);
   } else {
     console.error("❌ No input provided. Use --help for usage.");
     process.exit(1);
   }
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error("❌ Error:", err);
   process.exit(1);
 });
-

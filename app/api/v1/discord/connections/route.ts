@@ -28,7 +28,9 @@ const RegisterBotSchema = z.object({
 export async function GET(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
-  const statuses = await discordGatewayService.getBotStatus(user.organization_id!);
+  const statuses = await discordGatewayService.getBotStatus(
+    user.organization_id!,
+  );
 
   return NextResponse.json({
     success: true,
@@ -48,12 +50,17 @@ export async function POST(request: NextRequest) {
   const parsed = RegisterBotSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { success: false, error: "Invalid request", details: parsed.error.issues },
-      { status: 400 }
+      {
+        success: false,
+        error: "Invalid request",
+        details: parsed.error.issues,
+      },
+      { status: 400 },
     );
   }
 
-  const { platform_connection_id, bot_token, application_id, intents } = parsed.data;
+  const { platform_connection_id, bot_token, application_id, intents } =
+    parsed.data;
 
   logger.info("[Discord Connections] Registering bot", {
     organizationId: user.organization_id,
@@ -71,7 +78,7 @@ export async function POST(request: NextRequest) {
   if (!result.success) {
     return NextResponse.json(
       { success: false, error: result.error },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -84,4 +91,3 @@ export async function POST(request: NextRequest) {
     },
   });
 }
-

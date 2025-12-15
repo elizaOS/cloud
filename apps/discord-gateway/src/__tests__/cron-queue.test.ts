@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 
 /**
  * Cron Queue Processor Tests
- * 
+ *
  * Tests the background queue processing logic.
  */
 
@@ -67,19 +67,21 @@ describe("Cron Queue Processing", () => {
   describe("Batch Processing Limits", () => {
     it("should respect default batch size", () => {
       const defaultLimit = 100;
-      const items = Array.from({ length: 250 }, (_, i) => ({ id: `item-${i}` }));
-      
+      const items = Array.from({ length: 250 }, (_, i) => ({
+        id: `item-${i}`,
+      }));
+
       const batch = items.slice(0, defaultLimit);
-      
+
       expect(batch).toHaveLength(100);
     });
 
     it("should process all items when under limit", () => {
       const limit = 100;
       const items = Array.from({ length: 50 }, (_, i) => ({ id: `item-${i}` }));
-      
+
       const batch = items.slice(0, limit);
-      
+
       expect(batch).toHaveLength(50);
     });
   });
@@ -95,7 +97,7 @@ describe("Cron Queue Processing", () => {
     it("should transition processing to completed on success", () => {
       const item = { id: "item-1", status: "processing" as const };
       const routingSuccess = true;
-      
+
       const finalStatus = routingSuccess ? "completed" : "failed";
 
       expect(finalStatus).toBe("completed");
@@ -104,15 +106,15 @@ describe("Cron Queue Processing", () => {
     it("should transition processing to failed on error", () => {
       const item = { id: "item-1", status: "processing" as const };
       const routingSuccess = false;
-      
+
       const finalStatus = routingSuccess ? "completed" : "failed";
 
       expect(finalStatus).toBe("failed");
     });
 
     it("should move to dead_letter after max attempts", () => {
-      const item = { 
-        id: "item-1", 
+      const item = {
+        id: "item-1",
         status: "failed" as const,
         attempts: 3,
         max_attempts: 3,
@@ -133,8 +135,8 @@ describe("Cron Queue Processing", () => {
         { success: false, routeId: "r3", error: "Failed" },
       ];
 
-      const successful = results.filter(r => r.success).length;
-      const failed = results.filter(r => !r.success).length;
+      const successful = results.filter((r) => r.success).length;
+      const failed = results.filter((r) => !r.success).length;
 
       expect(successful).toBe(2);
       expect(failed).toBe(1);
@@ -142,8 +144,9 @@ describe("Cron Queue Processing", () => {
 
     it("should treat empty results as success", () => {
       const results: Array<{ success: boolean }> = [];
-      
-      const allSuccessful = results.length === 0 || results.every(r => r.success);
+
+      const allSuccessful =
+        results.length === 0 || results.every((r) => r.success);
 
       expect(allSuccessful).toBe(true);
     });
@@ -156,8 +159,8 @@ describe("Cron Queue Processing", () => {
       ];
 
       const errors = results
-        .filter(r => !r.success)
-        .map(r => r.error)
+        .filter((r) => !r.success)
+        .map((r) => r.error)
         .join("; ");
 
       expect(errors).toBe("Route A failed; Route B timeout");
@@ -230,12 +233,12 @@ describe("Cron Timing", () => {
   it("should process within timeout", () => {
     const startTime = Date.now();
     const maxDurationMs = 60000;
-    
+
     // Simulate processing
     const processingTime = 5000;
     const endTime = startTime + processingTime;
-    
-    const withinTimeout = (endTime - startTime) < maxDurationMs;
+
+    const withinTimeout = endTime - startTime < maxDurationMs;
     expect(withinTimeout).toBe(true);
   });
 });

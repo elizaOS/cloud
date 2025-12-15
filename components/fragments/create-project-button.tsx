@@ -1,6 +1,6 @@
 /**
  * Create Project Button Component
- * 
+ *
  * Button to navigate to fragments page to create a new project
  */
 
@@ -23,4 +23,3 @@ export function CreateProjectButton() {
     </BrandButton>
   );
 }
-

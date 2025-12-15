@@ -1,6 +1,6 @@
 /**
  * Deploy Fragment Project API
- * 
+ *
  * Deploy a fragment project as a app or container
  */
 
@@ -34,7 +34,7 @@ const DeploySchema = z.union([DeployAppSchema, DeployContainerSchema]);
  */
 async function handlePOST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
@@ -49,7 +49,7 @@ async function handlePOST(
           error: "Invalid request data",
           details: validationResult.error.format(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -58,14 +58,14 @@ async function handlePOST(
     if (!project) {
       return NextResponse.json(
         { success: false, error: "Project not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (project.organization_id !== user.organization_id) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -113,10 +113,9 @@ async function handlePOST(
         error:
           error instanceof Error ? error.message : "Failed to deploy project",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export const POST = withRateLimit(handlePOST, RateLimitPresets.CRITICAL);
-

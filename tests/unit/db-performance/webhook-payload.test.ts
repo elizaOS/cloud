@@ -28,11 +28,12 @@ function formatDiscordPayload(
   query: string,
   durationMs: number,
   severity: "warning" | "critical",
-  timestamp: Date
+  timestamp: Date,
 ): DiscordPayload {
   const color = severity === "critical" ? 0xff0000 : 0xffaa00;
   const emoji = severity === "critical" ? "🔴" : "🟡";
-  const truncated = query.length > 500 ? query.substring(0, 500) + "..." : query;
+  const truncated =
+    query.length > 500 ? query.substring(0, 500) + "..." : query;
 
   return {
     embeds: [
@@ -53,14 +54,23 @@ function formatDiscordPayload(
 function formatSlackPayload(
   query: string,
   durationMs: number,
-  severity: "warning" | "critical"
+  severity: "warning" | "critical",
 ): SlackPayload {
-  const emoji = severity === "critical" ? ":red_circle:" : ":large_yellow_circle:";
-  const truncated = query.length > 500 ? query.substring(0, 500) + "..." : query;
+  const emoji =
+    severity === "critical" ? ":red_circle:" : ":large_yellow_circle:";
+  const truncated =
+    query.length > 500 ? query.substring(0, 500) + "..." : query;
 
   return {
     blocks: [
-      { type: "header", text: { type: "plain_text", text: `${emoji} Slow Database Query`, emoji: true } },
+      {
+        type: "header",
+        text: {
+          type: "plain_text",
+          text: `${emoji} Slow Database Query`,
+          emoji: true,
+        },
+      },
       {
         type: "section",
         fields: [
@@ -68,7 +78,10 @@ function formatSlackPayload(
           { type: "mrkdwn", text: `*Severity:*\n${severity.toUpperCase()}` },
         ],
       },
-      { type: "section", text: { type: "mrkdwn", text: `*Query:*\n\`\`\`${truncated}\`\`\`` } },
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: `*Query:*\n\`\`\`${truncated}\`\`\`` },
+      },
     ],
   };
 }
@@ -79,14 +92,22 @@ describe("Discord webhook payload", () => {
       "SELECT * FROM users",
       250,
       "warning",
-      new Date("2024-01-15T12:00:00Z")
+      new Date("2024-01-15T12:00:00Z"),
     );
 
     expect(payload.embeds).toHaveLength(1);
     expect(payload.embeds[0].title).toBe("🟡 Slow Database Query");
     expect(payload.embeds[0].color).toBe(0xffaa00); // Orange
-    expect(payload.embeds[0].fields[0]).toEqual({ name: "Duration", value: "250ms", inline: true });
-    expect(payload.embeds[0].fields[1]).toEqual({ name: "Severity", value: "WARNING", inline: true });
+    expect(payload.embeds[0].fields[0]).toEqual({
+      name: "Duration",
+      value: "250ms",
+      inline: true,
+    });
+    expect(payload.embeds[0].fields[1]).toEqual({
+      name: "Severity",
+      value: "WARNING",
+      inline: true,
+    });
     expect(payload.embeds[0].timestamp).toBe("2024-01-15T12:00:00.000Z");
   });
 
@@ -95,12 +116,16 @@ describe("Discord webhook payload", () => {
       "SELECT * FROM users",
       1500,
       "critical",
-      new Date("2024-01-15T12:00:00Z")
+      new Date("2024-01-15T12:00:00Z"),
     );
 
     expect(payload.embeds[0].title).toBe("🔴 Slow Database Query");
     expect(payload.embeds[0].color).toBe(0xff0000); // Red
-    expect(payload.embeds[0].fields[1]).toEqual({ name: "Severity", value: "CRITICAL", inline: true });
+    expect(payload.embeds[0].fields[1]).toEqual({
+      name: "Severity",
+      value: "CRITICAL",
+      inline: true,
+    });
   });
 
   it("truncates long queries", () => {
@@ -113,7 +138,12 @@ describe("Discord webhook payload", () => {
   });
 
   it("wraps query in SQL code block", () => {
-    const payload = formatDiscordPayload("SELECT 1", 100, "warning", new Date());
+    const payload = formatDiscordPayload(
+      "SELECT 1",
+      100,
+      "warning",
+      new Date(),
+    );
     const queryField = payload.embeds[0].fields[2];
 
     expect(queryField.value).toMatch(/^```sql\n/);
@@ -121,9 +151,14 @@ describe("Discord webhook payload", () => {
   });
 
   it("produces valid JSON", () => {
-    const payload = formatDiscordPayload("SELECT * FROM test", 200, "warning", new Date());
+    const payload = formatDiscordPayload(
+      "SELECT * FROM test",
+      200,
+      "warning",
+      new Date(),
+    );
     const json = JSON.stringify(payload);
-    
+
     expect(() => JSON.parse(json)).not.toThrow();
   });
 });
@@ -134,7 +169,9 @@ describe("Slack webhook payload", () => {
 
     expect(payload.blocks).toHaveLength(3);
     expect(payload.blocks[0].type).toBe("header");
-    expect(payload.blocks[0].text!.text).toBe(":large_yellow_circle: Slow Database Query");
+    expect(payload.blocks[0].text!.text).toBe(
+      ":large_yellow_circle: Slow Database Query",
+    );
     expect(payload.blocks[1].fields![0].text).toBe("*Duration:*\n250ms");
     expect(payload.blocks[1].fields![1].text).toBe("*Severity:*\nWARNING");
   });
@@ -142,7 +179,9 @@ describe("Slack webhook payload", () => {
   it("formats critical severity correctly", () => {
     const payload = formatSlackPayload("SELECT * FROM users", 1500, "critical");
 
-    expect(payload.blocks[0].text!.text).toBe(":red_circle: Slow Database Query");
+    expect(payload.blocks[0].text!.text).toBe(
+      ":red_circle: Slow Database Query",
+    );
     expect(payload.blocks[1].fields![1].text).toBe("*Severity:*\nCRITICAL");
   });
 
@@ -174,7 +213,7 @@ describe("Slack webhook payload", () => {
   it("produces valid JSON", () => {
     const payload = formatSlackPayload("SELECT * FROM test", 200, "warning");
     const json = JSON.stringify(payload);
-    
+
     expect(() => JSON.parse(json)).not.toThrow();
   });
 });
@@ -189,7 +228,8 @@ describe("webhook payload edge cases", () => {
   });
 
   it("handles query with special characters", () => {
-    const query = "SELECT * FROM users WHERE name = 'O''Brien' AND data->>'key' = 'value'";
+    const query =
+      "SELECT * FROM users WHERE name = 'O''Brien' AND data->>'key' = 'value'";
     const discord = formatDiscordPayload(query, 100, "warning", new Date());
     const slack = formatSlackPayload(query, 100, "warning");
 
@@ -208,7 +248,12 @@ describe("webhook payload edge cases", () => {
   });
 
   it("handles very large duration values", () => {
-    const discord = formatDiscordPayload("SELECT 1", 999999, "critical", new Date());
+    const discord = formatDiscordPayload(
+      "SELECT 1",
+      999999,
+      "critical",
+      new Date(),
+    );
     const slack = formatSlackPayload("SELECT 1", 999999, "critical");
 
     expect(discord.embeds[0].fields[0].value).toBe("999999ms");
@@ -224,4 +269,3 @@ describe("webhook payload edge cases", () => {
     expect(slack.blocks[2].text!.text).toContain("日本語");
   });
 });
-

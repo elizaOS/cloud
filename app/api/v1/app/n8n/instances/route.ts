@@ -15,7 +15,8 @@ import { z } from "zod";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-App-Token, X-Api-Key",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, X-App-Token, X-Api-Key",
 };
 
 const CreateInstanceSchema = z.object({
@@ -41,11 +42,13 @@ export async function GET(request: NextRequest) {
     if (apps.length === 0) {
       return NextResponse.json(
         { success: false, error: "No app found for this organization" },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: corsHeaders },
       );
     }
 
-    const instances = await n8nWorkflowsService.listInstances(user.organization_id);
+    const instances = await n8nWorkflowsService.listInstances(
+      user.organization_id,
+    );
 
     return NextResponse.json(
       {
@@ -59,16 +62,17 @@ export async function GET(request: NextRequest) {
           updatedAt: i.updated_at,
         })),
       },
-      { headers: corsHeaders }
+      { headers: corsHeaders },
     );
   } catch (error) {
     logger.error("[App N8N Instances] Error listing instances:", error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to list instances",
+        error:
+          error instanceof Error ? error.message : "Failed to list instances",
       },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: corsHeaders },
     );
   }
 }
@@ -85,7 +89,7 @@ export async function POST(request: NextRequest) {
     if (apps.length === 0) {
       return NextResponse.json(
         { success: false, error: "No app found for this organization" },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: corsHeaders },
       );
     }
 
@@ -101,7 +105,7 @@ export async function POST(request: NextRequest) {
           error: "Invalid request",
           details: validation.error.format(),
         },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: corsHeaders },
       );
     }
 
@@ -121,14 +125,16 @@ export async function POST(request: NextRequest) {
       updated_at: new Date(),
     };
 
-    const isConnected = await n8nWorkflowsService.testInstanceConnection(testInstance);
+    const isConnected =
+      await n8nWorkflowsService.testInstanceConnection(testInstance);
     if (!isConnected) {
       return NextResponse.json(
         {
           success: false,
-          error: "Cannot connect to n8n instance. Please check your endpoint and API key.",
+          error:
+            "Cannot connect to n8n instance. Please check your endpoint and API key.",
         },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: corsHeaders },
       );
     }
 
@@ -138,7 +144,7 @@ export async function POST(request: NextRequest) {
       name,
       endpoint,
       apiKey,
-      isDefault || false
+      isDefault || false,
     );
 
     logger.info(`[App N8N Instances] Created instance: ${name}`, {
@@ -158,17 +164,17 @@ export async function POST(request: NextRequest) {
           updatedAt: instance.updated_at,
         },
       },
-      { headers: corsHeaders }
+      { headers: corsHeaders },
     );
   } catch (error) {
     logger.error("[App N8N Instances] Error creating instance:", error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to create instance",
+        error:
+          error instanceof Error ? error.message : "Failed to create instance",
       },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: corsHeaders },
     );
   }
 }
-

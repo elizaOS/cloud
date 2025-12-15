@@ -1,6 +1,6 @@
 /**
  * Org MCP SSE Endpoint
- * 
+ *
  * Exposes organization management tools via Streamable HTTP MCP protocol.
  * This allows AI agents to manage todos, check-ins, team members, and reports.
  */
@@ -34,12 +34,16 @@ const UpdateTodoSchema = z.object({
   todoId: z.string().uuid(),
   title: z.string().min(1).max(500).optional(),
   description: z.string().max(5000).optional(),
-  status: z.enum(["pending", "in_progress", "completed", "cancelled"]).optional(),
+  status: z
+    .enum(["pending", "in_progress", "completed", "cancelled"])
+    .optional(),
   priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
 });
 
 const ListTodosSchema = z.object({
-  status: z.enum(["pending", "in_progress", "completed", "cancelled"]).optional(),
+  status: z
+    .enum(["pending", "in_progress", "completed", "cancelled"])
+    .optional(),
   priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
   limit: z.number().int().min(1).max(100).optional(),
 });
@@ -47,8 +51,18 @@ const ListTodosSchema = z.object({
 const CreateCheckinScheduleSchema = z.object({
   serverId: z.string().uuid(),
   name: z.string().min(1).max(200),
-  checkinType: z.enum(["standup", "sprint", "mental_health", "project_status", "retrospective"]).optional(),
-  frequency: z.enum(["daily", "weekdays", "weekly", "bi_weekly", "monthly"]).optional(),
+  checkinType: z
+    .enum([
+      "standup",
+      "sprint",
+      "mental_health",
+      "project_status",
+      "retrospective",
+    ])
+    .optional(),
+  frequency: z
+    .enum(["daily", "weekdays", "weekly", "bi_weekly", "monthly"])
+    .optional(),
   timeUtc: z.string().regex(/^\d{2}:\d{2}$/),
   checkinChannelId: z.string().min(1),
   questions: z.array(z.string()).optional(),
@@ -80,41 +94,83 @@ const TOOLS = [
       type: "object",
       properties: {
         title: { type: "string", description: "The title of the todo" },
-        description: { type: "string", description: "Detailed description of the task" },
-        priority: { type: "string", enum: ["low", "medium", "high", "urgent"], description: "Priority level" },
+        description: {
+          type: "string",
+          description: "Detailed description of the task",
+        },
+        priority: {
+          type: "string",
+          enum: ["low", "medium", "high", "urgent"],
+          description: "Priority level",
+        },
         dueDate: { type: "string", description: "Due date in ISO format" },
-        assigneePlatformId: { type: "string", description: "Platform user ID of assignee" },
-        assigneePlatform: { type: "string", enum: ["discord", "telegram"], description: "Platform of assignee" },
-        assigneeName: { type: "string", description: "Display name of assignee" },
-        tags: { type: "array", items: { type: "string" }, description: "Tags for categorization" },
+        assigneePlatformId: {
+          type: "string",
+          description: "Platform user ID of assignee",
+        },
+        assigneePlatform: {
+          type: "string",
+          enum: ["discord", "telegram"],
+          description: "Platform of assignee",
+        },
+        assigneeName: {
+          type: "string",
+          description: "Display name of assignee",
+        },
+        tags: {
+          type: "array",
+          items: { type: "string" },
+          description: "Tags for categorization",
+        },
       },
       required: ["title"],
     },
   },
   {
     name: "update_todo",
-    description: "Updates an existing todo item's details such as status, title, or priority.",
+    description:
+      "Updates an existing todo item's details such as status, title, or priority.",
     inputSchema: {
       type: "object",
       properties: {
         todoId: { type: "string", description: "UUID of the todo to update" },
         title: { type: "string", description: "New title" },
         description: { type: "string", description: "New description" },
-        status: { type: "string", enum: ["pending", "in_progress", "completed", "cancelled"], description: "New status" },
-        priority: { type: "string", enum: ["low", "medium", "high", "urgent"], description: "New priority" },
+        status: {
+          type: "string",
+          enum: ["pending", "in_progress", "completed", "cancelled"],
+          description: "New status",
+        },
+        priority: {
+          type: "string",
+          enum: ["low", "medium", "high", "urgent"],
+          description: "New priority",
+        },
       },
       required: ["todoId"],
     },
   },
   {
     name: "list_todos",
-    description: "Lists all todo items with optional filters for status and priority.",
+    description:
+      "Lists all todo items with optional filters for status and priority.",
     inputSchema: {
       type: "object",
       properties: {
-        status: { type: "string", enum: ["pending", "in_progress", "completed", "cancelled"], description: "Filter by status" },
-        priority: { type: "string", enum: ["low", "medium", "high", "urgent"], description: "Filter by priority" },
-        limit: { type: "number", description: "Maximum number of todos to return (default 20)" },
+        status: {
+          type: "string",
+          enum: ["pending", "in_progress", "completed", "cancelled"],
+          description: "Filter by status",
+        },
+        priority: {
+          type: "string",
+          enum: ["low", "medium", "high", "urgent"],
+          description: "Filter by priority",
+        },
+        limit: {
+          type: "number",
+          description: "Maximum number of todos to return (default 20)",
+        },
       },
     },
   },
@@ -131,7 +187,8 @@ const TOOLS = [
   },
   {
     name: "get_todo_stats",
-    description: "Gets statistics about todos including counts by status and overdue items.",
+    description:
+      "Gets statistics about todos including counts by status and overdue items.",
     inputSchema: {
       type: "object",
       properties: {},
@@ -139,17 +196,40 @@ const TOOLS = [
   },
   {
     name: "create_checkin_schedule",
-    description: "Creates a new automated check-in schedule for a team or server.",
+    description:
+      "Creates a new automated check-in schedule for a team or server.",
     inputSchema: {
       type: "object",
       properties: {
         serverId: { type: "string", description: "UUID of the server/group" },
-        name: { type: "string", description: "Name of the schedule (e.g., 'Morning Standup')" },
-        checkinType: { type: "string", enum: ["standup", "sprint", "mental_health", "project_status", "retrospective"] },
-        frequency: { type: "string", enum: ["daily", "weekdays", "weekly", "bi_weekly", "monthly"] },
+        name: {
+          type: "string",
+          description: "Name of the schedule (e.g., 'Morning Standup')",
+        },
+        checkinType: {
+          type: "string",
+          enum: [
+            "standup",
+            "sprint",
+            "mental_health",
+            "project_status",
+            "retrospective",
+          ],
+        },
+        frequency: {
+          type: "string",
+          enum: ["daily", "weekdays", "weekly", "bi_weekly", "monthly"],
+        },
         timeUtc: { type: "string", description: "Time in HH:MM format (UTC)" },
-        checkinChannelId: { type: "string", description: "Channel ID where check-ins will be posted" },
-        questions: { type: "array", items: { type: "string" }, description: "Custom questions for the check-in" },
+        checkinChannelId: {
+          type: "string",
+          description: "Channel ID where check-ins will be posted",
+        },
+        questions: {
+          type: "array",
+          items: { type: "string" },
+          description: "Custom questions for the check-in",
+        },
       },
       required: ["serverId", "name", "timeUtc", "checkinChannelId"],
     },
@@ -160,13 +240,27 @@ const TOOLS = [
     inputSchema: {
       type: "object",
       properties: {
-        scheduleId: { type: "string", description: "UUID of the check-in schedule" },
-        responderPlatformId: { type: "string", description: "Platform user ID of responder" },
+        scheduleId: {
+          type: "string",
+          description: "UUID of the check-in schedule",
+        },
+        responderPlatformId: {
+          type: "string",
+          description: "Platform user ID of responder",
+        },
         responderPlatform: { type: "string", enum: ["discord", "telegram"] },
-        responderName: { type: "string", description: "Display name of responder" },
+        responderName: {
+          type: "string",
+          description: "Display name of responder",
+        },
         answers: { type: "object", description: "Answers keyed by question" },
       },
-      required: ["scheduleId", "responderPlatformId", "responderPlatform", "answers"],
+      required: [
+        "scheduleId",
+        "responderPlatformId",
+        "responderPlatform",
+        "answers",
+      ],
     },
   },
   {
@@ -175,17 +269,24 @@ const TOOLS = [
     inputSchema: {
       type: "object",
       properties: {
-        serverId: { type: "string", description: "Optional: filter by server ID" },
+        serverId: {
+          type: "string",
+          description: "Optional: filter by server ID",
+        },
       },
     },
   },
   {
     name: "generate_report",
-    description: "Generates a comprehensive team productivity report based on check-in data.",
+    description:
+      "Generates a comprehensive team productivity report based on check-in data.",
     inputSchema: {
       type: "object",
       properties: {
-        scheduleId: { type: "string", description: "UUID of the check-in schedule" },
+        scheduleId: {
+          type: "string",
+          description: "UUID of the check-in schedule",
+        },
         startDate: { type: "string", description: "Start date in ISO format" },
         endDate: { type: "string", description: "End date in ISO format" },
       },
@@ -199,7 +300,10 @@ const TOOLS = [
       type: "object",
       properties: {
         serverId: { type: "string", description: "UUID of the server" },
-        platformUserId: { type: "string", description: "User ID on the platform" },
+        platformUserId: {
+          type: "string",
+          description: "User ID on the platform",
+        },
         platform: { type: "string", enum: ["discord", "telegram"] },
         displayName: { type: "string", description: "Display name" },
         role: { type: "string", description: "Role in the team" },
@@ -237,7 +341,7 @@ async function handleToolCall(
   toolName: string,
   args: Record<string, unknown>,
   organizationId: string,
-  userId: string
+  userId: string,
 ): Promise<{ content: Array<{ type: string; text: string }> }> {
   switch (toolName) {
     case "create_todo": {
@@ -249,7 +353,9 @@ async function handleToolCall(
         sourcePlatform: "web",
       });
       return {
-        content: [{ type: "text", text: JSON.stringify({ success: true, todo }) }],
+        content: [
+          { type: "text", text: JSON.stringify({ success: true, todo }) },
+        ],
       };
     }
 
@@ -258,7 +364,9 @@ async function handleToolCall(
       const { todoId, ...updates } = validated;
       const todo = await tasksService.update(todoId, organizationId, updates);
       return {
-        content: [{ type: "text", text: JSON.stringify({ success: true, todo }) }],
+        content: [
+          { type: "text", text: JSON.stringify({ success: true, todo }) },
+        ],
       };
     }
 
@@ -270,7 +378,12 @@ async function handleToolCall(
         limit: validated.limit || 20,
       });
       return {
-        content: [{ type: "text", text: JSON.stringify({ success: true, todos, total }) }],
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ success: true, todos, total }),
+          },
+        ],
       };
     }
 
@@ -280,14 +393,18 @@ async function handleToolCall(
         status: "completed",
       });
       return {
-        content: [{ type: "text", text: JSON.stringify({ success: true, todo }) }],
+        content: [
+          { type: "text", text: JSON.stringify({ success: true, todo }) },
+        ],
       };
     }
 
     case "get_todo_stats": {
       const stats = await tasksService.getStats(organizationId);
       return {
-        content: [{ type: "text", text: JSON.stringify({ success: true, stats }) }],
+        content: [
+          { type: "text", text: JSON.stringify({ success: true, stats }) },
+        ],
       };
     }
 
@@ -299,7 +416,9 @@ async function handleToolCall(
         ...validated,
       });
       return {
-        content: [{ type: "text", text: JSON.stringify({ success: true, schedule }) }],
+        content: [
+          { type: "text", text: JSON.stringify({ success: true, schedule }) },
+        ],
       };
     }
 
@@ -310,17 +429,23 @@ async function handleToolCall(
         ...validated,
       });
       return {
-        content: [{ type: "text", text: JSON.stringify({ success: true, response }) }],
+        content: [
+          { type: "text", text: JSON.stringify({ success: true, response }) },
+        ],
       };
     }
 
     case "list_checkin_schedules": {
-      const { serverId } = z.object({ serverId: z.string().optional() }).parse(args);
+      const { serverId } = z
+        .object({ serverId: z.string().optional() })
+        .parse(args);
       const schedules = serverId
         ? await checkinsService.listServerSchedules(serverId)
         : await checkinsService.listSchedules(organizationId);
       return {
-        content: [{ type: "text", text: JSON.stringify({ success: true, schedules }) }],
+        content: [
+          { type: "text", text: JSON.stringify({ success: true, schedules }) },
+        ],
       };
     }
 
@@ -332,55 +457,67 @@ async function handleToolCall(
         {
           start: new Date(validated.startDate),
           end: new Date(validated.endDate),
-        }
+        },
       );
       return {
-        content: [{ type: "text", text: JSON.stringify({ success: true, report }) }],
+        content: [
+          { type: "text", text: JSON.stringify({ success: true, report }) },
+        ],
       };
     }
 
     case "add_team_member": {
-      const validated = z.object({
-        serverId: z.string().uuid(),
-        platformUserId: z.string().min(1),
-        platform: z.enum(["discord", "telegram"]),
-        displayName: z.string().optional(),
-        role: z.string().optional(),
-        isAdmin: z.boolean().optional(),
-      }).parse(args);
+      const validated = z
+        .object({
+          serverId: z.string().uuid(),
+          platformUserId: z.string().min(1),
+          platform: z.enum(["discord", "telegram"]),
+          displayName: z.string().optional(),
+          role: z.string().optional(),
+          isAdmin: z.boolean().optional(),
+        })
+        .parse(args);
 
       const member = await checkinsService.upsertTeamMember({
         organizationId,
         ...validated,
       });
       return {
-        content: [{ type: "text", text: JSON.stringify({ success: true, member }) }],
+        content: [
+          { type: "text", text: JSON.stringify({ success: true, member }) },
+        ],
       };
     }
 
     case "list_team_members": {
-      const { serverId } = z.object({ serverId: z.string().uuid() }).parse(args);
+      const { serverId } = z
+        .object({ serverId: z.string().uuid() })
+        .parse(args);
       const members = await checkinsService.getTeamMembers(serverId);
       return {
-        content: [{ type: "text", text: JSON.stringify({ success: true, members }) }],
+        content: [
+          { type: "text", text: JSON.stringify({ success: true, members }) },
+        ],
       };
     }
 
     case "get_platform_status": {
       const connections = await botsService.getConnections(organizationId);
       return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: true,
-            platforms: connections.map((c) => ({
-              platform: c.platform,
-              status: c.status,
-              botUsername: c.platform_bot_username,
-              serverCount: 0, // Would need to count from servers
-            })),
-          }),
-        }],
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              success: true,
+              platforms: connections.map((c) => ({
+                platform: c.platform,
+                status: c.status,
+                botUsername: c.platform_bot_username,
+                serverCount: 0, // Would need to count from servers
+              })),
+            }),
+          },
+        ],
       };
     }
 
@@ -414,7 +551,7 @@ export async function POST(request: NextRequest) {
     if (!user.organization_id) {
       return NextResponse.json(
         { error: "Organization required" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -451,7 +588,7 @@ export async function POST(request: NextRequest) {
           name,
           args || {},
           user.organization_id,
-          user.id
+          user.id,
         );
         return NextResponse.json({
           jsonrpc: "2.0",
@@ -494,4 +631,3 @@ export async function POST(request: NextRequest) {
     });
   }
 }
-

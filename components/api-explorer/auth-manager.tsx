@@ -74,7 +74,8 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
       localStorage.setItem(EXPLORER_KEY_STORAGE_KEY, data.apiKey.key);
       onTokenChange(data.apiKey.key);
       toast({
-        message: "API Explorer key created! Save this key - it won't be shown again.",
+        message:
+          "API Explorer key created! Save this key - it won't be shown again.",
         mode: "success",
       });
     } else if (storedKey && storedKey.startsWith(data.apiKey.key_prefix)) {
@@ -111,7 +112,8 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
       setExplorerKey(data.apiKey);
       setNeedsRegeneration(false);
       toast({
-        message: "API key regenerated! Save this key - it won't be shown again.",
+        message:
+          "API key regenerated! Save this key - it won't be shown again.",
         mode: "success",
       });
     }
@@ -178,7 +180,8 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
                 API Key Not Found
               </div>
               <div className="text-xs text-white/50">
-                Your API key is not stored locally. Regenerate to create a new one.
+                Your API key is not stored locally. Regenerate to create a new
+                one.
               </div>
             </div>
           </div>

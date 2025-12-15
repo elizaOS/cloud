@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 /**
  * Show Slow Queries Script
- * 
+ *
  * Displays slow queries from the PostgreSQL slow_query_log table.
- * 
+ *
  * Usage:
  *   bun run scripts/show-slow-queries.ts              # Top 20 by avg duration
  *   bun run scripts/show-slow-queries.ts --frequent   # Top 20 by call count
@@ -22,7 +22,7 @@ const frequent = args.includes("--frequent") || args.includes("-f");
 const recent = args.includes("--recent") || args.includes("-r");
 const fullSql = args.includes("--full");
 
-const limitArg = args.find(a => a.startsWith("--limit="));
+const limitArg = args.find((a) => a.startsWith("--limit="));
 const limit = limitArg ? parseInt(limitArg.split("=")[1], 10) : 20;
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -87,7 +87,9 @@ async function main() {
 
   if (result.rows.length === 0) {
     console.log("No slow queries recorded yet! 🎉");
-    console.log("\nSlow queries (>${process.env.SLOW_QUERY_THRESHOLD_MS || 50}ms) will be logged automatically");
+    console.log(
+      "\nSlow queries (>${process.env.SLOW_QUERY_THRESHOLD_MS || 50}ms) will be logged automatically",
+    );
     console.log("when running in development or staging mode.");
     await pool.end();
     return;
@@ -95,21 +97,25 @@ async function main() {
 
   for (let i = 0; i < result.rows.length; i++) {
     const q = result.rows[i];
-    
+
     console.log("-".repeat(80));
     console.log(`#${i + 1} | Hash: ${q.query_hash}`);
     console.log();
-    console.log(`  Duration:  avg=${q.avg_ms}ms  min=${q.min_ms}ms  max=${q.max_ms}ms`);
+    console.log(
+      `  Duration:  avg=${q.avg_ms}ms  min=${q.min_ms}ms  max=${q.max_ms}ms`,
+    );
     console.log(`  Calls:     ${q.call_count}`);
-    
+
     if (q.source_file || q.source_function) {
-      console.log(`  Source:    ${q.source_file || "unknown"}:${q.source_function || "unknown"}`);
+      console.log(
+        `  Source:    ${q.source_file || "unknown"}:${q.source_function || "unknown"}`,
+      );
     }
-    
+
     console.log(`  First:     ${new Date(q.first_seen_at).toLocaleString()}`);
     console.log(`  Last:      ${new Date(q.last_seen_at).toLocaleString()}`);
     console.log();
-    
+
     if (fullSql) {
       console.log("  SQL:");
       console.log("  " + "-".repeat(76));
@@ -138,4 +144,3 @@ main().catch((err) => {
   console.error("Failed to fetch slow queries:", err);
   process.exit(1);
 });
-

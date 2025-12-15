@@ -63,4 +63,3 @@ export function getOrgCharacter(characterId: string) {
   }
   return null;
 }
-

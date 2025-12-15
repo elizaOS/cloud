@@ -64,7 +64,9 @@ const COST_PER_API_CALL_CENTS = 0.01;
 const DEFAULT_SESSION_TIMEOUT_SECONDS = 30 * 60;
 const MAX_SNAPSHOT_SIZE_BYTES = 100 * 1024 * 1024;
 
-const runtimes: Record<string, CodeAgentRuntime> = { vercel: vercelSandboxRuntime };
+const runtimes: Record<string, CodeAgentRuntime> = {
+  vercel: vercelSandboxRuntime,
+};
 
 class CodeAgentService {
   private handlers: CodeAgentEventHandler[] = [];
@@ -72,18 +74,28 @@ class CodeAgentService {
 
   onEvent(handler: CodeAgentEventHandler): () => void {
     this.handlers.push(handler);
-    return () => { const i = this.handlers.indexOf(handler); if (i > -1) this.handlers.splice(i, 1); };
+    return () => {
+      const i = this.handlers.indexOf(handler);
+      if (i > -1) this.handlers.splice(i, 1);
+    };
   }
 
-  private emit(event: CodeAgentEvent) { this.handlers.forEach((h) => h(event)); }
+  private emit(event: CodeAgentEvent) {
+    this.handlers.forEach((h) => h(event));
+  }
 
-  private async emitWithWebhook(event: CodeAgentEvent, session: CodeAgentSession) {
+  private async emitWithWebhook(
+    event: CodeAgentEvent,
+    session: CodeAgentSession,
+  ) {
     this.emit(event);
     await dispatchWebhook(session, event);
   }
 
   private async refreshSession(sessionId: string): Promise<CodeAgentSession> {
-    const s = await db.query.codeAgentSessions.findFirst({ where: eq(codeAgentSessions.id, sessionId) });
+    const s = await db.query.codeAgentSessions.findFirst({
+      where: eq(codeAgentSessions.id, sessionId),
+    });
     if (!s) throw new Error("Session not found");
     return s;
   }
@@ -104,14 +116,24 @@ class CodeAgentService {
       webhookEvents,
     } = params;
 
-    logger.info("[CodeAgentService] Creating session", { organizationId, runtimeType });
+    logger.info("[CodeAgentService] Creating session", {
+      organizationId,
+      runtimeType,
+    });
 
-    const { sufficient, currentBalance } = await hasSufficientCredits(organizationId, 1.0);
-    if (!sufficient) throw new Error(`Insufficient credits: $${currentBalance.toFixed(2)} < $1.00 minimum for session creation`);
+    const { sufficient, currentBalance } = await hasSufficientCredits(
+      organizationId,
+      1.0,
+    );
+    if (!sufficient)
+      throw new Error(
+        `Insufficient credits: $${currentBalance.toFixed(2)} < $1.00 minimum for session creation`,
+      );
 
-    const secrets = shouldLoadSecrets && isSecretsConfigured()
-      ? await loadOrgSecrets(organizationId)
-      : {};
+    const secrets =
+      shouldLoadSecrets && isSecretsConfigured()
+        ? await loadOrgSecrets(organizationId)
+        : {};
     const mergedEnv = { ...secrets, ...environmentVariables };
     const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
 
@@ -144,7 +166,10 @@ class CodeAgentService {
       } satisfies NewCodeAgentSession)
       .returning();
 
-    await CacheInvalidation.onCodeAgentSessionMutation(session.id, organizationId);
+    await CacheInvalidation.onCodeAgentSessionMutation(
+      session.id,
+      organizationId,
+    );
     this.emit({ type: "session_created", sessionId: session.id });
 
     const runtime = runtimes[runtimeType];
@@ -159,23 +184,52 @@ class CodeAgentService {
       });
       this.instances.set(session.id, instance);
 
-      await db.update(codeAgentSessions).set({ runtime_id: instance.id, runtime_url: instance.url, status: "ready", status_message: "Ready", updated_at: new Date() }).where(eq(codeAgentSessions.id, session.id));
-      await CacheInvalidation.onCodeAgentSessionMutation(session.id, organizationId);
+      await db
+        .update(codeAgentSessions)
+        .set({
+          runtime_id: instance.id,
+          runtime_url: instance.url,
+          status: "ready",
+          status_message: "Ready",
+          updated_at: new Date(),
+        })
+        .where(eq(codeAgentSessions.id, session.id));
+      await CacheInvalidation.onCodeAgentSessionMutation(
+        session.id,
+        organizationId,
+      );
       const updated = await this.refreshSession(session.id);
-      await this.emitWithWebhook({ type: "session_ready", sessionId: session.id, url: instance.url }, updated);
-      logger.info("[CodeAgentService] Session ready", { sessionId: session.id });
+      await this.emitWithWebhook(
+        { type: "session_ready", sessionId: session.id, url: instance.url },
+        updated,
+      );
+      logger.info("[CodeAgentService] Session ready", {
+        sessionId: session.id,
+      });
     } catch (error) {
       const msg = extractErrorMessage(error);
-      await db.update(codeAgentSessions).set({ status: "error", status_message: msg, updated_at: new Date() }).where(eq(codeAgentSessions.id, session.id));
-      await CacheInvalidation.onCodeAgentSessionMutation(session.id, organizationId);
-      await this.emitWithWebhook({ type: "session_error", sessionId: session.id, error: msg }, await this.refreshSession(session.id));
+      await db
+        .update(codeAgentSessions)
+        .set({ status: "error", status_message: msg, updated_at: new Date() })
+        .where(eq(codeAgentSessions.id, session.id));
+      await CacheInvalidation.onCodeAgentSessionMutation(
+        session.id,
+        organizationId,
+      );
+      await this.emitWithWebhook(
+        { type: "session_error", sessionId: session.id, error: msg },
+        await this.refreshSession(session.id),
+      );
       throw error;
     }
 
     return this.formatSessionInfo(await this.refreshSession(session.id));
   }
 
-  async getSession(sessionId: string, organizationId: string): Promise<SessionInfo | null> {
+  async getSession(
+    sessionId: string,
+    organizationId: string,
+  ): Promise<SessionInfo | null> {
     const cacheKey = CacheKeys.codeAgent.session(sessionId);
     const cached = await cache.get<SessionInfo>(cacheKey);
     if (cached && cached.organizationId === organizationId) return cached;
@@ -183,7 +237,7 @@ class CodeAgentService {
     const session = await db.query.codeAgentSessions.findFirst({
       where: and(
         eq(codeAgentSessions.id, sessionId),
-        eq(codeAgentSessions.organization_id, organizationId)
+        eq(codeAgentSessions.organization_id, organizationId),
       ),
     });
 
@@ -195,7 +249,7 @@ class CodeAgentService {
 
   async listSessions(
     organizationId: string,
-    options?: { status?: CodeAgentSessionStatus; limit?: number }
+    options?: { status?: CodeAgentSessionStatus; limit?: number },
   ): Promise<SessionInfo[]> {
     const conditions = [eq(codeAgentSessions.organization_id, organizationId)];
 
@@ -212,24 +266,51 @@ class CodeAgentService {
     return sessions.map((s) => this.formatSessionInfo(s));
   }
 
-  async terminateSession(sessionId: string, organizationId: string): Promise<void> {
+  async terminateSession(
+    sessionId: string,
+    organizationId: string,
+  ): Promise<void> {
     const session = await db.query.codeAgentSessions.findFirst({
-      where: and(eq(codeAgentSessions.id, sessionId), eq(codeAgentSessions.organization_id, organizationId)),
+      where: and(
+        eq(codeAgentSessions.id, sessionId),
+        eq(codeAgentSessions.organization_id, organizationId),
+      ),
     });
     if (!session) throw new Error("Session not found");
     if (session.status === "terminated") return;
 
     logger.info("[CodeAgentService] Terminating", { sessionId });
-    try { await this.createSnapshot({ sessionId, name: "Pre-termination" }); } catch (e) { logger.warn("[CodeAgentService] Snapshot failed", { sessionId, error: e }); }
+    try {
+      await this.createSnapshot({ sessionId, name: "Pre-termination" });
+    } catch (e) {
+      logger.warn("[CodeAgentService] Snapshot failed", {
+        sessionId,
+        error: e,
+      });
+    }
 
     if (session.runtime_id) {
       await runtimes[session.runtime_type].terminate(session.runtime_id);
       this.instances.delete(sessionId);
     }
 
-    await db.update(codeAgentSessions).set({ status: "terminated", status_message: "Terminated", terminated_at: new Date(), updated_at: new Date() }).where(eq(codeAgentSessions.id, sessionId));
-    await CacheInvalidation.onCodeAgentSessionMutation(sessionId, organizationId);
-    await this.emitWithWebhook({ type: "session_terminated", sessionId }, await this.refreshSession(sessionId));
+    await db
+      .update(codeAgentSessions)
+      .set({
+        status: "terminated",
+        status_message: "Terminated",
+        terminated_at: new Date(),
+        updated_at: new Date(),
+      })
+      .where(eq(codeAgentSessions.id, sessionId));
+    await CacheInvalidation.onCodeAgentSessionMutation(
+      sessionId,
+      organizationId,
+    );
+    await this.emitWithWebhook(
+      { type: "session_terminated", sessionId },
+      await this.refreshSession(sessionId),
+    );
   }
 
   async runCommand(params: RunCommandParams): Promise<CommandResult> {
@@ -237,14 +318,17 @@ class CodeAgentService {
     const instance = await this.getActiveInstance(sessionId);
     const startTime = Date.now();
 
-    const [rec] = await db.insert(codeAgentCommands).values({
-      session_id: sessionId,
-      command_type: "shell",
-      command: args ? `${command} ${args.join(" ")}` : command,
-      working_directory: options?.workingDirectory,
-      status: "running",
-      started_at: new Date(),
-    } satisfies NewCodeAgentCommand).returning();
+    const [rec] = await db
+      .insert(codeAgentCommands)
+      .values({
+        session_id: sessionId,
+        command_type: "shell",
+        command: args ? `${command} ${args.join(" ")}` : command,
+        working_directory: options?.workingDirectory,
+        status: "running",
+        started_at: new Date(),
+      } satisfies NewCodeAgentCommand)
+      .returning();
 
     this.emit({ type: "command_started", sessionId, commandId: rec.id });
 
@@ -256,16 +340,22 @@ class CodeAgentService {
       });
       const durationMs = Date.now() - startTime;
 
-      await db.update(codeAgentCommands).set({
-        status: result.exitCode === 0 ? "success" : "error",
-        exit_code: result.exitCode,
-        stdout: result.stdout,
-        stderr: result.stderr,
-        duration_ms: durationMs,
-        completed_at: new Date(),
-      }).where(eq(codeAgentCommands.id, rec.id));
+      await db
+        .update(codeAgentCommands)
+        .set({
+          status: result.exitCode === 0 ? "success" : "error",
+          exit_code: result.exitCode,
+          stdout: result.stdout,
+          stderr: result.stderr,
+          duration_ms: durationMs,
+          completed_at: new Date(),
+        })
+        .where(eq(codeAgentCommands.id, rec.id));
 
-      await this.updateSessionUsage(sessionId, { commandsExecuted: 1, apiCallsCount: 1 });
+      await this.updateSessionUsage(sessionId, {
+        commandsExecuted: 1,
+        apiCallsCount: 1,
+      });
 
       const commandResult: CommandResult = {
         success: result.exitCode === 0,
@@ -274,14 +364,22 @@ class CodeAgentService {
         stderr: result.stderr,
         durationMs,
       };
-      this.emit({ type: "command_completed", sessionId, commandId: rec.id, result: commandResult });
+      this.emit({
+        type: "command_completed",
+        sessionId,
+        commandId: rec.id,
+        result: commandResult,
+      });
       return commandResult;
     } catch (error) {
-      await db.update(codeAgentCommands).set({
-        status: "error",
-        error_message: extractErrorMessage(error),
-        completed_at: new Date(),
-      }).where(eq(codeAgentCommands.id, rec.id));
+      await db
+        .update(codeAgentCommands)
+        .set({
+          status: "error",
+          error_message: extractErrorMessage(error),
+          completed_at: new Date(),
+        })
+        .where(eq(codeAgentCommands.id, rec.id));
       throw error;
     }
   }
@@ -292,14 +390,17 @@ class CodeAgentService {
     const startTime = Date.now();
     const timeout = options?.timeout || 60000;
 
-    const [rec] = await db.insert(codeAgentCommands).values({
-      session_id: sessionId,
-      command_type: language,
-      command: code.substring(0, 1000),
-      working_directory: options?.workingDirectory,
-      status: "running",
-      started_at: new Date(),
-    } satisfies NewCodeAgentCommand).returning();
+    const [rec] = await db
+      .insert(codeAgentCommands)
+      .values({
+        session_id: sessionId,
+        command_type: language,
+        command: code.substring(0, 1000),
+        working_directory: options?.workingDirectory,
+        status: "running",
+        started_at: new Date(),
+      } satisfies NewCodeAgentCommand)
+      .returning();
 
     this.emit({ type: "command_started", sessionId, commandId: rec.id });
 
@@ -310,7 +411,10 @@ class CodeAgentService {
       switch (language) {
         case "python":
           await instance.writeFile(`${tempFile}.py`, code);
-          result = await instance.runCommand("python3", [`${tempFile}.py`], { cwd: options?.workingDirectory, timeout });
+          result = await instance.runCommand("python3", [`${tempFile}.py`], {
+            cwd: options?.workingDirectory,
+            timeout,
+          });
           await instance.runCommand("rm", ["-f", `${tempFile}.py`]);
           break;
         case "javascript":
@@ -318,28 +422,41 @@ class CodeAgentService {
           const ext = language === "typescript" ? "ts" : "js";
           await instance.writeFile(`${tempFile}.${ext}`, code);
           const runner = language === "typescript" ? "npx tsx" : "node";
-          result = await instance.runCommand("sh", ["-c", `${runner} ${tempFile}.${ext}`], { cwd: options?.workingDirectory, timeout });
+          result = await instance.runCommand(
+            "sh",
+            ["-c", `${runner} ${tempFile}.${ext}`],
+            { cwd: options?.workingDirectory, timeout },
+          );
           await instance.runCommand("rm", ["-f", `${tempFile}.${ext}`]);
           break;
         }
         case "shell":
-          result = await instance.runCommand("sh", ["-c", code], { cwd: options?.workingDirectory, timeout });
+          result = await instance.runCommand("sh", ["-c", code], {
+            cwd: options?.workingDirectory,
+            timeout,
+          });
           break;
         default:
           throw new Error(`Unsupported language: ${language}`);
       }
 
       const durationMs = Date.now() - startTime;
-      await db.update(codeAgentCommands).set({
-        status: result.exitCode === 0 ? "success" : "error",
-        exit_code: result.exitCode,
-        stdout: result.stdout,
-        stderr: result.stderr,
-        duration_ms: durationMs,
-        completed_at: new Date(),
-      }).where(eq(codeAgentCommands.id, rec.id));
+      await db
+        .update(codeAgentCommands)
+        .set({
+          status: result.exitCode === 0 ? "success" : "error",
+          exit_code: result.exitCode,
+          stdout: result.stdout,
+          stderr: result.stderr,
+          duration_ms: durationMs,
+          completed_at: new Date(),
+        })
+        .where(eq(codeAgentCommands.id, rec.id));
 
-      await this.updateSessionUsage(sessionId, { commandsExecuted: 1, apiCallsCount: 1 });
+      await this.updateSessionUsage(sessionId, {
+        commandsExecuted: 1,
+        apiCallsCount: 1,
+      });
 
       const commandResult: CommandResult = {
         success: result.exitCode === 0,
@@ -348,14 +465,22 @@ class CodeAgentService {
         stderr: result.stderr,
         durationMs,
       };
-      this.emit({ type: "command_completed", sessionId, commandId: rec.id, result: commandResult });
+      this.emit({
+        type: "command_completed",
+        sessionId,
+        commandId: rec.id,
+        result: commandResult,
+      });
       return commandResult;
     } catch (error) {
-      await db.update(codeAgentCommands).set({
-        status: "error",
-        error_message: extractErrorMessage(error),
-        completed_at: new Date(),
-      }).where(eq(codeAgentCommands.id, rec.id));
+      await db
+        .update(codeAgentCommands)
+        .set({
+          status: "error",
+          error_message: extractErrorMessage(error),
+          completed_at: new Date(),
+        })
+        .where(eq(codeAgentCommands.id, rec.id));
       throw error;
     }
   }
@@ -395,11 +520,18 @@ class CodeAgentService {
       if (dir) await instance.runCommand("mkdir", ["-p", dir]);
     }
     await instance.writeFile(path, content);
-    await this.updateSessionUsage(sessionId, { apiCallsCount: 1, filesCreated: 1 });
+    await this.updateSessionUsage(sessionId, {
+      apiCallsCount: 1,
+      filesCreated: 1,
+    });
     await db.insert(codeAgentCommands).values({
-      session_id: sessionId, command_type: "write_file", command: path,
+      session_id: sessionId,
+      command_type: "write_file",
+      command: path,
       arguments: { size: Buffer.byteLength(content, "utf-8") },
-      status: "success", files_created: [path], completed_at: new Date(),
+      status: "success",
+      files_created: [path],
+      completed_at: new Date(),
     } satisfies NewCodeAgentCommand);
     return { success: true, path };
   }
@@ -410,10 +542,12 @@ class CodeAgentService {
     await this.updateSessionUsage(sessionId, { apiCallsCount: 1 });
 
     const entries = await instance.listFiles(path);
-    const filtered = recursive ? entries : entries.filter((e) => {
-      const rel = e.path.replace(path, "").replace(/^\//, "");
-      return rel.split("/").length <= maxDepth;
-    });
+    const filtered = recursive
+      ? entries
+      : entries.filter((e) => {
+          const rel = e.path.replace(path, "").replace(/^\//, "");
+          return rel.split("/").length <= maxDepth;
+        });
     return { success: true, path, entries: filtered };
   }
 
@@ -425,8 +559,12 @@ class CodeAgentService {
     else await instance.deleteFile(path);
     await this.updateSessionUsage(sessionId, { apiCallsCount: 1 });
     await db.insert(codeAgentCommands).values({
-      session_id: sessionId, command_type: "delete_file", command: path,
-      status: "success", files_deleted: [path], completed_at: new Date(),
+      session_id: sessionId,
+      command_type: "delete_file",
+      command: path,
+      status: "success",
+      files_deleted: [path],
+      completed_at: new Date(),
     } satisfies NewCodeAgentCommand);
     return { success: true, path };
   }
@@ -440,10 +578,14 @@ class CodeAgentService {
     if (directory) args.push(directory);
 
     const result = await this.runCommand({ sessionId, command: "git", args });
-    if (!result.success) return { success: false, message: "Clone failed", error: result.stderr };
+    if (!result.success)
+      return { success: false, message: "Clone failed", error: result.stderr };
 
     const gitState = await this.getGitState(sessionId);
-    await db.update(codeAgentSessions).set({ git_state: gitState, updated_at: new Date() }).where(eq(codeAgentSessions.id, sessionId));
+    await db
+      .update(codeAgentSessions)
+      .set({ git_state: gitState, updated_at: new Date() })
+      .where(eq(codeAgentSessions.id, sessionId));
     return { success: true, message: `Cloned ${url}`, gitState };
   }
 
@@ -460,8 +602,15 @@ class CodeAgentService {
     }
 
     const gitState = await this.getGitState(sessionId);
-    await db.update(codeAgentSessions).set({ git_state: gitState, updated_at: new Date() }).where(eq(codeAgentSessions.id, sessionId));
-    return { success: true, message: result.success ? "Committed" : "Nothing to commit", gitState };
+    await db
+      .update(codeAgentSessions)
+      .set({ git_state: gitState, updated_at: new Date() })
+      .where(eq(codeAgentSessions.id, sessionId));
+    return {
+      success: true,
+      message: result.success ? "Committed" : "Nothing to commit",
+      gitState,
+    };
   }
 
   async gitPush(params: GitPushParams): Promise<GitOperationResult> {
@@ -471,8 +620,13 @@ class CodeAgentService {
     if (force) args.push("--force");
 
     const result = await this.runCommand({ sessionId, command: "git", args });
-    if (!result.success) return { success: false, message: "Push failed", error: result.stderr };
-    return { success: true, message: "Pushed", gitState: await this.getGitState(sessionId) };
+    if (!result.success)
+      return { success: false, message: "Push failed", error: result.stderr };
+    return {
+      success: true,
+      message: "Pushed",
+      gitState: await this.getGitState(sessionId),
+    };
   }
 
   async gitPull(params: GitPullParams): Promise<GitOperationResult> {
@@ -481,10 +635,14 @@ class CodeAgentService {
     if (branch) args.push(branch);
 
     const result = await this.runCommand({ sessionId, command: "git", args });
-    if (!result.success) return { success: false, message: "Pull failed", error: result.stderr };
+    if (!result.success)
+      return { success: false, message: "Pull failed", error: result.stderr };
 
     const gitState = await this.getGitState(sessionId);
-    await db.update(codeAgentSessions).set({ git_state: gitState, updated_at: new Date() }).where(eq(codeAgentSessions.id, sessionId));
+    await db
+      .update(codeAgentSessions)
+      .set({ git_state: gitState, updated_at: new Date() })
+      .where(eq(codeAgentSessions.id, sessionId));
     return { success: true, message: "Pulled", gitState };
   }
 
@@ -509,20 +667,35 @@ class CodeAgentService {
     };
   }
 
-  async installPackages(params: InstallPackagesParams): Promise<PackageOperationResult> {
+  async installPackages(
+    params: InstallPackagesParams,
+  ): Promise<PackageOperationResult> {
     const { sessionId, packages, manager = "npm", dev = false } = params;
 
     const cmds: Record<string, { cmd: string; args: string[] }> = {
-      npm: { cmd: "npm", args: ["install", ...packages, ...(dev ? ["--save-dev"] : [])] },
-      bun: { cmd: "bun", args: ["add", ...packages, ...(dev ? ["--dev"] : [])] },
+      npm: {
+        cmd: "npm",
+        args: ["install", ...packages, ...(dev ? ["--save-dev"] : [])],
+      },
+      bun: {
+        cmd: "bun",
+        args: ["add", ...packages, ...(dev ? ["--dev"] : [])],
+      },
       pip: { cmd: "pip", args: ["install", ...packages] },
-      cargo: { cmd: "cargo", args: ["add", ...packages, ...(dev ? ["--dev"] : [])] },
+      cargo: {
+        cmd: "cargo",
+        args: ["add", ...packages, ...(dev ? ["--dev"] : [])],
+      },
     };
 
     const spec = cmds[manager];
     if (!spec) throw new Error(`Unknown package manager: ${manager}`);
 
-    const result = await this.runCommand({ sessionId, command: spec.cmd, args: spec.args });
+    const result = await this.runCommand({
+      sessionId,
+      command: spec.cmd,
+      args: spec.args,
+    });
     return {
       success: result.success,
       packages,
@@ -534,7 +707,9 @@ class CodeAgentService {
 
   async createSnapshot(params: CreateSnapshotParams): Promise<SnapshotResult> {
     const { sessionId, name, description } = params;
-    const session = await db.query.codeAgentSessions.findFirst({ where: eq(codeAgentSessions.id, sessionId) });
+    const session = await db.query.codeAgentSessions.findFirst({
+      where: eq(codeAgentSessions.id, sessionId),
+    });
     if (!session) throw new Error("Session not found");
 
     const instance = await this.getActiveInstance(sessionId);
@@ -554,31 +729,51 @@ class CodeAgentService {
       const blob = await put(
         `snapshots/${session.organization_id}/${sessionId}/${randomToken}-${Date.now()}.tar.gz`,
         archive,
-        { access: "public", contentType: "application/gzip" }
+        { access: "public", contentType: "application/gzip" },
       );
 
       const gitState = await this.getGitState(sessionId);
 
-      const [snapshot] = await db.insert(codeAgentSnapshots).values({
-        session_id: sessionId,
-        name: name || null,
-        description: description || null,
-        snapshot_type: "manual",
-        storage_backend: "vercel_blob",
-        storage_key: blob.url,
-        file_count: fileCount,
-        total_size_bytes: archive.length,
-        file_manifest: files,
-        git_state: gitState,
-        environment_variables: session.environment_variables,
-        working_directory: session.working_directory,
-        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      } satisfies NewCodeAgentSnapshot).returning();
+      const [snapshot] = await db
+        .insert(codeAgentSnapshots)
+        .values({
+          session_id: sessionId,
+          name: name || null,
+          description: description || null,
+          snapshot_type: "manual",
+          storage_backend: "vercel_blob",
+          storage_key: blob.url,
+          file_count: fileCount,
+          total_size_bytes: archive.length,
+          file_manifest: files,
+          git_state: gitState,
+          environment_variables: session.environment_variables,
+          working_directory: session.working_directory,
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        } satisfies NewCodeAgentSnapshot)
+        .returning();
 
-      await db.update(codeAgentSessions).set({ latest_snapshot_id: snapshot.id, snapshot_count: session.snapshot_count + 1, updated_at: new Date() }).where(eq(codeAgentSessions.id, sessionId));
-      await CacheInvalidation.onCodeAgentSessionMutation(sessionId, session.organization_id);
-      await this.emitWithWebhook({ type: "snapshot_created", sessionId, snapshotId: snapshot.id }, await this.refreshSession(sessionId));
-      logger.info("[CodeAgentService] Snapshot created", { sessionId, snapshotId: snapshot.id, fileCount });
+      await db
+        .update(codeAgentSessions)
+        .set({
+          latest_snapshot_id: snapshot.id,
+          snapshot_count: session.snapshot_count + 1,
+          updated_at: new Date(),
+        })
+        .where(eq(codeAgentSessions.id, sessionId));
+      await CacheInvalidation.onCodeAgentSessionMutation(
+        sessionId,
+        session.organization_id,
+      );
+      await this.emitWithWebhook(
+        { type: "snapshot_created", sessionId, snapshotId: snapshot.id },
+        await this.refreshSession(sessionId),
+      );
+      logger.info("[CodeAgentService] Snapshot created", {
+        sessionId,
+        snapshotId: snapshot.id,
+        fileCount,
+      });
       return { success: true, snapshot: this.formatSnapshotInfo(snapshot) };
     } catch (error) {
       logger.error("[CodeAgentService] Snapshot failed", { sessionId, error });
@@ -586,19 +781,34 @@ class CodeAgentService {
     }
   }
 
-  async restoreSnapshot(params: RestoreSnapshotParams): Promise<SnapshotResult> {
+  async restoreSnapshot(
+    params: RestoreSnapshotParams,
+  ): Promise<SnapshotResult> {
     const { sessionId, snapshotId } = params;
-    const session = await db.query.codeAgentSessions.findFirst({ where: eq(codeAgentSessions.id, sessionId) });
+    const session = await db.query.codeAgentSessions.findFirst({
+      where: eq(codeAgentSessions.id, sessionId),
+    });
     if (!session) throw new Error("Session not found");
 
     const snapshot = await db.query.codeAgentSnapshots.findFirst({
-      where: and(eq(codeAgentSnapshots.id, snapshotId), eq(codeAgentSnapshots.session_id, sessionId)),
+      where: and(
+        eq(codeAgentSnapshots.id, snapshotId),
+        eq(codeAgentSnapshots.session_id, sessionId),
+      ),
     });
     if (!snapshot) throw new Error("Snapshot not found");
-    if (!snapshot.is_valid) throw new Error(`Snapshot invalid: ${snapshot.validation_error}`);
+    if (!snapshot.is_valid)
+      throw new Error(`Snapshot invalid: ${snapshot.validation_error}`);
 
     const instance = await this.getActiveInstance(sessionId);
-    await db.update(codeAgentSessions).set({ status: "restoring", status_message: "Restoring...", updated_at: new Date() }).where(eq(codeAgentSessions.id, sessionId));
+    await db
+      .update(codeAgentSessions)
+      .set({
+        status: "restoring",
+        status_message: "Restoring...",
+        updated_at: new Date(),
+      })
+      .where(eq(codeAgentSessions.id, sessionId));
 
     try {
       await this.createSnapshot({ sessionId, name: "Pre-restore backup" });
@@ -611,22 +821,40 @@ class CodeAgentService {
       await instance.extractArchive(archive, "/");
 
       if (snapshot.environment_variables) {
-        await db.update(codeAgentSessions).set({ environment_variables: snapshot.environment_variables as Record<string, string> }).where(eq(codeAgentSessions.id, sessionId));
+        await db
+          .update(codeAgentSessions)
+          .set({
+            environment_variables: snapshot.environment_variables as Record<
+              string,
+              string
+            >,
+          })
+          .where(eq(codeAgentSessions.id, sessionId));
       }
 
-      await db.update(codeAgentSessions).set({
-        status: "ready",
-        status_message: "Restored",
-        git_state: snapshot.git_state,
-        working_directory: snapshot.working_directory || "/app",
-        updated_at: new Date(),
-      }).where(eq(codeAgentSessions.id, sessionId));
+      await db
+        .update(codeAgentSessions)
+        .set({
+          status: "ready",
+          status_message: "Restored",
+          git_state: snapshot.git_state,
+          working_directory: snapshot.working_directory || "/app",
+          updated_at: new Date(),
+        })
+        .where(eq(codeAgentSessions.id, sessionId));
 
       this.emit({ type: "snapshot_restored", sessionId, snapshotId });
       return { success: true, snapshot: this.formatSnapshotInfo(snapshot) };
     } catch (error) {
       const msg = extractErrorMessage(error);
-      await db.update(codeAgentSessions).set({ status: "error", status_message: `Restore failed: ${msg}`, updated_at: new Date() }).where(eq(codeAgentSessions.id, sessionId));
+      await db
+        .update(codeAgentSessions)
+        .set({
+          status: "error",
+          status_message: `Restore failed: ${msg}`,
+          updated_at: new Date(),
+        })
+        .where(eq(codeAgentSessions.id, sessionId));
       return { success: false, error: msg };
     }
   }
@@ -640,22 +868,43 @@ class CodeAgentService {
   }
 
   async deleteSnapshot(snapshotId: string): Promise<void> {
-    const snapshot = await db.query.codeAgentSnapshots.findFirst({ where: eq(codeAgentSnapshots.id, snapshotId) });
+    const snapshot = await db.query.codeAgentSnapshots.findFirst({
+      where: eq(codeAgentSnapshots.id, snapshotId),
+    });
     if (!snapshot) return;
 
-    try { await del(snapshot.storage_key); } catch (e) { logger.warn("[CodeAgentService] Blob delete failed", { snapshotId, error: e }); }
-    await db.delete(codeAgentSnapshots).where(eq(codeAgentSnapshots.id, snapshotId));
+    try {
+      await del(snapshot.storage_key);
+    } catch (e) {
+      logger.warn("[CodeAgentService] Blob delete failed", {
+        snapshotId,
+        error: e,
+      });
+    }
+    await db
+      .delete(codeAgentSnapshots)
+      .where(eq(codeAgentSnapshots.id, snapshotId));
   }
 
   async cleanupExpiredSessions(): Promise<number> {
     const expired = await db.query.codeAgentSessions.findMany({
-      where: and(lt(codeAgentSessions.expires_at, new Date()), eq(codeAgentSessions.status, "ready")),
+      where: and(
+        lt(codeAgentSessions.expires_at, new Date()),
+        eq(codeAgentSessions.status, "ready"),
+      ),
     });
 
     let cleaned = 0;
     for (const s of expired) {
-      try { await this.terminateSession(s.id, s.organization_id); cleaned++; }
-      catch (e) { logger.error("[CodeAgentService] Cleanup failed", { sessionId: s.id, error: e }); }
+      try {
+        await this.terminateSession(s.id, s.organization_id);
+        cleaned++;
+      } catch (e) {
+        logger.error("[CodeAgentService] Cleanup failed", {
+          sessionId: s.id,
+          error: e,
+        });
+      }
     }
     return cleaned;
   }
@@ -664,9 +913,12 @@ class CodeAgentService {
     const cached = this.instances.get(sessionId);
     if (cached) return cached;
 
-    const session = await db.query.codeAgentSessions.findFirst({ where: eq(codeAgentSessions.id, sessionId) });
+    const session = await db.query.codeAgentSessions.findFirst({
+      where: eq(codeAgentSessions.id, sessionId),
+    });
     if (!session) throw new Error("Session not found");
-    if (session.status !== "ready" && session.status !== "executing") throw new Error(`Session not active: ${session.status}`);
+    if (session.status !== "ready" && session.status !== "executing")
+      throw new Error(`Session not active: ${session.status}`);
     if (!session.runtime_id) throw new Error("No runtime");
 
     const runtime = runtimes[session.runtime_type];
@@ -677,49 +929,78 @@ class CodeAgentService {
     return instance;
   }
 
-  private async updateSessionUsage(sessionId: string, usage: {
-    cpuSecondsUsed?: number;
-    memoryMbPeak?: number;
-    diskMbUsed?: number;
-    apiCallsCount?: number;
-    commandsExecuted?: number;
-    filesCreated?: number;
-    filesModified?: number;
-  }): Promise<void> {
-    const session = await db.query.codeAgentSessions.findFirst({ where: eq(codeAgentSessions.id, sessionId) });
+  private async updateSessionUsage(
+    sessionId: string,
+    usage: {
+      cpuSecondsUsed?: number;
+      memoryMbPeak?: number;
+      diskMbUsed?: number;
+      apiCallsCount?: number;
+      commandsExecuted?: number;
+      filesCreated?: number;
+      filesModified?: number;
+    },
+  ): Promise<void> {
+    const session = await db.query.codeAgentSessions.findFirst({
+      where: eq(codeAgentSessions.id, sessionId),
+    });
     if (!session) return;
 
-    const costCents = (usage.apiCallsCount || 0) * COST_PER_API_CALL_CENTS + (usage.cpuSecondsUsed || 0) * COST_PER_CPU_SECOND_CENTS;
+    const costCents =
+      (usage.apiCallsCount || 0) * COST_PER_API_CALL_CENTS +
+      (usage.cpuSecondsUsed || 0) * COST_PER_CPU_SECOND_CENTS;
     const costDollars = costCents / 100;
 
     if (costDollars > 0) {
       const deduction = await creditsService.deductCredits({
         organizationId: session.organization_id,
         amount: costDollars,
-        description: `Code Agent: ${usage.commandsExecuted ? 'command' : 'api call'}`,
-        metadata: { session_id: sessionId, user_id: session.user_id, api_calls: usage.apiCallsCount, commands: usage.commandsExecuted },
+        description: `Code Agent: ${usage.commandsExecuted ? "command" : "api call"}`,
+        metadata: {
+          session_id: sessionId,
+          user_id: session.user_id,
+          api_calls: usage.apiCallsCount,
+          commands: usage.commandsExecuted,
+        },
       });
       if (!deduction.success) throw new Error("Failed to deduct credits");
 
       await usageService.create({
-        organization_id: session.organization_id, user_id: session.user_id, api_key_id: null, type: "code_agent",
-        model: "vercel-sandbox", provider: "eliza-cloud", input_tokens: usage.commandsExecuted || 0, output_tokens: usage.apiCallsCount || 0,
-        input_cost: String(costDollars / 2), output_cost: String(costDollars / 2), is_successful: true,
+        organization_id: session.organization_id,
+        user_id: session.user_id,
+        api_key_id: null,
+        type: "code_agent",
+        model: "vercel-sandbox",
+        provider: "eliza-cloud",
+        input_tokens: usage.commandsExecuted || 0,
+        output_tokens: usage.apiCallsCount || 0,
+        input_cost: String(costDollars / 2),
+        output_cost: String(costDollars / 2),
+        is_successful: true,
       });
     }
 
-    await db.update(codeAgentSessions).set({
-      last_activity_at: new Date(),
-      updated_at: new Date(),
-      cpu_seconds_used: session.cpu_seconds_used + (usage.cpuSecondsUsed || 0),
-      memory_mb_peak: Math.max(session.memory_mb_peak, usage.memoryMbPeak || 0),
-      disk_mb_used: usage.diskMbUsed ?? session.disk_mb_used,
-      api_calls_count: session.api_calls_count + (usage.apiCallsCount || 0),
-      commands_executed: session.commands_executed + (usage.commandsExecuted || 0),
-      files_created: session.files_created + (usage.filesCreated || 0),
-      files_modified: session.files_modified + (usage.filesModified || 0),
-      estimated_cost_cents: session.estimated_cost_cents + Math.round(costCents),
-    }).where(eq(codeAgentSessions.id, sessionId));
+    await db
+      .update(codeAgentSessions)
+      .set({
+        last_activity_at: new Date(),
+        updated_at: new Date(),
+        cpu_seconds_used:
+          session.cpu_seconds_used + (usage.cpuSecondsUsed || 0),
+        memory_mb_peak: Math.max(
+          session.memory_mb_peak,
+          usage.memoryMbPeak || 0,
+        ),
+        disk_mb_used: usage.diskMbUsed ?? session.disk_mb_used,
+        api_calls_count: session.api_calls_count + (usage.apiCallsCount || 0),
+        commands_executed:
+          session.commands_executed + (usage.commandsExecuted || 0),
+        files_created: session.files_created + (usage.filesCreated || 0),
+        files_modified: session.files_modified + (usage.filesModified || 0),
+        estimated_cost_cents:
+          session.estimated_cost_cents + Math.round(costCents),
+      })
+      .where(eq(codeAgentSessions.id, sessionId));
   }
 
   private formatSessionInfo(session: CodeAgentSession): SessionInfo {
@@ -768,4 +1049,3 @@ class CodeAgentService {
 }
 
 export const codeAgentService = new CodeAgentService();
-

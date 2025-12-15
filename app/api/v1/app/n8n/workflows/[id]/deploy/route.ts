@@ -13,7 +13,7 @@ export const OPTIONS = corsOptions;
 
 export function POST(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   return withCors(async () => {
     const user = await requireAppAuth(request);
@@ -23,7 +23,7 @@ export function POST(
     if (!workflow || workflow.organization_id !== user.organization_id) {
       return NextResponse.json(
         { success: false, error: "Workflow not found" },
-        { status: 404, headers: APP_CORS_HEADERS }
+        { status: 404, headers: APP_CORS_HEADERS },
       );
     }
 
@@ -32,18 +32,26 @@ export function POST(
 
     if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: "Invalid request", details: validation.error.format() },
-        { status: 400, headers: APP_CORS_HEADERS }
+        {
+          success: false,
+          error: "Invalid request",
+          details: validation.error.format(),
+        },
+        { status: 400, headers: APP_CORS_HEADERS },
       );
     }
 
-    const result = await n8nWorkflowsService.deployWorkflowToN8n(id, validation.data.instanceId);
-    logger.info(`[App N8N] Deployed workflow ${id}`, { n8nWorkflowId: result.n8nWorkflowId });
+    const result = await n8nWorkflowsService.deployWorkflowToN8n(
+      id,
+      validation.data.instanceId,
+    );
+    logger.info(`[App N8N] Deployed workflow ${id}`, {
+      n8nWorkflowId: result.n8nWorkflowId,
+    });
 
     return NextResponse.json(
       { success: true, n8nWorkflowId: result.n8nWorkflowId },
-      { headers: APP_CORS_HEADERS }
+      { headers: APP_CORS_HEADERS },
     );
   });
 }
-

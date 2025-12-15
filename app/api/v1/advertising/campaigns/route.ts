@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { advertisingService, type AdPlatform } from "@/lib/services/advertising";
+import {
+  advertisingService,
+  type AdPlatform,
+} from "@/lib/services/advertising";
 import { CreateCampaignSchema } from "@/lib/services/advertising/schemas";
 import { logger } from "@/lib/utils/logger";
 
@@ -26,7 +29,7 @@ export async function GET(request: NextRequest) {
       platform: platform || undefined,
       status: status || undefined,
       appId: appId || undefined,
-    }
+    },
   );
 
   return NextResponse.json({
@@ -66,7 +69,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -103,6 +106,6 @@ export async function POST(request: NextRequest) {
       creditsAllocated: campaign.credits_allocated,
       createdAt: campaign.created_at.toISOString(),
     },
-    { status: 201 }
+    { status: 201 },
   );
 }

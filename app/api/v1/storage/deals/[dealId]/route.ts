@@ -1,13 +1,13 @@
 /**
  * Individual Storage Deal API
- * 
+ *
  * GET /api/v1/storage/deals/[dealId] - Get deal details
  * DELETE /api/v1/storage/deals/[dealId] - Terminate deal
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { storageProviderService } from '@/lib/services/storage-provider';
-import { logger } from '@/lib/utils/logger';
+import { NextRequest, NextResponse } from "next/server";
+import { storageProviderService } from "@/lib/services/storage-provider";
+import { logger } from "@/lib/utils/logger";
 
 interface RouteParams {
   params: Promise<{ dealId: string }>;
@@ -18,21 +18,18 @@ interface RouteParams {
  */
 export async function GET(
   request: NextRequest,
-  { params }: RouteParams
+  { params }: RouteParams,
 ): Promise<NextResponse> {
   const { dealId } = await params;
-  
+
   const deal = storageProviderService.getDeal(dealId);
   if (!deal) {
-    return NextResponse.json(
-      { error: 'Deal not found' },
-      { status: 404 }
-    );
+    return NextResponse.json({ error: "Deal not found" }, { status: 404 });
   }
-  
+
   // Check health if requested
   const searchParams = request.nextUrl.searchParams;
-  if (searchParams.has('health')) {
+  if (searchParams.has("health")) {
     const health = await storageProviderService.checkDealHealth(dealId);
     return NextResponse.json({
       deal: {
@@ -42,7 +39,7 @@ export async function GET(
       health,
     });
   }
-  
+
   return NextResponse.json({
     deal: {
       ...deal,
@@ -56,29 +53,32 @@ export async function GET(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: RouteParams
+  { params }: RouteParams,
 ): Promise<NextResponse> {
   const { dealId } = await params;
-  
+
   // Get user from signature header
-  const signerAddress = request.headers.get('X-Signer-Address');
+  const signerAddress = request.headers.get("X-Signer-Address");
   if (!signerAddress) {
     return NextResponse.json(
-      { 
-        error: 'Authorization required',
-        message: 'Provide X-Signer-Address header',
+      {
+        error: "Authorization required",
+        message: "Provide X-Signer-Address header",
       },
-      { status: 401 }
+      { status: 401 },
     );
   }
-  
-  logger.info('[Storage Deals] Terminating deal', {
+
+  logger.info("[Storage Deals] Terminating deal", {
     dealId,
     user: signerAddress,
   });
-  
-  const { refundWei } = await storageProviderService.terminateDeal(dealId, signerAddress);
-  
+
+  const { refundWei } = await storageProviderService.terminateDeal(
+    dealId,
+    signerAddress,
+  );
+
   return NextResponse.json({
     success: true,
     dealId,
@@ -91,10 +91,10 @@ export async function OPTIONS(): Promise<NextResponse> {
   return new NextResponse(null, {
     status: 204,
     headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key, X-Signer-Address',
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers":
+        "Content-Type, Authorization, X-API-Key, X-Signer-Address",
     },
   });
 }
-

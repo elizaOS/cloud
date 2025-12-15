@@ -30,7 +30,10 @@ export class SeoRequestsRepository {
 
   async listByOrganization(
     organizationId: string,
-    options?: { limit?: number; status?: (typeof seoRequestStatusEnum.enumValues)[number] },
+    options?: {
+      limit?: number;
+      status?: (typeof seoRequestStatusEnum.enumValues)[number];
+    },
   ): Promise<SeoRequest[]> {
     const conditions = [eq(seoRequests.organization_id, organizationId)];
     if (options?.status) {
@@ -60,9 +63,7 @@ export class SeoRequestsRepository {
         ...extras,
         status,
         updated_at: new Date(),
-        ...(status === "completed"
-          ? { completed_at: new Date() }
-          : undefined),
+        ...(status === "completed" ? { completed_at: new Date() } : undefined),
       })
       .where(eq(seoRequests.id, id))
       .returning();
@@ -71,4 +72,3 @@ export class SeoRequestsRepository {
 }
 
 export const seoRequestsRepository = new SeoRequestsRepository();
-

@@ -73,7 +73,9 @@ export const orgFeedConfigs = pgTable(
     // What to monitor
     monitor_mentions: boolean("monitor_mentions").notNull().default(true),
     monitor_replies: boolean("monitor_replies").notNull().default(true),
-    monitor_quote_tweets: boolean("monitor_quote_tweets").notNull().default(true),
+    monitor_quote_tweets: boolean("monitor_quote_tweets")
+      .notNull()
+      .default(true),
     monitor_reposts: boolean("monitor_reposts").notNull().default(false),
     monitor_likes: boolean("monitor_likes").notNull().default(false),
 
@@ -85,7 +87,9 @@ export const orgFeedConfigs = pgTable(
 
     // Feed settings
     enabled: boolean("enabled").notNull().default(true),
-    polling_interval_seconds: integer("polling_interval_seconds").notNull().default(60),
+    polling_interval_seconds: integer("polling_interval_seconds")
+      .notNull()
+      .default(60),
     min_follower_count: integer("min_follower_count"), // Only notify for users with X+ followers
     filter_keywords: jsonb("filter_keywords").$type<string[]>().default([]),
     filter_mode: text("filter_mode").default("include"), // 'include' or 'exclude'
@@ -97,20 +101,26 @@ export const orgFeedConfigs = pgTable(
     last_poll_error: text("last_poll_error"),
 
     // Timestamps
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    created_at: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     created_by: uuid("created_by").references(() => users.id),
   },
   (table) => ({
     org_idx: index("org_feed_configs_org_idx").on(table.organization_id),
     enabled_idx: index("org_feed_configs_enabled_idx").on(table.enabled),
-    platform_idx: index("org_feed_configs_platform_idx").on(table.source_platform),
+    platform_idx: index("org_feed_configs_platform_idx").on(
+      table.source_platform,
+    ),
     unique_feed: uniqueIndex("org_feed_configs_unique").on(
       table.organization_id,
       table.source_platform,
-      table.source_account_id
+      table.source_account_id,
     ),
-  })
+  }),
 );
 
 // =============================================================================
@@ -157,8 +167,12 @@ export const socialEngagementEvents = pgTable(
 
     // Processing state
     processed_at: timestamp("processed_at", { withTimezone: true }),
-    notification_sent_at: timestamp("notification_sent_at", { withTimezone: true }),
-    notification_channel_ids: jsonb("notification_channel_ids").$type<string[]>().default([]),
+    notification_sent_at: timestamp("notification_sent_at", {
+      withTimezone: true,
+    }),
+    notification_channel_ids: jsonb("notification_channel_ids")
+      .$type<string[]>()
+      .default([]),
     notification_message_ids: jsonb("notification_message_ids")
       .$type<Record<string, string>>()
       .default({}), // platform -> messageId
@@ -172,19 +186,29 @@ export const socialEngagementEvents = pgTable(
       quotes?: number;
     }>(),
 
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    created_at: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => ({
-    org_idx: index("social_engagement_events_org_idx").on(table.organization_id),
-    feed_idx: index("social_engagement_events_feed_idx").on(table.feed_config_id),
+    org_idx: index("social_engagement_events_org_idx").on(
+      table.organization_id,
+    ),
+    feed_idx: index("social_engagement_events_feed_idx").on(
+      table.feed_config_id,
+    ),
     type_idx: index("social_engagement_events_type_idx").on(table.event_type),
-    created_idx: index("social_engagement_events_created_idx").on(table.created_at),
-    author_idx: index("social_engagement_events_author_idx").on(table.author_id),
+    created_idx: index("social_engagement_events_created_idx").on(
+      table.created_at,
+    ),
+    author_idx: index("social_engagement_events_author_idx").on(
+      table.author_id,
+    ),
     unique_event: uniqueIndex("social_engagement_events_unique").on(
       table.feed_config_id,
-      table.source_post_id
+      table.source_post_id,
     ),
-  })
+  }),
 );
 
 // =============================================================================
@@ -205,7 +229,7 @@ export const pendingReplyConfirmations = pgTable(
     // What we're replying to
     engagement_event_id: uuid("engagement_event_id").references(
       () => socialEngagementEvents.id,
-      { onDelete: "set null" }
+      { onDelete: "set null" },
     ),
     target_platform: text("target_platform").notNull(), // Platform to post reply to
     target_post_id: text("target_post_id").notNull(), // Post ID to reply to
@@ -244,21 +268,29 @@ export const pendingReplyConfirmations = pgTable(
 
     // Timing
     expires_at: timestamp("expires_at", { withTimezone: true }).notNull(),
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    created_at: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => ({
-    org_idx: index("pending_reply_confirmations_org_idx").on(table.organization_id),
-    status_idx: index("pending_reply_confirmations_status_idx").on(table.status),
+    org_idx: index("pending_reply_confirmations_org_idx").on(
+      table.organization_id,
+    ),
+    status_idx: index("pending_reply_confirmations_status_idx").on(
+      table.status,
+    ),
     engagement_idx: index("pending_reply_confirmations_engagement_idx").on(
-      table.engagement_event_id
+      table.engagement_event_id,
     ),
     source_msg_idx: index("pending_reply_confirmations_source_msg_idx").on(
       table.source_platform,
       table.source_channel_id,
-      table.source_message_id
+      table.source_message_id,
     ),
-  })
+  }),
 );
 
 // =============================================================================
@@ -288,25 +320,29 @@ export const socialNotificationMessages = pgTable(
     // For thread tracking
     thread_id: text("thread_id"), // Thread/topic ID if applicable
 
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    created_at: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => ({
-    org_idx: index("social_notification_messages_org_idx").on(table.organization_id),
+    org_idx: index("social_notification_messages_org_idx").on(
+      table.organization_id,
+    ),
     engagement_idx: index("social_notification_messages_engagement_idx").on(
-      table.engagement_event_id
+      table.engagement_event_id,
     ),
     lookup_idx: index("social_notification_messages_lookup_idx").on(
       table.platform,
       table.channel_id,
-      table.message_id
+      table.message_id,
     ),
     unique_msg: uniqueIndex("social_notification_messages_unique").on(
       table.engagement_event_id,
       table.platform,
       table.channel_id,
-      table.message_id
+      table.message_id,
     ),
-  })
+  }),
 );
 
 // =============================================================================
@@ -317,15 +353,20 @@ export type OrgFeedConfig = typeof orgFeedConfigs.$inferSelect;
 export type NewOrgFeedConfig = typeof orgFeedConfigs.$inferInsert;
 
 export type SocialEngagementEvent = typeof socialEngagementEvents.$inferSelect;
-export type NewSocialEngagementEvent = typeof socialEngagementEvents.$inferInsert;
+export type NewSocialEngagementEvent =
+  typeof socialEngagementEvents.$inferInsert;
 
-export type PendingReplyConfirmation = typeof pendingReplyConfirmations.$inferSelect;
-export type NewPendingReplyConfirmation = typeof pendingReplyConfirmations.$inferInsert;
+export type PendingReplyConfirmation =
+  typeof pendingReplyConfirmations.$inferSelect;
+export type NewPendingReplyConfirmation =
+  typeof pendingReplyConfirmations.$inferInsert;
 
-export type SocialNotificationMessage = typeof socialNotificationMessages.$inferSelect;
-export type NewSocialNotificationMessage = typeof socialNotificationMessages.$inferInsert;
+export type SocialNotificationMessage =
+  typeof socialNotificationMessages.$inferSelect;
+export type NewSocialNotificationMessage =
+  typeof socialNotificationMessages.$inferInsert;
 
-export type SocialEngagementType = 
+export type SocialEngagementType =
   | "mention"
   | "reply"
   | "quote_tweet"

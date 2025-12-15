@@ -25,14 +25,17 @@ export class UserCharactersRepository {
 
   /**
    * Lists characters for a user, including owned and interacted characters.
-   * 
+   *
    * Includes characters the user owns or has interacted with via chat rooms,
    * allowing affiliate-created characters to appear in the selector.
-   * 
+   *
    * @param userId - User ID to list characters for.
    * @param source - Filter by source type (default: "cloud").
    */
-  async listByUser(userId: string, source: "cloud" | "app" = "cloud"): Promise<UserCharacter[]> {
+  async listByUser(
+    userId: string,
+    source: "cloud" | "app" = "cloud",
+  ): Promise<UserCharacter[]> {
     const interactedCharacterIds = db
       .selectDistinct({ character_id: elizaRoomCharactersTable.character_id })
       .from(elizaRoomCharactersTable)
@@ -55,11 +58,14 @@ export class UserCharactersRepository {
 
   /**
    * Lists characters for an organization.
-   * 
+   *
    * @param organizationId - Organization ID.
    * @param source - Filter by source type (default: "cloud").
    */
-  async listByOrganization(organizationId: string, source: "cloud" | "app" = "cloud"): Promise<UserCharacter[]> {
+  async listByOrganization(
+    organizationId: string,
+    source: "cloud" | "app" = "cloud",
+  ): Promise<UserCharacter[]> {
     return await db.query.userCharacters.findMany({
       where: and(
         eq(userCharacters.organization_id, organizationId),
@@ -133,7 +139,7 @@ export class UserCharactersRepository {
 
   /**
    * Searches characters with filters and sorting.
-   * 
+   *
    * Includes characters the user owns or has interacted with via chat rooms.
    */
   async search(
@@ -342,7 +348,7 @@ export class UserCharactersRepository {
 
   /**
    * Gets featured characters (cloud source only).
-   * 
+   *
    * @param limit - Maximum number of characters to return (default: 10).
    */
   async getFeatured(limit: number = 10): Promise<UserCharacter[]> {
@@ -358,15 +364,15 @@ export class UserCharactersRepository {
 
   /**
    * Gets popular characters (cloud source only).
-   * 
+   *
    * @param limit - Maximum number of characters to return (default: 20).
    */
   async getPopular(limit: number = 20): Promise<UserCharacter[]> {
     return await db.query.userCharacters.findMany({
       where: and(
         or(
-        eq(userCharacters.is_template, true),
-        eq(userCharacters.is_public, true),
+          eq(userCharacters.is_template, true),
+          eq(userCharacters.is_public, true),
         ),
         eq(userCharacters.source, "cloud"),
       ),
@@ -524,11 +530,13 @@ export class UserCharactersRepository {
    * Lists public characters registered on ERC-8004.
    * Used for marketplace discovery by external agents.
    */
-  async findPublicRegistered(options: {
-    erc8004Only?: boolean;
-    category?: string;
-    limit?: number;
-  } = {}): Promise<UserCharacter[]> {
+  async findPublicRegistered(
+    options: {
+      erc8004Only?: boolean;
+      category?: string;
+      limit?: number;
+    } = {},
+  ): Promise<UserCharacter[]> {
     const { erc8004Only = false, category, limit = 100 } = options;
 
     const conditions: SQL[] = [
@@ -548,7 +556,10 @@ export class UserCharactersRepository {
       .select()
       .from(userCharacters)
       .where(and(...conditions))
-      .orderBy(desc(userCharacters.popularity_score), desc(userCharacters.created_at))
+      .orderBy(
+        desc(userCharacters.popularity_score),
+        desc(userCharacters.created_at),
+      )
       .limit(limit);
   }
 
@@ -557,12 +568,12 @@ export class UserCharactersRepository {
    */
   async getByERC8004AgentId(
     network: string,
-    agentId: number
+    agentId: number,
   ): Promise<UserCharacter | undefined> {
     return await db.query.userCharacters.findFirst({
       where: and(
         eq(userCharacters.erc8004_network, network),
-        eq(userCharacters.erc8004_agent_id, agentId)
+        eq(userCharacters.erc8004_agent_id, agentId),
       ),
     });
   }
@@ -570,10 +581,12 @@ export class UserCharactersRepository {
   /**
    * Lists all ERC-8004 registered characters.
    */
-  async listERC8004Registered(options: {
-    network?: string;
-    limit?: number;
-  } = {}): Promise<UserCharacter[]> {
+  async listERC8004Registered(
+    options: {
+      network?: string;
+      limit?: number;
+    } = {},
+  ): Promise<UserCharacter[]> {
     const { network, limit = 100 } = options;
 
     const conditions: SQL[] = [eq(userCharacters.erc8004_registered, true)];
@@ -597,7 +610,7 @@ export class UserCharactersRepository {
   async recordInferenceEarnings(
     id: string,
     creatorEarnings: string,
-    platformRevenue: string
+    platformRevenue: string,
   ): Promise<void> {
     await db
       .update(userCharacters)
@@ -621,7 +634,7 @@ export class UserCharactersRepository {
       erc8004_agent_id?: number;
       erc8004_agent_uri?: string;
       erc8004_tx_hash?: string;
-    }
+    },
   ): Promise<UserCharacter | undefined> {
     const [character] = await db
       .update(userCharacters)
@@ -644,7 +657,7 @@ export class UserCharactersRepository {
       monetization_enabled: boolean;
       inference_markup_percentage?: string;
       payout_wallet_address?: string;
-    }
+    },
   ): Promise<UserCharacter | undefined> {
     const [character] = await db
       .update(userCharacters)

@@ -30,7 +30,9 @@ function authHeaders() {
 test.describe("App Photo Generation API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("POST /api/generate-photo generates character photo", async ({ request }) => {
+  test("POST /api/generate-photo generates character photo", async ({
+    request,
+  }) => {
     const response = await request.post(`${APP_URL}/api/generate-photo`, {
       headers: authHeaders(),
       data: {
@@ -79,7 +81,9 @@ test.describe("App Photo Generation API", () => {
 test.describe("App Field Generation API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("POST /api/generate-field generates character field", async ({ request }) => {
+  test("POST /api/generate-field generates character field", async ({
+    request,
+  }) => {
     const response = await request.post(`${APP_URL}/api/generate-field`, {
       headers: authHeaders(),
       data: {
@@ -106,7 +110,9 @@ test.describe("App Field Generation API", () => {
     }
   });
 
-  test("field generation supports different field types", async ({ request }) => {
+  test("field generation supports different field types", async ({
+    request,
+  }) => {
     const fields = ["bio", "personality", "backstory", "topics", "adjectives"];
 
     for (const field of fields) {
@@ -146,7 +152,9 @@ test.describe("App Image Upload API", () => {
       },
     });
 
-    expect([200, 201, 400, 404, 422, 500, 501, 502]).toContain(response.status());
+    expect([200, 201, 400, 404, 422, 500, 501, 502]).toContain(
+      response.status(),
+    );
 
     if (response.status() === 200 || response.status() === 201) {
       const data = await response.json();
@@ -227,10 +235,15 @@ test.describe("App Proxy API", () => {
 test.describe("App Billing API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /api/v1/app/billing/credit-packs returns packs", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/v1/app/billing/credit-packs`, {
-      headers: authHeaders(),
-    });
+  test("GET /api/v1/app/billing/credit-packs returns packs", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      `${CLOUD_URL}/api/v1/app/billing/credit-packs`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 404, 500, 501]).toContain(response.status());
 
@@ -244,14 +257,19 @@ test.describe("App Billing API", () => {
     }
   });
 
-  test("POST /api/v1/app/billing/checkout creates checkout", async ({ request }) => {
-    const response = await request.post(`${CLOUD_URL}/api/v1/app/billing/checkout`, {
-      headers: authHeaders(),
-      data: {
-        packId: "basic",
-        returnUrl: "http://localhost:3001/billing/success",
+  test("POST /api/v1/app/billing/checkout creates checkout", async ({
+    request,
+  }) => {
+    const response = await request.post(
+      `${CLOUD_URL}/api/v1/app/billing/checkout`,
+      {
+        headers: authHeaders(),
+        data: {
+          packId: "basic",
+          returnUrl: "http://localhost:3001/billing/success",
+        },
       },
-    });
+    );
 
     expect([200, 201, 400, 404, 500, 501]).toContain(response.status());
 
@@ -272,10 +290,15 @@ test.describe("App Billing API", () => {
 test.describe("App Referral API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /api/v1/app/referral/qualify checks qualification", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/v1/app/referral/qualify`, {
-      headers: authHeaders(),
-    });
+  test("GET /api/v1/app/referral/qualify checks qualification", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      `${CLOUD_URL}/api/v1/app/referral/qualify`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 404, 500, 501]).toContain(response.status());
 
@@ -309,7 +332,7 @@ test.describe("App Rewards API", () => {
       console.log("✅ Rewards endpoint works");
 
       if (data.rewards) {
-        console.log(`   Available rewards: ${data.rewards.length || 'N/A'}`);
+        console.log(`   Available rewards: ${data.rewards.length || "N/A"}`);
       }
     } else {
       console.log(`ℹ️ Rewards returned ${response.status()}`);
@@ -377,7 +400,7 @@ test.describe("App Character Creator UI", () => {
 
     // Look for character creator elements
     const creatorSection = page.locator(
-      '[class*="creator"], [class*="character"], form, [class*="form"]'
+      '[class*="creator"], [class*="character"], form, [class*="form"]',
     );
     const hasCreator = await creatorSection.isVisible().catch(() => false);
 
@@ -389,9 +412,11 @@ test.describe("App Character Creator UI", () => {
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(2000);
 
-    const nameInput = page.locator(
-      'input[name="name"], input[placeholder*="name" i], input[type="text"]'
-    ).first();
+    const nameInput = page
+      .locator(
+        'input[name="name"], input[placeholder*="name" i], input[type="text"]',
+      )
+      .first();
     const hasInput = await nameInput.isVisible().catch(() => false);
 
     if (hasInput) {
@@ -411,7 +436,7 @@ test.describe("App Character Creator UI", () => {
 
     // Look for generate/create buttons
     const generateButtons = page.locator(
-      'button:has-text("Generate"), button:has-text("Create"), button:has-text("Build")'
+      'button:has-text("Generate"), button:has-text("Create"), button:has-text("Build")',
     );
     const buttonCount = await generateButtons.count();
 
@@ -446,5 +471,3 @@ test.describe("App Chat Flow", () => {
     console.log(`✅ Chat list items: ${chatCount}`);
   });
 });
-
-

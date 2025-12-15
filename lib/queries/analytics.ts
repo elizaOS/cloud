@@ -9,7 +9,7 @@ export type TimeGranularity = "hour" | "day" | "week" | "month";
 const VALID_GRANULARITIES = ["hour", "day", "week", "month"] as const;
 
 export function validateGranularity(
-  granularity: string
+  granularity: string,
 ): granularity is TimeGranularity {
   return VALID_GRANULARITIES.includes(granularity as TimeGranularity);
 }
@@ -89,14 +89,14 @@ export interface UsageStats {
 
 export function safeAggregate<T extends Record<string, unknown>>(
   result: T[],
-  defaults: T
+  defaults: T,
 ): T {
   return result[0] || defaults;
 }
 
 export async function getUsageStatsSafe(
   organizationId: string,
-  options?: { startDate?: Date; endDate?: Date }
+  options?: { startDate?: Date; endDate?: Date },
 ): Promise<UsageStats> {
   const conditions: SQL[] = [
     eq(schema.usageRecords.organization_id, organizationId),
@@ -104,12 +104,12 @@ export async function getUsageStatsSafe(
 
   if (options?.startDate) {
     conditions.push(
-      sql`${schema.usageRecords.created_at} >= ${options.startDate}`
+      sql`${schema.usageRecords.created_at} >= ${options.startDate}`,
     );
   }
   if (options?.endDate) {
     conditions.push(
-      sql`${schema.usageRecords.created_at} <= ${options.endDate}`
+      sql`${schema.usageRecords.created_at} <= ${options.endDate}`,
     );
   }
 
@@ -155,13 +155,13 @@ export async function getUsageTimeSeries(
     endDate: Date;
     granularity: TimeGranularity;
     maxRows?: number;
-  }
+  },
 ): Promise<TimeSeriesDataPoint[]> {
   const { startDate, endDate, granularity, maxRows = 100000 } = options;
 
   if (!validateGranularity(granularity)) {
     throw new Error(
-      `Invalid granularity: ${granularity}. Must be one of: ${VALID_GRANULARITIES.join(", ")}`
+      `Invalid granularity: ${granularity}. Must be one of: ${VALID_GRANULARITIES.join(", ")}`,
     );
   }
 
@@ -169,7 +169,7 @@ export async function getUsageTimeSeries(
     organizationId,
     granularity,
     startDate.toISOString(),
-    endDate.toISOString()
+    endDate.toISOString(),
   );
 
   const cached = await cache.get<TimeSeriesDataPoint[]>(cacheKey);
@@ -203,8 +203,8 @@ export async function getUsageTimeSeries(
       and(
         eq(schema.usageRecords.organization_id, organizationId),
         sql`${schema.usageRecords.created_at} >= ${startDate}`,
-        sql`${schema.usageRecords.created_at} <= ${endDate}`
-      )
+        sql`${schema.usageRecords.created_at} <= ${endDate}`,
+      ),
     )
     .groupBy(truncateExpression)
     .orderBy(truncateExpression)
@@ -213,7 +213,7 @@ export async function getUsageTimeSeries(
   if (result.length > maxRows) {
     throw new Error(
       `Query would return ${result.length} rows (limit: ${maxRows}). ` +
-      `Please use a smaller date range or coarser granularity.`
+        `Please use a smaller date range or coarser granularity.`,
     );
   }
 
@@ -244,7 +244,7 @@ export async function getUsageByUser(
     endDate?: Date;
     limit?: number;
     maxRows?: number;
-  }
+  },
 ): Promise<UserUsageBreakdown[]> {
   const { startDate, endDate, limit = 50, maxRows = 100000 } = options || {};
 
@@ -255,14 +255,10 @@ export async function getUsageByUser(
   ];
 
   if (startDate) {
-    conditions.push(
-      sql`${schema.usageRecords.created_at} >= ${startDate}`
-    );
+    conditions.push(sql`${schema.usageRecords.created_at} >= ${startDate}`);
   }
   if (endDate) {
-    conditions.push(
-      sql`${schema.usageRecords.created_at} <= ${endDate}`
-    );
+    conditions.push(sql`${schema.usageRecords.created_at} <= ${endDate}`);
   }
 
   const result = await db
@@ -279,21 +275,17 @@ export async function getUsageByUser(
     .from(schema.usageRecords)
     .leftJoin(schema.users, eq(schema.usageRecords.user_id, schema.users.id))
     .where(and(...conditions))
-    .groupBy(
-      schema.usageRecords.user_id,
-      schema.users.name,
-      schema.users.email
-    )
+    .groupBy(schema.usageRecords.user_id, schema.users.name, schema.users.email)
     .orderBy(
       desc(
-        sql`sum(${schema.usageRecords.input_cost} + ${schema.usageRecords.output_cost})`
-      )
+        sql`sum(${schema.usageRecords.input_cost} + ${schema.usageRecords.output_cost})`,
+      ),
     )
     .limit(effectiveLimit + 1);
 
   if (result.length > effectiveLimit) {
     throw new Error(
-      `Query would return more than ${effectiveLimit} rows. Please narrow your filters.`
+      `Query would return more than ${effectiveLimit} rows. Please narrow your filters.`,
     );
   }
 
@@ -312,7 +304,7 @@ export async function getUsageByUser(
 }
 
 export async function getCostTrending(
-  organizationId: string
+  organizationId: string,
 ): Promise<CostTrending> {
   const now = new Date();
   const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -362,14 +354,14 @@ export async function getCostTrending(
  */
 export async function getProviderBreakdown(
   organizationId: string,
-  options?: { startDate?: Date; endDate?: Date; maxRows?: number }
+  options?: { startDate?: Date; endDate?: Date; maxRows?: number },
 ): Promise<ProviderBreakdown[]> {
   const { startDate, endDate, maxRows = 100000 } = options || {};
 
   const cacheKey = CacheKeys.analytics.providerBreakdown(
     organizationId,
     startDate?.toISOString() || "all",
-    endDate?.toISOString() || "now"
+    endDate?.toISOString() || "now",
   );
 
   const cached = await cache.get<ProviderBreakdown[]>(cacheKey);
@@ -383,14 +375,10 @@ export async function getProviderBreakdown(
   ];
 
   if (startDate) {
-    conditions.push(
-      sql`${schema.usageRecords.created_at} >= ${startDate}`
-    );
+    conditions.push(sql`${schema.usageRecords.created_at} >= ${startDate}`);
   }
   if (endDate) {
-    conditions.push(
-      sql`${schema.usageRecords.created_at} <= ${endDate}`
-    );
+    conditions.push(sql`${schema.usageRecords.created_at} <= ${endDate}`);
   }
 
   const result = await db
@@ -410,14 +398,14 @@ export async function getProviderBreakdown(
     .groupBy(schema.usageRecords.provider)
     .orderBy(
       desc(
-        sql`sum(${schema.usageRecords.input_cost} + ${schema.usageRecords.output_cost})`
-      )
+        sql`sum(${schema.usageRecords.input_cost} + ${schema.usageRecords.output_cost})`,
+      ),
     )
     .limit(maxRows + 1);
 
   if (result.length > maxRows) {
     throw new Error(
-      `Query would return more than ${maxRows} providers. This should not happen in normal usage.`
+      `Query would return more than ${maxRows} providers. This should not happen in normal usage.`,
     );
   }
 
@@ -445,14 +433,19 @@ export async function getProviderBreakdown(
  */
 export async function getModelBreakdown(
   organizationId: string,
-  options?: { startDate?: Date; endDate?: Date; limit?: number; maxRows?: number }
+  options?: {
+    startDate?: Date;
+    endDate?: Date;
+    limit?: number;
+    maxRows?: number;
+  },
 ): Promise<ModelBreakdown[]> {
   const { startDate, endDate, limit = 50, maxRows = 100000 } = options || {};
 
   const cacheKey = CacheKeys.analytics.modelBreakdown(
     organizationId,
     startDate?.toISOString() || "all",
-    endDate?.toISOString() || "now"
+    endDate?.toISOString() || "now",
   );
 
   const cached = await cache.get<ModelBreakdown[]>(cacheKey);
@@ -468,14 +461,10 @@ export async function getModelBreakdown(
   ];
 
   if (startDate) {
-    conditions.push(
-      sql`${schema.usageRecords.created_at} >= ${startDate}`
-    );
+    conditions.push(sql`${schema.usageRecords.created_at} >= ${startDate}`);
   }
   if (endDate) {
-    conditions.push(
-      sql`${schema.usageRecords.created_at} <= ${endDate}`
-    );
+    conditions.push(sql`${schema.usageRecords.created_at} <= ${endDate}`);
   }
 
   const result = await db
@@ -496,14 +485,14 @@ export async function getModelBreakdown(
     .groupBy(schema.usageRecords.model, schema.usageRecords.provider)
     .orderBy(
       desc(
-        sql`sum(${schema.usageRecords.input_cost} + ${schema.usageRecords.output_cost})`
-      )
+        sql`sum(${schema.usageRecords.input_cost} + ${schema.usageRecords.output_cost})`,
+      ),
     )
     .limit(effectiveLimit + 1);
 
   if (result.length > effectiveLimit) {
     throw new Error(
-      `Query would return more than ${effectiveLimit} models. Please narrow your filters.`
+      `Query would return more than ${effectiveLimit} models. Please narrow your filters.`,
     );
   }
 
@@ -513,8 +502,7 @@ export async function getModelBreakdown(
     totalRequests: row.totalRequests,
     totalCost: row.totalCost,
     totalTokens: row.totalTokens,
-    avgCostPerToken:
-      row.totalTokens > 0 ? row.totalCost / row.totalTokens : 0,
+    avgCostPerToken: row.totalTokens > 0 ? row.totalCost / row.totalTokens : 0,
     successRate: row.successRate,
   }));
 
@@ -526,7 +514,7 @@ export async function getModelBreakdown(
 export async function getTrendData(
   organizationId: string,
   currentPeriod: { startDate: Date; endDate: Date },
-  previousPeriod: { startDate: Date; endDate: Date }
+  previousPeriod: { startDate: Date; endDate: Date },
 ): Promise<TrendData> {
   const [currentStats, previousStats] = await Promise.all([
     getUsageStatsSafe(organizationId, currentPeriod),
@@ -540,22 +528,25 @@ export async function getTrendData(
 
   const periodDays = Math.ceil(
     (currentPeriod.endDate.getTime() - currentPeriod.startDate.getTime()) /
-      (1000 * 60 * 60 * 24)
+      (1000 * 60 * 60 * 24),
   );
 
   return {
     requestsChange: calculateChange(
       currentStats.totalRequests,
-      previousStats.totalRequests
+      previousStats.totalRequests,
     ),
-    costChange: calculateChange(currentStats.totalCost, previousStats.totalCost),
+    costChange: calculateChange(
+      currentStats.totalCost,
+      previousStats.totalCost,
+    ),
     tokensChange: calculateChange(
       currentStats.totalInputTokens + currentStats.totalOutputTokens,
-      previousStats.totalInputTokens + previousStats.totalOutputTokens
+      previousStats.totalInputTokens + previousStats.totalOutputTokens,
     ),
     successRateChange: calculateChange(
       currentStats.successRate,
-      previousStats.successRate
+      previousStats.successRate,
     ),
     period: `${periodDays}d`,
   };
@@ -571,7 +562,7 @@ export async function getCostBreakdown(
     sortOrder?: "asc" | "desc";
     limit?: number;
     offset?: number;
-  }
+  },
 ): Promise<CostBreakdownItem[]> {
   const {
     startDate,
@@ -587,14 +578,10 @@ export async function getCostBreakdown(
   ];
 
   if (startDate) {
-    conditions.push(
-      sql`${schema.usageRecords.created_at} >= ${startDate}`
-    );
+    conditions.push(sql`${schema.usageRecords.created_at} >= ${startDate}`);
   }
   if (endDate) {
-    conditions.push(
-      sql`${schema.usageRecords.created_at} <= ${endDate}`
-    );
+    conditions.push(sql`${schema.usageRecords.created_at} <= ${endDate}`);
   }
 
   const dimensionColumn = {

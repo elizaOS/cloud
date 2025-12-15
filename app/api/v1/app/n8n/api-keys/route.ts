@@ -15,7 +15,8 @@ import { z } from "zod";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-App-Token, X-Api-Key",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, X-App-Token, X-Api-Key",
 };
 
 const CreateApiKeySchema = z.object({
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
     if (apps.length === 0) {
       return NextResponse.json(
         { success: false, error: "No app found for this organization" },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: corsHeaders },
       );
     }
 
@@ -60,16 +61,17 @@ export async function GET(request: NextRequest) {
           createdAt: k.created_at,
         })),
       },
-      { headers: corsHeaders }
+      { headers: corsHeaders },
     );
   } catch (error) {
     logger.error("[App N8N API Keys] Error listing API keys:", error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to list API keys",
+        error:
+          error instanceof Error ? error.message : "Failed to list API keys",
       },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: corsHeaders },
     );
   }
 }
@@ -86,7 +88,7 @@ export async function POST(request: NextRequest) {
     if (apps.length === 0) {
       return NextResponse.json(
         { success: false, error: "No app found for this organization" },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: corsHeaders },
       );
     }
 
@@ -102,7 +104,7 @@ export async function POST(request: NextRequest) {
           error: "Invalid request",
           details: validation.error.format(),
         },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: corsHeaders },
       );
     }
 
@@ -133,17 +135,17 @@ export async function POST(request: NextRequest) {
           createdAt: result.apiKey.created_at,
         },
       },
-      { headers: corsHeaders }
+      { headers: corsHeaders },
     );
   } catch (error) {
     logger.error("[App N8N API Keys] Error creating API key:", error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to create API key",
+        error:
+          error instanceof Error ? error.message : "Failed to create API key",
       },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: corsHeaders },
     );
   }
 }
-

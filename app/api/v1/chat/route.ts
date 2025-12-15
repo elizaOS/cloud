@@ -121,7 +121,8 @@ async function handlePOST(req: NextRequest) {
 
     // Handle anonymous user rate limiting
     if (isAnonymous && anonymousSession) {
-      const remaining = anonymousSession.messages_limit - anonymousSession.message_count;
+      const remaining =
+        anonymousSession.messages_limit - anonymousSession.message_count;
 
       // Check message limit
       if (remaining <= 0) {
@@ -144,7 +145,9 @@ async function handlePOST(req: NextRequest) {
       }
 
       // Check hourly rate limit
-      const rateLimitResult = await anonymousSessionsService.checkRateLimit(anonymousSession.id);
+      const rateLimitResult = await anonymousSessionsService.checkRateLimit(
+        anonymousSession.id,
+      );
       if (!rateLimitResult.allowed) {
         logger.warn("chat-api", "Anonymous user hourly limit reached", {
           userId: user.id,
@@ -153,7 +156,8 @@ async function handlePOST(req: NextRequest) {
 
         return NextResponse.json(
           {
-            error: "You've reached the hourly rate limit. Please wait an hour or sign up for unlimited access.",
+            error:
+              "You've reached the hourly rate limit. Please wait an hour or sign up for unlimited access.",
             requiresSignup: true,
             reason: "hourly_limit",
             limit: anonymousSession.messages_limit,

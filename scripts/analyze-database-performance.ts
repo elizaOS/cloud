@@ -196,7 +196,9 @@ async function getHighSeqScanTables(): Promise<SeqScanTable[]> {
   return result.rows;
 }
 
-async function getMissingIndexCandidates(): Promise<Array<{ table: string; column: string; reason: string }>> {
+async function getMissingIndexCandidates(): Promise<
+  Array<{ table: string; column: string; reason: string }>
+> {
   // Check for foreign key columns without indexes
   const fkResult = await pool.query(`
     SELECT 
@@ -220,11 +222,17 @@ async function getMissingIndexCandidates(): Promise<Array<{ table: string; colum
       )
   `);
 
-  return fkResult.rows.map((row: { table_name: string; column_name: string; foreign_table: string }) => ({
-    table: row.table_name,
-    column: row.column_name,
-    reason: `Foreign key to ${row.foreign_table} without index`,
-  }));
+  return fkResult.rows.map(
+    (row: {
+      table_name: string;
+      column_name: string;
+      foreign_table: string;
+    }) => ({
+      table: row.table_name,
+      column: row.column_name,
+      reason: `Foreign key to ${row.foreign_table} without index`,
+    }),
+  );
 }
 
 async function getConnectionStats(): Promise<{
@@ -245,11 +253,13 @@ async function getConnectionStats(): Promise<{
   return result.rows[0];
 }
 
-async function getLockContention(): Promise<Array<{
-  blocked_query: string;
-  blocking_query: string;
-  blocked_duration: string;
-}>> {
+async function getLockContention(): Promise<
+  Array<{
+    blocked_query: string;
+    blocking_query: string;
+    blocked_duration: string;
+  }>
+> {
   const result = await pool.query(`
     SELECT 
       blocked_activity.query AS blocked_query,
@@ -278,11 +288,13 @@ async function getLockContention(): Promise<Array<{
   return result.rows;
 }
 
-async function getIndexDefinitions(): Promise<Array<{
-  tablename: string;
-  indexname: string;
-  indexdef: string;
-}>> {
+async function getIndexDefinitions(): Promise<
+  Array<{
+    tablename: string;
+    indexname: string;
+    indexdef: string;
+  }>
+> {
   const result = await pool.query(`
     SELECT tablename, indexname, indexdef
     FROM pg_indexes
@@ -300,7 +312,7 @@ async function analyzeQueryPatterns(): Promise<void> {
   // Tables commonly queried - based on repository analysis
   const criticalTables = [
     "memories",
-    "rooms", 
+    "rooms",
     "participants",
     "agents",
     "users",
@@ -315,12 +327,15 @@ async function analyzeQueryPatterns(): Promise<void> {
   ];
 
   for (const table of criticalTables) {
-    const tableExists = await pool.query(`
+    const tableExists = await pool.query(
+      `
       SELECT EXISTS (
         SELECT 1 FROM information_schema.tables 
         WHERE table_schema = 'public' AND table_name = $1
       ) as exists
-    `, [table]);
+    `,
+      [table],
+    );
 
     if (!tableExists.rows[0].exists) {
       console.log(`\n⚠️  Table '${table}' not found (may have different name)`);
@@ -328,22 +343,29 @@ async function analyzeQueryPatterns(): Promise<void> {
     }
 
     // Get columns
-    const columns = await pool.query(`
+    const columns = await pool.query(
+      `
       SELECT column_name, data_type
       FROM information_schema.columns
       WHERE table_schema = 'public' AND table_name = $1
       ORDER BY ordinal_position
-    `, [table]);
+    `,
+      [table],
+    );
 
     // Get existing indexes
-    const indexes = await pool.query(`
+    const indexes = await pool.query(
+      `
       SELECT indexname, indexdef
       FROM pg_indexes
       WHERE schemaname = 'public' AND tablename = $1
-    `, [table]);
+    `,
+      [table],
+    );
 
     // Get table stats
-    const stats = await pool.query(`
+    const stats = await pool.query(
+      `
       SELECT 
         n_live_tup,
         seq_scan,
@@ -354,14 +376,18 @@ async function analyzeQueryPatterns(): Promise<void> {
         END as seq_pct
       FROM pg_stat_user_tables
       WHERE relname = $1
-    `, [table]);
+    `,
+      [table],
+    );
 
     console.log(`\n📊 Table: ${table}`);
-    console.log(`   Rows: ${stats.rows[0]?.n_live_tup || 'N/A'}`);
-    console.log(`   Seq Scans: ${stats.rows[0]?.seq_scan || 0} | Index Scans: ${stats.rows[0]?.idx_scan || 0}`);
+    console.log(`   Rows: ${stats.rows[0]?.n_live_tup || "N/A"}`);
+    console.log(
+      `   Seq Scans: ${stats.rows[0]?.seq_scan || 0} | Index Scans: ${stats.rows[0]?.idx_scan || 0}`,
+    );
     console.log(`   Seq Scan %: ${stats.rows[0]?.seq_pct || 0}%`);
     console.log(`   Indexes (${indexes.rows.length}):`);
-    
+
     for (const idx of indexes.rows) {
       console.log(`     - ${idx.indexname}`);
     }
@@ -369,7 +395,7 @@ async function analyzeQueryPatterns(): Promise<void> {
     // Identify likely missing indexes based on common patterns
     const commonQueryColumns = [
       "organization_id",
-      "user_id", 
+      "user_id",
       "agent_id",
       "room_id",
       "created_at",
@@ -378,20 +404,26 @@ async function analyzeQueryPatterns(): Promise<void> {
       "status",
     ];
 
-    const existingIndexDefs = indexes.rows.map((i: { indexdef: string }) => i.indexdef.toLowerCase()).join(" ");
+    const existingIndexDefs = indexes.rows
+      .map((i: { indexdef: string }) => i.indexdef.toLowerCase())
+      .join(" ");
     const missingIndexes: string[] = [];
 
     for (const col of commonQueryColumns) {
-      const colExists = columns.rows.some((c: { column_name: string }) => c.column_name === col);
+      const colExists = columns.rows.some(
+        (c: { column_name: string }) => c.column_name === col,
+      );
       const hasIndex = existingIndexDefs.includes(col);
-      
+
       if (colExists && !hasIndex) {
         missingIndexes.push(col);
       }
     }
 
     if (missingIndexes.length > 0) {
-      console.log(`   ⚠️  Likely missing indexes on: ${missingIndexes.join(", ")}`);
+      console.log(
+        `   ⚠️  Likely missing indexes on: ${missingIndexes.join(", ")}`,
+      );
     }
   }
 }
@@ -404,14 +436,18 @@ async function main() {
 
   // Check pg_stat_statements
   const hasPgStatStatements = await checkPgStatStatements();
-  console.log(`\npg_stat_statements extension: ${hasPgStatStatements ? "✅ Enabled" : "❌ Not available"}`);
+  console.log(
+    `\npg_stat_statements extension: ${hasPgStatStatements ? "✅ Enabled" : "❌ Not available"}`,
+  );
 
   // Connection stats
   console.log("\n" + "=".repeat(80));
   console.log("📡 CONNECTION STATISTICS");
   console.log("=".repeat(80));
   const connStats = await getConnectionStats();
-  console.log(`Total: ${connStats.total} | Active: ${connStats.active} | Idle: ${connStats.idle} | Waiting: ${connStats.waiting}`);
+  console.log(
+    `Total: ${connStats.total} | Active: ${connStats.active} | Idle: ${connStats.idle} | Waiting: ${connStats.waiting}`,
+  );
 
   // Table sizes
   console.log("\n" + "=".repeat(80));
@@ -420,25 +456,27 @@ async function main() {
   const tableSizes = await getTableSizes();
   console.log(
     "Table".padEnd(40) +
-    "Total Size".padEnd(15) +
-    "Table Size".padEnd(15) +
-    "Index Size".padEnd(15) +
-    "Rows"
+      "Total Size".padEnd(15) +
+      "Table Size".padEnd(15) +
+      "Index Size".padEnd(15) +
+      "Rows",
   );
   console.log("-".repeat(100));
   for (const table of tableSizes) {
     console.log(
       table.table_name.padEnd(40) +
-      table.total_size.padEnd(15) +
-      table.table_size.padEnd(15) +
-      table.index_size.padEnd(15) +
-      table.row_estimate
+        table.total_size.padEnd(15) +
+        table.table_size.padEnd(15) +
+        table.index_size.padEnd(15) +
+        table.row_estimate,
     );
   }
 
   // High sequential scan tables
   console.log("\n" + "=".repeat(80));
-  console.log("🐌 TABLES WITH HIGH SEQUENTIAL SCAN RATIO (Potential Missing Indexes)");
+  console.log(
+    "🐌 TABLES WITH HIGH SEQUENTIAL SCAN RATIO (Potential Missing Indexes)",
+  );
   console.log("=".repeat(80));
   const seqScanTables = await getHighSeqScanTables();
   if (seqScanTables.length === 0) {
@@ -446,17 +484,17 @@ async function main() {
   } else {
     console.log(
       "Table".padEnd(40) +
-      "Seq Scans".padEnd(15) +
-      "Idx Scans".padEnd(15) +
-      "Seq Scan %"
+        "Seq Scans".padEnd(15) +
+        "Idx Scans".padEnd(15) +
+        "Seq Scan %",
     );
     console.log("-".repeat(85));
     for (const table of seqScanTables) {
       console.log(
         table.relname.padEnd(40) +
-        table.seq_scan.padEnd(15) +
-        table.idx_scan.padEnd(15) +
-        `${table.seq_scan_ratio}%`
+          table.seq_scan.padEnd(15) +
+          table.idx_scan.padEnd(15) +
+          `${table.seq_scan_ratio}%`,
       );
     }
   }
@@ -472,8 +510,12 @@ async function main() {
     } else {
       for (let i = 0; i < slowQueries.length; i++) {
         const q = slowQueries[i];
-        console.log(`\n${i + 1}. Mean: ${q.mean_time}ms | Max: ${q.max_time}ms | Calls: ${q.calls} | Rows: ${q.rows}`);
-        console.log(`   ${q.query.substring(0, 200)}${q.query.length > 200 ? "..." : ""}`);
+        console.log(
+          `\n${i + 1}. Mean: ${q.mean_time}ms | Max: ${q.max_time}ms | Calls: ${q.calls} | Rows: ${q.rows}`,
+        );
+        console.log(
+          `   ${q.query.substring(0, 200)}${q.query.length > 200 ? "..." : ""}`,
+        );
       }
     }
   }
@@ -486,17 +528,11 @@ async function main() {
   if (unusedIndexes.length === 0) {
     console.log("✅ All indexes are being used");
   } else {
-    console.log(
-      "Table".padEnd(30) +
-      "Index".padEnd(40) +
-      "Size"
-    );
+    console.log("Table".padEnd(30) + "Index".padEnd(40) + "Size");
     console.log("-".repeat(85));
     for (const idx of unusedIndexes) {
       console.log(
-        idx.relname.padEnd(30) +
-        idx.indexrelname.padEnd(40) +
-        idx.idx_size
+        idx.relname.padEnd(30) + idx.indexrelname.padEnd(40) + idx.idx_size,
       );
     }
   }
@@ -554,19 +590,30 @@ async function main() {
   const recommendations: string[] = [];
 
   if (!hasPgStatStatements) {
-    recommendations.push("Enable pg_stat_statements extension for detailed query analysis");
+    recommendations.push(
+      "Enable pg_stat_statements extension for detailed query analysis",
+    );
   }
 
   if (seqScanTables.length > 0) {
-    recommendations.push(`Add indexes to reduce sequential scans on: ${seqScanTables.slice(0, 5).map(t => t.relname).join(", ")}`);
+    recommendations.push(
+      `Add indexes to reduce sequential scans on: ${seqScanTables
+        .slice(0, 5)
+        .map((t) => t.relname)
+        .join(", ")}`,
+    );
   }
 
   if (unusedIndexes.length > 5) {
-    recommendations.push(`Consider removing ${unusedIndexes.length} unused indexes to reduce write overhead`);
+    recommendations.push(
+      `Consider removing ${unusedIndexes.length} unused indexes to reduce write overhead`,
+    );
   }
 
   if (missingIndexes.length > 0) {
-    recommendations.push(`Add indexes for ${missingIndexes.length} foreign key columns`);
+    recommendations.push(
+      `Add indexes for ${missingIndexes.length} foreign key columns`,
+    );
   }
 
   if (recommendations.length === 0) {
@@ -588,4 +635,3 @@ main().catch((err) => {
   console.error("Analysis failed:", err);
   process.exit(1);
 });
-

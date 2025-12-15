@@ -14,21 +14,32 @@ export async function GET(req: NextRequest) {
     const cacheKey = CacheKeys.org.credits(organizationId);
 
     // Short cache (30s) to reduce DB hits while keeping balance fresh
-    const balance = await cache.getWithSWR<number>(cacheKey, CacheTTL.org.credits, async () => {
-      const org = await organizationsRepository.findById(organizationId);
-      if (!org) return null;
-      return Number(org.credit_balance || 0);
-    });
+    const balance = await cache.getWithSWR<number>(
+      cacheKey,
+      CacheTTL.org.credits,
+      async () => {
+        const org = await organizationsRepository.findById(organizationId);
+        if (!org) return null;
+        return Number(org.credit_balance || 0);
+      },
+    );
 
     if (balance === null) {
-      return NextResponse.json({ error: "Organization not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Organization not found" },
+        { status: 404 },
+      );
     }
 
     return NextResponse.json({ balance });
   } catch (error) {
-    const msg = error instanceof Error ? error.message : "Failed to fetch balance";
-    const isAuthError = msg.includes("Unauthorized") || msg.includes("Authentication") || msg.includes("Forbidden");
-    
+    const msg =
+      error instanceof Error ? error.message : "Failed to fetch balance";
+    const isAuthError =
+      msg.includes("Unauthorized") ||
+      msg.includes("Authentication") ||
+      msg.includes("Forbidden");
+
     if (isAuthError) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

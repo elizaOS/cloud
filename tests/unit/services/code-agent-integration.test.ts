@@ -6,7 +6,12 @@
  */
 
 import { describe, test, expect, beforeAll, afterAll, mock } from "bun:test";
-import { requireDatabase, skipIfNoDb, testContext, requireSchema } from "../../test-utils";
+import {
+  requireDatabase,
+  skipIfNoDb,
+  testContext,
+  requireSchema,
+} from "../../test-utils";
 
 // =============================================================================
 // WEBHOOK INTEGRATION TESTS
@@ -26,12 +31,18 @@ describe("Webhook Service - Real Logic", () => {
 
   describe("shouldDispatchEvent", () => {
     test("returns false if no webhook_url", () => {
-      const session = createMockDbSession({ webhook_url: null, webhook_secret: "secret" });
+      const session = createMockDbSession({
+        webhook_url: null,
+        webhook_secret: "secret",
+      });
       expect(shouldDispatchEvent(session, "session_ready")).toBe(false);
     });
 
     test("returns false if no webhook_secret", () => {
-      const session = createMockDbSession({ webhook_url: "https://example.com", webhook_secret: null });
+      const session = createMockDbSession({
+        webhook_url: "https://example.com",
+        webhook_secret: null,
+      });
       expect(shouldDispatchEvent(session, "session_ready")).toBe(false);
     });
 
@@ -98,7 +109,10 @@ describe("Webhook Service - Real Logic", () => {
 
       // Should not throw - errors are logged but swallowed
       await expect(
-        dispatchWebhook(session, { type: "session_ready", sessionId: session.id })
+        dispatchWebhook(session, {
+          type: "session_ready",
+          sessionId: session.id,
+        }),
       ).resolves.toBeUndefined();
     });
 
@@ -111,7 +125,10 @@ describe("Webhook Service - Real Logic", () => {
 
       // Should return immediately without making HTTP call
       await expect(
-        dispatchWebhook(session, { type: "session_terminated", sessionId: session.id })
+        dispatchWebhook(session, {
+          type: "session_terminated",
+          sessionId: session.id,
+        }),
       ).resolves.toBeUndefined();
     });
   });
@@ -132,7 +149,9 @@ describe("Analytics Service - Real Logic", () => {
     // Check if code_agent_sessions table exists
     schemaAvailable = await requireSchema("codeAgentSessions");
     if (!schemaAvailable) {
-      console.log("⏭️ Skipping Analytics tests - code_agent_sessions table not available");
+      console.log(
+        "⏭️ Skipping Analytics tests - code_agent_sessions table not available",
+      );
       return;
     }
 
@@ -186,7 +205,7 @@ describe("Analytics Service - Real Logic", () => {
 
       const result = await analyticsService.getSessionAnalytics(
         crypto.randomUUID(),
-        crypto.randomUUID()
+        crypto.randomUUID(),
       );
 
       expect(result).toBeNull();
@@ -201,7 +220,7 @@ describe("Analytics Service - Real Logic", () => {
       }
 
       const result = await analyticsService.getInterpreterAnalytics(
-        crypto.randomUUID()
+        crypto.randomUUID(),
       );
 
       expect(Array.isArray(result)).toBe(true);
@@ -215,7 +234,10 @@ describe("Analytics Service - Real Logic", () => {
         return;
       }
 
-      const result = await analyticsService.getRecentExecutions(crypto.randomUUID(), 5);
+      const result = await analyticsService.getRecentExecutions(
+        crypto.randomUUID(),
+        5,
+      );
 
       expect(Array.isArray(result)).toBe(true);
       expect(result.length).toBeLessThanOrEqual(5);
@@ -229,7 +251,7 @@ describe("Analytics Service - Real Logic", () => {
 
       const result = await analyticsService.getRecentExecutions(
         crypto.randomUUID(),
-        10
+        10,
       );
 
       expect(result).toEqual([]);
@@ -260,11 +282,17 @@ describe("Cache Invalidation - Real Logic", () => {
 
       // Set some cache values first
       const { CacheKeys } = await import("@/lib/cache/keys");
-      await cache.set(CacheKeys.codeAgent.session(sessionId), { test: true }, 60);
+      await cache.set(
+        CacheKeys.codeAgent.session(sessionId),
+        { test: true },
+        60,
+      );
       await cache.set(CacheKeys.codeAgent.list(orgId), [{ test: true }], 60);
 
       // Verify they exist
-      const beforeSession = await cache.get(CacheKeys.codeAgent.session(sessionId));
+      const beforeSession = await cache.get(
+        CacheKeys.codeAgent.session(sessionId),
+      );
       const beforeList = await cache.get(CacheKeys.codeAgent.list(orgId));
 
       // They may or may not be set depending on Redis availability
@@ -274,7 +302,9 @@ describe("Cache Invalidation - Real Logic", () => {
       await CacheInvalidation.onCodeAgentSessionMutation(sessionId, orgId);
 
       // After invalidation, both should be null
-      const afterSession = await cache.get(CacheKeys.codeAgent.session(sessionId));
+      const afterSession = await cache.get(
+        CacheKeys.codeAgent.session(sessionId),
+      );
       const afterList = await cache.get(CacheKeys.codeAgent.list(orgId));
 
       expect(afterSession).toBeNull();
@@ -287,7 +317,7 @@ describe("Cache Invalidation - Real Logic", () => {
       const orgId = "org_test_" + Date.now();
 
       await expect(
-        CacheInvalidation.onCodeAgentUsage(orgId)
+        CacheInvalidation.onCodeAgentUsage(orgId),
       ).resolves.toBeUndefined();
     });
   });
@@ -343,7 +373,8 @@ describe("Vercel Sandbox Runtime - Credentials", () => {
   let VercelSandboxRuntime: typeof import("@/lib/services/code-agent/runtimes/vercel-sandbox").VercelSandboxRuntime;
 
   beforeAll(async () => {
-    const runtime = await import("@/lib/services/code-agent/runtimes/vercel-sandbox");
+    const runtime =
+      await import("@/lib/services/code-agent/runtimes/vercel-sandbox");
     VercelSandboxRuntime = runtime.VercelSandboxRuntime;
   });
 
@@ -428,14 +459,16 @@ describe("Code Agent Service - Event System", () => {
 // HELPER FUNCTIONS
 // =============================================================================
 
-function createMockDbSession(overrides: Partial<{
-  id: string;
-  organization_id: string;
-  user_id: string;
-  webhook_url: string | null;
-  webhook_secret: string | null;
-  webhook_events: string[] | null;
-}> = {}) {
+function createMockDbSession(
+  overrides: Partial<{
+    id: string;
+    organization_id: string;
+    user_id: string;
+    webhook_url: string | null;
+    webhook_secret: string | null;
+    webhook_events: string[] | null;
+  }> = {},
+) {
   return {
     id: overrides.id ?? "sess_" + Date.now(),
     organization_id: overrides.organization_id ?? "org_test",
@@ -474,15 +507,37 @@ function createMockDbSession(overrides: Partial<{
   };
 }
 
-function executeJSAsync(code: string, timeout = 5000): { output: string; error: string | null; exitCode: number } {
+function executeJSAsync(
+  code: string,
+  timeout = 5000,
+): { output: string; error: string | null; exitCode: number } {
   const vm = require("vm");
   let output = "";
-  const log = (...args: unknown[]) => { output += args.map(String).join(" ") + "\n"; };
+  const log = (...args: unknown[]) => {
+    output += args.map(String).join(" ") + "\n";
+  };
 
   const context = vm.createContext({
     console: { log, error: log, warn: log, info: log },
-    setTimeout, setInterval, clearTimeout, clearInterval,
-    Buffer, JSON, Math, Date, Array, Object, String, Number, Boolean, RegExp, Error, Map, Set, Promise, Symbol,
+    setTimeout,
+    setInterval,
+    clearTimeout,
+    clearInterval,
+    Buffer,
+    JSON,
+    Math,
+    Date,
+    Array,
+    Object,
+    String,
+    Number,
+    Boolean,
+    RegExp,
+    Error,
+    Map,
+    Set,
+    Promise,
+    Symbol,
   });
 
   try {
@@ -492,10 +547,12 @@ function executeJSAsync(code: string, timeout = 5000): { output: string; error: 
     }
     return { output: output.trim(), error: null, exitCode: 0 };
   } catch (err: unknown) {
-    const msg = err instanceof Error && err.message.includes("timed out")
-      ? "Timed out"
-      : (err instanceof Error ? err.message : String(err));
+    const msg =
+      err instanceof Error && err.message.includes("timed out")
+        ? "Timed out"
+        : err instanceof Error
+          ? err.message
+          : String(err);
     return { output: output.trim(), error: msg, exitCode: 1 };
   }
 }
-

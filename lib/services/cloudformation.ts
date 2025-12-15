@@ -188,8 +188,7 @@ export class CloudFormationService {
           throw error;
         }
 
-        const errorMessage =
-          extractErrorMessage(error);
+        const errorMessage = extractErrorMessage(error);
         logger.error(
           `[CloudFormation withRetry] Attempt ${attempt}/${maxRetries} failed:`,
           errorMessage,
@@ -787,8 +786,7 @@ export class CloudFormationService {
         albSecurityGroupId: getOutput("ALBSecurityGroupId"),
       };
     } catch (error: unknown) {
-      const errorMessage =
-        extractErrorMessage(error);
+      const errorMessage = extractErrorMessage(error);
       logger.error(
         "Failed to get shared infrastructure outputs:",
         errorMessage,

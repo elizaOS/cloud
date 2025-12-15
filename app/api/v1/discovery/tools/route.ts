@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
     if (!parseResult.success) {
       return NextResponse.json(
         { error: "Invalid parameters", details: parseResult.error.issues },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -88,7 +88,10 @@ export async function GET(request: NextRequest) {
     // Check cache (10 minutes TTL)
     const cached = await cache.get<ToolsResponse>(cacheKey);
     if (cached) {
-      return NextResponse.json({ ...cached, meta: { ...cached.meta, cached: true } });
+      return NextResponse.json({
+        ...cached,
+        meta: { ...cached.meta, cached: true },
+      });
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://elizacloud.ai";
@@ -124,91 +127,93 @@ export async function GET(request: NextRequest) {
       // Database unavailable - continue with ERC-8004 only
     }
 
-  // ========================================================================
-  // Get tools from ERC-8004 agents
-  // ========================================================================
+    // ========================================================================
+    // Get tools from ERC-8004 agents
+    // ========================================================================
 
-  const agents = await agent0Service.searchAgentsCached({ active: true });
+    const agents = await agent0Service.searchAgentsCached({ active: true });
 
-  for (const agent of agents) {
-    if (!agent.mcpEndpoint) continue;
+    for (const agent of agents) {
+      if (!agent.mcpEndpoint) continue;
 
-    for (const toolName of agent.mcpTools ?? []) {
-      allTools.push({
-        name: toolName,
-        provider: {
-          id: agent.agentId,
-          name: agent.name,
-          type: "erc8004",
-          mcpEndpoint: agent.mcpEndpoint,
-        },
-        x402Required: agent.x402Support,
-      });
+      for (const toolName of agent.mcpTools ?? []) {
+        allTools.push({
+          name: toolName,
+          provider: {
+            id: agent.agentId,
+            name: agent.name,
+            type: "erc8004",
+            mcpEndpoint: agent.mcpEndpoint,
+          },
+          x402Required: agent.x402Support,
+        });
+      }
     }
-  }
 
-  // ========================================================================
-  // Filter
-  // ========================================================================
+    // ========================================================================
+    // Filter
+    // ========================================================================
 
-  let filtered = allTools;
+    let filtered = allTools;
 
-  if (params.query) {
-    const query = params.query.toLowerCase();
-    filtered = filtered.filter(
-      (t) =>
-        t.name.toLowerCase().includes(query) ||
-        (t.description?.toLowerCase().includes(query) ?? false)
-    );
-  }
-
-  if (params.category) {
-    filtered = filtered.filter((t) => t.category === params.category);
-  }
-
-  if (params.x402Only) {
-    filtered = filtered.filter((t) => t.x402Required);
-  }
-
-  // Sort by name
-  filtered.sort((a, b) => a.name.localeCompare(b.name));
-
-  // Limit
-  const limited = filtered.slice(0, params.limit);
-
-  // Build unique tools list
-  const uniqueTools = Array.from(new Set(filtered.map((t) => t.name)));
-
-  // Group by category
-  const byCategory: Record<string, ToolInfo[]> = {};
-  for (const tool of limited) {
-    const cat = tool.category ?? "uncategorized";
-    if (!byCategory[cat]) {
-      byCategory[cat] = [];
+    if (params.query) {
+      const query = params.query.toLowerCase();
+      filtered = filtered.filter(
+        (t) =>
+          t.name.toLowerCase().includes(query) ||
+          (t.description?.toLowerCase().includes(query) ?? false),
+      );
     }
-    byCategory[cat].push(tool);
-  }
 
-  const response: ToolsResponse = {
-    tools: limited,
-    total: filtered.length,
-    uniqueTools,
-    byCategory,
-    meta: {
-      cached: false,
-      lastUpdated: new Date().toISOString(),
-    },
-  };
+    if (params.category) {
+      filtered = filtered.filter((t) => t.category === params.category);
+    }
 
-  // Cache for 10 minutes
-  await cache.set(cacheKey, response, CacheTTL.erc8004.discovery);
+    if (params.x402Only) {
+      filtered = filtered.filter((t) => t.x402Required);
+    }
 
-  return NextResponse.json(response);
+    // Sort by name
+    filtered.sort((a, b) => a.name.localeCompare(b.name));
+
+    // Limit
+    const limited = filtered.slice(0, params.limit);
+
+    // Build unique tools list
+    const uniqueTools = Array.from(new Set(filtered.map((t) => t.name)));
+
+    // Group by category
+    const byCategory: Record<string, ToolInfo[]> = {};
+    for (const tool of limited) {
+      const cat = tool.category ?? "uncategorized";
+      if (!byCategory[cat]) {
+        byCategory[cat] = [];
+      }
+      byCategory[cat].push(tool);
+    }
+
+    const response: ToolsResponse = {
+      tools: limited,
+      total: filtered.length,
+      uniqueTools,
+      byCategory,
+      meta: {
+        cached: false,
+        lastUpdated: new Date().toISOString(),
+      },
+    };
+
+    // Cache for 10 minutes
+    await cache.set(cacheKey, response, CacheTTL.erc8004.discovery);
+
+    return NextResponse.json(response);
   } catch (error) {
     return NextResponse.json(
-      { error: "Internal server error", message: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
+      {
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
     );
   }
 }
-

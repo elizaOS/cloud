@@ -25,7 +25,10 @@ interface EndpointDiscoveryProps {
   selectionMode?: boolean;
 }
 
-const TYPE_CONFIG: Record<string, { label: string; icon: typeof Globe; color: string }> = {
+const TYPE_CONFIG: Record<
+  string,
+  { label: string; icon: typeof Globe; color: string }
+> = {
   a2a: { label: "A2A", icon: Zap, color: "from-orange-500 to-red-500" },
   mcp: { label: "MCP", icon: Bot, color: "from-purple-500 to-pink-500" },
   rest: { label: "REST", icon: Globe, color: "from-green-500 to-emerald-500" },
@@ -44,7 +47,10 @@ const CATEGORY_COLORS: Record<string, string> = {
   utilities: "bg-gray-500/20 text-gray-400 border-gray-500/30",
 };
 
-export function EndpointDiscovery({ onSelectEndpoint, selectionMode }: EndpointDiscoveryProps) {
+export function EndpointDiscovery({
+  onSelectEndpoint,
+  selectionMode,
+}: EndpointDiscoveryProps) {
   const [endpoints, setEndpoints] = useState<EndpointNode[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,44 +62,50 @@ export function EndpointDiscovery({ onSelectEndpoint, selectionMode }: EndpointD
 
   useEffect(() => {
     let cancelled = false;
-    
+
     async function doFetch() {
       setIsLoading(true);
       const params = new URLSearchParams();
       if (searchQuery) params.set("query", searchQuery);
-      if (selectedTypes.length > 0) params.set("types", selectedTypes.join(","));
-      if (selectedCategories.length > 0) params.set("categories", selectedCategories.join(","));
+      if (selectedTypes.length > 0)
+        params.set("types", selectedTypes.join(","));
+      if (selectedCategories.length > 0)
+        params.set("categories", selectedCategories.join(","));
       params.set("limit", "100");
 
       const response = await fetch(`/api/v1/n8n/discover-endpoints?${params}`);
       if (cancelled) return;
-      
+
       if (!response.ok) {
         toast.error("Failed to load endpoints");
         setIsLoading(false);
         return;
       }
-      
+
       const data = await response.json();
       setEndpoints(data.endpoints || []);
       setCategories(data.categories || []);
       setTotal(data.total || 0);
       setIsLoading(false);
     }
-    
+
     doFetch();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [searchQuery, selectedTypes, selectedCategories]);
 
   function toggleType(type: string) {
     setSelectedTypes((prev) =>
-      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
+      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type],
     );
   }
 
   function toggleCategory(category: string) {
     setSelectedCategories((prev) =>
-      prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category]
+      prev.includes(category)
+        ? prev.filter((c) => c !== category)
+        : [...prev, category],
     );
   }
 
@@ -133,7 +145,7 @@ export function EndpointDiscovery({ onSelectEndpoint, selectionMode }: EndpointD
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
                     selectedTypes.includes(type)
                       ? `bg-gradient-to-r ${config.color} text-white`
-                      : "bg-white/5 text-white/60 hover:bg-white/10"
+                      : "bg-white/5 text-white/60 hover:bg-white/10",
                   )}
                 >
                   <Icon className="h-3.5 w-3.5" />
@@ -154,7 +166,7 @@ export function EndpointDiscovery({ onSelectEndpoint, selectionMode }: EndpointD
                     "px-3 py-1.5 rounded-lg text-sm font-medium transition-all border",
                     selectedCategories.includes(category)
                       ? CATEGORY_COLORS[category] || CATEGORY_COLORS.utilities
-                      : "bg-white/5 text-white/60 border-white/10 hover:bg-white/10"
+                      : "bg-white/5 text-white/60 border-white/10 hover:bg-white/10",
                   )}
                 >
                   {category}
@@ -200,14 +212,17 @@ export function EndpointDiscovery({ onSelectEndpoint, selectionMode }: EndpointD
 
               return (
                 <BrandCard key={endpoint.id} className="relative group">
-                  <CornerBrackets size="sm" className="opacity-10 group-hover:opacity-30 transition-opacity" />
+                  <CornerBrackets
+                    size="sm"
+                    className="opacity-10 group-hover:opacity-30 transition-opacity"
+                  />
                   <div className="relative z-10 p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-3 flex-1 min-w-0">
                         <div
                           className={cn(
                             "p-2 rounded-lg bg-gradient-to-r shrink-0",
-                            typeConfig?.color || "from-gray-500 to-gray-600"
+                            typeConfig?.color || "from-gray-500 to-gray-600",
                           )}
                         >
                           <Icon className="h-4 w-4 text-white" />
@@ -251,7 +266,9 @@ export function EndpointDiscovery({ onSelectEndpoint, selectionMode }: EndpointD
                               {endpoint.endpoint}
                             </code>
                             <button
-                              onClick={() => handleCopy(endpoint.endpoint, endpoint.id)}
+                              onClick={() =>
+                                handleCopy(endpoint.endpoint, endpoint.id)
+                              }
                               className="p-1 hover:bg-white/5 rounded transition-colors"
                             >
                               {copied === endpoint.id ? (
@@ -278,7 +295,9 @@ export function EndpointDiscovery({ onSelectEndpoint, selectionMode }: EndpointD
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => window.open(endpoint.endpoint, "_blank")}
+                            onClick={() =>
+                              window.open(endpoint.endpoint, "_blank")
+                            }
                             className="text-white/40 hover:text-white"
                           >
                             <ExternalLink className="h-4 w-4" />
@@ -309,4 +328,3 @@ export function EndpointDiscovery({ onSelectEndpoint, selectionMode }: EndpointD
     </div>
   );
 }
-

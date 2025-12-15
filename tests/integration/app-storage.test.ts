@@ -1,6 +1,5 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 
-
 const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
 const APP_TOKEN = process.env.TEST_APP_TOKEN || "";
 
@@ -9,7 +8,7 @@ let testCollectionName = `test_collection_${Date.now()}`;
 
 async function apiRequest(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<Response> {
   const headers: HeadersInit = {
     "Content-Type": "application/json",
@@ -51,9 +50,7 @@ afterAll(async () => {
 
 describe("App Storage Service", () => {
   test("service exports all required components", async () => {
-    const { appStorageService } = await import(
-      "@/lib/services/app-storage"
-    );
+    const { appStorageService } = await import("@/lib/services/app-storage");
 
     expect(appStorageService).toBeDefined();
     expect(appStorageService.createCollection).toBeFunction();
@@ -81,9 +78,7 @@ describe("App Storage Service", () => {
 
 describe("App Storage Validation", () => {
   test("validateDocument catches missing required fields", async () => {
-    const { appStorageService } = await import(
-      "@/lib/services/app-storage"
-    );
+    const { appStorageService } = await import("@/lib/services/app-storage");
 
     // This tests that the service properly validates documents
     // The actual validation happens internally during insertDocument
@@ -105,10 +100,10 @@ describe("App Storage API Routes", () => {
     expect(response.status).toBe(204);
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
     expect(response.headers.get("Access-Control-Allow-Methods")).toContain(
-      "GET"
+      "GET",
     );
     expect(response.headers.get("Access-Control-Allow-Methods")).toContain(
-      "POST"
+      "POST",
     );
   });
 
@@ -170,7 +165,10 @@ describe("App Storage API - Authenticated", () => {
           type: "object",
           properties: {
             title: { type: "string", minLength: 1, maxLength: 200 },
-            status: { type: "string", enum: ["draft", "published", "archived"] },
+            status: {
+              type: "string",
+              enum: ["draft", "published", "archived"],
+            },
             count: { type: "integer", minimum: 0 },
           },
           required: ["title", "status"],
@@ -204,7 +202,7 @@ describe("App Storage API - Authenticated", () => {
           status: "draft",
           count: 42,
         }),
-      }
+      },
     );
 
     expect(response.status).toBe(201);
@@ -224,8 +222,8 @@ describe("App Storage API - Authenticated", () => {
 
     const response = await apiRequest(
       `/api/v1/app/storage/${testCollectionName}?filter=${encodeURIComponent(
-        JSON.stringify({ status: "draft" })
-      )}`
+        JSON.stringify({ status: "draft" }),
+      )}`,
     );
 
     expect(response.ok).toBe(true);
@@ -244,7 +242,7 @@ describe("App Storage API - Authenticated", () => {
 
     // First get a document
     const listResponse = await apiRequest(
-      `/api/v1/app/storage/${testCollectionName}`
+      `/api/v1/app/storage/${testCollectionName}`,
     );
     const listData = await listResponse.json();
     const docId = listData.documents[0]?.id;
@@ -261,7 +259,7 @@ describe("App Storage API - Authenticated", () => {
         body: JSON.stringify({
           status: "published",
         }),
-      }
+      },
     );
 
     expect(response.ok).toBe(true);
@@ -286,7 +284,7 @@ describe("App Storage API - Authenticated", () => {
           status: "draft",
           count: 0,
         }),
-      }
+      },
     );
     const insertData = await insertResponse.json();
     const docId = insertData.document.id;
@@ -295,7 +293,7 @@ describe("App Storage API - Authenticated", () => {
       `/api/v1/app/storage/${testCollectionName}/${docId}`,
       {
         method: "DELETE",
-      }
+      },
     );
 
     expect(response.ok).toBe(true);
@@ -313,7 +311,7 @@ describe("App Storage API - Authenticated", () => {
       `/api/v1/app/storage/${testCollectionName}`,
       {
         method: "DELETE",
-      }
+      },
     );
 
     expect(response.ok).toBe(true);
@@ -361,4 +359,3 @@ describe("App Storage Integration Summary", () => {
     expect(true).toBe(true);
   });
 });
-

@@ -24,7 +24,7 @@ export class HeliusClient extends BaseHttpClient {
         apiKey: config.apiKey,
         timeout: config.timeout,
       },
-      "Helius"
+      "Helius",
     );
 
     this.rpcUrl = config.devnet
@@ -37,7 +37,7 @@ export class HeliusClient extends BaseHttpClient {
    */
   protected buildUrl(
     endpoint: string,
-    params?: Record<string, string | number | boolean | undefined>
+    params?: Record<string, string | number | boolean | undefined>,
   ): string {
     const url = new URL(`${this.baseUrl}${endpoint}`);
     url.searchParams.set("api-key", this.apiKey);
@@ -72,7 +72,10 @@ export class HeliusClient extends BaseHttpClient {
       throw new Error(`Helius RPC error: ${response.status}`);
     }
 
-    const json = await response.json() as { result?: T; error?: { message: string } };
+    const json = (await response.json()) as {
+      result?: T;
+      error?: { message: string };
+    };
 
     if (json.error) {
       throw new Error(`Helius RPC error: ${json.error.message}`);
@@ -101,4 +104,3 @@ export class HeliusClient extends BaseHttpClient {
     }
   }
 }
-

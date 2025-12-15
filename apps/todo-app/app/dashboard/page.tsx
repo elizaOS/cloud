@@ -4,10 +4,26 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Check, MessageSquare, LogOut, RefreshCw, Flame, Target, Star, ChevronDown, Settings } from "lucide-react";
+import {
+  Check,
+  MessageSquare,
+  LogOut,
+  RefreshCw,
+  Flame,
+  Target,
+  Star,
+  ChevronDown,
+  Settings,
+} from "lucide-react";
 
 import { useAuth } from "@/lib/use-auth";
-import { listTasks, createTask, deleteTask, completeTask, getUserPoints } from "@/lib/cloud-api";
+import {
+  listTasks,
+  createTask,
+  deleteTask,
+  completeTask,
+  getUserPoints,
+} from "@/lib/cloud-api";
 import type { Task, UserPoints } from "@/lib/types";
 
 import { Button } from "@/components/ui/button";
@@ -26,7 +42,11 @@ export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [totalTasks, setTotalTasks] = useState(0);
   const [hasMore, setHasMore] = useState(false);
-  const [points, setPoints] = useState<UserPoints>({ currentPoints: 0, totalEarned: 0, streak: 0 });
+  const [points, setPoints] = useState<UserPoints>({
+    currentPoints: 0,
+    totalEarned: 0,
+    streak: 0,
+  });
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
@@ -36,46 +56,53 @@ export default function DashboardPage() {
     if (!isLoading && !isAuthenticated) router.push("/");
   }, [isLoading, isAuthenticated, router]);
 
-  const loadData = useCallback(async (loadMore = false) => {
-    if (!token) return;
-    
-    if (loadMore) {
-      setIsLoadingMore(true);
-    } else {
-      setIsLoadingData(true);
-    }
+  const loadData = useCallback(
+    async (loadMore = false) => {
+      if (!token) return;
 
-    const offset = loadMore ? tasks.length : 0;
-
-    const [tasksResult, pointsResult] = await Promise.allSettled([
-      listTasks(token, { limit: PAGE_SIZE, offset }),
-      loadMore ? Promise.resolve(null) : getUserPoints(token),
-    ]);
-
-    if (tasksResult.status === "fulfilled") {
-      const { tasks: newTasks, total, hasMore: more } = tasksResult.value;
       if (loadMore) {
-        setTasks((prev) => [...prev, ...newTasks]);
+        setIsLoadingMore(true);
       } else {
-        setTasks(newTasks);
+        setIsLoadingData(true);
       }
-      setTotalTasks(total);
-      setHasMore(more);
-    } else {
-      toast.error("Failed to load tasks");
-      if (!loadMore) setTasks([]);
-    }
 
-    if (!loadMore && pointsResult.status === "fulfilled" && pointsResult.value) {
-      setPoints(pointsResult.value);
-    } else if (!loadMore && pointsResult.status === "rejected") {
-      toast.error("Failed to load points");
-      setPoints({ currentPoints: 0, totalEarned: 0, streak: 0 });
-    }
+      const offset = loadMore ? tasks.length : 0;
 
-    setIsLoadingData(false);
-    setIsLoadingMore(false);
-  }, [token, tasks.length]);
+      const [tasksResult, pointsResult] = await Promise.allSettled([
+        listTasks(token, { limit: PAGE_SIZE, offset }),
+        loadMore ? Promise.resolve(null) : getUserPoints(token),
+      ]);
+
+      if (tasksResult.status === "fulfilled") {
+        const { tasks: newTasks, total, hasMore: more } = tasksResult.value;
+        if (loadMore) {
+          setTasks((prev) => [...prev, ...newTasks]);
+        } else {
+          setTasks(newTasks);
+        }
+        setTotalTasks(total);
+        setHasMore(more);
+      } else {
+        toast.error("Failed to load tasks");
+        if (!loadMore) setTasks([]);
+      }
+
+      if (
+        !loadMore &&
+        pointsResult.status === "fulfilled" &&
+        pointsResult.value
+      ) {
+        setPoints(pointsResult.value);
+      } else if (!loadMore && pointsResult.status === "rejected") {
+        toast.error("Failed to load points");
+        setPoints({ currentPoints: 0, totalEarned: 0, streak: 0 });
+      }
+
+      setIsLoadingData(false);
+      setIsLoadingMore(false);
+    },
+    [token, tasks.length],
+  );
 
   useEffect(() => {
     if (token) loadData();
@@ -95,9 +122,13 @@ export default function DashboardPage() {
     setTasks((prev) =>
       prev.map((t) =>
         t.id === taskId
-          ? { ...t, completed: true, metadata: { ...t.metadata, pointsAwarded: result.points } }
-          : t
-      )
+          ? {
+              ...t,
+              completed: true,
+              metadata: { ...t.metadata, pointsAwarded: result.points },
+            }
+          : t,
+      ),
     );
     setEarnedPoints(result.points);
     const newPoints = await getUserPoints(token);
@@ -115,11 +146,16 @@ export default function DashboardPage() {
 
   const filterTasks = (tab: string): Task[] => {
     switch (tab) {
-      case "daily": return tasks.filter((t) => t.type === "daily" && !t.completed);
-      case "tasks": return tasks.filter((t) => t.type === "one-off" && !t.completed);
-      case "goals": return tasks.filter((t) => t.type === "aspirational" && !t.completed);
-      case "completed": return tasks.filter((t) => t.completed);
-      default: return tasks.filter((t) => !t.completed);
+      case "daily":
+        return tasks.filter((t) => t.type === "daily" && !t.completed);
+      case "tasks":
+        return tasks.filter((t) => t.type === "one-off" && !t.completed);
+      case "goals":
+        return tasks.filter((t) => t.type === "aspirational" && !t.completed);
+      case "completed":
+        return tasks.filter((t) => t.completed);
+      default:
+        return tasks.filter((t) => !t.completed);
     }
   };
 
@@ -137,7 +173,10 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-background">
       {earnedPoints !== null && (
-        <PointsPopup points={earnedPoints} onComplete={() => setEarnedPoints(null)} />
+        <PointsPopup
+          points={earnedPoints}
+          onComplete={() => setEarnedPoints(null)}
+        />
       )}
 
       <header className="border-b border-border/50 backdrop-blur-sm sticky top-0 z-40 bg-background/80">
@@ -151,13 +190,25 @@ export default function DashboardPage() {
 
           <div className="flex items-center gap-4">
             <LevelBadge points={points} compact />
-            <Link href="/chat" className="p-2 rounded-lg hover:bg-muted transition-colors" title="Chat with AI">
+            <Link
+              href="/chat"
+              className="p-2 rounded-lg hover:bg-muted transition-colors"
+              title="Chat with AI"
+            >
               <MessageSquare className="h-5 w-5 text-muted-foreground" />
             </Link>
-            <Link href="/settings" className="p-2 rounded-lg hover:bg-muted transition-colors" title="Settings">
+            <Link
+              href="/settings"
+              className="p-2 rounded-lg hover:bg-muted transition-colors"
+              title="Settings"
+            >
               <Settings className="h-5 w-5 text-muted-foreground" />
             </Link>
-            <button onClick={logout} className="p-2 rounded-lg hover:bg-muted transition-colors" title="Sign out">
+            <button
+              onClick={logout}
+              className="p-2 rounded-lg hover:bg-muted transition-colors"
+              title="Sign out"
+            >
               <LogOut className="h-5 w-5 text-muted-foreground" />
             </button>
           </div>
@@ -170,7 +221,8 @@ export default function DashboardPage() {
             Welcome{user?.name ? `, ${user.name.split(" ")[0]}` : ""}!
           </h1>
           <p className="text-muted-foreground">
-            {incompleteTasks.length} tasks remaining • {completedTasks.length} completed
+            {incompleteTasks.length} tasks remaining • {completedTasks.length}{" "}
+            completed
             {totalTasks > tasks.length && ` • ${totalTasks} total`}
           </p>
         </div>
@@ -182,8 +234,15 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Your Tasks</h2>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => loadData(false)} disabled={isLoadingData}>
-              <RefreshCw className={`h-4 w-4 ${isLoadingData ? "animate-spin" : ""}`} />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => loadData(false)}
+              disabled={isLoadingData}
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${isLoadingData ? "animate-spin" : ""}`}
+              />
             </Button>
             <CreateTaskDialog onCreateTask={handleCreateTask} />
           </div>
@@ -191,15 +250,20 @@ export default function DashboardPage() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-5 mb-4">
-            <TabsTrigger value="all">All ({incompleteTasks.length})</TabsTrigger>
+            <TabsTrigger value="all">
+              All ({incompleteTasks.length})
+            </TabsTrigger>
             <TabsTrigger value="daily" className="flex items-center gap-1">
-              <Flame className="h-3 w-3" />Daily
+              <Flame className="h-3 w-3" />
+              Daily
             </TabsTrigger>
             <TabsTrigger value="tasks" className="flex items-center gap-1">
-              <Target className="h-3 w-3" />Tasks
+              <Target className="h-3 w-3" />
+              Tasks
             </TabsTrigger>
             <TabsTrigger value="goals" className="flex items-center gap-1">
-              <Star className="h-3 w-3" />Goals
+              <Star className="h-3 w-3" />
+              Goals
             </TabsTrigger>
             <TabsTrigger value="completed">Completed</TabsTrigger>
           </TabsList>
@@ -216,11 +280,15 @@ export default function DashboardPage() {
                   onComplete={handleCompleteTask}
                   onDelete={handleDeleteTask}
                   emptyMessage={
-                    activeTab === "all" ? "No tasks yet. Create your first task!"
-                      : activeTab === "daily" ? "No daily habits."
-                      : activeTab === "tasks" ? "No one-off tasks."
-                      : activeTab === "goals" ? "No goals."
-                      : "No completed tasks yet."
+                    activeTab === "all"
+                      ? "No tasks yet. Create your first task!"
+                      : activeTab === "daily"
+                        ? "No daily habits."
+                        : activeTab === "tasks"
+                          ? "No one-off tasks."
+                          : activeTab === "goals"
+                            ? "No goals."
+                            : "No completed tasks yet."
                   }
                 />
                 {hasMore && (

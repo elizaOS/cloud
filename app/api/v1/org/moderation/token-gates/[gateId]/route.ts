@@ -22,7 +22,7 @@ const UpdateSchema = z.object({
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ gateId: string }> }
+  { params }: { params: Promise<{ gateId: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { gateId } = await params;
@@ -33,7 +33,7 @@ export async function PATCH(
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request body", details: parsed.error.format() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -52,15 +52,15 @@ export async function PATCH(
     .where(
       and(
         eq(orgTokenGates.id, gateId),
-        eq(orgTokenGates.organization_id, user.organization_id)
-      )
+        eq(orgTokenGates.organization_id, user.organization_id),
+      ),
     )
     .returning();
 
   if (!updated) {
     return NextResponse.json(
       { error: "Token gate not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -77,7 +77,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ gateId: string }> }
+  { params }: { params: Promise<{ gateId: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { gateId } = await params;
@@ -87,11 +87,9 @@ export async function DELETE(
     .where(
       and(
         eq(orgTokenGates.id, gateId),
-        eq(orgTokenGates.organization_id, user.organization_id)
-      )
+        eq(orgTokenGates.organization_id, user.organization_id),
+      ),
     );
 
   return NextResponse.json({ success: true });
 }
-
-

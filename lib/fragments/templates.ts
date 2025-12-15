@@ -98,4 +98,3 @@ export function templatesToPrompt(templates: Templates): string {
     )
     .join("\n")}`;
 }
-

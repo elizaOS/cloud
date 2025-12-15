@@ -173,12 +173,18 @@ const IDENTITY_REGISTRY_ABI = [
  */
 function getViemChain(network: ERC8004Network): Chain {
   switch (network) {
-    case "jeju-localnet": return jejuLocalnet;
-    case "jeju-testnet": return jejuTestnet;
-    case "jeju": return jeju;
-    case "anvil": return foundry;
-    case "base-sepolia": return baseSepolia;
-    case "base": return base;
+    case "jeju-localnet":
+      return jejuLocalnet;
+    case "jeju-testnet":
+      return jejuTestnet;
+    case "jeju":
+      return jeju;
+    case "anvil":
+      return foundry;
+    case "base-sepolia":
+      return baseSepolia;
+    case "base":
+      return base;
   }
 }
 
@@ -220,7 +226,7 @@ class AccountAbstractionService {
   buildRegistrationCall(
     network: ERC8004Network,
     recipientAddress: Address,
-    tokenURI: string
+    tokenURI: string,
   ): RegistrationOperation {
     const registryAddress = IDENTITY_REGISTRY_ADDRESSES[network];
     const chainId = CHAIN_IDS[network];
@@ -244,12 +250,12 @@ class AccountAbstractionService {
    */
   buildMultiChainRegistrationCalls(
     recipientAddress: Address,
-    tokenURI: string
+    tokenURI: string,
   ): RegistrationOperation[] {
     const networks = getRegistrationNetworks();
-    
-    return networks.map(network => 
-      this.buildRegistrationCall(network, recipientAddress, tokenURI)
+
+    return networks.map((network) =>
+      this.buildRegistrationCall(network, recipientAddress, tokenURI),
     );
   }
 
@@ -264,7 +270,7 @@ class AccountAbstractionService {
     senderAddress: Address,
     signerPrivateKey: Hex,
     recipientAddress: Address,
-    tokenURI: string
+    tokenURI: string,
   ): Promise<BatchRegistrationResult> {
     if (!this.isAvailable()) {
       return {
@@ -275,10 +281,13 @@ class AccountAbstractionService {
       };
     }
 
-    const operations = this.buildMultiChainRegistrationCalls(recipientAddress, tokenURI);
-    
+    const operations = this.buildMultiChainRegistrationCalls(
+      recipientAddress,
+      tokenURI,
+    );
+
     logger.info("[AA] Building batch registration UserOperation", {
-      networks: operations.map(op => op.network),
+      networks: operations.map((op) => op.network),
       recipient: recipientAddress,
     });
 
@@ -302,13 +311,13 @@ class AccountAbstractionService {
         chainId,
         senderAddress,
         signerPrivateKey,
-        chainOps
+        chainOps,
       );
 
       results.push(...result);
     }
 
-    const allSuccess = results.every(r => r.success);
+    const allSuccess = results.every((r) => r.success);
 
     return {
       success: allSuccess,
@@ -325,7 +334,7 @@ class AccountAbstractionService {
     _chainId: number,
     senderAddress: Address,
     signerPrivateKey: Hex,
-    operations: RegistrationOperation[]
+    operations: RegistrationOperation[],
   ): Promise<RegistrationOperation[]> {
     const rpcUrl = RPC_URLS[operations[0].network];
     const account = privateKeyToAccount(signerPrivateKey);
@@ -390,9 +399,9 @@ class AccountAbstractionService {
       }
     } else {
       // Multiple operations - use batch call (if smart account supports it)
-      const targets = operations.map(op => op.target);
+      const targets = operations.map((op) => op.target);
       const values = operations.map(() => 0n);
-      const datas = operations.map(op => op.callData);
+      const datas = operations.map((op) => op.callData);
 
       const batchCallData = encodeFunctionData({
         abi: SIMPLE_ACCOUNT_ABI,
@@ -418,12 +427,12 @@ class AccountAbstractionService {
         }
 
         logger.info("[AA] Batch registration successful", {
-          networks: operations.map(op => op.network),
+          networks: operations.map((op) => op.network),
           txHash,
         });
       } catch (error) {
         const errorMsg = extractErrorMessage(error);
-        
+
         // Mark all as failed
         for (const op of operations) {
           results.push({
@@ -434,7 +443,7 @@ class AccountAbstractionService {
         }
 
         logger.error("[AA] Batch registration failed", {
-          networks: operations.map(op => op.network),
+          networks: operations.map((op) => op.network),
           error: errorMsg,
         });
       }
@@ -450,10 +459,10 @@ class AccountAbstractionService {
   async buildUserOperation(
     senderAddress: Address,
     calls: BatchCall[],
-    chainId: number
+    chainId: number,
   ): Promise<UserOperation> {
     const network = Object.entries(CHAIN_IDS).find(
-      ([_, id]) => id === chainId
+      ([_, id]) => id === chainId,
     )?.[0] as ERC8004Network;
 
     if (!network) {
@@ -477,9 +486,9 @@ class AccountAbstractionService {
     });
 
     // Build batch call data
-    const targets = calls.map(c => c.target);
-    const values = calls.map(c => c.value);
-    const datas = calls.map(c => c.data);
+    const targets = calls.map((c) => c.target);
+    const values = calls.map((c) => c.value);
+    const datas = calls.map((c) => c.data);
 
     const callData = encodeFunctionData({
       abi: SIMPLE_ACCOUNT_ABI,
@@ -513,7 +522,7 @@ class AccountAbstractionService {
    */
   private async getPaymasterData(
     _sender: Address,
-    _chainId: number
+    _chainId: number,
   ): Promise<Hex> {
     if (!this.isGasSponsored() || !this.paymasterUrl) {
       return "0x";
@@ -548,13 +557,13 @@ export const accountAbstractionService = new AccountAbstractionService();
 export async function registerAgentMultiChainAA(
   agentAddress: Address,
   signerPrivateKey: Hex,
-  tokenURI: string
+  tokenURI: string,
 ): Promise<BatchRegistrationResult> {
   return accountAbstractionService.executeBatchRegistration(
     agentAddress,
     signerPrivateKey,
     agentAddress,
-    tokenURI
+    tokenURI,
   );
 }
 
@@ -564,4 +573,3 @@ export async function registerAgentMultiChainAA(
 export function isGaslessRegistrationAvailable(): boolean {
   return accountAbstractionService.isGasSponsored();
 }
-

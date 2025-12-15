@@ -61,7 +61,7 @@ const OAUTH_CONFIGS: Record<
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ sessionId: string }> }
+  { params }: { params: Promise<{ sessionId: string }> },
 ) {
   const { sessionId } = await params;
 
@@ -75,7 +75,7 @@ export async function GET(
     .from(platformCredentialSessions)
     .leftJoin(
       organizations,
-      eq(platformCredentialSessions.organization_id, organizations.id)
+      eq(platformCredentialSessions.organization_id, organizations.id),
     )
     .leftJoin(apps, eq(platformCredentialSessions.app_id, apps.id))
     .where(eq(platformCredentialSessions.session_id, sessionId))
@@ -93,7 +93,7 @@ export async function GET(
   if (session.session.status !== "pending") {
     return NextResponse.json(
       { error: "Session already completed", status: session.session.status },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -142,4 +142,3 @@ export async function GET(
     expiresAt: session.session.expires_at.toISOString(),
   });
 }
-

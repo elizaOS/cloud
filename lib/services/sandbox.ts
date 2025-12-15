@@ -1,7 +1,10 @@
 import { logger } from "@/lib/utils/logger";
 import crypto from "crypto";
 import Anthropic from "@anthropic-ai/sdk";
-import { loadSandboxSecrets, isSecretsConfigured } from "@/lib/services/secrets";
+import {
+  loadSandboxSecrets,
+  isSecretsConfigured,
+} from "@/lib/services/secrets";
 
 interface SandboxInstance {
   id?: string;
@@ -54,7 +57,8 @@ export interface SandboxSessionData {
   startedAt?: Date;
 }
 
-const DEFAULT_TEMPLATE_URL = "https://github.com/elizaOS/sandbox-template-cloud.git";
+const DEFAULT_TEMPLATE_URL =
+  "https://github.com/elizaOS/sandbox-template-cloud.git";
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
 
 declare global {
@@ -79,46 +83,58 @@ function getSandboxCredentials() {
 
 function extractSandboxIdFromUrl(url: string): string {
   const hostname = new URL(url).hostname;
-  return hostname.split('.')[0] || `sandbox-${crypto.randomUUID().slice(0, 8)}`;
+  return hostname.split(".")[0] || `sandbox-${crypto.randomUUID().slice(0, 8)}`;
 }
 
 const TOOLS: Anthropic.Tool[] = [
   {
     name: "install_packages",
-    description: "Install npm packages. Use this BEFORE writing files that import external packages.",
+    description:
+      "Install npm packages. Use this BEFORE writing files that import external packages.",
     input_schema: {
       type: "object" as const,
       properties: {
-        packages: { type: "array", items: { type: "string" }, description: "Package names to install" }
+        packages: {
+          type: "array",
+          items: { type: "string" },
+          description: "Package names to install",
+        },
       },
-      required: ["packages"]
-    }
+      required: ["packages"],
+    },
   },
   {
     name: "write_file",
-    description: "Write or update a file. The build status will be checked automatically after writing.",
+    description:
+      "Write or update a file. The build status will be checked automatically after writing.",
     input_schema: {
       type: "object" as const,
       properties: {
-        path: { type: "string", description: "File path (e.g., 'src/app/page.tsx')" },
-        content: { type: "string", description: "Complete file content" }
+        path: {
+          type: "string",
+          description: "File path (e.g., 'src/app/page.tsx')",
+        },
+        content: { type: "string", description: "Complete file content" },
       },
-      required: ["path", "content"]
-    }
+      required: ["path", "content"],
+    },
   },
   {
     name: "read_file",
     description: "Read a file's content.",
     input_schema: {
       type: "object" as const,
-      properties: { path: { type: "string", description: "File path to read" } },
-      required: ["path"]
-    }
+      properties: {
+        path: { type: "string", description: "File path to read" },
+      },
+      required: ["path"],
+    },
   },
   {
     name: "check_build",
-    description: "Check if the app builds successfully and get any error messages. Use this after making changes to verify they work.",
-    input_schema: { type: "object" as const, properties: {}, required: [] }
+    description:
+      "Check if the app builds successfully and get any error messages. Use this after making changes to verify they work.",
+    input_schema: { type: "object" as const, properties: {}, required: [] },
   },
   {
     name: "list_files",
@@ -126,18 +142,20 @@ const TOOLS: Anthropic.Tool[] = [
     input_schema: {
       type: "object" as const,
       properties: { path: { type: "string", description: "Directory path" } },
-      required: ["path"]
-    }
+      required: ["path"],
+    },
   },
   {
     name: "run_command",
     description: "Run a shell command.",
     input_schema: {
       type: "object" as const,
-      properties: { command: { type: "string", description: "Command to run" } },
-      required: ["command"]
-    }
-  }
+      properties: {
+        command: { type: "string", description: "Command to run" },
+      },
+      required: ["command"],
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are an expert Next.js developer building production-ready apps on Eliza Cloud.
@@ -267,60 +285,113 @@ export function useEliza(apiKey: string) {
 BUILD COMPLETE MULTI-PAGE APPS with proper architecture!`;
 
 const ALLOWED_PATHS = [
-  'src/', 'app/', 'components/', 'lib/', 'public/', 'styles/', 'pages/',
-  'utils/', 'hooks/', 'types/', 'context/', 'store/', 'services/', 'api/',
-  'layouts/', 'templates/', 'features/', 'modules/', 'assets/', 'config/',
-  'package.json', 'tsconfig.json', 'tailwind.config.ts', 'tailwind.config.js',
-  'next.config.ts', 'next.config.js', 'next.config.mjs', 'postcss.config.js',
-  'postcss.config.mjs', '.env.local', '.env.example'
+  "src/",
+  "app/",
+  "components/",
+  "lib/",
+  "public/",
+  "styles/",
+  "pages/",
+  "utils/",
+  "hooks/",
+  "types/",
+  "context/",
+  "store/",
+  "services/",
+  "api/",
+  "layouts/",
+  "templates/",
+  "features/",
+  "modules/",
+  "assets/",
+  "config/",
+  "package.json",
+  "tsconfig.json",
+  "tailwind.config.ts",
+  "tailwind.config.js",
+  "next.config.ts",
+  "next.config.js",
+  "next.config.mjs",
+  "postcss.config.js",
+  "postcss.config.mjs",
+  ".env.local",
+  ".env.example",
 ];
 
 function isPathAllowed(filePath: string): boolean {
-  const normalized = filePath.replace(/^\.\//, '').replace(/\.\.\//g, '');
-  return ALLOWED_PATHS.some(allowed => normalized.startsWith(allowed) || normalized === allowed);
+  const normalized = filePath.replace(/^\.\//, "").replace(/\.\.\//g, "");
+  return ALLOWED_PATHS.some(
+    (allowed) => normalized.startsWith(allowed) || normalized === allowed,
+  );
 }
 
-async function writeFileViaSh(sandbox: SandboxInstance, filePath: string, content: string): Promise<void> {
+async function writeFileViaSh(
+  sandbox: SandboxInstance,
+  filePath: string,
+  content: string,
+): Promise<void> {
   if (!isPathAllowed(filePath)) {
-    throw new Error(`Path not allowed: ${filePath}. Files must be in: ${ALLOWED_PATHS.join(', ')}`);
+    throw new Error(
+      `Path not allowed: ${filePath}. Files must be in: ${ALLOWED_PATHS.join(", ")}`,
+    );
   }
 
-  const base64Content = Buffer.from(content, 'utf-8').toString('base64');
-  const dir = filePath.split('/').slice(0, -1).join('/');
+  const base64Content = Buffer.from(content, "utf-8").toString("base64");
+  const dir = filePath.split("/").slice(0, -1).join("/");
 
   if (dir) {
     await sandbox.runCommand({ cmd: "mkdir", args: ["-p", dir] });
   }
 
   const script = `require('fs').writeFileSync(process.argv[1], Buffer.from(process.argv[2], 'base64').toString('utf-8'))`;
-  const result = await sandbox.runCommand({ cmd: "node", args: ["-e", script, filePath, base64Content] });
+  const result = await sandbox.runCommand({
+    cmd: "node",
+    args: ["-e", script, filePath, base64Content],
+  });
 
   if (result.exitCode !== 0) {
     throw new Error(`Failed to write ${filePath}: ${await result.stderr()}`);
   }
 }
 
-async function readFileViaSh(sandbox: SandboxInstance, filePath: string): Promise<string | null> {
+async function readFileViaSh(
+  sandbox: SandboxInstance,
+  filePath: string,
+): Promise<string | null> {
   const result = await sandbox.runCommand({ cmd: "cat", args: [filePath] });
   return result.exitCode === 0 ? await result.stdout() : null;
 }
 
-async function listFilesViaSh(sandbox: SandboxInstance, dirPath: string): Promise<string[]> {
+async function listFilesViaSh(
+  sandbox: SandboxInstance,
+  dirPath: string,
+): Promise<string[]> {
   const result = await sandbox.runCommand({
     cmd: "sh",
     args: ["-c", `find ${dirPath} -type f 2>/dev/null | head -50`],
   });
-  return result.exitCode === 0 ? (await result.stdout()).split('\n').filter(Boolean) : [];
+  return result.exitCode === 0
+    ? (await result.stdout()).split("\n").filter(Boolean)
+    : [];
 }
 
-async function installPackages(sandbox: SandboxInstance, packages: string[]): Promise<string> {
+async function installPackages(
+  sandbox: SandboxInstance,
+  packages: string[],
+): Promise<string> {
   if (!packages || packages.length === 0) return "No packages specified";
 
   logger.info("Installing packages", { packages });
 
-  let result = await sandbox.runCommand({ cmd: "pnpm", args: ["add", ...packages] });
+  let result = await sandbox.runCommand({
+    cmd: "pnpm",
+    args: ["add", ...packages],
+  });
   if (result.exitCode !== 0) {
-    result = await sandbox.runCommand({ cmd: "npm", args: ["install", ...packages] });
+    result = await sandbox.runCommand({
+      cmd: "npm",
+      args: ["install", ...packages],
+    });
   }
 
   if (result.exitCode !== 0) {
@@ -328,15 +399,18 @@ async function installPackages(sandbox: SandboxInstance, packages: string[]): Pr
     return `❌ Install failed: ${stderr}`;
   }
 
-  return `✅ Installed: ${packages.join(', ')}`;
+  return `✅ Installed: ${packages.join(", ")}`;
 }
 
 async function checkBuild(sandbox: SandboxInstance): Promise<string> {
-  await new Promise(r => setTimeout(r, 2000));
+  await new Promise((r) => setTimeout(r, 2000));
 
   const logsResult = await sandbox.runCommand({
     cmd: "sh",
-    args: ["-c", "tail -100 /tmp/next-dev.log 2>/dev/null | grep -i -E 'error|failed|cannot|warning' | tail -20"],
+    args: [
+      "-c",
+      "tail -100 /tmp/next-dev.log 2>/dev/null | grep -i -E 'error|failed|cannot|warning' | tail -20",
+    ],
   });
   const logs = await logsResult.stdout();
 
@@ -348,7 +422,7 @@ async function checkBuild(sandbox: SandboxInstance): Promise<string> {
 
   const statusMatch = response.match(/---STATUS:(\d+)---/);
   const statusCode = statusMatch ? parseInt(statusMatch[1]) : 0;
-  const body = response.replace(/---STATUS:\d+---/, '');
+  const body = response.replace(/---STATUS:\d+---/, "");
 
   const errors: string[] = [];
 
@@ -377,7 +451,10 @@ async function checkBuild(sandbox: SandboxInstance): Promise<string> {
   }
 
   if (logs.trim()) {
-    const logErrors = logs.split('\n').filter(l => l.trim()).slice(0, 5);
+    const logErrors = logs
+      .split("\n")
+      .filter((l) => l.trim())
+      .slice(0, 5);
     errors.push(...logErrors);
   }
 
@@ -385,7 +462,7 @@ async function checkBuild(sandbox: SandboxInstance): Promise<string> {
     return "✅ BUILD OK - No errors detected!";
   }
 
-  return `❌ BUILD ERRORS:\n${[...new Set(errors)].slice(0, 10).join('\n')}\n\n⚠️ Please fix these errors!`;
+  return `❌ BUILD ERRORS:\n${[...new Set(errors)].slice(0, 10).join("\n")}\n\n⚠️ Please fix these errors!`;
 }
 
 export class SandboxService {
@@ -410,15 +487,18 @@ export class SandboxService {
       onProgress,
     } = config;
 
-    const encryptedSecrets = organizationId && isSecretsConfigured()
-      ? await loadSandboxSecrets({ organizationId, appId: projectId })
-      : {};
+    const encryptedSecrets =
+      organizationId && isSecretsConfigured()
+        ? await loadSandboxSecrets({ organizationId, appId: projectId })
+        : {};
 
     const mergedEnv = { ...encryptedSecrets, ...env };
     const creds = getSandboxCredentials();
 
     if (!creds.hasOIDC && !creds.hasAccessToken) {
-      throw new Error("Vercel Sandbox credentials not configured. Set VERCEL_TOKEN, VERCEL_TEAM_ID, and VERCEL_PROJECT_ID.");
+      throw new Error(
+        "Vercel Sandbox credentials not configured. Set VERCEL_TOKEN, VERCEL_TEAM_ID, and VERCEL_PROJECT_ID.",
+      );
     }
 
     const { Sandbox } = await import("@vercel/sandbox");
@@ -440,7 +520,7 @@ export class SandboxService {
       createOptions.token = creds.token;
     }
 
-    const sandbox = await Sandbox.create(createOptions) as SandboxInstance;
+    const sandbox = (await Sandbox.create(createOptions)) as SandboxInstance;
     const devServerUrl = sandbox.domain(3000);
     const sandboxId = sandbox.id ?? extractSandboxIdFromUrl(devServerUrl);
 
@@ -460,7 +540,10 @@ export class SandboxService {
 
     onProgress?.({ step: "installing", message: "Dependencies installed" });
 
-    logger.info("Starting dev server", { sandboxId, envVarCount: Object.keys(mergedEnv).length });
+    logger.info("Starting dev server", {
+      sandboxId,
+      envVarCount: Object.keys(mergedEnv).length,
+    });
     onProgress?.({ step: "starting", message: "Starting dev server..." });
     await sandbox.runCommand({
       cmd: "sh",
@@ -483,15 +566,26 @@ export class SandboxService {
     };
   }
 
-  private async waitForDevServer(sandbox: SandboxInstance, port: number, maxAttempts = 45): Promise<void> {
+  private async waitForDevServer(
+    sandbox: SandboxInstance,
+    port: number,
+    maxAttempts = 45,
+  ): Promise<void> {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const result = await sandbox.runCommand({
         cmd: "curl",
-        args: ["-s", "-o", "/dev/null", "-w", "%{http_code}", `http://localhost:${port}`],
+        args: [
+          "-s",
+          "-o",
+          "/dev/null",
+          "-w",
+          "%{http_code}",
+          `http://localhost:${port}`,
+        ],
       });
       const statusCode = await result.stdout();
       if (statusCode === "200" || statusCode === "304") return;
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
     throw new Error(`Dev server did not start within ${maxAttempts}s`);
   }
@@ -499,12 +593,19 @@ export class SandboxService {
   async executeClaudeCode(
     sandboxId: string,
     prompt: string,
-    options: { systemPrompt?: string; onToolUse?: (tool: string, input: unknown, result: string) => void; onThinking?: (text: string) => void } = {}
+    options: {
+      systemPrompt?: string;
+      onToolUse?: (tool: string, input: unknown, result: string) => void;
+      onThinking?: (text: string) => void;
+    } = {},
   ): Promise<{ output: string; filesAffected: string[]; success: boolean }> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
 
-    logger.info("Starting Claude execution", { sandboxId, promptLength: prompt.length });
+    logger.info("Starting Claude execution", {
+      sandboxId,
+      promptLength: prompt.length,
+    });
 
     const anthropic = this.getAnthropicClient();
     const filesAffected: string[] = [];
@@ -516,10 +617,10 @@ export class SandboxService {
     const contextPrompt = `CURRENT FILES:
 
 === src/app/page.tsx ===
-${pageContent || '(file not found)'}
+${pageContent || "(file not found)"}
 
 === src/app/globals.css ===
-${globalsCss || '(file not found)'}
+${globalsCss || "(file not found)"}
 
 ---
 USER REQUEST: ${prompt}
@@ -530,7 +631,9 @@ REMEMBER:
 3. Use check_build after changes to verify
 4. Fix any errors before finishing`;
 
-    const messages: Anthropic.MessageParam[] = [{ role: "user", content: contextPrompt }];
+    const messages: Anthropic.MessageParam[] = [
+      { role: "user", content: contextPrompt },
+    ];
     let continueLoop = true;
     let iteration = 0;
     const MAX_ITERATIONS = 50;
@@ -546,7 +649,11 @@ REMEMBER:
         messages,
       });
 
-      logger.info("Claude response", { sandboxId, stopReason: response.stop_reason, iteration });
+      logger.info("Claude response", {
+        sandboxId,
+        stopReason: response.stop_reason,
+        iteration,
+      });
 
       const toolResults: Anthropic.ToolResultBlockParam[] = [];
 
@@ -564,34 +671,48 @@ REMEMBER:
             const { packages } = block.input as { packages: string[] };
             result = await installPackages(sandbox, packages);
           } else if (block.name === "write_file") {
-            const { path, content } = block.input as { path: string; content: string };
+            const { path, content } = block.input as {
+              path: string;
+              content: string;
+            };
             await writeFileViaSh(sandbox, path, content);
             filesAffected.push(path);
 
-            await new Promise(r => setTimeout(r, 1500));
+            await new Promise((r) => setTimeout(r, 1500));
             const buildStatus = await checkBuild(sandbox);
             result = `✅ Wrote ${path}\n\nBuild Status: ${buildStatus}`;
 
-            if (buildStatus.includes('❌')) {
+            if (buildStatus.includes("❌")) {
               result += `\n\n⚠️ Please fix the errors above!`;
             }
 
-            logger.info("File written", { sandboxId, path, buildOk: !buildStatus.includes('❌') });
+            logger.info("File written", {
+              sandboxId,
+              path,
+              buildOk: !buildStatus.includes("❌"),
+            });
           } else if (block.name === "read_file") {
             const { path } = block.input as { path: string };
             const content = await readFileViaSh(sandbox, path);
             result = content || `File not found: ${path}`;
           } else if (block.name === "check_build") {
             result = await checkBuild(sandbox);
-            logger.info("Build check", { sandboxId, ok: result.includes('✅') });
+            logger.info("Build check", {
+              sandboxId,
+              ok: result.includes("✅"),
+            });
           } else if (block.name === "list_files") {
             const { path } = block.input as { path: string };
             const files = await listFilesViaSh(sandbox, path);
-            result = files.join('\n') || `Empty: ${path}`;
+            result = files.join("\n") || `Empty: ${path}`;
           } else if (block.name === "run_command") {
             const { command } = block.input as { command: string };
-            const r = await sandbox.runCommand({ cmd: "sh", args: ["-c", command] });
-            result = `Exit ${r.exitCode}: ${await r.stdout()} ${await r.stderr()}`.trim();
+            const r = await sandbox.runCommand({
+              cmd: "sh",
+              args: ["-c", command],
+            });
+            result =
+              `Exit ${r.exitCode}: ${await r.stdout()} ${await r.stderr()}`.trim();
           } else {
             result = `Unknown tool: ${block.name}`;
           }
@@ -600,7 +721,11 @@ REMEMBER:
             options.onToolUse(block.name, block.input, result);
           }
 
-          toolResults.push({ type: "tool_result", tool_use_id: block.id, content: result });
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: block.id,
+            content: result,
+          });
         }
       }
 
@@ -615,11 +740,15 @@ REMEMBER:
     }
 
     const finalBuild = await checkBuild(sandbox);
-    if (finalBuild.includes('❌')) {
+    if (finalBuild.includes("❌")) {
       outputText += `\n\n⚠️ Note: There may still be build errors. ${finalBuild}`;
     }
 
-    logger.info("Claude complete", { sandboxId, filesAffected: filesAffected.length, iteration });
+    logger.info("Claude complete", {
+      sandboxId,
+      filesAffected: filesAffected.length,
+      iteration,
+    });
 
     return {
       output: outputText || "Changes applied!",
@@ -636,7 +765,11 @@ REMEMBER:
     return content;
   }
 
-  async writeFile(sandboxId: string, path: string, content: string): Promise<void> {
+  async writeFile(
+    sandboxId: string,
+    path: string,
+    content: string,
+  ): Promise<void> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
     await writeFileViaSh(sandbox, path, content);
@@ -654,7 +787,10 @@ REMEMBER:
     return await checkBuild(sandbox);
   }
 
-  async installPackages(sandboxId: string, packages: string[]): Promise<string> {
+  async installPackages(
+    sandboxId: string,
+    packages: string[],
+  ): Promise<string> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
     return await installPackages(sandbox, packages);

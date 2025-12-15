@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { codeAgentAnalyticsService } from "@/lib/services/code-agent/analytics";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit-redis";
+import {
+  withRateLimit,
+  RateLimitPresets,
+} from "@/lib/middleware/rate-limit-redis";
 
 const querySchema = z.object({
   startDate: z.string().datetime().optional(),
@@ -18,13 +21,17 @@ async function handleGET(request: NextRequest) {
     endDate: searchParams.get("endDate") || undefined,
   });
 
-  const dateRange = params.startDate && params.endDate
-    ? { start: new Date(params.startDate), end: new Date(params.endDate) }
-    : undefined;
+  const dateRange =
+    params.startDate && params.endDate
+      ? { start: new Date(params.startDate), end: new Date(params.endDate) }
+      : undefined;
 
   const [stats, interpreterBreakdown, recentExecutions] = await Promise.all([
     codeAgentAnalyticsService.getStats(user.organization_id, dateRange),
-    codeAgentAnalyticsService.getInterpreterAnalytics(user.organization_id, dateRange),
+    codeAgentAnalyticsService.getInterpreterAnalytics(
+      user.organization_id,
+      dateRange,
+    ),
     codeAgentAnalyticsService.getRecentExecutions(user.organization_id, 10),
   ]);
 
@@ -36,4 +43,3 @@ async function handleGET(request: NextRequest) {
 }
 
 export const GET = withRateLimit(handleGET, RateLimitPresets.RELAXED);
-

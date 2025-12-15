@@ -150,7 +150,8 @@ function formatTaskList(tasks: Task[]): string {
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Api-Key, X-App-Token",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, X-Api-Key, X-App-Token",
 };
 
 export async function OPTIONS() {
@@ -163,7 +164,8 @@ export async function GET() {
   return NextResponse.json(
     {
       name: "Todo App MCP",
-      description: "Task management with gamification - create tasks, track points, level up!",
+      description:
+        "Task management with gamification - create tasks, track points, level up!",
       version: "1.0.0",
       protocol: "2024-11-05",
       capabilities: {
@@ -175,7 +177,8 @@ export async function GET() {
       tools: [
         {
           name: "create_task",
-          description: "Create a new task (daily habit, one-off, or aspirational goal)",
+          description:
+            "Create a new task (daily habit, one-off, or aspirational goal)",
           inputSchema: {
             type: "object",
             properties: {
@@ -209,7 +212,10 @@ export async function GET() {
                 enum: ["daily", "one-off", "aspirational", "all"],
                 description: "Filter by type",
               },
-              completed: { type: "boolean", description: "Filter by completion" },
+              completed: {
+                type: "boolean",
+                description: "Filter by completion",
+              },
             },
           },
         },
@@ -261,27 +267,50 @@ export async function GET() {
         },
         {
           name: "send_sms_reminder",
-          description: "Send an SMS reminder for a task (requires Twilio setup)",
+          description:
+            "Send an SMS reminder for a task (requires Twilio setup)",
           inputSchema: {
             type: "object",
             properties: {
-              taskId: { type: "string", description: "Task ID to remind about" },
-              phoneNumber: { type: "string", description: "Phone number in E.164 format (+1234567890)" },
-              message: { type: "string", description: "Custom message (optional)" },
+              taskId: {
+                type: "string",
+                description: "Task ID to remind about",
+              },
+              phoneNumber: {
+                type: "string",
+                description: "Phone number in E.164 format (+1234567890)",
+              },
+              message: {
+                type: "string",
+                description: "Custom message (optional)",
+              },
             },
             required: ["taskId", "phoneNumber"],
           },
         },
         {
           name: "add_to_calendar",
-          description: "Add a task to Google Calendar (requires Google Calendar connection)",
+          description:
+            "Add a task to Google Calendar (requires Google Calendar connection)",
           inputSchema: {
             type: "object",
             properties: {
-              taskId: { type: "string", description: "Task ID to add to calendar" },
-              startTime: { type: "string", description: "Start time (ISO format)" },
-              durationMinutes: { type: "number", description: "Duration in minutes (default: 60)" },
-              reminderMinutes: { type: "number", description: "Reminder before event in minutes (default: 30)" },
+              taskId: {
+                type: "string",
+                description: "Task ID to add to calendar",
+              },
+              startTime: {
+                type: "string",
+                description: "Start time (ISO format)",
+              },
+              durationMinutes: {
+                type: "number",
+                description: "Duration in minutes (default: 60)",
+              },
+              reminderMinutes: {
+                type: "number",
+                description: "Reminder before event in minutes (default: 30)",
+              },
             },
             required: ["taskId"],
           },
@@ -293,15 +322,21 @@ export async function GET() {
             type: "object",
             properties: {
               taskId: { type: "string", description: "Task ID" },
-              reminderTime: { type: "string", description: "When to remind (ISO format)" },
-              repeatDaily: { type: "boolean", description: "Repeat reminder daily" },
+              reminderTime: {
+                type: "string",
+                description: "When to remind (ISO format)",
+              },
+              repeatDaily: {
+                type: "boolean",
+                description: "Repeat reminder daily",
+              },
             },
             required: ["taskId", "reminderTime"],
           },
         },
       ],
     },
-    { headers: corsHeaders }
+    { headers: corsHeaders },
   );
 }
 
@@ -322,7 +357,7 @@ export async function POST(request: NextRequest) {
         error: { code: -32002, message: "Authentication required" },
         id: null,
       },
-      { status: 401, headers: corsHeaders }
+      { status: 401, headers: corsHeaders },
     );
   }
 
@@ -336,7 +371,7 @@ export async function POST(request: NextRequest) {
         error: { code: -32001, message: "No app found" },
         id: null,
       },
-      { status: 404, headers: corsHeaders }
+      { status: 404, headers: corsHeaders },
     );
   }
 
@@ -351,7 +386,7 @@ export async function POST(request: NextRequest) {
         error: { code: -32700, message: "Parse error" },
         id: null,
       },
-      { status: 400, headers: corsHeaders }
+      { status: 400, headers: corsHeaders },
     );
   }
 
@@ -375,7 +410,7 @@ export async function POST(request: NextRequest) {
           },
           id: rpcId,
         },
-        { headers: corsHeaders }
+        { headers: corsHeaders },
       );
 
     case "tools/list":
@@ -391,7 +426,10 @@ export async function POST(request: NextRequest) {
                   type: "object",
                   properties: {
                     name: { type: "string" },
-                    type: { type: "string", enum: ["daily", "one-off", "aspirational"] },
+                    type: {
+                      type: "string",
+                      enum: ["daily", "one-off", "aspirational"],
+                    },
                     description: { type: "string" },
                     priority: { type: "number" },
                     urgent: { type: "boolean" },
@@ -494,16 +532,22 @@ export async function POST(request: NextRequest) {
           },
           id: rpcId,
         },
-        { headers: corsHeaders }
+        { headers: corsHeaders },
       );
 
     case "tools/call":
-      return handleToolCall(app.id, user.id, user.organization_id, params ?? {}, rpcId);
+      return handleToolCall(
+        app.id,
+        user.id,
+        user.organization_id,
+        params ?? {},
+        rpcId,
+      );
 
     case "ping":
       return NextResponse.json(
         { jsonrpc: "2.0", result: {}, id: rpcId },
-        { headers: corsHeaders }
+        { headers: corsHeaders },
       );
 
     default:
@@ -513,7 +557,7 @@ export async function POST(request: NextRequest) {
           error: { code: -32601, message: "Method not found" },
           id: rpcId,
         },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: corsHeaders },
       );
   }
 }
@@ -527,7 +571,7 @@ async function handleToolCall(
   userId: string,
   organizationId: string,
   params: Record<string, unknown>,
-  rpcId: string | number
+  rpcId: string | number,
 ) {
   const { name, arguments: args } = params as {
     name: string;
@@ -536,7 +580,14 @@ async function handleToolCall(
 
   switch (name) {
     case "create_task": {
-      const { name: taskName, type, description, priority, urgent, dueDate } = args as {
+      const {
+        name: taskName,
+        type,
+        description,
+        priority,
+        urgent,
+        dueDate,
+      } = args as {
         name: string;
         type: "daily" | "one-off" | "aspirational";
         description?: string;
@@ -563,10 +614,14 @@ async function handleToolCall(
         appId,
         TASKS_COLLECTION,
         taskData,
-        userId
+        userId,
       );
 
-      logger.info("[Todo MCP] Created task", { appId, taskId: doc.id, taskName });
+      logger.info("[Todo MCP] Created task", {
+        appId,
+        taskId: doc.id,
+        taskName,
+      });
 
       return NextResponse.json(
         {
@@ -581,7 +636,7 @@ async function handleToolCall(
           },
           id: rpcId,
         },
-        { headers: corsHeaders }
+        { headers: corsHeaders },
       );
     }
 
@@ -602,7 +657,7 @@ async function handleToolCall(
       const { documents } = await appStorageService.queryDocuments(
         appId,
         TASKS_COLLECTION,
-        { filter, limit: 100 }
+        { filter, limit: 100 },
       );
 
       const tasks = documents.map(documentToTask);
@@ -616,7 +671,7 @@ async function handleToolCall(
           },
           id: rpcId,
         },
-        { headers: corsHeaders }
+        { headers: corsHeaders },
       );
     }
 
@@ -631,7 +686,7 @@ async function handleToolCall(
             error: { code: -32001, message: `Task not found: ${taskId}` },
             id: rpcId,
           },
-          { status: 404, headers: corsHeaders }
+          { status: 404, headers: corsHeaders },
         );
       }
 
@@ -642,11 +697,16 @@ async function handleToolCall(
           {
             jsonrpc: "2.0",
             result: {
-              content: [{ type: "text", text: `Task "${task.name}" is already completed` }],
+              content: [
+                {
+                  type: "text",
+                  text: `Task "${task.name}" is already completed`,
+                },
+              ],
             },
             id: rpcId,
           },
-          { headers: corsHeaders }
+          { headers: corsHeaders },
         );
       }
 
@@ -668,14 +728,14 @@ async function handleToolCall(
             pointsAwarded: points,
           },
         },
-        userId
+        userId,
       );
 
       // Update points
       const { documents: pointsDocs } = await appStorageService.queryDocuments(
         appId,
         POINTS_COLLECTION,
-        { limit: 1 }
+        { limit: 1 },
       );
 
       let currentPoints = 0;
@@ -696,15 +756,19 @@ async function handleToolCall(
         await appStorageService.updateDocument(
           appId,
           pointsDocId,
-          { currentPoints, totalEarned, lastCompletionDate: new Date().toISOString() },
-          userId
+          {
+            currentPoints,
+            totalEarned,
+            lastCompletionDate: new Date().toISOString(),
+          },
+          userId,
         );
       } else {
         await appStorageService.insertDocument(
           appId,
           POINTS_COLLECTION,
           { currentPoints, totalEarned, streak: 0, history: [] },
-          userId
+          userId,
         );
       }
 
@@ -723,7 +787,7 @@ async function handleToolCall(
           },
           id: rpcId,
         },
-        { headers: corsHeaders }
+        { headers: corsHeaders },
       );
     }
 
@@ -745,7 +809,7 @@ async function handleToolCall(
             error: { code: -32001, message: `Task not found: ${taskId}` },
             id: rpcId,
           },
-          { status: 404, headers: corsHeaders }
+          { status: 404, headers: corsHeaders },
         );
       }
 
@@ -753,12 +817,15 @@ async function handleToolCall(
       const updateData: Record<string, unknown> = {};
 
       if (updates.name !== undefined) updateData.name = updates.name;
-      if (updates.priority !== undefined) updateData.priority = updates.priority;
+      if (updates.priority !== undefined)
+        updateData.priority = updates.priority;
       if (updates.urgent !== undefined) updateData.urgent = updates.urgent;
       if (updates.description !== undefined || updates.dueDate !== undefined) {
         updateData.metadata = {
           ...task.metadata,
-          ...(updates.description !== undefined && { description: updates.description }),
+          ...(updates.description !== undefined && {
+            description: updates.description,
+          }),
           ...(updates.dueDate !== undefined && { dueDate: updates.dueDate }),
         };
       }
@@ -775,7 +842,7 @@ async function handleToolCall(
           },
           id: rpcId,
         },
-        { headers: corsHeaders }
+        { headers: corsHeaders },
       );
     }
 
@@ -790,7 +857,7 @@ async function handleToolCall(
             error: { code: -32001, message: `Task not found: ${taskId}` },
             id: rpcId,
           },
-          { status: 404, headers: corsHeaders }
+          { status: 404, headers: corsHeaders },
         );
       }
 
@@ -807,7 +874,7 @@ async function handleToolCall(
           },
           id: rpcId,
         },
-        { headers: corsHeaders }
+        { headers: corsHeaders },
       );
     }
 
@@ -815,7 +882,7 @@ async function handleToolCall(
       const { documents: pointsDocs } = await appStorageService.queryDocuments(
         appId,
         POINTS_COLLECTION,
-        { limit: 1 }
+        { limit: 1 },
       );
 
       let currentPoints = 0;
@@ -843,7 +910,7 @@ async function handleToolCall(
           },
           id: rpcId,
         },
-        { headers: corsHeaders }
+        { headers: corsHeaders },
       );
     }
 
@@ -862,12 +929,14 @@ async function handleToolCall(
             error: { code: -32001, message: `Task not found: ${taskId}` },
             id: rpcId,
           },
-          { status: 404, headers: corsHeaders }
+          { status: 404, headers: corsHeaders },
         );
       }
 
       const task = documentToTask(doc);
-      const smsBody = message ?? `Reminder: ${task.name}${task.metadata.dueDate ? ` (Due: ${new Date(task.metadata.dueDate).toLocaleDateString()})` : ""}`;
+      const smsBody =
+        message ??
+        `Reminder: ${task.name}${task.metadata.dueDate ? ` (Due: ${new Date(task.metadata.dueDate).toLocaleDateString()})` : ""}`;
 
       const result = await twilioService.sendSms({
         to: phoneNumber,
@@ -879,29 +948,43 @@ async function handleToolCall(
         return NextResponse.json(
           {
             jsonrpc: "2.0",
-            error: { code: -32002, message: result.error ?? "Failed to send SMS" },
+            error: {
+              code: -32002,
+              message: result.error ?? "Failed to send SMS",
+            },
             id: rpcId,
           },
-          { status: 400, headers: corsHeaders }
+          { status: 400, headers: corsHeaders },
         );
       }
 
-      logger.info("[Todo MCP] SMS reminder sent", { appId, taskId, phoneNumber });
+      logger.info("[Todo MCP] SMS reminder sent", {
+        appId,
+        taskId,
+        phoneNumber,
+      });
 
       return NextResponse.json(
         {
           jsonrpc: "2.0",
           result: {
-            content: [{ type: "text", text: `SMS reminder sent for "${task.name}"` }],
+            content: [
+              { type: "text", text: `SMS reminder sent for "${task.name}"` },
+            ],
           },
           id: rpcId,
         },
-        { headers: corsHeaders }
+        { headers: corsHeaders },
       );
     }
 
     case "add_to_calendar": {
-      const { taskId, startTime, durationMinutes = 60, reminderMinutes = 30 } = args as {
+      const {
+        taskId,
+        startTime,
+        durationMinutes = 60,
+        reminderMinutes = 30,
+      } = args as {
         taskId: string;
         startTime?: string;
         durationMinutes?: number;
@@ -916,7 +999,7 @@ async function handleToolCall(
             error: { code: -32001, message: `Task not found: ${taskId}` },
             id: rpcId,
           },
-          { status: 404, headers: corsHeaders }
+          { status: 404, headers: corsHeaders },
         );
       }
 
@@ -941,14 +1024,21 @@ async function handleToolCall(
         return NextResponse.json(
           {
             jsonrpc: "2.0",
-            error: { code: -32002, message: result.error ?? "Failed to create calendar event" },
+            error: {
+              code: -32002,
+              message: result.error ?? "Failed to create calendar event",
+            },
             id: rpcId,
           },
-          { status: 400, headers: corsHeaders }
+          { status: 400, headers: corsHeaders },
         );
       }
 
-      logger.info("[Todo MCP] Calendar event created", { appId, taskId, eventId: result.event?.id });
+      logger.info("[Todo MCP] Calendar event created", {
+        appId,
+        taskId,
+        eventId: result.event?.id,
+      });
 
       return NextResponse.json(
         {
@@ -963,12 +1053,16 @@ async function handleToolCall(
           },
           id: rpcId,
         },
-        { headers: corsHeaders }
+        { headers: corsHeaders },
       );
     }
 
     case "set_reminder": {
-      const { taskId, reminderTime, repeatDaily = false } = args as {
+      const {
+        taskId,
+        reminderTime,
+        repeatDaily = false,
+      } = args as {
         taskId: string;
         reminderTime: string;
         repeatDaily?: boolean;
@@ -982,7 +1076,7 @@ async function handleToolCall(
             error: { code: -32001, message: `Task not found: ${taskId}` },
             id: rpcId,
           },
-          { status: 404, headers: corsHeaders }
+          { status: 404, headers: corsHeaders },
         );
       }
 
@@ -1003,7 +1097,7 @@ async function handleToolCall(
             },
           },
         },
-        userId
+        userId,
       );
 
       logger.info("[Todo MCP] Reminder set", { appId, taskId, reminderTime });
@@ -1021,7 +1115,7 @@ async function handleToolCall(
           },
           id: rpcId,
         },
-        { headers: corsHeaders }
+        { headers: corsHeaders },
       );
     }
 
@@ -1032,8 +1126,7 @@ async function handleToolCall(
           error: { code: -32601, message: `Unknown tool: ${name}` },
           id: rpcId,
         },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: corsHeaders },
       );
   }
 }
-

@@ -23,7 +23,7 @@ export class DiscordMessageSender {
 
   async sendMessage(
     connectionId: string,
-    request: SendMessageRequest
+    request: SendMessageRequest,
   ): Promise<SendMessageResult> {
     const token = await discordGatewayService.getBotToken(connectionId);
     if (!token) {
@@ -35,7 +35,7 @@ export class DiscordMessageSender {
       connectionId,
       `channel:${request.channelId}:messages`,
       5, // 5 messages
-      5000 // per 5 seconds
+      5000, // per 5 seconds
     );
 
     if (!rateLimit.allowed) {
@@ -79,7 +79,7 @@ export class DiscordMessageSender {
         method: "POST",
         headers: discordBotHeaders(token),
         body: JSON.stringify(payload),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -113,7 +113,7 @@ export class DiscordMessageSender {
     channelId: string,
     messageId: string,
     content?: string,
-    embeds?: DiscordEmbed[]
+    embeds?: DiscordEmbed[],
   ): Promise<SendMessageResult> {
     const token = await discordGatewayService.getBotToken(connectionId);
     if (!token) {
@@ -130,7 +130,7 @@ export class DiscordMessageSender {
         method: "PATCH",
         headers: discordBotHeaders(token),
         body: JSON.stringify(payload),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -138,17 +138,25 @@ export class DiscordMessageSender {
     }
 
     const message: DiscordMessage = await response.json();
-    return { success: true, messageId: message.id, channelId: message.channel_id };
+    return {
+      success: true,
+      messageId: message.id,
+      channelId: message.channel_id,
+    };
   }
 
   async deleteMessage(
     connectionId: string,
     channelId: string,
-    messageId: string
+    messageId: string,
   ): Promise<boolean> {
     const token = await discordGatewayService.getBotToken(connectionId);
     if (!token) {
-      logger.warn("[Discord Message Sender] Delete message failed - no token", { connectionId, channelId, messageId });
+      logger.warn("[Discord Message Sender] Delete message failed - no token", {
+        connectionId,
+        channelId,
+        messageId,
+      });
       return false;
     }
 
@@ -157,11 +165,16 @@ export class DiscordMessageSender {
       {
         method: "DELETE",
         headers: discordBotHeaders(token),
-      }
+      },
     );
 
     if (!response.ok) {
-      logger.warn("[Discord Message Sender] Delete message failed", { connectionId, channelId, messageId, status: response.status });
+      logger.warn("[Discord Message Sender] Delete message failed", {
+        connectionId,
+        channelId,
+        messageId,
+        status: response.status,
+      });
     }
     return response.ok;
   }
@@ -170,11 +183,16 @@ export class DiscordMessageSender {
     connectionId: string,
     channelId: string,
     messageId: string,
-    emoji: string
+    emoji: string,
   ): Promise<boolean> {
     const token = await discordGatewayService.getBotToken(connectionId);
     if (!token) {
-      logger.warn("[Discord Message Sender] Add reaction failed - no token", { connectionId, channelId, messageId, emoji });
+      logger.warn("[Discord Message Sender] Add reaction failed - no token", {
+        connectionId,
+        channelId,
+        messageId,
+        emoji,
+      });
       return false;
     }
 
@@ -185,11 +203,17 @@ export class DiscordMessageSender {
       {
         method: "PUT",
         headers: discordBotHeaders(token),
-      }
+      },
     );
 
     if (!response.ok) {
-      logger.warn("[Discord Message Sender] Add reaction failed", { connectionId, channelId, messageId, emoji, status: response.status });
+      logger.warn("[Discord Message Sender] Add reaction failed", {
+        connectionId,
+        channelId,
+        messageId,
+        emoji,
+        status: response.status,
+      });
     }
     return response.ok;
   }
@@ -199,11 +223,14 @@ export class DiscordMessageSender {
     channelId: string,
     messageId: string,
     emoji: string,
-    userId?: string
+    userId?: string,
   ): Promise<boolean> {
     const token = await discordGatewayService.getBotToken(connectionId);
     if (!token) {
-      logger.warn("[Discord Message Sender] Remove reaction failed - no token", { connectionId, channelId, messageId, emoji });
+      logger.warn(
+        "[Discord Message Sender] Remove reaction failed - no token",
+        { connectionId, channelId, messageId, emoji },
+      );
       return false;
     }
 
@@ -215,11 +242,17 @@ export class DiscordMessageSender {
       {
         method: "DELETE",
         headers: discordBotHeaders(token),
-      }
+      },
     );
 
     if (!response.ok) {
-      logger.warn("[Discord Message Sender] Remove reaction failed", { connectionId, channelId, messageId, emoji, status: response.status });
+      logger.warn("[Discord Message Sender] Remove reaction failed", {
+        connectionId,
+        channelId,
+        messageId,
+        emoji,
+        status: response.status,
+      });
     }
     return response.ok;
   }
@@ -227,7 +260,10 @@ export class DiscordMessageSender {
   async startTyping(connectionId: string, channelId: string): Promise<boolean> {
     const token = await discordGatewayService.getBotToken(connectionId);
     if (!token) {
-      logger.debug("[Discord Message Sender] Start typing failed - no token", { connectionId, channelId });
+      logger.debug("[Discord Message Sender] Start typing failed - no token", {
+        connectionId,
+        channelId,
+      });
       return false;
     }
 
@@ -238,11 +274,15 @@ export class DiscordMessageSender {
         headers: {
           Authorization: `Bot ${token}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
-      logger.debug("[Discord Message Sender] Start typing failed", { connectionId, channelId, status: response.status });
+      logger.debug("[Discord Message Sender] Start typing failed", {
+        connectionId,
+        channelId,
+        status: response.status,
+      });
     }
     return response.ok;
   }
@@ -252,7 +292,7 @@ export class DiscordMessageSender {
     channelId: string,
     messageId: string,
     name: string,
-    autoArchiveDuration?: 60 | 1440 | 4320 | 10080
+    autoArchiveDuration?: 60 | 1440 | 4320 | 10080,
   ): Promise<{ success: boolean; threadId?: string; error?: string }> {
     const token = await discordGatewayService.getBotToken(connectionId);
     if (!token) {
@@ -268,7 +308,7 @@ export class DiscordMessageSender {
           name: name.slice(0, 100), // Thread name limit
           auto_archive_duration: autoArchiveDuration ?? 1440,
         }),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -281,7 +321,7 @@ export class DiscordMessageSender {
 
   async getChannel(
     connectionId: string,
-    channelId: string
+    channelId: string,
   ): Promise<{ id: string; name?: string; type: number } | null> {
     const token = await discordGatewayService.getBotToken(connectionId);
     if (!token) return null;
@@ -303,7 +343,7 @@ export class DiscordMessageSender {
       before?: string;
       after?: string;
       around?: string;
-    }
+    },
   ): Promise<DiscordMessage[]> {
     const token = await discordGatewayService.getBotToken(connectionId);
     if (!token) return [];
@@ -328,7 +368,7 @@ export class DiscordMessageSender {
   async getMessage(
     connectionId: string,
     channelId: string,
-    messageId: string
+    messageId: string,
   ): Promise<DiscordMessage | null> {
     const token = await discordGatewayService.getBotToken(connectionId);
     if (!token) return null;
@@ -337,7 +377,7 @@ export class DiscordMessageSender {
       `${DISCORD_API_BASE}/channels/${channelId}/messages/${messageId}`,
       {
         headers: discordBotHeaders(token),
-      }
+      },
     );
 
     if (!response.ok) return null;
@@ -348,7 +388,7 @@ export class DiscordMessageSender {
   async getGuildMember(
     connectionId: string,
     guildId: string,
-    userId: string
+    userId: string,
   ): Promise<{
     user?: { id: string; username: string };
     nick?: string;
@@ -361,7 +401,7 @@ export class DiscordMessageSender {
       `${DISCORD_API_BASE}/guilds/${guildId}/members/${userId}`,
       {
         headers: discordBotHeaders(token),
-      }
+      },
     );
 
     if (!response.ok) return null;
@@ -374,7 +414,7 @@ export class DiscordMessageSender {
     guildId: string,
     userId: string,
     roleId: string,
-    reason?: string
+    reason?: string,
   ): Promise<{ success: boolean; error?: string }> {
     const token = await discordGatewayService.getBotToken(connectionId);
     if (!token) {
@@ -383,7 +423,9 @@ export class DiscordMessageSender {
 
     const headers = discordBotHeaders(
       token,
-      reason ? { "X-Audit-Log-Reason": encodeURIComponent(reason.slice(0, 512)) } : undefined
+      reason
+        ? { "X-Audit-Log-Reason": encodeURIComponent(reason.slice(0, 512)) }
+        : undefined,
     );
 
     const response = await fetch(
@@ -391,12 +433,17 @@ export class DiscordMessageSender {
       {
         method: "PUT",
         headers,
-      }
+      },
     );
 
     if (!response.ok) {
       const error = await response.text();
-      logger.error("[Discord] Add role failed", { guildId, userId, roleId, error });
+      logger.error("[Discord] Add role failed", {
+        guildId,
+        userId,
+        roleId,
+        error,
+      });
       return { success: false, error: `Discord API error: ${response.status}` };
     }
 
@@ -409,7 +456,7 @@ export class DiscordMessageSender {
     guildId: string,
     userId: string,
     roleId: string,
-    reason?: string
+    reason?: string,
   ): Promise<{ success: boolean; error?: string }> {
     const token = await discordGatewayService.getBotToken(connectionId);
     if (!token) {
@@ -418,7 +465,9 @@ export class DiscordMessageSender {
 
     const headers = discordBotHeaders(
       token,
-      reason ? { "X-Audit-Log-Reason": encodeURIComponent(reason.slice(0, 512)) } : undefined
+      reason
+        ? { "X-Audit-Log-Reason": encodeURIComponent(reason.slice(0, 512)) }
+        : undefined,
     );
 
     const response = await fetch(
@@ -426,12 +475,17 @@ export class DiscordMessageSender {
       {
         method: "DELETE",
         headers,
-      }
+      },
     );
 
     if (!response.ok) {
       const error = await response.text();
-      logger.error("[Discord] Remove role failed", { guildId, userId, roleId, error });
+      logger.error("[Discord] Remove role failed", {
+        guildId,
+        userId,
+        roleId,
+        error,
+      });
       return { success: false, error: `Discord API error: ${response.status}` };
     }
 
@@ -441,14 +495,19 @@ export class DiscordMessageSender {
 
   async getGuildRoles(
     connectionId: string,
-    guildId: string
-  ): Promise<Array<{ id: string; name: string; color: number; position: number }>> {
+    guildId: string,
+  ): Promise<
+    Array<{ id: string; name: string; color: number; position: number }>
+  > {
     const token = await discordGatewayService.getBotToken(connectionId);
     if (!token) return [];
 
-    const response = await fetch(`${DISCORD_API_BASE}/guilds/${guildId}/roles`, {
-      headers: discordBotHeaders(token),
-    });
+    const response = await fetch(
+      `${DISCORD_API_BASE}/guilds/${guildId}/roles`,
+      {
+        headers: discordBotHeaders(token),
+      },
+    );
 
     if (!response.ok) return [];
 
@@ -460,7 +519,7 @@ export class DiscordMessageSender {
     guildId: string,
     userId: string,
     durationSeconds: number,
-    reason?: string
+    reason?: string,
   ): Promise<{ success: boolean; error?: string }> {
     const token = await discordGatewayService.getBotToken(connectionId);
     if (!token) {
@@ -470,11 +529,15 @@ export class DiscordMessageSender {
     // Calculate timeout end time (max 28 days)
     const maxDuration = 28 * 24 * 60 * 60;
     const actualDuration = Math.min(durationSeconds, maxDuration);
-    const timeoutUntil = new Date(Date.now() + actualDuration * 1000).toISOString();
+    const timeoutUntil = new Date(
+      Date.now() + actualDuration * 1000,
+    ).toISOString();
 
     const headers = discordBotHeaders(
       token,
-      reason ? { "X-Audit-Log-Reason": encodeURIComponent(reason.slice(0, 512)) } : undefined
+      reason
+        ? { "X-Audit-Log-Reason": encodeURIComponent(reason.slice(0, 512)) }
+        : undefined,
     );
 
     const response = await fetch(
@@ -485,7 +548,7 @@ export class DiscordMessageSender {
         body: JSON.stringify({
           communication_disabled_until: timeoutUntil,
         }),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -494,7 +557,11 @@ export class DiscordMessageSender {
       return { success: false, error: `Discord API error: ${response.status}` };
     }
 
-    logger.info("[Discord] Member timed out", { guildId, userId, durationSeconds: actualDuration });
+    logger.info("[Discord] Member timed out", {
+      guildId,
+      userId,
+      durationSeconds: actualDuration,
+    });
     return { success: true };
   }
 
@@ -502,7 +569,7 @@ export class DiscordMessageSender {
     connectionId: string,
     guildId: string,
     userId: string,
-    reason?: string
+    reason?: string,
   ): Promise<{ success: boolean; error?: string }> {
     const token = await discordGatewayService.getBotToken(connectionId);
     if (!token) {
@@ -511,7 +578,9 @@ export class DiscordMessageSender {
 
     const headers = discordBotHeaders(
       token,
-      reason ? { "X-Audit-Log-Reason": encodeURIComponent(reason.slice(0, 512)) } : undefined
+      reason
+        ? { "X-Audit-Log-Reason": encodeURIComponent(reason.slice(0, 512)) }
+        : undefined,
     );
 
     const response = await fetch(
@@ -522,12 +591,16 @@ export class DiscordMessageSender {
         body: JSON.stringify({
           communication_disabled_until: null,
         }),
-      }
+      },
     );
 
     if (!response.ok) {
       const error = await response.text();
-      logger.error("[Discord] Remove timeout failed", { guildId, userId, error });
+      logger.error("[Discord] Remove timeout failed", {
+        guildId,
+        userId,
+        error,
+      });
       return { success: false, error: `Discord API error: ${response.status}` };
     }
 
@@ -539,7 +612,7 @@ export class DiscordMessageSender {
     connectionId: string,
     guildId: string,
     userId: string,
-    reason?: string
+    reason?: string,
   ): Promise<{ success: boolean; error?: string }> {
     const token = await discordGatewayService.getBotToken(connectionId);
     if (!token) {
@@ -548,7 +621,9 @@ export class DiscordMessageSender {
 
     const headers = discordBotHeaders(
       token,
-      reason ? { "X-Audit-Log-Reason": encodeURIComponent(reason.slice(0, 512)) } : undefined
+      reason
+        ? { "X-Audit-Log-Reason": encodeURIComponent(reason.slice(0, 512)) }
+        : undefined,
     );
 
     const response = await fetch(
@@ -556,7 +631,7 @@ export class DiscordMessageSender {
       {
         method: "DELETE",
         headers,
-      }
+      },
     );
 
     if (!response.ok) {
@@ -574,7 +649,7 @@ export class DiscordMessageSender {
     guildId: string,
     userId: string,
     reason?: string,
-    deleteMessageSeconds?: number
+    deleteMessageSeconds?: number,
   ): Promise<{ success: boolean; error?: string }> {
     const token = await discordGatewayService.getBotToken(connectionId);
     if (!token) {
@@ -583,7 +658,9 @@ export class DiscordMessageSender {
 
     const headers = discordBotHeaders(
       token,
-      reason ? { "X-Audit-Log-Reason": encodeURIComponent(reason.slice(0, 512)) } : undefined
+      reason
+        ? { "X-Audit-Log-Reason": encodeURIComponent(reason.slice(0, 512)) }
+        : undefined,
     );
 
     const body: Record<string, number> = {};
@@ -597,7 +674,7 @@ export class DiscordMessageSender {
         method: "PUT",
         headers,
         body: JSON.stringify(body),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -614,7 +691,7 @@ export class DiscordMessageSender {
     connectionId: string,
     guildId: string,
     userId: string,
-    reason?: string
+    reason?: string,
   ): Promise<{ success: boolean; error?: string }> {
     const token = await discordGatewayService.getBotToken(connectionId);
     if (!token) {
@@ -623,7 +700,9 @@ export class DiscordMessageSender {
 
     const headers = discordBotHeaders(
       token,
-      reason ? { "X-Audit-Log-Reason": encodeURIComponent(reason.slice(0, 512)) } : undefined
+      reason
+        ? { "X-Audit-Log-Reason": encodeURIComponent(reason.slice(0, 512)) }
+        : undefined,
     );
 
     const response = await fetch(
@@ -631,7 +710,7 @@ export class DiscordMessageSender {
       {
         method: "DELETE",
         headers,
-      }
+      },
     );
 
     if (!response.ok) {
@@ -648,7 +727,7 @@ export class DiscordMessageSender {
     connectionId: string,
     userId: string,
     content: string,
-    embeds?: DiscordEmbed[]
+    embeds?: DiscordEmbed[],
   ): Promise<SendMessageResult> {
     const token = await discordGatewayService.getBotToken(connectionId);
     if (!token) {
@@ -669,9 +748,12 @@ export class DiscordMessageSender {
     }
 
     const dmChannel: { id: string } = await dmResponse.json();
-    return this.sendMessage(connectionId, { channelId: dmChannel.id, content, embeds });
+    return this.sendMessage(connectionId, {
+      channelId: dmChannel.id,
+      content,
+      embeds,
+    });
   }
 }
 
 export const discordMessageSender = DiscordMessageSender.getInstance();
-

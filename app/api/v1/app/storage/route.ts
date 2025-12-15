@@ -4,7 +4,10 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { appStorageService } from "@/lib/services/app-storage";
 import { appsService } from "@/lib/services/apps";
 import { logger } from "@/lib/utils/logger";
-import type { CollectionSchema, CollectionIndex } from "@/db/schemas/app-storage";
+import type {
+  CollectionSchema,
+  CollectionIndex,
+} from "@/db/schemas/app-storage";
 
 const JsonSchemaFieldSchema: z.ZodType<Record<string, unknown>> = z.lazy(() =>
   z.object({
@@ -23,7 +26,7 @@ const JsonSchemaFieldSchema: z.ZodType<Record<string, unknown>> = z.lazy(() =>
     maxItems: z.number().optional(),
     properties: z.record(z.lazy(() => JsonSchemaFieldSchema)).optional(),
     enum: z.array(z.union([z.string(), z.number(), z.boolean()])).optional(),
-  })
+  }),
 );
 
 const CollectionSchemaSchema = z.object({
@@ -44,7 +47,10 @@ const CreateCollectionSchema = z.object({
     .string()
     .min(1)
     .max(64)
-    .regex(/^[a-z][a-z0-9_]*$/, "Name must be lowercase alphanumeric with underscores"),
+    .regex(
+      /^[a-z][a-z0-9_]*$/,
+      "Name must be lowercase alphanumeric with underscores",
+    ),
   description: z.string().max(500).optional(),
   schema: CollectionSchemaSchema,
   indexes: z.array(IndexSchema).max(7).optional(),
@@ -53,7 +59,8 @@ const CreateCollectionSchema = z.object({
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-App-Token, X-Api-Key",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, X-App-Token, X-Api-Key",
 };
 
 export async function OPTIONS() {
@@ -66,7 +73,7 @@ export async function GET(request: NextRequest) {
   if (apps.length === 0) {
     return NextResponse.json(
       { success: false, error: "No app found for this organization" },
-      { status: 404, headers: corsHeaders }
+      { status: 404, headers: corsHeaders },
     );
   }
   const app = apps[0];
@@ -89,7 +96,7 @@ export async function GET(request: NextRequest) {
         updatedAt: c.updated_at,
       })),
     },
-    { headers: corsHeaders }
+    { headers: corsHeaders },
   );
 }
 
@@ -99,7 +106,7 @@ export async function POST(request: NextRequest) {
   if (apps.length === 0) {
     return NextResponse.json(
       { success: false, error: "No app found for this organization" },
-      { status: 404, headers: corsHeaders }
+      { status: 404, headers: corsHeaders },
     );
   }
   const app = apps[0];
@@ -113,7 +120,7 @@ export async function POST(request: NextRequest) {
         error: "Invalid request",
         details: validation.error.format(),
       },
-      { status: 400, headers: corsHeaders }
+      { status: 400, headers: corsHeaders },
     );
   }
 
@@ -122,7 +129,7 @@ export async function POST(request: NextRequest) {
   if (existing) {
     return NextResponse.json(
       { success: false, error: `Collection '${name}' already exists` },
-      { status: 409, headers: corsHeaders }
+      { status: 409, headers: corsHeaders },
     );
   }
 
@@ -156,6 +163,6 @@ export async function POST(request: NextRequest) {
         updatedAt: collection.updated_at,
       },
     },
-    { status: 201, headers: corsHeaders }
+    { status: 201, headers: corsHeaders },
   );
 }

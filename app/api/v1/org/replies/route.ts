@@ -1,15 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
-import { replyConfirmationService, type ReplyConfirmationStatus } from "@/lib/services/social-feed";
+import {
+  replyConfirmationService,
+  type ReplyConfirmationStatus,
+} from "@/lib/services/social-feed";
 import { logger } from "@/lib/utils/logger";
 
 const ListRepliesQuerySchema = z.object({
-  status: z.enum(["pending", "confirmed", "rejected", "expired", "sent", "failed"]).optional(),
+  status: z
+    .enum(["pending", "confirmed", "rejected", "expired", "sent", "failed"])
+    .optional(),
   sourcePlatform: z.string().optional(),
   engagementEventId: z.string().uuid().optional(),
-  limit: z.string().optional().transform((v) => v ? parseInt(v, 10) : 20),
-  offset: z.string().optional().transform((v) => v ? parseInt(v, 10) : 0),
+  limit: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : 20)),
+  offset: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : 0)),
 });
 
 const CreateReplySchema = z.object({
@@ -109,13 +120,16 @@ export async function POST(request: NextRequest) {
     expiresAt,
   });
 
-  return NextResponse.json({
-    success: true,
-    data: {
-      id: confirmation.id,
-      status: confirmation.status,
-      expiresAt: confirmation.expires_at,
-      message: "Reply confirmation created. Use PATCH to approve or reject.",
+  return NextResponse.json(
+    {
+      success: true,
+      data: {
+        id: confirmation.id,
+        status: confirmation.status,
+        expiresAt: confirmation.expires_at,
+        message: "Reply confirmation created. Use PATCH to approve or reject.",
+      },
     },
-  }, { status: 201 });
+    { status: 201 },
+  );
 }

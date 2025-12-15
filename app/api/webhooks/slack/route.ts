@@ -43,7 +43,7 @@ interface SlackInteraction {
 function verifySlackSignature(
   body: string,
   signature: string,
-  timestamp: string
+  timestamp: string,
 ): boolean {
   if (!SLACK_SIGNING_SECRET) {
     logger.error("[Slack Webhook] SLACK_SIGNING_SECRET not configured");
@@ -57,9 +57,11 @@ function verifySlackSignature(
   }
 
   const sigBasestring = `v0:${timestamp}:${body}`;
-  const mySignature = "v0=" + createHmac("sha256", SLACK_SIGNING_SECRET)
-    .update(sigBasestring)
-    .digest("hex");
+  const mySignature =
+    "v0=" +
+    createHmac("sha256", SLACK_SIGNING_SECRET)
+      .update(sigBasestring)
+      .digest("hex");
 
   const sigBuffer = Buffer.from(signature);
   const myBuffer = Buffer.from(mySignature);
@@ -76,8 +78,8 @@ async function findOrgConnectionByTeam(teamId: string) {
       and(
         eq(orgPlatformConnections.platform, "slack"),
         eq(orgPlatformConnections.platform_bot_id, teamId),
-        eq(orgPlatformConnections.status, "active")
-      )
+        eq(orgPlatformConnections.status, "active"),
+      ),
     )
     .limit(1);
 
@@ -87,7 +89,7 @@ async function findOrgConnectionByTeam(teamId: string) {
 async function respondToInteraction(
   responseUrl: string,
   message: string,
-  replaceOriginal = true
+  replaceOriginal = true,
 ): Promise<void> {
   await fetch(responseUrl, {
     method: "POST",
@@ -118,7 +120,11 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
 
     // Verify signature for interactions
-    if (!signature || !timestamp || !verifySlackSignature(body, signature, timestamp)) {
+    if (
+      !signature ||
+      !timestamp ||
+      !verifySlackSignature(body, signature, timestamp)
+    ) {
       logger.warn("[Slack Webhook] Invalid signature for interaction");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
@@ -129,14 +135,17 @@ export async function POST(request: NextRequest): Promise<Response> {
       type: interaction.type,
       teamId: interaction.team?.id,
       userId: interaction.user?.id,
-      actions: interaction.actions?.map(a => a.action_id),
+      actions: interaction.actions?.map((a) => a.action_id),
     });
 
     // Handle block actions (button clicks)
     if (interaction.type === "block_actions" && interaction.actions) {
       for (const action of interaction.actions) {
         // Handle reply confirmation buttons
-        if (action.action_id === "reply_confirm" || action.action_id === "reply_reject") {
+        if (
+          action.action_id === "reply_confirm" ||
+          action.action_id === "reply_reject"
+        ) {
           const confirmationId = action.value;
           if (!confirmationId) continue;
 
@@ -145,21 +154,27 @@ export async function POST(request: NextRequest): Promise<Response> {
           // Find org connection
           const connection = await findOrgConnectionByTeam(interaction.team.id);
           if (!connection) {
-            logger.warn("[Slack Webhook] No connection for team", { teamId: interaction.team.id });
+            logger.warn("[Slack Webhook] No connection for team", {
+              teamId: interaction.team.id,
+            });
             if (interaction.response_url) {
-              await respondToInteraction(interaction.response_url, "❌ Bot not configured for this workspace");
+              await respondToInteraction(
+                interaction.response_url,
+                "❌ Bot not configured for this workspace",
+              );
             }
             continue;
           }
 
-          const { replyRouterService } = await import("@/lib/services/social-feed/reply-router");
+          const { replyRouterService } =
+            await import("@/lib/services/social-feed/reply-router");
 
           if (isConfirm) {
             const result = await replyRouterService.handleConfirmation(
               confirmationId,
               connection.organization_id,
               interaction.user.id,
-              interaction.user.username
+              interaction.user.username,
             );
 
             const message = result.success
@@ -173,11 +188,14 @@ export async function POST(request: NextRequest): Promise<Response> {
             await replyRouterService.handleRejection(
               confirmationId,
               connection.organization_id,
-              interaction.user.id
+              interaction.user.id,
             );
 
             if (interaction.response_url) {
-              await respondToInteraction(interaction.response_url, "❌ Reply was not sent.");
+              await respondToInteraction(
+                interaction.response_url,
+                "❌ Reply was not sent.",
+              );
             }
           }
         }
@@ -188,7 +206,11 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   // Handle JSON payload (events)
-  if (!signature || !timestamp || !verifySlackSignature(body, signature, timestamp)) {
+  if (
+    !signature ||
+    !timestamp ||
+    !verifySlackSignature(body, signature, timestamp)
+  ) {
     // Check if this is a URL verification challenge (no signature)
     const event: SlackEvent = JSON.parse(body);
     if (event.type === "url_verification" && event.challenge) {
@@ -221,12 +243,18 @@ export async function POST(request: NextRequest): Promise<Response> {
     const innerEvent = event.event;
 
     // Handle message events (for reply detection)
-    if (innerEvent.type === "message" && innerEvent.thread_ts && innerEvent.text && innerEvent.user) {
+    if (
+      innerEvent.type === "message" &&
+      innerEvent.thread_ts &&
+      innerEvent.text &&
+      innerEvent.user
+    ) {
       // This is a reply in a thread - check if it's a reply to a notification message
       const connection = await findOrgConnectionByTeam(event.team_id ?? "");
-      
+
       if (connection && innerEvent.channel) {
-        const { replyRouterService } = await import("@/lib/services/social-feed/reply-router");
+        const { replyRouterService } =
+          await import("@/lib/services/social-feed/reply-router");
 
         const result = await replyRouterService.processIncomingReply({
           platform: "slack",

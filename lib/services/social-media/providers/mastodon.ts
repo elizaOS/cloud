@@ -55,7 +55,10 @@ interface MastodonMedia {
 }
 
 function getInstanceUrl(credentials: SocialCredentials): string {
-  const url = credentials.instanceUrl ?? credentials.webhookUrl ?? "https://mastodon.social";
+  const url =
+    credentials.instanceUrl ??
+    credentials.webhookUrl ??
+    "https://mastodon.social";
   return url.replace(/\/$/, "");
 }
 
@@ -63,7 +66,7 @@ async function mastodonApiRequest<T>(
   instanceUrl: string,
   endpoint: string,
   accessToken: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   const { data } = await withRetry<T>(
     () =>
@@ -82,7 +85,7 @@ async function mastodonApiRequest<T>(
       }
       return response.json();
     },
-    { platform: "mastodon", maxRetries: 3 }
+    { platform: "mastodon", maxRetries: 3 },
   );
 
   return data;
@@ -91,7 +94,7 @@ async function mastodonApiRequest<T>(
 async function uploadMedia(
   instanceUrl: string,
   accessToken: string,
-  media: MediaAttachment
+  media: MediaAttachment,
 ): Promise<MastodonMedia> {
   let fileData: Buffer;
 
@@ -107,7 +110,11 @@ async function uploadMedia(
   }
 
   const formData = new FormData();
-  formData.append("file", new Blob([fileData], { type: media.mimeType }), "upload");
+  formData.append(
+    "file",
+    new Blob([fileData], { type: media.mimeType }),
+    "upload",
+  );
   if (media.altText) {
     formData.append("description", media.altText);
   }
@@ -139,7 +146,7 @@ export const mastodonProvider: SocialMediaProvider = {
     const account = await mastodonApiRequest<MastodonAccount>(
       instanceUrl,
       "/accounts/verify_credentials",
-      credentials.accessToken
+      credentials.accessToken,
     );
 
     return {
@@ -154,21 +161,31 @@ export const mastodonProvider: SocialMediaProvider = {
   async createPost(
     credentials: SocialCredentials,
     content: PostContent,
-    options?: PlatformPostOptions
+    options?: PlatformPostOptions,
   ): Promise<PostResult> {
     if (!credentials.accessToken) {
-      return { platform: "mastodon", success: false, error: "Access token required" };
+      return {
+        platform: "mastodon",
+        success: false,
+        error: "Access token required",
+      };
     }
 
     const instanceUrl = getInstanceUrl(credentials);
     const mastodonOptions = options?.mastodon;
 
-    logger.info("[Mastodon] Creating post", { hasMedia: !!content.media?.length });
+    logger.info("[Mastodon] Creating post", {
+      hasMedia: !!content.media?.length,
+    });
 
     const mediaIds: string[] = [];
     if (content.media?.length) {
       for (const media of content.media) {
-        const uploaded = await uploadMedia(instanceUrl, credentials.accessToken, media);
+        const uploaded = await uploadMedia(
+          instanceUrl,
+          credentials.accessToken,
+          media,
+        );
         mediaIds.push(uploaded.id);
       }
     }
@@ -181,7 +198,8 @@ export const mastodonProvider: SocialMediaProvider = {
     if (mediaIds.length > 0) payload.media_ids = mediaIds;
     if (content.replyToId) payload.in_reply_to_id = content.replyToId;
     if (mastodonOptions?.sensitive) payload.sensitive = true;
-    if (mastodonOptions?.spoilerText) payload.spoiler_text = mastodonOptions.spoilerText;
+    if (mastodonOptions?.spoilerText)
+      payload.spoiler_text = mastodonOptions.spoilerText;
     if (mastodonOptions?.language) payload.language = mastodonOptions.language;
     if (mastodonOptions?.pollOptions?.length) {
       payload.poll = {
@@ -194,7 +212,7 @@ export const mastodonProvider: SocialMediaProvider = {
       instanceUrl,
       "/statuses",
       credentials.accessToken,
-      { method: "POST", body: JSON.stringify(payload) }
+      { method: "POST", body: JSON.stringify(payload) },
     );
 
     return {
@@ -217,7 +235,7 @@ export const mastodonProvider: SocialMediaProvider = {
       instanceUrl,
       `/statuses/${postId}`,
       credentials.accessToken,
-      { method: "DELETE" }
+      { method: "DELETE" },
     );
 
     return { success: true };
@@ -227,9 +245,13 @@ export const mastodonProvider: SocialMediaProvider = {
     credentials: SocialCredentials,
     postId: string,
     content: PostContent,
-    options?: PlatformPostOptions
+    options?: PlatformPostOptions,
   ): Promise<PostResult> {
-    return this.createPost(credentials, { ...content, replyToId: postId }, options);
+    return this.createPost(
+      credentials,
+      { ...content, replyToId: postId },
+      options,
+    );
   },
 
   async likePost(credentials: SocialCredentials, postId: string) {
@@ -243,15 +265,22 @@ export const mastodonProvider: SocialMediaProvider = {
       instanceUrl,
       `/statuses/${postId}/favourite`,
       credentials.accessToken,
-      { method: "POST" }
+      { method: "POST" },
     );
 
     return { success: true };
   },
 
-  async repost(credentials: SocialCredentials, postId: string): Promise<PostResult> {
+  async repost(
+    credentials: SocialCredentials,
+    postId: string,
+  ): Promise<PostResult> {
     if (!credentials.accessToken) {
-      return { platform: "mastodon", success: false, error: "Access token required" };
+      return {
+        platform: "mastodon",
+        success: false,
+        error: "Access token required",
+      };
     }
 
     const instanceUrl = getInstanceUrl(credentials);
@@ -260,7 +289,7 @@ export const mastodonProvider: SocialMediaProvider = {
       instanceUrl,
       `/statuses/${postId}/reblog`,
       credentials.accessToken,
-      { method: "POST" }
+      { method: "POST" },
     );
 
     return {
@@ -277,7 +306,11 @@ export const mastodonProvider: SocialMediaProvider = {
     }
 
     const instanceUrl = getInstanceUrl(credentials);
-    const uploaded = await uploadMedia(instanceUrl, credentials.accessToken, media);
+    const uploaded = await uploadMedia(
+      instanceUrl,
+      credentials.accessToken,
+      media,
+    );
 
     return {
       mediaId: uploaded.id,
@@ -287,7 +320,7 @@ export const mastodonProvider: SocialMediaProvider = {
 
   async getPostAnalytics(
     credentials: SocialCredentials,
-    postId: string
+    postId: string,
   ): Promise<PostAnalytics | null> {
     if (!credentials.accessToken) return null;
 
@@ -296,7 +329,7 @@ export const mastodonProvider: SocialMediaProvider = {
     const status = await mastodonApiRequest<MastodonStatus>(
       instanceUrl,
       `/statuses/${postId}`,
-      credentials.accessToken
+      credentials.accessToken,
     );
 
     return {
@@ -311,7 +344,9 @@ export const mastodonProvider: SocialMediaProvider = {
     };
   },
 
-  async getAccountAnalytics(credentials: SocialCredentials): Promise<AccountAnalytics | null> {
+  async getAccountAnalytics(
+    credentials: SocialCredentials,
+  ): Promise<AccountAnalytics | null> {
     if (!credentials.accessToken) return null;
 
     const instanceUrl = getInstanceUrl(credentials);
@@ -319,7 +354,7 @@ export const mastodonProvider: SocialMediaProvider = {
     const account = await mastodonApiRequest<MastodonAccount>(
       instanceUrl,
       "/accounts/verify_credentials",
-      credentials.accessToken
+      credentials.accessToken,
     );
 
     return {

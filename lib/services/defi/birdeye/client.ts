@@ -18,7 +18,7 @@ export class BirdeyeClient extends BaseHttpClient {
 
   constructor(
     config: Omit<HttpClientConfig, "baseUrl" | "headers">,
-    chain: BirdeyeChain = "solana"
+    chain: BirdeyeChain = "solana",
   ) {
     super(
       {
@@ -29,7 +29,7 @@ export class BirdeyeClient extends BaseHttpClient {
           "x-chain": chain,
         },
       },
-      "Birdeye"
+      "Birdeye",
     );
     this.chain = chain;
   }
@@ -38,7 +38,10 @@ export class BirdeyeClient extends BaseHttpClient {
    * Switch chain for subsequent requests
    */
   withChain(chain: BirdeyeChain): BirdeyeClient {
-    return new BirdeyeClient({ apiKey: this.apiKey, timeout: this.timeout }, chain);
+    return new BirdeyeClient(
+      { apiKey: this.apiKey, timeout: this.timeout },
+      chain,
+    );
   }
 
   /**
@@ -53,7 +56,7 @@ export class BirdeyeClient extends BaseHttpClient {
    */
   async request<T>(
     endpoint: string,
-    options: Parameters<BaseHttpClient["request"]>[1] = {}
+    options: Parameters<BaseHttpClient["request"]>[1] = {},
   ): Promise<T> {
     return super.request<T>(endpoint, {
       ...options,
@@ -80,4 +83,3 @@ export class BirdeyeClient extends BaseHttpClient {
     }
   }
 }
-

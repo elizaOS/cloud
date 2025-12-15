@@ -94,10 +94,16 @@ describe("Discord Integration - Event Handling", () => {
       fetchCalls.push({ url, body });
 
       if (url.includes("/assignments")) {
-        return { ok: true, json: () => Promise.resolve({ assignments: [] }) } as Response;
+        return {
+          ok: true,
+          json: () => Promise.resolve({ assignments: [] }),
+        } as Response;
       }
       if (url.includes("/events")) {
-        return { ok: true, json: () => Promise.resolve({ success: true }) } as Response;
+        return {
+          ok: true,
+          json: () => Promise.resolve({ success: true }),
+        } as Response;
       }
       if (url.includes("/status")) {
         return { ok: true } as Response;
@@ -456,7 +462,10 @@ describe("Discord Integration - Error Scenarios", () => {
         eventCallCount++;
         return { ok: false, status: 500 } as Response;
       }
-      return { ok: true, json: () => Promise.resolve({ assignments: [] }) } as Response;
+      return {
+        ok: true,
+        json: () => Promise.resolve({ assignments: [] }),
+      } as Response;
     }) as unknown as typeof fetch;
 
     const manager = new GatewayManager({
@@ -479,7 +488,10 @@ describe("Discord Integration - Error Scenarios", () => {
       if (url.includes("/status")) {
         return { ok: false, status: 503 } as Response;
       }
-      return { ok: true, json: () => Promise.resolve({ assignments: [] }) } as Response;
+      return {
+        ok: true,
+        json: () => Promise.resolve({ assignments: [] }),
+      } as Response;
     }) as unknown as typeof fetch;
 
     const manager = new GatewayManager({
@@ -520,4 +532,3 @@ describe("Discord Integration - Error Scenarios", () => {
     await manager.shutdown();
   });
 });
-

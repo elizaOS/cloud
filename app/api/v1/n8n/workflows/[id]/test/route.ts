@@ -5,7 +5,7 @@ import { TestWorkflowSchema, ErrorResponses } from "@/lib/n8n/schemas";
 
 export async function POST(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await ctx.params;
@@ -16,10 +16,14 @@ export async function POST(
   }
 
   const contentLength = request.headers.get("content-length");
-  const body = contentLength === "0" || !contentLength ? {} : await request.json();
+  const body =
+    contentLength === "0" || !contentLength ? {} : await request.json();
   const validation = TestWorkflowSchema.safeParse(body);
   if (!validation.success) {
-    return NextResponse.json(ErrorResponses.invalidRequest(validation.error.format()), { status: 400 });
+    return NextResponse.json(
+      ErrorResponses.invalidRequest(validation.error.format()),
+      { status: 400 },
+    );
   }
 
   const { inputData } = validation.data;
@@ -35,7 +39,12 @@ export async function POST(
   return NextResponse.json({
     success: execution.status === "success",
     executionId: execution.id,
-    status: execution.status === "success" ? "completed" : execution.status === "error" ? "failed" : execution.status,
+    status:
+      execution.status === "success"
+        ? "completed"
+        : execution.status === "error"
+          ? "failed"
+          : execution.status,
     startTime: execution.started_at,
     endTime: execution.finished_at,
     duration: execution.duration_ms,
@@ -45,5 +54,3 @@ export async function POST(
     n8nExecutionId: execution.n8n_execution_id,
   });
 }
-
-

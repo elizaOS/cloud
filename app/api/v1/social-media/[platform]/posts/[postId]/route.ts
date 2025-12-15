@@ -14,7 +14,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { socialMediaService } from "@/lib/services/social-media";
-import type { SocialPlatform, PostContent, PlatformPostOptions } from "@/lib/types/social-media";
+import type {
+  SocialPlatform,
+  PostContent,
+  PlatformPostOptions,
+} from "@/lib/types/social-media";
 
 type RouteContext = { params: Promise<{ platform: string; postId: string }> };
 
@@ -25,10 +29,14 @@ type RouteContext = { params: Promise<{ platform: string; postId: string }> };
 export async function GET(request: NextRequest, ctx: RouteContext) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { platform, postId } = await ctx.params;
-  const credentialId = request.nextUrl.searchParams.get("credentialId") ?? undefined;
+  const credentialId =
+    request.nextUrl.searchParams.get("credentialId") ?? undefined;
 
   if (!socialMediaService.isPlatformSupported(platform as SocialPlatform)) {
-    return NextResponse.json({ error: `Unsupported platform: ${platform}` }, { status: 400 });
+    return NextResponse.json(
+      { error: `Unsupported platform: ${platform}` },
+      { status: 400 },
+    );
   }
 
   const analytics = await socialMediaService.getPostAnalytics({
@@ -48,17 +56,21 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
 export async function DELETE(request: NextRequest, ctx: RouteContext) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { platform, postId } = await ctx.params;
-  const credentialId = request.nextUrl.searchParams.get("credentialId") ?? undefined;
+  const credentialId =
+    request.nextUrl.searchParams.get("credentialId") ?? undefined;
 
   if (!socialMediaService.isPlatformSupported(platform as SocialPlatform)) {
-    return NextResponse.json({ error: `Unsupported platform: ${platform}` }, { status: 400 });
+    return NextResponse.json(
+      { error: `Unsupported platform: ${platform}` },
+      { status: 400 },
+    );
   }
 
   const result = await socialMediaService.deletePost(
     user.organization_id,
     platform as SocialPlatform,
     postId,
-    credentialId
+    credentialId,
   );
 
   if (!result.success) {
@@ -67,4 +79,3 @@ export async function DELETE(request: NextRequest, ctx: RouteContext) {
 
   return NextResponse.json(result);
 }
-

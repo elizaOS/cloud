@@ -23,7 +23,12 @@ export function useAuth(): AuthState & {
       setState({ user, isLoading: false, isAuthenticated: true, token });
     } else {
       localStorage.removeItem(TOKEN_KEY);
-      setState({ user: null, isLoading: false, isAuthenticated: false, token: null });
+      setState({
+        user: null,
+        isLoading: false,
+        isAuthenticated: false,
+        token: null,
+      });
     }
   }, []);
 
@@ -37,13 +42,20 @@ export function useAuth(): AuthState & {
   }, [loadUser]);
 
   const login = useCallback(async () => {
-    const session = await createAppSession(`${window.location.origin}/auth/callback`);
+    const session = await createAppSession(
+      `${window.location.origin}/auth/callback`,
+    );
     window.location.href = session.loginUrl;
   }, []);
 
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
-    setState({ user: null, isLoading: false, isAuthenticated: false, token: null });
+    setState({
+      user: null,
+      isLoading: false,
+      isAuthenticated: false,
+      token: null,
+    });
   }, []);
 
   return { ...state, login, logout };

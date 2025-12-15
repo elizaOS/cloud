@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuth } from "@/lib/middleware/app-auth";
-import { platformCredentialsService, SOCIAL_PLATFORMS } from "@/lib/services/platform-credentials";
+import {
+  platformCredentialsService,
+  SOCIAL_PLATFORMS,
+} from "@/lib/services/platform-credentials";
 import { logger } from "@/lib/utils/logger";
 
 const ManualCredentialsSchema = z.discriminatedUnion("platform", [
@@ -15,7 +18,10 @@ const ManualCredentialsSchema = z.discriminatedUnion("platform", [
   z.object({
     platform: z.literal("telegram"),
     credentials: z.object({
-      botToken: z.string().min(1, "Bot token is required").regex(/^\d+:[A-Za-z0-9_-]+$/, "Invalid bot token format"),
+      botToken: z
+        .string()
+        .min(1, "Bot token is required")
+        .regex(/^\d+:[A-Za-z0-9_-]+$/, "Invalid bot token format"),
     }),
   }),
 ]);
@@ -29,16 +35,25 @@ export async function GET(request: NextRequest) {
   const authResult = await requireAuth(request);
   if (authResult instanceof NextResponse) return authResult;
 
-  const platforms = await platformCredentialsService.getAvailablePlatforms(authResult.organization_id);
+  const platforms = await platformCredentialsService.getAvailablePlatforms(
+    authResult.organization_id,
+  );
   return NextResponse.json({
     success: true,
-    platforms: platforms.filter(p => isSocialPlatform(p.platform)),
+    platforms: platforms.filter((p) => isSocialPlatform(p.platform)),
   });
 }
 
-function toManualCredentials(data: ManualCredentialsInput): { handle?: string; appPassword?: string; botToken?: string } {
+function toManualCredentials(data: ManualCredentialsInput): {
+  handle?: string;
+  appPassword?: string;
+  botToken?: string;
+} {
   if (data.platform === "bluesky") {
-    return { handle: data.credentials.handle, appPassword: data.credentials.appPassword };
+    return {
+      handle: data.credentials.handle,
+      appPassword: data.credentials.appPassword,
+    };
   }
   return { botToken: data.credentials.botToken };
 }
@@ -51,15 +66,21 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ success: false, error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json(
+      { success: false, error: "Invalid JSON" },
+      { status: 400 },
+    );
   }
 
   const parsed = ManualCredentialsSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ 
-      success: false, 
-      error: parsed.error.issues[0]?.message ?? "Invalid request",
-    }, { status: 400 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: parsed.error.issues[0]?.message ?? "Invalid request",
+      },
+      { status: 400 },
+    );
   }
 
   const { platform } = parsed.data;
@@ -71,8 +92,8 @@ export async function POST(request: NextRequest) {
     credentials: toManualCredentials(parsed.data),
   });
 
-  logger.info("[SocialConnections] Manual credentials stored", { 
-    platform, 
+  logger.info("[SocialConnections] Manual credentials stored", {
+    platform,
     userId: authResult.id,
     credentialId: credential.id,
   });
@@ -90,4 +111,3 @@ export async function POST(request: NextRequest) {
     },
   });
 }
-

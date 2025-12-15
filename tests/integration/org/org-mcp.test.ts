@@ -1,12 +1,12 @@
 /**
  * ORG MCP Integration Tests
- * 
+ *
  * Tests the Org MCP server endpoint with:
  * - JSON-RPC protocol compliance
  * - Tool discovery
  * - Tool execution
  * - Error handling
- * 
+ *
  * Requirements:
  * - TEST_API_KEY or TEST_APP_TOKEN: Valid auth token
  * - Server running at TEST_SERVER_URL (default: http://localhost:3000)
@@ -30,14 +30,16 @@ let authValid = false;
 
 async function mcpRequest(
   method: string,
-  params?: Record<string, unknown>
+  params?: Record<string, unknown>,
 ): Promise<{
   jsonrpc: string;
   id: number;
   result?: Record<string, unknown>;
   error?: { code: number; message: string; data?: unknown };
 }> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
 
   if (APP_TOKEN) {
     headers["X-App-Token"] = APP_TOKEN;
@@ -146,18 +148,24 @@ describe("Tool Discovery", () => {
 
     expect(data.error).toBeUndefined();
     expect(data.result).toHaveProperty("tools");
-    expect(Array.isArray((data.result as { tools: unknown[] }).tools)).toBe(true);
+    expect(Array.isArray((data.result as { tools: unknown[] }).tools)).toBe(
+      true,
+    );
   });
 
   test("tools have required properties", async () => {
     if (skip()) return;
 
     const data = await mcpRequest("tools/list");
-    const tools = (data.result as { tools: Array<{
-      name: string;
-      description: string;
-      inputSchema: { type: string; properties: Record<string, unknown> };
-    }> }).tools;
+    const tools = (
+      data.result as {
+        tools: Array<{
+          name: string;
+          description: string;
+          inputSchema: { type: string; properties: Record<string, unknown> };
+        }>;
+      }
+    ).tools;
 
     for (const tool of tools) {
       expect(tool).toHaveProperty("name");
@@ -172,7 +180,9 @@ describe("Tool Discovery", () => {
     if (skip()) return;
 
     const data = await mcpRequest("tools/list");
-    const toolNames = (data.result as { tools: Array<{ name: string }> }).tools.map(t => t.name);
+    const toolNames = (
+      data.result as { tools: Array<{ name: string }> }
+    ).tools.map((t) => t.name);
 
     // Todo tools
     expect(toolNames).toContain("create_todo");
@@ -218,7 +228,9 @@ describe("Tool Execution", () => {
     expect(data.error).toBeUndefined();
     expect(data.result).toHaveProperty("content");
 
-    const content = (data.result as { content: Array<{ type: string; text: string }> }).content[0];
+    const content = (
+      data.result as { content: Array<{ type: string; text: string }> }
+    ).content[0];
     expect(content.type).toBe("text");
 
     const parsed = JSON.parse(content.text);
@@ -237,7 +249,8 @@ describe("Tool Execution", () => {
 
     expect(data.error).toBeUndefined();
 
-    const content = (data.result as { content: Array<{ text: string }> }).content[0];
+    const content = (data.result as { content: Array<{ text: string }> })
+      .content[0];
     const parsed = JSON.parse(content.text);
 
     expect(parsed.success).toBe(true);
@@ -254,7 +267,8 @@ describe("Tool Execution", () => {
 
     expect(data.error).toBeUndefined();
 
-    const content = (data.result as { content: Array<{ text: string }> }).content[0];
+    const content = (data.result as { content: Array<{ text: string }> })
+      .content[0];
     const parsed = JSON.parse(content.text);
 
     expect(parsed.success).toBe(true);
@@ -273,7 +287,8 @@ describe("Tool Execution", () => {
 
     expect(data.error).toBeUndefined();
 
-    const content = (data.result as { content: Array<{ text: string }> }).content[0];
+    const content = (data.result as { content: Array<{ text: string }> })
+      .content[0];
     const parsed = JSON.parse(content.text);
 
     expect(parsed.success).toBe(true);
@@ -290,7 +305,8 @@ describe("Tool Execution", () => {
 
     expect(data.error).toBeUndefined();
 
-    const content = (data.result as { content: Array<{ text: string }> }).content[0];
+    const content = (data.result as { content: Array<{ text: string }> })
+      .content[0];
     const parsed = JSON.parse(content.text);
 
     expect(parsed.success).toBe(true);
@@ -410,7 +426,9 @@ describe("Error Handling", () => {
   test("invalid JSON-RPC format handled", async () => {
     if (!serverRunning) return;
 
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
     if (APP_TOKEN) headers["X-App-Token"] = APP_TOKEN;
     else if (API_KEY) headers["Authorization"] = `Bearer ${API_KEY}`;
 
@@ -438,7 +456,8 @@ describe("Error Handling", () => {
     if (data.error) {
       expect(data.error).toBeDefined();
     } else {
-      const content = (data.result as { content: Array<{ text: string }> }).content[0];
+      const content = (data.result as { content: Array<{ text: string }> })
+        .content[0];
       const parsed = JSON.parse(content.text);
       expect(parsed.success).toBe(false);
     }
@@ -454,22 +473,24 @@ describe("Concurrent Requests", () => {
     if (skip()) return;
 
     // Fire 5 requests at once
-    const requests = Array(5).fill(null).map(() =>
-      mcpRequest("tools/call", {
-        name: "get_todo_stats",
-        arguments: {},
-      })
-    );
+    const requests = Array(5)
+      .fill(null)
+      .map(() =>
+        mcpRequest("tools/call", {
+          name: "get_todo_stats",
+          arguments: {},
+        }),
+      );
 
     const results = await Promise.all(requests);
 
     // All should succeed
     for (const data of results) {
       expect(data.error).toBeUndefined();
-      const content = (data.result as { content: Array<{ text: string }> }).content[0];
+      const content = (data.result as { content: Array<{ text: string }> })
+        .content[0];
       const parsed = JSON.parse(content.text);
       expect(parsed.success).toBe(true);
     }
   });
 });
-

@@ -28,14 +28,25 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   if (!validationResult.success) {
     return NextResponse.json(
-      { success: false, error: "Invalid request data", details: validationResult.error.format() },
-      { status: 400 }
+      {
+        success: false,
+        error: "Invalid request data",
+        details: validationResult.error.format(),
+      },
+      { status: 400 },
     );
   }
 
-  await aiAppBuilderService.extendSession(sessionId, user.id, validationResult.data.durationMs);
+  await aiAppBuilderService.extendSession(
+    sessionId,
+    user.id,
+    validationResult.data.durationMs,
+  );
 
-  return NextResponse.json({ success: true, message: "Session extended successfully" });
+  return NextResponse.json({
+    success: true,
+    message: "Session extended successfully",
+  });
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
@@ -44,5 +55,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
   await aiAppBuilderService.stopSession(sessionId, user.id);
 
-  return NextResponse.json({ success: true, message: "Session stopped successfully" });
+  return NextResponse.json({
+    success: true,
+    message: "Session stopped successfully",
+  });
 }

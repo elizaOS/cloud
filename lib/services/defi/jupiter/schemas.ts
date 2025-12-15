@@ -34,7 +34,9 @@ export const GetSwapSchema = z.object({
   wrapAndUnwrapSol: z.boolean().optional().default(true),
   useSharedAccounts: z.boolean().optional().default(true),
   computeUnitPriceMicroLamports: z.number().int().min(0).optional(),
-  prioritizationFeeLamports: z.union([z.number().int().min(0), z.literal("auto")]).optional(),
+  prioritizationFeeLamports: z
+    .union([z.number().int().min(0), z.literal("auto")])
+    .optional(),
   asLegacyTransaction: z.boolean().optional().default(false),
   dynamicComputeUnitLimit: z.boolean().optional().default(true),
 });
@@ -100,4 +102,3 @@ export type GetSwapInput = z.infer<typeof GetSwapSchema>;
 export type GetPriceInput = z.infer<typeof GetPriceSchema>;
 export type SearchTokensInput = z.infer<typeof SearchTokensSchema>;
 export type QuoteResponse = z.infer<typeof QuoteResponseSchema>;
-

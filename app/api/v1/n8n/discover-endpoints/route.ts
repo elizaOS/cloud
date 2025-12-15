@@ -12,7 +12,13 @@ export async function GET(request: NextRequest) {
   const limitParam = searchParams.get("limit");
 
   const types = typesParam
-    ? (typesParam.split(",").filter((t) => ["a2a", "mcp", "rest"].includes(t)) as ("a2a" | "mcp" | "rest")[])
+    ? (typesParam
+        .split(",")
+        .filter((t) => ["a2a", "mcp", "rest"].includes(t)) as (
+        | "a2a"
+        | "mcp"
+        | "rest"
+      )[])
     : undefined;
   const categories = categoriesParam ? categoriesParam.split(",") : undefined;
   const limit = limitParam ? parseInt(limitParam, 10) : 100;
@@ -30,4 +36,3 @@ export async function GET(request: NextRequest) {
     total: result.total,
   });
 }
-

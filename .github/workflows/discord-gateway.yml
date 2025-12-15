@@ -4,20 +4,20 @@ on:
   push:
     branches: [main, dev]
     paths:
-      - 'apps/discord-gateway/**'
-      - 'lib/services/discord-gateway/**'
-      - '.github/workflows/discord-gateway.yml'
+      - "apps/discord-gateway/**"
+      - "lib/services/discord-gateway/**"
+      - ".github/workflows/discord-gateway.yml"
   pull_request:
     branches: [main, dev]
     paths:
-      - 'apps/discord-gateway/**'
-      - 'lib/services/discord-gateway/**'
+      - "apps/discord-gateway/**"
+      - "lib/services/discord-gateway/**"
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Target environment'
+        description: "Target environment"
         required: true
-        default: 'staging'
+        default: "staging"
         type: choice
         options: [staging, production]
 

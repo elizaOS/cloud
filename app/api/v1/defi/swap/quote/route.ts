@@ -11,7 +11,17 @@ const QuerySchema = z.object({
   sellToken: z.string().min(1),
   buyToken: z.string().min(1),
   sellAmount: z.string().min(1),
-  chain: z.enum(["ethereum", "polygon", "bsc", "arbitrum", "optimism", "base", "avalanche"]).default("ethereum"),
+  chain: z
+    .enum([
+      "ethereum",
+      "polygon",
+      "bsc",
+      "arbitrum",
+      "optimism",
+      "base",
+      "avalanche",
+    ])
+    .default("ethereum"),
   slippagePercentage: z.coerce.number().min(0).max(1).default(0.01),
 });
 
@@ -26,9 +36,15 @@ export async function GET(request: Request) {
   });
 
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid parameters", details: parsed.error.format() }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid parameters", details: parsed.error.format() },
+      { status: 400 },
+    );
   }
 
-  const result = await fetchZeroExQuote({ ...parsed.data, chain: parsed.data.chain as ZeroExChain });
+  const result = await fetchZeroExQuote({
+    ...parsed.data,
+    chain: parsed.data.chain as ZeroExChain,
+  });
   return NextResponse.json(result);
 }

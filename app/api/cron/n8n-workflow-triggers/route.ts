@@ -55,16 +55,21 @@ function verifyCronSecret(request: NextRequest): boolean {
  * - N,M,O (list)
  * - *\/N or N-M/S (step)
  */
-function shouldExecuteCron(cronExpression: string, lastExecutedAt: Date | null): boolean {
+function shouldExecuteCron(
+  cronExpression: string,
+  lastExecutedAt: Date | null,
+): boolean {
   try {
     const now = new Date();
     const parts = cronExpression.trim().split(/\s+/);
-    
+
     if (parts.length !== 5) {
-      logger.warn(`[N8N Workflow Triggers Cron] Invalid cron expression (need 5 parts): ${cronExpression}`);
+      logger.warn(
+        `[N8N Workflow Triggers Cron] Invalid cron expression (need 5 parts): ${cronExpression}`,
+      );
       return false;
     }
-    
+
     const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
 
     const currentMinute = now.getMinutes();
@@ -76,13 +81,13 @@ function shouldExecuteCron(cronExpression: string, lastExecutedAt: Date | null):
     const matches = (pattern: string, value: number, max: number): boolean => {
       // Wildcard
       if (pattern === "*") return true;
-      
+
       // Step pattern: */N or N-M/S
       if (pattern.includes("/")) {
         const [base, stepStr] = pattern.split("/");
         const step = parseInt(stepStr, 10);
         if (isNaN(step) || step <= 0) return false;
-        
+
         if (base === "*") {
           return value % step === 0;
         }
@@ -96,12 +101,12 @@ function shouldExecuteCron(cronExpression: string, lastExecutedAt: Date | null):
         }
         return false;
       }
-      
+
       // List pattern: N,M,O
       if (pattern.includes(",")) {
-        return pattern.split(",").some(p => matches(p.trim(), value, max));
+        return pattern.split(",").some((p) => matches(p.trim(), value, max));
       }
-      
+
       // Range pattern: N-M
       if (pattern.includes("-")) {
         const [startStr, endStr] = pattern.split("-");
@@ -109,7 +114,7 @@ function shouldExecuteCron(cronExpression: string, lastExecutedAt: Date | null):
         const end = parseInt(endStr, 10);
         return value >= start && value <= end;
       }
-      
+
       // Exact value
       return parseInt(pattern, 10) === value;
     };
@@ -120,7 +125,8 @@ function shouldExecuteCron(cronExpression: string, lastExecutedAt: Date | null):
     const monthMatch = matches(month, currentMonth, 12);
     const dayOfWeekMatch = matches(dayOfWeek, currentDayOfWeek, 6);
 
-    const allMatch = minuteMatch && hourMatch && dayMatch && monthMatch && dayOfWeekMatch;
+    const allMatch =
+      minuteMatch && hourMatch && dayMatch && monthMatch && dayOfWeekMatch;
 
     // If never executed, execute if matches now
     if (!lastExecutedAt) {
@@ -130,10 +136,13 @@ function shouldExecuteCron(cronExpression: string, lastExecutedAt: Date | null):
     // If executed before, only execute if at least 1 minute has passed
     const timeSinceLastExecution = now.getTime() - lastExecutedAt.getTime();
     const oneMinute = 60 * 1000;
-    
+
     return timeSinceLastExecution >= oneMinute && allMatch;
   } catch (error) {
-    logger.error(`[N8N Workflow Triggers Cron] Invalid cron expression: ${cronExpression}`, error);
+    logger.error(
+      `[N8N Workflow Triggers Cron] Invalid cron expression: ${cronExpression}`,
+      error,
+    );
     return false;
   }
 }
@@ -154,7 +163,9 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     // Get all active cron triggers
     const triggers = await n8nWorkflowsService.getActiveCronTriggers();
-    logger.info(`[N8N Workflow Triggers Cron] Found ${triggers.length} active cron triggers`);
+    logger.info(
+      `[N8N Workflow Triggers Cron] Found ${triggers.length} active cron triggers`,
+    );
 
     const results = {
       processed: 0,
@@ -167,7 +178,9 @@ export async function POST(request: NextRequest): Promise<Response> {
       try {
         const cronExpression = trigger.config.cronExpression as string;
         if (!cronExpression) {
-          logger.warn(`[N8N Workflow Triggers Cron] Trigger ${trigger.id} missing cronExpression`);
+          logger.warn(
+            `[N8N Workflow Triggers Cron] Trigger ${trigger.id} missing cronExpression`,
+          );
           results.skipped++;
           continue;
         }
@@ -177,9 +190,14 @@ export async function POST(request: NextRequest): Promise<Response> {
           : null;
 
         if (shouldExecuteCron(cronExpression, lastExecutedAt)) {
-          logger.info(`[N8N Workflow Triggers Cron] Executing trigger ${trigger.id} (${trigger.trigger_key})`);
+          logger.info(
+            `[N8N Workflow Triggers Cron] Executing trigger ${trigger.id} (${trigger.trigger_key})`,
+          );
 
-          await n8nWorkflowsService.executeWorkflowTrigger(trigger.id, trigger.config.inputData as Record<string, unknown>);
+          await n8nWorkflowsService.executeWorkflowTrigger(
+            trigger.id,
+            trigger.config.inputData as Record<string, unknown>,
+          );
 
           results.executed++;
         } else {
@@ -188,7 +206,10 @@ export async function POST(request: NextRequest): Promise<Response> {
 
         results.processed++;
       } catch (error) {
-        logger.error(`[N8N Workflow Triggers Cron] Error processing trigger ${trigger.id}:`, error);
+        logger.error(
+          `[N8N Workflow Triggers Cron] Error processing trigger ${trigger.id}:`,
+          error,
+        );
         await n8nWorkflowTriggersRepository.incrementErrorCount(trigger.id);
         results.errors++;
       }
@@ -216,7 +237,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -252,8 +273,7 @@ export async function GET(request: NextRequest): Promise<Response> {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

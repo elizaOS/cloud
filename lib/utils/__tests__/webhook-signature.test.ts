@@ -21,7 +21,9 @@ describe("webhook-signature", () => {
     });
 
     it("should generate unique secrets", () => {
-      const secrets = new Set(Array.from({ length: 100 }, () => generateWebhookSecret()));
+      const secrets = new Set(
+        Array.from({ length: 100 }, () => generateWebhookSecret()),
+      );
       expect(secrets.size).toBe(100);
     });
   });
@@ -32,7 +34,7 @@ describe("webhook-signature", () => {
         payload: testPayload,
         secret: testSecret,
       });
-      
+
       expect(signature).toMatch(/^t=\d+,v1=[a-f0-9]{64}$/);
     });
 
@@ -43,21 +45,33 @@ describe("webhook-signature", () => {
         secret: testSecret,
         timestamp,
       });
-      
+
       expect(signature).toContain(`t=${timestamp}`);
     });
 
     it("should produce different signatures for different payloads", () => {
-      const sig1 = generateWebhookSignature({ payload: "payload1", secret: testSecret });
-      const sig2 = generateWebhookSignature({ payload: "payload2", secret: testSecret });
-      
+      const sig1 = generateWebhookSignature({
+        payload: "payload1",
+        secret: testSecret,
+      });
+      const sig2 = generateWebhookSignature({
+        payload: "payload2",
+        secret: testSecret,
+      });
+
       expect(sig1).not.toBe(sig2);
     });
 
     it("should produce different signatures for different secrets", () => {
-      const sig1 = generateWebhookSignature({ payload: testPayload, secret: "secret1" });
-      const sig2 = generateWebhookSignature({ payload: testPayload, secret: "secret2" });
-      
+      const sig1 = generateWebhookSignature({
+        payload: testPayload,
+        secret: "secret1",
+      });
+      const sig2 = generateWebhookSignature({
+        payload: testPayload,
+        secret: "secret2",
+      });
+
       expect(sig1).not.toBe(sig2);
     });
   });
@@ -173,7 +187,7 @@ describe("webhook-signature", () => {
   describe("createSignatureHeaders", () => {
     it("should create headers with signature", () => {
       const headers = createSignatureHeaders(testPayload, testSecret);
-      
+
       expect(headers).toHaveProperty("x-webhook-signature");
       expect(headers).toHaveProperty("Content-Type", "application/json");
       expect(headers["x-webhook-signature"]).toMatch(/^t=\d+,v1=[a-f0-9]{64}$/);
@@ -183,10 +197,9 @@ describe("webhook-signature", () => {
       const headers = createSignatureHeaders(testPayload, testSecret, {
         signatureHeader: "x-custom-signature",
       });
-      
+
       expect(headers).toHaveProperty("x-custom-signature");
       expect(headers).not.toHaveProperty("x-webhook-signature");
     });
   });
 });
-

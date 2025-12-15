@@ -1,5 +1,8 @@
 import { hasBadWords, minimalBadWordsArray } from "expletives";
-import { managedDomainsRepository, type DomainModerationFlag } from "@/db/repositories/managed-domains";
+import {
+  managedDomainsRepository,
+  type DomainModerationFlag,
+} from "@/db/repositories/managed-domains";
 import { logger } from "@/lib/utils/logger";
 import { extractErrorMessage } from "@/lib/types/domains";
 
@@ -111,28 +114,49 @@ class DomainModerationService {
     const now = new Date().toISOString();
     const flags: DomainModerationFlag[] = [];
 
-    const addFlag = (type: DomainModerationFlag["type"], severity: DomainModerationFlag["severity"], reason: string) =>
-      flags.push({ type, severity, reason, detectedAt: now });
+    const addFlag = (
+      type: DomainModerationFlag["type"],
+      severity: DomainModerationFlag["severity"],
+      reason: string,
+    ) => flags.push({ type, severity, reason, detectedAt: now });
 
     logger.debug("[DomainModeration] Validating", { domain });
 
     // Restricted terms (absolute block)
     const restricted = findInSet(name, RESTRICTED_TERMS);
     if (restricted) {
-      addFlag("restricted", "critical", `Contains restricted term: ${restricted}`);
-      logger.warn("[DomainModeration] Blocked restricted term", { domain, term: restricted });
-      return { allowed: false, flags, requiresReview: false, suggestedAction: "block" };
+      addFlag(
+        "restricted",
+        "critical",
+        `Contains restricted term: ${restricted}`,
+      );
+      logger.warn("[DomainModeration] Blocked restricted term", {
+        domain,
+        term: restricted,
+      });
+      return {
+        allowed: false,
+        flags,
+        requiresReview: false,
+        suggestedAction: "block",
+      };
     }
 
     // Expletives
     if (hasBadWords(name)) {
-      const words = minimalBadWordsArray.filter((w) => name.includes(w.toLowerCase()));
+      const words = minimalBadWordsArray.filter((w) =>
+        name.includes(w.toLowerCase()),
+      );
       addFlag("expletive", "high", `Contains expletive: ${words.join(", ")}`);
     }
 
     // Suspicious patterns
     if (matchesAnyPattern(name, SUSPICIOUS_PATTERNS)) {
-      addFlag("suspicious", "medium", "Matches suspicious pattern (possible bot)");
+      addFlag(
+        "suspicious",
+        "medium",
+        "Matches suspicious pattern (possible bot)",
+      );
     }
 
     // High entropy (random-looking)
@@ -146,14 +170,34 @@ class DomainModerationService {
       addFlag("trademark", "medium", `May infringe trademark: ${trademark}`);
     }
 
-    const maxSeverity = flags.reduce((max, f) => {
-      const order = { critical: 4, high: 3, medium: 2, low: 1 };
-      return order[f.severity] > order[max] ? f.severity : max;
-    }, "low" as DomainModerationFlag["severity"]);
+    const maxSeverity = flags.reduce(
+      (max, f) => {
+        const order = { critical: 4, high: 3, medium: 2, low: 1 };
+        return order[f.severity] > order[max] ? f.severity : max;
+      },
+      "low" as DomainModerationFlag["severity"],
+    );
 
-    if (maxSeverity === "critical") return { allowed: false, flags, requiresReview: false, suggestedAction: "block" };
-    if (maxSeverity === "high") return { allowed: false, flags, requiresReview: true, suggestedAction: "review" };
-    return { allowed: true, flags, requiresReview: maxSeverity === "medium", suggestedAction: maxSeverity === "medium" ? "review" : "allow" };
+    if (maxSeverity === "critical")
+      return {
+        allowed: false,
+        flags,
+        requiresReview: false,
+        suggestedAction: "block",
+      };
+    if (maxSeverity === "high")
+      return {
+        allowed: false,
+        flags,
+        requiresReview: true,
+        suggestedAction: "review",
+      };
+    return {
+      allowed: true,
+      flags,
+      requiresReview: maxSeverity === "medium",
+      suggestedAction: maxSeverity === "medium" ? "review" : "allow",
+    };
   }
 
   async checkDomainHealth(domain: string): Promise<DomainHealthCheckResult> {
@@ -162,14 +206,21 @@ class DomainModerationService {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10000);
       try {
-        return await fetch(url, { method: "HEAD", signal: controller.signal, redirect: "follow" });
+        return await fetch(url, {
+          method: "HEAD",
+          signal: controller.signal,
+          redirect: "follow",
+        });
       } finally {
         clearTimeout(timeout);
       }
     };
 
     // Try HTTPS first, fall back to HTTP
-    const tryProtocol = async (url: string, sslValid: boolean): Promise<DomainHealthCheckResult | null> => {
+    const tryProtocol = async (
+      url: string,
+      sslValid: boolean,
+    ): Promise<DomainHealthCheckResult | null> => {
       try {
         const response = await fetchWithTimeout(url);
         return {
@@ -189,7 +240,12 @@ class DomainModerationService {
     const httpResult = await tryProtocol(`http://${domain}`, false);
     if (httpResult) return httpResult;
 
-    return { isLive: false, sslValid: false, error: "Connection failed", responseTimeMs: Date.now() - startTime };
+    return {
+      isLive: false,
+      sslValid: false,
+      error: "Connection failed",
+      responseTimeMs: Date.now() - startTime,
+    };
   }
 
   async performHealthCheck(domainId: string): Promise<DomainHealthCheckResult> {
@@ -204,7 +260,7 @@ class DomainModerationService {
     await managedDomainsRepository.updateHealthStatus(
       domainId,
       result.isLive,
-      result.error
+      result.error,
     );
 
     // Log event if status changed
@@ -230,7 +286,13 @@ class DomainModerationService {
 
   async scanDomainContent(domainId: string): Promise<ContentScanResult> {
     const domain = await managedDomainsRepository.findById(domainId);
-    if (!domain) return { status: "skipped", clean: false, flags: [], error: "Domain not found" };
+    if (!domain)
+      return {
+        status: "skipped",
+        clean: false,
+        flags: [],
+        error: "Domain not found",
+      };
 
     const now = new Date().toISOString();
     const flags: DomainModerationFlag[] = [];
@@ -238,11 +300,18 @@ class DomainModerationService {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
-      const response = await fetch(`https://${domain.domain}`, { signal: controller.signal });
+      const response = await fetch(`https://${domain.domain}`, {
+        signal: controller.signal,
+      });
       clearTimeout(timeout);
 
       if (!response.ok) {
-        return { status: "failed", clean: false, flags: [], error: `HTTP ${response.status}` };
+        return {
+          status: "failed",
+          clean: false,
+          flags: [],
+          error: `HTTP ${response.status}`,
+        };
       }
 
       const html = await response.text();
@@ -255,16 +324,33 @@ class DomainModerationService {
         .slice(0, 5000);
 
       const restricted = findInSet(text, RESTRICTED_TERMS);
-      if (restricted) flags.push({ type: "content", severity: "critical", reason: `Content contains: ${restricted}`, detectedAt: now });
+      if (restricted)
+        flags.push({
+          type: "content",
+          severity: "critical",
+          reason: `Content contains: ${restricted}`,
+          detectedAt: now,
+        });
 
       if (hasBadWords(text)) {
-        const words = minimalBadWordsArray.filter((w) => text.toLowerCase().includes(w.toLowerCase())).slice(0, 3);
-        flags.push({ type: "content", severity: "medium", reason: `Content expletives: ${words.join(", ")}`, detectedAt: now });
+        const words = minimalBadWordsArray
+          .filter((w) => text.toLowerCase().includes(w.toLowerCase()))
+          .slice(0, 3);
+        flags.push({
+          type: "content",
+          severity: "medium",
+          reason: `Content expletives: ${words.join(", ")}`,
+          detectedAt: now,
+        });
       }
 
       if (flags.length > 0) {
         const hasCritical = flags.some((f) => f.severity === "critical");
-        await managedDomainsRepository.updateModerationStatus(domainId, hasCritical ? "flagged" : "pending_review", [...(domain.moderationFlags || []), ...flags]);
+        await managedDomainsRepository.updateModerationStatus(
+          domainId,
+          hasCritical ? "flagged" : "pending_review",
+          [...(domain.moderationFlags || []), ...flags],
+        );
         await managedDomainsRepository.createEvent({
           domainId,
           eventType: "content_scan",
@@ -279,7 +365,10 @@ class DomainModerationService {
       return { status: "clean", clean: true, flags: [] };
     } catch (error) {
       const errorMsg = extractErrorMessage(error);
-      logger.warn("[DomainModeration] Content scan failed", { domain: domain.domain, error: errorMsg });
+      logger.warn("[DomainModeration] Content scan failed", {
+        domain: domain.domain,
+        error: errorMsg,
+      });
       return { status: "failed", clean: false, flags: [], error: errorMsg };
     }
   }
@@ -288,7 +377,7 @@ class DomainModerationService {
     domainId: string,
     reason: string,
     severity: DomainModerationFlag["severity"] = "medium",
-    adminUserId?: string
+    adminUserId?: string,
   ): Promise<boolean> {
     const domain = await managedDomainsRepository.findById(domainId);
     if (!domain) return false;
@@ -333,7 +422,7 @@ class DomainModerationService {
   async suspendDomain(
     domainId: string,
     reason: string,
-    adminUserId: string
+    adminUserId: string,
   ): Promise<boolean> {
     const domain = await managedDomainsRepository.findById(domainId);
     if (!domain) return false;
@@ -367,7 +456,7 @@ class DomainModerationService {
   async reinstateDomain(
     domainId: string,
     notes: string,
-    adminUserId: string
+    adminUserId: string,
   ): Promise<boolean> {
     const domain = await managedDomainsRepository.findById(domainId);
     if (!domain) return false;
@@ -403,4 +492,3 @@ class DomainModerationService {
 }
 
 export const domainModerationService = new DomainModerationService();
-

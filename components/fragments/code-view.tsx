@@ -28,4 +28,3 @@ export function CodeView({ code, lang }: { code: string; lang: string }) {
     </pre>
   );
 }
-

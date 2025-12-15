@@ -11,22 +11,45 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { platformCredentialsService } from "@/lib/services/platform-credentials";
 import { logger } from "@/lib/utils/logger";
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ credentialId: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ credentialId: string }> },
+) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { credentialId } = await params;
 
-  const result = await platformCredentialsService.getCredentialWithTokens(credentialId, user.organization_id);
-  if (!result) return NextResponse.json({ error: "Credential not found" }, { status: 404 });
+  const result = await platformCredentialsService.getCredentialWithTokens(
+    credentialId,
+    user.organization_id,
+  );
+  if (!result)
+    return NextResponse.json(
+      { error: "Credential not found" },
+      { status: 404 },
+    );
 
   const { credential, accessToken, refreshToken } = result;
 
   // Auto-refresh expired tokens
-  if (credential.token_expires_at && credential.token_expires_at < new Date() && refreshToken) {
-    logger.info("[Credentials] Token expired, refreshing", { credentialId, platform: credential.platform });
-    const refreshed = await platformCredentialsService.refreshToken(credentialId, user.organization_id);
-    
+  if (
+    credential.token_expires_at &&
+    credential.token_expires_at < new Date() &&
+    refreshToken
+  ) {
+    logger.info("[Credentials] Token expired, refreshing", {
+      credentialId,
+      platform: credential.platform,
+    });
+    const refreshed = await platformCredentialsService.refreshToken(
+      credentialId,
+      user.organization_id,
+    );
+
     if (refreshed) {
-      const fresh = await platformCredentialsService.getCredentialWithTokens(credentialId, user.organization_id);
+      const fresh = await platformCredentialsService.getCredentialWithTokens(
+        credentialId,
+        user.organization_id,
+      );
       if (fresh) {
         return NextResponse.json({
           platform: credential.platform,
@@ -39,7 +62,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         });
       }
     }
-    return NextResponse.json({ error: "Token expired and refresh failed", status: credential.status }, { status: 401 });
+    return NextResponse.json(
+      { error: "Token expired and refresh failed", status: credential.status },
+      { status: 401 },
+    );
   }
 
   return NextResponse.json({

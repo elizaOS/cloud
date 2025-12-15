@@ -16,27 +16,41 @@ const SEVERITY_COLORS: Record<AlertSeverity, { hex: string; emoji: string }> = {
   low: { hex: "#00CED1", emoji: "ℹ️" },
 };
 
-async function sendDiscordAlert(webhookUrl: string, payload: AlertPayload): Promise<void> {
+async function sendDiscordAlert(
+  webhookUrl: string,
+  payload: AlertPayload,
+): Promise<void> {
   const { hex, emoji } = SEVERITY_COLORS[payload.severity];
 
   await fetch(webhookUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      embeds: [{
-        title: `${emoji} ${payload.title}`,
-        description: payload.message,
-        color: parseInt(hex.slice(1), 16),
-        fields: payload.platforms?.length
-          ? [{ name: "Platforms", value: payload.platforms.join(", "), inline: true }]
-          : [],
-        timestamp: new Date().toISOString(),
-      }],
+      embeds: [
+        {
+          title: `${emoji} ${payload.title}`,
+          description: payload.message,
+          color: parseInt(hex.slice(1), 16),
+          fields: payload.platforms?.length
+            ? [
+                {
+                  name: "Platforms",
+                  value: payload.platforms.join(", "),
+                  inline: true,
+                },
+              ]
+            : [],
+          timestamp: new Date().toISOString(),
+        },
+      ],
     }),
   });
 }
 
-async function sendSlackAlert(webhookUrl: string, payload: AlertPayload): Promise<void> {
+async function sendSlackAlert(
+  webhookUrl: string,
+  payload: AlertPayload,
+): Promise<void> {
   const { emoji } = SEVERITY_COLORS[payload.severity];
 
   await fetch(webhookUrl, {
@@ -44,23 +58,46 @@ async function sendSlackAlert(webhookUrl: string, payload: AlertPayload): Promis
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       blocks: [
-        { type: "header", text: { type: "plain_text", text: `${emoji} ${payload.title}`, emoji: true } },
+        {
+          type: "header",
+          text: {
+            type: "plain_text",
+            text: `${emoji} ${payload.title}`,
+            emoji: true,
+          },
+        },
         { type: "section", text: { type: "mrkdwn", text: payload.message } },
         ...(payload.platforms?.length
-          ? [{ type: "section", fields: [{ type: "mrkdwn", text: `*Platforms:* ${payload.platforms.join(", ")}` }] }]
+          ? [
+              {
+                type: "section",
+                fields: [
+                  {
+                    type: "mrkdwn",
+                    text: `*Platforms:* ${payload.platforms.join(", ")}`,
+                  },
+                ],
+              },
+            ]
           : []),
       ],
     }),
   });
 }
 
-async function sendTelegramAlert(botToken: string, chatId: string, payload: AlertPayload): Promise<void> {
+async function sendTelegramAlert(
+  botToken: string,
+  chatId: string,
+  payload: AlertPayload,
+): Promise<void> {
   const { emoji } = SEVERITY_COLORS[payload.severity];
   const text = [
     `${emoji} *${payload.title}*`,
     "",
     payload.message,
-    ...(payload.platforms?.length ? ["", `Platforms: ${payload.platforms.join(", ")}`] : []),
+    ...(payload.platforms?.length
+      ? ["", `Platforms: ${payload.platforms.join(", ")}`]
+      : []),
   ].join("\n");
 
   await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
@@ -70,23 +107,35 @@ async function sendTelegramAlert(botToken: string, chatId: string, payload: Aler
   });
 }
 
-async function sendWhatsAppAlert(apiUrl: string, apiKey: string, to: string, payload: AlertPayload): Promise<void> {
+async function sendWhatsAppAlert(
+  apiUrl: string,
+  apiKey: string,
+  to: string,
+  payload: AlertPayload,
+): Promise<void> {
   const { emoji } = SEVERITY_COLORS[payload.severity];
   const text = [
     `${emoji} ${payload.title}`,
     "",
     payload.message,
-    ...(payload.platforms?.length ? ["", `Platforms: ${payload.platforms.join(", ")}`] : []),
+    ...(payload.platforms?.length
+      ? ["", `Platforms: ${payload.platforms.join(", ")}`]
+      : []),
   ].join("\n");
 
   await fetch(apiUrl, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
     body: JSON.stringify({ to, message: text }),
   });
 }
 
-export async function sendSocialMediaAlert(payload: AlertPayload): Promise<void> {
+export async function sendSocialMediaAlert(
+  payload: AlertPayload,
+): Promise<void> {
   const sends: Promise<void>[] = [];
 
   const discordWebhook = process.env.SOCIAL_ALERTS_DISCORD_WEBHOOK;
@@ -99,8 +148,10 @@ export async function sendSocialMediaAlert(payload: AlertPayload): Promise<void>
 
   if (discordWebhook) sends.push(sendDiscordAlert(discordWebhook, payload));
   if (slackWebhook) sends.push(sendSlackAlert(slackWebhook, payload));
-  if (tgToken && tgChat) sends.push(sendTelegramAlert(tgToken, tgChat, payload));
-  if (waUrl && waKey && waTo) sends.push(sendWhatsAppAlert(waUrl, waKey, waTo, payload));
+  if (tgToken && tgChat)
+    sends.push(sendTelegramAlert(tgToken, tgChat, payload));
+  if (waUrl && waKey && waTo)
+    sends.push(sendWhatsAppAlert(waUrl, waKey, waTo, payload));
 
   if (sends.length === 0) {
     logger.warn("[SocialMediaAlerts] No alert channels configured");
@@ -108,25 +159,33 @@ export async function sendSocialMediaAlert(payload: AlertPayload): Promise<void>
   }
 
   const results = await Promise.allSettled(sends);
-  const failures = results.filter(r => r.status === "rejected").length;
-  if (failures > 0) logger.error(`[SocialMediaAlerts] ${failures}/${results.length} channels failed`);
+  const failures = results.filter((r) => r.status === "rejected").length;
+  if (failures > 0)
+    logger.error(
+      `[SocialMediaAlerts] ${failures}/${results.length} channels failed`,
+    );
 }
 
 export async function alertOnPostFailure(
   organizationId: string,
   platforms: string[],
-  _errors: string[]
+  _errors: string[],
 ): Promise<void> {
   const allFailed = _errors.length === platforms.length;
   await sendSocialMediaAlert({
     severity: allFailed ? "high" : "medium",
-    title: allFailed ? "All Social Media Posts Failed" : "Partial Social Media Post Failure",
+    title: allFailed
+      ? "All Social Media Posts Failed"
+      : "Partial Social Media Post Failure",
     message: `${_errors.length}/${platforms.length} posts failed for org ${organizationId.slice(0, 8)}...`,
     platforms,
   });
 }
 
-export async function alertOnTokenExpiry(organizationId: string, platform: string): Promise<void> {
+export async function alertOnTokenExpiry(
+  organizationId: string,
+  platform: string,
+): Promise<void> {
   await sendSocialMediaAlert({
     severity: "medium",
     title: "Social Media Token Expired",
@@ -137,7 +196,7 @@ export async function alertOnTokenExpiry(organizationId: string, platform: strin
 
 export async function alertOnRateLimit(
   platform: string,
-  retryAfter?: number
+  retryAfter?: number,
 ): Promise<void> {
   await sendSocialMediaAlert({
     severity: "low",
@@ -146,4 +205,3 @@ export async function alertOnRateLimit(
     platforms: [platform],
   });
 }
-

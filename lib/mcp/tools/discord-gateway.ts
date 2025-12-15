@@ -13,7 +13,11 @@ import {
 } from "@/lib/services/discord-gateway";
 import type { AuthResultWithOrg, ToolResponse } from "./types";
 import { successResponse, errorResponse } from "./types";
-import type { NewDiscordEventRoute, DiscordEventType, DiscordRouteType } from "@/db/schemas/discord-gateway";
+import type {
+  NewDiscordEventRoute,
+  DiscordEventType,
+  DiscordRouteType,
+} from "@/db/schemas/discord-gateway";
 
 // =============================================================================
 // SCHEMAS
@@ -32,7 +36,10 @@ const listRoutesSchema = z.object({
 const createRouteSchema = z.object({
   platformConnectionId: z.string().uuid().describe("Platform connection ID"),
   guildId: z.string().describe("Discord guild ID"),
-  channelId: z.string().optional().describe("Discord channel ID (optional, null = all channels)"),
+  channelId: z
+    .string()
+    .optional()
+    .describe("Discord channel ID (optional, null = all channels)"),
   eventType: z
     .enum([
       "MESSAGE_CREATE",
@@ -57,11 +64,24 @@ const createRouteSchema = z.object({
     .describe("Discord event type to route"),
   routeType: z
     .enum(["a2a", "mcp", "webhook", "container", "internal"])
-    .describe("Where to route events (a2a = A2A endpoint, mcp = MCP endpoint, webhook = custom URL, container = agent container)"),
+    .describe(
+      "Where to route events (a2a = A2A endpoint, mcp = MCP endpoint, webhook = custom URL, container = agent container)",
+    ),
   routeTarget: z.string().describe("Target agent ID, URL, or container ID"),
-  mentionOnly: z.boolean().optional().default(false).describe("Only route when bot is @mentioned"),
-  commandPrefix: z.string().optional().describe("Only route messages starting with this prefix"),
-  filterBotMessages: z.boolean().optional().default(true).describe("Filter out messages from other bots"),
+  mentionOnly: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe("Only route when bot is @mentioned"),
+  commandPrefix: z
+    .string()
+    .optional()
+    .describe("Only route messages starting with this prefix"),
+  filterBotMessages: z
+    .boolean()
+    .optional()
+    .default(true)
+    .describe("Filter out messages from other bots"),
 });
 
 const updateRouteSchema = z.object({
@@ -69,8 +89,14 @@ const updateRouteSchema = z.object({
   enabled: z.boolean().optional().describe("Enable/disable the route"),
   mentionOnly: z.boolean().optional().describe("Only route when bot mentioned"),
   commandPrefix: z.string().optional().describe("Command prefix filter"),
-  priority: z.number().optional().describe("Route priority (higher = checked first)"),
-  rateLimitPerMinute: z.number().optional().describe("Rate limit (requests per minute)"),
+  priority: z
+    .number()
+    .optional()
+    .describe("Route priority (higher = checked first)"),
+  rateLimitPerMinute: z
+    .number()
+    .optional()
+    .describe("Rate limit (requests per minute)"),
 });
 
 const deleteRouteSchema = z.object({
@@ -83,7 +109,11 @@ const getHealthSchema = z.object({});
 const sendMessageSchema = z.object({
   connectionId: z.string().uuid().describe("Discord bot connection ID"),
   channelId: z.string().describe("Discord channel ID to send to"),
-  content: z.string().max(2000).optional().describe("Message text content (max 2000 chars)"),
+  content: z
+    .string()
+    .max(2000)
+    .optional()
+    .describe("Message text content (max 2000 chars)"),
   embeds: z
     .array(
       z.object({
@@ -97,13 +127,13 @@ const sendMessageSchema = z.object({
               name: z.string(),
               value: z.string(),
               inline: z.boolean().optional(),
-            })
+            }),
           )
           .optional(),
         footer: z.object({ text: z.string() }).optional(),
         image: z.object({ url: z.string() }).optional(),
         thumbnail: z.object({ url: z.string() }).optional(),
-      })
+      }),
     )
     .optional()
     .describe("Rich embed objects"),
@@ -127,13 +157,21 @@ const addReactionSchema = z.object({
   connectionId: z.string().uuid().describe("Discord bot connection ID"),
   channelId: z.string().describe("Discord channel ID"),
   messageId: z.string().describe("Message ID to react to"),
-  emoji: z.string().describe("Emoji to add (e.g., '👍' or custom emoji format)"),
+  emoji: z
+    .string()
+    .describe("Emoji to add (e.g., '👍' or custom emoji format)"),
 });
 
 const getMessagesSchema = z.object({
   connectionId: z.string().uuid().describe("Discord bot connection ID"),
   channelId: z.string().describe("Discord channel ID"),
-  limit: z.number().min(1).max(100).optional().default(50).describe("Number of messages to fetch"),
+  limit: z
+    .number()
+    .min(1)
+    .max(100)
+    .optional()
+    .default(50)
+    .describe("Number of messages to fetch"),
   before: z.string().optional().describe("Get messages before this message ID"),
 });
 
@@ -154,9 +192,11 @@ const createThreadSchema = z.object({
 
 async function handleListConnections(
   _args: z.infer<typeof listConnectionsSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
-  const connections = await discordGatewayService.getBotStatus(auth.user.organization_id);
+  const connections = await discordGatewayService.getBotStatus(
+    auth.user.organization_id,
+  );
 
   return successResponse({
     connections: connections.map((c) => ({
@@ -175,9 +215,11 @@ async function handleListConnections(
 
 async function handleGetConnection(
   args: z.infer<typeof getConnectionSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
-  const status = await discordGatewayService.getBotStatusById(args.connectionId);
+  const status = await discordGatewayService.getBotStatusById(
+    args.connectionId,
+  );
 
   if (!status || status.organizationId !== auth.user.organization_id) {
     return errorResponse(new Error("Connection not found"));
@@ -202,7 +244,7 @@ async function handleGetConnection(
 
 async function handleListRoutes(
   args: z.infer<typeof listRoutesSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   let routes = await discordEventRouter.getRoutes(auth.user.organization_id);
 
@@ -232,7 +274,7 @@ async function handleListRoutes(
 
 async function handleCreateRoute(
   args: z.infer<typeof createRouteSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   const routeData: NewDiscordEventRoute = {
     organization_id: auth.user.organization_id,
@@ -262,7 +304,7 @@ async function handleCreateRoute(
 
 async function handleUpdateRoute(
   args: z.infer<typeof updateRouteSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   // Verify ownership
   const routes = await discordEventRouter.getRoutes(auth.user.organization_id);
@@ -294,7 +336,7 @@ async function handleUpdateRoute(
 
 async function handleDeleteRoute(
   args: z.infer<typeof deleteRouteSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   // Verify ownership
   const routes = await discordEventRouter.getRoutes(auth.user.organization_id);
@@ -315,7 +357,7 @@ async function handleDeleteRoute(
 
 async function handleGetHealth(
   _args: z.infer<typeof getHealthSchema>,
-  _auth: AuthResultWithOrg
+  _auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   const health = await discordGatewayService.getHealth();
 
@@ -340,10 +382,12 @@ async function handleGetHealth(
 // Message sending handlers
 async function handleSendMessage(
   args: z.infer<typeof sendMessageSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   // Verify ownership
-  const status = await discordGatewayService.getBotStatusById(args.connectionId);
+  const status = await discordGatewayService.getBotStatusById(
+    args.connectionId,
+  );
   if (!status || status.organizationId !== auth.user.organization_id) {
     return errorResponse(new Error("Connection not found"));
   }
@@ -367,9 +411,11 @@ async function handleSendMessage(
 
 async function handleEditMessage(
   args: z.infer<typeof editMessageSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
-  const status = await discordGatewayService.getBotStatusById(args.connectionId);
+  const status = await discordGatewayService.getBotStatusById(
+    args.connectionId,
+  );
   if (!status || status.organizationId !== auth.user.organization_id) {
     return errorResponse(new Error("Connection not found"));
   }
@@ -378,7 +424,7 @@ async function handleEditMessage(
     args.connectionId,
     args.channelId,
     args.messageId,
-    args.content
+    args.content,
   );
 
   if (!result.success) {
@@ -390,9 +436,11 @@ async function handleEditMessage(
 
 async function handleDeleteMessage(
   args: z.infer<typeof deleteMessageSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
-  const status = await discordGatewayService.getBotStatusById(args.connectionId);
+  const status = await discordGatewayService.getBotStatusById(
+    args.connectionId,
+  );
   if (!status || status.organizationId !== auth.user.organization_id) {
     return errorResponse(new Error("Connection not found"));
   }
@@ -400,7 +448,7 @@ async function handleDeleteMessage(
   const success = await discordMessageSender.deleteMessage(
     args.connectionId,
     args.channelId,
-    args.messageId
+    args.messageId,
   );
 
   if (!success) {
@@ -412,9 +460,11 @@ async function handleDeleteMessage(
 
 async function handleAddReaction(
   args: z.infer<typeof addReactionSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
-  const status = await discordGatewayService.getBotStatusById(args.connectionId);
+  const status = await discordGatewayService.getBotStatusById(
+    args.connectionId,
+  );
   if (!status || status.organizationId !== auth.user.organization_id) {
     return errorResponse(new Error("Connection not found"));
   }
@@ -423,7 +473,7 @@ async function handleAddReaction(
     args.connectionId,
     args.channelId,
     args.messageId,
-    args.emoji
+    args.emoji,
   );
 
   if (!success) {
@@ -435,17 +485,23 @@ async function handleAddReaction(
 
 async function handleGetMessages(
   args: z.infer<typeof getMessagesSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
-  const status = await discordGatewayService.getBotStatusById(args.connectionId);
+  const status = await discordGatewayService.getBotStatusById(
+    args.connectionId,
+  );
   if (!status || status.organizationId !== auth.user.organization_id) {
     return errorResponse(new Error("Connection not found"));
   }
 
-  const messages = await discordMessageSender.getMessages(args.connectionId, args.channelId, {
-    limit: args.limit,
-    before: args.before,
-  });
+  const messages = await discordMessageSender.getMessages(
+    args.connectionId,
+    args.channelId,
+    {
+      limit: args.limit,
+      before: args.before,
+    },
+  );
 
   return successResponse({
     messages: messages.map((m) => ({
@@ -471,9 +527,11 @@ async function handleGetMessages(
 
 async function handleCreateThread(
   args: z.infer<typeof createThreadSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
-  const status = await discordGatewayService.getBotStatusById(args.connectionId);
+  const status = await discordGatewayService.getBotStatusById(
+    args.connectionId,
+  );
   if (!status || status.organizationId !== auth.user.organization_id) {
     return errorResponse(new Error("Connection not found"));
   }
@@ -487,7 +545,7 @@ async function handleCreateThread(
     args.channelId,
     args.messageId,
     args.name,
-    duration
+    duration,
   );
 
   if (!result.success) {
@@ -509,24 +567,28 @@ export const discordGatewayTools = {
     handler: handleListConnections,
   },
   discord_get_connection: {
-    description: "Get details of a specific Discord bot connection including status, guild count, and event stats",
+    description:
+      "Get details of a specific Discord bot connection including status, guild count, and event stats",
     schema: getConnectionSchema,
     handler: handleGetConnection,
   },
 
   // Route management
   discord_list_routes: {
-    description: "List Discord event routes that determine how messages are forwarded to agents",
+    description:
+      "List Discord event routes that determine how messages are forwarded to agents",
     schema: listRoutesSchema,
     handler: handleListRoutes,
   },
   discord_create_route: {
-    description: "Create a new Discord event route to forward messages/events to an agent via A2A, MCP, webhook, or container",
+    description:
+      "Create a new Discord event route to forward messages/events to an agent via A2A, MCP, webhook, or container",
     schema: createRouteSchema,
     handler: handleCreateRoute,
   },
   discord_update_route: {
-    description: "Update a Discord event route configuration (enable/disable, filters, priority)",
+    description:
+      "Update a Discord event route configuration (enable/disable, filters, priority)",
     schema: updateRouteSchema,
     handler: handleUpdateRoute,
   },
@@ -538,14 +600,16 @@ export const discordGatewayTools = {
 
   // Health & monitoring
   discord_gateway_health: {
-    description: "Get Discord gateway service health status including connected bots, queue stats, and shard information",
+    description:
+      "Get Discord gateway service health status including connected bots, queue stats, and shard information",
     schema: getHealthSchema,
     handler: handleGetHealth,
   },
 
   // Message operations
   discord_send_message: {
-    description: "Send a message to a Discord channel. Supports text content, rich embeds, and replies",
+    description:
+      "Send a message to a Discord channel. Supports text content, rich embeds, and replies",
     schema: sendMessageSchema,
     handler: handleSendMessage,
   },
@@ -555,7 +619,8 @@ export const discordGatewayTools = {
     handler: handleEditMessage,
   },
   discord_delete_message: {
-    description: "Delete a message from a Discord channel (requires bot permissions)",
+    description:
+      "Delete a message from a Discord channel (requires bot permissions)",
     schema: deleteMessageSchema,
     handler: handleDeleteMessage,
   },

@@ -51,57 +51,75 @@ async function getAccessToken(
   clientId: string,
   clientSecret: string,
   username: string,
-  password: string
+  password: string,
 ): Promise<string> {
   const auth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 
   const { data } = await withRetry<RedditToken>(
-    () => fetch(`${REDDIT_AUTH_BASE}/access_token`, {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${auth}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-        "User-Agent": "ElizaCloud/1.0 (social-media-automation)",
-      },
-      body: new URLSearchParams({ grant_type: "password", username, password }),
-    }),
+    () =>
+      fetch(`${REDDIT_AUTH_BASE}/access_token`, {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${auth}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": "ElizaCloud/1.0 (social-media-automation)",
+        },
+        body: new URLSearchParams({
+          grant_type: "password",
+          username,
+          password,
+        }),
+      }),
     async (response) => {
       const json = await response.json();
       if (json.error) throw new Error(json.error_description || json.error);
       return json;
     },
-    { platform: "reddit", maxRetries: 2 }
+    { platform: "reddit", maxRetries: 2 },
   );
 
   return data.access_token;
 }
 
-async function redditApiRequest<T>(endpoint: string, accessToken: string, options: RequestInit = {}): Promise<T> {
-  const url = endpoint.startsWith("http") ? endpoint : `${REDDIT_API_BASE}${endpoint}`;
+async function redditApiRequest<T>(
+  endpoint: string,
+  accessToken: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const url = endpoint.startsWith("http")
+    ? endpoint
+    : `${REDDIT_API_BASE}${endpoint}`;
 
   const { data } = await withRetry<T>(
-    () => fetch(url, {
-      ...options,
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-        "User-Agent": "ElizaCloud/1.0 (social-media-automation)",
-        ...options.headers,
-      },
-    }),
+    () =>
+      fetch(url, {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": "ElizaCloud/1.0 (social-media-automation)",
+          ...options.headers,
+        },
+      }),
     async (response) => {
       const json = await response.json();
       if (json.error) throw new Error(json.error_description || json.error);
       return json;
     },
-    { platform: "reddit", maxRetries: 3 }
+    { platform: "reddit", maxRetries: 3 },
   );
 
   return data;
 }
 
-async function redditApiRequestLegacy<T>(endpoint: string, accessToken: string, options: RequestInit = {}): Promise<T> {
-  const url = endpoint.startsWith("http") ? endpoint : `${REDDIT_API_BASE}${endpoint}`;
+async function redditApiRequestLegacy<T>(
+  endpoint: string,
+  accessToken: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const url = endpoint.startsWith("http")
+    ? endpoint
+    : `${REDDIT_API_BASE}${endpoint}`;
 
   const response = await fetch(url, {
     ...options,
@@ -120,7 +138,6 @@ async function redditApiRequestLegacy<T>(endpoint: string, accessToken: string, 
 
   return response.json();
 }
-
 
 export const redditProvider: SocialMediaProvider = {
   platform: "reddit",
@@ -143,13 +160,13 @@ export const redditProvider: SocialMediaProvider = {
         credentials.apiKey,
         credentials.apiSecret,
         credentials.username,
-        credentials.password
+        credentials.password,
       );
 
       const user = await redditApiRequest<{ data: RedditUser }>(
         "/api/v1/me",
         accessToken,
-        { headers: { "Content-Type": "application/json" } }
+        { headers: { "Content-Type": "application/json" } },
       );
 
       return {
@@ -170,7 +187,7 @@ export const redditProvider: SocialMediaProvider = {
   async createPost(
     credentials: SocialCredentials,
     content: PostContent,
-    options?: PlatformPostOptions
+    options?: PlatformPostOptions,
   ): Promise<PostResult> {
     if (
       !credentials.apiKey ||
@@ -189,7 +206,11 @@ export const redditProvider: SocialMediaProvider = {
     const title = options?.reddit?.title;
 
     if (!subreddit) {
-      return { platform: "reddit", success: false, error: "Subreddit required" };
+      return {
+        platform: "reddit",
+        success: false,
+        error: "Subreddit required",
+      };
     }
 
     if (!title) {
@@ -201,7 +222,7 @@ export const redditProvider: SocialMediaProvider = {
         credentials.apiKey,
         credentials.apiSecret,
         credentials.username,
-        credentials.password
+        credentials.password,
       );
 
       logger.info("[Reddit] Creating post", {
@@ -274,7 +295,11 @@ export const redditProvider: SocialMediaProvider = {
 
       const postData = response.json.data;
       if (!postData) {
-        return { platform: "reddit", success: false, error: "No post data returned" };
+        return {
+          platform: "reddit",
+          success: false,
+          error: "No post data returned",
+        };
       }
 
       return {
@@ -308,7 +333,7 @@ export const redditProvider: SocialMediaProvider = {
         credentials.apiKey,
         credentials.apiSecret,
         credentials.username,
-        credentials.password
+        credentials.password,
       );
 
       // Reddit uses fullname (t3_id) for submissions
@@ -330,7 +355,7 @@ export const redditProvider: SocialMediaProvider = {
 
   async getPostAnalytics(
     credentials: SocialCredentials,
-    postId: string
+    postId: string,
   ): Promise<PostAnalytics | null> {
     if (
       !credentials.apiKey ||
@@ -346,7 +371,7 @@ export const redditProvider: SocialMediaProvider = {
         credentials.apiKey,
         credentials.apiSecret,
         credentials.username,
-        credentials.password
+        credentials.password,
       );
 
       const cleanId = postId.replace("t3_", "");
@@ -376,7 +401,7 @@ export const redditProvider: SocialMediaProvider = {
   },
 
   async getAccountAnalytics(
-    credentials: SocialCredentials
+    credentials: SocialCredentials,
   ): Promise<AccountAnalytics | null> {
     if (
       !credentials.apiKey ||
@@ -392,20 +417,21 @@ export const redditProvider: SocialMediaProvider = {
         credentials.apiKey,
         credentials.apiSecret,
         credentials.username,
-        credentials.password
+        credentials.password,
       );
 
       const user = await redditApiRequest<{ data: RedditUser }>(
         "/api/v1/me",
         accessToken,
-        { headers: { "Content-Type": "application/json" } }
+        { headers: { "Content-Type": "application/json" } },
       );
 
       return {
         platform: "reddit",
         accountId: user.data.id,
         metrics: {
-          totalPosts: (user.data.link_karma || 0) + (user.data.comment_karma || 0),
+          totalPosts:
+            (user.data.link_karma || 0) + (user.data.comment_karma || 0),
         },
         fetchedAt: new Date(),
       };
@@ -417,7 +443,7 @@ export const redditProvider: SocialMediaProvider = {
   async replyToPost(
     credentials: SocialCredentials,
     postId: string,
-    content: PostContent
+    content: PostContent,
   ): Promise<PostResult> {
     if (
       !credentials.apiKey ||
@@ -425,7 +451,11 @@ export const redditProvider: SocialMediaProvider = {
       !credentials.username ||
       !credentials.password
     ) {
-      return { platform: "reddit", success: false, error: "Credentials required" };
+      return {
+        platform: "reddit",
+        success: false,
+        error: "Credentials required",
+      };
     }
 
     try {
@@ -433,7 +463,7 @@ export const redditProvider: SocialMediaProvider = {
         credentials.apiKey,
         credentials.apiSecret,
         credentials.username,
-        credentials.password
+        credentials.password,
       );
 
       const fullname = postId.startsWith("t3_") ? postId : `t3_${postId}`;
@@ -491,7 +521,7 @@ export const redditProvider: SocialMediaProvider = {
         credentials.apiKey,
         credentials.apiSecret,
         credentials.username,
-        credentials.password
+        credentials.password,
       );
 
       const fullname = postId.startsWith("t3_") ? postId : `t3_${postId}`;
@@ -513,4 +543,3 @@ export const redditProvider: SocialMediaProvider = {
     }
   },
 };
-

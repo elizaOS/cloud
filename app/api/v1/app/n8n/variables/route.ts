@@ -15,7 +15,8 @@ import { z } from "zod";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-App-Token, X-Api-Key",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, X-App-Token, X-Api-Key",
 };
 
 const CreateVariableSchema = z.object({
@@ -42,11 +43,13 @@ export async function GET(request: NextRequest) {
     if (apps.length === 0) {
       return NextResponse.json(
         { success: false, error: "No app found for this organization" },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: corsHeaders },
       );
     }
 
-    const variables = await n8nWorkflowsService.getGlobalVariables(user.organization_id);
+    const variables = await n8nWorkflowsService.getGlobalVariables(
+      user.organization_id,
+    );
 
     return NextResponse.json(
       {
@@ -62,16 +65,17 @@ export async function GET(request: NextRequest) {
           updatedAt: v.updated_at,
         })),
       },
-      { headers: corsHeaders }
+      { headers: corsHeaders },
     );
   } catch (error) {
     logger.error("[App N8N Variables] Error listing variables:", error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to list variables",
+        error:
+          error instanceof Error ? error.message : "Failed to list variables",
       },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: corsHeaders },
     );
   }
 }
@@ -88,7 +92,7 @@ export async function POST(request: NextRequest) {
     if (apps.length === 0) {
       return NextResponse.json(
         { success: false, error: "No app found for this organization" },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: corsHeaders },
       );
     }
 
@@ -104,7 +108,7 @@ export async function POST(request: NextRequest) {
           error: "Invalid request",
           details: validation.error.format(),
         },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: corsHeaders },
       );
     }
 
@@ -138,17 +142,17 @@ export async function POST(request: NextRequest) {
           updatedAt: variable.updated_at,
         },
       },
-      { headers: corsHeaders }
+      { headers: corsHeaders },
     );
   } catch (error) {
     logger.error("[App N8N Variables] Error creating variable:", error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to create variable",
+        error:
+          error instanceof Error ? error.message : "Failed to create variable",
       },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: corsHeaders },
     );
   }
 }
-

@@ -16,14 +16,18 @@ import {
   getZeroExService,
   getDefinedService,
 } from "@/lib/services/defi";
-import { successResponse, errorResponse, type AuthResultWithOrg } from "../types";
+import {
+  successResponse,
+  errorResponse,
+  type AuthResultWithOrg,
+} from "../types";
 
 /**
  * Register all DeFi tools with the MCP server
  */
 export function registerDeFiTools(
   server: McpServer,
-  getAuthContext: () => AuthResultWithOrg
+  getAuthContext: () => AuthResultWithOrg,
 ) {
   // ============================================
   // PRICE & MARKET DATA TOOLS
@@ -44,7 +48,7 @@ export function registerDeFiTools(
         identifier: z
           .string()
           .describe(
-            "Token address (Solana), CoinGecko ID, or symbol depending on source"
+            "Token address (Solana), CoinGecko ID, or symbol depending on source",
           ),
         chain: z
           .enum(["solana", "ethereum", "base", "polygon", "arbitrum", "bsc"])
@@ -92,9 +96,11 @@ export function registerDeFiTools(
           },
         });
       } catch (error) {
-        return errorResponse(error instanceof Error ? error : new Error(String(error)));
+        return errorResponse(
+          error instanceof Error ? error : new Error(String(error)),
+        );
       }
-    }
+    },
   );
 
   // Get trending tokens
@@ -153,16 +159,19 @@ export function registerDeFiTools(
           })),
         });
       } catch (error) {
-        return errorResponse(error instanceof Error ? error : new Error(String(error)));
+        return errorResponse(
+          error instanceof Error ? error : new Error(String(error)),
+        );
       }
-    }
+    },
   );
 
   // Get global market overview
   server.registerTool(
     "defi_get_market_overview",
     {
-      description: "Get global cryptocurrency market overview with total market cap, volume, and dominance",
+      description:
+        "Get global cryptocurrency market overview with total market cap, volume, and dominance",
       inputSchema: {
         source: z
           .enum(["coingecko", "coinmarketcap"])
@@ -195,9 +204,11 @@ export function registerDeFiTools(
           },
         });
       } catch (error) {
-        return errorResponse(error instanceof Error ? error : new Error(String(error)));
+        return errorResponse(
+          error instanceof Error ? error : new Error(String(error)),
+        );
       }
-    }
+    },
   );
 
   // ============================================
@@ -208,7 +219,8 @@ export function registerDeFiTools(
   server.registerTool(
     "defi_solana_token_overview",
     {
-      description: "Get detailed Solana token overview including liquidity, volume, holders, and price",
+      description:
+        "Get detailed Solana token overview including liquidity, volume, holders, and price",
       inputSchema: {
         address: z.string().describe("Solana token mint address"),
       },
@@ -235,9 +247,11 @@ export function registerDeFiTools(
           lastTradeTime: overview.lastTradeHumanTime,
         });
       } catch (error) {
-        return errorResponse(error instanceof Error ? error : new Error(String(error)));
+        return errorResponse(
+          error instanceof Error ? error : new Error(String(error)),
+        );
       }
-    }
+    },
   );
 
   // Get Solana wallet portfolio (Birdeye)
@@ -269,9 +283,11 @@ export function registerDeFiTools(
           })),
         });
       } catch (error) {
-        return errorResponse(error instanceof Error ? error : new Error(String(error)));
+        return errorResponse(
+          error instanceof Error ? error : new Error(String(error)),
+        );
       }
-    }
+    },
   );
 
   // Get Jupiter swap quote
@@ -282,7 +298,9 @@ export function registerDeFiTools(
       inputSchema: {
         inputMint: z.string().describe("Input token mint address"),
         outputMint: z.string().describe("Output token mint address"),
-        amount: z.string().describe("Input amount in smallest units (lamports)"),
+        amount: z
+          .string()
+          .describe("Input amount in smallest units (lamports)"),
         slippageBps: z
           .number()
           .int()
@@ -323,16 +341,19 @@ export function registerDeFiTools(
           })),
         });
       } catch (error) {
-        return errorResponse(error instanceof Error ? error : new Error(String(error)));
+        return errorResponse(
+          error instanceof Error ? error : new Error(String(error)),
+        );
       }
-    }
+    },
   );
 
   // Get Helius transaction history
   server.registerTool(
     "defi_helius_transactions",
     {
-      description: "Get parsed transaction history for a Solana address using Helius",
+      description:
+        "Get parsed transaction history for a Solana address using Helius",
       inputSchema: {
         address: z.string().describe("Solana address"),
         limit: z
@@ -364,9 +385,11 @@ export function registerDeFiTools(
           hasMore: result.hasMore,
         });
       } catch (error) {
-        return errorResponse(error instanceof Error ? error : new Error(String(error)));
+        return errorResponse(
+          error instanceof Error ? error : new Error(String(error)),
+        );
       }
-    }
+    },
   );
 
   // ============================================
@@ -383,7 +406,15 @@ export function registerDeFiTools(
         buyToken: z.string().describe("Token address to buy"),
         sellAmount: z.string().describe("Amount to sell in smallest units"),
         chain: z
-          .enum(["ethereum", "polygon", "bsc", "arbitrum", "optimism", "base", "avalanche"])
+          .enum([
+            "ethereum",
+            "polygon",
+            "bsc",
+            "arbitrum",
+            "optimism",
+            "base",
+            "avalanche",
+          ])
           .optional()
           .default("ethereum")
           .describe("EVM chain"),
@@ -401,7 +432,7 @@ export function registerDeFiTools(
         const zeroex = getZeroExService();
         const quote = await zeroex.getQuote(
           { sellToken, buyToken, sellAmount, slippagePercentage },
-          chain
+          chain,
         );
 
         return successResponse({
@@ -418,9 +449,11 @@ export function registerDeFiTools(
           })),
         });
       } catch (error) {
-        return errorResponse(error instanceof Error ? error : new Error(String(error)));
+        return errorResponse(
+          error instanceof Error ? error : new Error(String(error)),
+        );
       }
-    }
+    },
   );
 
   // ============================================
@@ -459,9 +492,11 @@ export function registerDeFiTools(
           })),
         });
       } catch (error) {
-        return errorResponse(error instanceof Error ? error : new Error(String(error)));
+        return errorResponse(
+          error instanceof Error ? error : new Error(String(error)),
+        );
       }
-    }
+    },
   );
 
   // Get token holders
@@ -491,7 +526,7 @@ export function registerDeFiTools(
         const result = await defined.getTokenHolders(
           address,
           networkId as Parameters<typeof defined.getTokenHolders>[1],
-          { limit }
+          { limit },
         );
 
         return successResponse({
@@ -504,9 +539,11 @@ export function registerDeFiTools(
           })),
         });
       } catch (error) {
-        return errorResponse(error instanceof Error ? error : new Error(String(error)));
+        return errorResponse(
+          error instanceof Error ? error : new Error(String(error)),
+        );
       }
-    }
+    },
   );
 
   // ============================================
@@ -524,7 +561,9 @@ export function registerDeFiTools(
           .optional()
           .default("coingecko")
           .describe("Data source"),
-        identifier: z.string().describe("Token address (Birdeye) or CoinGecko ID"),
+        identifier: z
+          .string()
+          .describe("Token address (Birdeye) or CoinGecko ID"),
         interval: z
           .enum(["1m", "5m", "15m", "1H", "4H", "1D", "1W"])
           .optional()
@@ -543,7 +582,9 @@ export function registerDeFiTools(
 
         if (source === "birdeye") {
           const birdeye = getBirdeyeService();
-          ohlcv = await birdeye.getOHLCV(identifier, { interval: interval as "1H" });
+          ohlcv = await birdeye.getOHLCV(identifier, {
+            interval: interval as "1H",
+          });
         } else {
           const coingecko = getCoinGeckoService();
           ohlcv = await coingecko.getOHLC(identifier, { days: days as "7" });
@@ -562,9 +603,11 @@ export function registerDeFiTools(
           })),
         });
       } catch (error) {
-        return errorResponse(error instanceof Error ? error : new Error(String(error)));
+        return errorResponse(
+          error instanceof Error ? error : new Error(String(error)),
+        );
       }
-    }
+    },
   );
 
   // ============================================
@@ -587,7 +630,7 @@ export function registerDeFiTools(
               "coinmarketcap",
               "zeroex",
               "defined",
-            ])
+            ]),
           )
           .optional()
           .describe("Services to check (all if not specified)"),
@@ -595,7 +638,8 @@ export function registerDeFiTools(
     },
     async ({ services }) => {
       try {
-        const checks: Record<string, { healthy: boolean; latencyMs: number }> = {};
+        const checks: Record<string, { healthy: boolean; latencyMs: number }> =
+          {};
         const allServices = services ?? [
           "birdeye",
           "jupiter",
@@ -649,9 +693,10 @@ export function registerDeFiTools(
           services: checks,
         });
       } catch (error) {
-        return errorResponse(error instanceof Error ? error : new Error(String(error)));
+        return errorResponse(
+          error instanceof Error ? error : new Error(String(error)),
+        );
       }
-    }
+    },
   );
 }
-

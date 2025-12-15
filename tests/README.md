@@ -12,15 +12,15 @@ bun run test:playwright     # E2E browser tests
 
 ## Test Categories
 
-| Category | Command | Description |
-|----------|---------|-------------|
-| Secrets | `test:unit:secrets` | Encryption, bindings, API routes |
-| Domain | `test:unit:domain` | Registration, verification, moderation |
-| Services | `test:unit:services` | Individual service unit tests |
-| Misc | `test:unit:misc` | A2A, MCP, webhooks, etc |
-| Security | `test:security` | Regression tests for exploits |
-| Integration | `test:integration` | Real database tests |
-| E2E | `test:e2e` | Full server tests |
+| Category    | Command              | Description                            |
+| ----------- | -------------------- | -------------------------------------- |
+| Secrets     | `test:unit:secrets`  | Encryption, bindings, API routes       |
+| Domain      | `test:unit:domain`   | Registration, verification, moderation |
+| Services    | `test:unit:services` | Individual service unit tests          |
+| Misc        | `test:unit:misc`     | A2A, MCP, webhooks, etc                |
+| Security    | `test:security`      | Regression tests for exploits          |
+| Integration | `test:integration`   | Real database tests                    |
+| E2E         | `test:e2e`           | Full server tests                      |
 
 ## Structure
 
@@ -48,5 +48,6 @@ bun run test:unit && bun run test:integration
 ## Environment
 
 Integration tests require:
+
 - `DATABASE_URL` - Neon connection string
 - `SECRETS_MASTER_KEY` - 64 hex chars

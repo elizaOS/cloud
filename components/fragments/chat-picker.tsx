@@ -37,7 +37,7 @@ export function ChatPicker({
       acc[model.provider].push(model);
       return acc;
     },
-    {} as Record<string, LLMModel[]>
+    {} as Record<string, LLMModel[]>,
   );
 
   return (
@@ -85,7 +85,9 @@ export function ChatPicker({
           <SelectContent className="max-h-[200px] sm:max-h-none">
             {Object.entries(groupedModels).map(([provider, providerModels]) => (
               <SelectGroup key={provider}>
-                <SelectLabel className="text-xs sm:text-sm">{provider}</SelectLabel>
+                <SelectLabel className="text-xs sm:text-sm">
+                  {provider}
+                </SelectLabel>
                 {providerModels.map((model) => (
                   <SelectItem key={model.id} value={model.id}>
                     <span className="text-xs sm:text-sm">{model.name}</span>
@@ -99,4 +101,3 @@ export function ChatPicker({
     </div>
   );
 }
-

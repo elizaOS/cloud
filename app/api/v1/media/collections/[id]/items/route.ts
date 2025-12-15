@@ -18,12 +18,15 @@ interface RouteParams {
 }
 
 const AddItemsSchema = z.object({
-  items: z.array(
-    z.object({
-      sourceType: z.enum(["generation", "upload"]),
-      sourceId: z.string().uuid(),
-    })
-  ).min(1).max(50),
+  items: z
+    .array(
+      z.object({
+        sourceType: z.enum(["generation", "upload"]),
+        sourceId: z.string().uuid(),
+      }),
+    )
+    .min(1)
+    .max(50),
 });
 
 const RemoveItemsSchema = z.object({
@@ -40,11 +43,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   // Verify ownership
   const isOwner = await mediaCollectionsService.validateOwnership(
     id,
-    user.organization_id!
+    user.organization_id!,
   );
 
   if (!isOwner) {
-    return NextResponse.json({ error: "Collection not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Collection not found" },
+      { status: 404 },
+    );
   }
 
   const items = await mediaCollectionsService.getItems(id);
@@ -76,11 +82,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   // Verify ownership
   const isOwner = await mediaCollectionsService.validateOwnership(
     id,
-    user.organization_id!
+    user.organization_id!,
   );
 
   if (!isOwner) {
-    return NextResponse.json({ error: "Collection not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Collection not found" },
+      { status: 404 },
+    );
   }
 
   const body = await request.json();
@@ -89,11 +98,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
-  const addedCount = await mediaCollectionsService.addItems(id, parsed.data.items);
+  const addedCount = await mediaCollectionsService.addItems(
+    id,
+    parsed.data.items,
+  );
 
   return NextResponse.json({
     added: addedCount,
@@ -111,11 +123,14 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   // Verify ownership
   const isOwner = await mediaCollectionsService.validateOwnership(
     id,
-    user.organization_id!
+    user.organization_id!,
   );
 
   if (!isOwner) {
-    return NextResponse.json({ error: "Collection not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Collection not found" },
+      { status: 404 },
+    );
   }
 
   const body = await request.json();
@@ -124,7 +139,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -135,4 +150,3 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     message: `Removed ${parsed.data.itemIds.length} items from collection`,
   });
 }
-

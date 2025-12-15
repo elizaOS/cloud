@@ -4,13 +4,13 @@
  * Lists available GPU types, pricing, and availability.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 interface GPUOption {
-  gpuType: 'H200' | 'H100' | 'A100_80' | 'A100_40' | 'RTX4090';
+  gpuType: "H200" | "H100" | "A100_80" | "A100_40" | "RTX4090";
   available: number;
   pricePerHourWei: string;
   memoryGb: number;
@@ -22,49 +22,49 @@ interface GPUOption {
 // GPU options - would come from on-chain registry in production
 const GPU_OPTIONS: GPUOption[] = [
   {
-    gpuType: 'H200',
+    gpuType: "H200",
     available: 10,
-    pricePerHourWei: '5000000000000000', // 0.005 ETH/hr
+    pricePerHourWei: "5000000000000000", // 0.005 ETH/hr
     memoryGb: 80,
     teeCapable: true,
-    description: 'NVIDIA H200 80GB HBM3e - Best for large model training',
-    provider: 'Phala Network',
+    description: "NVIDIA H200 80GB HBM3e - Best for large model training",
+    provider: "Phala Network",
   },
   {
-    gpuType: 'H100',
+    gpuType: "H100",
     available: 20,
-    pricePerHourWei: '4000000000000000', // 0.004 ETH/hr
+    pricePerHourWei: "4000000000000000", // 0.004 ETH/hr
     memoryGb: 80,
     teeCapable: true,
-    description: 'NVIDIA H100 80GB HBM3 - Excellent for GRPO training',
-    provider: 'Phala Network',
+    description: "NVIDIA H100 80GB HBM3 - Excellent for GRPO training",
+    provider: "Phala Network",
   },
   {
-    gpuType: 'A100_80',
+    gpuType: "A100_80",
     available: 50,
-    pricePerHourWei: '2000000000000000', // 0.002 ETH/hr
+    pricePerHourWei: "2000000000000000", // 0.002 ETH/hr
     memoryGb: 80,
     teeCapable: false,
-    description: 'NVIDIA A100 80GB - Great value for medium models',
-    provider: 'Community Providers',
+    description: "NVIDIA A100 80GB - Great value for medium models",
+    provider: "Community Providers",
   },
   {
-    gpuType: 'A100_40',
+    gpuType: "A100_40",
     available: 100,
-    pricePerHourWei: '1500000000000000', // 0.0015 ETH/hr
+    pricePerHourWei: "1500000000000000", // 0.0015 ETH/hr
     memoryGb: 40,
     teeCapable: false,
-    description: 'NVIDIA A100 40GB - Cost-effective training',
-    provider: 'Community Providers',
+    description: "NVIDIA A100 40GB - Cost-effective training",
+    provider: "Community Providers",
   },
   {
-    gpuType: 'RTX4090',
+    gpuType: "RTX4090",
     available: 200,
-    pricePerHourWei: '500000000000000', // 0.0005 ETH/hr
+    pricePerHourWei: "500000000000000", // 0.0005 ETH/hr
     memoryGb: 24,
     teeCapable: false,
-    description: 'NVIDIA RTX 4090 24GB - Budget-friendly option',
-    provider: 'Community Providers',
+    description: "NVIDIA RTX 4090 24GB - Budget-friendly option",
+    provider: "Community Providers",
   },
 ];
 
@@ -80,6 +80,6 @@ export async function GET(_request: NextRequest) {
   return NextResponse.json({
     options: GPU_OPTIONS,
     lastUpdated: new Date().toISOString(),
-    network: 'jeju-mainnet',
+    network: "jeju-mainnet",
   });
 }

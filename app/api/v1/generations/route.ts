@@ -28,13 +28,13 @@ export async function GET(request: NextRequest) {
     generations = await generationsRepository.listByOrganizationAndType(
       user.organization_id!,
       type,
-      limit
+      limit,
     );
   } else {
     generations = await generationsRepository.listByOrganizationAndStatus(
       user.organization_id!,
       "completed",
-      { limit, offset }
+      { limit, offset },
     );
   }
 
@@ -60,4 +60,3 @@ export async function GET(request: NextRequest) {
     count: generations.length,
   });
 }
-

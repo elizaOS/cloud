@@ -399,4 +399,3 @@ export interface CoinGeckoExchange {
   trade_volume_24h_btc: number;
   trade_volume_24h_btc_normalized: number;
 }
-

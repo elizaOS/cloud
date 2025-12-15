@@ -1,6 +1,6 @@
 /**
  * Domain Management API
- * 
+ *
  * Manages custom domains for apps:
  * - GET: List all domains for an app
  * - POST: Add a custom domain
@@ -21,13 +21,17 @@ const AddDomainSchema = z.object({
     .max(253, "Domain must not exceed 253 characters")
     .regex(
       /^([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/,
-      "Invalid domain format"
+      "Invalid domain format",
     )
     .transform((d) => d.toLowerCase().trim()),
 });
 
 const RemoveDomainSchema = z.object({
-  domain: z.string().min(4).max(253).transform((d) => d.toLowerCase().trim()),
+  domain: z
+    .string()
+    .min(4)
+    .max(253)
+    .transform((d) => d.toLowerCase().trim()),
 });
 
 interface RouteParams {
@@ -40,7 +44,7 @@ interface RouteParams {
  */
 export async function GET(
   request: NextRequest,
-  { params }: RouteParams
+  { params }: RouteParams,
 ): Promise<NextResponse> {
   const user = await requireAuthWithOrg(request);
   const { id: appId } = await params;
@@ -49,7 +53,7 @@ export async function GET(
   if (!app || app.organization_id !== user.organization_id) {
     return NextResponse.json(
       { success: false, error: "App not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -67,7 +71,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: RouteParams
+  { params }: RouteParams,
 ): Promise<NextResponse> {
   const user = await requireAuthWithOrg(request);
   const { id: appId } = await params;
@@ -76,7 +80,7 @@ export async function POST(
   if (!app || app.organization_id !== user.organization_id) {
     return NextResponse.json(
       { success: false, error: "App not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -87,22 +91,26 @@ export async function POST(
     const firstError = validation.error.errors[0];
     return NextResponse.json(
       { success: false, error: firstError?.message || "Invalid domain format" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   const { domain } = validation.data;
 
-  logger.info("[Domains API] Adding domain", { appId, domain, userId: user.id });
+  logger.info("[Domains API] Adding domain", {
+    appId,
+    domain,
+    userId: user.id,
+  });
 
   // Check if Vercel is configured
   if (!process.env.VERCEL_TOKEN || !process.env.VERCEL_APP_PROJECT_ID) {
     return NextResponse.json(
-      { 
-        success: false, 
-        error: "Domain management is not configured. Please contact support." 
+      {
+        success: false,
+        error: "Domain management is not configured. Please contact support.",
       },
-      { status: 503 }
+      { status: 503 },
     );
   }
 
@@ -111,12 +119,15 @@ export async function POST(
   if (!result.success) {
     return NextResponse.json(
       { success: false, error: result.error || "Failed to add domain" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   const isApex = vercelDomainsService.isApexDomain(domain);
-  const dnsInstructions = vercelDomainsService.getDnsInstructions(domain, isApex);
+  const dnsInstructions = vercelDomainsService.getDnsInstructions(
+    domain,
+    isApex,
+  );
 
   return NextResponse.json({
     success: true,
@@ -134,7 +145,7 @@ export async function POST(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: RouteParams
+  { params }: RouteParams,
 ): Promise<NextResponse> {
   const user = await requireAuthWithOrg(request);
   const { id: appId } = await params;
@@ -143,7 +154,7 @@ export async function DELETE(
   if (!app || app.organization_id !== user.organization_id) {
     return NextResponse.json(
       { success: false, error: "App not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -153,20 +164,24 @@ export async function DELETE(
   if (!validation.success) {
     return NextResponse.json(
       { success: false, error: "Invalid domain format" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   const { domain } = validation.data;
 
-  logger.info("[Domains API] Removing domain", { appId, domain, userId: user.id });
+  logger.info("[Domains API] Removing domain", {
+    appId,
+    domain,
+    userId: user.id,
+  });
 
   const result = await vercelDomainsService.removeDomain(appId, domain);
 
   if (!result.success) {
     return NextResponse.json(
       { success: false, error: result.error || "Failed to remove domain" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 

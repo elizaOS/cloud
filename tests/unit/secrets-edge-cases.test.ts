@@ -5,9 +5,13 @@
  */
 
 import { describe, it, expect, beforeEach } from "bun:test";
-import { LocalKMSProvider, SecretsEncryptionService } from "@/lib/services/secrets/encryption";
+import {
+  LocalKMSProvider,
+  SecretsEncryptionService,
+} from "@/lib/services/secrets/encryption";
 
-const TEST_KEY = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+const TEST_KEY =
+  "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
 
 describe("Encryption Edge Cases", () => {
   let encryption: SecretsEncryptionService;
@@ -21,7 +25,7 @@ describe("Encryption Edge Cases", () => {
     it("encrypts empty string", async () => {
       const result = await encryption.encrypt("");
       expect(result.encryptedValue).toBeDefined();
-      
+
       const decrypted = await encryption.decrypt(result);
       expect(decrypted).toBe("");
     });
@@ -48,7 +52,9 @@ describe("Encryption Edge Cases", () => {
     });
 
     it("encrypts binary-like content (base64)", async () => {
-      const binaryLike = Buffer.from("binary\x00data\xffwith\x01nulls").toString("base64");
+      const binaryLike = Buffer.from(
+        "binary\x00data\xffwith\x01nulls",
+      ).toString("base64");
       const result = await encryption.encrypt(binaryLike);
       const decrypted = await encryption.decrypt(result);
       expect(decrypted).toBe(binaryLike);
@@ -60,7 +66,7 @@ Line 2 with "quotes"
 Line 3 with 'apostrophes'
 Line 4 with \t tabs
 Line 5 with \\ backslashes`;
-      
+
       const result = await encryption.encrypt(multiline);
       const decrypted = await encryption.decrypt(result);
       expect(decrypted).toBe(multiline);
@@ -71,36 +77,38 @@ Line 5 with \\ backslashes`;
     it("throws on tampered encrypted value", async () => {
       const result = await encryption.encrypt("secret");
       const corrupted = "TAMPERED" + result.encryptedValue.slice(8);
-      
+
       await expect(
-        encryption.decrypt({ ...result, encryptedValue: corrupted })
+        encryption.decrypt({ ...result, encryptedValue: corrupted }),
       ).rejects.toThrow();
     });
 
     it("throws on tampered auth tag", async () => {
       const result = await encryption.encrypt("secret");
       const corruptedTag = "0".repeat(result.authTag.length);
-      
+
       await expect(
-        encryption.decrypt({ ...result, authTag: corruptedTag })
+        encryption.decrypt({ ...result, authTag: corruptedTag }),
       ).rejects.toThrow();
     });
 
     it("throws on wrong DEK", async () => {
       const result = await encryption.encrypt("secret");
-      const wrongDek = Buffer.from("wrongwrongwrongwrongwrongwrongwrongwrongwrongwrongwrongwrongwrongwrong").toString("base64");
-      
+      const wrongDek = Buffer.from(
+        "wrongwrongwrongwrongwrongwrongwrongwrongwrongwrongwrongwrongwrongwrong",
+      ).toString("base64");
+
       await expect(
-        encryption.decrypt({ ...result, encryptedDek: wrongDek })
+        encryption.decrypt({ ...result, encryptedDek: wrongDek }),
       ).rejects.toThrow();
     });
 
     it("throws on truncated nonce", async () => {
       const result = await encryption.encrypt("secret");
       const truncatedNonce = result.nonce.slice(0, 4);
-      
+
       await expect(
-        encryption.decrypt({ ...result, nonce: truncatedNonce })
+        encryption.decrypt({ ...result, nonce: truncatedNonce }),
       ).rejects.toThrow();
     });
 
@@ -111,7 +119,7 @@ Line 5 with \\ backslashes`;
           encryptedDek: "not-valid",
           nonce: "not-valid",
           authTag: "not-valid",
-        })
+        }),
       ).rejects.toThrow();
     });
   });
@@ -125,7 +133,7 @@ Line 5 with \\ backslashes`;
         encryption.encrypt(value),
       ]);
 
-      const deks = results.map(r => r.encryptedDek);
+      const deks = results.map((r) => r.encryptedDek);
       const uniqueDeks = new Set(deks);
       expect(uniqueDeks.size).toBe(3);
     });
@@ -138,7 +146,7 @@ Line 5 with \\ backslashes`;
         encryption.encrypt(value),
       ]);
 
-      const nonces = results.map(r => r.nonce);
+      const nonces = results.map((r) => r.nonce);
       const uniqueNonces = new Set(nonces);
       expect(uniqueNonces.size).toBe(3);
     });
@@ -148,13 +156,15 @@ Line 5 with \\ backslashes`;
     it("throws when decrypting with different master key", async () => {
       const kms1 = new LocalKMSProvider(TEST_KEY);
       const enc1 = new SecretsEncryptionService(kms1);
-      
+
       const result = await enc1.encrypt("secret");
-      
+
       // Different master key
-      const kms2 = new LocalKMSProvider("1111111111111111111111111111111111111111111111111111111111111111");
+      const kms2 = new LocalKMSProvider(
+        "1111111111111111111111111111111111111111111111111111111111111111",
+      );
       const enc2 = new SecretsEncryptionService(kms2);
-      
+
       await expect(enc2.decrypt(result)).rejects.toThrow();
     });
   });
@@ -202,22 +212,22 @@ describe("Concurrent Encryption Operations", () => {
   it("handles many parallel encryptions", async () => {
     const kms = new LocalKMSProvider(TEST_KEY);
     const encryption = new SecretsEncryptionService(kms);
-    
-    const operations = Array.from({ length: 100 }, (_, i) => 
-      encryption.encrypt(`secret-value-${i}`)
+
+    const operations = Array.from({ length: 100 }, (_, i) =>
+      encryption.encrypt(`secret-value-${i}`),
     );
-    
+
     const results = await Promise.all(operations);
-    
+
     expect(results).toHaveLength(100);
-    
+
     // Verify all can be decrypted
     const decrypted = await Promise.all(
-      results.map((r, i) => 
-        encryption.decrypt(r).then(value => ({ index: i, value }))
-      )
+      results.map((r, i) =>
+        encryption.decrypt(r).then((value) => ({ index: i, value })),
+      ),
     );
-    
+
     for (const { index, value } of decrypted) {
       expect(value).toBe(`secret-value-${index}`);
     }
@@ -226,9 +236,9 @@ describe("Concurrent Encryption Operations", () => {
   it("handles interleaved encrypt/decrypt operations", async () => {
     const kms = new LocalKMSProvider(TEST_KEY);
     const encryption = new SecretsEncryptionService(kms);
-    
+
     const encrypted = await encryption.encrypt("original");
-    
+
     const operations = [
       encryption.encrypt("new-1"),
       encryption.decrypt(encrypted),
@@ -236,9 +246,9 @@ describe("Concurrent Encryption Operations", () => {
       encryption.decrypt(encrypted),
       encryption.encrypt("new-3"),
     ];
-    
+
     const results = await Promise.all(operations);
-    
+
     expect(typeof results[0]).toBe("object"); // encrypt result
     expect(results[1]).toBe("original"); // decrypt result
     expect(typeof results[2]).toBe("object");
@@ -276,7 +286,10 @@ describe("Special Character Handling", () => {
     { name: "zero-width", value: "secret\u200B\u200Czero-width" },
     { name: "newlines mix", value: "unix\nlf\r\ncrlf\rcr" },
     { name: "JSON-like", value: '{"key": "value", "nested": {"a": 1}}' },
-    { name: "SQL-like", value: "SELECT * FROM users WHERE id = 1; DROP TABLE users;" },
+    {
+      name: "SQL-like",
+      value: "SELECT * FROM users WHERE id = 1; DROP TABLE users;",
+    },
     { name: "HTML-like", value: "<script>alert('xss')</script>" },
     { name: "shell-like", value: "$(rm -rf /); `cat /etc/passwd`" },
   ];
@@ -301,14 +314,7 @@ describe("Provider Metadata Validation", () => {
     { array: [1, 2, 3] },
   ];
 
-  const invalidMetadata = [
-    null,
-    undefined,
-    "string",
-    123,
-    true,
-    ["array"],
-  ];
+  const invalidMetadata = [null, undefined, "string", 123, true, ["array"]];
 
   for (const meta of validMetadata) {
     it(`accepts valid metadata: ${JSON.stringify(meta).slice(0, 40)}`, () => {
@@ -320,12 +326,12 @@ describe("Provider Metadata Validation", () => {
 
   for (const meta of invalidMetadata) {
     it(`rejects invalid metadata: ${String(meta)}`, () => {
-      const isInvalid = meta === null || 
-                        meta === undefined || 
-                        typeof meta !== "object" ||
-                        Array.isArray(meta);
+      const isInvalid =
+        meta === null ||
+        meta === undefined ||
+        typeof meta !== "object" ||
+        Array.isArray(meta);
       expect(isInvalid).toBe(true);
     });
   }
 });
-

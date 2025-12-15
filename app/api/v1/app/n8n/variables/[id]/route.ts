@@ -14,7 +14,8 @@ import { z } from "zod";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-App-Token, X-Api-Key",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, X-App-Token, X-Api-Key",
 };
 
 const UpdateVariableSchema = z.object({
@@ -34,7 +35,7 @@ export async function OPTIONS() {
  */
 export async function PUT(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   try {
     await requireAppAuth(request);
@@ -50,11 +51,14 @@ export async function PUT(
           error: "Invalid request",
           details: validation.error.format(),
         },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: corsHeaders },
       );
     }
 
-    const variable = await n8nWorkflowsService.updateVariable(id, validation.data);
+    const variable = await n8nWorkflowsService.updateVariable(
+      id,
+      validation.data,
+    );
 
     return NextResponse.json(
       {
@@ -69,16 +73,17 @@ export async function PUT(
           updatedAt: variable.updated_at,
         },
       },
-      { headers: corsHeaders }
+      { headers: corsHeaders },
     );
   } catch (error) {
     logger.error("[App N8N Variables] Error updating variable:", error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to update variable",
+        error:
+          error instanceof Error ? error.message : "Failed to update variable",
       },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: corsHeaders },
     );
   }
 }
@@ -89,7 +94,7 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   try {
     await requireAppAuth(request);
@@ -99,20 +104,16 @@ export async function DELETE(
 
     logger.info(`[App N8N Variables] Deleted variable: ${id}`);
 
-    return NextResponse.json(
-      { success: true },
-      { headers: corsHeaders }
-    );
+    return NextResponse.json({ success: true }, { headers: corsHeaders });
   } catch (error) {
     logger.error("[App N8N Variables] Error deleting variable:", error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to delete variable",
+        error:
+          error instanceof Error ? error.message : "Failed to delete variable",
       },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: corsHeaders },
     );
   }
 }
-
-

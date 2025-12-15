@@ -1,6 +1,6 @@
 /**
  * App Bundles Schema
- * 
+ *
  * Stores deployed app bundles (HTML/JS/CSS) in Vercel Blob storage.
  * Each app can have multiple versions, with one active at a time.
  */
@@ -40,13 +40,17 @@ export const appBundles = pgTable(
     entry_file: text("entry_file").default("index.html").notNull(),
 
     // Build info
-    framework: text("framework").$type<"react" | "vue" | "vanilla" | "nextjs">(),
+    framework: text("framework").$type<
+      "react" | "vue" | "vanilla" | "nextjs"
+    >(),
     build_hash: text("build_hash"),
     bundle_size: integer("bundle_size"),
 
     // Source info
     source_project_id: uuid("source_project_id"), // Fragment project ID if from fragments
-    source_type: text("source_type").$type<"fragment" | "upload" | "git">().default("fragment"),
+    source_type: text("source_type")
+      .$type<"fragment" | "upload" | "git">()
+      .default("fragment"),
 
     // Runtime config
     runtime_config: jsonb("runtime_config")
@@ -70,20 +74,18 @@ export const appBundles = pgTable(
     app_id_idx: index("app_bundles_app_id_idx").on(table.app_id),
     app_version_idx: index("app_bundles_app_version_idx").on(
       table.app_id,
-      table.version
+      table.version,
     ),
     is_active_idx: index("app_bundles_is_active_idx").on(
       table.app_id,
-      table.is_active
+      table.is_active,
     ),
     status_idx: index("app_bundles_status_idx").on(table.status),
     source_project_idx: index("app_bundles_source_project_idx").on(
-      table.source_project_id
+      table.source_project_id,
     ),
-  })
+  }),
 );
 
 export type AppBundle = InferSelectModel<typeof appBundles>;
 export type NewAppBundle = InferInsertModel<typeof appBundles>;
-
-

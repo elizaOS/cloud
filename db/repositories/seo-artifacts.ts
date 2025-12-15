@@ -16,7 +16,10 @@ export class SeoArtifactsRepository {
   ): Promise<SeoArtifact[]> {
     return await db.query.seoArtifacts.findMany({
       where: options?.type
-        ? and(eq(seoArtifacts.request_id, requestId), eq(seoArtifacts.type, options.type))
+        ? and(
+            eq(seoArtifacts.request_id, requestId),
+            eq(seoArtifacts.type, options.type),
+          )
         : eq(seoArtifacts.request_id, requestId),
       orderBy: desc(seoArtifacts.created_at),
     });
@@ -29,4 +32,3 @@ export class SeoArtifactsRepository {
 }
 
 export const seoArtifactsRepository = new SeoArtifactsRepository();
-

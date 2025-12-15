@@ -22,7 +22,7 @@ import { users } from "./users";
 
 export const contentTypeEnum = pgEnum("content_mod_type", [
   "image",
-  "text", 
+  "text",
   "agent",
   "domain",
   "file",
@@ -40,13 +40,20 @@ export const moderationStatusEnum = pgEnum("content_mod_status", [
 
 export const flagSeverityEnum = pgEnum("flag_severity", [
   "low",
-  "medium", 
+  "medium",
   "high",
   "critical",
 ]);
 
 export interface ModerationFlag {
-  type: "csam" | "illegal" | "self_harm" | "violence" | "scam" | "harassment" | "other";
+  type:
+    | "csam"
+    | "illegal"
+    | "self_harm"
+    | "violence"
+    | "scam"
+    | "harassment"
+    | "other";
   severity: "low" | "medium" | "high" | "critical";
   confidence: number;
   source: "heuristic" | "openai" | "gpt" | "manual";
@@ -58,7 +65,7 @@ export interface ModerationScores {
   "self-harm"?: number;
   "self-harm/intent"?: number;
   "self-harm/instructions"?: number;
-  "violence"?: number;
+  violence?: number;
   "violence/graphic"?: number;
   [key: string]: number | undefined;
 }
@@ -77,8 +84,12 @@ export const contentModerationItems = pgTable(
     sourceId: uuid("source_id").notNull(),
 
     // Ownership
-    organizationId: uuid("organization_id").references(() => organizations.id, { onDelete: "cascade" }),
-    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    organizationId: uuid("organization_id").references(() => organizations.id, {
+      onDelete: "cascade",
+    }),
+    userId: uuid("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
 
     // Content reference
     contentUrl: text("content_url"),
@@ -99,7 +110,9 @@ export const contentModerationItems = pgTable(
     // Review
     reviewedBy: uuid("reviewed_by").references(() => users.id),
     reviewedAt: timestamp("reviewed_at"),
-    reviewDecision: text("review_decision").$type<"confirm" | "dismiss" | "escalate">(),
+    reviewDecision: text("review_decision").$type<
+      "confirm" | "dismiss" | "escalate"
+    >(),
     reviewNotes: text("review_notes"),
 
     // Timestamps
@@ -111,14 +124,20 @@ export const contentModerationItems = pgTable(
     nextScanAt: timestamp("next_scan_at"),
   },
   (table) => ({
-    sourceIdx: index("content_mod_source_idx").on(table.sourceTable, table.sourceId),
+    sourceIdx: index("content_mod_source_idx").on(
+      table.sourceTable,
+      table.sourceId,
+    ),
     statusIdx: index("content_mod_status_idx").on(table.status),
     orgIdx: index("content_mod_org_idx").on(table.organizationId),
     userIdx: index("content_mod_user_idx").on(table.userId),
-    typeStatusIdx: index("content_mod_type_status_idx").on(table.contentType, table.status),
+    typeStatusIdx: index("content_mod_type_status_idx").on(
+      table.contentType,
+      table.status,
+    ),
     nextScanIdx: index("content_mod_next_scan_idx").on(table.nextScanAt),
     createdAtIdx: index("content_mod_created_at_idx").on(table.createdAt),
-  })
+  }),
 );
 
 /**
@@ -134,10 +153,13 @@ export const userModerationStrikes = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
 
     // Strike details
-    contentItemId: uuid("content_item_id").references(() => contentModerationItems.id, { onDelete: "set null" }),
+    contentItemId: uuid("content_item_id").references(
+      () => contentModerationItems.id,
+      { onDelete: "set null" },
+    ),
     reason: text("reason").notNull(),
     severity: flagSeverityEnum("severity").notNull(),
-    
+
     // What was flagged
     contentType: contentTypeEnum("content_type").notNull(),
     contentPreview: text("content_preview"), // First 200 chars or thumbnail URL
@@ -145,7 +167,7 @@ export const userModerationStrikes = pgTable(
 
     // Action taken
     actionTaken: text("action_taken").notNull(), // "warning", "content_deleted", "suspended", "banned"
-    
+
     // Admin who reviewed (null = auto)
     reviewedBy: uuid("reviewed_by").references(() => users.id),
 
@@ -155,12 +177,21 @@ export const userModerationStrikes = pgTable(
     userIdIdx: index("user_mod_strikes_user_id_idx").on(table.userId),
     severityIdx: index("user_mod_strikes_severity_idx").on(table.severity),
     createdAtIdx: index("user_mod_strikes_created_at_idx").on(table.createdAt),
-    contentTypeIdx: index("user_mod_strikes_content_type_idx").on(table.contentType),
-  })
+    contentTypeIdx: index("user_mod_strikes_content_type_idx").on(
+      table.contentType,
+    ),
+  }),
 );
 
-export type ContentModerationItem = InferSelectModel<typeof contentModerationItems>;
-export type NewContentModerationItem = InferInsertModel<typeof contentModerationItems>;
-export type UserModerationStrike = InferSelectModel<typeof userModerationStrikes>;
-export type NewUserModerationStrike = InferInsertModel<typeof userModerationStrikes>;
-
+export type ContentModerationItem = InferSelectModel<
+  typeof contentModerationItems
+>;
+export type NewContentModerationItem = InferInsertModel<
+  typeof contentModerationItems
+>;
+export type UserModerationStrike = InferSelectModel<
+  typeof userModerationStrikes
+>;
+export type NewUserModerationStrike = InferInsertModel<
+  typeof userModerationStrikes
+>;

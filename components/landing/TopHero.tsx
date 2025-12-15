@@ -22,9 +22,15 @@ import {
   ArrowRight,
   Terminal,
 } from "lucide-react";
-import { TAB_CONFIG, JOURNEY_STEPS, ALL_TABS, type TabValue } from "@/lib/config/landing-hero";
+import {
+  TAB_CONFIG,
+  JOURNEY_STEPS,
+  ALL_TABS,
+  type TabValue,
+} from "@/lib/config/landing-hero";
 
-const TAB_TRIGGER_CLASS = "inline-flex items-center gap-1 md:gap-2 rounded-none px-3 md:px-6 py-3 text-xs md:text-sm font-medium transition-all border-b-2 border-transparent data-[state=active]:border-[#FF5800] [&[data-state=active]]:bg-[#252527] whitespace-nowrap";
+const TAB_TRIGGER_CLASS =
+  "inline-flex items-center gap-1 md:gap-2 rounded-none px-3 md:px-6 py-3 text-xs md:text-sm font-medium transition-all border-b-2 border-transparent data-[state=active]:border-[#FF5800] [&[data-state=active]]:bg-[#252527] whitespace-nowrap";
 
 export default function TopHero() {
   const { authenticated, ready } = usePrivy();
@@ -37,11 +43,16 @@ export default function TopHero() {
 
   const handleSubmit = () => {
     if (!ready) return;
-    const promptParam = inputValue ? `?prompt=${encodeURIComponent(inputValue)}` : "";
+    const promptParam = inputValue
+      ? `?prompt=${encodeURIComponent(inputValue)}`
+      : "";
     if (authenticated) {
       router.push(`${config.destination}${promptParam}`);
     } else {
-      sessionStorage.setItem("pendingPrompt", JSON.stringify({ tab: activeTab, prompt: inputValue }));
+      sessionStorage.setItem(
+        "pendingPrompt",
+        JSON.stringify({ tab: activeTab, prompt: inputValue }),
+      );
       login();
     }
   };
@@ -76,13 +87,22 @@ export default function TopHero() {
           {/* Journey Steps */}
           <div className="flex items-center justify-center gap-2 md:gap-4 mb-10">
             {JOURNEY_STEPS.map((step, index) => (
-              <div key={step.label} className="flex items-center gap-2 md:gap-4">
+              <div
+                key={step.label}
+                className="flex items-center gap-2 md:gap-4"
+              >
                 <div className="flex items-center gap-1.5 md:gap-2">
                   <div
                     className="p-1.5 md:p-2 rounded-md"
-                    style={{ backgroundColor: `${step.color}20`, border: `1px solid ${step.color}40` }}
+                    style={{
+                      backgroundColor: `${step.color}20`,
+                      border: `1px solid ${step.color}40`,
+                    }}
                   >
-                    <step.icon className="h-4 w-4" style={{ color: step.color }} />
+                    <step.icon
+                      className="h-4 w-4"
+                      style={{ color: step.color }}
+                    />
                   </div>
                   <span className="text-xs md:text-sm text-white/70 font-medium hidden sm:inline">
                     {step.label}
@@ -96,7 +116,11 @@ export default function TopHero() {
           </div>
 
           {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="relative z-10">
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => setActiveTab(v as TabValue)}
+            className="relative z-10"
+          >
             <TabsList className="inline-flex h-12 items-center justify-center rounded-none bg-black/50 border border-white/10 p-0 backdrop-blur-sm">
               <TabsTrigger value="agent" className={TAB_TRIGGER_CLASS}>
                 <Bot className="h-4 w-4" />
@@ -114,12 +138,21 @@ export default function TopHero() {
                 <Video className="h-4 w-4" />
                 <span className="hidden sm:inline">Video</span>
               </TabsTrigger>
-              <TabsTrigger value="pro-studio" disabled className={`${TAB_TRIGGER_CLASS} disabled:opacity-60`}>
+              <TabsTrigger
+                value="pro-studio"
+                disabled
+                className={`${TAB_TRIGGER_CLASS} disabled:opacity-60`}
+              >
                 <Sparkles className="h-4 w-4" />
                 <span className="hidden sm:inline bg-gradient-to-r from-[#EC594F] to-[#7E6BF0] bg-clip-text text-transparent">
                   Pro
                 </span>
-                <Badge variant="outline" className="ml-1 text-[9px] border-white/20 px-1">Soon</Badge>
+                <Badge
+                  variant="outline"
+                  className="ml-1 text-[9px] border-white/20 px-1"
+                >
+                  Soon
+                </Badge>
               </TabsTrigger>
             </TabsList>
 
@@ -177,7 +210,9 @@ export default function TopHero() {
               <div className="text-center py-12">
                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full">
                   <Sparkles className="h-4 w-4 text-purple-400" />
-                  <span className="text-white/60 text-sm">Professional studio features coming soon</span>
+                  <span className="text-white/60 text-sm">
+                    Professional studio features coming soon
+                  </span>
                 </div>
               </div>
             </TabsContent>
@@ -186,7 +221,9 @@ export default function TopHero() {
           {/* Bottom CTA */}
           <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button
-              onClick={() => authenticated ? router.push("/dashboard") : login()}
+              onClick={() =>
+                authenticated ? router.push("/dashboard") : login()
+              }
               size="lg"
               className="min-w-[180px] bg-[#FF5800] hover:bg-[#FF5800]/90 text-white rounded-none"
             >
@@ -199,7 +236,11 @@ export default function TopHero() {
               className="min-w-[180px] border-white/20 text-white hover:bg-white/5 rounded-none"
               asChild
             >
-              <a href="https://elizaos.ai/docs" target="_blank" rel="noopener noreferrer">
+              <a
+                href="https://elizaos.ai/docs"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 Documentation
               </a>
             </Button>

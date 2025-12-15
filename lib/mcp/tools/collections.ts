@@ -31,7 +31,7 @@ const AddItemsSchema = z.object({
     z.object({
       sourceType: z.enum(["generation", "upload"]),
       sourceId: z.string().uuid(),
-    })
+    }),
   ),
 });
 
@@ -59,7 +59,7 @@ function ok(data: unknown): ToolResponse {
 
 export async function handleListCollections(
   params: z.infer<typeof ListCollectionsSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   const collections = await mediaCollectionsService.listByOrganization(
     auth.user.organization_id,
@@ -67,7 +67,7 @@ export async function handleListCollections(
       userId: auth.user.id,
       limit: params.limit,
       offset: params.offset,
-    }
+    },
   );
 
   return ok({
@@ -85,7 +85,7 @@ export async function handleListCollections(
 
 export async function handleCreateCollection(
   params: z.infer<typeof CreateCollectionSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   const collection = await mediaCollectionsService.create({
     organizationId: auth.user.organization_id,
@@ -108,11 +108,11 @@ export async function handleCreateCollection(
 
 export async function handleGetCollection(
   params: z.infer<typeof CollectionIdSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   const isOwner = await mediaCollectionsService.validateOwnership(
     params.collectionId,
-    auth.user.organization_id
+    auth.user.organization_id,
   );
 
   if (!isOwner) {
@@ -120,7 +120,7 @@ export async function handleGetCollection(
   }
 
   const collection = await mediaCollectionsService.getByIdWithItems(
-    params.collectionId
+    params.collectionId,
   );
 
   if (!collection) {
@@ -145,11 +145,11 @@ export async function handleGetCollection(
 
 export async function handleUpdateCollection(
   params: z.infer<typeof UpdateCollectionSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   const isOwner = await mediaCollectionsService.validateOwnership(
     params.collectionId,
-    auth.user.organization_id
+    auth.user.organization_id,
   );
 
   if (!isOwner) {
@@ -176,11 +176,11 @@ export async function handleUpdateCollection(
 
 export async function handleDeleteCollection(
   params: z.infer<typeof CollectionIdSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   const isOwner = await mediaCollectionsService.validateOwnership(
     params.collectionId,
-    auth.user.organization_id
+    auth.user.organization_id,
   );
 
   if (!isOwner) {
@@ -194,11 +194,11 @@ export async function handleDeleteCollection(
 
 export async function handleAddItemsToCollection(
   params: z.infer<typeof AddItemsSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   const isOwner = await mediaCollectionsService.validateOwnership(
     params.collectionId,
-    auth.user.organization_id
+    auth.user.organization_id,
   );
 
   if (!isOwner) {
@@ -207,7 +207,7 @@ export async function handleAddItemsToCollection(
 
   const added = await mediaCollectionsService.addItems(
     params.collectionId,
-    params.items
+    params.items,
   );
 
   return ok({ success: true, added });
@@ -215,18 +215,21 @@ export async function handleAddItemsToCollection(
 
 export async function handleRemoveItemsFromCollection(
   params: z.infer<typeof RemoveItemsSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   const isOwner = await mediaCollectionsService.validateOwnership(
     params.collectionId,
-    auth.user.organization_id
+    auth.user.organization_id,
   );
 
   if (!isOwner) {
     return ok({ error: "Collection not found" });
   }
 
-  await mediaCollectionsService.removeItems(params.collectionId, params.itemIds);
+  await mediaCollectionsService.removeItems(
+    params.collectionId,
+    params.itemIds,
+  );
 
   return ok({ success: true });
 }
@@ -237,7 +240,7 @@ export async function handleListGalleryItems(
     source?: "generation" | "upload";
     limit?: number;
   },
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   // List uploads
   const uploads = await mediaUploadsService.listByOrganization(
@@ -246,7 +249,7 @@ export async function handleListGalleryItems(
       userId: auth.user.id,
       type: params.type,
       limit: params.limit,
-    }
+    },
   );
 
   return ok({
@@ -271,7 +274,8 @@ export async function handleListGalleryItems(
 export const collectionTools = [
   {
     name: "collections_list",
-    description: "List media collections for organizing generated and uploaded media.",
+    description:
+      "List media collections for organizing generated and uploaded media.",
     inputSchema: ListCollectionsSchema,
     handler: handleListCollections,
   },

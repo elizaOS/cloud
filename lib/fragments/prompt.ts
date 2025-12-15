@@ -12,7 +12,7 @@ import { ELIZA_SDK_REFERENCE, ELIZA_INTEGRATION_PROMPT } from "./eliza-sdk";
  */
 export async function buildFragmentPrompt(
   template: Templates,
-  includeApiContext = true
+  includeApiContext = true,
 ): Promise<string> {
   const basePrompt = `
     You are a skilled software engineer.
@@ -32,7 +32,12 @@ export async function buildFragmentPrompt(
 
   // Include relevant API documentation
   const apiContext = await buildApiContext({
-    categories: ["AI Completions", "Image Generation", "Video Generation", "Containers"],
+    categories: [
+      "AI Completions",
+      "Image Generation",
+      "Video Generation",
+      "Containers",
+    ],
     tags: ["ai-generation", "code-generation", "containers"],
     limit: 30,
     includeExamples: true,
@@ -89,7 +94,12 @@ When deployed as app, the following helpers are automatically injected:
 /**
  * Template types for full app mode
  */
-export type FullAppTemplateType = "chat" | "agent-dashboard" | "landing-page" | "analytics" | "blank";
+export type FullAppTemplateType =
+  | "chat"
+  | "agent-dashboard"
+  | "landing-page"
+  | "analytics"
+  | "blank";
 
 /**
  * Base system prompt for full app building with Vercel Sandbox
@@ -296,7 +306,10 @@ export function buildFullAppPrompt(config: {
 /**
  * Get example prompts for a template type
  */
-export function getExamplePrompts(templateType: FullAppTemplateType = "blank"): string[] {
-  return FULL_APP_EXAMPLE_PROMPTS[templateType] || FULL_APP_EXAMPLE_PROMPTS.blank;
+export function getExamplePrompts(
+  templateType: FullAppTemplateType = "blank",
+): string[] {
+  return (
+    FULL_APP_EXAMPLE_PROMPTS[templateType] || FULL_APP_EXAMPLE_PROMPTS.blank
+  );
 }
-

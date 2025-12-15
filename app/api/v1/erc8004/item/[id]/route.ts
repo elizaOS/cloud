@@ -4,7 +4,7 @@
  * Get details for a specific marketplace item (agent, MCP, or app).
  *
  * GET /api/v1/erc8004/item/[id] - Get item details
- * 
+ *
  * Query Parameters:
  * - type: Optional type hint (agent, mcp, app)
  */
@@ -29,12 +29,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   if (!item) {
     return NextResponse.json(
       { error: "Item not found" },
-      { 
+      {
         status: 404,
         headers: {
           "Access-Control-Allow-Origin": "*",
         },
-      }
+      },
     );
   }
 
@@ -57,4 +57,3 @@ export async function OPTIONS() {
     },
   });
 }
-

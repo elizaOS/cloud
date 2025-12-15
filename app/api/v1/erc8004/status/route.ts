@@ -163,7 +163,7 @@ export async function GET(request: NextRequest) {
     : null;
 
   // Get status for all networks
-  const networkStatuses = SUPPORTED_NETWORKS.map(net => {
+  const networkStatuses = SUPPORTED_NETWORKS.map((net) => {
     const netContracts = getContractAddresses(net);
     const agentId = ELIZA_CLOUD_AGENT_ID[net];
     return {
@@ -179,17 +179,17 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     service: SERVICE_INFO.name,
     version: SERVICE_INFO.version,
-    
+
     // Current network
     network: {
       current: network,
       fallback: getFallbackNetwork(),
       ecosystem: getNetworkEcosystem(network),
     },
-    
+
     configured: isERC8004Configured(network),
     elizaCloudRegistered: isAgentRegistered(network),
-    
+
     // Multi-registry support
     multiRegistry: {
       enabled: isMultiRegistryEnabled(),
@@ -199,18 +199,18 @@ export async function GET(request: NextRequest) {
       ecosystems: {
         jeju: {
           networks: JEJU_NETWORKS,
-          configured: JEJU_NETWORKS.some(n => isERC8004Configured(n)),
-          registered: JEJU_NETWORKS.some(n => isAgentRegistered(n)),
+          configured: JEJU_NETWORKS.some((n) => isERC8004Configured(n)),
+          registered: JEJU_NETWORKS.some((n) => isAgentRegistered(n)),
         },
         base: {
           networks: BASE_NETWORKS,
-          configured: BASE_NETWORKS.some(n => isERC8004Configured(n)),
-          registered: BASE_NETWORKS.some(n => isAgentRegistered(n)),
+          configured: BASE_NETWORKS.some((n) => isERC8004Configured(n)),
+          registered: BASE_NETWORKS.some((n) => isAgentRegistered(n)),
         },
       },
       networkStatuses,
     },
-    
+
     contracts: {
       chainId: contracts.chainId,
       identity: contracts.identity,
@@ -219,7 +219,7 @@ export async function GET(request: NextRequest) {
       subgraphUrl: contracts.subgraphUrl,
       blockExplorer,
     },
-    
+
     elizaCloud: {
       agentId: elizaCloudAgentId
         ? `${contracts.chainId}:${elizaCloudAgentId}`
@@ -234,7 +234,7 @@ export async function GET(request: NextRequest) {
           }
         : null,
     },
-    
+
     capabilities: {
       agentRegistration: isERC8004Configured(network),
       mcpRegistration: isERC8004Configured(network),
@@ -243,14 +243,14 @@ export async function GET(request: NextRequest) {
       multiRegistrySearch: agent0Service.isMultiRegistryEnabled(),
       subgraphAvailable: !!contracts.subgraphUrl,
     },
-    
+
     endpoints: {
       discovery: "/api/v1/discovery",
       proxy: "/api/v1/discovery/proxy",
       agentPublish: "/api/v1/agents/{agentId}/publish",
       mcpPublish: "/api/v1/mcps/{mcpId}/publish",
     },
-    
+
     documentation: "https://eips.ethereum.org/EIPS/eip-8004",
   });
 }

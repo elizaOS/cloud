@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 /**
  * Credit Usage E2E Tests
- * 
+ *
  * Tests that credits are properly deducted when using features:
  * - Chat messages consume credits
  * - Image generation consumes credits
@@ -10,7 +10,7 @@ import { test, expect } from "@playwright/test";
  * - Credit balance updates correctly
  * - Paywall appears when credits are low
  * - Auto top-up triggers when threshold reached
- * 
+ *
  * Prerequisites:
  * - TEST_API_KEY environment variable required
  * - Cloud running on port 3000
@@ -69,9 +69,12 @@ test.describe("Chat Message Credit Deduction", () => {
 
   test("sending chat message deducts credits", async ({ request }) => {
     // Get initial balance
-    const balanceResponse = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
-      headers: authHeaders(),
-    });
+    const balanceResponse = await request.get(
+      `${CLOUD_URL}/api/v1/app/billing`,
+      {
+        headers: authHeaders(),
+      },
+    );
     const balanceData = await balanceResponse.json();
     const initialBalance = parseFloat(balanceData.billing.creditBalance);
 
@@ -95,7 +98,7 @@ test.describe("Chat Message Credit Deduction", () => {
       `${CLOUD_URL}/api/v1/app/agents/${agent.id}/chats`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     if (chatResponse.status() !== 201) {
@@ -117,24 +120,30 @@ test.describe("Chat Message Credit Deduction", () => {
           data: {
             content: "Hello, this is a test message for credit deduction",
           },
-        }
+        },
       );
 
       // Wait a bit for credit deduction to process
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       // Check balance after message
-      const balanceAfterResponse = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
-        headers: authHeaders(),
-      });
+      const balanceAfterResponse = await request.get(
+        `${CLOUD_URL}/api/v1/app/billing`,
+        {
+          headers: authHeaders(),
+        },
+      );
       const balanceAfterData = await balanceAfterResponse.json();
       const balanceAfter = parseFloat(balanceAfterData.billing.creditBalance);
 
-      if (messageResponse.status() === 200 || messageResponse.status() === 201) {
+      if (
+        messageResponse.status() === 200 ||
+        messageResponse.status() === 201
+      ) {
         // Credits should have decreased (or stayed same if free tier)
         expect(balanceAfter).toBeLessThanOrEqual(initialBalance);
         console.log(
-          `✅ Credits after message: $${balanceAfter.toFixed(2)} (was $${initialBalance.toFixed(2)})`
+          `✅ Credits after message: $${balanceAfter.toFixed(2)} (was $${initialBalance.toFixed(2)})`,
         );
       } else {
         console.log(`ℹ️ Message sending returned ${messageResponse.status()}`);
@@ -161,7 +170,9 @@ test.describe("Chat Message Credit Deduction", () => {
     if (balance < 0.01) {
       console.log("ℹ️ Balance is very low - credit checks should be enforced");
     } else {
-      console.log(`✅ Current balance: $${balance.toFixed(2)} - sufficient for testing`);
+      console.log(
+        `✅ Current balance: $${balance.toFixed(2)} - sufficient for testing`,
+      );
     }
   });
 });
@@ -171,28 +182,37 @@ test.describe("Image Generation Credit Deduction", () => {
 
   test("image generation deducts credits", async ({ request }) => {
     // Get initial balance
-    const balanceResponse = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
-      headers: authHeaders(),
-    });
+    const balanceResponse = await request.get(
+      `${CLOUD_URL}/api/v1/app/billing`,
+      {
+        headers: authHeaders(),
+      },
+    );
     const balanceData = await balanceResponse.json();
     const initialBalance = parseFloat(balanceData.billing.creditBalance);
 
     // Attempt image generation
-    const imageResponse = await request.post(`${CLOUD_URL}/api/v1/generate-image`, {
-      headers: authHeaders(),
-      data: {
-        prompt: "A beautiful sunset over mountains",
-        model: "dall-e-3",
+    const imageResponse = await request.post(
+      `${CLOUD_URL}/api/v1/generate-image`,
+      {
+        headers: authHeaders(),
+        data: {
+          prompt: "A beautiful sunset over mountains",
+          model: "dall-e-3",
+        },
       },
-    });
+    );
 
     // Wait for processing
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Check balance after generation
-    const balanceAfterResponse = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
-      headers: authHeaders(),
-    });
+    const balanceAfterResponse = await request.get(
+      `${CLOUD_URL}/api/v1/app/billing`,
+      {
+        headers: authHeaders(),
+      },
+    );
     const balanceAfterData = await balanceAfterResponse.json();
     const balanceAfter = parseFloat(balanceAfterData.billing.creditBalance);
 
@@ -200,7 +220,7 @@ test.describe("Image Generation Credit Deduction", () => {
       // Credits should have decreased
       expect(balanceAfter).toBeLessThanOrEqual(initialBalance);
       console.log(
-        `✅ Credits after image generation: $${balanceAfter.toFixed(2)} (was $${initialBalance.toFixed(2)})`
+        `✅ Credits after image generation: $${balanceAfter.toFixed(2)} (was $${initialBalance.toFixed(2)})`,
       );
     } else if (imageResponse.status() === 402) {
       console.log("✅ Image generation correctly requires payment (402)");
@@ -215,27 +235,36 @@ test.describe("Video Generation Credit Deduction", () => {
 
   test("video generation deducts credits", async ({ request }) => {
     // Get initial balance
-    const balanceResponse = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
-      headers: authHeaders(),
-    });
+    const balanceResponse = await request.get(
+      `${CLOUD_URL}/api/v1/app/billing`,
+      {
+        headers: authHeaders(),
+      },
+    );
     const balanceData = await balanceResponse.json();
     const initialBalance = parseFloat(balanceData.billing.creditBalance);
 
     // Attempt video generation
-    const videoResponse = await request.post(`${CLOUD_URL}/api/v1/generate-video`, {
-      headers: authHeaders(),
-      data: {
-        prompt: "A cinematic drone shot over a city",
+    const videoResponse = await request.post(
+      `${CLOUD_URL}/api/v1/generate-video`,
+      {
+        headers: authHeaders(),
+        data: {
+          prompt: "A cinematic drone shot over a city",
+        },
       },
-    });
+    );
 
     // Wait for processing
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Check balance after generation
-    const balanceAfterResponse = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
-      headers: authHeaders(),
-    });
+    const balanceAfterResponse = await request.get(
+      `${CLOUD_URL}/api/v1/app/billing`,
+      {
+        headers: authHeaders(),
+      },
+    );
     const balanceAfterData = await balanceAfterResponse.json();
     const balanceAfter = parseFloat(balanceAfterData.billing.creditBalance);
 
@@ -243,7 +272,7 @@ test.describe("Video Generation Credit Deduction", () => {
       // Credits should have decreased
       expect(balanceAfter).toBeLessThanOrEqual(initialBalance);
       console.log(
-        `✅ Credits after video generation: $${balanceAfter.toFixed(2)} (was $${initialBalance.toFixed(2)})`
+        `✅ Credits after video generation: $${balanceAfter.toFixed(2)} (was $${initialBalance.toFixed(2)})`,
       );
     } else if (videoResponse.status() === 402) {
       console.log("✅ Video generation correctly requires payment (402)");
@@ -268,7 +297,9 @@ test.describe("Credit Usage Statistics", () => {
     expect(typeof data.usage.currentMonth).toBe("number");
     expect(data.usage.currentMonth).toBeGreaterThanOrEqual(0);
 
-    console.log(`✅ Current month usage: $${data.usage.currentMonth.toFixed(2)}`);
+    console.log(
+      `✅ Current month usage: $${data.usage.currentMonth.toFixed(2)}`,
+    );
   });
 
   test("usage statistics include breakdown", async ({ request }) => {
@@ -318,19 +349,26 @@ test.describe("Low Credit Paywall", () => {
 
     if (balance <= 0) {
       // Try to use a feature
-      const imageResponse = await request.post(`${CLOUD_URL}/api/v1/generate-image`, {
-        headers: authHeaders(),
-        data: { prompt: "test" },
-      });
+      const imageResponse = await request.post(
+        `${CLOUD_URL}/api/v1/generate-image`,
+        {
+          headers: authHeaders(),
+          data: { prompt: "test" },
+        },
+      );
 
       // Should return 402 (Payment Required) or 403 (Forbidden)
       if (imageResponse.status() === 402 || imageResponse.status() === 403) {
         console.log("✅ Zero balance correctly prevents feature usage");
       } else {
-        console.log(`ℹ️ Feature usage with zero balance returned ${imageResponse.status()}`);
+        console.log(
+          `ℹ️ Feature usage with zero balance returned ${imageResponse.status()}`,
+        );
       }
     } else {
-      console.log(`ℹ️ Balance is positive: $${balance.toFixed(2)} - cannot test zero balance`);
+      console.log(
+        `ℹ️ Balance is positive: $${balance.toFixed(2)} - cannot test zero balance`,
+      );
     }
   });
 });
@@ -338,11 +376,16 @@ test.describe("Low Credit Paywall", () => {
 test.describe("Auto Top-Up Trigger", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("auto top-up triggers when balance below threshold", async ({ request }) => {
+  test("auto top-up triggers when balance below threshold", async ({
+    request,
+  }) => {
     // Get current auto top-up settings
-    const settingsResponse = await request.get(`${CLOUD_URL}/api/auto-top-up/settings`, {
-      headers: authHeaders(),
-    });
+    const settingsResponse = await request.get(
+      `${CLOUD_URL}/api/auto-top-up/settings`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     if (settingsResponse.status() !== 200) {
       return;
@@ -356,47 +399,63 @@ test.describe("Auto Top-Up Trigger", () => {
     }
 
     // Get current balance
-    const balanceResponse = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
-      headers: authHeaders(),
-    });
+    const balanceResponse = await request.get(
+      `${CLOUD_URL}/api/v1/app/billing`,
+      {
+        headers: authHeaders(),
+      },
+    );
     const balanceData = await balanceResponse.json();
     const balance = parseFloat(balanceData.billing.creditBalance);
 
     // Check if balance is below threshold
     if (balance < settings.threshold) {
       // Trigger auto top-up manually
-      const triggerResponse = await request.post(`${CLOUD_URL}/api/auto-top-up/trigger`, {
-        headers: authHeaders(),
-      });
+      const triggerResponse = await request.post(
+        `${CLOUD_URL}/api/auto-top-up/trigger`,
+        {
+          headers: authHeaders(),
+        },
+      );
 
       if (triggerResponse.status() === 200) {
         const triggerData = await triggerResponse.json();
-        console.log(`✅ Auto top-up triggered: ${triggerData.message || "Success"}`);
+        console.log(
+          `✅ Auto top-up triggered: ${triggerData.message || "Success"}`,
+        );
       } else {
-        console.log(`ℹ️ Auto top-up trigger returned ${triggerResponse.status()}`);
+        console.log(
+          `ℹ️ Auto top-up trigger returned ${triggerResponse.status()}`,
+        );
       }
     } else {
       console.log(
-        `ℹ️ Balance ($${balance.toFixed(2)}) is above threshold ($${settings.threshold.toFixed(2)}) - cannot test trigger`
+        `ℹ️ Balance ($${balance.toFixed(2)}) is above threshold ($${settings.threshold.toFixed(2)}) - cannot test trigger`,
       );
     }
   });
 
   test("auto top-up simulation deducts credits", async ({ request }) => {
     // Get current balance
-    const balanceResponse = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
-      headers: authHeaders(),
-    });
+    const balanceResponse = await request.get(
+      `${CLOUD_URL}/api/v1/app/billing`,
+      {
+        headers: authHeaders(),
+      },
+    );
     const balanceData = await balanceResponse.json();
     const initialBalance = parseFloat(balanceData.billing.creditBalance);
 
     // Simulate usage
-    const simulateResponse = await request.post(`${CLOUD_URL}/api/auto-top-up/simulate-usage`, {
-      headers: authHeaders(),
-      data: {
-        amount: 1.0, // Deduct $1
+    const simulateResponse = await request.post(
+      `${CLOUD_URL}/api/auto-top-up/simulate-usage`,
+      {
+        headers: authHeaders(),
+        data: {
+          amount: 1.0, // Deduct $1
+        },
       },
-    });
+    );
 
     if (simulateResponse.status() === 200) {
       const simulateData = await simulateResponse.json();
@@ -405,7 +464,7 @@ test.describe("Auto Top-Up Trigger", () => {
       expect(newBalance).toBeLessThan(initialBalance);
       expect(newBalance).toBeCloseTo(initialBalance - 1.0, 2);
       console.log(
-        `✅ Usage simulation: $${initialBalance.toFixed(2)} -> $${newBalance.toFixed(2)}`
+        `✅ Usage simulation: $${initialBalance.toFixed(2)} -> $${newBalance.toFixed(2)}`,
       );
     } else {
       console.log(`ℹ️ Usage simulation returned ${simulateResponse.status()}`);
@@ -417,9 +476,12 @@ test.describe("Credit Transaction History", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
   test("credit transactions are recorded", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/credits/transactions`, {
-      headers: authHeaders(),
-    });
+    const response = await request.get(
+      `${CLOUD_URL}/api/credits/transactions`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect(response.status()).toBe(200);
     const data = await response.json();
@@ -446,9 +508,12 @@ test.describe("Credit Transaction History", () => {
   });
 
   test("credit transactions include metadata", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/credits/transactions`, {
-      headers: authHeaders(),
-    });
+    const response = await request.get(
+      `${CLOUD_URL}/api/credits/transactions`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect(response.status()).toBe(200);
     const data = await response.json();

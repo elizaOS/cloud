@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   const botStatuses = await discordGatewayService.getBotStatus(
-    user.organization_id!
+    user.organization_id!,
   );
 
   return NextResponse.json({
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -69,10 +69,7 @@ export async function POST(request: NextRequest) {
   });
 
   if (!result.success) {
-    return NextResponse.json(
-      { error: result.error },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: result.error }, { status: 400 });
   }
 
   logger.info("[Discord Gateway API] Registered bot", {
@@ -86,6 +83,6 @@ export async function POST(request: NextRequest) {
       botUserId: result.botUserId,
       botUsername: result.botUsername,
     },
-    { status: 201 }
+    { status: 201 },
   );
 }

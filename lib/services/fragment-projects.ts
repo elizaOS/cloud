@@ -38,11 +38,11 @@ export class FragmentProjectsService {
 
   async listByOrganization(
     organizationId: string,
-    filters?: { status?: string; userId?: string }
+    filters?: { status?: string; userId?: string },
   ) {
     return await fragmentProjectsRepository.listByOrganization(
       organizationId,
-      filters
+      filters,
     );
   }
 
@@ -57,7 +57,7 @@ export class FragmentProjectsService {
       description?: string;
       fragment?: FragmentSchema;
       status?: string;
-    }
+    },
   ) {
     const updateData: {
       name?: string;
@@ -91,7 +91,7 @@ export class FragmentProjectsService {
       allowedOrigins?: string[];
       autoStorage?: boolean; // Auto-create storage collections
       autoInject?: boolean; // Auto-inject app helpers
-    } = {}
+    } = {},
   ) {
     const project = await fragmentProjectsRepository.findById(projectId);
     if (!project) {
@@ -108,7 +108,7 @@ export class FragmentProjectsService {
         projectDescription: project.description || undefined,
         appUrl: options.appUrl,
         autoDeploy: false, // Can be enabled later for Vercel/Netlify
-      }
+      },
     );
 
     // Update project with deployment info
@@ -145,7 +145,7 @@ export class FragmentProjectsService {
 
   /**
    * Deploy a fragment project as a container
-   * 
+   *
    * @experimental Container deployment from fragments is not yet available.
    * Use the standard container deployment API (/api/v1/containers) instead,
    * or deploy as an app using deployAsApp().
@@ -156,15 +156,14 @@ export class FragmentProjectsService {
       name: string;
       project_name: string;
       port?: number;
-    }
+    },
   ): Promise<{ containerId: string }> {
     throw new Error(
       "Container deployment from fragments is not yet available. " +
-      "Please use the standard container deployment API (/api/v1/containers) " +
-      "or deploy as an app instead."
+        "Please use the standard container deployment API (/api/v1/containers) " +
+        "or deploy as an app instead.",
     );
   }
 }
 
 export const fragmentProjectsService = new FragmentProjectsService();
-

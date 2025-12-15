@@ -19,9 +19,16 @@ import templates from "@/lib/fragments/templates";
 import type { ExecutionResult } from "@/lib/fragments/types";
 import { DeepPartial } from "ai";
 import { experimental_useObject as useObject } from "@ai-sdk/react";
-import { toAISDKMessages, toMessageImage, type Message as MessageType } from "@/lib/fragments/messages";
+import {
+  toAISDKMessages,
+  toMessageImage,
+  type Message as MessageType,
+} from "@/lib/fragments/messages";
 
-function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T) => void] {
+function useLocalStorage<T>(
+  key: string,
+  initialValue: T,
+): [T, (value: T) => void] {
   const [storedValue, setStoredValue] = useState<T>(() => {
     if (typeof window === "undefined") {
       return initialValue;
@@ -52,7 +59,7 @@ export default function FragmentsPage() {
     "fragments-languageModel",
     {
       model: "gpt-4o",
-    }
+    },
   );
 
   const { ready, authenticated, user } = usePrivy();
@@ -76,7 +83,10 @@ export default function FragmentsPage() {
   const currentTemplate =
     selectedTemplate === "auto"
       ? templates
-      : { [selectedTemplate]: templates[selectedTemplate as keyof typeof templates] };
+      : {
+          [selectedTemplate]:
+            templates[selectedTemplate as keyof typeof templates],
+        };
 
   const lastMessage = messages[messages.length - 1];
 
@@ -266,7 +276,9 @@ export default function FragmentsPage() {
       setSavedProjectId(project.id);
       toast.success("Project saved successfully!");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to save project");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save project",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -291,16 +303,19 @@ export default function FragmentsPage() {
         return;
       }
 
-      const response = await fetch(`/api/v1/fragments/projects/${savedProjectId}/deploy`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `/api/v1/fragments/projects/${savedProjectId}/deploy`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            type: "app",
+            appUrl,
+          }),
         },
-        body: JSON.stringify({
-          type: "app",
-          appUrl,
-        }),
-      });
+      );
 
       if (!response.ok) {
         const error = await response.json();
@@ -311,7 +326,9 @@ export default function FragmentsPage() {
       toast.success("Project deployed successfully!");
       router.push(`/dashboard/apps/${deployment.app.id}`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to deploy project");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to deploy project",
+      );
     } finally {
       setIsDeploying(false);
     }
@@ -383,11 +400,15 @@ export default function FragmentsPage() {
 
       {/* Main Content */}
       <div className="grid w-full md:grid-cols-2 gap-6">
-        <BrandCard className={`flex flex-col ${fragment ? "col-span-1" : "col-span-2"}`}>
+        <BrandCard
+          className={`flex flex-col ${fragment ? "col-span-1" : "col-span-2"}`}
+        >
           <CornerBrackets size="sm" className="opacity-20" />
           <div className="relative z-10 flex flex-col flex-1 min-h-0">
             <div className="flex items-center justify-between p-4 border-b border-white/10">
-              <h2 className="text-lg font-semibold text-white">Code Generation</h2>
+              <h2 className="text-lg font-semibold text-white">
+                Code Generation
+              </h2>
               <div className="flex gap-2">
                 {messages.length > 1 && !isLoading && (
                   <Button
@@ -411,38 +432,38 @@ export default function FragmentsPage() {
                 )}
               </div>
             </div>
-          <Chat
-            messages={messages}
-            isLoading={isLoading}
-            setCurrentPreview={setCurrentPreview}
-          />
-          <ChatInput
-            retry={retry}
-            isErrored={error !== undefined}
-            errorMessage={errorMessage}
-            isLoading={isLoading}
-            isRateLimited={isRateLimited}
-            stop={stop}
-            input={chatInput}
-            handleInputChange={handleSaveInputChange}
-            handleSubmit={handleSubmitAuth}
-            isMultiModal={currentModel?.multiModal || false}
-            files={files}
-            handleFileChange={handleFileChange}
-          >
-            <ChatPicker
-              templates={templates}
-              selectedTemplate={selectedTemplate}
-              onSelectedTemplateChange={setSelectedTemplate}
-              models={modelsList}
-              languageModel={languageModel}
-              onLanguageModelChange={handleLanguageModelChange}
+            <Chat
+              messages={messages}
+              isLoading={isLoading}
+              setCurrentPreview={setCurrentPreview}
             />
-            <ChatSettings
-              languageModel={languageModel}
-              onLanguageModelChange={handleLanguageModelChange}
-            />
-          </ChatInput>
+            <ChatInput
+              retry={retry}
+              isErrored={error !== undefined}
+              errorMessage={errorMessage}
+              isLoading={isLoading}
+              isRateLimited={isRateLimited}
+              stop={stop}
+              input={chatInput}
+              handleInputChange={handleSaveInputChange}
+              handleSubmit={handleSubmitAuth}
+              isMultiModal={currentModel?.multiModal || false}
+              files={files}
+              handleFileChange={handleFileChange}
+            >
+              <ChatPicker
+                templates={templates}
+                selectedTemplate={selectedTemplate}
+                onSelectedTemplateChange={setSelectedTemplate}
+                models={modelsList}
+                languageModel={languageModel}
+                onLanguageModelChange={handleLanguageModelChange}
+              />
+              <ChatSettings
+                languageModel={languageModel}
+                onLanguageModelChange={handleLanguageModelChange}
+              />
+            </ChatInput>
           </div>
         </BrandCard>
         {fragment && (
@@ -465,4 +486,3 @@ export default function FragmentsPage() {
     </div>
   );
 }
-

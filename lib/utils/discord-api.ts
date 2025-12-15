@@ -24,7 +24,10 @@ export function discordBearerAuthHeader(token: string): string {
 /**
  * Create Discord API request headers for bot requests
  */
-export function discordBotHeaders(token: string, additionalHeaders?: Record<string, string>): HeadersInit {
+export function discordBotHeaders(
+  token: string,
+  additionalHeaders?: Record<string, string>,
+): HeadersInit {
   return {
     Authorization: discordBotAuthHeader(token),
     "Content-Type": "application/json",
@@ -35,7 +38,10 @@ export function discordBotHeaders(token: string, additionalHeaders?: Record<stri
 /**
  * Create Discord API request headers for OAuth requests
  */
-export function discordBearerHeaders(token: string, additionalHeaders?: Record<string, string>): HeadersInit {
+export function discordBearerHeaders(
+  token: string,
+  additionalHeaders?: Record<string, string>,
+): HeadersInit {
   return {
     Authorization: discordBearerAuthHeader(token),
     "Content-Type": "application/json",
@@ -49,7 +55,7 @@ export function discordBearerHeaders(token: string, additionalHeaders?: Record<s
 export async function discordBotApiRequest<T>(
   endpoint: string,
   botToken: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   const response = await fetch(`${DISCORD_API_BASE}${endpoint}`, {
     ...options,
@@ -62,7 +68,7 @@ export async function discordBotApiRequest<T>(
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
     throw new Error(
-      `Discord Bot API error: ${response.status} - ${error.message || "Unknown error"}`
+      `Discord Bot API error: ${response.status} - ${error.message || "Unknown error"}`,
     );
   }
 
@@ -75,7 +81,7 @@ export async function discordBotApiRequest<T>(
 export async function discordBearerApiRequest<T>(
   endpoint: string,
   accessToken: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   const response = await fetch(`${DISCORD_API_BASE}${endpoint}`, {
     ...options,
@@ -88,10 +94,9 @@ export async function discordBearerApiRequest<T>(
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
     throw new Error(
-      `Discord API error: ${response.status} - ${error.message || "Unknown error"}`
+      `Discord API error: ${response.status} - ${error.message || "Unknown error"}`,
     );
   }
 
   return response.json();
 }
-

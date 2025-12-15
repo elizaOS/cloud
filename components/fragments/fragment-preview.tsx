@@ -11,9 +11,10 @@ import type {
 
 export function FragmentPreview({ result }: { result: ExecutionResult }) {
   if (getTemplateId(result.template) === "code-interpreter-v1") {
-    return <FragmentInterpreter result={result as ExecutionResultInterpreter} />;
+    return (
+      <FragmentInterpreter result={result as ExecutionResultInterpreter} />
+    );
   }
 
   return <FragmentWeb result={result as ExecutionResultWeb} />;
 }
-

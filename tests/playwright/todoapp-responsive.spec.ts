@@ -40,7 +40,7 @@ test.beforeAll(async ({ request }) => {
 // Helper to set viewport
 async function setViewport(
   page: Page,
-  viewport: { width: number; height: number }
+  viewport: { width: number; height: number },
 ) {
   await page.setViewportSize(viewport);
 }
@@ -63,7 +63,9 @@ test.describe("Landing Page - Responsive", () => {
       await expect(heading).toContainText(/Eliza Todo/i);
 
       // CTA button is visible
-      const ctaButton = page.getByRole("button", { name: /get started/i }).first();
+      const ctaButton = page
+        .getByRole("button", { name: /get started/i })
+        .first();
       await expect(ctaButton).toBeVisible();
 
       // Feature cards are visible
@@ -78,7 +80,9 @@ test.describe("Landing Page - Responsive", () => {
       console.log(`✅ Landing page renders correctly on ${viewport.name}`);
     });
 
-    test(`feature cards stack properly on ${viewport.name}`, async ({ page }) => {
+    test(`feature cards stack properly on ${viewport.name}`, async ({
+      page,
+    }) => {
       if (!todoappAvailable) {
         test.skip();
         return;
@@ -102,7 +106,9 @@ test.describe("Landing Page - Responsive", () => {
           if (firstCard && secondCard) {
             // On mobile, cards should stack (second card below first)
             if (viewport.width < 768) {
-              expect(secondCard.y).toBeGreaterThanOrEqual(firstCard.y + firstCard.height - 10);
+              expect(secondCard.y).toBeGreaterThanOrEqual(
+                firstCard.y + firstCard.height - 10,
+              );
             }
           }
         }
@@ -176,7 +182,7 @@ test.describe("Dashboard Page - Responsive", () => {
     const statsGrid = page.locator(".grid").first();
     if (await statsGrid.isVisible()) {
       const gridStyle = await statsGrid.evaluate((el) =>
-        window.getComputedStyle(el).getPropertyValue("grid-template-columns")
+        window.getComputedStyle(el).getPropertyValue("grid-template-columns"),
       );
       console.log(`Stats grid on tablet: ${gridStyle}`);
     }
@@ -247,7 +253,7 @@ test.describe("Chat Page - Responsive", () => {
     const sidebar = page.locator("aside").first();
     if (await sidebar.isVisible()) {
       const transform = await sidebar.evaluate((el) =>
-        window.getComputedStyle(el).getPropertyValue("transform")
+        window.getComputedStyle(el).getPropertyValue("transform"),
       );
       // Transform should include negative translateX on mobile
       console.log(`Sidebar transform: ${transform}`);
@@ -272,8 +278,11 @@ test.describe("Chat Page - Responsive", () => {
     await page.waitForLoadState("networkidle");
 
     // Find menu button
-    const menuButton = page.locator('button').filter({ has: page.locator('[class*="Menu"], svg') }).first();
-    
+    const menuButton = page
+      .locator("button")
+      .filter({ has: page.locator('[class*="Menu"], svg') })
+      .first();
+
     if (await menuButton.isVisible().catch(() => false)) {
       // Click to open sidebar
       await menuButton.click();
@@ -282,7 +291,7 @@ test.describe("Chat Page - Responsive", () => {
       // Sidebar should now be visible (or overlay)
       const sidebar = page.locator("aside").first();
       const sidebarVisible = await sidebar.isVisible().catch(() => false);
-      
+
       console.log(`Sidebar visible after menu click: ${sidebarVisible}`);
     }
 
@@ -376,7 +385,9 @@ test.describe("Touch Interactions - Mobile", () => {
 
     // Allow some small buttons but flag if too many
     expect(smallButtons).toBeLessThan(buttonCount / 2);
-    console.log(`✅ Tap targets checked: ${smallButtons} small buttons out of ${buttonCount}`);
+    console.log(
+      `✅ Tap targets checked: ${smallButtons} small buttons out of ${buttonCount}`,
+    );
   });
 
   test("scrolling works on mobile", async ({ page }) => {
@@ -420,9 +431,9 @@ test.describe("Text Readability - All Sizes", () => {
       const heading = page.locator("h1").first();
       if (await heading.isVisible()) {
         const fontSize = await heading.evaluate((el) =>
-          parseFloat(window.getComputedStyle(el).fontSize)
+          parseFloat(window.getComputedStyle(el).fontSize),
         );
-        
+
         // Heading should be at least 24px on mobile, larger on desktop
         if (viewport.width < 768) {
           expect(fontSize).toBeGreaterThanOrEqual(24);
@@ -435,9 +446,9 @@ test.describe("Text Readability - All Sizes", () => {
       const bodyText = page.locator("p").first();
       if (await bodyText.isVisible()) {
         const fontSize = await bodyText.evaluate((el) =>
-          parseFloat(window.getComputedStyle(el).fontSize)
+          parseFloat(window.getComputedStyle(el).fontSize),
         );
-        
+
         // Body text should be at least 14px
         expect(fontSize).toBeGreaterThanOrEqual(14);
       }
@@ -513,4 +524,3 @@ test.describe("Orientation Changes", () => {
     console.log("✅ Landscape orientation works");
   });
 });
-

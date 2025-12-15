@@ -45,7 +45,9 @@ interface AdAccount {
 
 export function AppPromote({ app }: AppPromoteProps) {
   const [showPromoteDialog, setShowPromoteDialog] = useState(false);
-  const [suggestions, setSuggestions] = useState<PromotionSuggestions | null>(null);
+  const [suggestions, setSuggestions] = useState<PromotionSuggestions | null>(
+    null,
+  );
   const [adAccounts, setAdAccounts] = useState<AdAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingAssets, setIsGeneratingAssets] = useState(false);
@@ -244,7 +246,8 @@ export function AppPromote({ app }: AppPromoteProps) {
             <div className="flex items-center justify-between text-sm">
               <span className="text-white/60">Estimated budget range:</span>
               <span className="text-white font-semibold">
-                ${suggestions.estimatedBudget.min} - ${suggestions.estimatedBudget.max}
+                ${suggestions.estimatedBudget.min} - $
+                {suggestions.estimatedBudget.max}
               </span>
             </div>
           </div>
@@ -271,7 +274,8 @@ export function AppPromote({ app }: AppPromoteProps) {
             <Megaphone className="h-12 w-12 mx-auto mb-3 opacity-40" />
             <p>No ad accounts connected</p>
             <p className="text-sm">
-              Connect a Meta, Google, or TikTok ads account to run paid campaigns
+              Connect a Meta, Google, or TikTok ads account to run paid
+              campaigns
             </p>
           </div>
         ) : (
@@ -311,4 +315,3 @@ export function AppPromote({ app }: AppPromoteProps) {
     </div>
   );
 }
-

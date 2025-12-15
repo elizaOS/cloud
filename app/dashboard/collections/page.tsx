@@ -1,13 +1,8 @@
-import type { Metadata } from "next";
-import { CollectionsPageClient } from "@/components/collections/collections-page-client";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Collections",
-  description: "Organize your media into collections for campaigns and apps",
-};
-
+// Redirect to the Gallery page with collections tab
 export default function CollectionsPage() {
-  return <CollectionsPageClient />;
+  redirect("/dashboard/gallery?tab=collections");
 }

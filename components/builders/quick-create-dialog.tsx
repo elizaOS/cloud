@@ -106,10 +106,14 @@ export function QuickCreateDialog({
 }: QuickCreateDialogProps) {
   const router = useRouter();
   const [step, setStep] = useState<Step>(defaultType ? "configure" : "type");
-  const [selectedType, setSelectedType] = useState<QuickCreateType | null>(defaultType ?? null);
+  const [selectedType, setSelectedType] = useState<QuickCreateType | null>(
+    defaultType ?? null,
+  );
   const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [createdResult, setCreatedResult] = useState<CreatedResult | null>(null);
+  const [createdResult, setCreatedResult] = useState<CreatedResult | null>(
+    null,
+  );
   const [copied, setCopied] = useState(false);
   const [serviceEndpoints, setServiceEndpoints] = useState<ServiceEndpoints>({
     mcp: true,
@@ -118,7 +122,8 @@ export function QuickCreateDialog({
   });
   const [showAppPrompt, setShowAppPrompt] = useState(false);
 
-  const generateName = (type: QuickCreateType): string => generateNameForType(type);
+  const generateName = (type: QuickCreateType): string =>
+    generateNameForType(type);
 
   const handleTypeSelect = (type: QuickCreateType) => {
     setSelectedType(type);
@@ -147,8 +152,15 @@ export function QuickCreateDialog({
           name: trimmedName,
           description: `${isService ? "Service" : "Mini App"} created with Eliza Cloud`,
           app_url: "https://localhost:3000",
-          features_enabled: { chat: true, agents: isService, embedding: isService },
-          metadata: { app_type: selectedType, ...(isService && { service_endpoints: serviceEndpoints }) },
+          features_enabled: {
+            chat: true,
+            agents: isService,
+            embedding: isService,
+          },
+          metadata: {
+            app_type: selectedType,
+            ...(isService && { service_endpoints: serviceEndpoints }),
+          },
         }),
       });
       if (!response.ok) {
@@ -156,14 +168,22 @@ export function QuickCreateDialog({
         throw new Error(err.error || "Failed to create");
       }
       const data = await response.json();
-      return { id: data.app.id, type: selectedType, name: trimmedName, apiKey: data.apiKey } as CreatedResult;
+      return {
+        id: data.app.id,
+        type: selectedType,
+        name: trimmedName,
+        apiKey: data.apiKey,
+      } as CreatedResult;
     };
 
     const createAgent = async () => {
       const response = await fetch("/api/v1/app/agents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: trimmedName, bio: "A helpful AI assistant" }),
+        body: JSON.stringify({
+          name: trimmedName,
+          bio: "A helpful AI assistant",
+        }),
       });
       if (!response.ok) {
         const err = await response.json();
@@ -188,7 +208,11 @@ export function QuickCreateDialog({
         throw new Error(err.error || "Failed to create workflow");
       }
       const data = await response.json();
-      return { id: data.workflow.id, type: "workflow" as const, name: trimmedName };
+      return {
+        id: data.workflow.id,
+        type: "workflow" as const,
+        name: trimmedName,
+      };
     };
 
     try {
@@ -210,7 +234,9 @@ export function QuickCreateDialog({
       setCreatedResult(result);
       setStep("success");
       onCreated?.(result);
-      toast.success(`${TYPE_OPTIONS.find((t) => t.type === selectedType)?.label} created`);
+      toast.success(
+        `${TYPE_OPTIONS.find((t) => t.type === selectedType)?.label} created`,
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Creation failed");
     } finally {
@@ -263,7 +289,9 @@ export function QuickCreateDialog({
   };
 
   // Determine if this entity type can have an app created for it
-  const canCreateApp = (type: QuickCreateType): type is "agent" | "workflow" | "service" => {
+  const canCreateApp = (
+    type: QuickCreateType,
+  ): type is "agent" | "workflow" | "service" => {
     return type === "agent" || type === "workflow" || type === "service";
   };
 
@@ -304,12 +332,21 @@ export function QuickCreateDialog({
 
             <div className="space-y-4 py-4">
               <div className="flex items-center gap-3">
-                <div className={cn("p-3 rounded-lg bg-gradient-to-r", typeConfig?.color)}>
+                <div
+                  className={cn(
+                    "p-3 rounded-lg bg-gradient-to-r",
+                    typeConfig?.color,
+                  )}
+                >
                   <TypeIcon className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <div className="text-lg font-medium text-white">{createdResult.name}</div>
-                  <div className="text-sm text-white/60">{typeConfig?.label}</div>
+                  <div className="text-lg font-medium text-white">
+                    {createdResult.name}
+                  </div>
+                  <div className="text-sm text-white/60">
+                    {typeConfig?.label}
+                  </div>
                 </div>
               </div>
 
@@ -317,9 +354,22 @@ export function QuickCreateDialog({
                 <div>
                   <Label className="text-xs text-white/60">API Key</Label>
                   <div className="flex gap-2 mt-1">
-                    <Input value={createdResult.apiKey} readOnly className="font-mono text-sm" />
-                    <Button type="button" variant="outline" onClick={copyApiKey} className="shrink-0">
-                      {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    <Input
+                      value={createdResult.apiKey}
+                      readOnly
+                      className="font-mono text-sm"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={copyApiKey}
+                      className="shrink-0"
+                    >
+                      {copied ? (
+                        <Check className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -329,10 +379,13 @@ export function QuickCreateDialog({
                 <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
                   <div className="flex items-center gap-2 mb-1">
                     <Sparkles className="h-4 w-4 text-cyan-400" />
-                    <span className="text-sm font-medium text-cyan-300">Create an App</span>
+                    <span className="text-sm font-medium text-cyan-300">
+                      Create an App
+                    </span>
                   </div>
                   <p className="text-xs text-white/60">
-                    Build a custom app or interface for your {createdResult.type}
+                    Build a custom app or interface for your{" "}
+                    {createdResult.type}
                   </p>
                 </div>
               )}
@@ -349,7 +402,10 @@ export function QuickCreateDialog({
                   Create App
                 </Button>
               )}
-              <Button onClick={handleClose} className="bg-gradient-to-r from-[#FF5800] to-purple-600">
+              <Button
+                onClick={handleClose}
+                className="bg-gradient-to-r from-[#FF5800] to-purple-600"
+              >
                 <ChevronRight className="h-4 w-4 mr-2" />
                 Configure &amp; Deploy
               </Button>
@@ -380,7 +436,12 @@ export function QuickCreateDialog({
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <div className={cn("p-2 rounded-lg bg-gradient-to-r", typeConfig?.color)}>
+              <div
+                className={cn(
+                  "p-2 rounded-lg bg-gradient-to-r",
+                  typeConfig?.color,
+                )}
+              >
                 <TypeIcon className="h-4 w-4 text-white" />
               </div>
               Create {typeConfig?.label}
@@ -394,7 +455,9 @@ export function QuickCreateDialog({
 
           <div className="space-y-4 py-4">
             <div>
-              <Label htmlFor="name" className="text-white/80">Name</Label>
+              <Label htmlFor="name" className="text-white/80">
+                Name
+              </Label>
               <div className="flex gap-2 mt-1">
                 <Input
                   id="name"
@@ -403,7 +466,12 @@ export function QuickCreateDialog({
                   placeholder="Enter a name..."
                   className="flex-1"
                 />
-                <Button type="button" variant="outline" onClick={regenerateName} title="Generate new name">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={regenerateName}
+                  title="Generate new name"
+                >
                   <RefreshCw className="h-4 w-4" />
                 </Button>
               </div>
@@ -414,33 +482,77 @@ export function QuickCreateDialog({
                 <Label className="text-white/80">Service Endpoints</Label>
                 <div className="grid gap-2">
                   {[
-                    { key: "mcp" as const, label: "MCP Server", description: "Model Context Protocol", icon: Bot },
-                    { key: "a2a" as const, label: "A2A Protocol", description: "Agent-to-Agent", icon: Zap },
-                    { key: "rest" as const, label: "REST API", description: "Standard HTTP", icon: Globe },
+                    {
+                      key: "mcp" as const,
+                      label: "MCP Server",
+                      description: "Model Context Protocol",
+                      icon: Bot,
+                    },
+                    {
+                      key: "a2a" as const,
+                      label: "A2A Protocol",
+                      description: "Agent-to-Agent",
+                      icon: Zap,
+                    },
+                    {
+                      key: "rest" as const,
+                      label: "REST API",
+                      description: "Standard HTTP",
+                      icon: Globe,
+                    },
                   ].map(({ key, label, description, icon: Icon }) => (
                     <button
                       key={key}
                       type="button"
-                      onClick={() => setServiceEndpoints((prev) => ({ ...prev, [key]: !prev[key] }))}
+                      onClick={() =>
+                        setServiceEndpoints((prev) => ({
+                          ...prev,
+                          [key]: !prev[key],
+                        }))
+                      }
                       className={cn(
                         "flex items-center gap-3 p-3 rounded-lg border transition-all text-left",
                         serviceEndpoints[key]
                           ? "border-[#FF5800]/50 bg-[#FF5800]/10"
-                          : "border-white/10 bg-white/5 hover:bg-white/10"
+                          : "border-white/10 bg-white/5 hover:bg-white/10",
                       )}
                     >
-                      <div className={cn("p-2 rounded-lg", serviceEndpoints[key] ? "bg-[#FF5800]/20" : "bg-white/10")}>
-                        <Icon className={cn("h-4 w-4", serviceEndpoints[key] ? "text-[#FF5800]" : "text-white/60")} />
+                      <div
+                        className={cn(
+                          "p-2 rounded-lg",
+                          serviceEndpoints[key]
+                            ? "bg-[#FF5800]/20"
+                            : "bg-white/10",
+                        )}
+                      >
+                        <Icon
+                          className={cn(
+                            "h-4 w-4",
+                            serviceEndpoints[key]
+                              ? "text-[#FF5800]"
+                              : "text-white/60",
+                          )}
+                        />
                       </div>
                       <div className="flex-1">
-                        <div className="font-medium text-white text-sm">{label}</div>
-                        <div className="text-xs text-white/50">{description}</div>
+                        <div className="font-medium text-white text-sm">
+                          {label}
+                        </div>
+                        <div className="text-xs text-white/50">
+                          {description}
+                        </div>
                       </div>
-                      <div className={cn(
-                        "w-4 h-4 rounded-full border-2 flex items-center justify-center",
-                        serviceEndpoints[key] ? "border-[#FF5800] bg-[#FF5800]" : "border-white/30"
-                      )}>
-                        {serviceEndpoints[key] && <Check className="h-2.5 w-2.5 text-white" />}
+                      <div
+                        className={cn(
+                          "w-4 h-4 rounded-full border-2 flex items-center justify-center",
+                          serviceEndpoints[key]
+                            ? "border-[#FF5800] bg-[#FF5800]"
+                            : "border-white/30",
+                        )}
+                      >
+                        {serviceEndpoints[key] && (
+                          <Check className="h-2.5 w-2.5 text-white" />
+                        )}
                       </div>
                     </button>
                   ))}
@@ -495,12 +607,19 @@ export function QuickCreateDialog({
                 onClick={() => handleTypeSelect(option.type)}
                 className="flex items-center gap-4 p-4 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 transition-all text-left group"
               >
-                <div className={cn("p-3 rounded-lg bg-gradient-to-r", option.color)}>
+                <div
+                  className={cn(
+                    "p-3 rounded-lg bg-gradient-to-r",
+                    option.color,
+                  )}
+                >
                   <Icon className="h-5 w-5 text-white" />
                 </div>
                 <div className="flex-1">
                   <div className="font-medium text-white">{option.label}</div>
-                  <div className="text-sm text-white/60">{option.description}</div>
+                  <div className="text-sm text-white/60">
+                    {option.description}
+                  </div>
                 </div>
                 <ChevronRight className="h-5 w-5 text-white/30 group-hover:text-white/60 transition-colors" />
               </button>
@@ -509,7 +628,8 @@ export function QuickCreateDialog({
         </div>
 
         <div className="text-xs text-white/40 text-center pb-2">
-          Services expose MCP, A2A, and REST • Workflows integrate with everything
+          Services expose MCP, A2A, and REST • Workflows integrate with
+          everything
         </div>
       </DialogContent>
     </Dialog>

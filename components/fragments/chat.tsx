@@ -9,7 +9,12 @@ import Image from "next/image";
 
 export interface Message {
   role: "user" | "assistant";
-  content: Array<{ type: "text" | "image" | "code"; text?: string; image?: string; code?: string }>;
+  content: Array<{
+    type: "text" | "image" | "code";
+    text?: string;
+    image?: string;
+    code?: string;
+  }>;
   object?: DeepPartial<FragmentSchema>;
   result?: ExecutionResult;
 }
@@ -27,7 +32,7 @@ export function Chat({
   }) => void;
 }) {
   const messagesKey = useMemo(() => JSON.stringify(messages), [messages]);
-  
+
   useEffect(() => {
     const chatContainer = document.getElementById("chat-container");
     if (chatContainer) {
@@ -85,7 +90,10 @@ export function Chat({
               className="py-2 pl-2 w-full sm:w-max flex items-center border rounded-lg sm:rounded-xl select-none hover:bg-white dark:hover:bg-white/5 hover:cursor-pointer active:scale-[0.98] transition-transform"
             >
               <div className="rounded-[0.5rem] w-8 h-8 sm:w-10 sm:h-10 bg-black/5 dark:bg-white/5 self-stretch flex items-center justify-center shrink-0">
-                <Terminal strokeWidth={2} className="text-[#FF8800] h-4 w-4 sm:h-5 sm:w-5" />
+                <Terminal
+                  strokeWidth={2}
+                  className="text-[#FF8800] h-4 w-4 sm:h-5 sm:w-5"
+                />
               </div>
               <div className="pl-2 pr-3 sm:pr-4 flex flex-col min-w-0">
                 <span className="font-bold font-sans text-xs sm:text-sm text-primary truncate">
@@ -108,4 +116,3 @@ export function Chat({
     </div>
   );
 }
-

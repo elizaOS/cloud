@@ -1,6 +1,6 @@
 /**
  * Fragment Projects Table Component
- * 
+ *
  * Displays fragment projects in a table format with actions
  */
 
@@ -36,7 +36,9 @@ interface FragmentProjectsTableProps {
   projects: FragmentProject[];
 }
 
-export function FragmentProjectsTable({ projects }: FragmentProjectsTableProps) {
+export function FragmentProjectsTable({
+  projects,
+}: FragmentProjectsTableProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const router = useRouter();
 
@@ -74,7 +76,9 @@ export function FragmentProjectsTable({ projects }: FragmentProjectsTableProps) 
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/5 mb-4">
           <Code className="h-8 w-8 text-white/40" />
         </div>
-        <h3 className="text-lg font-semibold text-white mb-2">No projects yet</h3>
+        <h3 className="text-lg font-semibold text-white mb-2">
+          No projects yet
+        </h3>
         <p className="text-white/60 mb-4">
           Create your first fragment project to get started
         </p>
@@ -151,7 +155,11 @@ export function FragmentProjectsTable({ projects }: FragmentProjectsTableProps) 
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => router.push(`/dashboard/fragments/projects/${project.id}/deploy`)}
+                onClick={() =>
+                  router.push(
+                    `/dashboard/fragments/projects/${project.id}/deploy`,
+                  )
+                }
                 className="text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-3"
               >
                 <Rocket className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
@@ -160,7 +168,11 @@ export function FragmentProjectsTable({ projects }: FragmentProjectsTableProps) 
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 sm:h-9 sm:w-9">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 sm:h-9 sm:w-9"
+                >
                   <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -182,7 +194,9 @@ export function FragmentProjectsTable({ projects }: FragmentProjectsTableProps) 
                   )}
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => router.push(`/dashboard/fragments/projects/${project.id}`)}
+                  onClick={() =>
+                    router.push(`/dashboard/fragments/projects/${project.id}`)
+                  }
                   className="text-xs sm:text-sm"
                 >
                   <Edit className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
@@ -204,4 +218,3 @@ export function FragmentProjectsTable({ projects }: FragmentProjectsTableProps) 
     </div>
   );
 }
-

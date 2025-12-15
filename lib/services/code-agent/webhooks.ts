@@ -22,7 +22,11 @@ export interface WebhookPayload {
 const sign = (data: string, secret: string) =>
   crypto.createHmac("sha256", secret).update(data).digest("hex");
 
-async function sendWithRetry(url: string, payload: WebhookPayload, attempt = 0): Promise<boolean> {
+async function sendWithRetry(
+  url: string,
+  payload: WebhookPayload,
+  attempt = 0,
+): Promise<boolean> {
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), TIMEOUT_MS);
 
@@ -41,7 +45,11 @@ async function sendWithRetry(url: string, payload: WebhookPayload, attempt = 0):
     clearTimeout(timer);
 
     if (res.ok) {
-      logger.info("[Webhook] Delivered", { url, event: payload.eventType, attempt });
+      logger.info("[Webhook] Delivered", {
+        url,
+        event: payload.eventType,
+        attempt,
+      });
       return true;
     }
 
@@ -53,7 +61,11 @@ async function sendWithRetry(url: string, payload: WebhookPayload, attempt = 0):
     return false;
   } catch (e) {
     clearTimeout(timer);
-    logger.error("[Webhook] Error", { url, error: extractErrorMessage(e), attempt });
+    logger.error("[Webhook] Error", {
+      url,
+      error: extractErrorMessage(e),
+      attempt,
+    });
     if (attempt < RETRIES.length) {
       await new Promise((r) => setTimeout(r, RETRIES[attempt]));
       return sendWithRetry(url, payload, attempt + 1);
@@ -64,16 +76,28 @@ async function sendWithRetry(url: string, payload: WebhookPayload, attempt = 0):
 
 const DEFAULT_EVENTS = ["session_ready", "session_error", "session_terminated"];
 
-export function shouldDispatchEvent(session: CodeAgentSession, eventType: string): boolean {
+export function shouldDispatchEvent(
+  session: CodeAgentSession,
+  eventType: string,
+): boolean {
   if (!session.webhook_url || !session.webhook_secret) return false;
   return (session.webhook_events ?? DEFAULT_EVENTS).includes(eventType);
 }
 
-export async function dispatchWebhook(session: CodeAgentSession, event: CodeAgentEvent): Promise<void> {
+export async function dispatchWebhook(
+  session: CodeAgentSession,
+  event: CodeAgentEvent,
+): Promise<void> {
   if (!shouldDispatchEvent(session, event.type)) return;
 
   const timestamp = new Date().toISOString();
-  const base = { eventType: event.type, sessionId: session.id, organizationId: session.organization_id, timestamp, data: { ...event } };
+  const base = {
+    eventType: event.type,
+    sessionId: session.id,
+    organizationId: session.organization_id,
+    timestamp,
+    data: { ...event },
+  };
   const signature = sign(JSON.stringify(base), session.webhook_secret!);
 
   // Fire-and-forget - log errors but don't block
@@ -86,5 +110,5 @@ export async function dispatchWebhook(session: CodeAgentSession, event: CodeAgen
   });
 }
 
-export const generateWebhookSecret = () => crypto.randomBytes(32).toString("hex");
-
+export const generateWebhookSecret = () =>
+  crypto.randomBytes(32).toString("hex");

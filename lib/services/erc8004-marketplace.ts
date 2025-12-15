@@ -59,7 +59,7 @@ class ERC8004MarketplaceService {
   async discover(
     filters: ERC8004DiscoveryFilters = {},
     sort: ERC8004SortOptions = { sortBy: "relevance", order: "desc" },
-    pagination: ERC8004PaginationOptions = { page: 1, limit: 20 }
+    pagination: ERC8004PaginationOptions = { page: 1, limit: 20 },
   ): Promise<ERC8004DiscoveryResult> {
     const startTime = Date.now();
 
@@ -93,7 +93,7 @@ class ERC8004MarketplaceService {
     const offset = (pagination.page - 1) * pagination.limit;
     const paginatedItems = filteredItems.slice(
       offset,
-      offset + pagination.limit
+      offset + pagination.limit,
     );
 
     // Get available tags and categories for filtering UI
@@ -136,7 +136,7 @@ class ERC8004MarketplaceService {
    * Get local database items (agents and MCPs)
    */
   private async getLocalItems(
-    filters: ERC8004DiscoveryFilters
+    filters: ERC8004DiscoveryFilters,
   ): Promise<ERC8004MarketplaceItem[]> {
     const items: ERC8004MarketplaceItem[] = [];
     const types = filters.types || ["agent", "mcp"];
@@ -174,7 +174,7 @@ class ERC8004MarketplaceService {
    * Get items from on-chain registry via agent0 SDK
    */
   private async getRegistryItems(
-    filters: ERC8004DiscoveryFilters
+    filters: ERC8004DiscoveryFilters,
   ): Promise<ERC8004MarketplaceItem[]> {
     const searchFilters = {
       name: filters.query,
@@ -197,7 +197,7 @@ class ERC8004MarketplaceService {
    */
   private mergeItems(
     localItems: ERC8004MarketplaceItem[],
-    registryItems: ERC8004MarketplaceItem[]
+    registryItems: ERC8004MarketplaceItem[],
   ): ERC8004MarketplaceItem[] {
     const merged = new Map<string, ERC8004MarketplaceItem>();
 
@@ -234,7 +234,7 @@ class ERC8004MarketplaceService {
    */
   private applyFilters(
     items: ERC8004MarketplaceItem[],
-    filters: ERC8004DiscoveryFilters
+    filters: ERC8004DiscoveryFilters,
   ): ERC8004MarketplaceItem[] {
     let filtered = items;
 
@@ -245,7 +245,7 @@ class ERC8004MarketplaceService {
         (item) =>
           item.name.toLowerCase().includes(query) ||
           item.description.toLowerCase().includes(query) ||
-          item.tags.some((tag) => tag.toLowerCase().includes(query))
+          item.tags.some((tag) => tag.toLowerCase().includes(query)),
       );
     }
 
@@ -263,28 +263,28 @@ class ERC8004MarketplaceService {
           if (protocol === "openapi") return !!item.endpoints.openapi;
           if (protocol === "x402") return item.capabilities.x402;
           return false;
-        })
+        }),
       );
     }
 
     // Tag filters (AND logic)
     if (filters.tags?.length) {
       filtered = filtered.filter((item) =>
-        filters.tags!.every((tag) => item.tags.includes(tag))
+        filters.tags!.every((tag) => item.tags.includes(tag)),
       );
     }
 
     // Any tags (OR logic)
     if (filters.anyTags?.length) {
       filtered = filtered.filter((item) =>
-        filters.anyTags!.some((tag) => item.tags.includes(tag))
+        filters.anyTags!.some((tag) => item.tags.includes(tag)),
       );
     }
 
     // Payment method filter
     if (filters.paymentMethods?.length) {
       filtered = filtered.filter((item) =>
-        filters.paymentMethods!.includes(item.pricing.type)
+        filters.paymentMethods!.includes(item.pricing.type),
       );
     }
 
@@ -316,7 +316,7 @@ class ERC8004MarketplaceService {
    */
   private applySorting(
     items: ERC8004MarketplaceItem[],
-    sort: ERC8004SortOptions
+    sort: ERC8004SortOptions,
   ): ERC8004MarketplaceItem[] {
     const sorted = [...items];
     const multiplier = sort.order === "asc" ? 1 : -1;
@@ -355,7 +355,7 @@ class ERC8004MarketplaceService {
    * Get available tags with counts
    */
   async getAvailableTags(
-    filters?: ERC8004DiscoveryFilters
+    filters?: ERC8004DiscoveryFilters,
   ): Promise<TagGroup[]> {
     const cacheResult = await cache.get<TagGroup[]>(cacheKey("tags"));
     if (cacheResult) return cacheResult;
@@ -380,7 +380,8 @@ class ERC8004MarketplaceService {
     };
 
     for (const [tag, count] of tagCounts) {
-      const group = tag.startsWith("nlp/") ||
+      const group =
+        tag.startsWith("nlp/") ||
         tag.startsWith("dev/") ||
         tag.startsWith("reasoning/") ||
         tag.startsWith("creative/") ||
@@ -388,14 +389,14 @@ class ERC8004MarketplaceService {
         tag.startsWith("research/") ||
         tag.startsWith("comm/") ||
         tag.startsWith("productivity/")
-        ? "skill"
-        : tag.startsWith("domain/")
-          ? "domain"
-          : tag.startsWith("mcp/")
-            ? "mcp"
-            : tag.startsWith("cap/")
-              ? "capability"
-              : "other";
+          ? "skill"
+          : tag.startsWith("domain/")
+            ? "domain"
+            : tag.startsWith("mcp/")
+              ? "mcp"
+              : tag.startsWith("cap/")
+                ? "capability"
+                : "other";
 
       groups[group].push({ tag, count });
     }
@@ -415,10 +416,10 @@ class ERC8004MarketplaceService {
    * Get available categories with counts
    */
   async getAvailableCategories(
-    filters?: ERC8004DiscoveryFilters
+    filters?: ERC8004DiscoveryFilters,
   ): Promise<CategoryCount[]> {
     const cacheResult = await cache.get<CategoryCount[]>(
-      cacheKey("categories")
+      cacheKey("categories"),
     );
     if (cacheResult) return cacheResult;
 
@@ -429,7 +430,7 @@ class ERC8004MarketplaceService {
       if (item.category) {
         categoryCounts.set(
           item.category,
-          (categoryCounts.get(item.category) || 0) + 1
+          (categoryCounts.get(item.category) || 0) + 1,
         );
       }
     }
@@ -458,7 +459,7 @@ class ERC8004MarketplaceService {
           t.startsWith("data/") ||
           t.startsWith("research/") ||
           t.startsWith("comm/") ||
-          t.startsWith("productivity/")
+          t.startsWith("productivity/"),
       ),
       domains: tags.filter((t) => t.startsWith("domain/")),
       mcpCategories: tags.filter((t) => t.startsWith("mcp/")),
@@ -473,7 +474,7 @@ class ERC8004MarketplaceService {
    */
   async getItem(
     id: string,
-    type?: ERC8004ServiceType
+    type?: ERC8004ServiceType,
   ): Promise<ERC8004MarketplaceItem | null> {
     // Check if it's an ERC-8004 agent ID (chainId:tokenId format)
     if (id.includes(":")) {
@@ -506,7 +507,7 @@ class ERC8004MarketplaceService {
    */
   async getByTags(
     tags: string[],
-    options: { limit?: number; activeOnly?: boolean } = {}
+    options: { limit?: number; activeOnly?: boolean } = {},
   ): Promise<ERC8004MarketplaceItem[]> {
     const result = await this.discover(
       {
@@ -515,7 +516,7 @@ class ERC8004MarketplaceService {
         registeredOnly: true,
       },
       { sortBy: "relevance", order: "desc" },
-      { page: 1, limit: options.limit || 20 }
+      { page: 1, limit: options.limit || 20 },
     );
 
     return result.items;
@@ -526,7 +527,7 @@ class ERC8004MarketplaceService {
    */
   async getByMCPTools(
     tools: string[],
-    options: { limit?: number } = {}
+    options: { limit?: number } = {},
   ): Promise<ERC8004MarketplaceItem[]> {
     const result = await this.discover(
       {
@@ -535,7 +536,7 @@ class ERC8004MarketplaceService {
         registeredOnly: true,
       },
       { sortBy: "relevance", order: "desc" },
-      { page: 1, limit: options.limit || 20 }
+      { page: 1, limit: options.limit || 20 },
     );
 
     return result.items;
@@ -546,7 +547,7 @@ class ERC8004MarketplaceService {
    */
   async getByA2ASkills(
     skills: string[],
-    options: { limit?: number } = {}
+    options: { limit?: number } = {},
   ): Promise<ERC8004MarketplaceItem[]> {
     const result = await this.discover(
       {
@@ -555,7 +556,7 @@ class ERC8004MarketplaceService {
         registeredOnly: true,
       },
       { sortBy: "relevance", order: "desc" },
-      { page: 1, limit: options.limit || 20 }
+      { page: 1, limit: options.limit || 20 },
     );
 
     return result.items;
@@ -565,7 +566,7 @@ class ERC8004MarketplaceService {
    * Get x402-enabled services
    */
   async getPayableServices(
-    options: { type?: ERC8004ServiceType; limit?: number } = {}
+    options: { type?: ERC8004ServiceType; limit?: number } = {},
   ): Promise<ERC8004MarketplaceItem[]> {
     const result = await this.discover(
       {
@@ -574,7 +575,7 @@ class ERC8004MarketplaceService {
         activeOnly: true,
       },
       { sortBy: "popularity", order: "desc" },
-      { page: 1, limit: options.limit || 20 }
+      { page: 1, limit: options.limit || 20 },
     );
 
     return result.items;
@@ -612,7 +613,9 @@ class ERC8004MarketplaceService {
     updated_at: Date;
   }): ERC8004MarketplaceItem {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
-    const bio = Array.isArray(agent.bio) ? agent.bio.join("\n") : agent.bio || "";
+    const bio = Array.isArray(agent.bio)
+      ? agent.bio.join("\n")
+      : agent.bio || "";
     const network = agent.erc8004_network as ERC8004Network | null;
 
     return {
@@ -626,9 +629,10 @@ class ERC8004MarketplaceService {
       erc8004: {
         registered: agent.erc8004_registered,
         network: agent.erc8004_network || undefined,
-        agentId: agent.erc8004_agent_id && network
-          ? `${CHAIN_IDS[network]}:${agent.erc8004_agent_id}`
-          : undefined,
+        agentId:
+          agent.erc8004_agent_id && network
+            ? `${CHAIN_IDS[network]}:${agent.erc8004_agent_id}`
+            : undefined,
         agentUri: agent.erc8004_agent_uri || undefined,
         registeredAt: agent.erc8004_registered_at?.toISOString(),
       },
@@ -717,9 +721,10 @@ class ERC8004MarketplaceService {
       erc8004: {
         registered: mcp.erc8004_registered,
         network: mcp.erc8004_network || undefined,
-        agentId: mcp.erc8004_agent_id && network
-          ? `${CHAIN_IDS[network]}:${mcp.erc8004_agent_id}`
-          : undefined,
+        agentId:
+          mcp.erc8004_agent_id && network
+            ? `${CHAIN_IDS[network]}:${mcp.erc8004_agent_id}`
+            : undefined,
         agentUri: mcp.erc8004_agent_uri || undefined,
         registeredAt: mcp.erc8004_registered_at?.toISOString(),
       },
@@ -761,7 +766,7 @@ class ERC8004MarketplaceService {
   }
 
   private registryAgentToMarketplaceItem(
-    agent: Agent0Agent
+    agent: Agent0Agent,
   ): ERC8004MarketplaceItem {
     return {
       id: agent.agentId,
@@ -826,4 +831,3 @@ class ERC8004MarketplaceService {
 // ============================================================================
 
 export const erc8004MarketplaceService = new ERC8004MarketplaceService();
-

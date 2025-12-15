@@ -21,25 +21,36 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { type, id, force } = body as { type?: string; id?: string; force?: boolean };
+  const { type, id, force } = body as {
+    type?: string;
+    id?: string;
+    force?: boolean;
+  };
 
   if (!type || !id) {
     return NextResponse.json({ error: "Missing type or id" }, { status: 400 });
   }
 
   if (type !== "domain" && type !== "agent") {
-    return NextResponse.json({ error: "Invalid type, must be 'domain' or 'agent'" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid type, must be 'domain' or 'agent'" },
+      { status: 400 },
+    );
   }
 
   logger.info("[Admin] Manual scan triggered", { type, id, force });
 
   if (type === "domain") {
-    const result = await domainContentModerationService.scanDomain(id, { force: force ?? true, deepScan: true });
+    const result = await domainContentModerationService.scanDomain(id, {
+      force: force ?? true,
+      deepScan: true,
+    });
     return NextResponse.json({ success: true, type: "domain", id, result });
   }
 
   if (type === "agent") {
-    const result = await domainContentModerationService.sampleAgentResponses(id);
+    const result =
+      await domainContentModerationService.sampleAgentResponses(id);
     return NextResponse.json({ success: true, type: "agent", id, result });
   }
 
@@ -50,12 +61,11 @@ export async function GET() {
   return NextResponse.json({
     endpoint: "/api/admin/moderation/scan",
     method: "POST",
-    headers: { "Authorization": "Bearer <ADMIN_API_KEY>" },
+    headers: { Authorization: "Bearer <ADMIN_API_KEY>" },
     body: {
       type: "domain | agent",
       id: "uuid of domain or agent",
-      force: "optional boolean, defaults to true"
-    }
+      force: "optional boolean, defaults to true",
+    },
   });
 }
-

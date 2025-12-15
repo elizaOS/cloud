@@ -384,10 +384,7 @@ describe("API Key Security Properties", () => {
       expect(stored.key.includes("*")).toBe(true);
 
       // But hash should be verifiable
-      const verifyHash = crypto
-        .createHash("sha256")
-        .update(key)
-        .digest("hex");
+      const verifyHash = crypto.createHash("sha256").update(key).digest("hex");
       expect(verifyHash).toBe(stored.key_hash);
     });
 

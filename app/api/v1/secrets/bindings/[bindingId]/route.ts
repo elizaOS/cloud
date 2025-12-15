@@ -10,7 +10,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { bindingId } = await params;
-    await secretsService.unbindSecret(bindingId, user.organization_id, createAudit(user, "secrets-bindings-api"));
+    await secretsService.unbindSecret(
+      bindingId,
+      user.organization_id,
+      createAudit(user, "secrets-bindings-api"),
+    );
     logger.info("[Secrets] Unbound", { bindingId, userId: user.id });
     return NextResponse.json({ success: true });
   } catch (error) {

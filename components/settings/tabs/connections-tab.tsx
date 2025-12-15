@@ -2,7 +2,15 @@
 
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import type { UserWithOrganization } from "@/lib/types";
-import { Loader2, X, ExternalLink, CheckCircle2, Link2, Unlink, RefreshCw } from "lucide-react";
+import {
+  Loader2,
+  X,
+  ExternalLink,
+  CheckCircle2,
+  Link2,
+  Unlink,
+  RefreshCw,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
@@ -23,7 +31,10 @@ interface PlatformConnection {
   };
 }
 
-const PLATFORM_INFO: Record<string, { name: string; icon: string; description: string }> = {
+const PLATFORM_INFO: Record<
+  string,
+  { name: string; icon: string; description: string }
+> = {
   twitter: { name: "Twitter / X", icon: "𝕏", description: "Post tweets" },
   bluesky: { name: "Bluesky", icon: "🦋", description: "Post to Bluesky" },
   discord: { name: "Discord", icon: "🎮", description: "Send to Discord" },
@@ -41,7 +52,10 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
   const [platforms, setPlatforms] = useState<PlatformConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [modal, setModal] = useState<{ platform: string | null; form: Record<string, string> }>({ platform: null, form: {} });
+  const [modal, setModal] = useState<{
+    platform: string | null;
+    form: Record<string, string>;
+  }>({ platform: null, form: {} });
 
   const [error, setError] = useState<string | null>(null);
 
@@ -65,19 +79,26 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
     fetchConnections();
   }, [fetchConnections]);
 
-  const handleConnect = async (platform: string, authType: "oauth" | "manual") => {
+  const handleConnect = async (
+    platform: string,
+    authType: "oauth" | "manual",
+  ) => {
     if (authType === "manual" || platform === "mastodon") {
-      const defaultForm: Record<string, string> = platform === "mastodon" ? { instanceUrl: "mastodon.social" } : {};
+      const defaultForm: Record<string, string> =
+        platform === "mastodon" ? { instanceUrl: "mastodon.social" } : {};
       setModal({ platform, form: defaultForm });
       return;
     }
 
     setActionLoading(platform);
-    const response = await fetch(`/api/v1/social-connections/connect/${platform}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: "{}",
-    });
+    const response = await fetch(
+      `/api/v1/social-connections/connect/${platform}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      },
+    );
 
     if (!response.ok) {
       toast.error((await response.json()).error || "Failed to connect");
@@ -95,11 +116,14 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
     setActionLoading(platform);
 
     if (platform === "mastodon") {
-      const response = await fetch("/api/v1/social-connections/connect/mastodon", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ instanceUrl: form.instanceUrl }),
-      });
+      const response = await fetch(
+        "/api/v1/social-connections/connect/mastodon",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ instanceUrl: form.instanceUrl }),
+        },
+      );
       if (!response.ok) {
         toast.error((await response.json()).error || "Failed to connect");
         setActionLoading(null);
@@ -109,9 +133,10 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
       return;
     }
 
-    const credentials = platform === "bluesky"
-      ? { handle: form.handle, appPassword: form.appPassword }
-      : { botToken: form.botToken };
+    const credentials =
+      platform === "bluesky"
+        ? { handle: form.handle, appPassword: form.appPassword }
+        : { botToken: form.botToken };
 
     const response = await fetch("/api/v1/social-connections", {
       method: "POST",
@@ -131,10 +156,13 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
   };
 
   const handleDisconnect = async (platform: string, connectionId: string) => {
-    if (!confirm(`Disconnect ${PLATFORM_INFO[platform]?.name || platform}?`)) return;
+    if (!confirm(`Disconnect ${PLATFORM_INFO[platform]?.name || platform}?`))
+      return;
 
     setActionLoading(platform);
-    const response = await fetch(`/api/v1/social-connections/${connectionId}`, { method: "DELETE" });
+    const response = await fetch(`/api/v1/social-connections/${connectionId}`, {
+      method: "DELETE",
+    });
     setActionLoading(null);
 
     if (!response.ok) {
@@ -162,9 +190,10 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
     fetchConnections();
   };
 
-  const connectedPlatforms = platforms.filter(p => p.connected);
-  const availablePlatforms = platforms.filter(p => !p.connected);
-  const updateForm = (key: string, value: string) => setModal(m => ({ ...m, form: { ...m.form, [key]: value } }));
+  const connectedPlatforms = platforms.filter((p) => p.connected);
+  const availablePlatforms = platforms.filter((p) => !p.connected);
+  const updateForm = (key: string, value: string) =>
+    setModal((m) => ({ ...m, form: { ...m.form, [key]: value } }));
   const closeModal = () => setModal({ platform: null, form: {} });
 
   return (
@@ -181,7 +210,8 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
               </h3>
             </div>
             <p className="text-xs md:text-sm font-mono text-[#858585] tracking-tight">
-              Platforms you&apos;ve authorized ElizaCloud to post on your behalf.
+              Platforms you&apos;ve authorized ElizaCloud to post on your
+              behalf.
             </p>
           </div>
 
@@ -192,7 +222,11 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
           ) : error ? (
             <div className="flex flex-col items-center justify-center p-8 border border-red-500/30 gap-2">
               <p className="text-sm text-red-400 font-mono">{error}</p>
-              <button type="button" onClick={fetchConnections} className="text-xs text-white/60 underline">
+              <button
+                type="button"
+                onClick={fetchConnections}
+                className="text-xs text-white/60 underline"
+              >
                 Retry
               </button>
             </div>
@@ -228,7 +262,8 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
 
                     {p.connection?.linkedAt && (
                       <p className="text-xs font-mono text-white/40">
-                        Connected {new Date(p.connection.linkedAt).toLocaleDateString()}
+                        Connected{" "}
+                        {new Date(p.connection.linkedAt).toLocaleDateString()}
                       </p>
                     )}
 
@@ -236,7 +271,9 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
                       {p.authType === "oauth" && (
                         <button
                           type="button"
-                          onClick={() => handleRefresh(p.platform, p.connection!.id)}
+                          onClick={() =>
+                            handleRefresh(p.platform, p.connection!.id)
+                          }
                           disabled={actionLoading === p.platform}
                           className="flex-1 px-3 py-2 border border-white/20 hover:bg-white/5 transition-colors flex items-center justify-center gap-2 text-xs font-mono text-white/80"
                         >
@@ -250,7 +287,9 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
                       )}
                       <button
                         type="button"
-                        onClick={() => handleDisconnect(p.platform, p.connection!.id)}
+                        onClick={() =>
+                          handleDisconnect(p.platform, p.connection!.id)
+                        }
                         disabled={actionLoading === p.platform}
                         className="flex-1 px-3 py-2 border border-red-500/40 bg-red-500/10 hover:bg-red-500/20 transition-colors flex items-center justify-center gap-2 text-xs font-mono text-red-400"
                       >
@@ -278,7 +317,8 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
               </h3>
             </div>
             <p className="text-xs md:text-sm font-mono text-[#858585] tracking-tight">
-              Connect additional platforms to enable cross-posting from ElizaCloud.
+              Connect additional platforms to enable cross-posting from
+              ElizaCloud.
             </p>
           </div>
 
@@ -295,7 +335,9 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
                   <div
                     key={p.platform}
                     className={`backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border p-4 space-y-3 ${
-                      isConfigured ? "border-brand-surface" : "border-white/10 opacity-60"
+                      isConfigured
+                        ? "border-brand-surface"
+                        : "border-white/10 opacity-60"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -313,11 +355,13 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 text-xs font-mono uppercase ${
-                        p.authType === "oauth" 
-                          ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
-                          : "bg-purple-500/20 text-purple-400 border border-purple-500/30"
-                      }`}>
+                      <span
+                        className={`px-2 py-0.5 text-xs font-mono uppercase ${
+                          p.authType === "oauth"
+                            ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                            : "bg-purple-500/20 text-purple-400 border border-purple-500/30"
+                        }`}
+                      >
                         {p.authType === "oauth" ? "OAuth" : "App Password"}
                       </span>
                       {!isConfigured && (
@@ -337,7 +381,8 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
                         className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
                         style={{
                           backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
-                          backgroundSize: "2.915576934814453px 2.915576934814453px",
+                          backgroundSize:
+                            "2.915576934814453px 2.915576934814453px",
                         }}
                       />
                       {actionLoading === p.platform ? (
@@ -365,9 +410,14 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
             <div className="relative z-10 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-mono text-white uppercase">
-                  Connect {PLATFORM_INFO[modal.platform]?.name || modal.platform}
+                  Connect{" "}
+                  {PLATFORM_INFO[modal.platform]?.name || modal.platform}
                 </h3>
-                <button type="button" onClick={closeModal} className="text-white/60 hover:text-white">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="text-white/60 hover:text-white"
+                >
                   <X className="h-5 w-5" />
                 </button>
               </div>
@@ -376,18 +426,41 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
                 <div className="space-y-4">
                   <div className="bg-blue-500/10 border border-blue-500/30 p-3">
                     <p className="text-xs text-blue-400 font-mono">
-                      <a href="https://bsky.app/settings/app-passwords" target="_blank" rel="noopener noreferrer" className="underline inline-flex items-center gap-1">
-                        Create an app password <ExternalLink className="h-3 w-3" />
+                      <a
+                        href="https://bsky.app/settings/app-passwords"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline inline-flex items-center gap-1"
+                      >
+                        Create an app password{" "}
+                        <ExternalLink className="h-3 w-3" />
                       </a>
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-white font-mono text-sm">Handle</Label>
-                    <Input value={modal.form.handle || ""} onChange={e => updateForm("handle", e.target.value)} placeholder="@yourname.bsky.social" className="bg-transparent border-[#303030] text-white" />
+                    <Label className="text-white font-mono text-sm">
+                      Handle
+                    </Label>
+                    <Input
+                      value={modal.form.handle || ""}
+                      onChange={(e) => updateForm("handle", e.target.value)}
+                      placeholder="@yourname.bsky.social"
+                      className="bg-transparent border-[#303030] text-white"
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-white font-mono text-sm">App Password</Label>
-                    <Input type="password" value={modal.form.appPassword || ""} onChange={e => updateForm("appPassword", e.target.value)} placeholder="xxxx-xxxx-xxxx-xxxx" className="bg-transparent border-[#303030] text-white" />
+                    <Label className="text-white font-mono text-sm">
+                      App Password
+                    </Label>
+                    <Input
+                      type="password"
+                      value={modal.form.appPassword || ""}
+                      onChange={(e) =>
+                        updateForm("appPassword", e.target.value)
+                      }
+                      placeholder="xxxx-xxxx-xxxx-xxxx"
+                      className="bg-transparent border-[#303030] text-white"
+                    />
                   </div>
                 </div>
               )}
@@ -395,11 +468,21 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
               {modal.platform === "telegram" && (
                 <div className="space-y-4">
                   <div className="bg-blue-500/10 border border-blue-500/30 p-3">
-                    <p className="text-xs text-blue-400 font-mono">Create a bot via @BotFather on Telegram</p>
+                    <p className="text-xs text-blue-400 font-mono">
+                      Create a bot via @BotFather on Telegram
+                    </p>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-white font-mono text-sm">Bot Token</Label>
-                    <Input type="password" value={modal.form.botToken || ""} onChange={e => updateForm("botToken", e.target.value)} placeholder="123456789:ABCdefGHIjklMNOpqrSTUvwxyz" className="bg-transparent border-[#303030] text-white" />
+                    <Label className="text-white font-mono text-sm">
+                      Bot Token
+                    </Label>
+                    <Input
+                      type="password"
+                      value={modal.form.botToken || ""}
+                      onChange={(e) => updateForm("botToken", e.target.value)}
+                      placeholder="123456789:ABCdefGHIjklMNOpqrSTUvwxyz"
+                      className="bg-transparent border-[#303030] text-white"
+                    />
                   </div>
                 </div>
               )}
@@ -407,22 +490,50 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
               {modal.platform === "mastodon" && (
                 <div className="space-y-4">
                   <div className="bg-purple-500/10 border border-purple-500/30 p-3">
-                    <p className="text-xs text-purple-400 font-mono">Enter your Mastodon instance URL</p>
+                    <p className="text-xs text-purple-400 font-mono">
+                      Enter your Mastodon instance URL
+                    </p>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-white font-mono text-sm">Instance URL</Label>
-                    <Input value={modal.form.instanceUrl || ""} onChange={e => updateForm("instanceUrl", e.target.value)} placeholder="mastodon.social" className="bg-transparent border-[#303030] text-white" />
+                    <Label className="text-white font-mono text-sm">
+                      Instance URL
+                    </Label>
+                    <Input
+                      value={modal.form.instanceUrl || ""}
+                      onChange={(e) =>
+                        updateForm("instanceUrl", e.target.value)
+                      }
+                      placeholder="mastodon.social"
+                      className="bg-transparent border-[#303030] text-white"
+                    />
                   </div>
                 </div>
               )}
 
               <div className="flex gap-4 justify-end pt-4">
-                <button type="button" onClick={closeModal} disabled={!!actionLoading} className="px-4 py-2.5 border border-[#303030] text-white hover:bg-white/5 font-mono text-sm">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  disabled={!!actionLoading}
+                  className="px-4 py-2.5 border border-[#303030] text-white hover:bg-white/5 font-mono text-sm"
+                >
                   Cancel
                 </button>
-                <button type="button" onClick={handleManualConnect} disabled={!!actionLoading} className="relative bg-[#e1e1e1] px-4 py-2.5 hover:bg-white disabled:opacity-50">
+                <button
+                  type="button"
+                  onClick={handleManualConnect}
+                  disabled={!!actionLoading}
+                  className="relative bg-[#e1e1e1] px-4 py-2.5 hover:bg-white disabled:opacity-50"
+                >
                   <span className="text-black font-mono font-medium text-sm flex items-center gap-2">
-                    {actionLoading ? <><Loader2 className="h-4 w-4 animate-spin" /> Connecting...</> : "Connect"}
+                    {actionLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />{" "}
+                        Connecting...
+                      </>
+                    ) : (
+                      "Connect"
+                    )}
                   </span>
                 </button>
               </div>
@@ -433,4 +544,3 @@ export function ConnectionsTab({ user }: { user: UserWithOrganization }) {
     </div>
   );
 }
-

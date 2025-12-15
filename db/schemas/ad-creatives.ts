@@ -114,10 +114,10 @@ export const adCreatives = pgTable(
     type_idx: index("ad_creatives_type_idx").on(table.type),
     status_idx: index("ad_creatives_status_idx").on(table.status),
     external_id_idx: index("ad_creatives_external_id_idx").on(
-      table.external_creative_id
+      table.external_creative_id,
     ),
     created_at_idx: index("ad_creatives_created_at_idx").on(table.created_at),
-  })
+  }),
 );
 
 export type AdCreative = InferSelectModel<typeof adCreatives>;

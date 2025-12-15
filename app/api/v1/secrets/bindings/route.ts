@@ -4,7 +4,11 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { secretsService } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
 import type { SecretProjectType } from "@/db/schemas/secrets";
-import { createAudit, handleSecretsError, PROJECT_TYPES } from "@/lib/api/secrets-helpers";
+import {
+  createAudit,
+  handleSecretsError,
+  PROJECT_TYPES,
+} from "@/lib/api/secrets-helpers";
 
 const BindSchema = z.object({
   secretId: z.string().uuid(),
@@ -23,22 +27,38 @@ export async function GET(request: NextRequest) {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const params = request.nextUrl.searchParams;
     const projectId = params.get("projectId");
-    const projectType = params.get("projectType") as SecretProjectType | undefined;
+    const projectType = params.get("projectType") as
+      | SecretProjectType
+      | undefined;
     const secretId = params.get("secretId");
 
     if (!projectId && !secretId) {
-      return NextResponse.json({ error: "projectId or secretId required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "projectId or secretId required" },
+        { status: 400 },
+      );
     }
     if (secretId) {
-      return NextResponse.json({ bindings: await secretsService.listSecretBindings(secretId) });
+      return NextResponse.json({
+        bindings: await secretsService.listSecretBindings(secretId),
+      });
     }
     if (projectType && !PROJECT_TYPES.includes(projectType)) {
-      return NextResponse.json({ error: "Invalid projectType" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid projectType" },
+        { status: 400 },
+      );
     }
 
     const limit = Math.min(parseInt(params.get("limit") || "100"), 500);
     const offset = parseInt(params.get("offset") || "0");
-    const result = await secretsService.listBindings(user.organization_id, projectId!, projectType, limit, offset);
+    const result = await secretsService.listBindings(
+      user.organization_id,
+      projectId!,
+      projectType,
+      limit,
+      offset,
+    );
     return NextResponse.json({ ...result, limit, offset });
   } catch (error) {
     return handleSecretsError(error, "Secrets Bindings");
@@ -54,10 +74,17 @@ export async function POST(request: NextRequest) {
     if (body.secretIds && Array.isArray(body.secretIds)) {
       const parsed = BulkBindSchema.safeParse(body);
       if (!parsed.success) {
-        return NextResponse.json({ error: "Invalid request", details: parsed.error.format() }, { status: 400 });
+        return NextResponse.json(
+          { error: "Invalid request", details: parsed.error.format() },
+          { status: 400 },
+        );
       }
       const result = await secretsService.bindSecrets(
-        parsed.data.secretIds, parsed.data.projectId, parsed.data.projectType, user.id, audit
+        parsed.data.secretIds,
+        parsed.data.projectId,
+        parsed.data.projectType,
+        user.id,
+        audit,
       );
       logger.info("[Secrets] Bulk bound", { count: result.bound.length });
       return NextResponse.json(result, { status: 201 });
@@ -65,15 +92,24 @@ export async function POST(request: NextRequest) {
 
     const parsed = BindSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid request", details: parsed.error.format() }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid request", details: parsed.error.format() },
+        { status: 400 },
+      );
     }
-    const binding = await secretsService.bindSecret({
+    const binding = await secretsService.bindSecret(
+      {
+        secretId: parsed.data.secretId,
+        projectId: parsed.data.projectId,
+        projectType: parsed.data.projectType,
+        createdBy: user.id,
+      },
+      audit,
+    );
+    logger.info("[Secrets] Bound", {
       secretId: parsed.data.secretId,
       projectId: parsed.data.projectId,
-      projectType: parsed.data.projectType,
-      createdBy: user.id,
-    }, audit);
-    logger.info("[Secrets] Bound", { secretId: parsed.data.secretId, projectId: parsed.data.projectId });
+    });
     return NextResponse.json({ binding }, { status: 201 });
   } catch (error) {
     return handleSecretsError(error, "Secrets Bindings");

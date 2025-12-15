@@ -4,7 +4,10 @@
  * Converts discovered endpoints (A2A/MCP/REST) into n8n workflow nodes.
  */
 
-import { endpointDiscoveryService, type EndpointNode } from "./endpoint-discovery";
+import {
+  endpointDiscoveryService,
+  type EndpointNode,
+} from "./endpoint-discovery";
 import { logger } from "@/lib/utils/logger";
 
 export interface N8NNodeDefinition {
@@ -32,8 +35,12 @@ class N8NNodeGeneratorService {
   /**
    * Generates an n8n node from an endpoint definition.
    */
-  async generateNode(options: NodeGenerationOptions): Promise<N8NNodeDefinition> {
-    const endpoint = await endpointDiscoveryService.getEndpointById(options.endpointId);
+  async generateNode(
+    options: NodeGenerationOptions,
+  ): Promise<N8NNodeDefinition> {
+    const endpoint = await endpointDiscoveryService.getEndpointById(
+      options.endpointId,
+    );
     if (!endpoint) {
       throw new Error(`Endpoint ${options.endpointId} not found`);
     }
@@ -60,7 +67,7 @@ class N8NNodeGeneratorService {
     endpoint: EndpointNode,
     nodeId: string,
     position: [number, number],
-    options: NodeGenerationOptions
+    options: NodeGenerationOptions,
   ): N8NNodeDefinition {
     const method = endpoint.method || "GET";
     const url = endpoint.endpoint;
@@ -82,16 +89,22 @@ class N8NNodeGeneratorService {
       parameters: {
         method,
         url: finalUrl,
-        authentication: endpoint.authentication?.type === "api_key" ? "genericCredentialType" : "none",
+        authentication:
+          endpoint.authentication?.type === "api_key"
+            ? "genericCredentialType"
+            : "none",
         options: {},
         ...options.parameters,
       },
-      credentials: endpoint.authentication?.type === "api_key" ? {
-        httpHeaderAuth: {
-          id: "httpHeaderAuth",
-          name: "API Key Auth",
-        },
-      } : undefined,
+      credentials:
+        endpoint.authentication?.type === "api_key"
+          ? {
+              httpHeaderAuth: {
+                id: "httpHeaderAuth",
+                name: "API Key Auth",
+              },
+            }
+          : undefined,
       notes: endpoint.description,
       notesInFlow: true,
     };
@@ -104,7 +117,7 @@ class N8NNodeGeneratorService {
     endpoint: EndpointNode,
     nodeId: string,
     position: [number, number],
-    options: NodeGenerationOptions
+    options: NodeGenerationOptions,
   ): N8NNodeDefinition {
     const skillId = endpoint.metadata?.skillId as string;
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
@@ -138,19 +151,25 @@ class N8NNodeGeneratorService {
       parameters: {
         method: "POST",
         url: `${baseUrl}/api/a2a`,
-        authentication: endpoint.authentication?.type === "api_key" ? "genericCredentialType" : "none",
+        authentication:
+          endpoint.authentication?.type === "api_key"
+            ? "genericCredentialType"
+            : "none",
         sendBody: true,
         contentType: "json",
         specifyBody: "json",
         jsonBody: JSON.stringify(requestBody),
         options: {},
       },
-      credentials: endpoint.authentication?.type === "api_key" ? {
-        httpHeaderAuth: {
-          id: "httpHeaderAuth",
-          name: "API Key Auth",
-        },
-      } : undefined,
+      credentials:
+        endpoint.authentication?.type === "api_key"
+          ? {
+              httpHeaderAuth: {
+                id: "httpHeaderAuth",
+                name: "API Key Auth",
+              },
+            }
+          : undefined,
       notes: endpoint.description,
       notesInFlow: true,
     };
@@ -163,7 +182,7 @@ class N8NNodeGeneratorService {
     endpoint: EndpointNode,
     nodeId: string,
     position: [number, number],
-    options: NodeGenerationOptions
+    options: NodeGenerationOptions,
   ): N8NNodeDefinition {
     const toolName = endpoint.metadata?.toolName as string | undefined;
 
@@ -179,7 +198,10 @@ class N8NNodeGeneratorService {
         parameters: {
           method: "POST",
           url: endpoint.endpoint,
-          authentication: endpoint.authentication?.type === "api_key" ? "genericCredentialType" : "none",
+          authentication:
+            endpoint.authentication?.type === "api_key"
+              ? "genericCredentialType"
+              : "none",
           sendBody: true,
           contentType: "json",
           specifyBody: "json",
@@ -190,12 +212,15 @@ class N8NNodeGeneratorService {
           }),
           options: {},
         },
-        credentials: endpoint.authentication?.type === "api_key" ? {
-          httpHeaderAuth: {
-            id: "httpHeaderAuth",
-            name: "API Key Auth",
-          },
-        } : undefined,
+        credentials:
+          endpoint.authentication?.type === "api_key"
+            ? {
+                httpHeaderAuth: {
+                  id: "httpHeaderAuth",
+                  name: "API Key Auth",
+                },
+              }
+            : undefined,
         notes: `${endpoint.description}\n\nNote: This node calls tools/list. Use the result to create specific tool call nodes.`,
         notesInFlow: true,
       };
@@ -221,19 +246,25 @@ class N8NNodeGeneratorService {
       parameters: {
         method: "POST",
         url: endpoint.endpoint,
-        authentication: endpoint.authentication?.type === "api_key" ? "genericCredentialType" : "none",
+        authentication:
+          endpoint.authentication?.type === "api_key"
+            ? "genericCredentialType"
+            : "none",
         sendBody: true,
         contentType: "json",
         specifyBody: "json",
         jsonBody: JSON.stringify(requestBody),
         options: {},
       },
-      credentials: endpoint.authentication?.type === "api_key" ? {
-        httpHeaderAuth: {
-          id: "httpHeaderAuth",
-          name: "API Key Auth",
-        },
-      } : undefined,
+      credentials:
+        endpoint.authentication?.type === "api_key"
+          ? {
+              httpHeaderAuth: {
+                id: "httpHeaderAuth",
+                name: "API Key Auth",
+              },
+            }
+          : undefined,
       notes: endpoint.description,
       notesInFlow: true,
     };
@@ -250,13 +281,16 @@ class N8NNodeGeneratorService {
       limit?: number;
       startPosition?: [number, number];
       spacing?: [number, number];
-    }
+    },
   ): Promise<N8NNodeDefinition[]> {
-    const searchResults = await endpointDiscoveryService.searchEndpoints(query, {
-      types: options?.types,
-      categories: options?.categories,
-      limit: options?.limit || 10,
-    });
+    const searchResults = await endpointDiscoveryService.searchEndpoints(
+      query,
+      {
+        types: options?.types,
+        categories: options?.categories,
+        limit: options?.limit || 10,
+      },
+    );
 
     const nodes: N8NNodeDefinition[] = [];
     const startPos = options?.startPosition || [250, 300];
@@ -285,7 +319,7 @@ class N8NNodeGeneratorService {
    */
   async generateWorkflowFromEndpoints(
     endpointIds: string[],
-    workflowName: string
+    workflowName: string,
   ): Promise<{
     name: string;
     nodes: N8NNodeDefinition[];
@@ -349,4 +383,3 @@ class N8NNodeGeneratorService {
 }
 
 export const n8nNodeGeneratorService = new N8NNodeGeneratorService();
-

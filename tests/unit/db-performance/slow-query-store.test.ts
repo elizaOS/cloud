@@ -38,8 +38,12 @@ describe("slow-query-store", () => {
     });
 
     it("replaces UUIDs", () => {
-      const h1 = hashQuery("SELECT * FROM users WHERE id = '550e8400-e29b-41d4-a716-446655440000'");
-      const h2 = hashQuery("SELECT * FROM users WHERE id = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'");
+      const h1 = hashQuery(
+        "SELECT * FROM users WHERE id = '550e8400-e29b-41d4-a716-446655440000'",
+      );
+      const h2 = hashQuery(
+        "SELECT * FROM users WHERE id = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'",
+      );
       expect(h1).toBe(h2);
     });
 
@@ -54,7 +58,9 @@ describe("slow-query-store", () => {
     });
 
     it("handles very long queries", () => {
-      const hash = hashQuery("SELECT " + "col, ".repeat(1000) + "id FROM big_table");
+      const hash = hashQuery(
+        "SELECT " + "col, ".repeat(1000) + "id FROM big_table",
+      );
       expect(hash.length).toBeGreaterThan(0);
     });
 
@@ -115,7 +121,9 @@ describe("slow-query-store", () => {
 
     it("truncates very long SQL", async () => {
       await recordSlowQuery("SELECT " + "x".repeat(20000), 100);
-      expect(getSlowQueriesFromMemory()[0].sqlText.length).toBeLessThanOrEqual(10000);
+      expect(getSlowQueriesFromMemory()[0].sqlText.length).toBeLessThanOrEqual(
+        10000,
+      );
     });
 
     it("records source metadata", async () => {
@@ -173,7 +181,8 @@ describe("slow-query-store", () => {
     it("sorts by call count descending", async () => {
       await recordSlowQuery("query_rare", 100);
       for (let i = 0; i < 3; i++) await recordSlowQuery("query_common", 100);
-      for (let i = 0; i < 5; i++) await recordSlowQuery("query_very_common", 100);
+      for (let i = 0; i < 5; i++)
+        await recordSlowQuery("query_very_common", 100);
 
       const frequent = getMostFrequentSlowQueries(10);
       expect(frequent[0].callCount).toBe(5);
@@ -218,7 +227,7 @@ describe("slow-query-store", () => {
   describe("concurrent access", () => {
     it("handles concurrent recordings", async () => {
       const promises = Array.from({ length: 100 }, (_, i) =>
-        recordSlowQuery("concurrent_query", 100 + i)
+        recordSlowQuery("concurrent_query", 100 + i),
       );
       await Promise.all(promises);
 
@@ -232,30 +241,34 @@ describe("slow-query-store", () => {
     it("evicts oldest entries when over limit", async () => {
       const originalMax = process.env.SLOW_QUERY_MAX_MEMORY;
       process.env.SLOW_QUERY_MAX_MEMORY = "50";
-      
+
       for (let i = 0; i < 60; i++) {
-        await recordSlowQuery(`distinct_query_eviction_${i}_${Date.now()}`, 100);
+        await recordSlowQuery(
+          `distinct_query_eviction_${i}_${Date.now()}`,
+          100,
+        );
       }
-      
+
       expect(getSlowQueriesFromMemory().length).toBeGreaterThan(0);
-      
+
       if (originalMax) process.env.SLOW_QUERY_MAX_MEMORY = originalMax;
       else delete process.env.SLOW_QUERY_MAX_MEMORY;
     });
 
     it("keeps most recent entries on eviction", async () => {
       await recordSlowQuery("old_query_1", 100);
-      await new Promise(r => setTimeout(r, 5));
+      await new Promise((r) => setTimeout(r, 5));
       await recordSlowQuery("old_query_2", 100);
-      await new Promise(r => setTimeout(r, 5));
+      await new Promise((r) => setTimeout(r, 5));
       await recordSlowQuery("recent_query", 100);
-      
+
       const queries = getSlowQueriesFromMemory();
       expect(queries.length).toBe(3);
-      
-      const sorted = queries.sort((a, b) => b.lastSeenAt.getTime() - a.lastSeenAt.getTime());
+
+      const sorted = queries.sort(
+        (a, b) => b.lastSeenAt.getTime() - a.lastSeenAt.getTime(),
+      );
       expect(sorted[0].sqlText).toBe("recent_query");
     });
   });
-
 });

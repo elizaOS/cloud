@@ -18,19 +18,29 @@ export interface SlowQueryEntry {
 }
 
 const REDIS_KEY_PREFIX = "slow_query:";
-const REDIS_TTL_SECONDS = parseInt(process.env.SLOW_QUERY_REDIS_TTL || "86400", 10);
-const POSTGRES_FLUSH_INTERVAL = parseInt(process.env.SLOW_QUERY_FLUSH_INTERVAL || "5000", 10);
-const MAX_MEMORY_ENTRIES = parseInt(process.env.SLOW_QUERY_MAX_MEMORY || "1000", 10);
+const REDIS_TTL_SECONDS = parseInt(
+  process.env.SLOW_QUERY_REDIS_TTL || "86400",
+  10,
+);
+const POSTGRES_FLUSH_INTERVAL = parseInt(
+  process.env.SLOW_QUERY_FLUSH_INTERVAL || "5000",
+  10,
+);
+const MAX_MEMORY_ENTRIES = parseInt(
+  process.env.SLOW_QUERY_MAX_MEMORY || "1000",
+  10,
+);
 
 const memoryStore = new Map<string, SlowQueryEntry>();
 const postgresQueue = new Map<string, SlowQueryEntry>();
 
 function evictOldestEntries(): void {
   if (memoryStore.size <= MAX_MEMORY_ENTRIES) return;
-  
-  const entries = Array.from(memoryStore.entries())
-    .sort((a, b) => a[1].lastSeenAt.getTime() - b[1].lastSeenAt.getTime());
-  
+
+  const entries = Array.from(memoryStore.entries()).sort(
+    (a, b) => a[1].lastSeenAt.getTime() - b[1].lastSeenAt.getTime(),
+  );
+
   const toEvict = entries.slice(0, memoryStore.size - MAX_MEMORY_ENTRIES);
   for (const [hash] of toEvict) {
     memoryStore.delete(hash);
@@ -64,11 +74,14 @@ export function hashQuery(sqlText: string): string {
   let normalized = sqlText.replace(/\s+/g, " ").trim().toLowerCase();
   normalized = normalized.replace(/\b\d+\b/g, "?");
   normalized = normalized.replace(/'[^']*'/g, "'?'");
-  normalized = normalized.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "?");
+  normalized = normalized.replace(
+    /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
+    "?",
+  );
 
   let hash = 0;
   for (let i = 0; i < normalized.length; i++) {
-    hash = ((hash << 5) - hash) + normalized.charCodeAt(i);
+    hash = (hash << 5) - hash + normalized.charCodeAt(i);
     hash = hash & hash;
   }
   return Math.abs(hash).toString(36);
@@ -78,7 +91,7 @@ export async function recordSlowQuery(
   sqlText: string,
   durationMs: number,
   sourceFile?: string,
-  sourceFunction?: string
+  sourceFunction?: string,
 ): Promise<void> {
   const queryHash = hashQuery(sqlText);
   const now = new Date();
@@ -115,8 +128,14 @@ export async function recordSlowQuery(
   const entry = memoryStore.get(queryHash);
   if (redisClient && entry) {
     redisClient
-      .setex(`${REDIS_KEY_PREFIX}${queryHash}`, REDIS_TTL_SECONDS, JSON.stringify(entry))
-      .catch((e: Error) => console.warn("[SlowQueryStore] Redis write failed:", e.message));
+      .setex(
+        `${REDIS_KEY_PREFIX}${queryHash}`,
+        REDIS_TTL_SECONDS,
+        JSON.stringify(entry),
+      )
+      .catch((e: Error) =>
+        console.warn("[SlowQueryStore] Redis write failed:", e.message),
+      );
   }
 
   if (entry) {
@@ -157,9 +176,11 @@ async function flushToPostgres(): Promise<void> {
         min_duration_ms = LEAST(slow_query_log.min_duration_ms, EXCLUDED.duration_ms),
         max_duration_ms = GREATEST(slow_query_log.max_duration_ms, EXCLUDED.duration_ms),
         last_seen_at = EXCLUDED.last_seen_at
-    `
+    `,
       )
-      .catch((e: Error) => console.warn("[SlowQueryStore] PostgreSQL write failed:", e.message));
+      .catch((e: Error) =>
+        console.warn("[SlowQueryStore] PostgreSQL write failed:", e.message),
+      );
   }
 }
 
@@ -180,8 +201,12 @@ export async function getSlowQueryKeysFromRedis(): Promise<string[]> {
     const keys: string[] = [];
     let cursor: string | number = 0;
     do {
-      const [nextCursor, batch] = await redisClient.scan(cursor, { match: `${REDIS_KEY_PREFIX}*`, count: 100 });
-      cursor = typeof nextCursor === "string" ? parseInt(nextCursor, 10) : nextCursor;
+      const [nextCursor, batch] = await redisClient.scan(cursor, {
+        match: `${REDIS_KEY_PREFIX}*`,
+        count: 100,
+      });
+      cursor =
+        typeof nextCursor === "string" ? parseInt(nextCursor, 10) : nextCursor;
       keys.push(...batch);
     } while (cursor !== 0);
     return keys.map((k) => k.replace(REDIS_KEY_PREFIX, ""));
@@ -191,12 +216,16 @@ export async function getSlowQueryKeysFromRedis(): Promise<string[]> {
   }
 }
 
-export async function getSlowQueryFromRedis(queryHash: string): Promise<SlowQueryEntry | null> {
+export async function getSlowQueryFromRedis(
+  queryHash: string,
+): Promise<SlowQueryEntry | null> {
   const redisClient = getRedis();
   if (!redisClient) return null;
 
   try {
-    const data = await redisClient.get<string>(`${REDIS_KEY_PREFIX}${queryHash}`);
+    const data = await redisClient.get<string>(
+      `${REDIS_KEY_PREFIX}${queryHash}`,
+    );
     if (!data) return null;
 
     const entry = typeof data === "string" ? JSON.parse(data) : data;

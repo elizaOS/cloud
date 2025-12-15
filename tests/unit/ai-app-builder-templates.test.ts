@@ -1,7 +1,14 @@
 import { describe, test, expect } from "bun:test";
 
 // Re-implement the types and config from AIAppBuilderDialog for testing
-type TemplateType = "chat" | "agent-dashboard" | "landing-page" | "analytics" | "blank" | "mcp-service" | "a2a-agent";
+type TemplateType =
+  | "chat"
+  | "agent-dashboard"
+  | "landing-page"
+  | "analytics"
+  | "blank"
+  | "mcp-service"
+  | "a2a-agent";
 
 interface TemplateOption {
   value: TemplateType;
@@ -12,11 +19,31 @@ interface TemplateOption {
 const TEMPLATE_OPTIONS: TemplateOption[] = [
   { value: "blank", label: "Blank Project", description: "Start from scratch" },
   { value: "chat", label: "Chat App", description: "AI chat interface" },
-  { value: "agent-dashboard", label: "Agent Dashboard", description: "Manage AI agents" },
-  { value: "landing-page", label: "Landing Page", description: "Marketing page" },
-  { value: "analytics", label: "Analytics Dashboard", description: "Data visualization" },
-  { value: "mcp-service", label: "MCP Service", description: "Model Context Protocol server" },
-  { value: "a2a-agent", label: "A2A Agent", description: "Agent-to-Agent protocol endpoint" },
+  {
+    value: "agent-dashboard",
+    label: "Agent Dashboard",
+    description: "Manage AI agents",
+  },
+  {
+    value: "landing-page",
+    label: "Landing Page",
+    description: "Marketing page",
+  },
+  {
+    value: "analytics",
+    label: "Analytics Dashboard",
+    description: "Data visualization",
+  },
+  {
+    value: "mcp-service",
+    label: "MCP Service",
+    description: "Model Context Protocol server",
+  },
+  {
+    value: "a2a-agent",
+    label: "A2A Agent",
+    description: "Agent-to-Agent protocol endpoint",
+  },
 ];
 
 describe("Template Options Structure", () => {
@@ -25,19 +52,19 @@ describe("Template Options Structure", () => {
   });
 
   test("all templates have unique values", () => {
-    const values = TEMPLATE_OPTIONS.map(t => t.value);
+    const values = TEMPLATE_OPTIONS.map((t) => t.value);
     expect(new Set(values).size).toBe(values.length);
   });
 
   test("all templates have non-empty labels", () => {
-    TEMPLATE_OPTIONS.forEach(template => {
+    TEMPLATE_OPTIONS.forEach((template) => {
       expect(template.label.length).toBeGreaterThan(0);
       expect(template.label.length).toBeLessThan(30);
     });
   });
 
   test("all templates have descriptive descriptions", () => {
-    TEMPLATE_OPTIONS.forEach(template => {
+    TEMPLATE_OPTIONS.forEach((template) => {
       expect(template.description.length).toBeGreaterThan(5);
       expect(template.description.length).toBeLessThan(50);
     });
@@ -45,7 +72,7 @@ describe("Template Options Structure", () => {
 });
 
 describe("MCP Service Template", () => {
-  const mcpTemplate = TEMPLATE_OPTIONS.find(t => t.value === "mcp-service");
+  const mcpTemplate = TEMPLATE_OPTIONS.find((t) => t.value === "mcp-service");
 
   test("MCP service template exists", () => {
     expect(mcpTemplate).toBeDefined();
@@ -65,7 +92,7 @@ describe("MCP Service Template", () => {
 });
 
 describe("A2A Agent Template", () => {
-  const a2aTemplate = TEMPLATE_OPTIONS.find(t => t.value === "a2a-agent");
+  const a2aTemplate = TEMPLATE_OPTIONS.find((t) => t.value === "a2a-agent");
 
   test("A2A agent template exists", () => {
     expect(a2aTemplate).toBeDefined();
@@ -86,7 +113,7 @@ describe("A2A Agent Template", () => {
 
 describe("Template Selection Logic", () => {
   function getTemplateByValue(value: TemplateType): TemplateOption | undefined {
-    return TEMPLATE_OPTIONS.find(t => t.value === value);
+    return TEMPLATE_OPTIONS.find((t) => t.value === value);
   }
 
   function isProtocolTemplate(value: TemplateType): boolean {
@@ -94,7 +121,9 @@ describe("Template Selection Logic", () => {
   }
 
   function isUITemplate(value: TemplateType): boolean {
-    return ["chat", "agent-dashboard", "landing-page", "analytics"].includes(value);
+    return ["chat", "agent-dashboard", "landing-page", "analytics"].includes(
+      value,
+    );
   }
 
   test("can look up template by value", () => {
@@ -140,8 +169,8 @@ describe("Template Categories", () => {
       ...categories.ui,
       ...categories.protocol,
     ];
-    const allTemplateValues = TEMPLATE_OPTIONS.map(t => t.value);
-    
+    const allTemplateValues = TEMPLATE_OPTIONS.map((t) => t.value);
+
     expect(allCategorized.sort()).toEqual(allTemplateValues.sort());
   });
 
@@ -163,13 +192,13 @@ describe("Template Categories", () => {
 
 describe("Template Default Selection", () => {
   test("blank is a valid default choice", () => {
-    const blank = TEMPLATE_OPTIONS.find(t => t.value === "blank");
+    const blank = TEMPLATE_OPTIONS.find((t) => t.value === "blank");
     expect(blank).toBeDefined();
     expect(blank?.description).toContain("scratch");
   });
 
   test("chat is first non-blank option", () => {
-    const nonBlank = TEMPLATE_OPTIONS.filter(t => t.value !== "blank");
+    const nonBlank = TEMPLATE_OPTIONS.filter((t) => t.value !== "blank");
     expect(nonBlank[0].value).toBe("chat");
   });
 });
@@ -177,17 +206,22 @@ describe("Template Default Selection", () => {
 describe("Template Type Safety", () => {
   test("all template values are valid TemplateType", () => {
     const validTypes: TemplateType[] = [
-      "chat", "agent-dashboard", "landing-page", 
-      "analytics", "blank", "mcp-service", "a2a-agent"
+      "chat",
+      "agent-dashboard",
+      "landing-page",
+      "analytics",
+      "blank",
+      "mcp-service",
+      "a2a-agent",
     ];
-    
-    TEMPLATE_OPTIONS.forEach(template => {
+
+    TEMPLATE_OPTIONS.forEach((template) => {
       expect(validTypes).toContain(template.value);
     });
   });
 
   test("no duplicate template types in validTypes", () => {
-    const types = TEMPLATE_OPTIONS.map(t => t.value);
+    const types = TEMPLATE_OPTIONS.map((t) => t.value);
     expect(new Set(types).size).toBe(types.length);
   });
 });
@@ -199,19 +233,23 @@ describe("Template Display Order", () => {
 
   test("protocol templates come last", () => {
     const lastTwo = TEMPLATE_OPTIONS.slice(-2);
-    const protocolValues = lastTwo.map(t => t.value);
+    const protocolValues = lastTwo.map((t) => t.value);
     expect(protocolValues).toContain("mcp-service");
     expect(protocolValues).toContain("a2a-agent");
   });
 
   test("UI templates are in logical order", () => {
-    const uiTemplates = TEMPLATE_OPTIONS.filter(t => 
-      ["chat", "agent-dashboard", "landing-page", "analytics"].includes(t.value)
+    const uiTemplates = TEMPLATE_OPTIONS.filter((t) =>
+      ["chat", "agent-dashboard", "landing-page", "analytics"].includes(
+        t.value,
+      ),
     );
-    
+
     // Chat should come before dashboard
-    const chatIndex = uiTemplates.findIndex(t => t.value === "chat");
-    const dashboardIndex = uiTemplates.findIndex(t => t.value === "agent-dashboard");
+    const chatIndex = uiTemplates.findIndex((t) => t.value === "chat");
+    const dashboardIndex = uiTemplates.findIndex(
+      (t) => t.value === "agent-dashboard",
+    );
     expect(chatIndex).toBeLessThan(dashboardIndex);
   });
 });
@@ -243,10 +281,9 @@ describe("Template Generation Prompts", () => {
   });
 
   test("all templates have prompt hints", () => {
-    TEMPLATE_OPTIONS.forEach(template => {
+    TEMPLATE_OPTIONS.forEach((template) => {
       expect(templatePromptHints[template.value]).toBeDefined();
       expect(templatePromptHints[template.value].length).toBeGreaterThan(0);
     });
   });
 });
-

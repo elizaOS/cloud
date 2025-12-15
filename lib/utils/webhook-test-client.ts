@@ -1,9 +1,9 @@
 /**
  * Webhook Test Client
- * 
+ *
  * Utility for testing webhook integrations with proper signature generation.
  * Use this client to test webhook triggers locally or in integration tests.
- * 
+ *
  * @example
  * ```ts
  * const client = new WebhookTestClient({
@@ -11,7 +11,7 @@
  *   webhookKey: 'your-webhook-key',
  *   webhookSecret: 'your-webhook-secret',
  * });
- * 
+ *
  * const result = await client.trigger({ event: 'test', data: { foo: 'bar' } });
  * console.log(result.executionId);
  * ```
@@ -130,7 +130,7 @@ export class WebhookTestClient {
    */
   async trigger(
     payload: Record<string, unknown>,
-    options: WebhookTriggerOptions = {}
+    options: WebhookTriggerOptions = {},
   ): Promise<WebhookTriggerResult> {
     const startTime = Date.now();
     const controller = new AbortController();
@@ -147,7 +147,8 @@ export class WebhookTestClient {
       if (!options.skipSignature && options.method !== "GET") {
         if (options.invalidSignature) {
           // Generate invalid signature
-          headers[this.config.signatureHeader] = `t=${Math.floor(Date.now() / 1000)},v1=${"x".repeat(64)}`;
+          headers[this.config.signatureHeader] =
+            `t=${Math.floor(Date.now() / 1000)},v1=${"x".repeat(64)}`;
         } else if (options.expiredTimestamp) {
           // Generate signature with expired timestamp (10 minutes ago)
           const expiredTimestamp = Math.floor(Date.now() / 1000) - 600;
@@ -161,9 +162,10 @@ export class WebhookTestClient {
           const signatureHeaders = createSignatureHeaders(
             body,
             this.config.webhookSecret,
-            { signatureHeader: this.config.signatureHeader }
+            { signatureHeader: this.config.signatureHeader },
           );
-          headers[this.config.signatureHeader] = signatureHeaders[this.config.signatureHeader];
+          headers[this.config.signatureHeader] =
+            signatureHeaders[this.config.signatureHeader];
         }
       }
 
@@ -230,7 +232,10 @@ export class WebhookTestClient {
     else report.failed++;
 
     // Test 2: Valid request with signature
-    const validRequest = await this.trigger({ test: true, timestamp: Date.now() });
+    const validRequest = await this.trigger({
+      test: true,
+      timestamp: Date.now(),
+    });
     report.tests.push({
       name: "Valid Request",
       passed: validRequest.success,
@@ -244,9 +249,14 @@ export class WebhookTestClient {
     else report.failed++;
 
     // Test 3: Request without signature (should fail if signature required)
-    const noSignature = await this.trigger({ test: true }, { skipSignature: true });
+    const noSignature = await this.trigger(
+      { test: true },
+      { skipSignature: true },
+    );
     const noSigExpectedFail = health.requiresSignature;
-    const noSigPassed = noSigExpectedFail ? noSignature.status === 401 : noSignature.success;
+    const noSigPassed = noSigExpectedFail
+      ? noSignature.status === 401
+      : noSignature.success;
     report.tests.push({
       name: "No Signature (should fail if required)",
       passed: noSigPassed,
@@ -260,7 +270,10 @@ export class WebhookTestClient {
     else report.failed++;
 
     // Test 4: Invalid signature
-    const invalidSig = await this.trigger({ test: true }, { invalidSignature: true });
+    const invalidSig = await this.trigger(
+      { test: true },
+      { invalidSignature: true },
+    );
     report.tests.push({
       name: "Invalid Signature (should fail)",
       passed: invalidSig.status === 401,
@@ -273,7 +286,10 @@ export class WebhookTestClient {
     else report.failed++;
 
     // Test 5: Expired signature
-    const expiredSig = await this.trigger({ test: true }, { expiredTimestamp: true });
+    const expiredSig = await this.trigger(
+      { test: true },
+      { expiredTimestamp: true },
+    );
     report.tests.push({
       name: "Expired Signature (should fail)",
       passed: expiredSig.status === 401,
@@ -288,13 +304,23 @@ export class WebhookTestClient {
     // Test 6: Rate limit headers present
     report.tests.push({
       name: "Rate Limit Headers Present",
-      passed: "x-ratelimit-limit" in validRequest.headers || "X-RateLimit-Limit" in validRequest.headers,
+      passed:
+        "x-ratelimit-limit" in validRequest.headers ||
+        "X-RateLimit-Limit" in validRequest.headers,
       details: {
-        limit: validRequest.headers["x-ratelimit-limit"] || validRequest.headers["X-RateLimit-Limit"],
-        remaining: validRequest.headers["x-ratelimit-remaining"] || validRequest.headers["X-RateLimit-Remaining"],
+        limit:
+          validRequest.headers["x-ratelimit-limit"] ||
+          validRequest.headers["X-RateLimit-Limit"],
+        remaining:
+          validRequest.headers["x-ratelimit-remaining"] ||
+          validRequest.headers["X-RateLimit-Remaining"],
       },
     });
-    if ("x-ratelimit-limit" in validRequest.headers || "X-RateLimit-Limit" in validRequest.headers) report.passed++;
+    if (
+      "x-ratelimit-limit" in validRequest.headers ||
+      "X-RateLimit-Limit" in validRequest.headers
+    )
+      report.passed++;
     else report.failed++;
 
     report.duration = Date.now() - startTime;
@@ -323,7 +349,7 @@ export interface WebhookTestReport {
  * Quick test a webhook URL.
  */
 export async function testWebhook(
-  config: WebhookTestClientConfig
+  config: WebhookTestClientConfig,
 ): Promise<WebhookTestReport> {
   const client = new WebhookTestClient(config);
   return client.runTests();
@@ -334,9 +360,8 @@ export async function testWebhook(
  */
 export async function sendWebhook(
   config: WebhookTestClientConfig,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
 ): Promise<WebhookTriggerResult> {
   const client = new WebhookTestClient(config);
   return client.trigger(payload);
 }
-

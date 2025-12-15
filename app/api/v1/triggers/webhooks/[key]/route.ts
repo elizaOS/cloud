@@ -1,9 +1,9 @@
 /**
  * Application Trigger Webhook Endpoint
- * 
+ *
  * POST /api/v1/triggers/webhooks/:key - Execute trigger via webhook
  * GET /api/v1/triggers/webhooks/:key - Health check
- * 
+ *
  * Security features:
  * - HMAC signature verification
  * - Rate limiting
@@ -15,7 +15,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { applicationTriggersService } from "@/lib/services/application-triggers";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit } from "@/lib/middleware/rate-limit";
-import { verifyWebhookSignature, getSignatureFromHeaders } from "@/lib/utils/webhook-signature";
+import {
+  verifyWebhookSignature,
+  getSignatureFromHeaders,
+} from "@/lib/utils/webhook-signature";
 
 // =============================================================================
 // HELPERS
@@ -35,14 +38,14 @@ function isIpAllowed(clientIp: string, allowedIps?: string[]): boolean {
 function webhookError(
   message: string,
   status: number,
-  details?: Record<string, unknown>
+  details?: Record<string, unknown>,
 ): NextResponse {
   if (details) {
     logger.warn(`[App Trigger Webhook] ${message}`, details);
   }
   return NextResponse.json(
     { success: false, error: status === 404 ? "Webhook unavailable" : message },
-    { status }
+    { status },
   );
 }
 
@@ -52,7 +55,7 @@ function webhookError(
 
 async function handleWebhook(
   request: NextRequest,
-  ctx: { params: Promise<{ key: string }> }
+  ctx: { params: Promise<{ key: string }> },
 ): Promise<Response> {
   const startTime = Date.now();
   const clientIp = getClientIp(request);
@@ -62,7 +65,7 @@ async function handleWebhook(
   const trigger = await applicationTriggersService.findTriggerByKey(key);
 
   if (!trigger || !trigger.is_active) {
-    await new Promise(resolve => setTimeout(resolve, Math.random() * 50));
+    await new Promise((resolve) => setTimeout(resolve, Math.random() * 50));
     return webhookError("Webhook unavailable", 404, {
       keyPrefix: key.slice(0, 8) + "...",
       reason: !trigger ? "not_found" : "inactive",
@@ -129,7 +132,10 @@ async function handleWebhook(
       trigger.id,
       inputData,
       "webhook",
-      { ip: clientIp, userAgent: request.headers.get("user-agent") || undefined }
+      {
+        ip: clientIp,
+        userAgent: request.headers.get("user-agent") || undefined,
+      },
     );
 
     const duration = Date.now() - startTime;
@@ -150,7 +156,8 @@ async function handleWebhook(
       ...(result.error && { error: result.error }),
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Execution failed";
+    const errorMessage =
+      error instanceof Error ? error.message : "Execution failed";
 
     logger.error("[App Trigger Webhook] Failed", {
       triggerId: trigger.id,
@@ -160,10 +167,14 @@ async function handleWebhook(
     });
 
     if (errorMessage.includes("Daily execution limit")) {
-      return webhookError("Daily execution limit exceeded", 429, { triggerId: trigger.id });
+      return webhookError("Daily execution limit exceeded", 429, {
+        triggerId: trigger.id,
+      });
     }
     if (errorMessage.includes("not active")) {
-      return webhookError("Organization not active", 403, { triggerId: trigger.id });
+      return webhookError("Organization not active", 403, {
+        triggerId: trigger.id,
+      });
     }
 
     return webhookError("Execution failed", 500, {
@@ -187,7 +198,7 @@ export const POST = withRateLimit(handleWebhook, WEBHOOK_RATE_LIMIT);
 
 export async function GET(
   request: NextRequest,
-  ctx: { params: Promise<{ key: string }> }
+  ctx: { params: Promise<{ key: string }> },
 ): Promise<Response> {
   const { key } = await ctx.params;
 
@@ -196,7 +207,7 @@ export async function GET(
   if (!trigger || !trigger.is_active || trigger.trigger_type !== "webhook") {
     return NextResponse.json(
       { success: false, error: "Webhook unavailable" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -208,4 +219,3 @@ export async function GET(
     requiresSignature: trigger.config.requireSignature ?? true,
   });
 }
-

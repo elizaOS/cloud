@@ -9,7 +9,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { interpreterService } from "@/lib/services/code-agent";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit-redis";
+import {
+  withRateLimit,
+  RateLimitPresets,
+} from "@/lib/middleware/rate-limit-redis";
 import { logger } from "@/lib/utils/logger";
 
 // =============================================================================
@@ -58,5 +61,3 @@ async function handlePOST(request: NextRequest) {
 // =============================================================================
 
 export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);
-
-

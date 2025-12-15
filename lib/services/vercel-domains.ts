@@ -1,6 +1,6 @@
 /**
  * Vercel Domains Service
- * 
+ *
  * Manages custom domains for apps through Vercel's API.
  * Supports:
  * - Adding custom domains programmatically
@@ -12,7 +12,10 @@
  */
 
 import { db } from "@/db";
-import { appDomains, type DomainVerificationRecord } from "@/db/schemas/app-domains";
+import {
+  appDomains,
+  type DomainVerificationRecord,
+} from "@/db/schemas/app-domains";
 import { eq, and, ne } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 import { extractErrorMessage } from "@/lib/utils/error-handling";
@@ -26,14 +29,70 @@ const APP_DOMAIN = process.env.APP_DOMAIN || "apps.elizacloud.ai";
 
 // Reserved subdomains that cannot be used for apps
 const RESERVED_SUBDOMAINS = new Set([
-  "www", "api", "admin", "dashboard", "app", "apps", "auth", "login",
-  "signup", "register", "account", "settings", "billing", "docs", "help",
-  "support", "status", "cdn", "static", "assets", "media", "images", "files",
-  "mail", "email", "smtp", "ftp", "ssh", "git", "svn", "blog", "news",
-  "forum", "community", "store", "shop", "cart", "checkout", "pay", "payments",
-  "webhook", "webhooks", "ws", "wss", "socket", "graphql", "rest", "v1", "v2", "v3",
-  "staging", "dev", "test", "demo", "preview", "beta", "alpha", "internal",
-  "private", "public", "sandbox", "debug", "app", "apps",
+  "www",
+  "api",
+  "admin",
+  "dashboard",
+  "app",
+  "apps",
+  "auth",
+  "login",
+  "signup",
+  "register",
+  "account",
+  "settings",
+  "billing",
+  "docs",
+  "help",
+  "support",
+  "status",
+  "cdn",
+  "static",
+  "assets",
+  "media",
+  "images",
+  "files",
+  "mail",
+  "email",
+  "smtp",
+  "ftp",
+  "ssh",
+  "git",
+  "svn",
+  "blog",
+  "news",
+  "forum",
+  "community",
+  "store",
+  "shop",
+  "cart",
+  "checkout",
+  "pay",
+  "payments",
+  "webhook",
+  "webhooks",
+  "ws",
+  "wss",
+  "socket",
+  "graphql",
+  "rest",
+  "v1",
+  "v2",
+  "v3",
+  "staging",
+  "dev",
+  "test",
+  "demo",
+  "preview",
+  "beta",
+  "alpha",
+  "internal",
+  "private",
+  "public",
+  "sandbox",
+  "debug",
+  "app",
+  "apps",
 ]);
 
 // Vercel API response types
@@ -98,7 +157,7 @@ interface AddDomainResult {
  */
 async function vercelFetch<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   if (!VERCEL_TOKEN) {
     throw new Error("VERCEL_TOKEN is not configured");
@@ -117,17 +176,20 @@ export function isReservedSubdomain(subdomain: string): boolean {
 /**
  * Check if a custom domain is already in use by another app
  */
-export async function isDomainInUse(domain: string, excludeAppId?: string): Promise<{
+export async function isDomainInUse(
+  domain: string,
+  excludeAppId?: string,
+): Promise<{
   inUse: boolean;
   appId?: string;
 }> {
   const normalizedDomain = domain.toLowerCase().trim();
-  
+
   const existing = await db.query.appDomains.findFirst({
     where: excludeAppId
       ? and(
           eq(appDomains.custom_domain, normalizedDomain),
-          ne(appDomains.app_id, excludeAppId)
+          ne(appDomains.app_id, excludeAppId),
         )
       : eq(appDomains.custom_domain, normalizedDomain),
   });
@@ -143,7 +205,7 @@ export async function isDomainInUse(domain: string, excludeAppId?: string): Prom
  */
 export async function addDomain(
   appId: string,
-  domain: string
+  domain: string,
 ): Promise<AddDomainResult> {
   if (!VERCEL_PROJECT_ID) {
     throw new Error("VERCEL_APP_PROJECT_ID is not configured");
@@ -151,7 +213,7 @@ export async function addDomain(
 
   // Normalize domain
   const normalizedDomain = domain.toLowerCase().trim();
-  
+
   // Validate domain format
   const domainRegex = /^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/;
   if (!domainRegex.test(normalizedDomain)) {
@@ -176,23 +238,26 @@ export async function addDomain(
     };
   }
 
-  logger.info("[Vercel Domains] Adding domain", { domain: normalizedDomain, appId });
+  logger.info("[Vercel Domains] Adding domain", {
+    domain: normalizedDomain,
+    appId,
+  });
 
   const response = await vercelFetch<VercelDomainResponse>(
     `/v10/projects/${VERCEL_PROJECT_ID}/domains`,
     {
       method: "POST",
       body: JSON.stringify({ name: normalizedDomain }),
-    }
+    },
   );
 
-  const verificationRecords: DomainVerificationRecord[] = (response.verification || []).map(
-    (v) => ({
-      type: v.type as "TXT" | "CNAME" | "A",
-      name: v.domain,
-      value: v.value,
-    })
-  );
+  const verificationRecords: DomainVerificationRecord[] = (
+    response.verification || []
+  ).map((v) => ({
+    type: v.type as "TXT" | "CNAME" | "A",
+    name: v.domain,
+    value: v.value,
+  }));
 
   // Store in database
   const existingDomain = await db.query.appDomains.findFirst({
@@ -213,7 +278,10 @@ export async function addDomain(
       })
       .where(eq(appDomains.id, existingDomain.id));
   } else {
-    logger.warn("[Vercel Domains] No domain record found for app - app must be deployed first", { appId });
+    logger.warn(
+      "[Vercel Domains] No domain record found for app - app must be deployed first",
+      { appId },
+    );
     return {
       success: false,
       domain: normalizedDomain,
@@ -223,10 +291,10 @@ export async function addDomain(
     };
   }
 
-  logger.info("[Vercel Domains] Domain added", { 
-    domain: normalizedDomain, 
+  logger.info("[Vercel Domains] Domain added", {
+    domain: normalizedDomain,
     verified: response.verified,
-    hasVerification: verificationRecords.length > 0 
+    hasVerification: verificationRecords.length > 0,
   });
 
   return {
@@ -240,7 +308,9 @@ export async function addDomain(
 /**
  * Get the current status of a domain including real SSL status
  */
-export async function getDomainStatus(domain: string): Promise<DomainStatusResult> {
+export async function getDomainStatus(
+  domain: string,
+): Promise<DomainStatusResult> {
   if (!VERCEL_PROJECT_ID) {
     throw new Error("VERCEL_APP_PROJECT_ID is not configured");
   }
@@ -250,21 +320,30 @@ export async function getDomainStatus(domain: string): Promise<DomainStatusResul
   // Get domain info, config, and certificate status from Vercel
   const [domainInfo, configInfo, certInfo] = await Promise.all([
     vercelFetch<VercelDomainResponse>(
-      `/v9/projects/${VERCEL_PROJECT_ID}/domains/${normalizedDomain}`
+      `/v9/projects/${VERCEL_PROJECT_ID}/domains/${normalizedDomain}`,
     ).catch((error) => {
-      logger.debug("[VercelDomains] Failed to fetch domain info", { domain: normalizedDomain, error: extractErrorMessage(error) });
+      logger.debug("[VercelDomains] Failed to fetch domain info", {
+        domain: normalizedDomain,
+        error: extractErrorMessage(error),
+      });
       return null;
     }),
     vercelFetch<VercelDomainConfigResponse>(
-      `/v6/domains/${normalizedDomain}/config`
+      `/v6/domains/${normalizedDomain}/config`,
     ).catch((error) => {
-      logger.debug("[VercelDomains] Failed to fetch domain config", { domain: normalizedDomain, error: extractErrorMessage(error) });
+      logger.debug("[VercelDomains] Failed to fetch domain config", {
+        domain: normalizedDomain,
+        error: extractErrorMessage(error),
+      });
       return null;
     }),
     vercelFetch<VercelCertificateResponse[]>(
-      `/v7/certs?domain=${normalizedDomain}`
+      `/v7/certs?domain=${normalizedDomain}`,
     ).catch((error) => {
-      logger.debug("[VercelDomains] Failed to fetch certificates", { domain: normalizedDomain, error: extractErrorMessage(error) });
+      logger.debug("[VercelDomains] Failed to fetch certificates", {
+        domain: normalizedDomain,
+        error: extractErrorMessage(error),
+      });
       return [] as VercelCertificateResponse[];
     }),
   ]);
@@ -283,7 +362,9 @@ export async function getDomainStatus(domain: string): Promise<DomainStatusResul
     };
   }
 
-  const records: DomainVerificationRecord[] = (domainInfo.verification || []).map((v) => ({
+  const records: DomainVerificationRecord[] = (
+    domainInfo.verification || []
+  ).map((v) => ({
     type: v.type as "TXT" | "CNAME" | "A",
     name: v.domain,
     value: v.value,
@@ -305,7 +386,7 @@ export async function getDomainStatus(domain: string): Promise<DomainStatusResul
   if (activeCert) {
     const expiresAt = new Date(activeCert.expiresAt);
     sslExpiresAt = expiresAt.toISOString();
-    
+
     if (expiresAt > new Date()) {
       sslStatus = "active";
     } else {
@@ -330,18 +411,22 @@ export async function getDomainStatus(domain: string): Promise<DomainStatusResul
 /**
  * Verify a domain manually
  */
-export async function verifyDomain(domain: string): Promise<{ verified: boolean; error?: string }> {
+export async function verifyDomain(
+  domain: string,
+): Promise<{ verified: boolean; error?: string }> {
   if (!VERCEL_PROJECT_ID) {
     throw new Error("VERCEL_APP_PROJECT_ID is not configured");
   }
 
   const normalizedDomain = domain.toLowerCase().trim();
 
-  logger.info("[Vercel Domains] Verifying domain", { domain: normalizedDomain });
+  logger.info("[Vercel Domains] Verifying domain", {
+    domain: normalizedDomain,
+  });
 
   const response = await vercelFetch<VercelDomainResponse>(
     `/v9/projects/${VERCEL_PROJECT_ID}/domains/${normalizedDomain}/verify`,
-    { method: "POST" }
+    { method: "POST" },
   );
 
   return {
@@ -352,19 +437,25 @@ export async function verifyDomain(domain: string): Promise<{ verified: boolean;
 /**
  * Remove a custom domain from the Vercel project
  */
-export async function removeDomain(appId: string, domain: string): Promise<{ success: boolean; error?: string }> {
+export async function removeDomain(
+  appId: string,
+  domain: string,
+): Promise<{ success: boolean; error?: string }> {
   if (!VERCEL_PROJECT_ID) {
     throw new Error("VERCEL_APP_PROJECT_ID is not configured");
   }
 
   const normalizedDomain = domain.toLowerCase().trim();
 
-  logger.info("[Vercel Domains] Removing domain", { domain: normalizedDomain, appId });
+  logger.info("[Vercel Domains] Removing domain", {
+    domain: normalizedDomain,
+    appId,
+  });
 
   // Remove from Vercel project
   await vercelFetch(
     `/v9/projects/${VERCEL_PROJECT_ID}/domains/${normalizedDomain}`,
-    { method: "DELETE" }
+    { method: "DELETE" },
   );
 
   // Update database
@@ -389,7 +480,10 @@ export async function removeDomain(appId: string, domain: string): Promise<{ suc
 /**
  * Get DNS configuration instructions for a domain
  */
-export function getDnsInstructions(domain: string, isApex: boolean): {
+export function getDnsInstructions(
+  domain: string,
+  isApex: boolean,
+): {
   type: "A" | "CNAME";
   name: string;
   value: string;
@@ -406,7 +500,7 @@ export function getDnsInstructions(domain: string, isApex: boolean): {
       },
     ];
   }
-  
+
   // Subdomain (e.g., app.example.com)
   const subdomain = domain.split(".")[0];
   return [
@@ -446,12 +540,19 @@ export function validateSubdomain(subdomain: string): {
 
   // Check format
   if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(normalized)) {
-    return { valid: false, error: "Subdomain can only contain lowercase letters, numbers, and hyphens" };
+    return {
+      valid: false,
+      error:
+        "Subdomain can only contain lowercase letters, numbers, and hyphens",
+    };
   }
 
   // Check reserved
   if (isReservedSubdomain(normalized)) {
-    return { valid: false, error: "This subdomain is reserved and cannot be used" };
+    return {
+      valid: false,
+      error: "This subdomain is reserved and cannot be used",
+    };
   }
 
   return { valid: true };
@@ -492,14 +593,14 @@ export async function syncDomainStatus(appId: string): Promise<void> {
     if (!domain.custom_domain) continue;
 
     const status = await getDomainStatus(domain.custom_domain);
-    
+
     await db
       .update(appDomains)
       .set({
         custom_domain_verified: status.verified,
         ssl_status: status.sslStatus,
         verification_records: status.records,
-        verified_at: status.verified ? (domain.verified_at || new Date()) : null,
+        verified_at: status.verified ? domain.verified_at || new Date() : null,
         updated_at: new Date(),
       })
       .where(eq(appDomains.id, domain.id));

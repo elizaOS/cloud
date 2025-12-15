@@ -5,17 +5,17 @@
  * Integrates with Phala/other TEE providers for H200/H100 GPUs.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
-import { db, eq, gpuRentals } from '@/db';
-import { v4 as uuidv4 } from 'uuid';
+import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
+import { db, eq, gpuRentals } from "@/db";
+import { v4 as uuidv4 } from "uuid";
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 interface RentalRequest {
   durationHours: number;
-  gpuType: 'H200' | 'H100' | 'A100_80' | 'A100_40' | 'RTX4090';
+  gpuType: "H200" | "H100" | "A100_80" | "A100_40" | "RTX4090";
   memoryGb?: number;
   containerImage?: string;
   startupScript?: string;
@@ -33,36 +33,36 @@ interface GPUPricing {
 // GPU pricing (in wei per hour) - would come from on-chain in production
 const GPU_PRICING: Record<string, GPUPricing> = {
   H200: {
-    gpuType: 'H200',
-    pricePerHourWei: '5000000000000000', // 0.005 ETH/hr
+    gpuType: "H200",
+    pricePerHourWei: "5000000000000000", // 0.005 ETH/hr
     available: 10,
     memoryGb: 80,
     teeCapable: true,
   },
   H100: {
-    gpuType: 'H100',
-    pricePerHourWei: '4000000000000000', // 0.004 ETH/hr
+    gpuType: "H100",
+    pricePerHourWei: "4000000000000000", // 0.004 ETH/hr
     available: 20,
     memoryGb: 80,
     teeCapable: true,
   },
   A100_80: {
-    gpuType: 'A100_80',
-    pricePerHourWei: '2000000000000000', // 0.002 ETH/hr
+    gpuType: "A100_80",
+    pricePerHourWei: "2000000000000000", // 0.002 ETH/hr
     available: 50,
     memoryGb: 80,
     teeCapable: false,
   },
   A100_40: {
-    gpuType: 'A100_40',
-    pricePerHourWei: '1500000000000000', // 0.0015 ETH/hr
+    gpuType: "A100_40",
+    pricePerHourWei: "1500000000000000", // 0.0015 ETH/hr
     available: 100,
     memoryGb: 40,
     teeCapable: false,
   },
   RTX4090: {
-    gpuType: 'RTX4090',
-    pricePerHourWei: '500000000000000', // 0.0005 ETH/hr
+    gpuType: "RTX4090",
+    pricePerHourWei: "500000000000000", // 0.0005 ETH/hr
     available: 200,
     memoryGb: 24,
     teeCapable: false,
@@ -76,7 +76,7 @@ const GPU_PRICING: Record<string, GPUPricing> = {
 export async function POST(request: NextRequest) {
   const user = await requireAuth().catch(() => null);
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const body = (await request.json()) as RentalRequest;
@@ -85,20 +85,19 @@ export async function POST(request: NextRequest) {
   if (!pricing) {
     return NextResponse.json(
       { error: `Invalid GPU type: ${body.gpuType}` },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   if (pricing.available <= 0) {
     return NextResponse.json(
       { error: `No ${body.gpuType} GPUs available` },
-      { status: 503 }
+      { status: 503 },
     );
   }
 
   const rentalId = uuidv4();
-  const costWei =
-    BigInt(pricing.pricePerHourWei) * BigInt(body.durationHours);
+  const costWei = BigInt(pricing.pricePerHourWei) * BigInt(body.durationHours);
   const expiresAt = Date.now() + body.durationHours * 60 * 60 * 1000;
 
   // In production, this would:
@@ -116,7 +115,7 @@ export async function POST(request: NextRequest) {
     containerImage: body.containerImage,
     startupScript: body.startupScript,
     sshPublicKey: body.sshPublicKey,
-    status: 'provisioning' as const,
+    status: "provisioning" as const,
     costWei: costWei.toString(),
     expiresAt: new Date(expiresAt),
     createdAt: new Date(),
@@ -133,7 +132,7 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     rentalId,
-    providerAddress: '0x1234567890123456789012345678901234567890',
+    providerAddress: "0x1234567890123456789012345678901234567890",
     sshHost: `gpu-${rentalId.slice(0, 8)}.compute.jeju.ai`,
     sshPort: 22,
     expiresAt,
@@ -150,7 +149,7 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   const user = await requireAuth().catch(() => null);
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   // In production, fetch from database

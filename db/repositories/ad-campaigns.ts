@@ -29,7 +29,7 @@ export class AdCampaignsRepository {
   }
 
   async findByExternalId(
-    externalCampaignId: string
+    externalCampaignId: string,
   ): Promise<AdCampaign | undefined> {
     return await db.query.adCampaigns.findFirst({
       where: eq(adCampaigns.external_campaign_id, externalCampaignId),
@@ -45,7 +45,7 @@ export class AdCampaignsRepository {
       appId?: string;
       limit?: number;
       offset?: number;
-    }
+    },
   ): Promise<AdCampaign[]> {
     const conditions = [eq(adCampaigns.organization_id, organizationId)];
 
@@ -87,7 +87,7 @@ export class AdCampaignsRepository {
 
   async update(
     id: string,
-    data: Partial<NewAdCampaign>
+    data: Partial<NewAdCampaign>,
   ): Promise<AdCampaign | undefined> {
     const [updated] = await db
       .update(adCampaigns)
@@ -99,7 +99,7 @@ export class AdCampaignsRepository {
 
   async updateStatus(
     id: string,
-    status: CampaignStatus
+    status: CampaignStatus,
   ): Promise<AdCampaign | undefined> {
     return this.update(id, { status });
   }
@@ -111,7 +111,7 @@ export class AdCampaignsRepository {
       totalImpressions?: number;
       totalClicks?: number;
       totalConversions?: number;
-    }
+    },
   ): Promise<AdCampaign | undefined> {
     return this.update(id, {
       total_spend: metrics.totalSpend,
@@ -123,7 +123,7 @@ export class AdCampaignsRepository {
 
   async incrementSpend(
     id: string,
-    creditsSpent: string
+    creditsSpent: string,
   ): Promise<AdCampaign | undefined> {
     const [updated] = await db
       .update(adCampaigns)
@@ -142,7 +142,7 @@ export class AdCampaignsRepository {
 
   async getStats(
     organizationId: string,
-    options?: { adAccountId?: string; platform?: AdPlatform }
+    options?: { adAccountId?: string; platform?: AdPlatform },
   ): Promise<{
     totalCampaigns: number;
     activeCampaigns: number;

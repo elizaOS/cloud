@@ -33,9 +33,8 @@ export async function POST(request: NextRequest) {
   const result = await socialMediaService.validateCredentials(
     user.organization_id,
     validated.platform as SocialPlatform,
-    validated.credentialId
+    validated.credentialId,
   );
 
   return NextResponse.json(result);
 }
-

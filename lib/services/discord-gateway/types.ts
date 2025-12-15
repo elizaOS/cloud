@@ -475,4 +475,3 @@ export type {
   DiscordEventType,
   DiscordRouteType,
 };
-

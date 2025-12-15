@@ -1,8 +1,8 @@
 /**
  * SECURE Token Redemption Service
- * 
+ *
  * This is a security-hardened version that fixes all 14 identified vulnerabilities:
- * 
+ *
  * 1. ✅ Race condition in balance check - Uses DB-tracked hot wallet balance
  * 2. ✅ Cooldown not enforced - Checks last_redemption_at
  * 3. ✅ Pending check incomplete - Checks all in-flight statuses
@@ -25,12 +25,22 @@ import {
   redemptionLimits,
   type TokenRedemption,
 } from "@/db/schemas/token-redemptions";
-import { redeemableEarnings, redeemableEarningsLedger } from "@/db/schemas/redeemable-earnings";
+import {
+  redeemableEarnings,
+  redeemableEarningsLedger,
+} from "@/db/schemas/redeemable-earnings";
 import { redeemableEarningsService } from "./redeemable-earnings";
 import { eq, and, sql, gte, or, inArray } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
-import { twapPriceOracle, TWAP_CONFIG, SYSTEM_LIMITS } from "./twap-price-oracle";
-import { ELIZA_TOKEN_ADDRESSES, type SupportedNetwork } from "./eliza-token-price";
+import {
+  twapPriceOracle,
+  TWAP_CONFIG,
+  SYSTEM_LIMITS,
+} from "./twap-price-oracle";
+import {
+  ELIZA_TOKEN_ADDRESSES,
+  type SupportedNetwork,
+} from "./eliza-token-price";
 import {
   isAddress,
   getAddress,
@@ -209,7 +219,7 @@ function calculateTokenAmount(usdValue: Decimal, priceUsd: Decimal): Decimal {
 }
 export class SecureTokenRedemptionService {
   async createRedemption(
-    request: SecureRedemptionRequest
+    request: SecureRedemptionRequest,
   ): Promise<SecureRedemptionResult> {
     const {
       userId,
@@ -258,13 +268,19 @@ export class SecureTokenRedemptionService {
     if (usdEstimate > 100 && !signature && network !== "solana") {
       return {
         success: false,
-        error: "Address signature required for redemptions over $100. Please sign the address with your wallet.",
+        error:
+          "Address signature required for redemptions over $100. Please sign the address with your wallet.",
       };
     }
 
     // If signature provided, verify it (for EVM chains)
     if (signature && network !== "solana" && nonce) {
-      const sigValid = await this.verifyAddressSignature(payoutAddress, signature, nonce, network);
+      const sigValid = await this.verifyAddressSignature(
+        payoutAddress,
+        signature,
+        nonce,
+        network,
+      );
       if (!sigValid) {
         return {
           success: false,
@@ -274,7 +290,10 @@ export class SecureTokenRedemptionService {
     }
 
     // Fix #12: Validate address with contract + exchange check
-    const addressValidation = await this.validateAddressSecure(payoutAddress, network);
+    const addressValidation = await this.validateAddressSecure(
+      payoutAddress,
+      network,
+    );
     if (!addressValidation.valid) {
       // Include wallet recommendation in error
       return {
@@ -285,7 +304,12 @@ export class SecureTokenRedemptionService {
     }
 
     // Check for fraud patterns (fast earn-to-redeem, high ratio, shared address)
-    const fraudCheck = await this.checkFraudPatterns(userId, appId, pointsAmount, payoutAddress);
+    const fraudCheck = await this.checkFraudPatterns(
+      userId,
+      appId,
+      pointsAmount,
+      payoutAddress,
+    );
     if (fraudCheck.flagged) {
       warnings.push(fraudCheck.warning!);
       // Continue but flag for admin review
@@ -296,7 +320,8 @@ export class SecureTokenRedemptionService {
     if (existingInFlight) {
       return {
         success: false,
-        error: "You have an in-flight redemption. Please wait for it to complete or be rejected.",
+        error:
+          "You have an in-flight redemption. Please wait for it to complete or be rejected.",
       };
     }
 
@@ -314,10 +339,14 @@ export class SecureTokenRedemptionService {
 
     // SECURITY: Check IP-based rate limits (anti-sybil protection)
     if (metadata?.ipAddress) {
-      const ipCheck = await this.checkIPRateLimits(metadata.ipAddress, pointsAmount);
+      const ipCheck = await this.checkIPRateLimits(
+        metadata.ipAddress,
+        pointsAmount,
+      );
       if (!ipCheck.valid) {
         logger.warn("[SecureRedemption] IP rate limit exceeded", {
-          ipAddress: metadata.ipAddress.split(".").slice(0, 2).join(".") + ".x.x", // Partially mask
+          ipAddress:
+            metadata.ipAddress.split(".").slice(0, 2).join(".") + ".x.x", // Partially mask
           reason: ipCheck.error,
         });
         return { success: false, error: ipCheck.error };
@@ -353,7 +382,7 @@ export class SecureTokenRedemptionService {
     const quoteResult = await twapPriceOracle.getRedemptionQuote(
       network,
       pointsAmount,
-      userId
+      userId,
     );
 
     if (!quoteResult.success) {
@@ -377,7 +406,7 @@ export class SecureTokenRedemptionService {
     // Check hot wallet has enough tokens
     const tokenCheck = await this.checkTokenAvailability(
       network,
-      elizaAmount.toNumber()
+      elizaAmount.toNumber(),
     );
 
     if (!tokenCheck.available) {
@@ -408,7 +437,7 @@ export class SecureTokenRedemptionService {
     // ========================================
     // LOCK REDEEMABLE EARNINGS (BULLETPROOF DOUBLE-SPEND PREVENTION)
     // ========================================
-    // 
+    //
     // CRITICAL: Only EARNED points from apps/agents/MCPs are redeemable.
     // This uses the redeemableEarnings table with:
     // - Database CHECK constraints preventing negative balances
@@ -418,11 +447,12 @@ export class SecureTokenRedemptionService {
 
     // First check available balance
     const earningsBalance = await redeemableEarningsService.getBalance(userId);
-    
+
     if (!earningsBalance) {
       return {
         success: false,
-        error: "No redeemable earnings found. Only earnings from apps, agents, and MCPs can be redeemed.",
+        error:
+          "No redeemable earnings found. Only earnings from apps, agents, and MCPs can be redeemed.",
       };
     }
 
@@ -446,7 +476,9 @@ export class SecureTokenRedemptionService {
         .for("update");
 
       if (!earningsRecord) {
-        throw new Error("No redeemable earnings found. Only earnings from apps, agents, and MCPs can be redeemed.");
+        throw new Error(
+          "No redeemable earnings found. Only earnings from apps, agents, and MCPs can be redeemed.",
+        );
       }
 
       const currentAvailable = new Decimal(earningsRecord.available_balance);
@@ -454,7 +486,7 @@ export class SecureTokenRedemptionService {
       // Double-check balance (defense in depth)
       if (currentAvailable.lt(deductionAmount)) {
         throw new Error(
-          `Insufficient redeemable earnings. Available: $${currentAvailable.toFixed(2)}, Required: $${deductionAmount.toFixed(2)}`
+          `Insufficient redeemable earnings. Available: $${currentAvailable.toFixed(2)}, Required: $${deductionAmount.toFixed(2)}`,
         );
       }
 
@@ -474,8 +506,8 @@ export class SecureTokenRedemptionService {
             // CRITICAL: Only update if balance is still sufficient
             sql`CAST(${redeemableEarnings.available_balance} AS DECIMAL) >= ${deductionAmount.toNumber()}`,
             // Version check for optimistic locking
-            eq(redeemableEarnings.version, earningsRecord.version)
-          )
+            eq(redeemableEarnings.version, earningsRecord.version),
+          ),
         )
         .returning();
 
@@ -577,7 +609,7 @@ export class SecureTokenRedemptionService {
     payoutAddress: string,
     signature: string,
     nonce: string,
-    network: SupportedNetwork
+    network: SupportedNetwork,
   ): Promise<boolean> {
     const chainId = CHAIN_IDS[network];
     if (!chainId) {
@@ -619,7 +651,7 @@ export class SecureTokenRedemptionService {
   // ========================================
   private async validateAddressSecure(
     address: string,
-    network: SupportedNetwork
+    network: SupportedNetwork,
   ): Promise<ValidationResult & { exchangeWarning?: string }> {
     // Step 1: Check against known exchange addresses
     const exchangeCheck = checkKnownAddress(address, network);
@@ -700,7 +732,7 @@ export class SecureTokenRedemptionService {
     const inFlight = await db.query.tokenRedemptions.findFirst({
       where: and(
         eq(tokenRedemptions.user_id, userId),
-        inArray(tokenRedemptions.status, ["pending", "approved", "processing"])
+        inArray(tokenRedemptions.status, ["pending", "approved", "processing"]),
       ),
     });
 
@@ -721,7 +753,7 @@ export class SecureTokenRedemptionService {
 
       if (timeSince < SECURE_CONFIG.COOLDOWN_MS) {
         const waitSeconds = Math.ceil(
-          (SECURE_CONFIG.COOLDOWN_MS - timeSince) / 1000
+          (SECURE_CONFIG.COOLDOWN_MS - timeSince) / 1000,
         );
         return {
           valid: false,
@@ -738,7 +770,7 @@ export class SecureTokenRedemptionService {
   // ========================================
   private async checkDailyLimitsUTC(
     userId: string,
-    pointsAmount: number
+    pointsAmount: number,
   ): Promise<ValidationResult> {
     const todayUTC = new Date();
     todayUTC.setUTCHours(0, 0, 0, 0);
@@ -746,7 +778,7 @@ export class SecureTokenRedemptionService {
     const limits = await db.query.redemptionLimits.findFirst({
       where: and(
         eq(redemptionLimits.user_id, userId),
-        gte(redemptionLimits.date, todayUTC)
+        gte(redemptionLimits.date, todayUTC),
       ),
     });
 
@@ -780,7 +812,7 @@ export class SecureTokenRedemptionService {
   // ========================================
   private async checkIPRateLimits(
     ipAddress: string,
-    pointsAmount: number
+    pointsAmount: number,
   ): Promise<ValidationResult> {
     const now = new Date();
     const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
@@ -797,7 +829,7 @@ export class SecureTokenRedemptionService {
     `);
 
     const hourlyRedemptions = Number(
-      (hourlyCount.rows[0] as { count: string })?.count || 0
+      (hourlyCount.rows[0] as { count: string })?.count || 0,
     );
 
     if (hourlyRedemptions >= IP_RATE_LIMITS.MAX_REDEMPTIONS_PER_IP_HOURLY) {
@@ -819,10 +851,10 @@ export class SecureTokenRedemptionService {
     `);
 
     const dailyRedemptions = Number(
-      (dailyStats.rows[0] as { count: string })?.count || 0
+      (dailyStats.rows[0] as { count: string })?.count || 0,
     );
     const dailyUsd = Number(
-      (dailyStats.rows[0] as { total_usd: string })?.total_usd || 0
+      (dailyStats.rows[0] as { total_usd: string })?.total_usd || 0,
     );
 
     if (dailyRedemptions >= IP_RATE_LIMITS.MAX_REDEMPTIONS_PER_IP_DAILY) {
@@ -846,7 +878,7 @@ export class SecureTokenRedemptionService {
   private async updateDailyLimitsUTC(
     tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
     userId: string,
-    usdValue: number
+    usdValue: number,
   ): Promise<void> {
     const todayUTC = new Date();
     todayUTC.setUTCHours(0, 0, 0, 0);
@@ -873,7 +905,7 @@ export class SecureTokenRedemptionService {
   // Fix #10: Find by idempotency key
   // ========================================
   private async findByIdempotencyKey(
-    key: string
+    key: string,
   ): Promise<TokenRedemption | null> {
     const redemption = await db.query.tokenRedemptions.findFirst({
       where: sql`${tokenRedemptions.metadata}->>'idempotency_key' = ${key}`,
@@ -887,7 +919,7 @@ export class SecureTokenRedemptionService {
   // ========================================
   async checkTokenAvailability(
     network: SupportedNetwork,
-    requiredAmount: number
+    requiredAmount: number,
   ): Promise<{ available: boolean; balance: number; error?: string }> {
     if (network === "solana") {
       const solanaAddress = process.env.SOLANA_PAYOUT_WALLET_ADDRESS;
@@ -902,19 +934,20 @@ export class SecureTokenRedemptionService {
     } else {
       // Try explicit wallet address first, then derive from private key
       let evmAddress = process.env.EVM_PAYOUT_WALLET_ADDRESS;
-      
+
       if (!evmAddress) {
         // Derive from private key (matches payout-processor.ts logic)
-        const evmKey = process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY;
+        const evmKey =
+          process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY;
         if (evmKey) {
-          const formattedKey = evmKey.startsWith("0x") 
-            ? evmKey as `0x${string}` 
-            : `0x${evmKey}` as `0x${string}`;
+          const formattedKey = evmKey.startsWith("0x")
+            ? (evmKey as `0x${string}`)
+            : (`0x${evmKey}` as `0x${string}`);
           const account = privateKeyToAccount(formattedKey);
           evmAddress = account.address;
         }
       }
-      
+
       if (!evmAddress) {
         return {
           available: false,
@@ -929,7 +962,7 @@ export class SecureTokenRedemptionService {
   private async checkEvmBalance(
     network: SupportedNetwork,
     walletAddress: string,
-    requiredAmount: number
+    requiredAmount: number,
   ): Promise<{ available: boolean; balance: number; error?: string }> {
     const chain = EVM_CHAINS[network as keyof typeof EVM_CHAINS];
     if (!chain) {
@@ -972,7 +1005,7 @@ export class SecureTokenRedemptionService {
 
   private async checkSolanaBalance(
     walletAddress: string,
-    requiredAmount: number
+    requiredAmount: number,
   ): Promise<{ available: boolean; balance: number; error?: string }> {
     const solanaRpc =
       process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
@@ -992,7 +1025,8 @@ export class SecureTokenRedemptionService {
       };
     }
 
-    const balance = Number(account.amount) / Math.pow(10, ELIZA_DECIMALS.solana);
+    const balance =
+      Number(account.amount) / Math.pow(10, ELIZA_DECIMALS.solana);
     const available = balance >= requiredAmount;
 
     logger.debug("[SecureRedemption] Solana balance check", {
@@ -1012,7 +1046,7 @@ export class SecureTokenRedemptionService {
   async rejectRedemption(
     redemptionId: string,
     adminUserId: string,
-    reason: string
+    reason: string,
   ): Promise<{ success: boolean; error?: string }> {
     await db.transaction(async (tx) => {
       const [redemption] = await tx
@@ -1021,8 +1055,8 @@ export class SecureTokenRedemptionService {
         .where(
           and(
             eq(tokenRedemptions.id, redemptionId),
-            eq(tokenRedemptions.status, "pending")
-          )
+            eq(tokenRedemptions.status, "pending"),
+          ),
         )
         .for("update");
 
@@ -1046,20 +1080,18 @@ export class SecureTokenRedemptionService {
         .where(eq(redeemableEarnings.user_id, redemption.user_id));
 
       // Create ledger entry for audit trail
-      await tx
-        .insert(redeemableEarningsLedger)
-        .values({
-          user_id: redemption.user_id,
-          entry_type: "refund",
-          amount: String(refundAmount),
-          balance_after: sql`(SELECT available_balance FROM redeemable_earnings WHERE user_id = ${redemption.user_id})`,
-          redemption_id: redemptionId,
-          description: `Refund from rejected redemption: ${sanitizeForLog(reason)}`,
-          metadata: {
-            admin_user_id: adminUserId,
-            refunded_at: new Date().toISOString(),
-          },
-        });
+      await tx.insert(redeemableEarningsLedger).values({
+        user_id: redemption.user_id,
+        entry_type: "refund",
+        amount: String(refundAmount),
+        balance_after: sql`(SELECT available_balance FROM redeemable_earnings WHERE user_id = ${redemption.user_id})`,
+        redemption_id: redemptionId,
+        description: `Refund from rejected redemption: ${sanitizeForLog(reason)}`,
+        metadata: {
+          admin_user_id: adminUserId,
+          refunded_at: new Date().toISOString(),
+        },
+      });
 
       // Fix #7: Restore daily limits
       const todayUTC = new Date();
@@ -1075,8 +1107,8 @@ export class SecureTokenRedemptionService {
         .where(
           and(
             eq(redemptionLimits.user_id, redemption.user_id),
-            gte(redemptionLimits.date, todayUTC)
-          )
+            gte(redemptionLimits.date, todayUTC),
+          ),
         );
 
       // Update redemption status
@@ -1112,11 +1144,11 @@ export class SecureTokenRedemptionService {
     userId: string,
     appId: string,
     pointsAmount: number,
-    payoutAddress?: string
+    payoutAddress?: string,
   ): Promise<{ flagged: boolean; warning?: string; requiresReview?: boolean }> {
     // Check 1: Fast earn-to-redeem (earned within last hour)
     const oneHourAgo = new Date(
-      Date.now() - FRAUD_THRESHOLDS.FAST_REDEEM_HOURS * 60 * 60 * 1000
+      Date.now() - FRAUD_THRESHOLDS.FAST_REDEEM_HOURS * 60 * 60 * 1000,
     );
 
     // Look for recent earnings transactions
@@ -1129,13 +1161,13 @@ export class SecureTokenRedemptionService {
     `);
 
     const recentCount = Number(
-      (recentEarnings.rows[0] as { count: string })?.count || 0
+      (recentEarnings.rows[0] as { count: string })?.count || 0,
     );
     const recentTotal = Number(
-      (recentEarnings.rows[0] as { total: string })?.total || 0
+      (recentEarnings.rows[0] as { total: string })?.total || 0,
     );
 
-    if (recentCount > 0 && recentTotal > pointsAmount / 100 * 0.5) {
+    if (recentCount > 0 && recentTotal > (pointsAmount / 100) * 0.5) {
       return {
         flagged: true,
         warning: `Flagged: ${recentCount} earnings transactions within last hour`,
@@ -1160,10 +1192,10 @@ export class SecureTokenRedemptionService {
     `);
 
     const earned = Number(
-      (totalEarned.rows[0] as { total: string })?.total || 0
+      (totalEarned.rows[0] as { total: string })?.total || 0,
     );
     const redeemed = Number(
-      (totalRedeemed.rows[0] as { total: string })?.total || 0
+      (totalRedeemed.rows[0] as { total: string })?.total || 0,
     );
 
     if (earned > 0) {
@@ -1188,7 +1220,7 @@ export class SecureTokenRedemptionService {
       `);
 
       const otherUsersCount = Number(
-        (sharedAddressCheck.rows[0] as { user_count: string })?.user_count || 0
+        (sharedAddressCheck.rows[0] as { user_count: string })?.user_count || 0,
       );
 
       if (otherUsersCount >= FRAUD_THRESHOLDS.SHARED_ADDRESS_MAX_USERS) {
@@ -1209,7 +1241,7 @@ export class SecureTokenRedemptionService {
 
   async getRedemption(
     redemptionId: string,
-    userId?: string
+    userId?: string,
   ): Promise<TokenRedemption | null> {
     const conditions = [eq(tokenRedemptions.id, redemptionId)];
     if (userId) {
@@ -1225,7 +1257,7 @@ export class SecureTokenRedemptionService {
 
   async listUserRedemptions(
     userId: string,
-    limit = 20
+    limit = 20,
   ): Promise<TokenRedemption[]> {
     return await db.query.tokenRedemptions.findMany({
       where: eq(tokenRedemptions.user_id, userId),
@@ -1237,7 +1269,7 @@ export class SecureTokenRedemptionService {
   async approveRedemption(
     redemptionId: string,
     adminUserId: string,
-    notes?: string
+    notes?: string,
   ): Promise<{ success: boolean; error?: string }> {
     const [updated] = await db
       .update(tokenRedemptions)
@@ -1251,8 +1283,8 @@ export class SecureTokenRedemptionService {
       .where(
         and(
           eq(tokenRedemptions.id, redemptionId),
-          eq(tokenRedemptions.status, "pending")
-        )
+          eq(tokenRedemptions.status, "pending"),
+        ),
       )
       .returning();
 
@@ -1271,4 +1303,3 @@ export class SecureTokenRedemptionService {
 
 // Export singleton
 export const secureTokenRedemptionService = new SecureTokenRedemptionService();
-

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * POST /api/marketplace/characters/[id]/track-view
- * 
+ *
  * @deprecated Use /api/my-agents/characters/[id]/track-view instead.
  * This endpoint is maintained for backwards compatibility.
  */

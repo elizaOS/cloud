@@ -26,7 +26,7 @@ export class AdTransactionsRepository {
       type?: AdTransactionType;
       limit?: number;
       offset?: number;
-    }
+    },
   ): Promise<AdTransaction[]> {
     const conditions = [eq(adTransactions.organization_id, organizationId)];
 
@@ -48,7 +48,7 @@ export class AdTransactionsRepository {
 
   async listByCampaign(
     campaignId: string,
-    options?: { type?: AdTransactionType; limit?: number }
+    options?: { type?: AdTransactionType; limit?: number },
   ): Promise<AdTransaction[]> {
     const conditions = [eq(adTransactions.campaign_id, campaignId)];
 
@@ -73,7 +73,7 @@ export class AdTransactionsRepository {
 
   async getTotalSpendByOrganization(
     organizationId: string,
-    options?: { startDate?: Date; endDate?: Date }
+    options?: { startDate?: Date; endDate?: Date },
   ): Promise<{ totalAmount: number; totalCredits: number }> {
     const conditions = [
       eq(adTransactions.organization_id, organizationId),
@@ -82,7 +82,7 @@ export class AdTransactionsRepository {
 
     if (options?.startDate) {
       conditions.push(
-        sql`${adTransactions.created_at} >= ${options.startDate}`
+        sql`${adTransactions.created_at} >= ${options.startDate}`,
       );
     }
 
@@ -117,8 +117,8 @@ export class AdTransactionsRepository {
       .where(
         and(
           eq(adTransactions.campaign_id, campaignId),
-          eq(adTransactions.type, "spend")
-        )
+          eq(adTransactions.type, "spend"),
+        ),
       );
 
     return {

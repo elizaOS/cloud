@@ -24,22 +24,32 @@ const textContent = (data: unknown) => ({
   content: [{ type: "text" as const, text: JSON.stringify(data) }],
 });
 
-export function registerDeFiTools(server: McpServer, _getAuthContext: () => AuthResultWithOrg) {
+export function registerDeFiTools(
+  server: McpServer,
+  _getAuthContext: () => AuthResultWithOrg,
+) {
   server.registerTool(
     "defi_get_token_price",
     {
-      description: "Get token price from multiple sources (Birdeye, Jupiter, CoinGecko, CoinMarketCap)",
+      description:
+        "Get token price from multiple sources (Birdeye, Jupiter, CoinGecko, CoinMarketCap)",
       inputSchema: {
         type: "object" as const,
         properties: {
-          source: { type: "string", enum: ["birdeye", "jupiter", "coingecko", "coinmarketcap"] },
-          identifier: { type: "string", description: "Token address or coin ID" },
+          source: {
+            type: "string",
+            enum: ["birdeye", "jupiter", "coingecko", "coinmarketcap"],
+          },
+          identifier: {
+            type: "string",
+            description: "Token address or coin ID",
+          },
         },
         required: ["source", "identifier"],
       },
     },
     async ({ source, identifier }: { source: string; identifier: string }) =>
-      textContent(await fetchTokenPrice(source as "coingecko", identifier))
+      textContent(await fetchTokenPrice(source as "coingecko", identifier)),
   );
 
   server.registerTool(
@@ -49,14 +59,17 @@ export function registerDeFiTools(server: McpServer, _getAuthContext: () => Auth
       inputSchema: {
         type: "object" as const,
         properties: {
-          source: { type: "string", enum: ["birdeye", "coingecko", "coinmarketcap"] },
+          source: {
+            type: "string",
+            enum: ["birdeye", "coingecko", "coinmarketcap"],
+          },
           limit: { type: "number" },
         },
         required: ["source"],
       },
     },
     async ({ source, limit = 20 }: { source: string; limit?: number }) =>
-      textContent(await fetchTrendingTokens(source as "coingecko", limit))
+      textContent(await fetchTrendingTokens(source as "coingecko", limit)),
   );
 
   server.registerTool(
@@ -65,12 +78,14 @@ export function registerDeFiTools(server: McpServer, _getAuthContext: () => Auth
       description: "Get global cryptocurrency market overview",
       inputSchema: {
         type: "object" as const,
-        properties: { source: { type: "string", enum: ["coingecko", "coinmarketcap"] } },
+        properties: {
+          source: { type: "string", enum: ["coingecko", "coinmarketcap"] },
+        },
         required: ["source"],
       },
     },
     async ({ source }: { source: string }) =>
-      textContent(await fetchMarketOverview(source as "coingecko"))
+      textContent(await fetchMarketOverview(source as "coingecko")),
   );
 
   server.registerTool(
@@ -79,12 +94,14 @@ export function registerDeFiTools(server: McpServer, _getAuthContext: () => Auth
       description: "Get detailed Solana token overview from Birdeye",
       inputSchema: {
         type: "object" as const,
-        properties: { address: { type: "string", description: "Token mint address" } },
+        properties: {
+          address: { type: "string", description: "Token mint address" },
+        },
         required: ["address"],
       },
     },
     async ({ address }: { address: string }) =>
-      textContent(await fetchSolanaTokenOverview(address))
+      textContent(await fetchSolanaTokenOverview(address)),
   );
 
   server.registerTool(
@@ -93,12 +110,14 @@ export function registerDeFiTools(server: McpServer, _getAuthContext: () => Auth
       description: "Get Solana wallet portfolio from Birdeye",
       inputSchema: {
         type: "object" as const,
-        properties: { address: { type: "string", description: "Wallet address" } },
+        properties: {
+          address: { type: "string", description: "Wallet address" },
+        },
         required: ["address"],
       },
     },
     async ({ address }: { address: string }) =>
-      textContent(await fetchSolanaWalletPortfolio(address))
+      textContent(await fetchSolanaWalletPortfolio(address)),
   );
 
   server.registerTool(
@@ -116,8 +135,12 @@ export function registerDeFiTools(server: McpServer, _getAuthContext: () => Auth
         required: ["inputMint", "outputMint", "amount"],
       },
     },
-    async (p: { inputMint: string; outputMint: string; amount: string; slippageBps?: number }) =>
-      textContent(await fetchJupiterQuote(p))
+    async (p: {
+      inputMint: string;
+      outputMint: string;
+      amount: string;
+      slippageBps?: number;
+    }) => textContent(await fetchJupiterQuote(p)),
   );
 
   server.registerTool(
@@ -134,7 +157,7 @@ export function registerDeFiTools(server: McpServer, _getAuthContext: () => Auth
       },
     },
     async ({ address, limit = 20 }: { address: string; limit?: number }) =>
-      textContent(await fetchHeliusTransactions(address, limit))
+      textContent(await fetchHeliusTransactions(address, limit)),
   );
 
   server.registerTool(
@@ -147,14 +170,33 @@ export function registerDeFiTools(server: McpServer, _getAuthContext: () => Auth
           sellToken: { type: "string" },
           buyToken: { type: "string" },
           sellAmount: { type: "string" },
-          chain: { type: "string", enum: ["ethereum", "polygon", "bsc", "arbitrum", "optimism", "base", "avalanche"] },
+          chain: {
+            type: "string",
+            enum: [
+              "ethereum",
+              "polygon",
+              "bsc",
+              "arbitrum",
+              "optimism",
+              "base",
+              "avalanche",
+            ],
+          },
           slippagePercentage: { type: "number" },
         },
         required: ["sellToken", "buyToken", "sellAmount"],
       },
     },
-    async (p: { sellToken: string; buyToken: string; sellAmount: string; chain?: string; slippagePercentage?: number }) =>
-      textContent(await fetchZeroExQuote({ ...p, chain: p.chain as ZeroExChain }))
+    async (p: {
+      sellToken: string;
+      buyToken: string;
+      sellAmount: string;
+      chain?: string;
+      slippagePercentage?: number;
+    }) =>
+      textContent(
+        await fetchZeroExQuote({ ...p, chain: p.chain as ZeroExChain }),
+      ),
   );
 
   server.registerTool(
@@ -171,8 +213,15 @@ export function registerDeFiTools(server: McpServer, _getAuthContext: () => Auth
         required: ["query"],
       },
     },
-    async ({ query, source = "coingecko", limit = 20 }: { query: string; source?: string; limit?: number }) =>
-      textContent(await searchTokens(source as "coingecko", query, limit))
+    async ({
+      query,
+      source = "coingecko",
+      limit = 20,
+    }: {
+      query: string;
+      source?: string;
+      limit?: number;
+    }) => textContent(await searchTokens(source as "coingecko", query, limit)),
   );
 
   server.registerTool(
@@ -189,8 +238,15 @@ export function registerDeFiTools(server: McpServer, _getAuthContext: () => Auth
         required: ["tokenAddress", "networkId"],
       },
     },
-    async ({ tokenAddress, networkId, limit = 50 }: { tokenAddress: string; networkId: number; limit?: number }) =>
-      textContent(await fetchTokenHolders(tokenAddress, networkId, limit))
+    async ({
+      tokenAddress,
+      networkId,
+      limit = 50,
+    }: {
+      tokenAddress: string;
+      networkId: number;
+      limit?: number;
+    }) => textContent(await fetchTokenHolders(tokenAddress, networkId, limit)),
   );
 
   server.registerTool(
@@ -202,14 +258,32 @@ export function registerDeFiTools(server: McpServer, _getAuthContext: () => Auth
         properties: {
           identifier: { type: "string" },
           source: { type: "string", enum: ["birdeye", "coingecko"] },
-          interval: { type: "string", enum: ["1m", "5m", "15m", "1H", "4H", "1D", "1W"] },
-          days: { type: "string", enum: ["1", "7", "14", "30", "90", "180", "365"] },
+          interval: {
+            type: "string",
+            enum: ["1m", "5m", "15m", "1H", "4H", "1D", "1W"],
+          },
+          days: {
+            type: "string",
+            enum: ["1", "7", "14", "30", "90", "180", "365"],
+          },
         },
         required: ["identifier", "source"],
       },
     },
-    async ({ identifier, source, interval = "1H", days = "7" }: { identifier: string; source: string; interval?: string; days?: string }) =>
-      textContent(await fetchOHLCV(source as "birdeye", identifier, { interval, days }))
+    async ({
+      identifier,
+      source,
+      interval = "1H",
+      days = "7",
+    }: {
+      identifier: string;
+      source: string;
+      interval?: string;
+      days?: string;
+    }) =>
+      textContent(
+        await fetchOHLCV(source as "birdeye", identifier, { interval, days }),
+      ),
   );
 
   server.registerTool(
@@ -218,6 +292,6 @@ export function registerDeFiTools(server: McpServer, _getAuthContext: () => Auth
       description: "Check health of DeFi services",
       inputSchema: { type: "object" as const, properties: {}, required: [] },
     },
-    async () => textContent(await checkServicesHealth())
+    async () => textContent(await checkServicesHealth()),
   );
 }

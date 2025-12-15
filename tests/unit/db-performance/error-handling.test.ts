@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach } from "bun:test";
-import { recordSlowQuery, clearMemoryStore, getSlowQueriesFromMemory } from "@/lib/db/slow-query-store";
+import {
+  recordSlowQuery,
+  clearMemoryStore,
+  getSlowQueriesFromMemory,
+} from "@/lib/db/slow-query-store";
 import { sendSlowQueryAlert, clearRateLimiter } from "@/lib/db/query-alerting";
 
 describe("error handling", () => {
@@ -25,13 +29,32 @@ describe("error handling", () => {
   describe("alert resilience", () => {
     it("doesn't throw when webhooks unavailable", async () => {
       await expect(
-        sendSlowQueryAlert({ query: "SELECT 1", durationMs: 1000, timestamp: new Date(), severity: "critical" })
+        sendSlowQueryAlert({
+          query: "SELECT 1",
+          durationMs: 1000,
+          timestamp: new Date(),
+          severity: "critical",
+        }),
       ).resolves.toBeUndefined();
     });
 
     it("handles edge case inputs", async () => {
-      await expect(sendSlowQueryAlert({ query: "", durationMs: 1000, timestamp: new Date(), severity: "critical" })).resolves.toBeUndefined();
-      await expect(sendSlowQueryAlert({ query: "x".repeat(100000), durationMs: 1000, timestamp: new Date(), severity: "critical" })).resolves.toBeUndefined();
+      await expect(
+        sendSlowQueryAlert({
+          query: "",
+          durationMs: 1000,
+          timestamp: new Date(),
+          severity: "critical",
+        }),
+      ).resolves.toBeUndefined();
+      await expect(
+        sendSlowQueryAlert({
+          query: "x".repeat(100000),
+          durationMs: 1000,
+          timestamp: new Date(),
+          severity: "critical",
+        }),
+      ).resolves.toBeUndefined();
     });
   });
 
@@ -59,7 +82,7 @@ describe("error handling", () => {
   describe("concurrent recordings", () => {
     it("handles rapid concurrent writes", async () => {
       const promises = Array.from({ length: 50 }, (_, i) =>
-        recordSlowQuery(`rapid_query_${i % 5}`, 100 + i)
+        recordSlowQuery(`rapid_query_${i % 5}`, 100 + i),
       );
       await Promise.all(promises);
 
@@ -74,14 +97,24 @@ describe("rate limiter", () => {
   beforeEach(() => clearRateLimiter());
 
   it("rate limits per query pattern", async () => {
-    const alert = { query: "SELECT * FROM users", durationMs: 1000, timestamp: new Date(), severity: "critical" as const };
+    const alert = {
+      query: "SELECT * FROM users",
+      durationMs: 1000,
+      timestamp: new Date(),
+      severity: "critical" as const,
+    };
     await sendSlowQueryAlert(alert);
     await sendSlowQueryAlert(alert);
     await sendSlowQueryAlert({ ...alert, query: "SELECT * FROM orders" });
   });
 
   it("clears rate limits", async () => {
-    const alert = { query: "SELECT 1", durationMs: 1000, timestamp: new Date(), severity: "critical" as const };
+    const alert = {
+      query: "SELECT 1",
+      durationMs: 1000,
+      timestamp: new Date(),
+      severity: "critical" as const,
+    };
     await sendSlowQueryAlert(alert);
     clearRateLimiter();
     await sendSlowQueryAlert(alert);

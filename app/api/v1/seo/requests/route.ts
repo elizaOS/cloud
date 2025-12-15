@@ -65,16 +65,22 @@ export async function GET(request: NextRequest) {
   const limitParam = searchParams.get("limit");
 
   const parsedStatus =
-    status && seoRequestStatusEnum.enumValues.includes(status as (typeof seoRequestStatusEnum.enumValues)[number])
+    status &&
+    seoRequestStatusEnum.enumValues.includes(
+      status as (typeof seoRequestStatusEnum.enumValues)[number],
+    )
       ? (status as (typeof seoRequestStatusEnum.enumValues)[number])
       : undefined;
 
   const limit = limitParam ? Number.parseInt(limitParam, 10) : undefined;
 
-  const requests = await seoRequestsRepository.listByOrganization(user.organization_id!, {
-    status: parsedStatus,
-    limit: limit && Number.isFinite(limit) ? limit : undefined,
-  });
+  const requests = await seoRequestsRepository.listByOrganization(
+    user.organization_id!,
+    {
+      status: parsedStatus,
+      limit: limit && Number.isFinite(limit) ? limit : undefined,
+    },
+  );
 
   return NextResponse.json({
     requests: requests.map(serializeRequest),
@@ -122,4 +128,3 @@ export async function POST(request: NextRequest) {
     { status: 201 },
   );
 }
-

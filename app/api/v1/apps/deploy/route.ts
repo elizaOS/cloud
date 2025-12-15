@@ -1,6 +1,6 @@
 /**
  * App Deploy API
- * 
+ *
  * Deploy fragments as serverless apps with custom subdomains
  */
 
@@ -13,42 +13,62 @@ import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
 import { fragmentSchema } from "@/lib/fragments/schema";
 
-const DeployAppSchema = z.object({
-  // Either projectId OR fragment must be provided
-  projectId: z.string().uuid().optional(),
-  fragment: fragmentSchema.optional(),
-  
-  // App config
-  name: z.string().min(1).max(100),
-  description: z.string().optional(),
-  subdomain: z.string().min(3).max(50).regex(/^[a-z0-9-]+$/).optional(),
-  customDomain: z.string().optional(),
-  
-  // Runtime options
-  runtimeConfig: z.object({
-    injectAuth: z.boolean().optional().default(true),
-    injectStorage: z.boolean().optional().default(true),
-    apiProxy: z.boolean().optional().default(true),
-    customHead: z.string().optional(),
-  }).optional(),
-}).refine(
-  (data) => data.projectId || data.fragment,
-  { message: "Either projectId or fragment must be provided" }
-);
+const DeployAppSchema = z
+  .object({
+    // Either projectId OR fragment must be provided
+    projectId: z.string().uuid().optional(),
+    fragment: fragmentSchema.optional(),
+
+    // App config
+    name: z.string().min(1).max(100),
+    description: z.string().optional(),
+    subdomain: z
+      .string()
+      .min(3)
+      .max(50)
+      .regex(/^[a-z0-9-]+$/)
+      .optional(),
+    customDomain: z.string().optional(),
+
+    // Runtime options
+    runtimeConfig: z
+      .object({
+        injectAuth: z.boolean().optional().default(true),
+        injectStorage: z.boolean().optional().default(true),
+        apiProxy: z.boolean().optional().default(true),
+        customHead: z.string().optional(),
+      })
+      .optional(),
+  })
+  .refine((data) => data.projectId || data.fragment, {
+    message: "Either projectId or fragment must be provided",
+  });
 
 async function handleDeploy(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const body = await request.json();
-  
+
   const validation = DeployAppSchema.safeParse(body);
   if (!validation.success) {
     return NextResponse.json(
-      { success: false, error: "Invalid request", details: validation.error.format() },
-      { status: 400 }
+      {
+        success: false,
+        error: "Invalid request",
+        details: validation.error.format(),
+      },
+      { status: 400 },
     );
   }
 
-  const { projectId, fragment: directFragment, name, description, subdomain, customDomain, runtimeConfig } = validation.data;
+  const {
+    projectId,
+    fragment: directFragment,
+    name,
+    description,
+    subdomain,
+    customDomain,
+    runtimeConfig,
+  } = validation.data;
 
   // Get fragment from project or use direct fragment
   let fragment;
@@ -57,13 +77,13 @@ async function handleDeploy(request: NextRequest) {
     if (!project) {
       return NextResponse.json(
         { success: false, error: "Project not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
     if (project.organization_id !== user.organization_id) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
-        { status: 403 }
+        { status: 403 },
       );
     }
     fragment = project.fragment_data;
@@ -114,5 +134,3 @@ async function handleDeploy(request: NextRequest) {
 }
 
 export const POST = withRateLimit(handleDeploy, RateLimitPresets.STRICT);
-
-

@@ -1,9 +1,9 @@
 /**
  * Cron Job: Application Triggers
- * 
+ *
  * Processes scheduled (cron) triggers for apps, agents, and MCPs.
  * Runs every minute to check for triggers that need to be executed.
- * 
+ *
  * Schedule: Every minute (* * * * *)
  */
 
@@ -46,13 +46,18 @@ function verifyCronSecret(request: NextRequest): boolean {
 // CRON EXPRESSION MATCHER
 // =============================================================================
 
-function shouldExecuteCron(cronExpression: string, lastExecutedAt: Date | null): boolean {
+function shouldExecuteCron(
+  cronExpression: string,
+  lastExecutedAt: Date | null,
+): boolean {
   try {
     const now = new Date();
     const parts = cronExpression.trim().split(/\s+/);
 
     if (parts.length !== 5) {
-      logger.warn(`[App Triggers Cron] Invalid cron expression (need 5 parts): ${cronExpression}`);
+      logger.warn(
+        `[App Triggers Cron] Invalid cron expression (need 5 parts): ${cronExpression}`,
+      );
       return false;
     }
 
@@ -84,7 +89,7 @@ function shouldExecuteCron(cronExpression: string, lastExecutedAt: Date | null):
       }
 
       if (pattern.includes(",")) {
-        return pattern.split(",").some(p => matches(p.trim(), value));
+        return pattern.split(",").some((p) => matches(p.trim(), value));
       }
 
       if (pattern.includes("-")) {
@@ -111,7 +116,10 @@ function shouldExecuteCron(cronExpression: string, lastExecutedAt: Date | null):
 
     return timeSinceLastExecution >= oneMinute && allMatch;
   } catch (error) {
-    logger.error(`[App Triggers Cron] Invalid cron expression: ${cronExpression}`, error);
+    logger.error(
+      `[App Triggers Cron] Invalid cron expression: ${cronExpression}`,
+      error,
+    );
     return false;
   }
 }
@@ -131,7 +139,9 @@ export async function POST(request: NextRequest): Promise<Response> {
     logger.info("[App Triggers Cron] Starting trigger processing");
 
     const triggers = await applicationTriggersService.getActiveCronTriggers();
-    logger.info(`[App Triggers Cron] Found ${triggers.length} active cron triggers`);
+    logger.info(
+      `[App Triggers Cron] Found ${triggers.length} active cron triggers`,
+    );
 
     const results = {
       processed: 0,
@@ -144,7 +154,9 @@ export async function POST(request: NextRequest): Promise<Response> {
       try {
         const cronExpression = trigger.config.cronExpression;
         if (!cronExpression) {
-          logger.warn(`[App Triggers Cron] Trigger ${trigger.id} missing cronExpression`);
+          logger.warn(
+            `[App Triggers Cron] Trigger ${trigger.id} missing cronExpression`,
+          );
           results.skipped++;
           continue;
         }
@@ -154,12 +166,14 @@ export async function POST(request: NextRequest): Promise<Response> {
           : null;
 
         if (shouldExecuteCron(cronExpression, lastExecutedAt)) {
-          logger.info(`[App Triggers Cron] Executing trigger ${trigger.id} (${trigger.name})`);
+          logger.info(
+            `[App Triggers Cron] Executing trigger ${trigger.id} (${trigger.name})`,
+          );
 
           await applicationTriggersService.executeTrigger(
             trigger.id,
             trigger.config.inputData as Record<string, unknown>,
-            "scheduled"
+            "scheduled",
           );
 
           results.executed++;
@@ -169,7 +183,10 @@ export async function POST(request: NextRequest): Promise<Response> {
 
         results.processed++;
       } catch (error) {
-        logger.error(`[App Triggers Cron] Error processing trigger ${trigger.id}:`, error);
+        logger.error(
+          `[App Triggers Cron] Error processing trigger ${trigger.id}:`,
+          error,
+        );
         results.errors++;
       }
     }
@@ -196,7 +213,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -216,7 +233,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     return NextResponse.json({
       success: true,
       activeTriggers: triggers.length,
-      triggers: triggers.map(t => ({
+      triggers: triggers.map((t) => ({
         id: t.id,
         name: t.name,
         targetType: t.target_type,
@@ -234,8 +251,7 @@ export async function GET(request: NextRequest): Promise<Response> {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

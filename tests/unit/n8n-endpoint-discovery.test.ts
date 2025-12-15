@@ -4,7 +4,7 @@ const ENDPOINT_TYPES = ["a2a", "mcp", "rest"] as const;
 
 const CATEGORIES = [
   "ai",
-  "storage", 
+  "storage",
   "infrastructure",
   "workflows",
   "billing",
@@ -75,28 +75,52 @@ describe("Endpoint Node Structure", () => {
 
 describe("Search Functionality", () => {
   const mockEndpoints = [
-    { id: "1", name: "Chat API", description: "AI chat", category: "ai", type: "rest" },
-    { id: "2", name: "Storage Upload", description: "Upload files", category: "storage", type: "rest" },
-    { id: "3", name: "Workflow Create", description: "Create n8n workflow", category: "workflows", type: "a2a" },
-    { id: "4", name: "Token Price", description: "Get token price", category: "defi", type: "mcp" },
+    {
+      id: "1",
+      name: "Chat API",
+      description: "AI chat",
+      category: "ai",
+      type: "rest",
+    },
+    {
+      id: "2",
+      name: "Storage Upload",
+      description: "Upload files",
+      category: "storage",
+      type: "rest",
+    },
+    {
+      id: "3",
+      name: "Workflow Create",
+      description: "Create n8n workflow",
+      category: "workflows",
+      type: "a2a",
+    },
+    {
+      id: "4",
+      name: "Token Price",
+      description: "Get token price",
+      category: "defi",
+      type: "mcp",
+    },
   ];
 
   test("filter by type", () => {
-    const filtered = mockEndpoints.filter(e => e.type === "rest");
+    const filtered = mockEndpoints.filter((e) => e.type === "rest");
     expect(filtered.length).toBe(2);
-    expect(filtered.every(e => e.type === "rest")).toBe(true);
+    expect(filtered.every((e) => e.type === "rest")).toBe(true);
   });
 
   test("filter by category", () => {
-    const filtered = mockEndpoints.filter(e => e.category === "ai");
+    const filtered = mockEndpoints.filter((e) => e.category === "ai");
     expect(filtered.length).toBe(1);
     expect(filtered[0].name).toBe("Chat API");
   });
 
   test("text search by name", () => {
     const query = "workflow";
-    const filtered = mockEndpoints.filter(e => 
-      e.name.toLowerCase().includes(query.toLowerCase())
+    const filtered = mockEndpoints.filter((e) =>
+      e.name.toLowerCase().includes(query.toLowerCase()),
     );
     expect(filtered.length).toBe(1);
     expect(filtered[0].id).toBe("3");
@@ -104,8 +128,8 @@ describe("Search Functionality", () => {
 
   test("text search by description", () => {
     const query = "token";
-    const filtered = mockEndpoints.filter(e => 
-      e.description.toLowerCase().includes(query.toLowerCase())
+    const filtered = mockEndpoints.filter((e) =>
+      e.description.toLowerCase().includes(query.toLowerCase()),
     );
     expect(filtered.length).toBe(1);
     expect(filtered[0].category).toBe("defi");
@@ -113,8 +137,8 @@ describe("Search Functionality", () => {
 
   test("combined filters", () => {
     const filtered = mockEndpoints
-      .filter(e => e.type === "rest")
-      .filter(e => e.category === "storage");
+      .filter((e) => e.type === "rest")
+      .filter((e) => e.category === "storage");
     expect(filtered.length).toBe(1);
     expect(filtered[0].name).toBe("Storage Upload");
   });
@@ -179,17 +203,47 @@ describe("Type Configuration", () => {
 
 describe("Search Edge Cases", () => {
   const mockEndpoints = [
-    { id: "1", name: "Chat API", description: "AI chat", category: "ai", type: "rest" },
-    { id: "2", name: "Storage Upload", description: "Upload files", category: "storage", type: "rest" },
-    { id: "3", name: "Workflow Create", description: "Create n8n workflow", category: "workflows", type: "a2a" },
-    { id: "4", name: "Token Price", description: "Get token price", category: "defi", type: "mcp" },
-    { id: "5", name: "CHAT Service", description: "Another chat", category: "ai", type: "a2a" },
+    {
+      id: "1",
+      name: "Chat API",
+      description: "AI chat",
+      category: "ai",
+      type: "rest",
+    },
+    {
+      id: "2",
+      name: "Storage Upload",
+      description: "Upload files",
+      category: "storage",
+      type: "rest",
+    },
+    {
+      id: "3",
+      name: "Workflow Create",
+      description: "Create n8n workflow",
+      category: "workflows",
+      type: "a2a",
+    },
+    {
+      id: "4",
+      name: "Token Price",
+      description: "Get token price",
+      category: "defi",
+      type: "mcp",
+    },
+    {
+      id: "5",
+      name: "CHAT Service",
+      description: "Another chat",
+      category: "ai",
+      type: "a2a",
+    },
   ];
 
   test("case-insensitive search", () => {
     const query = "CHAT";
-    const filtered = mockEndpoints.filter(e =>
-      e.name.toLowerCase().includes(query.toLowerCase())
+    const filtered = mockEndpoints.filter((e) =>
+      e.name.toLowerCase().includes(query.toLowerCase()),
     );
     expect(filtered.length).toBe(2);
   });
@@ -197,23 +251,25 @@ describe("Search Edge Cases", () => {
   test("empty query returns all", () => {
     const query = "";
     const filtered = query
-      ? mockEndpoints.filter(e => e.name.toLowerCase().includes(query.toLowerCase()))
+      ? mockEndpoints.filter((e) =>
+          e.name.toLowerCase().includes(query.toLowerCase()),
+        )
       : mockEndpoints;
     expect(filtered.length).toBe(mockEndpoints.length);
   });
 
   test("query with no matches returns empty", () => {
     const query = "nonexistent";
-    const filtered = mockEndpoints.filter(e =>
-      e.name.toLowerCase().includes(query.toLowerCase())
+    const filtered = mockEndpoints.filter((e) =>
+      e.name.toLowerCase().includes(query.toLowerCase()),
     );
     expect(filtered.length).toBe(0);
   });
 
   test("special characters in query", () => {
     const query = "n8n";
-    const filtered = mockEndpoints.filter(e =>
-      e.description.toLowerCase().includes(query.toLowerCase())
+    const filtered = mockEndpoints.filter((e) =>
+      e.description.toLowerCase().includes(query.toLowerCase()),
     );
     expect(filtered.length).toBe(1);
     expect(filtered[0].id).toBe("3");
@@ -221,21 +277,22 @@ describe("Search Edge Cases", () => {
 
   test("multiple type filters", () => {
     const types = ["rest", "a2a"];
-    const filtered = mockEndpoints.filter(e => types.includes(e.type));
+    const filtered = mockEndpoints.filter((e) => types.includes(e.type));
     expect(filtered.length).toBe(4);
   });
 
   test("filter with no matching type", () => {
     const types = ["graphql" as string];
-    const filtered = mockEndpoints.filter(e => types.includes(e.type));
+    const filtered = mockEndpoints.filter((e) => types.includes(e.type));
     expect(filtered.length).toBe(0);
   });
 
   test("filter with empty type array returns all", () => {
     const types: string[] = [];
-    const filtered = types.length > 0
-      ? mockEndpoints.filter(e => types.includes(e.type))
-      : mockEndpoints;
+    const filtered =
+      types.length > 0
+        ? mockEndpoints.filter((e) => types.includes(e.type))
+        : mockEndpoints;
     expect(filtered.length).toBe(mockEndpoints.length);
   });
 
@@ -243,8 +300,8 @@ describe("Search Edge Cases", () => {
     const query = "chat";
     const type = "a2a";
     const filtered = mockEndpoints
-      .filter(e => e.name.toLowerCase().includes(query.toLowerCase()))
-      .filter(e => e.type === type);
+      .filter((e) => e.name.toLowerCase().includes(query.toLowerCase()))
+      .filter((e) => e.type === type);
     expect(filtered.length).toBe(1);
     expect(filtered[0].id).toBe("5");
   });
@@ -293,10 +350,16 @@ describe("Pagination and Limits", () => {
 });
 
 describe("URL Parameter Parsing", () => {
-  function parseTypes(param: string | null): ("a2a" | "mcp" | "rest")[] | undefined {
+  function parseTypes(
+    param: string | null,
+  ): ("a2a" | "mcp" | "rest")[] | undefined {
     if (!param) return undefined;
     const validTypes = ["a2a", "mcp", "rest"];
-    return param.split(",").filter(t => validTypes.includes(t)) as ("a2a" | "mcp" | "rest")[];
+    return param.split(",").filter((t) => validTypes.includes(t)) as (
+      | "a2a"
+      | "mcp"
+      | "rest"
+    )[];
   }
 
   test("parses comma-separated types", () => {
@@ -331,7 +394,10 @@ describe("URL Parameter Parsing", () => {
 
   test("handles whitespace in types", () => {
     const param = " a2a , mcp ";
-    const result = param.split(",").map(t => t.trim()).filter(t => ["a2a", "mcp", "rest"].includes(t));
+    const result = param
+      .split(",")
+      .map((t) => t.trim())
+      .filter((t) => ["a2a", "mcp", "rest"].includes(t));
     expect(result).toEqual(["a2a", "mcp"]);
   });
 });
@@ -355,7 +421,9 @@ describe("Category Fallback", () => {
 
   test("undefined category handled", () => {
     const category: string | undefined = undefined;
-    const color = category ? CATEGORY_COLORS[category] : CATEGORY_COLORS.utilities;
+    const color = category
+      ? CATEGORY_COLORS[category]
+      : CATEGORY_COLORS.utilities;
     expect(color).toBe(CATEGORY_COLORS.utilities);
   });
 });
@@ -423,17 +491,19 @@ describe("x402 Badge Logic", () => {
   ];
 
   test("x402Enabled true shows badge", () => {
-    const endpoint = mockEndpoints.find(e => e.id === "2");
+    const endpoint = mockEndpoints.find((e) => e.id === "2");
     expect(endpoint?.x402Enabled).toBe(true);
   });
 
   test("x402Enabled false hides badge", () => {
-    const endpoint = mockEndpoints.find(e => e.id === "1");
+    const endpoint = mockEndpoints.find((e) => e.id === "1");
     expect(endpoint?.x402Enabled).toBe(false);
   });
 
   test("missing x402Enabled treated as false", () => {
-    const endpoint = mockEndpoints.find(e => e.id === "3") as { x402Enabled?: boolean };
+    const endpoint = mockEndpoints.find((e) => e.id === "3") as {
+      x402Enabled?: boolean;
+    };
     expect(endpoint?.x402Enabled ?? false).toBe(false);
   });
 });
@@ -441,16 +511,16 @@ describe("x402 Badge Logic", () => {
 describe("Concurrent Filter Updates", () => {
   test("rapid filter changes use latest state", async () => {
     let currentFilters: string[] = [];
-    
+
     const setFilters = (fn: (prev: string[]) => string[]) => {
       currentFilters = fn(currentFilters);
     };
 
     // Simulate rapid filter toggles
-    setFilters(prev => [...prev, "a2a"]);
-    setFilters(prev => [...prev, "mcp"]);
-    setFilters(prev => prev.filter(t => t !== "a2a"));
-    setFilters(prev => [...prev, "rest"]);
+    setFilters((prev) => [...prev, "a2a"]);
+    setFilters((prev) => [...prev, "mcp"]);
+    setFilters((prev) => prev.filter((t) => t !== "a2a"));
+    setFilters((prev) => [...prev, "rest"]);
 
     expect(currentFilters).toEqual(["mcp", "rest"]);
   });
@@ -459,7 +529,7 @@ describe("Concurrent Filter Updates", () => {
     const current = ["a2a"];
     const type = "mcp";
     const result = current.includes(type)
-      ? current.filter(t => t !== type)
+      ? current.filter((t) => t !== type)
       : [...current, type];
     expect(result).toEqual(["a2a", "mcp"]);
   });
@@ -468,9 +538,8 @@ describe("Concurrent Filter Updates", () => {
     const current = ["a2a", "mcp"];
     const type = "a2a";
     const result = current.includes(type)
-      ? current.filter(t => t !== type)
+      ? current.filter((t) => t !== type)
       : [...current, type];
     expect(result).toEqual(["mcp"]);
   });
 });
-

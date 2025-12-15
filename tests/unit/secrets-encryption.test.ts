@@ -10,7 +10,8 @@ describe("SecretsEncryptionService", () => {
 
   beforeEach(() => {
     // Use a deterministic key for testing
-    const testKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    const testKey =
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     const kms = new LocalKMSProvider(testKey);
     service = createEncryptionService(kms);
   });
@@ -157,7 +158,9 @@ describe("LocalKMSProvider", () => {
 
     it("rejects invalid key length", () => {
       const shortKey = "0".repeat(32);
-      expect(() => new LocalKMSProvider(shortKey)).toThrow("must be 64 hex characters");
+      expect(() => new LocalKMSProvider(shortKey)).toThrow(
+        "must be 64 hex characters",
+      );
     });
   });
 
@@ -250,7 +253,7 @@ describe("End-to-end encryption workflow", () => {
         name: s.name,
         original: s.value,
         encrypted: await service.encrypt(s.value),
-      }))
+      })),
     );
 
     // Decrypt all and verify
@@ -269,7 +272,8 @@ describe("Edge Cases and Boundary Conditions", () => {
   let service: SecretsEncryptionService;
 
   beforeEach(() => {
-    const testKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    const testKey =
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     const kms = new LocalKMSProvider(testKey);
     service = createEncryptionService(kms);
   });
@@ -293,7 +297,7 @@ describe("Edge Cases and Boundary Conditions", () => {
     });
 
     it("handles backslashes and quotes", async () => {
-      const plaintext = 'path\\to\\file and "quoted" and \'single\'';
+      const plaintext = "path\\to\\file and \"quoted\" and 'single'";
       const encrypted = await service.encrypt(plaintext);
       const decrypted = await service.decrypt(encrypted);
 
@@ -473,7 +477,8 @@ describe("Concurrent Access Patterns", () => {
   let service: SecretsEncryptionService;
 
   beforeEach(() => {
-    const testKey = "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210";
+    const testKey =
+      "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210";
     const kms = new LocalKMSProvider(testKey);
     service = createEncryptionService(kms);
   });
@@ -485,14 +490,16 @@ describe("Concurrent Access Patterns", () => {
       secrets.map(async (s) => {
         const encrypted = await service.encrypt(s);
         return { original: s, encrypted };
-      })
+      }),
     );
 
     // All should succeed
     expect(results.length).toBe(20);
 
     // All encrypted values should be unique
-    const encryptedValues = new Set(results.map((r) => r.encrypted.encryptedValue));
+    const encryptedValues = new Set(
+      results.map((r) => r.encrypted.encryptedValue),
+    );
     expect(encryptedValues.size).toBe(20);
 
     // All should decrypt correctly
@@ -509,7 +516,7 @@ describe("Concurrent Access Patterns", () => {
       secrets.map(async (s) => ({
         original: s,
         encrypted: await service.encrypt(s),
-      }))
+      })),
     );
 
     // Then decrypt all in parallel
@@ -517,7 +524,7 @@ describe("Concurrent Access Patterns", () => {
       encrypted.map(async ({ original, encrypted: enc }) => ({
         original,
         decrypted: await service.decrypt(enc),
-      }))
+      })),
     );
 
     // All should match
@@ -536,7 +543,7 @@ describe("Concurrent Access Patterns", () => {
 
     // Pre-encrypt some for decryption
     const preEncrypted = await Promise.all(
-      Array.from({ length: 10 }, (_, i) => service.encrypt(`decrypt-${i}`))
+      Array.from({ length: 10 }, (_, i) => service.encrypt(`decrypt-${i}`)),
     );
 
     // Add decryption operations
@@ -559,7 +566,8 @@ describe("Concurrent Access Patterns", () => {
 
 describe("Key Rotation Scenarios", () => {
   it("preserves data through rotation", async () => {
-    const testKey = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+    const testKey =
+      "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
     const kms = new LocalKMSProvider(testKey);
     const service = createEncryptionService(kms);
 
@@ -575,7 +583,8 @@ describe("Key Rotation Scenarios", () => {
   });
 
   it("generates new DEK on rotation", async () => {
-    const testKey = "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
+    const testKey =
+      "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
     const kms = new LocalKMSProvider(testKey);
     const service = createEncryptionService(kms);
 
@@ -593,7 +602,8 @@ describe("Key Rotation Scenarios", () => {
   });
 
   it("handles multiple sequential rotations", async () => {
-    const testKey = "9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba";
+    const testKey =
+      "9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba";
     const kms = new LocalKMSProvider(testKey);
     const service = createEncryptionService(kms);
 
@@ -660,4 +670,3 @@ describe("Error Handling", () => {
     await expect(service.decrypt(encrypted)).rejects.toThrow();
   });
 });
-

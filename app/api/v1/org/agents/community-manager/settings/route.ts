@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
 
   const instance = await agentLifecycleService.getInstance(
     user.organization_id,
-    "community-manager"
+    "community-manager",
   );
 
   if (!instance) {
@@ -112,7 +112,7 @@ export async function PUT(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request body", details: parsed.error.format() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -121,7 +121,7 @@ export async function PUT(request: NextRequest) {
   // Get or create instance
   let instance = await agentLifecycleService.getInstance(
     user.organization_id,
-    "community-manager"
+    "community-manager",
   );
 
   if (!instance) {
@@ -135,7 +135,8 @@ export async function PUT(request: NextRequest) {
 
   // Get existing config
   const existingConfig = await agentLifecycleService.getConfig(instance.id);
-  const existingSettings = (existingConfig?.community_settings as CommunityModerationSettings) ?? {};
+  const existingSettings =
+    (existingConfig?.community_settings as CommunityModerationSettings) ?? {};
 
   // Merge settings
   const mergedSettings: CommunityModerationSettings = {
@@ -168,5 +169,3 @@ export async function PUT(request: NextRequest) {
     settings: mergedSettings,
   });
 }
-
-

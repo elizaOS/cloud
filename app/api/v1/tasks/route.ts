@@ -34,8 +34,18 @@ export async function GET(request: NextRequest) {
   const params = Object.fromEntries(request.nextUrl.searchParams);
 
   const todos = await tasksService.list(user.organization_id, {
-    status: params.status?.split(",") as ("pending" | "in_progress" | "completed" | "cancelled")[],
-    priority: params.priority?.split(",") as ("low" | "medium" | "high" | "urgent")[],
+    status: params.status?.split(",") as (
+      | "pending"
+      | "in_progress"
+      | "completed"
+      | "cancelled"
+    )[],
+    priority: params.priority?.split(",") as (
+      | "low"
+      | "medium"
+      | "high"
+      | "urgent"
+    )[],
     assigneePlatformId: params.assigneePlatformId,
     tags: params.tags?.split(","),
     limit: params.limit ? parseInt(params.limit) : undefined,
@@ -44,7 +54,7 @@ export async function GET(request: NextRequest) {
   });
 
   return NextResponse.json({
-    tasks: todos.items.map(t => ({
+    tasks: todos.items.map((t) => ({
       id: t.id,
       title: t.title,
       description: t.description,
@@ -69,7 +79,11 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
   const parsed = CreateSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: "Invalid request", details: parsed.error.format() }, { status: 400 });
+  if (!parsed.success)
+    return NextResponse.json(
+      { error: "Invalid request", details: parsed.error.format() },
+      { status: 400 },
+    );
 
   const data = parsed.data;
   const todo = await tasksService.create({
@@ -79,10 +93,17 @@ export async function POST(request: NextRequest) {
     priority: data.priority as "low" | "medium" | "high" | "urgent" | undefined,
     dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
     assigneePlatformId: data.assigneePlatformId,
-    assigneePlatform: data.assigneePlatform as "discord" | "telegram" | undefined,
+    assigneePlatform: data.assigneePlatform as
+      | "discord"
+      | "telegram"
+      | undefined,
     assigneeName: data.assigneeName,
     tags: data.tags,
-    sourcePlatform: data.sourcePlatform as "web" | "discord" | "telegram" | undefined,
+    sourcePlatform: data.sourcePlatform as
+      | "web"
+      | "discord"
+      | "telegram"
+      | undefined,
     sourceServerId: data.sourceServerId,
     sourceChannelId: data.sourceChannelId,
     sourceMessageId: data.sourceMessageId,
@@ -92,14 +113,16 @@ export async function POST(request: NextRequest) {
 
   logger.info("[Tasks] Created", { taskId: todo.id, userId: user.id });
 
-  return NextResponse.json({
-    task: {
-      id: todo.id,
-      title: todo.title,
-      status: todo.status,
-      priority: todo.priority,
-      createdAt: todo.created_at.toISOString(),
+  return NextResponse.json(
+    {
+      task: {
+        id: todo.id,
+        title: todo.title,
+        status: todo.status,
+        priority: todo.priority,
+        createdAt: todo.created_at.toISOString(),
+      },
     },
-  }, { status: 201 });
+    { status: 201 },
+  );
 }
-

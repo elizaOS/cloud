@@ -1,12 +1,12 @@
 /**
  * Application Triggers Schema
- * 
+ *
  * Generalized trigger system for all deployable components:
  * - Fragment Projects (Apps)
  * - Containers (Agents)
  * - User MCPs
  * - N8N Workflows (via n8n_workflow_triggers)
- * 
+ *
  * Supports trigger types:
  * - cron: Scheduled execution
  * - webhook: HTTP callback
@@ -41,12 +41,10 @@ export const applicationTriggerTypeEnum = pgEnum("application_trigger_type", [
   "event",
 ]);
 
-export const applicationTriggerTargetEnum = pgEnum("application_trigger_target", [
-  "fragment_project",
-  "container",
-  "user_mcp",
-  "code_agent_session",
-]);
+export const applicationTriggerTargetEnum = pgEnum(
+  "application_trigger_target",
+  ["fragment_project", "container", "user_mcp", "code_agent_session"],
+);
 
 // =============================================================================
 // TRIGGER CONFIGURATION TYPES
@@ -56,16 +54,16 @@ export interface ApplicationTriggerConfig {
   // === Cron config ===
   cronExpression?: string;
   timezone?: string;
-  
+
   // === Webhook config ===
   webhookSecret?: string;
   requireSignature?: boolean;
   allowedIps?: string[];
   allowedMethods?: ("GET" | "POST" | "PUT" | "DELETE")[];
-  
+
   // === Event config ===
   eventTypes?: string[]; // e.g., ["agent.started", "agent.stopped", "error"]
-  
+
   // === Common ===
   maxExecutionsPerDay?: number;
   estimatedCostPerExecution?: number;
@@ -74,7 +72,7 @@ export interface ApplicationTriggerConfig {
   timeout?: number; // in seconds
   retryCount?: number;
   retryDelayMs?: number;
-  
+
   // Allow custom properties
   [key: string]: unknown;
 }
@@ -111,7 +109,10 @@ export const applicationTriggers = pgTable(
     description: text("description"),
 
     // Configuration
-    config: jsonb("config").$type<ApplicationTriggerConfig>().notNull().default({}),
+    config: jsonb("config")
+      .$type<ApplicationTriggerConfig>()
+      .notNull()
+      .default({}),
 
     // Action to perform
     action_type: text("action_type").notNull().default("call_endpoint"),
@@ -120,19 +121,21 @@ export const applicationTriggers = pgTable(
     // scale: Scale up/down
     // notify: Send notification
     // execute_workflow: Execute an N8N workflow
-    
-    action_config: jsonb("action_config").$type<{
-      endpoint?: string;
-      method?: string;
-      body?: Record<string, unknown>;
-      workflowId?: string;
-      notificationChannels?: string[];
-      scaleTarget?: number;
-    }>().default({}),
+
+    action_config: jsonb("action_config")
+      .$type<{
+        endpoint?: string;
+        method?: string;
+        body?: Record<string, unknown>;
+        workflowId?: string;
+        notificationChannels?: string[];
+        scaleTarget?: number;
+      }>()
+      .default({}),
 
     // Status
     is_active: boolean("is_active").default(true).notNull(),
-    
+
     // Execution stats
     execution_count: integer("execution_count").default(0).notNull(),
     error_count: integer("error_count").default(0).notNull(),
@@ -145,12 +148,22 @@ export const applicationTriggers = pgTable(
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => ({
-    organization_idx: index("app_triggers_organization_idx").on(table.organization_id),
-    target_idx: index("app_triggers_target_idx").on(table.target_type, table.target_id),
-    trigger_type_idx: index("app_triggers_trigger_type_idx").on(table.trigger_type, table.is_active),
-    trigger_key_idx: index("app_triggers_trigger_key_idx").on(table.trigger_key),
+    organization_idx: index("app_triggers_organization_idx").on(
+      table.organization_id,
+    ),
+    target_idx: index("app_triggers_target_idx").on(
+      table.target_type,
+      table.target_id,
+    ),
+    trigger_type_idx: index("app_triggers_trigger_type_idx").on(
+      table.trigger_type,
+      table.is_active,
+    ),
+    trigger_key_idx: index("app_triggers_trigger_key_idx").on(
+      table.trigger_key,
+    ),
     is_active_idx: index("app_triggers_is_active_idx").on(table.is_active),
-  })
+  }),
 );
 
 // =============================================================================
@@ -202,15 +215,21 @@ export const applicationTriggerExecutions = pgTable(
     created_at: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => ({
-    trigger_id_idx: index("app_trigger_executions_trigger_id_idx").on(table.trigger_id),
-    organization_idx: index("app_trigger_executions_org_idx").on(table.organization_id),
+    trigger_id_idx: index("app_trigger_executions_trigger_id_idx").on(
+      table.trigger_id,
+    ),
+    organization_idx: index("app_trigger_executions_org_idx").on(
+      table.organization_id,
+    ),
     status_idx: index("app_trigger_executions_status_idx").on(table.status),
-    created_at_idx: index("app_trigger_executions_created_at_idx").on(table.created_at),
+    created_at_idx: index("app_trigger_executions_created_at_idx").on(
+      table.created_at,
+    ),
     trigger_date_idx: index("app_trigger_executions_trigger_date_idx").on(
       table.trigger_id,
-      table.created_at
+      table.created_at,
     ),
-  })
+  }),
 );
 
 // =============================================================================
@@ -218,7 +237,12 @@ export const applicationTriggerExecutions = pgTable(
 // =============================================================================
 
 export type ApplicationTrigger = InferSelectModel<typeof applicationTriggers>;
-export type NewApplicationTrigger = InferInsertModel<typeof applicationTriggers>;
-export type ApplicationTriggerExecution = InferSelectModel<typeof applicationTriggerExecutions>;
-export type NewApplicationTriggerExecution = InferInsertModel<typeof applicationTriggerExecutions>;
-
+export type NewApplicationTrigger = InferInsertModel<
+  typeof applicationTriggers
+>;
+export type ApplicationTriggerExecution = InferSelectModel<
+  typeof applicationTriggerExecutions
+>;
+export type NewApplicationTriggerExecution = InferInsertModel<
+  typeof applicationTriggerExecutions
+>;

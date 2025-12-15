@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { codeAgentService } from "@/lib/services/code-agent";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit-redis";
+import {
+  withRateLimit,
+  RateLimitPresets,
+} from "@/lib/middleware/rate-limit-redis";
 import { logger } from "@/lib/utils/logger";
 
 const createSessionSchema = z.object({
@@ -15,7 +18,9 @@ const createSessionSchema = z.object({
   capabilities: z
     .object({
       languages: z
-        .array(z.enum(["python", "javascript", "typescript", "shell", "rust", "go"]))
+        .array(
+          z.enum(["python", "javascript", "typescript", "shell", "rust", "go"]),
+        )
         .optional(),
       hasGit: z.boolean().optional(),
       hasDocker: z.boolean().optional(),
@@ -28,7 +33,14 @@ const createSessionSchema = z.object({
   expiresInSeconds: z.number().min(60).max(86400).default(1800), // 30 min default, 24h max
   webhookUrl: z.string().url().optional(),
   webhookEvents: z
-    .array(z.enum(["session_ready", "session_error", "session_terminated", "snapshot_created"]))
+    .array(
+      z.enum([
+        "session_ready",
+        "session_error",
+        "session_terminated",
+        "snapshot_created",
+      ]),
+    )
     .optional(),
 });
 

@@ -37,9 +37,7 @@ export const mediaCollectionItems = pgTable(
     }),
 
     // Source type for easier querying
-    source_type: text("source_type")
-      .$type<"generation" | "upload">()
-      .notNull(),
+    source_type: text("source_type").$type<"generation" | "upload">().notNull(),
 
     order_index: integer("order_index").notNull().default(0),
 
@@ -47,25 +45,25 @@ export const mediaCollectionItems = pgTable(
   },
   (table) => ({
     collection_idx: index("media_collection_items_collection_idx").on(
-      table.collection_id
+      table.collection_id,
     ),
     generation_idx: index("media_collection_items_generation_idx").on(
-      table.generation_id
+      table.generation_id,
     ),
     upload_idx: index("media_collection_items_upload_idx").on(table.upload_id),
     // Prevent duplicate items in collection
     unique_generation_idx: uniqueIndex(
-      "media_collection_items_unique_generation"
+      "media_collection_items_unique_generation",
     ).on(table.collection_id, table.generation_id),
     unique_upload_idx: uniqueIndex("media_collection_items_unique_upload").on(
       table.collection_id,
-      table.upload_id
+      table.upload_id,
     ),
     order_idx: index("media_collection_items_order_idx").on(
       table.collection_id,
-      table.order_index
+      table.order_index,
     ),
-  })
+  }),
 );
 
 export type MediaCollectionItem = InferSelectModel<typeof mediaCollectionItems>;

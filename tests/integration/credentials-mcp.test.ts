@@ -69,7 +69,14 @@ describe("Credentials MCP Server", () => {
 
   describe("OAuth Tools", () => {
     test("request_oauth should support all platforms", () => {
-      const platforms = ["discord", "twitter", "google", "gmail", "github", "slack"];
+      const platforms = [
+        "discord",
+        "twitter",
+        "google",
+        "gmail",
+        "github",
+        "slack",
+      ];
       expect(platforms).toContain("discord");
       expect(platforms).toContain("twitter");
       expect(platforms).toContain("google");
@@ -88,7 +95,11 @@ describe("Credentials MCP Server", () => {
     });
 
     test("get_platform_token should auto-refresh expired tokens", () => {
-      const response = { platform: "discord", accessToken: "xxx", refreshed: true };
+      const response = {
+        platform: "discord",
+        accessToken: "xxx",
+        refreshed: true,
+      };
       expect(response.refreshed).toBe(true);
     });
   });
@@ -118,7 +129,13 @@ describe("Credentials MCP Server", () => {
 
     test("resources/read should return contents array", () => {
       const response = {
-        contents: [{ uri: "credentials://secrets", mimeType: "application/json", text: "{}" }],
+        contents: [
+          {
+            uri: "credentials://secrets",
+            mimeType: "application/json",
+            text: "{}",
+          },
+        ],
       };
       expect(response.contents).toBeArray();
       expect(response.contents[0].mimeType).toBe("application/json");
@@ -132,25 +149,30 @@ describe("Secrets REST API", () => {
       { path: "/api/v1/secrets", methods: ["GET", "POST"] },
       { path: "/api/v1/secrets/:name", methods: ["GET", "PATCH", "DELETE"] },
       { path: "/api/v1/app/secrets", methods: ["GET", "POST", "OPTIONS"] },
-      { path: "/api/v1/app/secrets/:name", methods: ["GET", "DELETE", "OPTIONS"] },
+      {
+        path: "/api/v1/app/secrets/:name",
+        methods: ["GET", "DELETE", "OPTIONS"],
+      },
     ];
 
     test("should have list/create endpoints", () => {
-      const listCreate = endpoints.find(e => e.path === "/api/v1/secrets");
+      const listCreate = endpoints.find((e) => e.path === "/api/v1/secrets");
       expect(listCreate).toBeDefined();
       expect(listCreate?.methods).toContain("GET");
       expect(listCreate?.methods).toContain("POST");
     });
 
     test("should have individual secret endpoints", () => {
-      const individual = endpoints.find(e => e.path === "/api/v1/secrets/:name");
+      const individual = endpoints.find(
+        (e) => e.path === "/api/v1/secrets/:name",
+      );
       expect(individual).toBeDefined();
       expect(individual?.methods).toContain("GET");
       expect(individual?.methods).toContain("DELETE");
     });
 
     test("app endpoints should support CORS", () => {
-      const app = endpoints.find(e => e.path === "/api/v1/app/secrets");
+      const app = endpoints.find((e) => e.path === "/api/v1/app/secrets");
       expect(app?.methods).toContain("OPTIONS");
     });
   });
@@ -158,7 +180,13 @@ describe("Secrets REST API", () => {
   describe("Response Format", () => {
     test("list should return secrets array", () => {
       const response = {
-        secrets: [{ name: "API_KEY", description: "My API key", createdAt: "2024-01-01T00:00:00Z" }],
+        secrets: [
+          {
+            name: "API_KEY",
+            description: "My API key",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        ],
       };
       expect(response.secrets).toBeArray();
       expect(response.secrets[0]).not.toHaveProperty("value");
@@ -192,7 +220,11 @@ describe("App Runtime Integration", () => {
   });
 
   test("setSecret should accept name, value, and optional description", () => {
-    const params = { name: "API_KEY", value: "sk-xxx", description: "optional" };
+    const params = {
+      name: "API_KEY",
+      value: "sk-xxx",
+      description: "optional",
+    };
     expect(params.name).toBeDefined();
     expect(params.value).toBeDefined();
   });
@@ -219,9 +251,15 @@ describe("MCP Registry Integration", () => {
 
   test("should list features correctly", () => {
     const features = [
-      "store_secret", "get_secret", "delete_secret", "list_secrets",
-      "request_oauth", "get_credential", "get_platform_token",
-      "revoke_credential", "list_credentials",
+      "store_secret",
+      "get_secret",
+      "delete_secret",
+      "list_secrets",
+      "request_oauth",
+      "get_credential",
+      "get_platform_token",
+      "revoke_credential",
+      "list_credentials",
     ];
     expect(features.length).toBe(9);
   });
@@ -254,4 +292,3 @@ describe("Security", () => {
     expect(auditContext.source).toBeDefined();
   });
 });
-

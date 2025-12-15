@@ -89,4 +89,3 @@ describe("query-alerting", () => {
     });
   });
 });
-

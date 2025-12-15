@@ -10,12 +10,17 @@ import { BaseHttpClient } from "@/lib/services/defi/base-client";
 
 const originalFetch = global.fetch;
 
-const createMockResponse = (data: unknown, status = 200, headers: Record<string, string> = {}) => ({
+const createMockResponse = (
+  data: unknown,
+  status = 200,
+  headers: Record<string, string> = {},
+) => ({
   ok: status >= 200 && status < 300,
   status,
   headers: new Headers(headers),
   json: () => Promise.resolve(data),
-  text: () => Promise.resolve(typeof data === "string" ? data : JSON.stringify(data)),
+  text: () =>
+    Promise.resolve(typeof data === "string" ? data : JSON.stringify(data)),
 });
 
 describe("BaseHttpClient", () => {
@@ -30,7 +35,7 @@ describe("BaseHttpClient", () => {
         maxRetries: 2,
         retryDelay: 10, // Fast retries for testing
       },
-      "TestAPI"
+      "TestAPI",
     );
   });
 
@@ -89,7 +94,7 @@ describe("BaseHttpClient", () => {
     test("strips trailing slash from base URL", async () => {
       const clientWithSlash = new BaseHttpClient(
         { baseUrl: "https://api.test.com/", apiKey: "key" },
-        "Test"
+        "Test",
       );
 
       let capturedUrl = "";
@@ -107,7 +112,10 @@ describe("BaseHttpClient", () => {
     test("includes Content-Type header", async () => {
       let capturedHeaders: Record<string, string> = {};
       global.fetch = mock((_, init) => {
-        capturedHeaders = (init as RequestInit).headers as Record<string, string>;
+        capturedHeaders = (init as RequestInit).headers as Record<
+          string,
+          string
+        >;
         return Promise.resolve(createMockResponse({}));
       });
 
@@ -122,12 +130,15 @@ describe("BaseHttpClient", () => {
           apiKey: "key",
           headers: { "X-Custom": "value" },
         },
-        "Test"
+        "Test",
       );
 
       let capturedHeaders: Record<string, string> = {};
       global.fetch = mock((_, init) => {
-        capturedHeaders = (init as RequestInit).headers as Record<string, string>;
+        capturedHeaders = (init as RequestInit).headers as Record<
+          string,
+          string
+        >;
         return Promise.resolve(createMockResponse({}));
       });
 
@@ -138,7 +149,10 @@ describe("BaseHttpClient", () => {
     test("request-level headers override defaults", async () => {
       let capturedHeaders: Record<string, string> = {};
       global.fetch = mock((_, init) => {
-        capturedHeaders = (init as RequestInit).headers as Record<string, string>;
+        capturedHeaders = (init as RequestInit).headers as Record<
+          string,
+          string
+        >;
         return Promise.resolve(createMockResponse({}));
       });
 
@@ -155,7 +169,9 @@ describe("BaseHttpClient", () => {
       global.fetch = mock(() => {
         attempts++;
         if (attempts < 3) {
-          return Promise.resolve(createMockResponse({ error: "Rate limited" }, 429));
+          return Promise.resolve(
+            createMockResponse({ error: "Rate limited" }, 429),
+          );
         }
         return Promise.resolve(createMockResponse({ success: true }));
       });
@@ -170,7 +186,9 @@ describe("BaseHttpClient", () => {
       global.fetch = mock(() => {
         attempts++;
         if (attempts < 2) {
-          return Promise.resolve(createMockResponse({ error: "Server error" }, 500));
+          return Promise.resolve(
+            createMockResponse({ error: "Server error" }, 500),
+          );
         }
         return Promise.resolve(createMockResponse({ success: true }));
       });
@@ -184,7 +202,9 @@ describe("BaseHttpClient", () => {
       let attempts = 0;
       global.fetch = mock(() => {
         attempts++;
-        return Promise.resolve(createMockResponse({ error: "Bad request" }, 400));
+        return Promise.resolve(
+          createMockResponse({ error: "Bad request" }, 400),
+        );
       });
 
       await expect(client.get("/endpoint")).rejects.toThrow();
@@ -210,7 +230,9 @@ describe("BaseHttpClient", () => {
         attempts++;
         if (attempts === 1) {
           return Promise.resolve(
-            createMockResponse({ error: "Rate limited" }, 429, { "retry-after": "1" })
+            createMockResponse({ error: "Rate limited" }, 429, {
+              "retry-after": "1",
+            }),
           );
         }
         return Promise.resolve(createMockResponse({ success: true }));
@@ -218,8 +240,13 @@ describe("BaseHttpClient", () => {
 
       // Use a client with longer timeout to allow retry-after
       const slowClient = new BaseHttpClient(
-        { baseUrl: "https://api.test.com", apiKey: "key", maxRetries: 2, retryDelay: 10 },
-        "Test"
+        {
+          baseUrl: "https://api.test.com",
+          apiKey: "key",
+          maxRetries: 2,
+          retryDelay: 10,
+        },
+        "Test",
       );
 
       await slowClient.get("/endpoint");
@@ -236,12 +263,19 @@ describe("BaseHttpClient", () => {
         const now = Date.now();
         delays.push(now - lastCall);
         lastCall = now;
-        return Promise.resolve(createMockResponse({ error: "Server error" }, 500));
+        return Promise.resolve(
+          createMockResponse({ error: "Server error" }, 500),
+        );
       });
 
       const quickClient = new BaseHttpClient(
-        { baseUrl: "https://api.test.com", apiKey: "key", maxRetries: 2, retryDelay: 50 },
-        "Test"
+        {
+          baseUrl: "https://api.test.com",
+          apiKey: "key",
+          maxRetries: 2,
+          retryDelay: 50,
+        },
+        "Test",
       );
 
       await expect(quickClient.get("/endpoint")).rejects.toThrow();
@@ -255,7 +289,9 @@ describe("BaseHttpClient", () => {
       let attempts = 0;
       global.fetch = mock(() => {
         attempts++;
-        return Promise.resolve(createMockResponse({ error: "Server error" }, 500));
+        return Promise.resolve(
+          createMockResponse({ error: "Server error" }, 500),
+        );
       });
 
       await expect(client.get("/endpoint")).rejects.toThrow();
@@ -265,13 +301,21 @@ describe("BaseHttpClient", () => {
 
   describe("Timeout Handling", () => {
     test("aborts request on timeout", async () => {
-      global.fetch = mock(() =>
-        new Promise((resolve) => setTimeout(() => resolve(createMockResponse({})), 5000))
+      global.fetch = mock(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(() => resolve(createMockResponse({})), 5000),
+          ),
       );
 
       const quickClient = new BaseHttpClient(
-        { baseUrl: "https://api.test.com", apiKey: "key", timeout: 50, maxRetries: 0 },
-        "Test"
+        {
+          baseUrl: "https://api.test.com",
+          apiKey: "key",
+          timeout: 50,
+          maxRetries: 0,
+        },
+        "Test",
       );
 
       // The AbortController may not work perfectly in test environment
@@ -295,7 +339,12 @@ describe("BaseHttpClient", () => {
   describe("Error Handling", () => {
     test("parses JSON error response", async () => {
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({ message: "Token expired", code: "AUTH_ERROR" }, 401))
+        Promise.resolve(
+          createMockResponse(
+            { message: "Token expired", code: "AUTH_ERROR" },
+            401,
+          ),
+        ),
       );
 
       try {
@@ -325,7 +374,7 @@ describe("BaseHttpClient", () => {
 
     test("includes provider in error", async () => {
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({ error: "Error" }, 400))
+        Promise.resolve(createMockResponse({ error: "Error" }, 400)),
       );
 
       try {
@@ -339,7 +388,7 @@ describe("BaseHttpClient", () => {
 
     test("includes status code in error", async () => {
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({ error: "Error" }, 422))
+        Promise.resolve(createMockResponse({ error: "Error" }, 422)),
       );
 
       try {
@@ -352,7 +401,9 @@ describe("BaseHttpClient", () => {
     });
 
     test("handles network errors", async () => {
-      global.fetch = mock(() => Promise.reject(new TypeError("Failed to fetch")));
+      global.fetch = mock(() =>
+        Promise.reject(new TypeError("Failed to fetch")),
+      );
 
       await expect(client.get("/endpoint")).rejects.toThrow();
     });
@@ -362,16 +413,12 @@ describe("BaseHttpClient", () => {
     test("parses rate limit headers", async () => {
       global.fetch = mock(() =>
         Promise.resolve(
-          createMockResponse(
-            {},
-            200,
-            {
-              "x-ratelimit-remaining": "99",
-              "x-ratelimit-limit": "100",
-              "x-ratelimit-reset": String(Math.floor(Date.now() / 1000) + 60),
-            }
-          )
-        )
+          createMockResponse({}, 200, {
+            "x-ratelimit-remaining": "99",
+            "x-ratelimit-limit": "100",
+            "x-ratelimit-reset": String(Math.floor(Date.now() / 1000) + 60),
+          }),
+        ),
       );
 
       await client.get("/endpoint");
@@ -444,7 +491,9 @@ describe("BaseHttpClient", () => {
     });
 
     test("returns unhealthy on error", async () => {
-      global.fetch = mock(() => Promise.reject(new Error("Connection refused")));
+      global.fetch = mock(() =>
+        Promise.reject(new Error("Connection refused")),
+      );
 
       const health = await client.healthCheck();
 
@@ -506,4 +555,3 @@ describe("BaseHttpClient", () => {
     });
   });
 });
-

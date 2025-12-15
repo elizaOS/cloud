@@ -1,6 +1,6 @@
 /**
  * Seed Test API Key
- * 
+ *
  * Creates a test organization, user, and API key for integration testing.
  * Run with: bun scripts/seed-test-api-key.ts
  */
@@ -21,14 +21,19 @@ const db = drizzle(pool);
 
 const TEST_ORG_ID = "ec42ddc9-c6bc-4306-815b-438ba59bf876";
 const TEST_USER_ID = "318fafde-d785-4990-9bda-a4a2eed8db62";
-const TEST_API_KEY = "eliza_test_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+const TEST_API_KEY =
+  "eliza_test_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 const TEST_API_KEY_ID = "926a821a-bb75-4eb8-b43f-05ed8ae9020c";
 
 async function seedTestData() {
   console.log("🌱 Seeding test data...\n");
 
   // 1. Create or update organization
-  const existingOrg = await db.select().from(organizations).where(eq(organizations.id, TEST_ORG_ID)).limit(1);
+  const existingOrg = await db
+    .select()
+    .from(organizations)
+    .where(eq(organizations.id, TEST_ORG_ID))
+    .limit(1);
 
   if (existingOrg.length === 0) {
     console.log("Creating test organization...");
@@ -43,12 +48,19 @@ async function seedTestData() {
   } else {
     console.log("✅ Organization already exists");
     // Update credit balance
-    await db.update(organizations).set({ credit_balance: "1000.00" }).where(eq(organizations.id, TEST_ORG_ID));
+    await db
+      .update(organizations)
+      .set({ credit_balance: "1000.00" })
+      .where(eq(organizations.id, TEST_ORG_ID));
     console.log("✅ Organization credit balance updated to 1000.00");
   }
 
   // 2. Create or update user
-  const existingUser = await db.select().from(users).where(eq(users.id, TEST_USER_ID)).limit(1);
+  const existingUser = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, TEST_USER_ID))
+    .limit(1);
 
   if (existingUser.length === 0) {
     console.log("Creating test user...");
@@ -68,9 +80,16 @@ async function seedTestData() {
   }
 
   // 3. Create or update API key
-  const keyHash = crypto.createHash("sha256").update(TEST_API_KEY).digest("hex");
-  
-  const existingKey = await db.select().from(apiKeys).where(eq(apiKeys.id, TEST_API_KEY_ID)).limit(1);
+  const keyHash = crypto
+    .createHash("sha256")
+    .update(TEST_API_KEY)
+    .digest("hex");
+
+  const existingKey = await db
+    .select()
+    .from(apiKeys)
+    .where(eq(apiKeys.id, TEST_API_KEY_ID))
+    .limit(1);
 
   if (existingKey.length === 0) {
     console.log("Creating test API key...");
@@ -88,7 +107,8 @@ async function seedTestData() {
   } else {
     // Update the key hash if it changed
     console.log("Updating existing API key...");
-    await db.update(apiKeys)
+    await db
+      .update(apiKeys)
       .set({
         key: TEST_API_KEY,
         key_hash: keyHash,
@@ -102,7 +122,7 @@ async function seedTestData() {
   console.log(`\nTest API Key: ${TEST_API_KEY}`);
   console.log(`Organization ID: ${TEST_ORG_ID}`);
   console.log(`User ID: ${TEST_USER_ID}`);
-  
+
   await pool.end();
   process.exit(0);
 }

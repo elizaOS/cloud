@@ -24,7 +24,10 @@ export class CharactersService {
     return await userCharactersRepository.findById(id);
   }
 
-  async getByIdForUser(characterId: string, userId: string): Promise<UserCharacter | null> {
+  async getByIdForUser(
+    characterId: string,
+    userId: string,
+  ): Promise<UserCharacter | null> {
     const character = await userCharactersRepository.findById(characterId);
     if (!character || character.user_id !== userId) return null;
     return character;
@@ -32,7 +35,11 @@ export class CharactersService {
 
   async listByUser(
     userId: string,
-    options?: { limit?: number; includeTemplates?: boolean; source?: "cloud" | "app" }
+    options?: {
+      limit?: number;
+      includeTemplates?: boolean;
+      source?: "cloud" | "app";
+    },
   ): Promise<UserCharacter[]> {
     const source = options?.source ?? "cloud";
 
@@ -49,10 +56,13 @@ export class CharactersService {
 
   async listByOrganization(
     organizationId: string,
-    options?: { source?: "cloud" | "app" }
+    options?: { source?: "cloud" | "app" },
   ): Promise<UserCharacter[]> {
     const source = options?.source ?? "cloud";
-    return await userCharactersRepository.listByOrganization(organizationId, source);
+    return await userCharactersRepository.listByOrganization(
+      organizationId,
+      source,
+    );
   }
 
   async listPublic(): Promise<UserCharacter[]> {
@@ -73,21 +83,27 @@ export class CharactersService {
       bio: character.bio,
       system: character.system ?? undefined,
       enabled: true,
-      settings: character.settings as Record<string, string | number | boolean | Record<string, string | number | boolean>>,
+      settings: character.settings as Record<
+        string,
+        string | number | boolean | Record<string, string | number | boolean>
+      >,
     };
 
     await agentsRepository.create(agent);
     return character;
   }
 
-  async update(id: string, data: Partial<NewUserCharacter>): Promise<UserCharacter | undefined> {
+  async update(
+    id: string,
+    data: Partial<NewUserCharacter>,
+  ): Promise<UserCharacter | undefined> {
     return await userCharactersRepository.update(id, data);
   }
 
   async updateForUser(
     characterId: string,
     userId: string,
-    updates: Partial<NewUserCharacter>
+    updates: Partial<NewUserCharacter>,
   ): Promise<UserCharacter | null> {
     const character = await this.getByIdForUser(characterId, userId);
     if (!character) return null;
@@ -109,15 +125,23 @@ export class CharactersService {
   }
 
   toElizaCharacter(character: UserCharacter): ElizaCharacter {
-    const characterData = character.character_data as Record<string, unknown> | undefined;
-    const affiliateData = characterData?.affiliate as { vibe?: string; affiliateId?: string; [key: string]: unknown } | undefined;
+    const characterData = character.character_data as
+      | Record<string, unknown>
+      | undefined;
+    const affiliateData = characterData?.affiliate as
+      | { vibe?: string; affiliateId?: string; [key: string]: unknown }
+      | undefined;
     const loreData = characterData?.lore as string[] | undefined;
 
-    const settings = character.settings as Record<string, string | boolean | number | Record<string, unknown>> | undefined;
+    const settings = character.settings as
+      | Record<string, string | boolean | number | Record<string, unknown>>
+      | undefined;
     const mergedSettings = {
       ...settings,
       avatarUrl: character.avatar_url ?? undefined,
-      ...(affiliateData || loreData ? { affiliateData: { ...affiliateData, lore: loreData } } : {}),
+      ...(affiliateData || loreData
+        ? { affiliateData: { ...affiliateData, lore: loreData } }
+        : {}),
     };
 
     return {
@@ -133,7 +157,13 @@ export class CharactersService {
           examples.every(
             (ex) =>
               Array.isArray(ex) &&
-              ex.every((msg) => typeof msg === "object" && msg !== null && "name" in msg && "content" in msg)
+              ex.every(
+                (msg) =>
+                  typeof msg === "object" &&
+                  msg !== null &&
+                  "name" in msg &&
+                  "content" in msg,
+              ),
           )
         ) {
           return examples as ElizaCharacter["messageExamples"];
@@ -143,11 +173,19 @@ export class CharactersService {
       postExamples: character.post_examples as string[] | undefined,
       topics: character.topics as string[] | undefined,
       adjectives: character.adjectives as string[] | undefined,
-      knowledge: character.knowledge as (string | { path: string; shared?: boolean })[] | undefined,
+      knowledge: character.knowledge as
+        | (string | { path: string; shared?: boolean })[]
+        | undefined,
       plugins: character.plugins as string[] | undefined,
-      settings: mergedSettings as Record<string, string | number | boolean | Record<string, unknown>> | undefined,
-      secrets: character.secrets as Record<string, string | number | boolean> | undefined,
-      style: character.style as { all?: string[]; chat?: string[]; post?: string[] } | undefined,
+      settings: mergedSettings as
+        | Record<string, string | number | boolean | Record<string, unknown>>
+        | undefined,
+      secrets: character.secrets as
+        | Record<string, string | number | boolean>
+        | undefined,
+      style: character.style as
+        | { all?: string[]; chat?: string[]; post?: string[] }
+        | undefined,
       avatarUrl: character.avatar_url ?? undefined,
     };
   }
@@ -163,38 +201,52 @@ export class CharactersService {
     const owner = await usersService.getById(character.user_id);
     if (!owner) return { claimable: false, reason: "Owner not found" };
 
-    const isAffiliateUser = owner.email?.includes("@anonymous.elizacloud.ai") || false;
+    const isAffiliateUser =
+      owner.email?.includes("@anonymous.elizacloud.ai") || false;
     const isAnonymous = owner.is_anonymous === true;
     const hasNoPrivyId = !owner.privy_user_id;
 
     if (isAffiliateUser && (isAnonymous || hasNoPrivyId)) {
-      return { claimable: true, ownerId: owner.id, reason: "Affiliate character available for claiming" };
+      return {
+        claimable: true,
+        ownerId: owner.id,
+        reason: "Affiliate character available for claiming",
+      };
     }
 
-    return { claimable: false, reason: "Character already owned by a real user" };
+    return {
+      claimable: false,
+      reason: "Character already owned by a real user",
+    };
   }
 
   async claimAffiliateCharacter(
     characterId: string,
     userId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<{ success: boolean; message: string }> {
     const claimCheck = await this.isClaimableAffiliateCharacter(characterId);
 
     if (!claimCheck.claimable) {
-      logger.info(`[Characters] Character ${characterId} not claimable: ${claimCheck.reason}`);
+      logger.info(
+        `[Characters] Character ${characterId} not claimable: ${claimCheck.reason}`,
+      );
       return { success: false, message: claimCheck.reason || "Not claimable" };
     }
 
     const previousOwnerId = claimCheck.ownerId;
-    logger.info(`[Characters] Claiming affiliate character ${characterId} for user ${userId}`, { previousOwnerId });
+    logger.info(
+      `[Characters] Claiming affiliate character ${characterId} for user ${userId}`,
+      { previousOwnerId },
+    );
 
     const updated = await userCharactersRepository.update(characterId, {
       user_id: userId,
       organization_id: organizationId,
     });
 
-    if (!updated) return { success: false, message: "Failed to update character" };
+    if (!updated)
+      return { success: false, message: "Failed to update character" };
 
     if (previousOwnerId) {
       const roomUpdateResult = await db
@@ -203,17 +255,20 @@ export class CharactersService {
         .where(
           and(
             eq(elizaRoomCharactersTable.character_id, characterId),
-            eq(elizaRoomCharactersTable.user_id, previousOwnerId)
-          )
+            eq(elizaRoomCharactersTable.user_id, previousOwnerId),
+          ),
         )
         .returning({ room_id: elizaRoomCharactersTable.room_id });
 
       if (roomUpdateResult.length > 0) {
-        logger.info(`[Characters] Transferred ${roomUpdateResult.length} room association(s)`, {
-          characterId,
-          fromUserId: previousOwnerId,
-          toUserId: userId,
-        });
+        logger.info(
+          `[Characters] Transferred ${roomUpdateResult.length} room association(s)`,
+          {
+            characterId,
+            fromUserId: previousOwnerId,
+            toUserId: userId,
+          },
+        );
       }
     }
 
@@ -223,7 +278,10 @@ export class CharactersService {
       newOrgId: organizationId,
     });
 
-    return { success: true, message: `Character "${updated.name}" has been added to your account` };
+    return {
+      success: true,
+      message: `Character "${updated.name}" has been added to your account`,
+    };
   }
 }
 

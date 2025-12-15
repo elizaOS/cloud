@@ -33,7 +33,9 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
   }
 }
 
@@ -58,8 +60,13 @@
 
 /* Level badge glow animations */
 @keyframes glow-pulse {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .level-glow {
@@ -68,8 +75,13 @@
 
 /* Streak fire animation */
 @keyframes flame {
-  0%, 100% { transform: scaleY(1); }
-  50% { transform: scaleY(1.1); }
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(1.1);
+  }
 }
 
 .streak-flame {

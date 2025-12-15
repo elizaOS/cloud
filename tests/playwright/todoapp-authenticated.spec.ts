@@ -31,7 +31,7 @@ function authHeaders() {
 test.beforeAll(() => {
   if (!API_KEY) {
     console.log(
-      "⚠️ TEST_TODOAPP_API_KEY not set. Skipping authenticated todo-app tests."
+      "⚠️ TEST_TODOAPP_API_KEY not set. Skipping authenticated todo-app tests.",
     );
   }
 });
@@ -57,7 +57,7 @@ test.describe("Task Storage API - CRUD Operations", () => {
             createdAt: new Date().toISOString(),
           },
         },
-      }
+      },
     );
 
     expect([200, 201]).toContain(response.status());
@@ -76,7 +76,7 @@ test.describe("Task Storage API - CRUD Operations", () => {
       `${CLOUD_URL}/api/v1/app/storage/tasks`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect(response.status()).toBe(200);
@@ -97,7 +97,7 @@ test.describe("Task Storage API - CRUD Operations", () => {
       `${CLOUD_URL}/api/v1/app/storage/tasks/${createdTaskId}`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect(response.status()).toBe(200);
@@ -122,7 +122,7 @@ test.describe("Task Storage API - CRUD Operations", () => {
           name: "Updated E2E Test Task",
           priority: 1,
         },
-      }
+      },
     );
 
     expect(response.status()).toBe(200);
@@ -149,7 +149,7 @@ test.describe("Task Storage API - CRUD Operations", () => {
             completedAt: new Date().toISOString(),
           },
         },
-      }
+      },
     );
 
     expect(response.status()).toBe(200);
@@ -169,7 +169,7 @@ test.describe("Task Storage API - CRUD Operations", () => {
       `${CLOUD_URL}/api/v1/app/storage/tasks/${createdTaskId}`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect(response.status()).toBe(200);
@@ -210,7 +210,7 @@ test.describe("Task Types", () => {
             description: "Daily meditation practice",
           },
         },
-      }
+      },
     );
 
     expect([200, 201]).toContain(response.status());
@@ -237,7 +237,7 @@ test.describe("Task Types", () => {
             dueDate: new Date(Date.now() + 86400000 * 3).toISOString(),
           },
         },
-      }
+      },
     );
 
     expect([200, 201]).toContain(response.status());
@@ -263,7 +263,7 @@ test.describe("Task Types", () => {
             description: "Become conversationally fluent in Japanese",
           },
         },
-      }
+      },
     );
 
     expect([200, 201]).toContain(response.status());
@@ -279,14 +279,14 @@ test.describe("Task Types", () => {
       `${CLOUD_URL}/api/v1/app/storage/tasks?filter=${encodeURIComponent(JSON.stringify({ type: "daily" }))}`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect(response.status()).toBe(200);
 
     const data = await response.json();
     const allDaily = data.documents.every(
-      (doc: { type: string }) => doc.type === "daily"
+      (doc: { type: string }) => doc.type === "daily",
     );
     // May be empty if no daily tasks exist
     console.log(`✅ Filtered to ${data.documents.length} daily tasks`);
@@ -297,7 +297,7 @@ test.describe("Task Types", () => {
       `${CLOUD_URL}/api/v1/app/storage/tasks?filter=${encodeURIComponent(JSON.stringify({ completed: false }))}`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect(response.status()).toBe(200);
@@ -315,7 +315,7 @@ test.describe("Points and Gamification", () => {
       `${CLOUD_URL}/api/v1/app/storage/user_points`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect(response.status()).toBe(200);
@@ -332,7 +332,7 @@ test.describe("Points and Gamification", () => {
       `${CLOUD_URL}/api/v1/app/storage/user_points`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     const listData = await listResponse.json();
@@ -350,7 +350,7 @@ test.describe("Points and Gamification", () => {
             currentPoints: currentPoints + 10,
             totalEarned: (listData.documents[0].totalEarned || 0) + 10,
           },
-        }
+        },
       );
 
       expect(response.status()).toBe(200);
@@ -367,7 +367,7 @@ test.describe("Points and Gamification", () => {
             streak: 0,
             history: [],
           },
-        }
+        },
       );
 
       expect([200, 201]).toContain(response.status());
@@ -523,7 +523,7 @@ test.describe("Full Task Workflow", () => {
             description: "Testing full workflow",
           },
         },
-      }
+      },
     );
 
     expect([200, 201]).toContain(createResponse.status());
@@ -540,7 +540,7 @@ test.describe("Full Task Workflow", () => {
           priority: 1,
           urgent: true,
         },
-      }
+      },
     );
 
     expect(updateResponse.status()).toBe(200);
@@ -560,7 +560,7 @@ test.describe("Full Task Workflow", () => {
           },
           id: 1,
         },
-      }
+      },
     );
 
     expect(completeResponse.status()).toBe(200);
@@ -600,7 +600,7 @@ test.describe("Error Handling", () => {
       `${CLOUD_URL}/api/v1/app/storage/tasks/non-existent-id`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect(response.status()).toBe(404);
@@ -649,4 +649,3 @@ test.describe("Error Handling", () => {
     expect(data.error).toBeDefined();
   });
 });
-

@@ -1,13 +1,13 @@
 /**
  * Application Triggers Integration Tests
- * 
+ *
  * Tests the full application trigger system:
  * - Cron triggers with real container targets
  * - Webhook triggers with signature verification
  * - Event triggers for platform events
  * - Trigger CRUD API
  * - Execution history tracking
- * 
+ *
  * Run with: TEST_API_KEY=xxx bun test tests/integration/application-triggers.test.ts
  */
 
@@ -28,7 +28,7 @@ function authHeaders(): HeadersInit {
 async function fetchWithTimeout(
   url: string,
   options: RequestInit = {},
-  timeoutMs = 10000
+  timeoutMs = 10000,
 ): Promise<Response | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -78,10 +78,13 @@ describe("Application Triggers API", () => {
     if (skipHttp) return;
 
     // Get a container or fragment project to use as trigger target
-    const containersRes = await fetchWithTimeout(`${BASE_URL}/api/v1/containers`, {
-      method: "GET",
-      headers: authHeaders(),
-    });
+    const containersRes = await fetchWithTimeout(
+      `${BASE_URL}/api/v1/containers`,
+      {
+        method: "GET",
+        headers: authHeaders(),
+      },
+    );
 
     if (containersRes?.ok) {
       const data = await containersRes.json();
@@ -131,7 +134,7 @@ describe("Application Triggers API", () => {
         {
           method: "GET",
           headers: authHeaders(),
-        }
+        },
       );
 
       if (!response) return;
@@ -147,8 +150,8 @@ describe("Application Triggers API", () => {
       if (data.triggers.length > 0) {
         expect(
           data.triggers.every(
-            (t: { targetType: string }) => t.targetType === "container"
-          )
+            (t: { targetType: string }) => t.targetType === "container",
+          ),
         ).toBe(true);
       }
     });
@@ -159,7 +162,7 @@ describe("Application Triggers API", () => {
         {
           method: "GET",
           headers: authHeaders(),
-        }
+        },
       );
 
       if (!response) return;
@@ -175,8 +178,8 @@ describe("Application Triggers API", () => {
       if (data.triggers.length > 0) {
         expect(
           data.triggers.every(
-            (t: { triggerType: string }) => t.triggerType === "cron"
-          )
+            (t: { triggerType: string }) => t.triggerType === "cron",
+          ),
         ).toBe(true);
       }
     });
@@ -187,7 +190,7 @@ describe("Application Triggers API", () => {
         {
           method: "GET",
           headers: authHeaders(),
-        }
+        },
       );
 
       if (!response) return;
@@ -202,7 +205,9 @@ describe("Application Triggers API", () => {
       expect(data.success).toBe(true);
       if (data.triggers.length > 0) {
         expect(
-          data.triggers.every((t: { isActive: boolean }) => t.isActive === true)
+          data.triggers.every(
+            (t: { isActive: boolean }) => t.isActive === true,
+          ),
         ).toBe(true);
       }
     });
@@ -249,7 +254,7 @@ describe("Application Triggers API", () => {
         if (data.trigger.id) {
           state.triggerId = data.trigger.id;
         }
-      }
+      },
     );
 
     test.skipIf(skipHttp || !state.containerId)(
@@ -291,7 +296,7 @@ describe("Application Triggers API", () => {
         // Save for webhook tests
         state.webhookKey = data.trigger.triggerKey;
         state.webhookSecret = data.webhookSecret.value;
-      }
+      },
     );
 
     test.skipIf(skipHttp || !state.containerId)(
@@ -324,7 +329,7 @@ describe("Application Triggers API", () => {
 
         expect(data.success).toBe(true);
         expect(data.trigger.triggerType).toBe("event");
-      }
+      },
     );
 
     test.skipIf(skipHttp)("validates required fields", async () => {
@@ -393,29 +398,32 @@ describe("Application Triggers API", () => {
   });
 
   describe("GET /api/v1/triggers/:id", () => {
-    test.skipIf(skipHttp || !state.triggerId)("gets trigger by ID", async () => {
-      if (!state.triggerId) return;
+    test.skipIf(skipHttp || !state.triggerId)(
+      "gets trigger by ID",
+      async () => {
+        if (!state.triggerId) return;
 
-      const response = await fetchWithTimeout(
-        `${BASE_URL}/api/v1/triggers/${state.triggerId}`,
-        {
-          method: "GET",
-          headers: authHeaders(),
+        const response = await fetchWithTimeout(
+          `${BASE_URL}/api/v1/triggers/${state.triggerId}`,
+          {
+            method: "GET",
+            headers: authHeaders(),
+          },
+        );
+
+        if (!response) return;
+
+        if (response.status === 500) {
+          console.log("⚠️ Server returned 500 - skipping");
+          return;
         }
-      );
+        expect(response.status).toBe(200);
+        const data = await response.json();
 
-      if (!response) return;
-
-      if (response.status === 500) {
-        console.log("⚠️ Server returned 500 - skipping");
-        return;
-      }
-      expect(response.status).toBe(200);
-      const data = await response.json();
-
-      expect(data.success).toBe(true);
-      expect(data.trigger.id).toBe(state.triggerId);
-    });
+        expect(data.success).toBe(true);
+        expect(data.trigger.id).toBe(state.triggerId);
+      },
+    );
 
     test.skipIf(skipHttp)("returns 404 for non-existent trigger", async () => {
       const response = await fetchWithTimeout(
@@ -423,7 +431,7 @@ describe("Application Triggers API", () => {
         {
           method: "GET",
           headers: authHeaders(),
-        }
+        },
       );
 
       if (!response) return;
@@ -446,7 +454,7 @@ describe("Application Triggers API", () => {
             body: JSON.stringify({
               isActive: false,
             }),
-          }
+          },
         );
 
         if (!response) return;
@@ -468,9 +476,9 @@ describe("Application Triggers API", () => {
             method: "PATCH",
             headers: authHeaders(),
             body: JSON.stringify({ isActive: true }),
-          }
+          },
         );
-      }
+      },
     );
 
     test.skipIf(skipHttp || !state.triggerId)(
@@ -488,7 +496,7 @@ describe("Application Triggers API", () => {
                 maxExecutionsPerDay: 48,
               },
             }),
-          }
+          },
         );
 
         if (!response) return;
@@ -498,7 +506,7 @@ describe("Application Triggers API", () => {
           return;
         }
         expect(response.status).toBe(200);
-      }
+      },
     );
   });
 });
@@ -515,7 +523,7 @@ describe("Webhook Trigger Endpoint", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ test: true }),
-      }
+      },
     );
 
     if (!response) return;
@@ -538,7 +546,7 @@ describe("Webhook Trigger Endpoint", () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ test: true }),
-        }
+        },
       );
 
       if (!response) return;
@@ -550,7 +558,7 @@ describe("Webhook Trigger Endpoint", () => {
       expect(response.status).toBe(401);
       const data = await response.json();
       expect(data.error).toContain("signature");
-    }
+    },
   );
 
   test.skipIf(skipHttp || !state.webhookKey || !state.webhookSecret)(
@@ -570,7 +578,7 @@ describe("Webhook Trigger Endpoint", () => {
             "X-Webhook-Signature": signature,
           },
           body: payload,
-        }
+        },
       );
 
       if (!response) return;
@@ -581,7 +589,7 @@ describe("Webhook Trigger Endpoint", () => {
       }
       // May fail if container is not running, but should not be 401
       expect(response.status).not.toBe(401);
-    }
+    },
   );
 
   test.skipIf(skipHttp || !state.webhookKey || !state.webhookSecret)(
@@ -590,7 +598,10 @@ describe("Webhook Trigger Endpoint", () => {
       if (!state.webhookKey || !state.webhookSecret) return;
 
       const payload = JSON.stringify({ test: true });
-      const invalidSignature = generateWebhookSignature(payload, "wrong-secret");
+      const invalidSignature = generateWebhookSignature(
+        payload,
+        "wrong-secret",
+      );
 
       const response = await fetchWithTimeout(
         `${BASE_URL}/api/v1/triggers/webhooks/${state.webhookKey}`,
@@ -601,7 +612,7 @@ describe("Webhook Trigger Endpoint", () => {
             "X-Webhook-Signature": invalidSignature,
           },
           body: payload,
-        }
+        },
       );
 
       if (!response) return;
@@ -611,13 +622,13 @@ describe("Webhook Trigger Endpoint", () => {
         return;
       }
       expect(response.status).toBe(401);
-    }
+    },
   );
 
   test.skipIf(skipHttp)("GET health check works", async () => {
     const response = await fetchWithTimeout(
       `${BASE_URL}/api/v1/triggers/webhooks/any-key`,
-      { method: "GET" }
+      { method: "GET" },
     );
 
     if (!response) return;
@@ -642,7 +653,7 @@ describe("Cron Trigger Processing", () => {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
 
       if (!response) return;
@@ -652,7 +663,7 @@ describe("Cron Trigger Processing", () => {
         return;
       }
       expect(response.status).toBe(401);
-    }
+    },
   );
 
   test.skipIf(skipHttp || skipCron)(
@@ -666,7 +677,7 @@ describe("Cron Trigger Processing", () => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${CRON_SECRET}`,
           },
-        }
+        },
       );
 
       if (!response) return;
@@ -684,7 +695,7 @@ describe("Cron Trigger Processing", () => {
       expect(typeof data.results.executed).toBe("number");
       expect(typeof data.results.skipped).toBe("number");
       expect(typeof data.results.errors).toBe("number");
-    }
+    },
   );
 
   test.skipIf(skipHttp || skipCron)(
@@ -697,7 +708,7 @@ describe("Cron Trigger Processing", () => {
           headers: {
             Authorization: `Bearer ${CRON_SECRET}`,
           },
-        }
+        },
       );
 
       if (!response) return;
@@ -712,7 +723,7 @@ describe("Cron Trigger Processing", () => {
       expect(data.success).toBe(true);
       expect(typeof data.activeTriggers).toBe("number");
       expect(Array.isArray(data.triggers)).toBe(true);
-    }
+    },
   );
 });
 
@@ -731,7 +742,7 @@ describe("Trigger Execution History", () => {
         {
           method: "GET",
           headers: authHeaders(),
-        }
+        },
       );
 
       if (!response) return;
@@ -745,7 +756,7 @@ describe("Trigger Execution History", () => {
 
       expect(data.success).toBe(true);
       expect(Array.isArray(data.executions)).toBe(true);
-    }
+    },
   );
 });
 

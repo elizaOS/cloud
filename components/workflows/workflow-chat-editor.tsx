@@ -4,14 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
-import {
-  Loader2,
-  Send,
-  Sparkles,
-  Check,
-  X,
-  ArrowLeft,
-} from "lucide-react";
+import { Loader2, Send, Sparkles, Check, X, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { Workflow, ChatMessage } from "./types";
@@ -97,7 +90,7 @@ export function WorkflowChatEditor({
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to process request"
+        error instanceof Error ? error.message : "Failed to process request",
       );
       setMessages((prev) => [
         ...prev,
@@ -121,7 +114,8 @@ export function WorkflowChatEditor({
     setIsLoading(true);
 
     try {
-      const { workflowData, name, description, status } = message.proposedChanges;
+      const { workflowData, name, description, status } =
+        message.proposedChanges;
       const updatePayload = {
         ...(workflowData && { workflowData }),
         ...(name && { name }),
@@ -135,7 +129,7 @@ export function WorkflowChatEditor({
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(updatePayload),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -151,14 +145,16 @@ export function WorkflowChatEditor({
 
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === messageId ? { ...m, changeStatus: "applied" as const } : m
-        )
+          m.id === messageId ? { ...m, changeStatus: "applied" as const } : m,
+        ),
       );
 
-      toast.success(`Changes applied! Now at version ${updatedWorkflow.version}`);
+      toast.success(
+        `Changes applied! Now at version ${updatedWorkflow.version}`,
+      );
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to apply changes"
+        error instanceof Error ? error.message : "Failed to apply changes",
       );
     } finally {
       setIsLoading(false);
@@ -168,8 +164,8 @@ export function WorkflowChatEditor({
   function rejectChanges(messageId: string) {
     setMessages((prev) =>
       prev.map((m) =>
-        m.id === messageId ? { ...m, changeStatus: "rejected" as const } : m
-      )
+        m.id === messageId ? { ...m, changeStatus: "rejected" as const } : m,
+      ),
     );
     toast.info("Changes rejected");
   }
@@ -211,7 +207,7 @@ export function WorkflowChatEditor({
             key={message.id}
             className={cn(
               "flex",
-              message.role === "user" ? "justify-end" : "justify-start"
+              message.role === "user" ? "justify-end" : "justify-start",
             )}
           >
             <div
@@ -219,7 +215,7 @@ export function WorkflowChatEditor({
                 "max-w-[80%] rounded-lg p-4",
                 message.role === "user"
                   ? "bg-[#FF5800] text-white"
-                  : "bg-white/5 border border-white/10"
+                  : "bg-white/5 border border-white/10",
               )}
             >
               <p className="text-sm whitespace-pre-wrap">{message.content}</p>

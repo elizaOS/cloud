@@ -1,11 +1,11 @@
 /**
  * Cloud Services Unit Tests
- * 
+ *
  * Tests the service layer directly:
  * - tasksService
- * - checkinsService  
+ * - checkinsService
  * - botsService
- * 
+ *
  * Requirements:
  * - Database connection configured
  */
@@ -23,7 +23,9 @@ const shouldSkip = !TEST_ORG_ID;
 describe("Org Todos Service", () => {
   test("skipped if no TEST_ORGANIZATION_ID", () => {
     if (shouldSkip) {
-      console.log("⚠️ Skipping service tests - set TEST_ORGANIZATION_ID to run");
+      console.log(
+        "⚠️ Skipping service tests - set TEST_ORGANIZATION_ID to run",
+      );
     }
     expect(true).toBe(true);
   });
@@ -41,12 +43,12 @@ describe("Org Todos Service", () => {
 
   test.skipIf(shouldSkip)("list returns array structure", async () => {
     const { tasksService } = await import("@/lib/services/tasks");
-    
+
     const result = await tasksService.list({
       organizationId: TEST_ORG_ID!,
       limit: 10,
     });
-    
+
     expect(result).toHaveProperty("todos");
     expect(result).toHaveProperty("total");
     expect(Array.isArray(result.todos)).toBe(true);
@@ -55,9 +57,9 @@ describe("Org Todos Service", () => {
 
   test.skipIf(shouldSkip)("getStats returns valid structure", async () => {
     const { tasksService } = await import("@/lib/services/tasks");
-    
+
     const stats = await tasksService.getStats(TEST_ORG_ID!);
-    
+
     expect(stats).toHaveProperty("total");
     expect(stats).toHaveProperty("pending");
     expect(stats).toHaveProperty("inProgress");
@@ -70,7 +72,7 @@ describe("Org Todos Service", () => {
 
   test.skipIf(shouldSkip)("CRUD operations work", async () => {
     const { tasksService } = await import("@/lib/services/tasks");
-    
+
     // Create
     const created = await tasksService.create({
       organizationId: TEST_ORG_ID!,
@@ -79,26 +81,26 @@ describe("Org Todos Service", () => {
       priority: "medium",
       sourcePlatform: "web",
     });
-    
+
     expect(created.id).toBeDefined();
     expect(created.title).toBe("Service Test Todo");
     expect(created.status).toBe("pending");
-    
+
     // Read
     const fetched = await tasksService.get(created.id, TEST_ORG_ID!);
     expect(fetched).not.toBeNull();
     expect(fetched!.id).toBe(created.id);
-    
+
     // Update
     const updated = await tasksService.update(created.id, TEST_ORG_ID!, {
       status: "completed",
     });
     expect(updated.status).toBe("completed");
     expect(updated.completed_at).not.toBeNull();
-    
+
     // Delete
     await tasksService.delete(created.id, TEST_ORG_ID!);
-    
+
     // Verify deleted
     const deleted = await tasksService.get(created.id, TEST_ORG_ID!);
     expect(deleted).toBeNull();
@@ -118,9 +120,9 @@ describe("Org Checkins Service", () => {
 
   test.skipIf(shouldSkip)("listSchedules returns array", async () => {
     const { checkinsService } = await import("@/lib/services/checkins");
-    
+
     const schedules = await checkinsService.listSchedules(TEST_ORG_ID!);
-    
+
     expect(Array.isArray(schedules)).toBe(true);
   });
 });
@@ -138,10 +140,9 @@ describe("Org Platforms Service", () => {
 
   test.skipIf(shouldSkip)("getConnections returns array", async () => {
     const { botsService } = await import("@/lib/services/bots");
-    
+
     const connections = await botsService.getConnections(TEST_ORG_ID!);
-    
+
     expect(Array.isArray(connections)).toBe(true);
   });
 });
-

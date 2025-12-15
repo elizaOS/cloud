@@ -670,7 +670,8 @@ export class CharacterMarketplaceService {
       // Monetization
       monetization: {
         enabled: character.monetization_enabled,
-        markupPercentage: parseFloat(character.inference_markup_percentage as string) || 0,
+        markupPercentage:
+          parseFloat(character.inference_markup_percentage as string) || 0,
       },
     };
   }

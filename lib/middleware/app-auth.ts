@@ -111,7 +111,10 @@ export async function requireAuth(
   const result = await verifyAppToken(request);
 
   if (!result.success) {
-    return NextResponse.json({ error: result.error }, { status: result.status });
+    return NextResponse.json(
+      { error: result.error },
+      { status: result.status },
+    );
   }
 
   return result.user;

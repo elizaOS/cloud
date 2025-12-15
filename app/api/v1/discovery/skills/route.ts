@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
     if (!parseResult.success) {
       return NextResponse.json(
         { error: "Invalid parameters", details: parseResult.error.issues },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -86,7 +86,10 @@ export async function GET(request: NextRequest) {
     // Check cache (10 minutes TTL)
     const cached = await cache.get<SkillsResponse>(cacheKey);
     if (cached) {
-      return NextResponse.json({ ...cached, meta: { ...cached.meta, cached: true } });
+      return NextResponse.json({
+        ...cached,
+        meta: { ...cached.meta, cached: true },
+      });
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://elizacloud.ai";
@@ -125,106 +128,108 @@ export async function GET(request: NextRequest) {
       // Database unavailable - continue with ERC-8004 only
     }
 
-  const agents = await agent0Service.searchAgentsCached({ active: true });
+    const agents = await agent0Service.searchAgentsCached({ active: true });
 
-  for (const agent of agents) {
-    if (!agent.a2aEndpoint) continue;
+    for (const agent of agents) {
+      if (!agent.a2aEndpoint) continue;
 
-    for (const skillName of agent.a2aSkills ?? []) {
-      allSkills.push({
-        id: `${agent.agentId}-${skillName}`,
-        name: skillName,
-        provider: {
-          id: agent.agentId,
-          name: agent.name,
-          type: "erc8004",
-          a2aEndpoint: agent.a2aEndpoint,
-        },
-        x402Required: agent.x402Support,
-      });
+      for (const skillName of agent.a2aSkills ?? []) {
+        allSkills.push({
+          id: `${agent.agentId}-${skillName}`,
+          name: skillName,
+          provider: {
+            id: agent.agentId,
+            name: agent.name,
+            type: "erc8004",
+            a2aEndpoint: agent.a2aEndpoint,
+          },
+          x402Required: agent.x402Support,
+        });
+      }
+
+      // If no skills listed but has A2A endpoint, add default "chat" skill
+      if (!agent.a2aSkills?.length) {
+        allSkills.push({
+          id: `${agent.agentId}-chat`,
+          name: "Chat",
+          description: `Interact with ${agent.name}`,
+          provider: {
+            id: agent.agentId,
+            name: agent.name,
+            type: "erc8004",
+            a2aEndpoint: agent.a2aEndpoint,
+          },
+          x402Required: agent.x402Support,
+          inputModes: ["text"],
+          outputModes: ["text"],
+        });
+      }
     }
 
-    // If no skills listed but has A2A endpoint, add default "chat" skill
-    if (!agent.a2aSkills?.length) {
-      allSkills.push({
-        id: `${agent.agentId}-chat`,
-        name: "Chat",
-        description: `Interact with ${agent.name}`,
-        provider: {
-          id: agent.agentId,
-          name: agent.name,
-          type: "erc8004",
-          a2aEndpoint: agent.a2aEndpoint,
-        },
-        x402Required: agent.x402Support,
-        inputModes: ["text"],
-        outputModes: ["text"],
-      });
+    // ========================================================================
+    // Filter
+    // ========================================================================
+
+    let filtered = allSkills;
+
+    if (params.query) {
+      const query = params.query.toLowerCase();
+      filtered = filtered.filter(
+        (s) =>
+          s.name.toLowerCase().includes(query) ||
+          (s.description?.toLowerCase().includes(query) ?? false),
+      );
     }
-  }
 
-  // ========================================================================
-  // Filter
-  // ========================================================================
-
-  let filtered = allSkills;
-
-  if (params.query) {
-    const query = params.query.toLowerCase();
-    filtered = filtered.filter(
-      (s) =>
-        s.name.toLowerCase().includes(query) ||
-        (s.description?.toLowerCase().includes(query) ?? false)
-    );
-  }
-
-  if (params.category) {
-    filtered = filtered.filter((s) => s.category === params.category);
-  }
-
-  if (params.x402Only) {
-    filtered = filtered.filter((s) => s.x402Required);
-  }
-
-  // Sort by name
-  filtered.sort((a, b) => a.name.localeCompare(b.name));
-
-  // Limit
-  const limited = filtered.slice(0, params.limit);
-
-  // Build unique skills list
-  const uniqueSkills = Array.from(new Set(filtered.map((s) => s.name)));
-
-  // Group by category
-  const byCategory: Record<string, SkillInfo[]> = {};
-  for (const skill of limited) {
-    const cat = skill.category ?? "uncategorized";
-    if (!byCategory[cat]) {
-      byCategory[cat] = [];
+    if (params.category) {
+      filtered = filtered.filter((s) => s.category === params.category);
     }
-    byCategory[cat].push(skill);
-  }
 
-  const response: SkillsResponse = {
-    skills: limited,
-    total: filtered.length,
-    uniqueSkills,
-    byCategory,
-    meta: {
-      cached: false,
-      lastUpdated: new Date().toISOString(),
-    },
-  };
+    if (params.x402Only) {
+      filtered = filtered.filter((s) => s.x402Required);
+    }
 
-  // Cache for 10 minutes
-  await cache.set(cacheKey, response, CacheTTL.erc8004.discovery);
+    // Sort by name
+    filtered.sort((a, b) => a.name.localeCompare(b.name));
 
-  return NextResponse.json(response);
+    // Limit
+    const limited = filtered.slice(0, params.limit);
+
+    // Build unique skills list
+    const uniqueSkills = Array.from(new Set(filtered.map((s) => s.name)));
+
+    // Group by category
+    const byCategory: Record<string, SkillInfo[]> = {};
+    for (const skill of limited) {
+      const cat = skill.category ?? "uncategorized";
+      if (!byCategory[cat]) {
+        byCategory[cat] = [];
+      }
+      byCategory[cat].push(skill);
+    }
+
+    const response: SkillsResponse = {
+      skills: limited,
+      total: filtered.length,
+      uniqueSkills,
+      byCategory,
+      meta: {
+        cached: false,
+        lastUpdated: new Date().toISOString(),
+      },
+    };
+
+    // Cache for 10 minutes
+    await cache.set(cacheKey, response, CacheTTL.erc8004.discovery);
+
+    return NextResponse.json(response);
   } catch (error) {
     return NextResponse.json(
-      { error: "Internal server error", message: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
+      {
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
     );
   }
 }
-

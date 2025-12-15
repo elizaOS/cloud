@@ -36,7 +36,11 @@ interface GalleryGridProps {
   items: GalleryItem[];
   collections?: CollectionSummary[];
   onItemDeleted?: () => void;
-  onAddToCollection?: (itemId: string, source: "generation" | "upload", collectionId: string) => void;
+  onAddToCollection?: (
+    itemId: string,
+    source: "generation" | "upload",
+    collectionId: string,
+  ) => void;
   selectionMode?: boolean;
   selectedItems?: Set<string>;
   onSelectionChange?: (itemId: string, selected: boolean) => void;
@@ -55,7 +59,9 @@ export function GalleryGrid({
   const [deleteConfirmItem, setDeleteConfirmItem] =
     useState<GalleryItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [addingToCollection, setAddingToCollection] = useState<string | null>(null);
+  const [addingToCollection, setAddingToCollection] = useState<string | null>(
+    null,
+  );
 
   const handleDelete = async (item: GalleryItem) => {
     setIsDeleting(true);
@@ -81,12 +87,17 @@ export function GalleryGrid({
     toast.success("Download started");
   };
 
-  const handleAddToCollection = async (item: GalleryItem, collectionId: string) => {
+  const handleAddToCollection = async (
+    item: GalleryItem,
+    collectionId: string,
+  ) => {
     setAddingToCollection(item.id);
     if (onAddToCollection) {
       onAddToCollection(item.id, item.source, collectionId);
     } else {
-      await addToCollection(collectionId, [{ id: item.id, source: item.source }]);
+      await addToCollection(collectionId, [
+        { id: item.id, source: item.source },
+      ]);
       toast.success("Added to collection");
     }
     setAddingToCollection(null);
@@ -129,7 +140,9 @@ export function GalleryGrid({
             corners={false}
             hover
             className={`overflow-hidden group cursor-pointer p-0 ${
-              selectionMode && selectedItems.has(item.id) ? "ring-2 ring-[#FF5800]" : ""
+              selectionMode && selectedItems.has(item.id)
+                ? "ring-2 ring-[#FF5800]"
+                : ""
             }`}
             onClick={() => {
               if (selectionMode && onSelectionChange) {
@@ -167,15 +180,21 @@ export function GalleryGrid({
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
                 <Eye className="w-8 h-8 text-[#FF5800] opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
-              
+
               {/* Badges */}
               <div className="absolute top-2 left-2 flex gap-1">
-                <span className={`text-xs rounded-none px-2 py-0.5 font-bold uppercase tracking-wide ${
-                  item.source === "upload"
-                    ? "bg-blue-500/20 border border-blue-500/40 text-blue-400"
-                    : "bg-purple-500/20 border border-purple-500/40 text-purple-400"
-                }`}>
-                  {item.source === "upload" ? <Upload className="w-3 h-3 inline mr-1" /> : <Sparkles className="w-3 h-3 inline mr-1" />}
+                <span
+                  className={`text-xs rounded-none px-2 py-0.5 font-bold uppercase tracking-wide ${
+                    item.source === "upload"
+                      ? "bg-blue-500/20 border border-blue-500/40 text-blue-400"
+                      : "bg-purple-500/20 border border-purple-500/40 text-purple-400"
+                  }`}
+                >
+                  {item.source === "upload" ? (
+                    <Upload className="w-3 h-3 inline mr-1" />
+                  ) : (
+                    <Sparkles className="w-3 h-3 inline mr-1" />
+                  )}
                   {item.source === "upload" ? "Upload" : "AI"}
                 </span>
               </div>
@@ -187,13 +206,18 @@ export function GalleryGrid({
               {collections.length > 0 && (
                 <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenuTrigger
+                      asChild
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <button className="p-1.5 bg-black/60 border border-white/20 hover:border-[#FF5800]/40 hover:bg-[#FF580020] transition-colors">
                         <FolderPlus className="w-4 h-4 text-white" />
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="min-w-[160px]">
-                      <div className="px-2 py-1.5 text-xs font-semibold text-white/50">Add to Collection</div>
+                      <div className="px-2 py-1.5 text-xs font-semibold text-white/50">
+                        Add to Collection
+                      </div>
                       <DropdownMenuSeparator />
                       {collections.map((collection) => (
                         <DropdownMenuItem
@@ -205,7 +229,9 @@ export function GalleryGrid({
                           disabled={addingToCollection === item.id}
                         >
                           {collection.name}
-                          <span className="ml-auto text-xs text-white/50">{collection.itemCount}</span>
+                          <span className="ml-auto text-xs text-white/50">
+                            {collection.itemCount}
+                          </span>
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuContent>
@@ -222,7 +248,9 @@ export function GalleryGrid({
                   <CalendarIcon className="w-3 h-3 text-[#FF5800]" />
                   {format(new Date(item.createdAt), "MMM d, yyyy")}
                 </span>
-                <span className="truncate max-w-[100px]">{getItemSubtitle(item)}</span>
+                <span className="truncate max-w-[100px]">
+                  {getItemSubtitle(item)}
+                </span>
               </div>
             </div>
           </BrandCard>
@@ -238,6 +266,10 @@ export function GalleryGrid({
           className="!max-w-[99vw] !max-h-[99vh] !w-[99vw] !h-[99vh] p-0 bg-black/80 border-white/10 sm:!max-w-[99vw] md:!max-w-[99vw] lg:!max-w-[99vw]"
           showCloseButton={false}
         >
+          <DialogTitle className="sr-only">Media Preview</DialogTitle>
+          <DialogDescription className="sr-only">
+            View and manage your media file
+          </DialogDescription>
           {selectedItem && (
             <div className="relative w-full h-full flex items-center justify-center p-1">
               {/* Main Content */}
@@ -267,24 +299,28 @@ export function GalleryGrid({
               </DialogClose>
 
               {/* Info overlay at bottom */}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 space-y-3">
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-8 space-y-4">
                 {/* Title/Prompt */}
                 <p className="text-sm text-white/90 leading-relaxed max-w-4xl">
                   {getItemTitle(selectedItem)}
                 </p>
 
                 {/* Details - Inline compact layout */}
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
+                <div className="flex flex-wrap items-center gap-x-8 gap-y-3 text-xs">
                   <div className="flex items-center gap-2">
                     <span className="text-white/50 uppercase tracking-wide">
                       Source:
                     </span>
-                    <span className={`rounded-none px-2 py-0.5 font-bold uppercase ${
-                      selectedItem.source === "upload"
-                        ? "bg-blue-500/20 border border-blue-500/40 text-blue-400"
-                        : "bg-purple-500/20 border border-purple-500/40 text-purple-400"
-                    }`}>
-                      {selectedItem.source === "upload" ? "Upload" : "AI Generated"}
+                    <span
+                      className={`rounded-none px-2 py-0.5 font-bold uppercase ${
+                        selectedItem.source === "upload"
+                          ? "bg-blue-500/20 border border-blue-500/40 text-blue-400"
+                          : "bg-purple-500/20 border border-purple-500/40 text-purple-400"
+                      }`}
+                    >
+                      {selectedItem.source === "upload"
+                        ? "Upload"
+                        : "AI Generated"}
                     </span>
                   </div>
 
@@ -354,7 +390,7 @@ export function GalleryGrid({
                     <DownloadIcon className="w-4 h-4 mr-2" />
                     Download
                   </BrandButton>
-                  
+
                   {collections.length > 0 && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -367,7 +403,9 @@ export function GalleryGrid({
                         {collections.map((collection) => (
                           <DropdownMenuItem
                             key={collection.id}
-                            onClick={() => handleAddToCollection(selectedItem, collection.id)}
+                            onClick={() =>
+                              handleAddToCollection(selectedItem, collection.id)
+                            }
                           >
                             {collection.name}
                           </DropdownMenuItem>

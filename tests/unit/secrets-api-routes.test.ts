@@ -46,7 +46,7 @@ mock.module("@/lib/utils/logger", () => ({
 }));
 
 const resetMocks = () => {
-  Object.values(mockSecretsService).forEach(m => {
+  Object.values(mockSecretsService).forEach((m) => {
     if (typeof m.mockReset === "function") m.mockReset();
   });
 };
@@ -57,7 +57,7 @@ describe("Provider Test Endpoint", () => {
   describe("POST /api/v1/secrets/test", () => {
     it("validates required fields", async () => {
       const { POST } = await import("@/app/api/v1/secrets/test/route");
-      
+
       const request = new Request("http://localhost/api/v1/secrets/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -73,7 +73,7 @@ describe("Provider Test Endpoint", () => {
 
     it("rejects invalid provider", async () => {
       const { POST } = await import("@/app/api/v1/secrets/test/route");
-      
+
       const request = new Request("http://localhost/api/v1/secrets/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -89,7 +89,7 @@ describe("Provider Test Endpoint", () => {
 
     it("requires customTestUrl for custom provider", async () => {
       const { POST } = await import("@/app/api/v1/secrets/test/route");
-      
+
       const request = new Request("http://localhost/api/v1/secrets/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -105,7 +105,7 @@ describe("Provider Test Endpoint", () => {
 
     it("validates value is not empty", async () => {
       const { POST } = await import("@/app/api/v1/secrets/test/route");
-      
+
       const request = new Request("http://localhost/api/v1/secrets/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -119,7 +119,7 @@ describe("Provider Test Endpoint", () => {
 
     it("returns unsupported provider error for non-testable providers", async () => {
       const { POST } = await import("@/app/api/v1/secrets/test/route");
-      
+
       // fal, slack, aws, twitter don't have test handlers
       const request = new Request("http://localhost/api/v1/secrets/test", {
         method: "POST",
@@ -158,7 +158,9 @@ describe("Bindings Endpoints", () => {
     it("validates projectType enum", async () => {
       const { GET } = await import("@/app/api/v1/secrets/bindings/route");
 
-      const url = new URL("http://localhost/api/v1/secrets/bindings?projectId=p1&projectType=invalid");
+      const url = new URL(
+        "http://localhost/api/v1/secrets/bindings?projectId=p1&projectType=invalid",
+      );
       const request = new Request(url, { method: "GET" });
       request.nextUrl = url;
 
@@ -172,14 +174,22 @@ describe("Bindings Endpoints", () => {
     it("returns bindings for valid projectId", async () => {
       mockSecretsService.listBindings.mockResolvedValue({
         bindings: [
-          { id: "b1", secretId: "s1", secretName: "API_KEY", projectId: "p1", projectType: "app" },
+          {
+            id: "b1",
+            secretId: "s1",
+            secretName: "API_KEY",
+            projectId: "p1",
+            projectType: "app",
+          },
         ],
         total: 1,
       });
 
       const { GET } = await import("@/app/api/v1/secrets/bindings/route");
 
-      const url = new URL("http://localhost/api/v1/secrets/bindings?projectId=p1");
+      const url = new URL(
+        "http://localhost/api/v1/secrets/bindings?projectId=p1",
+      );
       const request = new Request(url, { method: "GET" });
       request.nextUrl = url;
 
@@ -199,7 +209,9 @@ describe("Bindings Endpoints", () => {
 
       const { GET } = await import("@/app/api/v1/secrets/bindings/route");
 
-      const url = new URL("http://localhost/api/v1/secrets/bindings?secretId=s1");
+      const url = new URL(
+        "http://localhost/api/v1/secrets/bindings?secretId=s1",
+      );
       const request = new Request(url, { method: "GET" });
       request.nextUrl = url;
 
@@ -368,7 +380,10 @@ describe("Audit Endpoint", () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(mockSecretsService.getSecretAuditLog).toHaveBeenCalledWith("s1", 100);
+      expect(mockSecretsService.getSecretAuditLog).toHaveBeenCalledWith(
+        "s1",
+        100,
+      );
     });
 
     it("respects limit parameter (max 1000)", async () => {
@@ -384,7 +399,7 @@ describe("Audit Endpoint", () => {
 
       expect(mockSecretsService.getOrganizationAuditLog).toHaveBeenCalledWith(
         "org-123",
-        1000 // capped at 1000
+        1000, // capped at 1000
       );
     });
   });
@@ -418,7 +433,9 @@ describe("Secrets List Endpoint", () => {
 
       const { GET } = await import("@/app/api/v1/secrets/route");
 
-      const url = new URL("http://localhost/api/v1/secrets?provider=openai&limit=10");
+      const url = new URL(
+        "http://localhost/api/v1/secrets?provider=openai&limit=10",
+      );
       const request = new Request(url, { method: "GET" });
       request.nextUrl = url;
 
@@ -432,17 +449,20 @@ describe("Secrets List Endpoint", () => {
         expect.objectContaining({
           provider: "openai",
           limit: 10,
-        })
+        }),
       );
     });
 
     it("accepts all filter parameters", async () => {
-      mockSecretsService.listFiltered.mockResolvedValue({ secrets: [], total: 0 });
+      mockSecretsService.listFiltered.mockResolvedValue({
+        secrets: [],
+        total: 0,
+      });
 
       const { GET } = await import("@/app/api/v1/secrets/route");
 
       const url = new URL(
-        "http://localhost/api/v1/secrets?provider=anthropic&projectType=container&environment=production&limit=50&offset=100"
+        "http://localhost/api/v1/secrets?provider=anthropic&projectType=container&environment=production&limit=50&offset=100",
       );
       const request = new Request(url, { method: "GET" });
       request.nextUrl = url;
@@ -549,7 +569,7 @@ describe("Edge Cases and Error Handling", () => {
 
   it("handles malformed JSON", async () => {
     const { POST } = await import("@/app/api/v1/secrets/test/route");
-    
+
     const request = new Request("http://localhost/api/v1/secrets/test", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -581,7 +601,10 @@ describe("Edge Cases and Error Handling", () => {
   });
 
   it("handles special characters in filter params", async () => {
-    mockSecretsService.listFiltered.mockResolvedValue({ secrets: [], total: 0 });
+    mockSecretsService.listFiltered.mockResolvedValue({
+      secrets: [],
+      total: 0,
+    });
 
     const { GET } = await import("@/app/api/v1/secrets/route");
 
@@ -604,13 +627,19 @@ describe("Binding Delete Endpoint", () => {
     it("deletes a binding", async () => {
       mockSecretsService.unbindSecret.mockResolvedValue(undefined);
 
-      const { DELETE } = await import("@/app/api/v1/secrets/bindings/[bindingId]/route");
+      const { DELETE } =
+        await import("@/app/api/v1/secrets/bindings/[bindingId]/route");
 
-      const request = new Request("http://localhost/api/v1/secrets/bindings/binding-123", {
-        method: "DELETE",
+      const request = new Request(
+        "http://localhost/api/v1/secrets/bindings/binding-123",
+        {
+          method: "DELETE",
+        },
+      );
+
+      const response = await DELETE(request as never, {
+        params: Promise.resolve({ bindingId: "binding-123" }),
       });
-
-      const response = await DELETE(request as never, { params: Promise.resolve({ bindingId: "binding-123" }) });
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -618,9 +647,8 @@ describe("Binding Delete Endpoint", () => {
       expect(mockSecretsService.unbindSecret).toHaveBeenCalledWith(
         "binding-123",
         "org-123",
-        expect.any(Object)
+        expect.any(Object),
       );
     });
   });
 });
-

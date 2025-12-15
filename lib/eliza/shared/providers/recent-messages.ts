@@ -28,30 +28,30 @@ interface EntityWithData extends Entity {
 }
 
 function getEntityDisplayName(entity: Entity): string {
-    // Parse metadata if it's stored in data field as string
-    let metadata: Record<string, unknown> | undefined;
-    
+  // Parse metadata if it's stored in data field as string
+  let metadata: Record<string, unknown> | undefined;
+
   const entityWithData = entity as EntityWithData;
-  if (typeof entityWithData.data === 'string') {
+  if (typeof entityWithData.data === "string") {
     try {
       metadata = JSON.parse(entityWithData.data);
     } catch {
       // If parsing fails, fall through to other methods
     }
-    } else if (entity.metadata) {
-      metadata = entity.metadata as Record<string, unknown>;
+  } else if (entity.metadata) {
+    metadata = entity.metadata as Record<string, unknown>;
+  }
+
+  // Try to get from metadata.web.userName first
+  if (metadata?.web && typeof metadata.web === "object") {
+    const webMetadata = metadata.web as Record<string, unknown>;
+    if (webMetadata.userName && typeof webMetadata.userName === "string") {
+      return webMetadata.userName;
     }
-    
-    // Try to get from metadata.web.userName first
-    if (metadata?.web && typeof metadata.web === 'object') {
-      const webMetadata = metadata.web as Record<string, unknown>;
-      if (webMetadata.userName && typeof webMetadata.userName === 'string') {
-        return webMetadata.userName;
-      }
-      // Fall back to metadata.web.name
-      if (webMetadata.name && typeof webMetadata.name === 'string') {
-        return webMetadata.name;
-      }
+    // Fall back to metadata.web.name
+    if (webMetadata.name && typeof webMetadata.name === "string") {
+      return webMetadata.name;
+    }
   }
 
   // Final fallback to names[0]
@@ -61,7 +61,7 @@ function getEntityDisplayName(entity: Entity): string {
 /**
  * Helper wrapper to check if a Memory message should be visible in conversation logs.
  * Uses the centralized isVisibleDialogueMessage helper from message-content.ts
- * 
+ *
  * Supports multiple metadata formats for backwards compatibility:
  * 1. New format: metadata.type = MESSAGE, metadata.dialogueType = 'message'
  * 2. Legacy format: metadata.type = 'user_message' | 'agent_response_message'
@@ -99,9 +99,13 @@ export const recentMessagesProvider: Provider = {
       }
       interface MemoryService {
         getConfig(): MemoryServiceConfig;
-        getCurrentSessionSummary(roomId: string): Promise<{ lastMessageOffset?: number } | null>;
+        getCurrentSessionSummary(
+          roomId: string,
+        ): Promise<{ lastMessageOffset?: number } | null>;
       }
-      const memoryService = runtime.getService("memory") as MemoryService | undefined;
+      const memoryService = runtime.getService("memory") as
+        | MemoryService
+        | undefined;
       const { roomId } = message;
 
       // Get configuration
@@ -120,9 +124,8 @@ export const recentMessagesProvider: Provider = {
       // Check if we have a summary to determine offset and whether to use summarization mode
       let hasSummary = false;
       if (memoryService) {
-        const currentSummary = await memoryService.getCurrentSessionSummary(
-          roomId
-        );
+        const currentSummary =
+          await memoryService.getCurrentSessionSummary(roomId);
         if (currentSummary) {
           hasSummary = true;
           // When we have a summary, fetch recent messages after the summary offset
@@ -140,7 +143,8 @@ export const recentMessagesProvider: Provider = {
           unique: false,
         });
 
-        const dialogueMessageCount = allMessages.filter(isVisibleMessage).length;
+        const dialogueMessageCount =
+          allMessages.filter(isVisibleMessage).length;
 
         // If below threshold, show all messages; otherwise show recent only
         if (dialogueMessageCount < config.shortTermSummarizationThreshold) {
@@ -189,7 +193,7 @@ export const recentMessagesProvider: Provider = {
         if (recentMessagesText) {
           recentMessagesText = addHeader(
             "# Recent Messages",
-            recentMessagesText
+            recentMessagesText,
           );
         }
       }
@@ -197,13 +201,13 @@ export const recentMessagesProvider: Provider = {
       // Format conversation logs (simple format without IDs)
       const formatConversationLog = (
         messages: Memory[],
-        includeThoughts: boolean
+        includeThoughts: boolean,
       ): string => {
         return messages
           .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
           .map((msg) => {
             const entity = entitiesData.find(
-              (e: Entity) => e.id === msg.entityId
+              (e: Entity) => e.id === msg.entityId,
             );
             const entityName = entity
               ? getEntityDisplayName(entity)
@@ -227,16 +231,18 @@ export const recentMessagesProvider: Provider = {
 
       const conversationLog = addHeader(
         "# Conversation Messages",
-        formatConversationLog(dialogueMessages, false)
+        formatConversationLog(dialogueMessages, false),
       );
       const conversationLogWithAgentThoughts = addHeader(
         "# Conversation Messages",
-        formatConversationLog(dialogueMessages, true)
+        formatConversationLog(dialogueMessages, true),
       );
 
       // Build received message header
       const metaData = message.metadata as CustomMetadata;
-      const senderEntity = entitiesData.find((entity: Entity) => entity.id === message.entityId);
+      const senderEntity = entitiesData.find(
+        (entity: Entity) => entity.id === message.entityId,
+      );
       const senderName = senderEntity
         ? getEntityDisplayName(senderEntity)
         : metaData?.entityName || "Unknown User";
@@ -246,14 +252,14 @@ export const recentMessagesProvider: Provider = {
       const receivedMessageHeader = hasReceivedMessage
         ? addHeader(
             "# Received Message",
-            `${senderName}: ${receivedMessageContent}`
+            `${senderName}: ${receivedMessageContent}`,
           )
         : "";
 
       const focusHeader = hasReceivedMessage
         ? addHeader(
             "# Focus your response",
-            `You are replying to the above message from **${senderName}**. Keep your answer relevant to that message.`
+            `You are replying to the above message from **${senderName}**. Keep your answer relevant to that message.`,
           )
         : "";
 

@@ -123,7 +123,7 @@ export default async function ServicesPage() {
 
   // Fetch user's own services
   const userServices = await userMcpsService.listByOrganization(
-    user.organization_id
+    user.organization_id,
   );
 
   // Transform user MCPs to marketplace format
@@ -377,4 +377,3 @@ export default async function ServicesPage() {
     </div>
   );
 }
-

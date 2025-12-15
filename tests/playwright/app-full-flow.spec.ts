@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 /**
  * App Full User Journey E2E Tests
- * 
+ *
  * Tests the complete user flow from anonymous to authenticated:
  * - Anonymous: create character → chat 5 times → see login prompt
  * - Sign up via pass-through auth
@@ -12,7 +12,7 @@ import { test, expect } from "@playwright/test";
  * - Full chat conversation with image
  * - View settings and billing
  * - Earn credits via sharing
- * 
+ *
  * Prerequisites:
  * - Cloud running on port 3000
  * - App running on port 3001
@@ -28,7 +28,7 @@ let appAvailable = false;
 test.beforeAll(async ({ request }) => {
   const appResponse = await request.get(APP_URL).catch(() => null);
   appAvailable = appResponse?.ok() ?? false;
-  
+
   if (!appAvailable) {
     console.log(
       `⚠️ App not available at ${APP_URL}. Skipping app tests. Start with: cd app && bun run dev`,
@@ -96,12 +96,15 @@ test.describe("Anonymous Character Creation Flow", () => {
 test.describe("Anonymous Chat Flow", () => {
   test("anonymous user can send messages up to limit", async ({ request }) => {
     // Create anonymous character
-    const createResponse = await request.post(`${APP_URL}/api/create-character`, {
-      data: {
-        name: "Chat Test Character",
-        personality: "For chat testing",
+    const createResponse = await request.post(
+      `${APP_URL}/api/create-character`,
+      {
+        data: {
+          name: "Chat Test Character",
+          personality: "For chat testing",
+        },
       },
-    });
+    );
 
     if (createResponse.status() !== 200 && createResponse.status() !== 201) {
       return;
@@ -110,11 +113,14 @@ test.describe("Anonymous Chat Flow", () => {
     const { characterId, sessionId } = await createResponse.json();
 
     // Create anonymous session via affiliate API
-    const sessionResponse = await request.post(`${CLOUD_URL}/api/affiliate/create-session`, {
-      headers: {
-        "Content-Type": "application/json",
+    const sessionResponse = await request.post(
+      `${CLOUD_URL}/api/affiliate/create-session`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
       },
-    });
+    );
 
     if (sessionResponse.status() !== 201 && sessionResponse.status() !== 200) {
       console.log("ℹ️ Cannot create anonymous session");
@@ -147,15 +153,20 @@ test.describe("Pass-Through Authentication Flow", () => {
     await expect(signInButton).toBeVisible({ timeout: 10000 });
 
     // Click sign in - should navigate to Cloud login
-    const navigationPromise = page.waitForURL(/auth\/app-login|api\/auth\/app-session/, {
-      timeout: 15000,
-    });
+    const navigationPromise = page.waitForURL(
+      /auth\/app-login|api\/auth\/app-session/,
+      {
+        timeout: 15000,
+      },
+    );
     await signInButton.click();
 
     try {
       await navigationPromise;
       const url = page.url();
-      expect(url).toContain(CLOUD_URL.replace(/^https?:\/\//, "").split(":")[0]);
+      expect(url).toContain(
+        CLOUD_URL.replace(/^https?:\/\//, "").split(":")[0],
+      );
       console.log("✅ Sign in button navigates to Cloud login");
     } catch {
       console.log("ℹ️ Navigation timeout - may require manual interaction");
@@ -164,12 +175,15 @@ test.describe("Pass-Through Authentication Flow", () => {
 
   test("auth callback page handles session", async ({ page, request }) => {
     // Create a app session
-    const sessionResponse = await request.post(`${CLOUD_URL}/api/auth/app-session`, {
-      data: {
-        callbackUrl: `${APP_URL}/auth/callback`,
-        appId: "test-app",
+    const sessionResponse = await request.post(
+      `${CLOUD_URL}/api/auth/app-session`,
+      {
+        data: {
+          callbackUrl: `${APP_URL}/auth/callback`,
+          appId: "test-app",
+        },
       },
-    });
+    );
 
     if (sessionResponse.status() !== 201) {
       return;
@@ -193,9 +207,12 @@ test.describe("Referral Code Application", () => {
 
   test("referral code can be applied after auth", async ({ request }) => {
     // Get referral info
-    const referralResponse = await request.get(`${CLOUD_URL}/api/v1/app/referral`, {
-      headers: authHeaders(),
-    });
+    const referralResponse = await request.get(
+      `${CLOUD_URL}/api/v1/app/referral`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     if (referralResponse.status() !== 200) {
       return;
@@ -205,12 +222,15 @@ test.describe("Referral Code Application", () => {
     const referralCode = referral.code;
 
     // Try to apply own code (should fail)
-    const applyResponse = await request.post(`${CLOUD_URL}/api/v1/app/referral/apply`, {
-      headers: authHeaders(),
-      data: {
-        code: referralCode,
+    const applyResponse = await request.post(
+      `${CLOUD_URL}/api/v1/app/referral/apply`,
+      {
+        headers: authHeaders(),
+        data: {
+          code: referralCode,
+        },
       },
-    });
+    );
 
     expect(applyResponse.status()).toBe(400);
     const data = await applyResponse.json();
@@ -232,7 +252,9 @@ test.describe("Referral Code Application", () => {
       expect(referralCode).toBe("TEST-CODE");
       console.log("✅ Referral code captured from URL");
     } else {
-      console.log("ℹ️ Referral code not captured (may require component mount)");
+      console.log(
+        "ℹ️ Referral code not captured (may require component mount)",
+      );
     }
   });
 });
@@ -307,13 +329,16 @@ test.describe("Character Editing", () => {
       return;
     }
 
-    const response = await request.patch(`${CLOUD_URL}/api/v1/app/agents/${testAgentId}`, {
-      headers: authHeaders(),
-      data: {
-        name: "Updated Character Name",
-        bio: "Updated bio content",
+    const response = await request.patch(
+      `${CLOUD_URL}/api/v1/app/agents/${testAgentId}`,
+      {
+        headers: authHeaders(),
+        data: {
+          name: "Updated Character Name",
+          bio: "Updated bio content",
+        },
       },
-    });
+    );
 
     expect(response.status()).toBe(200);
     const data = await response.json();
@@ -328,12 +353,15 @@ test.describe("Character Editing", () => {
       return;
     }
 
-    const response = await request.patch(`${CLOUD_URL}/api/v1/app/agents/${testAgentId}`, {
-      headers: authHeaders(),
-      data: {
-        avatarUrl: "https://example.com/new-avatar.jpg",
+    const response = await request.patch(
+      `${CLOUD_URL}/api/v1/app/agents/${testAgentId}`,
+      {
+        headers: authHeaders(),
+        data: {
+          avatarUrl: "https://example.com/new-avatar.jpg",
+        },
       },
-    });
+    );
 
     expect(response.status()).toBe(200);
     const data = await response.json();
@@ -347,17 +375,20 @@ test.describe("Character Editing", () => {
       return;
     }
 
-    const response = await request.patch(`${CLOUD_URL}/api/v1/app/agents/${testAgentId}`, {
-      headers: authHeaders(),
-      data: {
-        messageExamples: [
-          [
-            { name: "user", content: { text: "Hello!" } },
-            { name: "Edit Test Character", content: { text: "Hi there!" } },
+    const response = await request.patch(
+      `${CLOUD_URL}/api/v1/app/agents/${testAgentId}`,
+      {
+        headers: authHeaders(),
+        data: {
+          messageExamples: [
+            [
+              { name: "user", content: { text: "Hello!" } },
+              { name: "Edit Test Character", content: { text: "Hi there!" } },
+            ],
           ],
-        ],
+        },
       },
-    });
+    );
 
     expect(response.status()).toBe(200);
     const data = await response.json();
@@ -390,7 +421,7 @@ test.describe("Full Chat Conversation", () => {
         `${CLOUD_URL}/api/v1/app/agents/${testAgentId}/chats`,
         {
           headers: authHeaders(),
-        }
+        },
       );
 
       if (chatResponse.status() === 201) {
@@ -420,7 +451,7 @@ test.describe("Full Chat Conversation", () => {
         data: {
           content: "Hello, this is a test message!",
         },
-      }
+      },
     );
 
     // May return 200, 201, or not be implemented
@@ -453,7 +484,7 @@ test.describe("Full Chat Conversation", () => {
             },
           ],
         },
-      }
+      },
     );
 
     expect([200, 201, 404, 501]).toContain(response.status());
@@ -474,7 +505,7 @@ test.describe("Full Chat Conversation", () => {
       `${CLOUD_URL}/api/v1/app/agents/${testAgentId}/chats`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect(response.status()).toBe(200);
@@ -532,14 +563,17 @@ test.describe("Earn Credits via Sharing", () => {
   });
 
   test("can claim X share reward", async ({ request }) => {
-    const response = await request.post(`${CLOUD_URL}/api/v1/app/rewards/share`, {
-      headers: authHeaders(),
-      data: {
-        platform: "x",
-        shareType: "app_share",
-        shareUrl: "https://twitter.com/test/status/123",
+    const response = await request.post(
+      `${CLOUD_URL}/api/v1/app/rewards/share`,
+      {
+        headers: authHeaders(),
+        data: {
+          platform: "x",
+          shareType: "app_share",
+          shareUrl: "https://twitter.com/test/status/123",
+        },
       },
-    });
+    );
 
     // May succeed or fail if already claimed
     expect([200, 400]).toContain(response.status());
@@ -554,14 +588,17 @@ test.describe("Earn Credits via Sharing", () => {
   });
 
   test("can claim Farcaster share reward", async ({ request }) => {
-    const response = await request.post(`${CLOUD_URL}/api/v1/app/rewards/share`, {
-      headers: authHeaders(),
-      data: {
-        platform: "farcaster",
-        shareType: "app_share",
-        shareUrl: "https://warpcast.com/test/123",
+    const response = await request.post(
+      `${CLOUD_URL}/api/v1/app/rewards/share`,
+      {
+        headers: authHeaders(),
+        data: {
+          platform: "farcaster",
+          shareType: "app_share",
+          shareUrl: "https://warpcast.com/test/123",
+        },
       },
-    });
+    );
 
     expect([200, 400]).toContain(response.status());
 

@@ -60,7 +60,9 @@ She communicates in clear, actionable terms with supporting data when available.
       },
       {
         name: "Maya",
-        content: { text: "Let me run a health check on your main pages. What URLs should I analyze?" },
+        content: {
+          text: "Let me run a health check on your main pages. What URLs should I analyze?",
+        },
       },
     ],
     [
@@ -70,7 +72,9 @@ She communicates in clear, actionable terms with supporting data when available.
       },
       {
         name: "Maya",
-        content: { text: "Two paths: organic or paid. For organic, I can research high-intent keywords and generate optimized meta. For paid, I need to know your target CPA and daily budget." },
+        content: {
+          text: "Two paths: organic or paid. For organic, I can research high-intent keywords and generate optimized meta. For paid, I need to know your target CPA and daily budget.",
+        },
       },
     ],
     [
@@ -80,7 +84,9 @@ She communicates in clear, actionable terms with supporting data when available.
       },
       {
         name: "Maya",
-        content: { text: "Give me 3-5 seed keywords related to your product. I'll pull search volume and competition data from DataForSEO." },
+        content: {
+          text: "Give me 3-5 seed keywords related to your product. I'll pull search volume and competition data from DataForSEO.",
+        },
       },
     ],
     [
@@ -90,7 +96,9 @@ She communicates in clear, actionable terms with supporting data when available.
       },
       {
         name: "Maya",
-        content: { text: "I'll pull campaign analytics. What's your target CPA and current benchmark?" },
+        content: {
+          text: "I'll pull campaign analytics. What's your target CPA and current benchmark?",
+        },
       },
     ],
     [
@@ -100,7 +108,9 @@ She communicates in clear, actionable terms with supporting data when available.
       },
       {
         name: "Maya",
-        content: { text: "I'll get you a cost breakdown by provider and model. Want daily, weekly, or monthly trends?" },
+        content: {
+          text: "I'll get you a cost breakdown by provider and model. Want daily, weekly, or monthly trends?",
+        },
       },
     ],
     [
@@ -110,7 +120,9 @@ She communicates in clear, actionable terms with supporting data when available.
       },
       {
         name: "Maya",
-        content: { text: "Send me the URL. I'll generate meta tags, structured data, and submit it to IndexNow for faster crawling." },
+        content: {
+          text: "Send me the URL. I'll generate meta tags, structured data, and submit it to IndexNow for faster crawling.",
+        },
       },
     ],
   ],

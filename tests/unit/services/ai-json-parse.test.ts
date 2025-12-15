@@ -44,7 +44,9 @@ describe("AI JSON Parse", () => {
     it("throws on invalid JSON", () => {
       const input = '{"name": "test", value: 42}';
 
-      expect(() => parseAiJson(input, TestSchema)).toThrow("Invalid JSON from AI");
+      expect(() => parseAiJson(input, TestSchema)).toThrow(
+        "Invalid JSON from AI",
+      );
     });
 
     it("throws on schema validation failure", () => {
@@ -62,7 +64,9 @@ describe("AI JSON Parse", () => {
     it("includes context in error message for validation failures", () => {
       const input = '{"name": 123, "value": "wrong"}';
 
-      expect(() => parseAiJson(input, TestSchema, "test context")).toThrow("test context");
+      expect(() => parseAiJson(input, TestSchema, "test context")).toThrow(
+        "test context",
+      );
     });
 
     it("handles arrays", () => {
@@ -86,4 +90,3 @@ describe("AI JSON Parse", () => {
     });
   });
 });
-

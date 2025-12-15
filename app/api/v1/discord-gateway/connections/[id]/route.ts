@@ -34,7 +34,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   if (!status || status.organizationId !== user.organization_id) {
     return NextResponse.json(
       { error: "Connection not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -69,7 +69,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!status || status.organizationId !== user.organization_id) {
     return NextResponse.json(
       { error: "Connection not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -79,28 +79,21 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   if (!parsed.data.status) {
-    return NextResponse.json(
-      { error: "Status is required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Status is required" }, { status: 400 });
   }
 
-  await discordGatewayService.updateConnectionStatus(
-    id,
-    parsed.data.status,
-    {
-      errorMessage: parsed.data.errorMessage,
-      sessionId: parsed.data.sessionId,
-      resumeGatewayUrl: parsed.data.resumeGatewayUrl,
-      sequenceNumber: parsed.data.sequenceNumber,
-      gatewayPod: parsed.data.gatewayPod,
-    }
-  );
+  await discordGatewayService.updateConnectionStatus(id, parsed.data.status, {
+    errorMessage: parsed.data.errorMessage,
+    sessionId: parsed.data.sessionId,
+    resumeGatewayUrl: parsed.data.resumeGatewayUrl,
+    sequenceNumber: parsed.data.sequenceNumber,
+    gatewayPod: parsed.data.gatewayPod,
+  });
 
   logger.info("[Discord Gateway API] Updated connection", {
     connectionId: id,
@@ -127,7 +120,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   if (!status || status.organizationId !== user.organization_id) {
     return NextResponse.json(
       { error: "Connection not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -136,7 +129,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   if (!deleted) {
     return NextResponse.json(
       { error: "Failed to unregister bot" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 

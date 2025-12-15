@@ -8,7 +8,15 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { BrandCard, CornerBrackets } from "@/components/brand";
-import { Coins, Plus, Trash2, Edit, Check, X, ExternalLink } from "lucide-react";
+import {
+  Coins,
+  Plus,
+  Trash2,
+  Edit,
+  Check,
+  X,
+  ExternalLink,
+} from "lucide-react";
 import type { CommunityModerationSettings } from "@/db/schemas/org-agents";
 import type { OrgTokenGate } from "@/db/schemas/org-community-moderation";
 
@@ -40,11 +48,12 @@ const CHAINS: Array<{ value: OrgTokenGate["chain"]; label: string }> = [
   { value: "optimism", label: "Optimism" },
 ];
 
-const TOKEN_TYPES: Array<{ value: OrgTokenGate["token_type"]; label: string }> = [
-  { value: "token", label: "Fungible Token" },
-  { value: "nft", label: "NFT" },
-  { value: "nft_collection", label: "NFT Collection" },
-];
+const TOKEN_TYPES: Array<{ value: OrgTokenGate["token_type"]; label: string }> =
+  [
+    { value: "token", label: "Fungible Token" },
+    { value: "nft", label: "NFT" },
+    { value: "nft_collection", label: "NFT Collection" },
+  ];
 
 const DEFAULT_FORM: TokenGateForm = {
   name: "",
@@ -65,15 +74,17 @@ export function TokenGatingTab({
   isSaving,
 }: TokenGatingTabProps) {
   const [tokenGatingEnabled, setTokenGatingEnabled] = useState(
-    settings.tokenGatingEnabled ?? false
+    settings.tokenGatingEnabled ?? false,
   );
   const [verificationChannelId, setVerificationChannelId] = useState(
-    settings.verificationChannelId ?? ""
+    settings.verificationChannelId ?? "",
   );
   const [verificationMessage, setVerificationMessage] = useState(
-    settings.verificationMessage ?? ""
+    settings.verificationMessage ?? "",
   );
-  const [verifiedRoleId, setVerifiedRoleId] = useState(settings.verifiedRoleId ?? "");
+  const [verifiedRoleId, setVerifiedRoleId] = useState(
+    settings.verifiedRoleId ?? "",
+  );
 
   const [tokenGates, setTokenGates] = useState<OrgTokenGate[]>([]);
   const [isLoadingGates, setIsLoadingGates] = useState(false);
@@ -84,15 +95,15 @@ export function TokenGatingTab({
   const fetchTokenGates = useCallback(async () => {
     if (!serverId) return;
     setIsLoadingGates(true);
-    
+
     const res = await fetch(
-      `/api/v1/org/moderation/token-gates?serverId=${serverId}`
+      `/api/v1/org/moderation/token-gates?serverId=${serverId}`,
     );
     if (res.ok) {
       const data = await res.json();
       setTokenGates(data.tokenGates ?? []);
     }
-    
+
     setIsLoadingGates(false);
   }, [serverId]);
 
@@ -154,7 +165,7 @@ export function TokenGatingTab({
 
     if (res.ok) {
       setTokenGates(
-        tokenGates.map((g) => (g.id === gateId ? { ...g, enabled } : g))
+        tokenGates.map((g) => (g.id === gateId ? { ...g, enabled } : g)),
       );
     }
   };
@@ -169,13 +180,18 @@ export function TokenGatingTab({
             <Coins className="h-5 w-5 text-orange-500" />
             <h3 className="font-semibold">Token Gating</h3>
           </div>
-          <Toggle checked={tokenGatingEnabled} onChange={setTokenGatingEnabled} />
+          <Toggle
+            checked={tokenGatingEnabled}
+            onChange={setTokenGatingEnabled}
+          />
         </div>
 
         {tokenGatingEnabled && (
           <div className="space-y-4 mt-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Verification Channel ID</label>
+              <label className="text-sm font-medium">
+                Verification Channel ID
+              </label>
               <input
                 type="text"
                 value={verificationChannelId}
@@ -203,7 +219,9 @@ export function TokenGatingTab({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Verification Message</label>
+              <label className="text-sm font-medium">
+                Verification Message
+              </label>
               <textarea
                 value={verificationMessage}
                 onChange={(e) => setVerificationMessage(e.target.value)}
@@ -362,7 +380,9 @@ export function TokenGatingTab({
                 </button>
                 <button
                   onClick={handleCreateGate}
-                  disabled={isSubmitting || !formData.name || !formData.tokenAddress}
+                  disabled={
+                    isSubmitting || !formData.name || !formData.tokenAddress
+                  }
                   className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium disabled:opacity-50"
                 >
                   {isSubmitting ? "Creating..." : "Create Rule"}
@@ -403,16 +423,20 @@ export function TokenGatingTab({
                         </span>
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground font-mono">
-                        {gate.token_address.slice(0, 8)}...{gate.token_address.slice(-6)}
+                        {gate.token_address.slice(0, 8)}...
+                        {gate.token_address.slice(-6)}
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">
-                        Min: {gate.min_balance} • Role: {gate.discord_role_id || "None"}
+                        Min: {gate.min_balance} • Role:{" "}
+                        {gate.discord_role_id || "None"}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Toggle
                         checked={gate.enabled}
-                        onChange={(enabled) => handleToggleGate(gate.id, enabled)}
+                        onChange={(enabled) =>
+                          handleToggleGate(gate.id, enabled)
+                        }
                       />
                       <button
                         onClick={() => handleDeleteGate(gate.id)}
@@ -460,4 +484,3 @@ function Toggle({ checked, onChange }: ToggleProps) {
     </button>
   );
 }
-

@@ -158,11 +158,19 @@ class FeedConfigService {
     return config;
   }
 
-  async get(configId: string, organizationId: string): Promise<OrgFeedConfig | null> {
+  async get(
+    configId: string,
+    organizationId: string,
+  ): Promise<OrgFeedConfig | null> {
     const [config] = await db
       .select()
       .from(orgFeedConfigs)
-      .where(and(eq(orgFeedConfigs.id, configId), eq(orgFeedConfigs.organization_id, organizationId)))
+      .where(
+        and(
+          eq(orgFeedConfigs.id, configId),
+          eq(orgFeedConfigs.organization_id, organizationId),
+        ),
+      )
       .limit(1);
 
     return config ?? null;
@@ -171,7 +179,7 @@ class FeedConfigService {
   async getBySourceAccount(
     organizationId: string,
     sourcePlatform: string,
-    sourceAccountId: string
+    sourceAccountId: string,
   ): Promise<OrgFeedConfig | null> {
     const [config] = await db
       .select()
@@ -180,35 +188,56 @@ class FeedConfigService {
         and(
           eq(orgFeedConfigs.organization_id, organizationId),
           eq(orgFeedConfigs.source_platform, sourcePlatform),
-          eq(orgFeedConfigs.source_account_id, sourceAccountId)
-        )
+          eq(orgFeedConfigs.source_account_id, sourceAccountId),
+        ),
       )
       .limit(1);
 
     return config ?? null;
   }
 
-  async update(configId: string, organizationId: string, params: UpdateFeedConfigParams): Promise<OrgFeedConfig> {
+  async update(
+    configId: string,
+    organizationId: string,
+    params: UpdateFeedConfigParams,
+  ): Promise<OrgFeedConfig> {
     const updates: Partial<NewOrgFeedConfig> = { updated_at: new Date() };
 
-    if (params.sourceUsername !== undefined) updates.source_username = params.sourceUsername;
-    if (params.credentialId !== undefined) updates.credential_id = params.credentialId;
-    if (params.monitorMentions !== undefined) updates.monitor_mentions = params.monitorMentions;
-    if (params.monitorReplies !== undefined) updates.monitor_replies = params.monitorReplies;
-    if (params.monitorQuoteTweets !== undefined) updates.monitor_quote_tweets = params.monitorQuoteTweets;
-    if (params.monitorReposts !== undefined) updates.monitor_reposts = params.monitorReposts;
-    if (params.monitorLikes !== undefined) updates.monitor_likes = params.monitorLikes;
-    if (params.notificationChannels !== undefined) updates.notification_channels = params.notificationChannels;
+    if (params.sourceUsername !== undefined)
+      updates.source_username = params.sourceUsername;
+    if (params.credentialId !== undefined)
+      updates.credential_id = params.credentialId;
+    if (params.monitorMentions !== undefined)
+      updates.monitor_mentions = params.monitorMentions;
+    if (params.monitorReplies !== undefined)
+      updates.monitor_replies = params.monitorReplies;
+    if (params.monitorQuoteTweets !== undefined)
+      updates.monitor_quote_tweets = params.monitorQuoteTweets;
+    if (params.monitorReposts !== undefined)
+      updates.monitor_reposts = params.monitorReposts;
+    if (params.monitorLikes !== undefined)
+      updates.monitor_likes = params.monitorLikes;
+    if (params.notificationChannels !== undefined)
+      updates.notification_channels = params.notificationChannels;
     if (params.enabled !== undefined) updates.enabled = params.enabled;
-    if (params.pollingIntervalSeconds !== undefined) updates.polling_interval_seconds = params.pollingIntervalSeconds;
-    if (params.minFollowerCount !== undefined) updates.min_follower_count = params.minFollowerCount;
-    if (params.filterKeywords !== undefined) updates.filter_keywords = params.filterKeywords;
-    if (params.filterMode !== undefined) updates.filter_mode = params.filterMode;
+    if (params.pollingIntervalSeconds !== undefined)
+      updates.polling_interval_seconds = params.pollingIntervalSeconds;
+    if (params.minFollowerCount !== undefined)
+      updates.min_follower_count = params.minFollowerCount;
+    if (params.filterKeywords !== undefined)
+      updates.filter_keywords = params.filterKeywords;
+    if (params.filterMode !== undefined)
+      updates.filter_mode = params.filterMode;
 
     const [config] = await db
       .update(orgFeedConfigs)
       .set(updates)
-      .where(and(eq(orgFeedConfigs.id, configId), eq(orgFeedConfigs.organization_id, organizationId)))
+      .where(
+        and(
+          eq(orgFeedConfigs.id, configId),
+          eq(orgFeedConfigs.organization_id, organizationId),
+        ),
+      )
       .returning();
 
     if (!config) throw new Error("Feed config not found");
@@ -218,13 +247,26 @@ class FeedConfigService {
   async delete(configId: string, organizationId: string): Promise<void> {
     await db
       .delete(orgFeedConfigs)
-      .where(and(eq(orgFeedConfigs.id, configId), eq(orgFeedConfigs.organization_id, organizationId)));
+      .where(
+        and(
+          eq(orgFeedConfigs.id, configId),
+          eq(orgFeedConfigs.organization_id, organizationId),
+        ),
+      );
   }
 
-  async list(params: ListFeedConfigsParams): Promise<{ configs: OrgFeedConfig[]; total: number }> {
-    const conditions = [eq(orgFeedConfigs.organization_id, params.organizationId)];
-    if (params.sourcePlatform) conditions.push(eq(orgFeedConfigs.source_platform, params.sourcePlatform));
-    if (params.enabled !== undefined) conditions.push(eq(orgFeedConfigs.enabled, params.enabled));
+  async list(
+    params: ListFeedConfigsParams,
+  ): Promise<{ configs: OrgFeedConfig[]; total: number }> {
+    const conditions = [
+      eq(orgFeedConfigs.organization_id, params.organizationId),
+    ];
+    if (params.sourcePlatform)
+      conditions.push(
+        eq(orgFeedConfigs.source_platform, params.sourcePlatform),
+      );
+    if (params.enabled !== undefined)
+      conditions.push(eq(orgFeedConfigs.enabled, params.enabled));
 
     const [countResult] = await db
       .select({ count: sql<number>`count(*)` })
@@ -242,7 +284,10 @@ class FeedConfigService {
     return { configs, total: Number(countResult?.count ?? 0) };
   }
 
-  async getFeedsDueForPolling(limit = 10, maxErrorCount = 5): Promise<OrgFeedConfig[]> {
+  async getFeedsDueForPolling(
+    limit = 10,
+    maxErrorCount = 5,
+  ): Promise<OrgFeedConfig[]> {
     const now = new Date();
     return db
       .select()
@@ -253,9 +298,9 @@ class FeedConfigService {
           lt(orgFeedConfigs.poll_error_count, maxErrorCount), // Circuit breaker: skip feeds with too many errors
           or(
             isNull(orgFeedConfigs.last_polled_at),
-            sql`${orgFeedConfigs.last_polled_at} + (${orgFeedConfigs.polling_interval_seconds} || ' seconds')::interval < ${now}`
-          )
-        )
+            sql`${orgFeedConfigs.last_polled_at} + (${orgFeedConfigs.polling_interval_seconds} || ' seconds')::interval < ${now}`,
+          ),
+        ),
       )
       .orderBy(orgFeedConfigs.last_polled_at)
       .limit(limit);
@@ -264,13 +309,22 @@ class FeedConfigService {
   async resetErrorCount(configId: string): Promise<void> {
     await db
       .update(orgFeedConfigs)
-      .set({ poll_error_count: 0, last_poll_error: null, updated_at: new Date() })
+      .set({
+        poll_error_count: 0,
+        last_poll_error: null,
+        updated_at: new Date(),
+      })
       .where(eq(orgFeedConfigs.id, configId));
   }
 
   async updatePollingState(
     configId: string,
-    state: { lastPolledAt: Date; lastSeenId?: string; errorCount?: number; lastError?: string | null }
+    state: {
+      lastPolledAt: Date;
+      lastSeenId?: string;
+      errorCount?: number;
+      lastError?: string | null;
+    },
   ): Promise<void> {
     await db
       .update(orgFeedConfigs)
@@ -286,7 +340,9 @@ class FeedConfigService {
 }
 
 class EngagementEventService {
-  async create(params: CreateEngagementEventParams): Promise<SocialEngagementEvent> {
+  async create(
+    params: CreateEngagementEventParams,
+  ): Promise<SocialEngagementEvent> {
     logger.info("[SocialFeed] Recording engagement", {
       organizationId: params.organizationId,
       type: params.eventType,
@@ -324,11 +380,19 @@ class EngagementEventService {
     return event;
   }
 
-  async get(eventId: string, organizationId: string): Promise<SocialEngagementEvent | null> {
+  async get(
+    eventId: string,
+    organizationId: string,
+  ): Promise<SocialEngagementEvent | null> {
     const [event] = await db
       .select()
       .from(socialEngagementEvents)
-      .where(and(eq(socialEngagementEvents.id, eventId), eq(socialEngagementEvents.organization_id, organizationId)))
+      .where(
+        and(
+          eq(socialEngagementEvents.id, eventId),
+          eq(socialEngagementEvents.organization_id, organizationId),
+        ),
+      )
       .limit(1);
 
     return event ?? null;
@@ -339,29 +403,48 @@ class EngagementEventService {
       .select({ count: sql<number>`count(*)` })
       .from(socialEngagementEvents)
       .where(
-        and(eq(socialEngagementEvents.feed_config_id, feedConfigId), eq(socialEngagementEvents.source_post_id, sourcePostId))
+        and(
+          eq(socialEngagementEvents.feed_config_id, feedConfigId),
+          eq(socialEngagementEvents.source_post_id, sourcePostId),
+        ),
       );
 
     return Number(result?.count ?? 0) > 0;
   }
 
-  async list(params: ListEngagementEventsParams): Promise<{ events: SocialEngagementEvent[]; total: number }> {
-    const conditions = [eq(socialEngagementEvents.organization_id, params.organizationId)];
+  async list(
+    params: ListEngagementEventsParams,
+  ): Promise<{ events: SocialEngagementEvent[]; total: number }> {
+    const conditions = [
+      eq(socialEngagementEvents.organization_id, params.organizationId),
+    ];
 
-    if (params.feedConfigId) conditions.push(eq(socialEngagementEvents.feed_config_id, params.feedConfigId));
+    if (params.feedConfigId)
+      conditions.push(
+        eq(socialEngagementEvents.feed_config_id, params.feedConfigId),
+      );
     if (params.eventType) {
       if (Array.isArray(params.eventType)) {
-        conditions.push(inArray(socialEngagementEvents.event_type, params.eventType));
+        conditions.push(
+          inArray(socialEngagementEvents.event_type, params.eventType),
+        );
       } else {
-        conditions.push(eq(socialEngagementEvents.event_type, params.eventType));
+        conditions.push(
+          eq(socialEngagementEvents.event_type, params.eventType),
+        );
       }
     }
-    if (params.authorId) conditions.push(eq(socialEngagementEvents.author_id, params.authorId));
-    if (params.since) conditions.push(gte(socialEngagementEvents.created_at, params.since));
-    if (params.until) conditions.push(lt(socialEngagementEvents.created_at, params.until));
+    if (params.authorId)
+      conditions.push(eq(socialEngagementEvents.author_id, params.authorId));
+    if (params.since)
+      conditions.push(gte(socialEngagementEvents.created_at, params.since));
+    if (params.until)
+      conditions.push(lt(socialEngagementEvents.created_at, params.until));
     if (params.notificationSent !== undefined) {
       if (params.notificationSent) {
-        conditions.push(sql`${socialEngagementEvents.notification_sent_at} IS NOT NULL`);
+        conditions.push(
+          sql`${socialEngagementEvents.notification_sent_at} IS NOT NULL`,
+        );
       } else {
         conditions.push(isNull(socialEngagementEvents.notification_sent_at));
       }
@@ -383,7 +466,11 @@ class EngagementEventService {
     return { events, total: Number(countResult?.count ?? 0) };
   }
 
-  async markNotificationSent(eventId: string, channelIds: string[], messageIds: Record<string, string>): Promise<void> {
+  async markNotificationSent(
+    eventId: string,
+    channelIds: string[],
+    messageIds: Record<string, string>,
+  ): Promise<void> {
     await db
       .update(socialEngagementEvents)
       .set({
@@ -405,7 +492,9 @@ class EngagementEventService {
 }
 
 class ReplyConfirmationService {
-  async create(params: CreateReplyConfirmationParams): Promise<PendingReplyConfirmation> {
+  async create(
+    params: CreateReplyConfirmationParams,
+  ): Promise<PendingReplyConfirmation> {
     logger.info("[SocialFeed] Creating reply confirmation", {
       organizationId: params.organizationId,
       targetPlatform: params.targetPlatform,
@@ -435,12 +524,18 @@ class ReplyConfirmationService {
     return confirmation;
   }
 
-  async get(confirmationId: string, organizationId: string): Promise<PendingReplyConfirmation | null> {
+  async get(
+    confirmationId: string,
+    organizationId: string,
+  ): Promise<PendingReplyConfirmation | null> {
     const [confirmation] = await db
       .select()
       .from(pendingReplyConfirmations)
       .where(
-        and(eq(pendingReplyConfirmations.id, confirmationId), eq(pendingReplyConfirmations.organization_id, organizationId))
+        and(
+          eq(pendingReplyConfirmations.id, confirmationId),
+          eq(pendingReplyConfirmations.organization_id, organizationId),
+        ),
       )
       .limit(1);
 
@@ -450,7 +545,7 @@ class ReplyConfirmationService {
   async getBySourceMessage(
     sourcePlatform: string,
     sourceChannelId: string,
-    sourceMessageId: string
+    sourceMessageId: string,
   ): Promise<PendingReplyConfirmation | null> {
     const [confirmation] = await db
       .select()
@@ -459,39 +554,58 @@ class ReplyConfirmationService {
         and(
           eq(pendingReplyConfirmations.source_platform, sourcePlatform),
           eq(pendingReplyConfirmations.source_channel_id, sourceChannelId),
-          eq(pendingReplyConfirmations.source_message_id, sourceMessageId)
-        )
+          eq(pendingReplyConfirmations.source_message_id, sourceMessageId),
+        ),
       )
       .limit(1);
 
     return confirmation ?? null;
   }
 
-  async getByConfirmationMessage(confirmationMessageId: string): Promise<PendingReplyConfirmation | null> {
+  async getByConfirmationMessage(
+    confirmationMessageId: string,
+  ): Promise<PendingReplyConfirmation | null> {
     const [confirmation] = await db
       .select()
       .from(pendingReplyConfirmations)
-      .where(eq(pendingReplyConfirmations.confirmation_message_id, confirmationMessageId))
+      .where(
+        eq(
+          pendingReplyConfirmations.confirmation_message_id,
+          confirmationMessageId,
+        ),
+      )
       .limit(1);
 
     return confirmation ?? null;
   }
 
   async list(
-    params: ListReplyConfirmationsParams
+    params: ListReplyConfirmationsParams,
   ): Promise<{ confirmations: PendingReplyConfirmation[]; total: number }> {
-    const conditions = [eq(pendingReplyConfirmations.organization_id, params.organizationId)];
+    const conditions = [
+      eq(pendingReplyConfirmations.organization_id, params.organizationId),
+    ];
 
     if (params.status) {
       if (Array.isArray(params.status)) {
-        conditions.push(inArray(pendingReplyConfirmations.status, params.status));
+        conditions.push(
+          inArray(pendingReplyConfirmations.status, params.status),
+        );
       } else {
         conditions.push(eq(pendingReplyConfirmations.status, params.status));
       }
     }
-    if (params.sourcePlatform) conditions.push(eq(pendingReplyConfirmations.source_platform, params.sourcePlatform));
+    if (params.sourcePlatform)
+      conditions.push(
+        eq(pendingReplyConfirmations.source_platform, params.sourcePlatform),
+      );
     if (params.engagementEventId)
-      conditions.push(eq(pendingReplyConfirmations.engagement_event_id, params.engagementEventId));
+      conditions.push(
+        eq(
+          pendingReplyConfirmations.engagement_event_id,
+          params.engagementEventId,
+        ),
+      );
 
     const [countResult] = await db
       .select({ count: sql<number>`count(*)` })
@@ -509,10 +623,18 @@ class ReplyConfirmationService {
     return { confirmations, total: Number(countResult?.count ?? 0) };
   }
 
-  async setConfirmationMessage(confirmationId: string, messageId: string, channelId: string): Promise<void> {
+  async setConfirmationMessage(
+    confirmationId: string,
+    messageId: string,
+    channelId: string,
+  ): Promise<void> {
     await db
       .update(pendingReplyConfirmations)
-      .set({ confirmation_message_id: messageId, confirmation_channel_id: channelId, updated_at: new Date() })
+      .set({
+        confirmation_message_id: messageId,
+        confirmation_channel_id: channelId,
+        updated_at: new Date(),
+      })
       .where(eq(pendingReplyConfirmations.id, confirmationId));
   }
 
@@ -520,7 +642,7 @@ class ReplyConfirmationService {
     confirmationId: string,
     organizationId: string,
     confirmedByUserId: string,
-    confirmedByUsername?: string
+    confirmedByUsername?: string,
   ): Promise<PendingReplyConfirmation> {
     const [confirmation] = await db
       .update(pendingReplyConfirmations)
@@ -535,8 +657,8 @@ class ReplyConfirmationService {
         and(
           eq(pendingReplyConfirmations.id, confirmationId),
           eq(pendingReplyConfirmations.organization_id, organizationId),
-          eq(pendingReplyConfirmations.status, "pending")
-        )
+          eq(pendingReplyConfirmations.status, "pending"),
+        ),
       )
       .returning();
 
@@ -548,7 +670,7 @@ class ReplyConfirmationService {
     confirmationId: string,
     organizationId: string,
     rejectedByUserId: string,
-    reason?: string
+    reason?: string,
   ): Promise<PendingReplyConfirmation> {
     const [confirmation] = await db
       .update(pendingReplyConfirmations)
@@ -563,8 +685,8 @@ class ReplyConfirmationService {
         and(
           eq(pendingReplyConfirmations.id, confirmationId),
           eq(pendingReplyConfirmations.organization_id, organizationId),
-          eq(pendingReplyConfirmations.status, "pending")
-        )
+          eq(pendingReplyConfirmations.status, "pending"),
+        ),
       )
       .returning();
 
@@ -572,14 +694,27 @@ class ReplyConfirmationService {
     return confirmation;
   }
 
-  async markSent(confirmationId: string, sentPostId: string, sentPostUrl?: string): Promise<void> {
+  async markSent(
+    confirmationId: string,
+    sentPostId: string,
+    sentPostUrl?: string,
+  ): Promise<void> {
     await db
       .update(pendingReplyConfirmations)
-      .set({ status: "sent", sent_post_id: sentPostId, sent_post_url: sentPostUrl, sent_at: new Date(), updated_at: new Date() })
+      .set({
+        status: "sent",
+        sent_post_id: sentPostId,
+        sent_post_url: sentPostUrl,
+        sent_at: new Date(),
+        updated_at: new Date(),
+      })
       .where(eq(pendingReplyConfirmations.id, confirmationId));
   }
 
-  async markFailed(confirmationId: string, errorMessage: string): Promise<void> {
+  async markFailed(
+    confirmationId: string,
+    errorMessage: string,
+  ): Promise<void> {
     await db
       .update(pendingReplyConfirmations)
       .set({
@@ -596,7 +731,12 @@ class ReplyConfirmationService {
     const result = await db
       .update(pendingReplyConfirmations)
       .set({ status: "expired", updated_at: now })
-      .where(and(eq(pendingReplyConfirmations.status, "pending"), lt(pendingReplyConfirmations.expires_at, now)));
+      .where(
+        and(
+          eq(pendingReplyConfirmations.status, "pending"),
+          lt(pendingReplyConfirmations.expires_at, now),
+        ),
+      );
 
     return result.rowCount ?? 0;
   }
@@ -606,7 +746,12 @@ class ReplyConfirmationService {
     return db
       .select()
       .from(pendingReplyConfirmations)
-      .where(and(eq(pendingReplyConfirmations.status, "pending"), lt(pendingReplyConfirmations.expires_at, now)))
+      .where(
+        and(
+          eq(pendingReplyConfirmations.status, "pending"),
+          lt(pendingReplyConfirmations.expires_at, now),
+        ),
+      )
       .limit(limit);
   }
 }
@@ -619,7 +764,7 @@ class NotificationMessageService {
     channelId: string,
     messageId: string,
     serverId?: string,
-    threadId?: string
+    threadId?: string,
   ): Promise<SocialNotificationMessage> {
     const [message] = await db
       .insert(socialNotificationMessages)
@@ -641,30 +786,46 @@ class NotificationMessageService {
   async findEngagementByMessage(
     platform: string,
     channelId: string,
-    messageId: string
-  ): Promise<{ notification: SocialNotificationMessage; event: SocialEngagementEvent } | null> {
+    messageId: string,
+  ): Promise<{
+    notification: SocialNotificationMessage;
+    event: SocialEngagementEvent;
+  } | null> {
     const [result] = await db
       .select()
       .from(socialNotificationMessages)
-      .innerJoin(socialEngagementEvents, eq(socialNotificationMessages.engagement_event_id, socialEngagementEvents.id))
+      .innerJoin(
+        socialEngagementEvents,
+        eq(
+          socialNotificationMessages.engagement_event_id,
+          socialEngagementEvents.id,
+        ),
+      )
       .where(
         and(
           eq(socialNotificationMessages.platform, platform),
           eq(socialNotificationMessages.channel_id, channelId),
-          eq(socialNotificationMessages.message_id, messageId)
-        )
+          eq(socialNotificationMessages.message_id, messageId),
+        ),
       )
       .limit(1);
 
     if (!result) return null;
-    return { notification: result.social_notification_messages, event: result.social_engagement_events };
+    return {
+      notification: result.social_notification_messages,
+      event: result.social_engagement_events,
+    };
   }
 
-  async getForEngagement(engagementEventId: string): Promise<SocialNotificationMessage[]> {
+  async getForEngagement(
+    engagementEventId: string,
+  ): Promise<SocialNotificationMessage[]> {
     return db
       .select()
       .from(socialNotificationMessages)
-      .where(eq(socialNotificationMessages.engagement_event_id, engagementEventId));
+      .where(
+        eq(socialNotificationMessages.engagement_event_id, engagementEventId),
+      );
   }
 }
 

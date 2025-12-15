@@ -69,20 +69,30 @@ describe("App Runtime Injection", () => {
 describe("App Credentials API Endpoints", () => {
   const endpoints = [
     { path: "/api/v1/app/credentials", methods: ["GET", "POST", "OPTIONS"] },
-    { path: "/api/v1/app/credentials/:id", methods: ["GET", "DELETE", "OPTIONS"] },
+    {
+      path: "/api/v1/app/credentials/:id",
+      methods: ["GET", "DELETE", "OPTIONS"],
+    },
     { path: "/api/v1/app/credentials/:id/token", methods: ["GET", "OPTIONS"] },
-    { path: "/api/v1/app/credentials/session/:id", methods: ["GET", "OPTIONS"] },
+    {
+      path: "/api/v1/app/credentials/session/:id",
+      methods: ["GET", "OPTIONS"],
+    },
   ];
 
   test("should have list/create endpoint", () => {
-    const listEndpoint = endpoints.find((e) => e.path === "/api/v1/app/credentials");
+    const listEndpoint = endpoints.find(
+      (e) => e.path === "/api/v1/app/credentials",
+    );
     expect(listEndpoint).toBeDefined();
     expect(listEndpoint?.methods).toContain("GET");
     expect(listEndpoint?.methods).toContain("POST");
   });
 
   test("should have individual credential endpoint", () => {
-    const credEndpoint = endpoints.find((e) => e.path === "/api/v1/app/credentials/:id");
+    const credEndpoint = endpoints.find(
+      (e) => e.path === "/api/v1/app/credentials/:id",
+    );
     expect(credEndpoint).toBeDefined();
     expect(credEndpoint?.methods).toContain("GET");
     expect(credEndpoint?.methods).toContain("DELETE");
@@ -137,7 +147,8 @@ describe("Credential Response Format", () => {
     const mockResponse = {
       sessionId: "sess_abc123def456",
       linkUrl: "https://discord.com/oauth2/authorize?...",
-      hostedLinkUrl: "https://elizacloud.ai/auth/platform-link?session=sess_abc123def456",
+      hostedLinkUrl:
+        "https://elizacloud.ai/auth/platform-link?session=sess_abc123def456",
       expiresAt: "2024-01-01T00:15:00Z",
     };
 
@@ -164,7 +175,13 @@ describe("Credential Response Format", () => {
   });
 
   test("session status response should have valid status values", () => {
-    const validStatuses = ["pending", "completed", "expired", "failed", "not_found"];
+    const validStatuses = [
+      "pending",
+      "completed",
+      "expired",
+      "failed",
+      "not_found",
+    ];
 
     const mockPending = { status: "pending" };
     const mockCompleted = { status: "completed", credentialId: "cred-123" };
@@ -295,7 +312,15 @@ describe("OAuth Popup Flow", () => {
 
 describe("TypeScript Type Definitions", () => {
   test("PlatformType should include all supported platforms", () => {
-    const platforms = ["discord", "twitter", "google", "gmail", "github", "slack", "telegram"];
+    const platforms = [
+      "discord",
+      "twitter",
+      "google",
+      "gmail",
+      "github",
+      "slack",
+      "telegram",
+    ];
 
     expect(platforms).toContain("discord");
     expect(platforms).toContain("twitter");
@@ -304,12 +329,7 @@ describe("TypeScript Type Definitions", () => {
   });
 
   test("PlatformCredential should have required fields", () => {
-    const requiredFields = [
-      "id",
-      "platform",
-      "platformUserId",
-      "status",
-    ];
+    const requiredFields = ["id", "platform", "platformUserId", "status"];
 
     const optionalFields = [
       "platformUsername",
@@ -436,7 +456,10 @@ describe("App Secrets API", () => {
   test("should have list/create endpoint", () => {
     const endpoints = [
       { path: "/api/v1/app/secrets", methods: ["GET", "POST", "OPTIONS"] },
-      { path: "/api/v1/app/secrets/:name", methods: ["GET", "DELETE", "OPTIONS"] },
+      {
+        path: "/api/v1/app/secrets/:name",
+        methods: ["GET", "DELETE", "OPTIONS"],
+      },
     ];
 
     expect(endpoints[0].methods).toContain("GET");
@@ -447,7 +470,11 @@ describe("App Secrets API", () => {
   test("list response should return secrets array without values", () => {
     const response = {
       secrets: [
-        { name: "OPENAI_API_KEY", description: "OpenAI key", createdAt: "2024-01-01T00:00:00Z" },
+        {
+          name: "OPENAI_API_KEY",
+          description: "OpenAI key",
+          createdAt: "2024-01-01T00:00:00Z",
+        },
       ],
     };
 
@@ -477,7 +504,10 @@ describe("App Bots API", () => {
     const endpoints = [
       { path: "/api/v1/app/bots", methods: ["GET", "POST", "OPTIONS"] },
       { path: "/api/v1/app/bots/:id", methods: ["GET", "DELETE", "OPTIONS"] },
-      { path: "/api/v1/app/bots/:id/servers/:serverId", methods: ["GET", "PATCH", "OPTIONS"] },
+      {
+        path: "/api/v1/app/bots/:id/servers/:serverId",
+        methods: ["GET", "PATCH", "OPTIONS"],
+      },
     ];
 
     expect(endpoints[0].methods).toContain("POST");
@@ -494,7 +524,14 @@ describe("App Bots API", () => {
           botId: "123456789",
           botUsername: "MyBot#1234",
           status: "active",
-          servers: [{ id: "srv-1", serverId: "guild-123", serverName: "Test Server", enabled: true }],
+          servers: [
+            {
+              id: "srv-1",
+              serverId: "guild-123",
+              serverName: "Test Server",
+              enabled: true,
+            },
+          ],
         },
       ],
     };
@@ -510,8 +547,15 @@ describe("App Bots API", () => {
 
   test("connect response should include bot info and servers", () => {
     const response = {
-      bot: { id: "conn-123", platform: "discord", botUsername: "MyBot#1234", status: "active" },
-      servers: [{ id: "srv-1", serverId: "guild-123", serverName: "Test Server" }],
+      bot: {
+        id: "conn-123",
+        platform: "discord",
+        botUsername: "MyBot#1234",
+        status: "active",
+      },
+      servers: [
+        { id: "srv-1", serverId: "guild-123", serverName: "Test Server" },
+      ],
     };
 
     expect(response.bot.platform).toBe("discord");
@@ -526,7 +570,15 @@ describe("App Bots API", () => {
 describe("Type Definitions", () => {
   test("BotPlatformType should be subset of PlatformType", () => {
     const botPlatforms = ["discord", "telegram", "twitter"];
-    const userPlatforms = ["discord", "twitter", "google", "gmail", "github", "slack", "telegram"];
+    const userPlatforms = [
+      "discord",
+      "twitter",
+      "google",
+      "gmail",
+      "github",
+      "slack",
+      "telegram",
+    ];
 
     botPlatforms.forEach((p) => {
       expect(userPlatforms).toContain(p);
@@ -545,8 +597,12 @@ describe("Type Definitions", () => {
   });
 
   test("BotServer should have enabled field", () => {
-    const server = { id: "srv-1", serverId: "123", serverName: "Test", enabled: true };
+    const server = {
+      id: "srv-1",
+      serverId: "123",
+      serverName: "Test",
+      enabled: true,
+    };
     expect(typeof server.enabled).toBe("boolean");
   });
 });
-

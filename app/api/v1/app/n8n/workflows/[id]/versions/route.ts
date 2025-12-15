@@ -14,7 +14,8 @@ import { logger } from "@/lib/utils/logger";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-App-Token, X-Api-Key",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, X-App-Token, X-Api-Key",
 };
 
 export async function OPTIONS() {
@@ -27,7 +28,7 @@ export async function OPTIONS() {
  */
 export async function GET(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await requireAppAuth(request);
@@ -37,12 +38,12 @@ export async function GET(
     if (apps.length === 0) {
       return NextResponse.json(
         { success: false, error: "No app found" },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: corsHeaders },
       );
     }
 
     const limit = Number.parseInt(
-      request.nextUrl.searchParams.get("limit") || "50"
+      request.nextUrl.searchParams.get("limit") || "50",
     );
 
     const versions = await n8nWorkflowsService.getWorkflowVersions(id, limit);
@@ -58,18 +59,17 @@ export async function GET(
           createdBy: v.created_by,
         })),
       },
-      { headers: corsHeaders }
+      { headers: corsHeaders },
     );
   } catch (error) {
     logger.error("[App N8N Workflows] Error listing versions:", error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to list versions",
+        error:
+          error instanceof Error ? error.message : "Failed to list versions",
       },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: corsHeaders },
     );
   }
 }
-
-

@@ -41,14 +41,24 @@ describe("App Promotion Service", () => {
     });
 
     it("ad campaign setup is most expensive", () => {
-      expect(PROMOTION_COSTS.adCampaignSetup).toBeGreaterThan(PROMOTION_COSTS.contentGeneration);
-      expect(PROMOTION_COSTS.adCampaignSetup).toBeGreaterThan(PROMOTION_COSTS.socialPostBase);
-      expect(PROMOTION_COSTS.adCampaignSetup).toBeGreaterThan(PROMOTION_COSTS.seoBundle);
+      expect(PROMOTION_COSTS.adCampaignSetup).toBeGreaterThan(
+        PROMOTION_COSTS.contentGeneration,
+      );
+      expect(PROMOTION_COSTS.adCampaignSetup).toBeGreaterThan(
+        PROMOTION_COSTS.socialPostBase,
+      );
+      expect(PROMOTION_COSTS.adCampaignSetup).toBeGreaterThan(
+        PROMOTION_COSTS.seoBundle,
+      );
     });
   });
 
   describe("SEO Type Determination", () => {
-    const determineSeoType = (config: { generateMeta?: boolean; generateSchema?: boolean; submitToIndexNow?: boolean }) => {
+    const determineSeoType = (config: {
+      generateMeta?: boolean;
+      generateSchema?: boolean;
+      submitToIndexNow?: boolean;
+    }) => {
       if (config.generateMeta && config.generateSchema) return "publish_bundle";
       if (config.generateMeta) return "meta_generate";
       if (config.generateSchema) return "schema_generate";
@@ -57,7 +67,9 @@ describe("App Promotion Service", () => {
     };
 
     it("returns publish_bundle when both meta and schema requested", () => {
-      expect(determineSeoType({ generateMeta: true, generateSchema: true })).toBe("publish_bundle");
+      expect(
+        determineSeoType({ generateMeta: true, generateSchema: true }),
+      ).toBe("publish_bundle");
     });
 
     it("returns meta_generate for meta only", () => {
@@ -65,7 +77,9 @@ describe("App Promotion Service", () => {
     });
 
     it("returns schema_generate for schema only", () => {
-      expect(determineSeoType({ generateSchema: true })).toBe("schema_generate");
+      expect(determineSeoType({ generateSchema: true })).toBe(
+        "schema_generate",
+      );
     });
 
     it("returns index_now for submitToIndexNow", () => {
@@ -77,4 +91,3 @@ describe("App Promotion Service", () => {
     });
   });
 });
-

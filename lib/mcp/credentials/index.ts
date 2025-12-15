@@ -6,7 +6,10 @@
  */
 
 import { z } from "zod";
-import { platformCredentialsService, OAUTH_CONFIGS } from "@/lib/services/platform-credentials";
+import {
+  platformCredentialsService,
+  OAUTH_CONFIGS,
+} from "@/lib/services/platform-credentials";
 import { secretsService, type AuditContext } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
 
@@ -24,7 +27,10 @@ interface MCPToolDefinition {
   name: string;
   description: string;
   inputSchema: z.ZodType;
-  handler: (params: Record<string, unknown>, context: MCPContext) => Promise<unknown>;
+  handler: (
+    params: Record<string, unknown>,
+    context: MCPContext,
+  ) => Promise<unknown>;
 }
 
 interface MCPResourceDefinition {
@@ -42,16 +48,32 @@ interface MCPServerDefinition {
   resources: MCPResourceDefinition[];
 }
 
-const AUDIT: AuditContext = { actorType: "system", actorId: "credentials-mcp", source: "mcp" };
+const AUDIT: AuditContext = {
+  actorType: "system",
+  actorId: "credentials-mcp",
+  source: "mcp",
+};
 
 // =============================================================================
 // SCHEMAS
 // =============================================================================
 
-const PlatformSchema = z.enum(["discord", "twitter", "google", "gmail", "github", "slack", "telegram"]);
+const PlatformSchema = z.enum([
+  "discord",
+  "twitter",
+  "google",
+  "gmail",
+  "github",
+  "slack",
+  "telegram",
+]);
 
 const CreateSecretSchema = z.object({
-  name: z.string().min(1).max(255).describe("Secret name (e.g., OPENAI_API_KEY)"),
+  name: z
+    .string()
+    .min(1)
+    .max(255)
+    .describe("Secret name (e.g., OPENAI_API_KEY)"),
   value: z.string().min(1).describe("Secret value"),
   description: z.string().optional().describe("Optional description"),
 });
@@ -68,7 +90,10 @@ const ListSecretsSchema = z.object({});
 
 const RequestOAuthSchema = z.object({
   platform: PlatformSchema.describe("Platform to connect"),
-  scopes: z.array(z.string()).optional().describe("Optional custom OAuth scopes"),
+  scopes: z
+    .array(z.string())
+    .optional()
+    .describe("Optional custom OAuth scopes"),
 });
 
 const GetCredentialSchema = z.object({
@@ -91,40 +116,58 @@ const ListCredentialsSchema = z.object({
 // HANDLERS - Text Secrets
 // =============================================================================
 
-async function handleCreateSecret(params: z.infer<typeof CreateSecretSchema>, ctx: MCPContext) {
-  const secret = await secretsService.create({
-    organizationId: ctx.organizationId,
-    name: params.name,
-    value: params.value,
-    description: params.description,
-    scope: "organization",
-    createdBy: ctx.userId,
-  }, AUDIT);
+async function handleCreateSecret(
+  params: z.infer<typeof CreateSecretSchema>,
+  ctx: MCPContext,
+) {
+  const secret = await secretsService.create(
+    {
+      organizationId: ctx.organizationId,
+      name: params.name,
+      value: params.value,
+      description: params.description,
+      scope: "organization",
+      createdBy: ctx.userId,
+    },
+    AUDIT,
+  );
 
-  logger.info("[Credentials MCP] Secret created", { name: params.name, orgId: ctx.organizationId });
+  logger.info("[Credentials MCP] Secret created", {
+    name: params.name,
+    orgId: ctx.organizationId,
+  });
   return { success: true, secretId: secret.id, name: secret.name };
 }
 
-async function handleGetSecret(params: z.infer<typeof GetSecretSchema>, ctx: MCPContext) {
+async function handleGetSecret(
+  params: z.infer<typeof GetSecretSchema>,
+  ctx: MCPContext,
+) {
   const value = await secretsService.get(ctx.organizationId, params.name);
   if (!value) return { found: false, name: params.name };
   return { found: true, name: params.name, value };
 }
 
-async function handleDeleteSecret(params: z.infer<typeof DeleteSecretSchema>, ctx: MCPContext) {
+async function handleDeleteSecret(
+  params: z.infer<typeof DeleteSecretSchema>,
+  ctx: MCPContext,
+) {
   const secrets = await secretsService.list(ctx.organizationId);
-  const secret = secrets.find(s => s.name === params.name);
+  const secret = secrets.find((s) => s.name === params.name);
   if (!secret) return { success: false, error: "Secret not found" };
-  
+
   await secretsService.delete(secret.id, ctx.organizationId, AUDIT);
   logger.info("[Credentials MCP] Secret deleted", { name: params.name });
   return { success: true };
 }
 
-async function handleListSecrets(_params: z.infer<typeof ListSecretsSchema>, ctx: MCPContext) {
+async function handleListSecrets(
+  _params: z.infer<typeof ListSecretsSchema>,
+  ctx: MCPContext,
+) {
   const secrets = await secretsService.list(ctx.organizationId);
   return {
-    secrets: secrets.map(s => ({
+    secrets: secrets.map((s) => ({
       name: s.name,
       description: s.description,
       createdAt: s.createdAt.toISOString(),
@@ -137,7 +180,10 @@ async function handleListSecrets(_params: z.infer<typeof ListSecretsSchema>, ctx
 // HANDLERS - OAuth Credentials
 // =============================================================================
 
-async function handleRequestOAuth(params: z.infer<typeof RequestOAuthSchema>, ctx: MCPContext) {
+async function handleRequestOAuth(
+  params: z.infer<typeof RequestOAuthSchema>,
+  ctx: MCPContext,
+) {
   const config = OAUTH_CONFIGS[params.platform];
   if (!config) return { error: `Unsupported platform: ${params.platform}` };
 
@@ -150,7 +196,7 @@ async function handleRequestOAuth(params: z.infer<typeof RequestOAuthSchema>, ct
   });
 
   const cloudUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
-  
+
   return {
     sessionId: result.sessionId,
     authUrl: result.linkUrl,
@@ -160,11 +206,17 @@ async function handleRequestOAuth(params: z.infer<typeof RequestOAuthSchema>, ct
   };
 }
 
-async function handleGetCredential(params: z.infer<typeof GetCredentialSchema>, ctx: MCPContext) {
-  const credentials = await platformCredentialsService.listCredentials(ctx.organizationId, {
-    platform: params.platform,
-    status: "active",
-  });
+async function handleGetCredential(
+  params: z.infer<typeof GetCredentialSchema>,
+  ctx: MCPContext,
+) {
+  const credentials = await platformCredentialsService.listCredentials(
+    ctx.organizationId,
+    {
+      platform: params.platform,
+      status: "active",
+    },
+  );
 
   const cred = credentials[0];
   if (!cred) return { connected: false, platform: params.platform };
@@ -181,26 +233,44 @@ async function handleGetCredential(params: z.infer<typeof GetCredentialSchema>, 
   };
 }
 
-async function handleGetToken(params: z.infer<typeof GetTokenSchema>, ctx: MCPContext) {
-  const credentials = await platformCredentialsService.listCredentials(ctx.organizationId, {
-    platform: params.platform,
-    status: "active",
-  });
+async function handleGetToken(
+  params: z.infer<typeof GetTokenSchema>,
+  ctx: MCPContext,
+) {
+  const credentials = await platformCredentialsService.listCredentials(
+    ctx.organizationId,
+    {
+      platform: params.platform,
+      status: "active",
+    },
+  );
 
   const cred = credentials[0];
   if (!cred) return { error: `${params.platform} not connected` };
 
-  const result = await platformCredentialsService.getCredentialWithTokens(cred.id, ctx.organizationId);
+  const result = await platformCredentialsService.getCredentialWithTokens(
+    cred.id,
+    ctx.organizationId,
+  );
   if (!result) return { error: "Failed to retrieve tokens" };
 
   // Auto-refresh if expired
-  if (result.credential.token_expires_at && result.credential.token_expires_at < new Date()) {
-    const refreshed = await platformCredentialsService.refreshToken(cred.id, ctx.organizationId);
+  if (
+    result.credential.token_expires_at &&
+    result.credential.token_expires_at < new Date()
+  ) {
+    const refreshed = await platformCredentialsService.refreshToken(
+      cred.id,
+      ctx.organizationId,
+    );
     if (!refreshed) return { error: "Token expired and refresh failed" };
-    
-    const fresh = await platformCredentialsService.getCredentialWithTokens(cred.id, ctx.organizationId);
+
+    const fresh = await platformCredentialsService.getCredentialWithTokens(
+      cred.id,
+      ctx.organizationId,
+    );
     if (!fresh) return { error: "Failed to get refreshed token" };
-    
+
     return {
       platform: params.platform,
       accessToken: fresh.accessToken,
@@ -219,28 +289,46 @@ async function handleGetToken(params: z.infer<typeof GetTokenSchema>, ctx: MCPCo
   };
 }
 
-async function handleRevokeCredential(params: z.infer<typeof RevokeCredentialSchema>, ctx: MCPContext) {
-  const credentials = await platformCredentialsService.listCredentials(ctx.organizationId, {
-    platform: params.platform,
-    status: "active",
-  });
+async function handleRevokeCredential(
+  params: z.infer<typeof RevokeCredentialSchema>,
+  ctx: MCPContext,
+) {
+  const credentials = await platformCredentialsService.listCredentials(
+    ctx.organizationId,
+    {
+      platform: params.platform,
+      status: "active",
+    },
+  );
 
   const cred = credentials[0];
-  if (!cred) return { success: false, error: `${params.platform} not connected` };
+  if (!cred)
+    return { success: false, error: `${params.platform} not connected` };
 
-  await platformCredentialsService.revokeCredential(cred.id, ctx.organizationId);
-  logger.info("[Credentials MCP] Credential revoked", { platform: params.platform });
+  await platformCredentialsService.revokeCredential(
+    cred.id,
+    ctx.organizationId,
+  );
+  logger.info("[Credentials MCP] Credential revoked", {
+    platform: params.platform,
+  });
   return { success: true };
 }
 
-async function handleListCredentials(params: z.infer<typeof ListCredentialsSchema>, ctx: MCPContext) {
-  const credentials = await platformCredentialsService.listCredentials(ctx.organizationId, {
-    platform: params.platform,
-    status: "active",
-  });
+async function handleListCredentials(
+  params: z.infer<typeof ListCredentialsSchema>,
+  ctx: MCPContext,
+) {
+  const credentials = await platformCredentialsService.listCredentials(
+    ctx.organizationId,
+    {
+      platform: params.platform,
+      status: "active",
+    },
+  );
 
   return {
-    credentials: credentials.map(c => ({
+    credentials: credentials.map((c) => ({
       platform: c.platform,
       platformUserId: c.platform_user_id,
       platformUsername: c.platform_username,
@@ -258,19 +346,22 @@ async function handleListCredentials(params: z.infer<typeof ListCredentialsSchem
 export const credentialsMcpServer: MCPServerDefinition = {
   name: "credentials",
   version: "1.0.0",
-  description: "Secure credential management for AI agents. Store text secrets (API keys) and connect OAuth platforms (Discord, Twitter, Google, etc.).",
+  description:
+    "Secure credential management for AI agents. Store text secrets (API keys) and connect OAuth platforms (Discord, Twitter, Google, etc.).",
 
   tools: [
     // Text Secrets
     {
       name: "store_secret",
-      description: "Store a text secret (API key, token, password). Secrets are encrypted at rest.",
+      description:
+        "Store a text secret (API key, token, password). Secrets are encrypted at rest.",
       inputSchema: CreateSecretSchema,
       handler: handleCreateSecret as MCPToolDefinition["handler"],
     },
     {
       name: "get_secret",
-      description: "Retrieve a stored secret by name. Use for API keys and tokens.",
+      description:
+        "Retrieve a stored secret by name. Use for API keys and tokens.",
       inputSchema: GetSecretSchema,
       handler: handleGetSecret as MCPToolDefinition["handler"],
     },
@@ -290,19 +381,22 @@ export const credentialsMcpServer: MCPServerDefinition = {
     // OAuth Credentials
     {
       name: "request_oauth",
-      description: "Request OAuth authorization for a platform. Returns a URL to send to the user for authorization.",
+      description:
+        "Request OAuth authorization for a platform. Returns a URL to send to the user for authorization.",
       inputSchema: RequestOAuthSchema,
       handler: handleRequestOAuth as MCPToolDefinition["handler"],
     },
     {
       name: "get_credential",
-      description: "Check if a platform is connected and get credential info (not tokens).",
+      description:
+        "Check if a platform is connected and get credential info (not tokens).",
       inputSchema: GetCredentialSchema,
       handler: handleGetCredential as MCPToolDefinition["handler"],
     },
     {
       name: "get_platform_token",
-      description: "Get the access token for a connected platform. Auto-refreshes if expired.",
+      description:
+        "Get the access token for a connected platform. Auto-refreshes if expired.",
       inputSchema: GetTokenSchema,
       handler: handleGetToken as MCPToolDefinition["handler"],
     },
@@ -346,15 +440,27 @@ export const credentialsMcpServer: MCPServerDefinition = {
 export async function handleCredentialsResource(uri: string, ctx: MCPContext) {
   if (uri === "credentials://secrets") {
     const secrets = await secretsService.list(ctx.organizationId);
-    return { secrets: secrets.map(s => ({ name: s.name, description: s.description })) };
+    return {
+      secrets: secrets.map((s) => ({
+        name: s.name,
+        description: s.description,
+      })),
+    };
   }
   if (uri === "credentials://platforms") {
-    const creds = await platformCredentialsService.listCredentials(ctx.organizationId, { status: "active" });
-    return { platforms: creds.map(c => ({ platform: c.platform, username: c.platform_username })) };
+    const creds = await platformCredentialsService.listCredentials(
+      ctx.organizationId,
+      { status: "active" },
+    );
+    return {
+      platforms: creds.map((c) => ({
+        platform: c.platform,
+        username: c.platform_username,
+      })),
+    };
   }
   if (uri === "credentials://platforms/available") {
     return { platforms: Object.keys(OAUTH_CONFIGS) };
   }
   return null;
 }
-

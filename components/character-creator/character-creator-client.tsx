@@ -339,7 +339,7 @@ export function CharacterCreatorClient({
               className="flex h-full flex-col relative z-10"
             >
               <BrandTabsList className="mx-4 mb-2 mt-4 w-[calc(100%-2rem)]">
-              <BrandTabsTrigger value="form" className="flex-1">
+                <BrandTabsTrigger value="form" className="flex-1">
                   Form
                 </BrandTabsTrigger>
                 <BrandTabsTrigger value="json" className="flex-1">

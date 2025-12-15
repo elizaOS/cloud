@@ -40,39 +40,48 @@ interface BskyFacet {
   features: Array<{ $type: string; uri?: string; tag?: string; did?: string }>;
 }
 
-async function createSession(handle: string, appPassword: string): Promise<BskySession> {
+async function createSession(
+  handle: string,
+  appPassword: string,
+): Promise<BskySession> {
   const { data } = await withRetry<BskySession>(
-    () => fetch(`${BLUESKY_SERVICE}/xrpc/com.atproto.server.createSession`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ identifier: handle, password: appPassword }),
-    }),
+    () =>
+      fetch(`${BLUESKY_SERVICE}/xrpc/com.atproto.server.createSession`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: handle, password: appPassword }),
+      }),
     async (response) => {
       const json = await response.json();
       if (json.error) throw new Error(json.message || json.error);
       return json;
     },
-    { platform: "bluesky", maxRetries: 2 }
+    { platform: "bluesky", maxRetries: 2 },
   );
   return data;
 }
 
-async function bskyApiRequest<T>(endpoint: string, accessJwt: string, options: RequestInit = {}): Promise<T> {
+async function bskyApiRequest<T>(
+  endpoint: string,
+  accessJwt: string,
+  options: RequestInit = {},
+): Promise<T> {
   const { data } = await withRetry<T>(
-    () => fetch(`${BLUESKY_SERVICE}/xrpc/${endpoint}`, {
-      ...options,
-      headers: {
-        Authorization: `Bearer ${accessJwt}`,
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    }),
+    () =>
+      fetch(`${BLUESKY_SERVICE}/xrpc/${endpoint}`, {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${accessJwt}`,
+          "Content-Type": "application/json",
+          ...options.headers,
+        },
+      }),
     async (response) => {
       const json = await response.json();
       if (json.error) throw new Error(json.message || json.error);
       return json;
     },
-    { platform: "bluesky", maxRetries: 3 }
+    { platform: "bluesky", maxRetries: 3 },
   );
   return data;
 }
@@ -80,16 +89,26 @@ async function bskyApiRequest<T>(endpoint: string, accessJwt: string, options: R
 async function uploadBlob(
   accessJwt: string,
   data: Buffer,
-  mimeType: string
-): Promise<{ blob: { $type: string; ref: { $link: string }; mimeType: string; size: number } }> {
-  const response = await fetch(`${BLUESKY_SERVICE}/xrpc/com.atproto.repo.uploadBlob`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessJwt}`,
-      "Content-Type": mimeType,
+  mimeType: string,
+): Promise<{
+  blob: {
+    $type: string;
+    ref: { $link: string };
+    mimeType: string;
+    size: number;
+  };
+}> {
+  const response = await fetch(
+    `${BLUESKY_SERVICE}/xrpc/com.atproto.repo.uploadBlob`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessJwt}`,
+        "Content-Type": mimeType,
+      },
+      body: data,
     },
-    body: data,
-  });
+  );
 
   if (!response.ok) {
     throw new Error(`Blob upload failed: ${response.status}`);
@@ -140,7 +159,6 @@ function detectFacets(text: string): BskyFacet[] {
   return facets;
 }
 
-
 export const blueskyProvider: SocialMediaProvider = {
   platform: "bluesky",
 
@@ -152,13 +170,13 @@ export const blueskyProvider: SocialMediaProvider = {
     try {
       const session = await createSession(
         credentials.handle,
-        credentials.appPassword
+        credentials.appPassword,
       );
 
       // Get profile
       const profile = await bskyApiRequest<{ data: BskyProfile }>(
         `app.bsky.actor.getProfile?actor=${session.did}`,
-        session.accessJwt
+        session.accessJwt,
       );
 
       return {
@@ -179,7 +197,7 @@ export const blueskyProvider: SocialMediaProvider = {
   async createPost(
     credentials: SocialCredentials,
     content: PostContent,
-    options?: PlatformPostOptions
+    options?: PlatformPostOptions,
   ): Promise<PostResult> {
     if (!credentials.handle || !credentials.appPassword) {
       return {
@@ -192,7 +210,7 @@ export const blueskyProvider: SocialMediaProvider = {
     try {
       const session = await createSession(
         credentials.handle,
-        credentials.appPassword
+        credentials.appPassword,
       );
 
       // Build post record
@@ -212,7 +230,12 @@ export const blueskyProvider: SocialMediaProvider = {
       if (content.media?.length) {
         const images: Array<{
           alt: string;
-          image: { $type: string; ref: { $link: string }; mimeType: string; size: number };
+          image: {
+            $type: string;
+            ref: { $link: string };
+            mimeType: string;
+            size: number;
+          };
         }> = [];
 
         for (const media of content.media.slice(0, 4)) {
@@ -233,7 +256,7 @@ export const blueskyProvider: SocialMediaProvider = {
           const blobResponse = await uploadBlob(
             session.accessJwt,
             imageData,
-            media.mimeType
+            media.mimeType,
           );
 
           images.push({
@@ -264,7 +287,9 @@ export const blueskyProvider: SocialMediaProvider = {
         record.langs = options.bluesky.languages;
       }
 
-      logger.info("[Bluesky] Creating post", { hasMedia: !!content.media?.length });
+      logger.info("[Bluesky] Creating post", {
+        hasMedia: !!content.media?.length,
+      });
 
       const response = await bskyApiRequest<{ uri: string; cid: string }>(
         "com.atproto.repo.createRecord",
@@ -276,7 +301,7 @@ export const blueskyProvider: SocialMediaProvider = {
             collection: "app.bsky.feed.post",
             record,
           }),
-        }
+        },
       );
 
       // Extract rkey from URI for URL
@@ -307,24 +332,20 @@ export const blueskyProvider: SocialMediaProvider = {
     try {
       const session = await createSession(
         credentials.handle,
-        credentials.appPassword
+        credentials.appPassword,
       );
 
       // Extract rkey from URI
       const rkey = postId.split("/").pop();
 
-      await bskyApiRequest(
-        "com.atproto.repo.deleteRecord",
-        session.accessJwt,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            repo: session.did,
-            collection: "app.bsky.feed.post",
-            rkey,
-          }),
-        }
-      );
+      await bskyApiRequest("com.atproto.repo.deleteRecord", session.accessJwt, {
+        method: "POST",
+        body: JSON.stringify({
+          repo: session.did,
+          collection: "app.bsky.feed.post",
+          rkey,
+        }),
+      });
 
       return { success: true };
     } catch (error) {
@@ -337,7 +358,7 @@ export const blueskyProvider: SocialMediaProvider = {
 
   async getPostAnalytics(
     credentials: SocialCredentials,
-    postId: string
+    postId: string,
   ): Promise<PostAnalytics | null> {
     if (!credentials.handle || !credentials.appPassword) {
       return null;
@@ -346,7 +367,7 @@ export const blueskyProvider: SocialMediaProvider = {
     try {
       const session = await createSession(
         credentials.handle,
-        credentials.appPassword
+        credentials.appPassword,
       );
 
       const response = await bskyApiRequest<{
@@ -357,7 +378,7 @@ export const blueskyProvider: SocialMediaProvider = {
         };
       }>(
         `app.bsky.feed.getPostThread?uri=${encodeURIComponent(postId)}`,
-        session.accessJwt
+        session.accessJwt,
       );
 
       return {
@@ -376,7 +397,7 @@ export const blueskyProvider: SocialMediaProvider = {
   },
 
   async getAccountAnalytics(
-    credentials: SocialCredentials
+    credentials: SocialCredentials,
   ): Promise<AccountAnalytics | null> {
     if (!credentials.handle || !credentials.appPassword) {
       return null;
@@ -385,12 +406,12 @@ export const blueskyProvider: SocialMediaProvider = {
     try {
       const session = await createSession(
         credentials.handle,
-        credentials.appPassword
+        credentials.appPassword,
       );
 
       const response = await bskyApiRequest<BskyProfile>(
         `app.bsky.actor.getProfile?actor=${session.did}`,
-        session.accessJwt
+        session.accessJwt,
       );
 
       return {
@@ -415,7 +436,7 @@ export const blueskyProvider: SocialMediaProvider = {
 
     const session = await createSession(
       credentials.handle,
-      credentials.appPassword
+      credentials.appPassword,
     );
 
     let imageData: Buffer;
@@ -433,7 +454,7 @@ export const blueskyProvider: SocialMediaProvider = {
     const blobResponse = await uploadBlob(
       session.accessJwt,
       imageData,
-      media.mimeType
+      media.mimeType,
     );
 
     return {
@@ -445,9 +466,13 @@ export const blueskyProvider: SocialMediaProvider = {
     credentials: SocialCredentials,
     postId: string,
     content: PostContent,
-    options?: PlatformPostOptions
+    options?: PlatformPostOptions,
   ): Promise<PostResult> {
-    return this.createPost(credentials, { ...content, replyToId: postId }, options);
+    return this.createPost(
+      credentials,
+      { ...content, replyToId: postId },
+      options,
+    );
   },
 
   async likePost(credentials: SocialCredentials, postId: string) {
@@ -458,7 +483,7 @@ export const blueskyProvider: SocialMediaProvider = {
     try {
       const session = await createSession(
         credentials.handle,
-        credentials.appPassword
+        credentials.appPassword,
       );
 
       // Get the post to get its CID
@@ -466,25 +491,21 @@ export const blueskyProvider: SocialMediaProvider = {
         thread: { post: { cid: string } };
       }>(
         `app.bsky.feed.getPostThread?uri=${encodeURIComponent(postId)}&depth=0`,
-        session.accessJwt
+        session.accessJwt,
       );
 
-      await bskyApiRequest(
-        "com.atproto.repo.createRecord",
-        session.accessJwt,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            repo: session.did,
-            collection: "app.bsky.feed.like",
-            record: {
-              $type: "app.bsky.feed.like",
-              subject: { uri: postId, cid: postResponse.thread.post.cid },
-              createdAt: new Date().toISOString(),
-            },
-          }),
-        }
-      );
+      await bskyApiRequest("com.atproto.repo.createRecord", session.accessJwt, {
+        method: "POST",
+        body: JSON.stringify({
+          repo: session.did,
+          collection: "app.bsky.feed.like",
+          record: {
+            $type: "app.bsky.feed.like",
+            subject: { uri: postId, cid: postResponse.thread.post.cid },
+            createdAt: new Date().toISOString(),
+          },
+        }),
+      });
 
       return { success: true };
     } catch (error) {
@@ -495,15 +516,22 @@ export const blueskyProvider: SocialMediaProvider = {
     }
   },
 
-  async repost(credentials: SocialCredentials, postId: string): Promise<PostResult> {
+  async repost(
+    credentials: SocialCredentials,
+    postId: string,
+  ): Promise<PostResult> {
     if (!credentials.handle || !credentials.appPassword) {
-      return { platform: "bluesky", success: false, error: "Handle and app password required" };
+      return {
+        platform: "bluesky",
+        success: false,
+        error: "Handle and app password required",
+      };
     }
 
     try {
       const session = await createSession(
         credentials.handle,
-        credentials.appPassword
+        credentials.appPassword,
       );
 
       // Get the post to get its CID
@@ -511,7 +539,7 @@ export const blueskyProvider: SocialMediaProvider = {
         thread: { post: { cid: string } };
       }>(
         `app.bsky.feed.getPostThread?uri=${encodeURIComponent(postId)}&depth=0`,
-        session.accessJwt
+        session.accessJwt,
       );
 
       const response = await bskyApiRequest<{ uri: string; cid: string }>(
@@ -528,7 +556,7 @@ export const blueskyProvider: SocialMediaProvider = {
               createdAt: new Date().toISOString(),
             },
           }),
-        }
+        },
       );
 
       return {
@@ -545,4 +573,3 @@ export const blueskyProvider: SocialMediaProvider = {
     }
   },
 };
-

@@ -8,7 +8,14 @@
 
 import { useState } from "react";
 import { BrandCard, CornerBrackets } from "@/components/brand";
-import { Shield, Link2, MessageSquareX, Plus, Trash2, AlertCircle } from "lucide-react";
+import {
+  Shield,
+  Link2,
+  MessageSquareX,
+  Plus,
+  Trash2,
+  AlertCircle,
+} from "lucide-react";
 import type { CommunityModerationSettings } from "@/db/schemas/org-agents";
 
 interface ModerationTabProps {
@@ -27,35 +34,65 @@ export function ModerationTab({
   isSaving,
 }: ModerationTabProps) {
   // Anti-spam state
-  const [antiSpamEnabled, setAntiSpamEnabled] = useState(settings.antiSpamEnabled ?? true);
-  const [maxMessagesPerMinute, setMaxMessagesPerMinute] = useState(settings.maxMessagesPerMinute ?? 10);
-  const [duplicateThreshold, setDuplicateThreshold] = useState(settings.duplicateThreshold ?? 3);
+  const [antiSpamEnabled, setAntiSpamEnabled] = useState(
+    settings.antiSpamEnabled ?? true,
+  );
+  const [maxMessagesPerMinute, setMaxMessagesPerMinute] = useState(
+    settings.maxMessagesPerMinute ?? 10,
+  );
+  const [duplicateThreshold, setDuplicateThreshold] = useState(
+    settings.duplicateThreshold ?? 3,
+  );
   const [spamAction, setSpamAction] = useState(settings.spamAction ?? "delete");
 
   // Anti-scam state
-  const [antiScamEnabled, setAntiScamEnabled] = useState(settings.antiScamEnabled ?? true);
-  const [blockKnownScamLinks, setBlockKnownScamLinks] = useState(settings.blockKnownScamLinks ?? true);
+  const [antiScamEnabled, setAntiScamEnabled] = useState(
+    settings.antiScamEnabled ?? true,
+  );
+  const [blockKnownScamLinks, setBlockKnownScamLinks] = useState(
+    settings.blockKnownScamLinks ?? true,
+  );
   const [scamAction, setScamAction] = useState(settings.scamAction ?? "delete");
 
   // Link checking state
-  const [linkCheckingEnabled, setLinkCheckingEnabled] = useState(settings.linkCheckingEnabled ?? true);
-  const [allowedDomains, setAllowedDomains] = useState<string[]>(settings.allowedDomains ?? []);
-  const [blockedDomains, setBlockedDomains] = useState<string[]>(settings.blockedDomains ?? []);
+  const [linkCheckingEnabled, setLinkCheckingEnabled] = useState(
+    settings.linkCheckingEnabled ?? true,
+  );
+  const [allowedDomains, setAllowedDomains] = useState<string[]>(
+    settings.allowedDomains ?? [],
+  );
+  const [blockedDomains, setBlockedDomains] = useState<string[]>(
+    settings.blockedDomains ?? [],
+  );
   const [newAllowedDomain, setNewAllowedDomain] = useState("");
   const [newBlockedDomain, setNewBlockedDomain] = useState("");
 
   // Word filter state
-  const [badWordFilterEnabled, setBadWordFilterEnabled] = useState(settings.badWordFilterEnabled ?? false);
+  const [badWordFilterEnabled, setBadWordFilterEnabled] = useState(
+    settings.badWordFilterEnabled ?? false,
+  );
   const [banWords, setBanWords] = useState<string[]>(settings.banWords ?? []);
-  const [filterAction, setFilterAction] = useState(settings.filterAction ?? "delete");
+  const [filterAction, setFilterAction] = useState(
+    settings.filterAction ?? "delete",
+  );
   const [newBanWord, setNewBanWord] = useState("");
 
   // Escalation state
-  const [escalationEnabled, setEscalationEnabled] = useState(settings.escalationEnabled ?? true);
-  const [warnAfterViolations, setWarnAfterViolations] = useState(settings.warnAfterViolations ?? 1);
-  const [timeoutAfterViolations, setTimeoutAfterViolations] = useState(settings.timeoutAfterViolations ?? 3);
-  const [banAfterViolations, setBanAfterViolations] = useState(settings.banAfterViolations ?? 5);
-  const [defaultTimeoutMinutes, setDefaultTimeoutMinutes] = useState(settings.defaultTimeoutMinutes ?? 10);
+  const [escalationEnabled, setEscalationEnabled] = useState(
+    settings.escalationEnabled ?? true,
+  );
+  const [warnAfterViolations, setWarnAfterViolations] = useState(
+    settings.warnAfterViolations ?? 1,
+  );
+  const [timeoutAfterViolations, setTimeoutAfterViolations] = useState(
+    settings.timeoutAfterViolations ?? 3,
+  );
+  const [banAfterViolations, setBanAfterViolations] = useState(
+    settings.banAfterViolations ?? 5,
+  );
+  const [defaultTimeoutMinutes, setDefaultTimeoutMinutes] = useState(
+    settings.defaultTimeoutMinutes ?? 10,
+  );
 
   const handleSave = async () => {
     await onSave({
@@ -135,7 +172,9 @@ export function ModerationTab({
             <SelectInput
               label="Action on Spam"
               value={spamAction}
-              onChange={(v) => setSpamAction(v as CommunityModerationSettings["spamAction"])}
+              onChange={(v) =>
+                setSpamAction(v as CommunityModerationSettings["spamAction"])
+              }
               options={[
                 { value: "warn", label: "Warn" },
                 { value: "delete", label: "Delete Message" },
@@ -161,17 +200,24 @@ export function ModerationTab({
           <div className="space-y-4 mt-4">
             <div className="flex items-center justify-between">
               <div>
-                <label className="text-sm font-medium">Block Known Scam Links</label>
+                <label className="text-sm font-medium">
+                  Block Known Scam Links
+                </label>
                 <p className="text-xs text-muted-foreground">
                   Automatically block links from known scam domains
                 </p>
               </div>
-              <Toggle checked={blockKnownScamLinks} onChange={setBlockKnownScamLinks} />
+              <Toggle
+                checked={blockKnownScamLinks}
+                onChange={setBlockKnownScamLinks}
+              />
             </div>
             <SelectInput
               label="Action on Scam Detection"
               value={scamAction}
-              onChange={(v) => setScamAction(v as CommunityModerationSettings["scamAction"])}
+              onChange={(v) =>
+                setScamAction(v as CommunityModerationSettings["scamAction"])
+              }
               options={[
                 { value: "warn", label: "Warn" },
                 { value: "delete", label: "Delete Message" },
@@ -191,14 +237,19 @@ export function ModerationTab({
             <Link2 className="h-5 w-5 text-blue-500" />
             <h3 className="font-semibold">Link Checking</h3>
           </div>
-          <Toggle checked={linkCheckingEnabled} onChange={setLinkCheckingEnabled} />
+          <Toggle
+            checked={linkCheckingEnabled}
+            onChange={setLinkCheckingEnabled}
+          />
         </div>
 
         {linkCheckingEnabled && (
           <div className="space-y-4 mt-4">
             {/* Allowed Domains */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Allowed Domains (Whitelist)</label>
+              <label className="text-sm font-medium">
+                Allowed Domains (Whitelist)
+              </label>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -223,7 +274,11 @@ export function ModerationTab({
                   >
                     {domain}
                     <button
-                      onClick={() => setAllowedDomains(allowedDomains.filter((d) => d !== domain))}
+                      onClick={() =>
+                        setAllowedDomains(
+                          allowedDomains.filter((d) => d !== domain),
+                        )
+                      }
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>
@@ -234,7 +289,9 @@ export function ModerationTab({
 
             {/* Blocked Domains */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Blocked Domains (Blacklist)</label>
+              <label className="text-sm font-medium">
+                Blocked Domains (Blacklist)
+              </label>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -259,7 +316,11 @@ export function ModerationTab({
                   >
                     {domain}
                     <button
-                      onClick={() => setBlockedDomains(blockedDomains.filter((d) => d !== domain))}
+                      onClick={() =>
+                        setBlockedDomains(
+                          blockedDomains.filter((d) => d !== domain),
+                        )
+                      }
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>
@@ -279,7 +340,10 @@ export function ModerationTab({
             <MessageSquareX className="h-5 w-5 text-yellow-500" />
             <h3 className="font-semibold">Word Filter</h3>
           </div>
-          <Toggle checked={badWordFilterEnabled} onChange={setBadWordFilterEnabled} />
+          <Toggle
+            checked={badWordFilterEnabled}
+            onChange={setBadWordFilterEnabled}
+          />
         </div>
 
         {badWordFilterEnabled && (
@@ -309,7 +373,11 @@ export function ModerationTab({
                     className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-500/10 text-yellow-500 text-xs rounded-lg"
                   >
                     {word}
-                    <button onClick={() => setBanWords(banWords.filter((w) => w !== word))}>
+                    <button
+                      onClick={() =>
+                        setBanWords(banWords.filter((w) => w !== word))
+                      }
+                    >
                       <Trash2 className="h-3 w-3" />
                     </button>
                   </span>
@@ -319,7 +387,11 @@ export function ModerationTab({
             <SelectInput
               label="Action on Match"
               value={filterAction}
-              onChange={(v) => setFilterAction(v as CommunityModerationSettings["filterAction"])}
+              onChange={(v) =>
+                setFilterAction(
+                  v as CommunityModerationSettings["filterAction"],
+                )
+              }
               options={[
                 { value: "delete", label: "Delete Message" },
                 { value: "warn", label: "Warn" },
@@ -469,5 +541,3 @@ function SelectInput({ label, value, onChange, options }: SelectInputProps) {
     </div>
   );
 }
-
-

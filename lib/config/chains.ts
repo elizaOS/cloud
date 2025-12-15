@@ -162,9 +162,10 @@ export const CHAIN_BY_ID: Record<number, Chain> = {
  */
 export function getJejuChain(): Chain {
   const network = process.env.JEJU_NETWORK || "testnet";
-  
+
   if (network === "localnet") return jejuLocalnet;
-  if (network === "mainnet" || process.env.NODE_ENV === "production") return jeju;
+  if (network === "mainnet" || process.env.NODE_ENV === "production")
+    return jeju;
   return jejuTestnet;
 }
 
@@ -179,9 +180,11 @@ export function getChainById(chainId: number): Chain | undefined {
  * Check if a chain ID is a Jeju chain
  */
 export function isJejuChain(chainId: number): boolean {
-  return chainId === jejuLocalnet.id || 
-         chainId === jejuTestnet.id || 
-         chainId === jeju.id;
+  return (
+    chainId === jejuLocalnet.id ||
+    chainId === jejuTestnet.id ||
+    chainId === jeju.id
+  );
 }
 
 // ============================================================================
@@ -201,4 +204,3 @@ export const JEJU_L1_CHAIN_IDS = {
 export function getL1ChainId(jejuChainId: number): number | undefined {
   return JEJU_L1_CHAIN_IDS[jejuChainId as keyof typeof JEJU_L1_CHAIN_IDS];
 }
-

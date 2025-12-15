@@ -23,14 +23,68 @@ const MAIN_DOMAINS = [
 
 // Reserved subdomains that cannot be used for apps
 const RESERVED_SUBDOMAINS = new Set([
-  "www", "api", "admin", "dashboard", "app", "apps", "auth", "login",
-  "signup", "register", "account", "settings", "billing", "docs", "help",
-  "support", "status", "cdn", "static", "assets", "media", "images", "files",
-  "mail", "email", "smtp", "ftp", "ssh", "git", "svn", "blog", "news",
-  "forum", "community", "store", "shop", "cart", "checkout", "pay", "payments",
-  "webhook", "webhooks", "ws", "wss", "socket", "graphql", "rest",
-  "v1", "v2", "v3", "staging", "dev", "test", "demo", "preview",
-  "beta", "alpha", "internal", "private", "public", "sandbox", "debug",
+  "www",
+  "api",
+  "admin",
+  "dashboard",
+  "app",
+  "apps",
+  "auth",
+  "login",
+  "signup",
+  "register",
+  "account",
+  "settings",
+  "billing",
+  "docs",
+  "help",
+  "support",
+  "status",
+  "cdn",
+  "static",
+  "assets",
+  "media",
+  "images",
+  "files",
+  "mail",
+  "email",
+  "smtp",
+  "ftp",
+  "ssh",
+  "git",
+  "svn",
+  "blog",
+  "news",
+  "forum",
+  "community",
+  "store",
+  "shop",
+  "cart",
+  "checkout",
+  "pay",
+  "payments",
+  "webhook",
+  "webhooks",
+  "ws",
+  "wss",
+  "socket",
+  "graphql",
+  "rest",
+  "v1",
+  "v2",
+  "v3",
+  "staging",
+  "dev",
+  "test",
+  "demo",
+  "preview",
+  "beta",
+  "alpha",
+  "internal",
+  "private",
+  "public",
+  "sandbox",
+  "debug",
 ]);
 
 // Paths that don't require authentication
@@ -105,7 +159,7 @@ export async function proxy(request: NextRequest) {
     // Check if this is an app subdomain request (e.g., myapp.apps.elizacloud.ai)
     if (hostname.endsWith(`.${APP_DOMAIN}`)) {
       const subdomain = hostname.replace(`.${APP_DOMAIN}`, "");
-      
+
       // Check for reserved subdomains
       if (!RESERVED_SUBDOMAINS.has(subdomain.toLowerCase())) {
         // Rewrite to app serving route
@@ -116,7 +170,10 @@ export async function proxy(request: NextRequest) {
 
     // Check if this is a custom domain (not main domain or app domain)
     const isMainDomain = MAIN_DOMAINS.some(
-      (d) => hostname === d || hostname.endsWith(`.${d}`) || hostname.includes("localhost")
+      (d) =>
+        hostname === d ||
+        hostname.endsWith(`.${d}`) ||
+        hostname.includes("localhost"),
     );
 
     if (!isMainDomain && !hostname.includes(APP_DOMAIN)) {
@@ -173,7 +230,11 @@ export async function proxy(request: NextRequest) {
     const appToken = request.headers.get("X-App-Token");
 
     // If API key or app token is provided, allow through (will be validated in the route handler)
-    if (apiKey || appToken || (bearerToken && bearerToken.startsWith("eliza_"))) {
+    if (
+      apiKey ||
+      appToken ||
+      (bearerToken && bearerToken.startsWith("eliza_"))
+    ) {
       return NextResponse.next();
     }
 

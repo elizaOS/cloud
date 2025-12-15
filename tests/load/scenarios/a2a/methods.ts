@@ -1,14 +1,28 @@
 import { check, group, sleep } from "k6";
 import { httpGet, httpPost } from "../../helpers/http";
-import { a2aMethodCalls, a2aMethodCallTime, a2aMethodErrors } from "../../helpers/metrics";
+import {
+  a2aMethodCalls,
+  a2aMethodCallTime,
+  a2aMethodErrors,
+} from "../../helpers/metrics";
 
-interface A2AResult { result?: { id?: string; status?: string; history?: unknown[] }; error?: { code: number; message: string } }
+interface A2AResult {
+  result?: { id?: string; status?: string; history?: unknown[] };
+  error?: { code: number; message: string };
+}
 
-function callA2A(method: string, params: Record<string, unknown> = {}): A2AResult | null {
+function callA2A(
+  method: string,
+  params: Record<string, unknown> = {},
+): A2AResult | null {
   const start = Date.now();
-  const body = httpPost<A2AResult>("/api/a2a", { jsonrpc: "2.0", method, params, id: Date.now() }, {
-    tags: { endpoint: "a2a", method },
-  });
+  const body = httpPost<A2AResult>(
+    "/api/a2a",
+    { jsonrpc: "2.0", method, params, id: Date.now() },
+    {
+      tags: { endpoint: "a2a", method },
+    },
+  );
   a2aMethodCallTime.add(Date.now() - start);
   a2aMethodCalls.add(1);
   if (!body) {
@@ -23,7 +37,9 @@ function callA2A(method: string, params: Record<string, unknown> = {}): A2AResul
 }
 
 export function sendMessage(message: string): string | null {
-  const r = callA2A("message/send", { message: { role: "user", parts: [{ type: "text", text: message }] } });
+  const r = callA2A("message/send", {
+    message: { role: "user", parts: [{ type: "text", text: message }] },
+  });
   return r?.result?.id ?? null;
 }
 
@@ -38,7 +54,10 @@ export function cancelTask(taskId: string): boolean {
 }
 
 export function getAgentCard(): Record<string, unknown> | null {
-  return httpGet<Record<string, unknown>>("/.well-known/agent-card.json", { public: true, tags: { endpoint: "a2a" } });
+  return httpGet<Record<string, unknown>>("/.well-known/agent-card.json", {
+    public: true,
+    tags: { endpoint: "a2a" },
+  });
 }
 
 export function checkBalance(): string | null {
@@ -56,7 +75,10 @@ export function getUserInfo(): string | null {
 export function a2aAgentCardCheck() {
   group("A2A Agent Card", () => {
     const card = getAgentCard();
-    check(null, { "has name": () => card?.name !== undefined, "has skills": () => Array.isArray(card?.skills) });
+    check(null, {
+      "has name": () => card?.name !== undefined,
+      "has skills": () => Array.isArray(card?.skills),
+    });
   });
   sleep(0.5);
 }

@@ -10,7 +10,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { discordEventRouter } from "@/lib/services/discord-gateway";
-import type { RoutableEvent, DiscordEventType, DiscordMessage } from "@/lib/services/discord-gateway";
+import type {
+  RoutableEvent,
+  DiscordEventType,
+  DiscordMessage,
+} from "@/lib/services/discord-gateway";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -61,10 +65,12 @@ export async function POST(request: NextRequest) {
   // Validate payload
   const parsed = EventPayloadSchema.safeParse(body);
   if (!parsed.success) {
-    logger.warn("[Discord Events] Invalid payload", { errors: parsed.error.issues });
+    logger.warn("[Discord Events] Invalid payload", {
+      errors: parsed.error.issues,
+    });
     return NextResponse.json(
       { error: "Invalid payload", details: parsed.error.issues },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -93,12 +99,16 @@ export async function POST(request: NextRequest) {
   };
 
   // Check for social feed reply before routing
-  if (routableEvent.eventType === "MESSAGE_CREATE" && routableEvent.data.message?.referenced_message) {
+  if (
+    routableEvent.eventType === "MESSAGE_CREATE" &&
+    routableEvent.data.message?.referenced_message
+  ) {
     const message = routableEvent.data.message;
     const referencedMessage = message.referenced_message;
 
     if (referencedMessage && message.content) {
-      const { replyRouterService } = await import("@/lib/services/social-feed/reply-router");
+      const { replyRouterService } =
+        await import("@/lib/services/social-feed/reply-router");
 
       const replyResult = await replyRouterService.processIncomingReply({
         platform: "discord",
@@ -108,7 +118,10 @@ export async function POST(request: NextRequest) {
         replyToMessageId: referencedMessage.id,
         userId: message.author.id,
         username: message.author.username,
-        displayName: message.member?.nick ?? message.author.global_name ?? message.author.username,
+        displayName:
+          message.member?.nick ??
+          message.author.global_name ??
+          message.author.username,
         content: message.content,
       });
 
@@ -176,7 +189,10 @@ function extractMessage(payload: EventPayload): DiscordMessage | undefined {
     embeds: (data.embeds as DiscordMessage["embeds"]) ?? [],
     pinned: data.pinned as boolean,
     type: data.type as number,
-    referenced_message: data.referenced_message as DiscordMessage | null | undefined,
+    referenced_message: data.referenced_message as
+      | DiscordMessage
+      | null
+      | undefined,
   };
 }
 

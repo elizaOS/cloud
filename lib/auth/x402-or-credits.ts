@@ -30,19 +30,22 @@ export function getX402Price(model: string): string {
   if (m.includes("gpt-5.2-pro")) return "$0.20";
 
   // Premium ($0.10)
-  if (m.includes("claude-opus-4.5") || m.includes("claude-4-opus")) return "$0.10";
+  if (m.includes("claude-opus-4.5") || m.includes("claude-4-opus"))
+    return "$0.10";
   if (m.includes("gpt-5.2") && !m.includes("pro")) return "$0.10";
 
   // Standard ($0.05)
   if (m.includes("gpt-4o") && !m.includes("mini")) return "$0.05";
-  if (m.includes("claude-sonnet-4") || m.includes("claude-3-5-sonnet")) return "$0.05";
+  if (m.includes("claude-sonnet-4") || m.includes("claude-3-5-sonnet"))
+    return "$0.05";
   if (m.includes("gemini") && m.includes("pro")) return "$0.05";
   if (m.includes("grok-4.1") && !m.includes("fast")) return "$0.05";
   if (m.includes("command-r-plus") || m.includes("command-r+")) return "$0.05";
 
   // Budget ($0.02)
   if (m.includes("gpt-4o-mini") || m.includes("gpt-5-mini")) return "$0.02";
-  if (m.includes("claude-haiku") || m.includes("claude-3-haiku")) return "$0.02";
+  if (m.includes("claude-haiku") || m.includes("claude-3-haiku"))
+    return "$0.02";
   if (m.includes("gemini") && !m.includes("pro")) return "$0.02";
   if (m.includes("grok") && m.includes("fast")) return "$0.02";
   if (m.includes("command-r") && !m.includes("plus")) return "$0.02";

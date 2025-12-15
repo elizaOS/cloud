@@ -3,14 +3,17 @@
  * Intercepts HTTP 402 responses and handles x402 payment flow
  */
 
-import { facilitatorService, type PaymentRequirement } from '../services/facilitator';
-import type { Address } from 'viem';
+import {
+  facilitatorService,
+  type PaymentRequirement,
+} from "../services/facilitator";
+import type { Address } from "viem";
 
 export interface X402PaymentResponse {
   status: 402;
   headers: {
-    'X-Payment-Requirement': string;
-    'WWW-Authenticate': string;
+    "X-Payment-Requirement": string;
+    "WWW-Authenticate": string;
   };
   body: {
     error: {
@@ -33,18 +36,23 @@ export interface X402HandlerOptions {
  * Check if a response is an x402 payment requirement
  */
 export function isX402Response(response: Response): boolean {
-  return response.status === 402 && response.headers.get('X-Payment-Requirement') !== null;
+  return (
+    response.status === 402 &&
+    response.headers.get("X-Payment-Requirement") !== null
+  );
 }
 
 /**
  * Parse x402 payment requirement from response headers
  */
-export function parsePaymentRequirement(response: Response): PaymentRequirement | null {
-  const requirementHeader = response.headers.get('X-Payment-Requirement');
+export function parsePaymentRequirement(
+  response: Response,
+): PaymentRequirement | null {
+  const requirementHeader = response.headers.get("X-Payment-Requirement");
   if (!requirementHeader) return null;
 
   try {
-    const decoded = Buffer.from(requirementHeader, 'base64').toString('utf-8');
+    const decoded = Buffer.from(requirementHeader, "base64").toString("utf-8");
     return JSON.parse(decoded) as PaymentRequirement;
   } catch {
     return null;
@@ -57,7 +65,7 @@ export function parsePaymentRequirement(response: Response): PaymentRequirement 
  */
 export async function handleX402Payment(
   requirement: PaymentRequirement,
-  options?: X402HandlerOptions
+  options?: X402HandlerOptions,
 ): Promise<{ paymentHeader: string; payer: Address } | null> {
   // This would typically be called from client-side with wallet
   // For server-side, we can only verify, not create payments
@@ -70,7 +78,7 @@ export async function handleX402Payment(
  */
 export async function verifyX402Payment(
   paymentHeader: string,
-  requirement: PaymentRequirement
+  requirement: PaymentRequirement,
 ): Promise<{ isValid: boolean; payer: Address | null; error: string | null }> {
   const result = await facilitatorService.verify(paymentHeader, requirement);
   return {
@@ -85,7 +93,7 @@ export async function verifyX402Payment(
  */
 export async function settleX402Payment(
   paymentHeader: string,
-  requirement: PaymentRequirement
+  requirement: PaymentRequirement,
 ): Promise<{ success: boolean; txHash: string | null; error: string | null }> {
   return facilitatorService.settle(paymentHeader, requirement);
 }

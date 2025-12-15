@@ -53,10 +53,7 @@ export async function GET(request: NextRequest) {
   const corsResult = await validateOrigin(request);
 
   // Rate limiting
-  const rateLimitResult = await checkAppRateLimit(
-    request,
-    APP_RATE_LIMITS,
-  );
+  const rateLimitResult = await checkAppRateLimit(request, APP_RATE_LIMITS);
   if (!rateLimitResult.allowed) {
     return createRateLimitErrorResponse(
       rateLimitResult,
@@ -79,7 +76,7 @@ export async function GET(request: NextRequest) {
     const result = await myAgentsService.searchCharacters({
       userId: user.id,
       organizationId: user.organization_id,
-      filters: { 
+      filters: {
         search,
         source: "app", // Only show app-created agents
       },
@@ -180,10 +177,7 @@ export async function POST(request: NextRequest) {
   const corsResult = await validateOrigin(request);
 
   // Rate limiting (stricter for write operations)
-  const rateLimitResult = await checkAppRateLimit(
-    request,
-    APP_WRITE_LIMITS,
-  );
+  const rateLimitResult = await checkAppRateLimit(request, APP_WRITE_LIMITS);
   if (!rateLimitResult.allowed) {
     return createRateLimitErrorResponse(
       rateLimitResult,

@@ -173,7 +173,10 @@ describe("Idempotency Handling", () => {
     const processedPayments = new Map<string, Promise<{ id: string }>>();
     const paymentId = "pi_concurrent_test";
 
-    const simulateProcess = async (): Promise<{ id: string; isNew: boolean }> => {
+    const simulateProcess = async (): Promise<{
+      id: string;
+      isNew: boolean;
+    }> => {
       // Simulate race condition check
       if (processedPayments.has(paymentId)) {
         const existing = await processedPayments.get(paymentId)!;
@@ -346,7 +349,9 @@ describe("Transaction Types", () => {
 
     // Credits add to balance
     typeCategories.adds.forEach((type) => {
-      expect(["credit", "refund", "bonus", "adjustment"].includes(type)).toBe(true);
+      expect(["credit", "refund", "bonus", "adjustment"].includes(type)).toBe(
+        true,
+      );
     });
 
     // Debits subtract from balance
@@ -433,10 +438,38 @@ describe("Credit Packs", () => {
   }
 
   const creditPacks: CreditPack[] = [
-    { id: "pack_starter", name: "Starter", amount: 10, price: 10, bonus_percentage: 0, is_active: true },
-    { id: "pack_basic", name: "Basic", amount: 50, price: 45, bonus_percentage: 10, is_active: true },
-    { id: "pack_pro", name: "Pro", amount: 100, price: 80, bonus_percentage: 25, is_active: true },
-    { id: "pack_enterprise", name: "Enterprise", amount: 500, price: 350, bonus_percentage: 43, is_active: true },
+    {
+      id: "pack_starter",
+      name: "Starter",
+      amount: 10,
+      price: 10,
+      bonus_percentage: 0,
+      is_active: true,
+    },
+    {
+      id: "pack_basic",
+      name: "Basic",
+      amount: 50,
+      price: 45,
+      bonus_percentage: 10,
+      is_active: true,
+    },
+    {
+      id: "pack_pro",
+      name: "Pro",
+      amount: 100,
+      price: 80,
+      bonus_percentage: 25,
+      is_active: true,
+    },
+    {
+      id: "pack_enterprise",
+      name: "Enterprise",
+      amount: 500,
+      price: 350,
+      bonus_percentage: 43,
+      is_active: true,
+    },
   ];
 
   it("should calculate total credits with bonus", () => {
@@ -562,7 +595,7 @@ describe("Token Consumption Tracking", () => {
 
     const totalTokens = transactions.reduce(
       (sum, t) => sum + t.tokens_consumed,
-      0
+      0,
     );
 
     expect(totalTokens).toBe(3500);

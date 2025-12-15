@@ -22,10 +22,46 @@ export const dynamic = "force-dynamic";
 
 interface DashboardData {
   user: { name: string };
-  stats: { totalGenerations: number; apiCalls24h: number; imageGenerations: number; videoGenerations: number };
-  onboarding: { hasAgents: boolean; hasApiKey: boolean; hasChatHistory: boolean };
-  agents: Array<{ id: string; name: string; bio: string | null; avatarUrl: string | null; category: string | null; isPublic: boolean; stats?: { roomCount: number; messageCount: number; deploymentStatus: string; lastActiveAt: Date | null } }>;
-  containers: Array<{ id: string; name: string; description: string | null; status: string; ecs_service_arn: string | null; load_balancer_url: string | null; port: number | null; desired_count: number | null; cpu: number | null; memory: number | null; last_deployed_at: Date | null; created_at: Date; error_message: string | null }>;
+  stats: {
+    totalGenerations: number;
+    apiCalls24h: number;
+    imageGenerations: number;
+    videoGenerations: number;
+  };
+  onboarding: {
+    hasAgents: boolean;
+    hasApiKey: boolean;
+    hasChatHistory: boolean;
+  };
+  agents: Array<{
+    id: string;
+    name: string;
+    bio: string | null;
+    avatarUrl: string | null;
+    category: string | null;
+    isPublic: boolean;
+    stats?: {
+      roomCount: number;
+      messageCount: number;
+      deploymentStatus: string;
+      lastActiveAt: Date | null;
+    };
+  }>;
+  containers: Array<{
+    id: string;
+    name: string;
+    description: string | null;
+    status: string;
+    ecs_service_arn: string | null;
+    load_balancer_url: string | null;
+    port: number | null;
+    desired_count: number | null;
+    cpu: number | null;
+    memory: number | null;
+    last_deployed_at: Date | null;
+    created_at: Date;
+    error_message: string | null;
+  }>;
 }
 
 export async function GET() {
@@ -62,11 +98,22 @@ export async function GET() {
       const apiCalls24h = usageStats.totalRequests;
 
       const characterIds = userCharacters.map((c) => c.id);
-      const agentStatsMap = new Map<string, { roomCount: number; messageCount: number; deploymentStatus: string; lastActiveAt: Date | null }>();
+      const agentStatsMap = new Map<
+        string,
+        {
+          roomCount: number;
+          messageCount: number;
+          deploymentStatus: string;
+          lastActiveAt: Date | null;
+        }
+      >();
 
       if (characterIds.length > 0) {
         try {
-          const statsMap = await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(characterIds);
+          const statsMap =
+            await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(
+              characterIds,
+            );
           statsMap.forEach((stats, id) => {
             agentStatsMap.set(id, {
               roomCount: stats.roomCount,
@@ -82,10 +129,18 @@ export async function GET() {
 
       return {
         user: { name: user.name || "User" },
-        stats: { totalGenerations, apiCalls24h, imageGenerations, videoGenerations },
+        stats: {
+          totalGenerations,
+          apiCalls24h,
+          imageGenerations,
+          videoGenerations,
+        },
         onboarding: {
           hasAgents: userCharacters.length > 0,
-          hasApiKey: apiKeys.some((key) => key.name !== "Default API Key" || (key.usage_count ?? 0) > 0),
+          hasApiKey: apiKeys.some(
+            (key) =>
+              key.name !== "Default API Key" || (key.usage_count ?? 0) > 0,
+          ),
           hasChatHistory: chatRoomCount > 0,
         },
         agents: userCharacters.map((c) => ({
@@ -113,11 +168,14 @@ export async function GET() {
           error_message: c.error_message,
         })),
       };
-    }
+    },
   );
 
   if (!data) {
-    return NextResponse.json({ error: "Failed to load dashboard" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to load dashboard" },
+      { status: 500 },
+    );
   }
 
   // Update user name from auth (not cached)

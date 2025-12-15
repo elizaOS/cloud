@@ -60,16 +60,22 @@ export const mediaUploads = pgTable(
   },
   (table) => ({
     organization_idx: index("media_uploads_organization_idx").on(
-      table.organization_id
+      table.organization_id,
     ),
     user_idx: index("media_uploads_user_idx").on(table.user_id),
     org_user_idx: index("media_uploads_org_user_idx").on(
       table.organization_id,
-      table.user_id
+      table.user_id,
     ),
     type_idx: index("media_uploads_type_idx").on(table.type),
     created_at_idx: index("media_uploads_created_at_idx").on(table.created_at),
-  })
+    // Gallery query optimization: covers WHERE org_id AND user_id ORDER BY created_at
+    gallery_query_idx: index("idx_media_uploads_gallery_query").on(
+      table.organization_id,
+      table.user_id,
+      table.created_at,
+    ),
+  }),
 );
 
 export type MediaUpload = InferSelectModel<typeof mediaUploads>;

@@ -1,6 +1,6 @@
 /**
  * Tests for Content Moderation Service
- * 
+ *
  * Tests cover:
  * - Pre-filtering logic (size, format)
  * - Exponential backoff calculation
@@ -8,7 +8,7 @@
  * - Severity calculation
  * - API response handling
  * - Strike system
- * 
+ *
  * Note: We mock the OpenAI API to test various moderation scenarios
  * without using real problematic content.
  */
@@ -27,7 +27,9 @@ const mockDb = {
     },
   },
   insert: mock(() => ({ values: mock(() => Promise.resolve()) })),
-  update: mock(() => ({ set: mock(() => ({ where: mock(() => Promise.resolve()) })) })),
+  update: mock(() => ({
+    set: mock(() => ({ where: mock(() => Promise.resolve()) })),
+  })),
   select: mock(() => ({
     from: mock(() => ({
       groupBy: mock(() => ({
@@ -48,7 +50,12 @@ const mockDb = {
 
 mock.module("@/db", () => ({ db: mockDb }));
 mock.module("@/db/schemas/content-moderation", () => ({
-  contentModerationItems: { sourceTable: {}, sourceId: {}, status: {}, contentType: {} },
+  contentModerationItems: {
+    sourceTable: {},
+    sourceId: {},
+    status: {},
+    contentType: {},
+  },
   userModerationStrikes: { userId: {}, createdAt: {}, severity: {} },
 }));
 mock.module("@/db/schemas/users", () => ({ users: {} }));
@@ -75,7 +82,11 @@ describe("Content Moderation - Helper Functions", () => {
       skipMimeTypes: ["image/x-icon", "image/svg+xml"],
     };
 
-    function shouldSkipImage(sizeBytes: number, mimeType?: string, url?: string): boolean {
+    function shouldSkipImage(
+      sizeBytes: number,
+      mimeType?: string,
+      url?: string,
+    ): boolean {
       if (sizeBytes < FILTER.minImageSizeBytes) return true;
       if (mimeType && FILTER.skipMimeTypes.includes(mimeType)) return true;
       if (url) {
@@ -94,18 +105,24 @@ describe("Content Moderation - Helper Functions", () => {
 
     it("skips icon files", () => {
       expect(shouldSkipImage(50000, "image/x-icon")).toBe(true);
-      expect(shouldSkipImage(50000, undefined, "https://example.com/favicon.ico")).toBe(true);
+      expect(
+        shouldSkipImage(50000, undefined, "https://example.com/favicon.ico"),
+      ).toBe(true);
     });
 
     it("skips SVG files", () => {
       expect(shouldSkipImage(50000, "image/svg+xml")).toBe(true);
-      expect(shouldSkipImage(50000, undefined, "https://example.com/logo.svg")).toBe(true);
+      expect(
+        shouldSkipImage(50000, undefined, "https://example.com/logo.svg"),
+      ).toBe(true);
     });
 
     it("does not skip valid images", () => {
       expect(shouldSkipImage(50000, "image/jpeg")).toBe(false);
       expect(shouldSkipImage(50000, "image/png")).toBe(false);
-      expect(shouldSkipImage(50000, undefined, "https://example.com/photo.jpg")).toBe(false);
+      expect(
+        shouldSkipImage(50000, undefined, "https://example.com/photo.jpg"),
+      ).toBe(false);
     });
   });
 
@@ -119,7 +136,7 @@ describe("Content Moderation - Helper Functions", () => {
     function calculateBackoff(attempts: number): number {
       const delay = Math.min(
         BACKOFF.baseDelayMs * Math.pow(2, attempts),
-        BACKOFF.maxDelayMs
+        BACKOFF.maxDelayMs,
       );
       // For testing, we remove jitter to get predictable results
       return delay;
@@ -181,13 +198,17 @@ describe("Content Moderation - Helper Functions", () => {
 
   describe("maxSeverity", () => {
     type Severity = "low" | "medium" | "high" | "critical";
-    interface Flag { severity: Severity }
+    interface Flag {
+      severity: Severity;
+    }
 
     function maxSeverity(flags: Flag[]): Severity {
       const order: Severity[] = ["low", "medium", "high", "critical"];
-      return flags.reduce<Severity>((max, f) => 
-        order.indexOf(f.severity) > order.indexOf(max) ? f.severity : max
-      , "low");
+      return flags.reduce<Severity>(
+        (max, f) =>
+          order.indexOf(f.severity) > order.indexOf(max) ? f.severity : max,
+        "low",
+      );
     }
 
     it("returns low for empty flags", () => {
@@ -202,21 +223,32 @@ describe("Content Moderation - Helper Functions", () => {
     });
 
     it("handles multiple flags correctly", () => {
-      expect(maxSeverity([{ severity: "low" }, { severity: "medium" }])).toBe("medium");
-      expect(maxSeverity([{ severity: "high" }, { severity: "low" }])).toBe("high");
-      expect(maxSeverity([{ severity: "medium" }, { severity: "critical" }, { severity: "low" }])).toBe("critical");
+      expect(maxSeverity([{ severity: "low" }, { severity: "medium" }])).toBe(
+        "medium",
+      );
+      expect(maxSeverity([{ severity: "high" }, { severity: "low" }])).toBe(
+        "high",
+      );
+      expect(
+        maxSeverity([
+          { severity: "medium" },
+          { severity: "critical" },
+          { severity: "low" },
+        ]),
+      ).toBe("critical");
     });
   });
 
   describe("Threshold Configuration", () => {
-    const THRESHOLDS: Record<string, { threshold: number; severity: string }> = {
-      "sexual/minors": { threshold: 0.1, severity: "critical" },
-      "self-harm/instructions": { threshold: 0.3, severity: "high" },
-      "self-harm/intent": { threshold: 0.4, severity: "high" },
-      "self-harm": { threshold: 0.5, severity: "medium" },
-      "violence/graphic": { threshold: 0.7, severity: "medium" },
-      "illicit/violent": { threshold: 0.5, severity: "high" },
-    };
+    const THRESHOLDS: Record<string, { threshold: number; severity: string }> =
+      {
+        "sexual/minors": { threshold: 0.1, severity: "critical" },
+        "self-harm/instructions": { threshold: 0.3, severity: "high" },
+        "self-harm/intent": { threshold: 0.4, severity: "high" },
+        "self-harm": { threshold: 0.5, severity: "medium" },
+        "violence/graphic": { threshold: 0.7, severity: "medium" },
+        "illicit/violent": { threshold: 0.5, severity: "high" },
+      };
 
     it("has very low threshold for CSAM (0.1)", () => {
       expect(THRESHOLDS["sexual/minors"].threshold).toBe(0.1);
@@ -269,56 +301,64 @@ describe("Content Moderation - API Response Handling", () => {
   // Test scenarios for OpenAI moderation responses
   const mockResponses = {
     clean: {
-      results: [{
-        flagged: false,
-        categories: {},
-        category_scores: {
-          "sexual": 0.001,
-          "sexual/minors": 0.0001,
-          "self-harm": 0.002,
-          "self-harm/intent": 0.001,
-          "self-harm/instructions": 0.001,
-          "violence": 0.01,
-          "violence/graphic": 0.005,
+      results: [
+        {
+          flagged: false,
+          categories: {},
+          category_scores: {
+            sexual: 0.001,
+            "sexual/minors": 0.0001,
+            "self-harm": 0.002,
+            "self-harm/intent": 0.001,
+            "self-harm/instructions": 0.001,
+            violence: 0.01,
+            "violence/graphic": 0.005,
+          },
         },
-      }],
+      ],
     },
     csamFlagged: {
-      results: [{
-        flagged: true,
-        categories: { "sexual/minors": true },
-        category_scores: {
-          "sexual": 0.3,
-          "sexual/minors": 0.85, // High confidence CSAM
-          "self-harm": 0.002,
-          "violence": 0.01,
+      results: [
+        {
+          flagged: true,
+          categories: { "sexual/minors": true },
+          category_scores: {
+            sexual: 0.3,
+            "sexual/minors": 0.85, // High confidence CSAM
+            "self-harm": 0.002,
+            violence: 0.01,
+          },
         },
-      }],
+      ],
     },
     selfHarmFlagged: {
-      results: [{
-        flagged: true,
-        categories: { "self-harm/instructions": true },
-        category_scores: {
-          "sexual": 0.001,
-          "self-harm": 0.6,
-          "self-harm/intent": 0.5,
-          "self-harm/instructions": 0.7,
-          "violence": 0.01,
+      results: [
+        {
+          flagged: true,
+          categories: { "self-harm/instructions": true },
+          category_scores: {
+            sexual: 0.001,
+            "self-harm": 0.6,
+            "self-harm/intent": 0.5,
+            "self-harm/instructions": 0.7,
+            violence: 0.01,
+          },
         },
-      }],
+      ],
     },
     violenceMedium: {
-      results: [{
-        flagged: true,
-        categories: { "violence/graphic": true },
-        category_scores: {
-          "sexual": 0.001,
-          "self-harm": 0.01,
-          "violence": 0.5,
-          "violence/graphic": 0.75,
+      results: [
+        {
+          flagged: true,
+          categories: { "violence/graphic": true },
+          category_scores: {
+            sexual: 0.001,
+            "self-harm": 0.01,
+            violence: 0.5,
+            "violence/graphic": 0.75,
+          },
         },
-      }],
+      ],
     },
     malformed: {
       // Missing results
@@ -338,7 +378,8 @@ describe("Content Moderation - API Response Handling", () => {
       };
 
       const flagged = Object.entries(THRESHOLDS).some(
-        ([cat, threshold]) => (scores[cat as keyof typeof scores] ?? 0) >= threshold
+        ([cat, threshold]) =>
+          (scores[cat as keyof typeof scores] ?? 0) >= threshold,
       );
 
       expect(flagged).toBe(false);
@@ -349,14 +390,15 @@ describe("Content Moderation - API Response Handling", () => {
     it("should flag sexual/minors above 0.1 threshold", () => {
       const scores = mockResponses.csamFlagged.results[0].category_scores;
       const threshold = 0.1;
-      
+
       expect(scores["sexual/minors"]).toBeGreaterThan(threshold);
     });
 
     it("should classify as critical severity", () => {
-      const score = mockResponses.csamFlagged.results[0].category_scores["sexual/minors"];
+      const score =
+        mockResponses.csamFlagged.results[0].category_scores["sexual/minors"];
       const threshold = 0.1;
-      
+
       if (score >= threshold) {
         // Should map to critical
         expect("critical").toBe("critical");
@@ -367,7 +409,7 @@ describe("Content Moderation - API Response Handling", () => {
   describe("Self-harm detection", () => {
     it("should flag self-harm/instructions above 0.3 threshold", () => {
       const scores = mockResponses.selfHarmFlagged.results[0].category_scores;
-      
+
       expect(scores["self-harm/instructions"]).toBeGreaterThanOrEqual(0.3);
     });
 
@@ -380,7 +422,7 @@ describe("Content Moderation - API Response Handling", () => {
   describe("Violence detection", () => {
     it("should flag violence/graphic above 0.7 threshold", () => {
       const scores = mockResponses.violenceMedium.results[0].category_scores;
-      
+
       expect(scores["violence/graphic"]).toBeGreaterThanOrEqual(0.7);
     });
 
@@ -394,13 +436,13 @@ describe("Content Moderation - API Response Handling", () => {
     it("should handle malformed responses", () => {
       const response = mockResponses.malformed;
       const hasResults = response.results?.[0]?.category_scores;
-      
+
       expect(hasResults).toBeUndefined();
     });
 
     it("should handle rate limiting", () => {
       const response = mockResponses.rateLimited;
-      
+
       expect(response.error).toBe("rate_limited");
     });
   });
@@ -409,7 +451,8 @@ describe("Content Moderation - API Response Handling", () => {
 describe("Content Moderation - Hash Caching", () => {
   it("generates consistent hashes for same content", () => {
     const { createHash } = require("node:crypto");
-    const hash = (data: string) => createHash("sha256").update(data).digest("hex");
+    const hash = (data: string) =>
+      createHash("sha256").update(data).digest("hex");
 
     const content = "test content";
     const hash1 = hash(content);
@@ -420,7 +463,8 @@ describe("Content Moderation - Hash Caching", () => {
 
   it("generates different hashes for different content", () => {
     const { createHash } = require("node:crypto");
-    const hash = (data: string) => createHash("sha256").update(data).digest("hex");
+    const hash = (data: string) =>
+      createHash("sha256").update(data).digest("hex");
 
     const hash1 = hash("content A");
     const hash2 = hash("content B");
@@ -430,7 +474,10 @@ describe("Content Moderation - Hash Caching", () => {
 });
 
 describe("Content Moderation - Risk Level Calculation", () => {
-  function calculateRiskLevel(totalStrikes: number, criticalStrikes: number): string {
+  function calculateRiskLevel(
+    totalStrikes: number,
+    criticalStrikes: number,
+  ): string {
     if (criticalStrikes > 0) return "critical";
     if (totalStrikes >= 5) return "high";
     if (totalStrikes >= 2) return "medium";
@@ -463,14 +510,14 @@ describe("Content Moderation - Input Validation", () => {
     const validTypes = ["image", "text", "agent", "domain", "file"];
 
     it("accepts valid content types", () => {
-      validTypes.forEach(type => {
+      validTypes.forEach((type) => {
         expect(validTypes.includes(type)).toBe(true);
       });
     });
 
     it("rejects invalid content types", () => {
       const invalidTypes = ["video", "audio", "unknown"];
-      invalidTypes.forEach(type => {
+      invalidTypes.forEach((type) => {
         expect(validTypes.includes(type)).toBe(false);
       });
     });
@@ -488,14 +535,19 @@ describe("Content Moderation - Input Validation", () => {
     });
 
     it("validates mime types", () => {
-      const validMimeTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+      const validMimeTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
       const invalidMimeTypes = ["video/mp4", "audio/mp3", "text/plain"];
 
-      validMimeTypes.forEach(mime => {
+      validMimeTypes.forEach((mime) => {
         expect(mime.startsWith("image/")).toBe(true);
       });
 
-      invalidMimeTypes.forEach(mime => {
+      invalidMimeTypes.forEach((mime) => {
         expect(mime.startsWith("image/")).toBe(false);
       });
     });
@@ -503,7 +555,10 @@ describe("Content Moderation - Input Validation", () => {
 });
 
 describe("Content Moderation - Action Determination", () => {
-  function determineAction(severity: string): { status: string; action: string } {
+  function determineAction(severity: string): {
+    status: string;
+    action: string;
+  } {
     if (severity === "critical" || severity === "high") {
       return { status: "deleted", action: "content_deleted" };
     }
@@ -534,4 +589,3 @@ describe("Content Moderation - Action Determination", () => {
     expect(result.action).toBe("warning");
   });
 });
-

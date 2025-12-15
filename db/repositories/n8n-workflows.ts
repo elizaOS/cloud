@@ -57,15 +57,17 @@ export const n8nInstancesRepository = {
       .orderBy(asc(n8nInstances.name));
   },
 
-  async findDefaultByOrganization(organizationId: string): Promise<N8nInstance | undefined> {
+  async findDefaultByOrganization(
+    organizationId: string,
+  ): Promise<N8nInstance | undefined> {
     const [instance] = await db
       .select()
       .from(n8nInstances)
       .where(
         and(
           eq(n8nInstances.organization_id, organizationId),
-          eq(n8nInstances.is_default, true)
-        )
+          eq(n8nInstances.is_default, true),
+        ),
       )
       .limit(1);
     return instance;
@@ -73,7 +75,7 @@ export const n8nInstancesRepository = {
 
   async update(
     id: string,
-    data: Partial<NewN8nInstance>
+    data: Partial<NewN8nInstance>,
   ): Promise<N8nInstance | undefined> {
     const [updated] = await db
       .update(n8nInstances)
@@ -113,7 +115,7 @@ export const n8nWorkflowsRepository = {
       status?: "draft" | "active" | "archived";
       limit?: number;
       offset?: number;
-    } = {}
+    } = {},
   ): Promise<N8nWorkflow[]> {
     const { status, limit = 100, offset = 0 } = options;
     const conditions = [eq(n8nWorkflows.organization_id, organizationId)];
@@ -133,7 +135,7 @@ export const n8nWorkflowsRepository = {
 
   async update(
     id: string,
-    data: Partial<NewN8nWorkflow>
+    data: Partial<NewN8nWorkflow>,
   ): Promise<N8nWorkflow | undefined> {
     const [updated] = await db
       .update(n8nWorkflows)
@@ -175,7 +177,7 @@ export const n8nWorkflowVersionsRepository = {
 
   async findByWorkflow(
     workflowId: string,
-    limit: number = 50
+    limit: number = 50,
   ): Promise<N8nWorkflowVersion[]> {
     return db
       .select()
@@ -187,7 +189,7 @@ export const n8nWorkflowVersionsRepository = {
 
   async findByWorkflowAndVersion(
     workflowId: string,
-    version: number
+    version: number,
   ): Promise<N8nWorkflowVersion | undefined> {
     const [versionRecord] = await db
       .select()
@@ -195,8 +197,8 @@ export const n8nWorkflowVersionsRepository = {
       .where(
         and(
           eq(n8nWorkflowVersions.workflow_id, workflowId),
-          eq(n8nWorkflowVersions.version, version)
-        )
+          eq(n8nWorkflowVersions.version, version),
+        ),
       )
       .limit(1);
     return versionRecord;
@@ -225,22 +227,22 @@ export const n8nWorkflowVariablesRepository = {
     return variable;
   },
 
-  async findByOrganization(organizationId: string): Promise<N8nWorkflowVariable[]> {
+  async findByOrganization(
+    organizationId: string,
+  ): Promise<N8nWorkflowVariable[]> {
     return db
       .select()
       .from(n8nWorkflowVariables)
       .where(
         and(
           eq(n8nWorkflowVariables.organization_id, organizationId),
-          isNull(n8nWorkflowVariables.workflow_id)
-        )
+          isNull(n8nWorkflowVariables.workflow_id),
+        ),
       )
       .orderBy(asc(n8nWorkflowVariables.name));
   },
 
-  async findByWorkflow(
-    workflowId: string
-  ): Promise<N8nWorkflowVariable[]> {
+  async findByWorkflow(workflowId: string): Promise<N8nWorkflowVariable[]> {
     return db
       .select()
       .from(n8nWorkflowVariables)
@@ -251,7 +253,7 @@ export const n8nWorkflowVariablesRepository = {
   async findByOrganizationAndName(
     organizationId: string,
     name: string,
-    workflowId?: string
+    workflowId?: string,
   ): Promise<N8nWorkflowVariable | undefined> {
     const conditions = [
       eq(n8nWorkflowVariables.organization_id, organizationId),
@@ -274,7 +276,7 @@ export const n8nWorkflowVariablesRepository = {
 
   async update(
     id: string,
-    data: Partial<NewN8nWorkflowVariable>
+    data: Partial<NewN8nWorkflowVariable>,
   ): Promise<N8nWorkflowVariable | undefined> {
     const [updated] = await db
       .update(n8nWorkflowVariables)
@@ -285,7 +287,9 @@ export const n8nWorkflowVariablesRepository = {
   },
 
   async delete(id: string): Promise<void> {
-    await db.delete(n8nWorkflowVariables).where(eq(n8nWorkflowVariables.id, id));
+    await db
+      .delete(n8nWorkflowVariables)
+      .where(eq(n8nWorkflowVariables.id, id));
   },
 };
 
@@ -311,22 +315,22 @@ export const n8nWorkflowApiKeysRepository = {
     return apiKey;
   },
 
-  async findByOrganization(organizationId: string): Promise<N8nWorkflowApiKey[]> {
+  async findByOrganization(
+    organizationId: string,
+  ): Promise<N8nWorkflowApiKey[]> {
     return db
       .select()
       .from(n8nWorkflowApiKeys)
       .where(
         and(
           eq(n8nWorkflowApiKeys.organization_id, organizationId),
-          isNull(n8nWorkflowApiKeys.workflow_id)
-        )
+          isNull(n8nWorkflowApiKeys.workflow_id),
+        ),
       )
       .orderBy(desc(n8nWorkflowApiKeys.created_at));
   },
 
-  async findByWorkflow(
-    workflowId: string
-  ): Promise<N8nWorkflowApiKey[]> {
+  async findByWorkflow(workflowId: string): Promise<N8nWorkflowApiKey[]> {
     return db
       .select()
       .from(n8nWorkflowApiKeys)
@@ -335,7 +339,7 @@ export const n8nWorkflowApiKeysRepository = {
   },
 
   async findByKeyPrefix(
-    keyPrefix: string
+    keyPrefix: string,
   ): Promise<N8nWorkflowApiKey | undefined> {
     const [apiKey] = await db
       .select()
@@ -347,7 +351,7 @@ export const n8nWorkflowApiKeysRepository = {
 
   async update(
     id: string,
-    data: Partial<NewN8nWorkflowApiKey>
+    data: Partial<NewN8nWorkflowApiKey>,
   ): Promise<N8nWorkflowApiKey | undefined> {
     const [updated] = await db
       .update(n8nWorkflowApiKeys)
@@ -386,7 +390,7 @@ export const n8nWorkflowExecutionsRepository = {
 
   async findByWorkflow(
     workflowId: string,
-    limit: number = 50
+    limit: number = 50,
   ): Promise<N8nWorkflowExecution[]> {
     return db
       .select()
@@ -398,7 +402,7 @@ export const n8nWorkflowExecutionsRepository = {
 
   async update(
     id: string,
-    data: Partial<NewN8nWorkflowExecution>
+    data: Partial<NewN8nWorkflowExecution>,
   ): Promise<N8nWorkflowExecution | undefined> {
     const [updated] = await db
       .update(n8nWorkflowExecutions)
@@ -445,7 +449,7 @@ export const n8nWorkflowTriggersRepository = {
 
   async findByTypeAndActive(
     triggerType: "cron" | "webhook" | "a2a" | "mcp",
-    isActive: boolean = true
+    isActive: boolean = true,
   ): Promise<N8nWorkflowTrigger[]> {
     return db
       .select()
@@ -453,13 +457,15 @@ export const n8nWorkflowTriggersRepository = {
       .where(
         and(
           eq(n8nWorkflowTriggers.trigger_type, triggerType),
-          eq(n8nWorkflowTriggers.is_active, isActive)
-        )
+          eq(n8nWorkflowTriggers.is_active, isActive),
+        ),
       )
       .orderBy(asc(n8nWorkflowTriggers.trigger_key));
   },
 
-  async findByTriggerKey(triggerKey: string): Promise<N8nWorkflowTrigger | undefined> {
+  async findByTriggerKey(
+    triggerKey: string,
+  ): Promise<N8nWorkflowTrigger | undefined> {
     const [trigger] = await db
       .select()
       .from(n8nWorkflowTriggers)
@@ -470,7 +476,7 @@ export const n8nWorkflowTriggersRepository = {
 
   async update(
     id: string,
-    data: Partial<NewN8nWorkflowTrigger>
+    data: Partial<NewN8nWorkflowTrigger>,
   ): Promise<N8nWorkflowTrigger | undefined> {
     const [updated] = await db
       .update(n8nWorkflowTriggers)
@@ -518,21 +524,23 @@ export const n8nWorkflowTriggersRepository = {
   async getTodayExecutionCount(triggerId: string): Promise<number> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const result = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(n8nWorkflowExecutions)
       .where(
         and(
           eq(n8nWorkflowExecutions.trigger_id, triggerId),
-          sql`${n8nWorkflowExecutions.created_at} >= ${today}`
-        )
+          sql`${n8nWorkflowExecutions.created_at} >= ${today}`,
+        ),
       );
-    
+
     return result[0]?.count ?? 0;
   },
 
-  async findByOrganization(organizationId: string): Promise<N8nWorkflowTrigger[]> {
+  async findByOrganization(
+    organizationId: string,
+  ): Promise<N8nWorkflowTrigger[]> {
     return db
       .select()
       .from(n8nWorkflowTriggers)
@@ -557,4 +565,3 @@ export type {
   N8nWorkflowTrigger,
   NewN8nWorkflowTrigger,
 } from "@/db/schemas/n8n-workflows";
-

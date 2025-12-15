@@ -1,6 +1,6 @@
 /**
  * Database relations definitions.
- * 
+ *
  * Defines relationships between tables for Drizzle ORM query building.
  */
 import { relations } from "drizzle-orm";
@@ -93,18 +93,21 @@ export const conversationMessagesRelations = relations(
 /**
  * User characters table relations.
  */
-export const userCharactersRelations = relations(userCharacters, ({ one, many }) => ({
-  user: one(users, {
-    fields: [userCharacters.user_id],
-    references: [users.id],
+export const userCharactersRelations = relations(
+  userCharacters,
+  ({ one, many }) => ({
+    user: one(users, {
+      fields: [userCharacters.user_id],
+      references: [users.id],
+    }),
+    organization: one(organizations, {
+      fields: [userCharacters.organization_id],
+      references: [organizations.id],
+    }),
+    // Apps that use this agent
+    appAgents: many(appAgents),
   }),
-  organization: one(organizations, {
-    fields: [userCharacters.organization_id],
-    references: [organizations.id],
-  }),
-  // Apps that use this agent
-  appAgents: many(appAgents),
-}));
+);
 
 /**
  * Organization invites table relations.
@@ -182,20 +185,23 @@ export const appAnalyticsRelations = relations(appAnalytics, ({ one }) => ({
 /**
  * App credit balances table relations.
  */
-export const appCreditBalancesRelations = relations(appCreditBalances, ({ one }) => ({
-  app: one(apps, {
-    fields: [appCreditBalances.app_id],
-    references: [apps.id],
+export const appCreditBalancesRelations = relations(
+  appCreditBalances,
+  ({ one }) => ({
+    app: one(apps, {
+      fields: [appCreditBalances.app_id],
+      references: [apps.id],
+    }),
+    user: one(users, {
+      fields: [appCreditBalances.user_id],
+      references: [users.id],
+    }),
+    organization: one(organizations, {
+      fields: [appCreditBalances.organization_id],
+      references: [organizations.id],
+    }),
   }),
-  user: one(users, {
-    fields: [appCreditBalances.user_id],
-    references: [users.id],
-  }),
-  organization: one(organizations, {
-    fields: [appCreditBalances.organization_id],
-    references: [organizations.id],
-  }),
-}));
+);
 
 /**
  * App earnings table relations.
@@ -210,44 +216,53 @@ export const appEarningsRelations = relations(appEarnings, ({ one }) => ({
 /**
  * App earnings transactions table relations.
  */
-export const appEarningsTransactionsRelations = relations(appEarningsTransactions, ({ one }) => ({
-  app: one(apps, {
-    fields: [appEarningsTransactions.app_id],
-    references: [apps.id],
+export const appEarningsTransactionsRelations = relations(
+  appEarningsTransactions,
+  ({ one }) => ({
+    app: one(apps, {
+      fields: [appEarningsTransactions.app_id],
+      references: [apps.id],
+    }),
+    user: one(users, {
+      fields: [appEarningsTransactions.user_id],
+      references: [users.id],
+    }),
   }),
-  user: one(users, {
-    fields: [appEarningsTransactions.user_id],
-    references: [users.id],
-  }),
-}));
+);
 
 /**
  * Token redemptions table relations.
  */
-export const tokenRedemptionsRelations = relations(tokenRedemptions, ({ one }) => ({
-  user: one(users, {
-    fields: [tokenRedemptions.user_id],
-    references: [users.id],
+export const tokenRedemptionsRelations = relations(
+  tokenRedemptions,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [tokenRedemptions.user_id],
+      references: [users.id],
+    }),
+    app: one(apps, {
+      fields: [tokenRedemptions.app_id],
+      references: [apps.id],
+    }),
+    reviewer: one(users, {
+      fields: [tokenRedemptions.reviewed_by],
+      references: [users.id],
+    }),
   }),
-  app: one(apps, {
-    fields: [tokenRedemptions.app_id],
-    references: [apps.id],
-  }),
-  reviewer: one(users, {
-    fields: [tokenRedemptions.reviewed_by],
-    references: [users.id],
-  }),
-}));
+);
 
 /**
  * Redemption limits table relations.
  */
-export const redemptionLimitsRelations = relations(redemptionLimits, ({ one }) => ({
-  user: one(users, {
-    fields: [redemptionLimits.user_id],
-    references: [users.id],
+export const redemptionLimitsRelations = relations(
+  redemptionLimits,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [redemptionLimits.user_id],
+      references: [users.id],
+    }),
   }),
-}));
+);
 
 /**
  * App domains table relations.
@@ -292,7 +307,7 @@ export const mediaCollectionsRelations = relations(
       references: [generations.id],
     }),
     items: many(mediaCollectionItems),
-  })
+  }),
 );
 
 /**
@@ -313,7 +328,7 @@ export const mediaCollectionItemsRelations = relations(
       fields: [mediaCollectionItems.upload_id],
       references: [mediaUploads.id],
     }),
-  })
+  }),
 );
 
 /**
@@ -424,7 +439,7 @@ export const discordBotConnectionsRelations = relations(
       references: [orgPlatformConnections.id],
     }),
     routes: many(discordEventRoutes),
-  })
+  }),
 );
 
 /**
@@ -442,7 +457,7 @@ export const discordEventRoutesRelations = relations(
       references: [orgPlatformConnections.id],
     }),
     queueItems: many(discordEventQueue),
-  })
+  }),
 );
 
 /**
@@ -459,7 +474,7 @@ export const discordEventQueueRelations = relations(
       fields: [discordEventQueue.route_id],
       references: [discordEventRoutes.id],
     }),
-  })
+  }),
 );
 
 /**
@@ -489,7 +504,7 @@ export const managedDomainsRelations = relations(
       references: [userMcps.id],
     }),
     moderationEvents: many(domainModerationEvents),
-  })
+  }),
 );
 
 /**
@@ -510,7 +525,7 @@ export const domainModerationEventsRelations = relations(
       fields: [domainModerationEvents.resolvedBy],
       references: [users.id],
     }),
-  })
+  }),
 );
 
 // ============================================
@@ -562,18 +577,21 @@ export const appServicesRelations = relations(appServices, ({ one }) => ({
 /**
  * N8N workflows table relations.
  */
-export const n8nWorkflowsRelations = relations(n8nWorkflows, ({ one, many }) => ({
-  organization: one(organizations, {
-    fields: [n8nWorkflows.organization_id],
-    references: [organizations.id],
+export const n8nWorkflowsRelations = relations(
+  n8nWorkflows,
+  ({ one, many }) => ({
+    organization: one(organizations, {
+      fields: [n8nWorkflows.organization_id],
+      references: [organizations.id],
+    }),
+    user: one(users, {
+      fields: [n8nWorkflows.user_id],
+      references: [users.id],
+    }),
+    // Apps that use this workflow
+    appWorkflows: many(appWorkflows),
   }),
-  user: one(users, {
-    fields: [n8nWorkflows.user_id],
-    references: [users.id],
-  }),
-  // Apps that use this workflow
-  appWorkflows: many(appWorkflows),
-}));
+);
 
 /**
  * User MCPs (services) table relations.

@@ -13,9 +13,22 @@ import { checkinsService } from "@/lib/services/checkins";
 
 const UpdateSchema = z.object({
   name: z.string().min(1).max(200).optional(),
-  checkinType: z.enum(["standup", "sprint", "mental_health", "project_status", "retrospective"]).optional(),
-  frequency: z.enum(["daily", "weekdays", "weekly", "bi_weekly", "monthly"]).optional(),
-  timeUtc: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  checkinType: z
+    .enum([
+      "standup",
+      "sprint",
+      "mental_health",
+      "project_status",
+      "retrospective",
+    ])
+    .optional(),
+  frequency: z
+    .enum(["daily", "weekdays", "weekly", "bi_weekly", "monthly"])
+    .optional(),
+  timeUtc: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/)
+    .optional(),
   timezone: z.string().optional(),
   checkinChannelId: z.string().optional(),
   reportChannelId: z.string().optional(),
@@ -25,12 +38,15 @@ const UpdateSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ scheduleId: string }> }
+  { params }: { params: Promise<{ scheduleId: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { scheduleId } = await params;
 
-  const schedule = await checkinsService.getSchedule(scheduleId, user.organization_id);
+  const schedule = await checkinsService.getSchedule(
+    scheduleId,
+    user.organization_id,
+  );
   if (!schedule) {
     return NextResponse.json({ error: "Schedule not found" }, { status: 404 });
   }
@@ -55,7 +71,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ scheduleId: string }> }
+  { params }: { params: Promise<{ scheduleId: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { scheduleId } = await params;
@@ -63,10 +79,17 @@ export async function PUT(
   const body = await request.json();
   const parsed = UpdateSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid request", details: parsed.error.format() }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request", details: parsed.error.format() },
+      { status: 400 },
+    );
   }
 
-  const schedule = await checkinsService.updateSchedule(scheduleId, user.organization_id, parsed.data);
+  const schedule = await checkinsService.updateSchedule(
+    scheduleId,
+    user.organization_id,
+    parsed.data,
+  );
   if (!schedule) {
     return NextResponse.json({ error: "Schedule not found" }, { status: 404 });
   }
@@ -86,16 +109,18 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ scheduleId: string }> }
+  { params }: { params: Promise<{ scheduleId: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { scheduleId } = await params;
 
-  const deleted = await checkinsService.deleteSchedule(scheduleId, user.organization_id);
+  const deleted = await checkinsService.deleteSchedule(
+    scheduleId,
+    user.organization_id,
+  );
   if (!deleted) {
     return NextResponse.json({ error: "Schedule not found" }, { status: 404 });
   }
 
   return NextResponse.json({ success: true });
 }
-

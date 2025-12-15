@@ -5,7 +5,12 @@ import { eq } from "drizzle-orm";
 import { seoArtifactsRepository } from "@/db/repositories/seo-artifacts";
 import { seoProviderCallsRepository } from "@/db/repositories/seo-provider-calls";
 import { seoRequestsRepository } from "@/db/repositories/seo-requests";
-import type { NewSeoProviderCall, SeoArtifact, SeoProviderCall, SeoRequest } from "@/db/schemas/seo";
+import type {
+  NewSeoProviderCall,
+  SeoArtifact,
+  SeoProviderCall,
+  SeoRequest,
+} from "@/db/schemas/seo";
 import { seoRequestTypeEnum, seoRequests } from "@/db/schemas/seo";
 import { creditsService } from "./credits";
 import { db } from "@/db/client";
@@ -79,7 +84,9 @@ async function callDataForSeoKeywords(
   keywords: string[],
   locale: string,
   locationCode?: number,
-): Promise<{ keyword: string; searchVolume: number; cpc: number; competition: number }[]> {
+): Promise<
+  { keyword: string; searchVolume: number; cpc: number; competition: number }[]
+> {
   const login = ensureEnv("DATAFORSEO_LOGIN", "DataForSEO API access");
   const password = ensureEnv("DATAFORSEO_PASSWORD", "DataForSEO API access");
 
@@ -206,7 +213,9 @@ async function callClaudeSeoDraft(
     prompt: [
       `Locale: ${locale}`,
       pageUrl ? `Page URL: ${pageUrl}` : "",
-      keywords && keywords.length > 0 ? `Target keywords: ${keywords.join(", ")}` : "",
+      keywords && keywords.length > 0
+        ? `Target keywords: ${keywords.join(", ")}`
+        : "",
       `Context: ${promptContext}`,
       "Return strictly JSON. Do not include markdown.",
     ]
@@ -223,9 +232,14 @@ async function callClaudeSeoDraft(
   }>(text);
 }
 
-async function submitIndexNow(urlToSubmit: string): Promise<{ submitted: boolean }> {
+async function submitIndexNow(
+  urlToSubmit: string,
+): Promise<{ submitted: boolean }> {
   const key = ensureEnv("INDEXNOW_KEY", "IndexNow submissions");
-  const keyLocation = ensureEnv("INDEXNOW_KEY_LOCATION", "IndexNow key location");
+  const keyLocation = ensureEnv(
+    "INDEXNOW_KEY_LOCATION",
+    "IndexNow key location",
+  );
   const url = new URL(urlToSubmit);
 
   const response = await fetch("https://api.indexnow.org/indexnow", {
@@ -269,15 +283,21 @@ async function runHealthCheck(pageUrl: string): Promise<{
 }
 
 export class SeoService {
-  async createRequest(params: CreateSeoRequestParams): Promise<SeoRequestResult> {
+  async createRequest(
+    params: CreateSeoRequestParams,
+  ): Promise<SeoRequestResult> {
     if (params.idempotencyKey) {
       const existing = await seoRequestsRepository.findByIdempotency(
         params.organizationId,
         params.idempotencyKey,
       );
       if (existing) {
-        const artifacts = await seoArtifactsRepository.listByRequest(existing.id);
-        const providerCalls = await seoProviderCallsRepository.listByRequest(existing.id);
+        const artifacts = await seoArtifactsRepository.listByRequest(
+          existing.id,
+        );
+        const providerCalls = await seoProviderCallsRepository.listByRequest(
+          existing.id,
+        );
         return { request: existing, artifacts, providerCalls };
       }
     }
@@ -308,7 +328,9 @@ export class SeoService {
     request: SeoRequest,
     params: CreateSeoRequestParams,
   ): Promise<SeoRequestResult> {
-    const pageUrlRequiredTypes: Array<(typeof seoRequestTypeEnum.enumValues)[number]> = [
+    const pageUrlRequiredTypes: Array<
+      (typeof seoRequestTypeEnum.enumValues)[number]
+    > = [
       "meta_generate",
       "schema_generate",
       "publish_bundle",
@@ -325,9 +347,18 @@ export class SeoService {
     const providerCalls: SeoProviderCall[] = [];
     let totalCost = 0;
 
-    const charge = async (amount: number, description: string, metadata?: Record<string, unknown>) => {
+    const charge = async (
+      amount: number,
+      description: string,
+      metadata?: Record<string, unknown>,
+    ) => {
       if (amount <= 0) return;
-      await chargeCredits(request.organization_id, amount, description, metadata);
+      await chargeCredits(
+        request.organization_id,
+        amount,
+        description,
+        metadata,
+      );
       totalCost += amount;
     };
 
@@ -458,9 +489,13 @@ export class SeoService {
                 request.locale,
                 params.locationCode,
               );
-              await charge(SEO_PRICING.keywordResearch, "SEO keyword research (DataForSEO)", {
-                request_id: request.id,
-              });
+              await charge(
+                SEO_PRICING.keywordResearch,
+                "SEO keyword research (DataForSEO)",
+                {
+                  request_id: request.id,
+                },
+              );
               const artifact = await seoArtifactsRepository.create({
                 request_id: request.id,
                 type: "keywords",
@@ -498,9 +533,13 @@ export class SeoService {
                 device: request.device,
                 searchEngine: request.search_engine,
               });
-              await charge(SEO_PRICING.serpSnapshot, "SEO SERP snapshot (SerpApi)", {
-                request_id: request.id,
-              });
+              await charge(
+                SEO_PRICING.serpSnapshot,
+                "SEO SERP snapshot (SerpApi)",
+                {
+                  request_id: request.id,
+                },
+              );
               const artifact = await seoArtifactsRepository.create({
                 request_id: request.id,
                 type: "serp_snapshot",
@@ -636,7 +675,8 @@ export class SeoService {
         providerCalls,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : "SEO request failed";
+      const message =
+        error instanceof Error ? error.message : "SEO request failed";
       await seoRequestsRepository.updateStatus(request.id, "failed", {
         error: message,
       });
@@ -650,4 +690,3 @@ export class SeoService {
 }
 
 export const seoService = new SeoService();
-

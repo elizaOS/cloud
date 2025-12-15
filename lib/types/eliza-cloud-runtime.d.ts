@@ -197,7 +197,7 @@ export interface ElizaCloudRuntime {
    */
   connectPlatform(
     platform: PlatformType,
-    options?: ConnectPlatformOptions
+    options?: ConnectPlatformOptions,
   ): Promise<PlatformCredential>;
 
   /**
@@ -243,7 +243,11 @@ export interface ElizaCloudRuntime {
    * @param description - Optional description
    * @returns true if successful
    */
-  setSecret(name: string, value: string, description?: string): Promise<boolean>;
+  setSecret(
+    name: string,
+    value: string,
+    description?: string,
+  ): Promise<boolean>;
 
   /**
    * Delete a secret.
@@ -289,7 +293,10 @@ export interface ElizaCloudRuntime {
    * @returns Bot connection and discovered servers
    * @throws Error if token invalid
    */
-  connectBot(platform: BotPlatformType, token: string): Promise<BotConnectResult>;
+  connectBot(
+    platform: BotPlatformType,
+    token: string,
+  ): Promise<BotConnectResult>;
 
   /**
    * Disconnect a bot account.
@@ -340,4 +347,3 @@ declare global {
 }
 
 export {};
-

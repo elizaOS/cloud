@@ -27,7 +27,9 @@ function authHeaders() {
 test.describe("Agent Status API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /api/v1/agents/:agentId/status returns agent status", async ({ request }) => {
+  test("GET /api/v1/agents/:agentId/status returns agent status", async ({
+    request,
+  }) => {
     // First get a list of agents
     const listResponse = await request.get(`${CLOUD_URL}/api/v1/app/agents`, {
       headers: authHeaders(),
@@ -48,9 +50,12 @@ test.describe("Agent Status API", () => {
 
     const agentId = agents[0].id;
 
-    const response = await request.get(`${CLOUD_URL}/api/v1/agents/${agentId}/status`, {
-      headers: authHeaders(),
-    });
+    const response = await request.get(
+      `${CLOUD_URL}/api/v1/agents/${agentId}/status`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 404, 501]).toContain(response.status());
 
@@ -71,7 +76,9 @@ test.describe("Agent Status API", () => {
 test.describe("Agent Events API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /api/v1/agents/:agentId/events returns agent events", async ({ request }) => {
+  test("GET /api/v1/agents/:agentId/events returns agent events", async ({
+    request,
+  }) => {
     const listResponse = await request.get(`${CLOUD_URL}/api/v1/app/agents`, {
       headers: authHeaders(),
     });
@@ -89,9 +96,12 @@ test.describe("Agent Events API", () => {
 
     const agentId = agents[0].id;
 
-    const response = await request.get(`${CLOUD_URL}/api/v1/agents/${agentId}/events`, {
-      headers: authHeaders(),
-    });
+    const response = await request.get(
+      `${CLOUD_URL}/api/v1/agents/${agentId}/events`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 404, 501]).toContain(response.status());
 
@@ -127,7 +137,7 @@ test.describe("Agent Events API", () => {
       `${CLOUD_URL}/api/v1/agents/${agentId}/events?limit=10&offset=0`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect([200, 404, 501]).toContain(response.status());
@@ -141,7 +151,9 @@ test.describe("Agent Events API", () => {
 test.describe("Agent Logs API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /api/v1/agents/:agentId/logs returns agent logs", async ({ request }) => {
+  test("GET /api/v1/agents/:agentId/logs returns agent logs", async ({
+    request,
+  }) => {
     const listResponse = await request.get(`${CLOUD_URL}/api/v1/app/agents`, {
       headers: authHeaders(),
     });
@@ -159,9 +171,12 @@ test.describe("Agent Logs API", () => {
 
     const agentId = agents[0].id;
 
-    const response = await request.get(`${CLOUD_URL}/api/v1/agents/${agentId}/logs`, {
-      headers: authHeaders(),
-    });
+    const response = await request.get(
+      `${CLOUD_URL}/api/v1/agents/${agentId}/logs`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 404, 501]).toContain(response.status());
 
@@ -199,7 +214,7 @@ test.describe("Agent Logs API", () => {
         `${CLOUD_URL}/api/v1/agents/${agentId}/logs?level=${level}`,
         {
           headers: authHeaders(),
-        }
+        },
       );
 
       expect([200, 400, 404, 501]).toContain(response.status());
@@ -270,9 +285,12 @@ test.describe("Apps Users API", () => {
       return;
     }
 
-    const response = await request.get(`${CLOUD_URL}/api/v1/apps/${testAppId}/users`, {
-      headers: authHeaders(),
-    });
+    const response = await request.get(
+      `${CLOUD_URL}/api/v1/apps/${testAppId}/users`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 404, 501]).toContain(response.status());
 
@@ -295,7 +313,7 @@ test.describe("Apps Users API", () => {
       `${CLOUD_URL}/api/v1/apps/${testAppId}/users?limit=10&offset=0`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect([200, 404, 501]).toContain(response.status());
@@ -330,5 +348,3 @@ test.describe("Credits Top-up API", () => {
     }
   });
 });
-
-

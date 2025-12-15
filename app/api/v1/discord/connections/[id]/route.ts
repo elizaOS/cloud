@@ -30,7 +30,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   if (!status) {
     return NextResponse.json(
       { success: false, error: "Connection not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   if (status.organizationId !== user.organization_id) {
     return NextResponse.json(
       { success: false, error: "Connection not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -62,7 +62,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   if (!status || status.organizationId !== user.organization_id) {
     return NextResponse.json(
       { success: false, error: "Connection not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -76,7 +76,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   if (!success) {
     return NextResponse.json(
       { success: false, error: "Failed to unregister bot" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -85,4 +85,3 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     message: "Bot connection removed",
   });
 }
-

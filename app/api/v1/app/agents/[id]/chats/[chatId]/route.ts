@@ -59,7 +59,7 @@ async function verifyAccess(
   chatId: string,
   agentId: string,
   userId: string,
-  organizationId: string
+  organizationId: string,
 ): Promise<{ allowed: boolean; error?: string; status?: number }> {
   // Verify agent exists and user has access
   const character = await charactersService.getById(agentId);
@@ -94,7 +94,7 @@ async function verifyAccess(
   const userParticipant = await db.query.participantTable.findFirst({
     where: and(
       eq(participantTable.roomId, chatId as UUID),
-      eq(participantTable.entityId, userId as UUID)
+      eq(participantTable.entityId, userId as UUID),
     ),
   });
 
@@ -125,20 +125,17 @@ async function verifyAccess(
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; chatId: string }> }
+  { params }: { params: Promise<{ id: string; chatId: string }> },
 ) {
   const corsResult = await validateOrigin(request);
   const { id: agentId, chatId } = await params;
 
   // Rate limiting
-  const rateLimitResult = await checkAppRateLimit(
-    request,
-    APP_RATE_LIMITS
-  );
+  const rateLimitResult = await checkAppRateLimit(request, APP_RATE_LIMITS);
   if (!rateLimitResult.allowed) {
     return createRateLimitErrorResponse(
       rateLimitResult,
-      corsResult.origin ?? undefined
+      corsResult.origin ?? undefined,
     );
   }
 
@@ -148,7 +145,7 @@ export async function GET(
 
     const limit = Math.min(
       100,
-      Math.max(1, parseInt(searchParams.get("limit") || "50", 10))
+      Math.max(1, parseInt(searchParams.get("limit") || "50", 10)),
     );
     const before = searchParams.get("before"); // Cursor for pagination
 
@@ -157,12 +154,12 @@ export async function GET(
       chatId,
       agentId,
       user.id,
-      user.organization_id
+      user.organization_id,
     );
     if (!access.allowed) {
       const response = NextResponse.json(
         { success: false, error: access.error },
-        { status: access.status }
+        { status: access.status },
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -177,7 +174,7 @@ export async function GET(
       .select()
       .from(memoryTable)
       .where(
-        and(eq(memoryTable.roomId, chatId), eq(memoryTable.type, "messages"))
+        and(eq(memoryTable.roomId, chatId), eq(memoryTable.type, "messages")),
       )
       .orderBy(asc(memoryTable.createdAt))
       .limit(limit);
@@ -185,27 +182,33 @@ export async function GET(
     // Log raw message count and check for duplicates
     logger.info("[App API] Raw messages from DB", {
       count: messages.length,
-      ids: messages.map(m => m.id),
-      contentPreviews: messages.map(m => {
+      ids: messages.map((m) => m.id),
+      contentPreviews: messages.map((m) => {
         const c = m.content as Record<string, unknown>;
-        return { id: m.id, text: (c?.text as string)?.substring(0, 30), entityId: m.entityId };
+        return {
+          id: m.id,
+          text: (c?.text as string)?.substring(0, 30),
+          entityId: m.entityId,
+        };
       }),
     });
 
     // Filter out action results and deduplicate messages
-    const seenMessages = new Map<string, typeof messages[0]>();
+    const seenMessages = new Map<string, (typeof messages)[0]>();
     const deduplicatedMessages = messages.filter((msg) => {
       const content = msg.content as Record<string, unknown>;
       const metadata = msg.metadata as Record<string, unknown> | undefined;
-      
+
       // Use centralized visibility check (filters hidden and action_result messages)
       if (!isVisibleDialogueMessage(metadata, content)) {
         return false;
       }
-      
+
       // Deduplicate by content hash (same text + same entityId within 5 seconds = duplicate)
       const text = (content?.text as string) || "";
-      const createdAt = msg.createdAt ? new Date(msg.createdAt as string | number | Date).getTime() : 0;
+      const createdAt = msg.createdAt
+        ? new Date(msg.createdAt as string | number | Date).getTime()
+        : 0;
       const key = `${msg.entityId}-${text}-${Math.floor(createdAt / 5000)}`; // 5 second window
 
       if (seenMessages.has(key)) {
@@ -311,7 +314,7 @@ export async function GET(
         success: false,
         error: error instanceof Error ? error.message : "Failed to get chat",
       },
-      { status }
+      { status },
     );
 
     return addCorsHeaders(response, corsResult.origin);
@@ -329,20 +332,17 @@ export async function GET(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; chatId: string }> }
+  { params }: { params: Promise<{ id: string; chatId: string }> },
 ) {
   const corsResult = await validateOrigin(request);
   const { id: agentId, chatId } = await params;
 
   // Rate limiting (stricter for write operations)
-  const rateLimitResult = await checkAppRateLimit(
-    request,
-    APP_WRITE_LIMITS
-  );
+  const rateLimitResult = await checkAppRateLimit(request, APP_WRITE_LIMITS);
   if (!rateLimitResult.allowed) {
     return createRateLimitErrorResponse(
       rateLimitResult,
-      corsResult.origin ?? undefined
+      corsResult.origin ?? undefined,
     );
   }
 
@@ -354,12 +354,12 @@ export async function DELETE(
       chatId,
       agentId,
       user.id,
-      user.organization_id
+      user.organization_id,
     );
     if (!access.allowed) {
       const response = NextResponse.json(
         { success: false, error: access.error },
-        { status: access.status }
+        { status: access.status },
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -403,7 +403,7 @@ export async function DELETE(
         success: false,
         error: error instanceof Error ? error.message : "Failed to delete chat",
       },
-      { status }
+      { status },
     );
 
     return addCorsHeaders(response, corsResult.origin);

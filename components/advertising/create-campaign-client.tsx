@@ -14,7 +14,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, ArrowRight, Check, Megaphone, ImageIcon } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Megaphone,
+  ImageIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import { BrandCard, BrandButton } from "@/components/brand";
@@ -32,12 +38,36 @@ interface AdAccount {
 type Step = "account" | "details" | "budget" | "media" | "review";
 
 const OBJECTIVES = [
-  { value: "awareness", label: "Brand Awareness", description: "Reach people likely to pay attention" },
-  { value: "traffic", label: "Traffic", description: "Send people to a destination" },
-  { value: "engagement", label: "Engagement", description: "Get more likes, comments, shares" },
-  { value: "leads", label: "Lead Generation", description: "Collect leads for your business" },
-  { value: "app_promotion", label: "App Promotion", description: "Get app installs and engagement" },
-  { value: "sales", label: "Sales", description: "Find people likely to purchase" },
+  {
+    value: "awareness",
+    label: "Brand Awareness",
+    description: "Reach people likely to pay attention",
+  },
+  {
+    value: "traffic",
+    label: "Traffic",
+    description: "Send people to a destination",
+  },
+  {
+    value: "engagement",
+    label: "Engagement",
+    description: "Get more likes, comments, shares",
+  },
+  {
+    value: "leads",
+    label: "Lead Generation",
+    description: "Collect leads for your business",
+  },
+  {
+    value: "app_promotion",
+    label: "App Promotion",
+    description: "Get app installs and engagement",
+  },
+  {
+    value: "sales",
+    label: "Sales",
+    description: "Find people likely to purchase",
+  },
 ];
 
 export function CreateCampaignClient() {
@@ -90,7 +120,9 @@ export function CreateCampaignClient() {
       setGalleryItems(galleryData);
       setIsLoading(false);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const selectedAccount = accounts.find((a) => a.id === selectedAccountId);
@@ -179,7 +211,7 @@ export function CreateCampaignClient() {
             mimeType: m.mimeType || "image/jpeg",
           })),
         }),
-      }
+      },
     );
 
     if (!creativeResponse.ok) {
@@ -364,7 +396,9 @@ export function CreateCampaignClient() {
                 </label>
                 <Select
                   value={budgetType}
-                  onValueChange={(v) => setBudgetType(v as "daily" | "lifetime")}
+                  onValueChange={(v) =>
+                    setBudgetType(v as "daily" | "lifetime")
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -496,7 +530,7 @@ export function CreateCampaignClient() {
                         onClick={() => {
                           if (selectedMedia.find((m) => m.id === item.id)) {
                             setSelectedMedia(
-                              selectedMedia.filter((m) => m.id !== item.id)
+                              selectedMedia.filter((m) => m.id !== item.id),
                             );
                           } else {
                             setSelectedMedia([...selectedMedia, item]);
@@ -596,7 +630,9 @@ export function CreateCampaignClient() {
                 </div>
                 <div className="p-3 bg-white/5 border border-white/10">
                   <p className="text-xs text-white/50 uppercase">Objective</p>
-                  <p className="font-medium text-white capitalize">{objective}</p>
+                  <p className="font-medium text-white capitalize">
+                    {objective}
+                  </p>
                 </div>
                 <div className="p-3 bg-white/5 border border-white/10">
                   <p className="text-xs text-white/50 uppercase">Budget</p>

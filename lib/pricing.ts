@@ -27,7 +27,10 @@ export async function calculateCost(
   );
 
   if (!pricing) {
-    logger.debug("pricing", "No DB pricing found, using fallback", { model, provider });
+    logger.debug("pricing", "No DB pricing found, using fallback", {
+      model,
+      provider,
+    });
     return getFallbackPricing(model, inputTokens, outputTokens);
   }
 

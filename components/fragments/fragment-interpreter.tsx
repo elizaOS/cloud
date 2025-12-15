@@ -63,7 +63,7 @@ export function FragmentInterpreter({
   if (cellResults.length > 0) {
     const firstResult = cellResults[0];
     const imgInBase64 = firstResult.data as string | undefined;
-    
+
     if (imgInBase64 && typeof imgInBase64 === "string") {
       return (
         <div className="flex flex-col h-full">
@@ -87,4 +87,3 @@ export function FragmentInterpreter({
 
   return <span className="p-4 text-muted-foreground">No output or logs</span>;
 }
-

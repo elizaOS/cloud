@@ -23,13 +23,13 @@ export class AdAccountsRepository {
   async findByExternalId(
     organizationId: string,
     platform: AdPlatform,
-    externalAccountId: string
+    externalAccountId: string,
   ): Promise<AdAccount | undefined> {
     return await db.query.adAccounts.findFirst({
       where: and(
         eq(adAccounts.organization_id, organizationId),
         eq(adAccounts.platform, platform),
-        eq(adAccounts.external_account_id, externalAccountId)
+        eq(adAccounts.external_account_id, externalAccountId),
       ),
     });
   }
@@ -41,7 +41,7 @@ export class AdAccountsRepository {
       status?: AdAccountStatus;
       limit?: number;
       offset?: number;
-    }
+    },
   ): Promise<AdAccount[]> {
     const conditions = [eq(adAccounts.organization_id, organizationId)];
 
@@ -68,7 +68,7 @@ export class AdAccountsRepository {
 
   async update(
     id: string,
-    data: Partial<NewAdAccount>
+    data: Partial<NewAdAccount>,
   ): Promise<AdAccount | undefined> {
     const [updated] = await db
       .update(adAccounts)
@@ -80,7 +80,7 @@ export class AdAccountsRepository {
 
   async updateStatus(
     id: string,
-    status: AdAccountStatus
+    status: AdAccountStatus,
   ): Promise<AdAccount | undefined> {
     return this.update(id, { status });
   }

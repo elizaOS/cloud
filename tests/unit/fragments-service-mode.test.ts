@@ -29,7 +29,7 @@ describe("Builder Mode Toggle", () => {
   const modes: BuilderMode[] = ["quick", "full_app", "service"];
 
   test("all modes are valid", () => {
-    modes.forEach(mode => {
+    modes.forEach((mode) => {
       expect(["quick", "full_app", "service"]).toContain(mode);
     });
   });
@@ -44,14 +44,14 @@ describe("Builder Mode Toggle", () => {
 
   test("mode state transitions are valid", () => {
     let currentMode: BuilderMode = "quick";
-    
+
     // Can switch to any mode from quick
     currentMode = "full_app";
     expect(currentMode).toBe("full_app");
-    
+
     currentMode = "service";
     expect(currentMode).toBe("service");
-    
+
     // Can switch back
     currentMode = "quick";
     expect(currentMode).toBe("quick");
@@ -76,11 +76,14 @@ describe("Service Protocol Selection", () => {
         {
           name: "get_weather",
           description: "Get current weather",
-          inputSchema: { type: "object", properties: { location: { type: "string" } } },
+          inputSchema: {
+            type: "object",
+            properties: { location: { type: "string" } },
+          },
         },
       ],
     };
-    
+
     expect(mcpConfig.tools).toBeDefined();
     expect(mcpConfig.tools?.length).toBeGreaterThan(0);
   });
@@ -95,11 +98,14 @@ describe("Service Protocol Selection", () => {
           id: "answer_question",
           name: "Answer Question",
           description: "Answer user questions",
-          inputSchema: { type: "object", properties: { question: { type: "string" } } },
+          inputSchema: {
+            type: "object",
+            properties: { question: { type: "string" } },
+          },
         },
       ],
     };
-    
+
     expect(a2aConfig.skills).toBeDefined();
     expect(a2aConfig.skills?.length).toBeGreaterThan(0);
   });
@@ -120,8 +126,8 @@ describe("Service Name Validation", () => {
       "mcp-tools",
       "service123",
     ];
-    
-    validNames.forEach(name => {
+
+    validNames.forEach((name) => {
       expect(isValidServiceName(name)).toBe(true);
     });
   });
@@ -136,8 +142,8 @@ describe("Service Name Validation", () => {
       "123service", // starts with number
       "", // empty
     ];
-    
-    invalidNames.forEach(name => {
+
+    invalidNames.forEach((name) => {
       expect(isValidServiceName(name)).toBe(false);
     });
   });
@@ -165,7 +171,7 @@ describe("MCP Tool Definition", () => {
         required: ["id"],
       },
     };
-    
+
     expect(isValidMCPTool(tool)).toBe(true);
   });
 
@@ -175,7 +181,7 @@ describe("MCP Tool Definition", () => {
       description: "Some description",
       inputSchema: {},
     };
-    
+
     expect(isValidMCPTool(tool)).toBe(false);
   });
 
@@ -185,14 +191,14 @@ describe("MCP Tool Definition", () => {
       description: "",
       inputSchema: {},
     };
-    
+
     expect(isValidMCPTool(tool)).toBe(false);
   });
 
   test("MCP tool names follow snake_case convention", () => {
     const validToolNames = ["get_data", "send_message", "list_items"];
-    
-    validToolNames.forEach(name => {
+
+    validToolNames.forEach((name) => {
       expect(name).toMatch(/^[a-z][a-z0-9_]*$/);
     });
   });
@@ -221,7 +227,7 @@ describe("A2A Skill Definition", () => {
         },
       },
     };
-    
+
     expect(isValidA2ASkill(skill)).toBe(true);
   });
 
@@ -232,7 +238,7 @@ describe("A2A Skill Definition", () => {
       description: "Description",
       inputSchema: {},
     };
-    
+
     expect(isValidA2ASkill(skill)).toBe(false);
   });
 
@@ -243,7 +249,7 @@ describe("A2A Skill Definition", () => {
       description: "Answers user questions",
       inputSchema: {},
     };
-    
+
     expect(skill.name).toMatch(/^[A-Z]/);
     expect(isValidA2ASkill(skill)).toBe(true);
   });
@@ -255,7 +261,7 @@ describe("Service Code Generation", () => {
     if (config.protocol !== "mcp") {
       throw new Error("Invalid protocol for MCP generation");
     }
-    
+
     const tools = config.tools || [];
     return `
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -265,7 +271,7 @@ const server = new Server({
   version: "1.0.0",
 });
 
-// Tools: ${tools.map(t => t.name).join(", ")}
+// Tools: ${tools.map((t) => t.name).join(", ")}
 export default server;
 `.trim();
   }
@@ -274,7 +280,7 @@ export default server;
     if (config.protocol !== "a2a") {
       throw new Error("Invalid protocol for A2A generation");
     }
-    
+
     const skills = config.skills || [];
     return `
 import { A2AServer } from "@/lib/a2a";
@@ -284,7 +290,7 @@ const agent = new A2AServer({
   description: "${config.description}",
 });
 
-// Skills: ${skills.map(s => s.name).join(", ")}
+// Skills: ${skills.map((s) => s.name).join(", ")}
 export default agent;
 `.trim();
   }
@@ -296,7 +302,7 @@ export default agent;
       description: "Test service",
       tools: [],
     };
-    
+
     const code = generateMCPServerStub(config);
     expect(code).toContain("test-service");
     expect(code).toContain("@modelcontextprotocol/sdk");
@@ -309,7 +315,7 @@ export default agent;
       description: "A test agent",
       skills: [],
     };
-    
+
     const code = generateA2AAgentStub(config);
     expect(code).toContain("test-agent");
     expect(code).toContain("A test agent");
@@ -322,7 +328,7 @@ export default agent;
       name: "test",
       description: "test",
     };
-    
+
     expect(() => generateMCPServerStub(config)).toThrow("Invalid protocol");
   });
 
@@ -332,7 +338,7 @@ export default agent;
       name: "test",
       description: "test",
     };
-    
+
     expect(() => generateA2AAgentStub(config)).toThrow("Invalid protocol");
   });
 });
@@ -371,7 +377,7 @@ describe("Service Dialog State", () => {
     const state = createInitialState();
     state.protocol = "mcp";
     state.tools = [{ name: "test", description: "test", inputSchema: {} }];
-    
+
     // Simulate protocol switch
     const newState: ServiceDialogState = {
       ...state,
@@ -379,7 +385,7 @@ describe("Service Dialog State", () => {
       tools: [],
       skills: [],
     };
-    
+
     expect(newState.tools.length).toBe(0);
     expect(newState.skills.length).toBe(0);
   });
@@ -388,7 +394,7 @@ describe("Service Dialog State", () => {
     const state = createInitialState();
     state.tools.push({ name: "tool1", description: "desc1", inputSchema: {} });
     state.tools.push({ name: "tool2", description: "desc2", inputSchema: {} });
-    
+
     expect(state.tools.length).toBe(2);
     expect(state.tools[0].name).toBe("tool1");
     expect(state.tools[1].name).toBe("tool2");
@@ -397,9 +403,19 @@ describe("Service Dialog State", () => {
   test("can add multiple skills", () => {
     const state = createInitialState();
     state.protocol = "a2a";
-    state.skills.push({ id: "s1", name: "Skill 1", description: "desc1", inputSchema: {} });
-    state.skills.push({ id: "s2", name: "Skill 2", description: "desc2", inputSchema: {} });
-    
+    state.skills.push({
+      id: "s1",
+      name: "Skill 1",
+      description: "desc1",
+      inputSchema: {},
+    });
+    state.skills.push({
+      id: "s2",
+      name: "Skill 2",
+      description: "desc2",
+      inputSchema: {},
+    });
+
     expect(state.skills.length).toBe(2);
   });
 });
@@ -408,20 +424,22 @@ describe("URL Parameter Integration", () => {
   test("service mode can be triggered via URL", () => {
     // Simulate URL params
     const searchParams = new URLSearchParams("?mode=service&protocol=mcp");
-    
+
     const mode = searchParams.get("mode") as BuilderMode | null;
     const protocol = searchParams.get("protocol") as ServiceProtocol | null;
-    
+
     expect(mode).toBe("service");
     expect(protocol).toBe("mcp");
   });
 
   test("prompt parameter works with service mode", () => {
-    const searchParams = new URLSearchParams("?mode=service&prompt=Create%20an%20MCP%20weather%20service");
-    
+    const searchParams = new URLSearchParams(
+      "?mode=service&prompt=Create%20an%20MCP%20weather%20service",
+    );
+
     const mode = searchParams.get("mode");
     const prompt = searchParams.get("prompt");
-    
+
     expect(mode).toBe("service");
     expect(prompt).toBe("Create an MCP weather service");
   });
@@ -430,7 +448,11 @@ describe("URL Parameter Integration", () => {
 describe("Service Templates", () => {
   const mcpTemplates = [
     { id: "weather", name: "Weather API", description: "Get weather data" },
-    { id: "database", name: "Database Connector", description: "Query databases" },
+    {
+      id: "database",
+      name: "Database Connector",
+      description: "Query databases",
+    },
     { id: "file-system", name: "File System", description: "File operations" },
   ];
 
@@ -442,7 +464,7 @@ describe("Service Templates", () => {
 
   test("MCP templates are available", () => {
     expect(mcpTemplates.length).toBeGreaterThan(0);
-    mcpTemplates.forEach(t => {
+    mcpTemplates.forEach((t) => {
       expect(t.id).toBeDefined();
       expect(t.name).toBeDefined();
       expect(t.description).toBeDefined();
@@ -451,7 +473,7 @@ describe("Service Templates", () => {
 
   test("A2A templates are available", () => {
     expect(a2aTemplates.length).toBeGreaterThan(0);
-    a2aTemplates.forEach(t => {
+    a2aTemplates.forEach((t) => {
       expect(t.id).toBeDefined();
       expect(t.name).toBeDefined();
       expect(t.description).toBeDefined();
@@ -459,11 +481,10 @@ describe("Service Templates", () => {
   });
 
   test("template IDs are unique within each protocol", () => {
-    const mcpIds = mcpTemplates.map(t => t.id);
-    const a2aIds = a2aTemplates.map(t => t.id);
-    
+    const mcpIds = mcpTemplates.map((t) => t.id);
+    const a2aIds = a2aTemplates.map((t) => t.id);
+
     expect(new Set(mcpIds).size).toBe(mcpIds.length);
     expect(new Set(a2aIds).size).toBe(a2aIds.length);
   });
 });
-

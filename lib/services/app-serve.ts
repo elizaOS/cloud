@@ -8,22 +8,50 @@ import { eq, and } from "drizzle-orm";
 
 const APP_DOMAIN = process.env.APP_DOMAIN || "apps.elizacloud.ai";
 
-interface ServeResult { html: string; headers: Record<string, string>; }
-interface ServeError { status: number; html: string; }
-type ServeResponse = { success: true; data: ServeResult } | { success: false; error: ServeError };
+interface ServeResult {
+  html: string;
+  headers: Record<string, string>;
+}
+interface ServeError {
+  status: number;
+  html: string;
+}
+type ServeResponse =
+  | { success: true; data: ServeResult }
+  | { success: false; error: ServeError };
 
 export async function serveApp(domain: AppDomain): Promise<ServeResponse> {
   const bundle = await db.query.appBundles.findFirst({
-    where: and(eq(appBundles.app_id, domain.app_id), eq(appBundles.is_active, true)),
+    where: and(
+      eq(appBundles.app_id, domain.app_id),
+      eq(appBundles.is_active, true),
+    ),
   });
 
   if (!bundle) {
-    return { success: false, error: { status: 404, html: generateErrorPage("App Not Deployed", "This app has not been deployed yet.") } };
+    return {
+      success: false,
+      error: {
+        status: 404,
+        html: generateErrorPage(
+          "App Not Deployed",
+          "This app has not been deployed yet.",
+        ),
+      },
+    };
   }
 
-  const bundleResponse = await fetch(`${bundle.bundle_url}/${bundle.entry_file}`);
+  const bundleResponse = await fetch(
+    `${bundle.bundle_url}/${bundle.entry_file}`,
+  );
   if (!bundleResponse.ok) {
-    return { success: false, error: { status: 502, html: generateErrorPage("Bundle Error", "Failed to load app bundle.") } };
+    return {
+      success: false,
+      error: {
+        status: 502,
+        html: generateErrorPage("Bundle Error", "Failed to load app bundle."),
+      },
+    };
   }
 
   let html = await bundleResponse.text();
@@ -57,7 +85,9 @@ export const getDomainBySubdomain = (subdomain: string) =>
   db.query.appDomains.findFirst({ where: eq(appDomains.subdomain, subdomain) });
 
 export const getDomainByCustomDomain = (customDomain: string) =>
-  db.query.appDomains.findFirst({ where: eq(appDomains.custom_domain, customDomain) });
+  db.query.appDomains.findFirst({
+    where: eq(appDomains.custom_domain, customDomain),
+  });
 
 function generateRuntimeScript(options: {
   appId: string;
@@ -66,13 +96,15 @@ function generateRuntimeScript(options: {
   config: Record<string, boolean | string> | null;
 }): string {
   const { appId, subdomain, customDomain, config } = options;
-  const baseUrl = customDomain ? `https://${customDomain}` : `https://${subdomain}.${APP_DOMAIN}`;
+  const baseUrl = customDomain
+    ? `https://${customDomain}`
+    : `https://${subdomain}.${APP_DOMAIN}`;
   const cloudUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
 
   return `<script>
 window.__ELIZA_CLOUD__={
-  appId:"${appId}",subdomain:"${subdomain}",customDomain:${customDomain?`"${customDomain}"`:"null"},
-  baseUrl:"${baseUrl}",cloudUrl:"${cloudUrl}",apiUrl:"/api/v1/app",config:${JSON.stringify(config||{})},
+  appId:"${appId}",subdomain:"${subdomain}",customDomain:${customDomain ? `"${customDomain}"` : "null"},
+  baseUrl:"${baseUrl}",cloudUrl:"${cloudUrl}",apiUrl:"/api/v1/app",config:${JSON.stringify(config || {})},
   
   // Auth
   async getUser(){const r=await fetch(this.apiUrl+"/auth/user",{credentials:"include"});return r.ok?r.json():null},
@@ -148,12 +180,18 @@ export function generateErrorPage(title: string, message: string): string {
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}|elizaOS</title><style>*{margin:0;padding:0;box-sizing:border-box}body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0a0a0a 0%,#1a1a2e 100%);font-family:system-ui,-apple-system,sans-serif;color:#fff}.c{text-align:center;padding:2rem}.i{width:80px;height:80px;margin:0 auto 1.5rem;opacity:.3}h1{font-size:1.5rem;margin-bottom:.5rem;color:#FF5800}p{color:rgba(255,255,255,.6);max-width:400px}a{display:inline-block;margin-top:1.5rem;padding:.75rem 1.5rem;background:#FF5800;color:#fff;text-decoration:none;border-radius:8px;font-weight:500}a:hover{background:#ff6a1a}</style></head><body><div class="c"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><h1>${title}</h1><p>${message}</p><a href="https://elizacloud.ai">Go to elizaOS</a></div></body></html>`;
 }
 
-const APPEAL_EMAIL = process.env.MODERATION_APPEAL_EMAIL || "appeals@eliza.cloud";
+const APPEAL_EMAIL =
+  process.env.MODERATION_APPEAL_EMAIL || "appeals@eliza.cloud";
 
-export function generateSuspensionPage(domain: string, reason?: string): string {
+export function generateSuspensionPage(
+  domain: string,
+  reason?: string,
+): string {
   const appealEmail = APPEAL_EMAIL;
-  const reasonText = reason || "This content has been suspended for violating our content policy.";
-  
+  const reasonText =
+    reason ||
+    "This content has been suspended for violating our content policy.";
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -278,4 +316,10 @@ export function generateSuspensionPage(domain: string, reason?: string): string 
 </html>`;
 }
 
-export const appServeService = { serveApp, getDomainBySubdomain, getDomainByCustomDomain, generateErrorPage, generateSuspensionPage };
+export const appServeService = {
+  serveApp,
+  getDomainBySubdomain,
+  getDomainByCustomDomain,
+  generateErrorPage,
+  generateSuspensionPage,
+};

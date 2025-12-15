@@ -1,7 +1,11 @@
 import { appsRepository } from "@/db/repositories/apps";
 import { appsService } from "./apps";
 import { creditsService } from "./credits";
-import { conversionTrackingService, parseUTMParams, type UTMParams } from "./conversion-tracking";
+import {
+  conversionTrackingService,
+  parseUTMParams,
+  type UTMParams,
+} from "./conversion-tracking";
 import { logger } from "@/lib/utils/logger";
 
 export interface SignupTrackingData {
@@ -65,7 +69,7 @@ export class AppSignupTrackingService {
       await conversionTrackingService.trackSignupFromUTM(
         data.userId,
         appId,
-        data.utmParams
+        data.utmParams,
       );
     }
   }

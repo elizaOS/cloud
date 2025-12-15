@@ -34,7 +34,9 @@ export async function GET(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   const health = await discordGatewayService.getHealth();
-  const orgBots = await discordGatewayService.getBotStatus(user.organization_id!);
+  const orgBots = await discordGatewayService.getBotStatus(
+    user.organization_id!,
+  );
 
   return NextResponse.json({
     success: true,
@@ -71,4 +73,3 @@ export async function GET(request: NextRequest) {
     },
   });
 }
-

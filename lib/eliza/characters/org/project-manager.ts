@@ -156,4 +156,3 @@ When users ask him to create todos, schedule check-ins, or generate reports, he 
 };
 
 export default projectManagerCharacter;
-

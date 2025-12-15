@@ -13,7 +13,8 @@ import { describe, test, expect } from "bun:test";
 describe("Discord Connection", () => {
   test("should validate Discord bot token format", () => {
     // Discord bot tokens follow a specific format
-    const validToken = "MTEyMzQ1Njc4OTAxMjM0NTY3.GHijkl.abcdefghijklmnopqrstuvwxyz123456";
+    const validToken =
+      "MTEyMzQ1Njc4OTAxMjM0NTY3.GHijkl.abcdefghijklmnopqrstuvwxyz123456";
     const invalidToken = "invalid-token";
 
     // Token should have 3 parts separated by dots
@@ -34,7 +35,7 @@ describe("Discord Connection", () => {
 
   test("should define correct bot permissions", () => {
     // Permission integer for org bot functionality
-    // 274877975552 = Send Messages + Read Message History + Add Reactions + 
+    // 274877975552 = Send Messages + Read Message History + Add Reactions +
     //                Use Slash Commands + Embed Links + Attach Files
     const permissions = 274877975552;
 
@@ -234,4 +235,3 @@ describe("Connection Health Checks", () => {
     expect(errorStatus.error_message).toContain("401");
   });
 });
-

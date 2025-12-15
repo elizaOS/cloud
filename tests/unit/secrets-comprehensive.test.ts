@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach, mock } from "bun:test";
-import { SecretsService, type AuditContext } from "@/lib/services/secrets/secrets";
+import {
+  SecretsService,
+  type AuditContext,
+} from "@/lib/services/secrets/secrets";
 import {
   SecretsEncryptionService,
   LocalKMSProvider,
@@ -7,8 +10,10 @@ import {
 } from "@/lib/services/secrets/encryption";
 
 // Test KMS with deterministic key
-const TEST_KEY = "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210";
-const createTestEncryption = () => new SecretsEncryptionService(new LocalKMSProvider(TEST_KEY));
+const TEST_KEY =
+  "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210";
+const createTestEncryption = () =>
+  new SecretsEncryptionService(new LocalKMSProvider(TEST_KEY));
 
 // Mock repository for service tests
 const mockCreate = mock(() => Promise.resolve({} as never));
@@ -133,7 +138,8 @@ describe("Encryption Boundary Conditions", () => {
     });
 
     it("handles mixed unicode scripts", async () => {
-      const mixed = "English العربية עברית 中文 日本語 한국어 Ελληνικά Русский 🎉🔐💾";
+      const mixed =
+        "English العربية עברית 中文 日本語 한국어 Ελληνικά Русский 🎉🔐💾";
       const enc = await encryption.encrypt(mixed);
       expect(await encryption.decrypt(enc)).toBe(mixed);
     });
@@ -200,7 +206,7 @@ describe("Encryption Error Handling", () => {
         encryption.decrypt({
           ...valid,
           encryptedValue: "!!!not-base64!!!",
-        })
+        }),
       ).rejects.toThrow();
     });
 
@@ -210,7 +216,7 @@ describe("Encryption Error Handling", () => {
         encryption.decrypt({
           ...valid,
           nonce: "not-valid-base64!@#",
-        })
+        }),
       ).rejects.toThrow();
     });
 
@@ -220,7 +226,7 @@ describe("Encryption Error Handling", () => {
         encryption.decrypt({
           ...valid,
           authTag: "garbage",
-        })
+        }),
       ).rejects.toThrow();
     });
 
@@ -230,14 +236,14 @@ describe("Encryption Error Handling", () => {
         encryption.decrypt({
           ...valid,
           encryptedDek: valid.encryptedDek.slice(0, 10),
-        })
+        }),
       ).rejects.toThrow();
     });
 
     it("fails with empty strings", async () => {
       const valid = await encryption.encrypt("test");
       await expect(
-        encryption.decrypt({ ...valid, encryptedValue: "" })
+        encryption.decrypt({ ...valid, encryptedValue: "" }),
       ).rejects.toThrow();
     });
 
@@ -248,7 +254,7 @@ describe("Encryption Error Handling", () => {
           ...valid,
           nonce: valid.authTag,
           authTag: valid.nonce,
-        })
+        }),
       ).rejects.toThrow();
     });
 
@@ -260,7 +266,7 @@ describe("Encryption Error Handling", () => {
         encryption.decrypt({
           ...valid,
           encryptedValue: bytes.toString("base64"),
-        })
+        }),
       ).rejects.toThrow();
     });
   });
@@ -269,7 +275,9 @@ describe("Encryption Error Handling", () => {
     it("cannot decrypt with different KMS key", async () => {
       const enc1 = createTestEncryption();
       const enc2 = new SecretsEncryptionService(
-        new LocalKMSProvider("1111111111111111111111111111111111111111111111111111111111111111")
+        new LocalKMSProvider(
+          "1111111111111111111111111111111111111111111111111111111111111111",
+        ),
       );
 
       const encrypted = await enc1.encrypt("secret");
@@ -285,11 +293,15 @@ describe("LocalKMSProvider Edge Cases", () => {
     });
 
     it("rejects 128-bit key (32 hex chars)", () => {
-      expect(() => new LocalKMSProvider("0".repeat(32))).toThrow("64 hex characters");
+      expect(() => new LocalKMSProvider("0".repeat(32))).toThrow(
+        "64 hex characters",
+      );
     });
 
     it("rejects 512-bit key (128 hex chars)", () => {
-      expect(() => new LocalKMSProvider("0".repeat(128))).toThrow("64 hex characters");
+      expect(() => new LocalKMSProvider("0".repeat(128))).toThrow(
+        "64 hex characters",
+      );
     });
 
     it("rejects non-hex characters", () => {
@@ -300,12 +312,14 @@ describe("LocalKMSProvider Edge Cases", () => {
     });
 
     it("accepts uppercase hex", () => {
-      const upper = "ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789";
+      const upper =
+        "ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789";
       expect(() => new LocalKMSProvider(upper)).not.toThrow();
     });
 
     it("accepts mixed case hex", () => {
-      const mixed = "AbCdEf0123456789abcdef0123456789ABCDEF0123456789abcdef0123456789";
+      const mixed =
+        "AbCdEf0123456789abcdef0123456789ABCDEF0123456789abcdef0123456789";
       expect(() => new LocalKMSProvider(mixed)).not.toThrow();
     });
   });
@@ -314,9 +328,13 @@ describe("LocalKMSProvider Edge Cases", () => {
     it("generates unique plaintext keys", async () => {
       const kms = new LocalKMSProvider(TEST_KEY);
       const keys = await Promise.all(
-        Array(10).fill(null).map(() => kms.generateDataKey())
+        Array(10)
+          .fill(null)
+          .map(() => kms.generateDataKey()),
       );
-      const uniquePlaintexts = new Set(keys.map((k) => k.plaintext.toString("hex")));
+      const uniquePlaintexts = new Set(
+        keys.map((k) => k.plaintext.toString("hex")),
+      );
       expect(uniquePlaintexts.size).toBe(10);
     });
 
@@ -345,14 +363,18 @@ describe("SecretsService Concurrent Operations", () => {
         .fill(null)
         .map((_, i) => `secret-value-${i}`);
 
-      const encrypted = await Promise.all(values.map((v) => encryption.encrypt(v)));
+      const encrypted = await Promise.all(
+        values.map((v) => encryption.encrypt(v)),
+      );
 
       // All should have unique artifacts
       const nonces = new Set(encrypted.map((e) => e.nonce));
       expect(nonces.size).toBe(50);
 
       // All should decrypt correctly
-      const decrypted = await Promise.all(encrypted.map((e) => encryption.decrypt(e)));
+      const decrypted = await Promise.all(
+        encrypted.map((e) => encryption.decrypt(e)),
+      );
       expect(decrypted).toEqual(values);
     });
 
@@ -362,7 +384,7 @@ describe("SecretsService Concurrent Operations", () => {
       for (let i = 0; i < 20; i++) {
         const value = `interleaved-${i}`;
         operations.push(
-          encryption.encrypt(value).then((enc) => encryption.decrypt(enc))
+          encryption.encrypt(value).then((enc) => encryption.decrypt(enc)),
         );
       }
 
@@ -397,8 +419,8 @@ describe("SecretsService Concurrent Operations", () => {
               value: `value_${i}`,
               createdBy: "user-1",
             },
-            auditCtx
-          )
+            auditCtx,
+          ),
         );
 
       const results = await Promise.all(creates);
@@ -423,9 +445,7 @@ describe("SecretsService Concurrent Operations", () => {
 
       const decrypts = Array(10)
         .fill(null)
-        .map(() =>
-          service.getDecrypted({ organizationId: "org-1" })
-        );
+        .map(() => service.getDecrypted({ organizationId: "org-1" }));
 
       const results = await Promise.all(decrypts);
       results.forEach((r) => expect(r.SHARED).toBe(secretValue));
@@ -456,9 +476,14 @@ describe("SecretsService Input Validation", () => {
 
       await expect(
         service.create(
-          { organizationId: "org-1", name: "LARGE", value, createdBy: "user-1" },
-          auditCtx
-        )
+          {
+            organizationId: "org-1",
+            name: "LARGE",
+            value,
+            createdBy: "user-1",
+          },
+          auditCtx,
+        ),
       ).resolves.toBeDefined();
     });
 
@@ -467,9 +492,14 @@ describe("SecretsService Input Validation", () => {
 
       await expect(
         service.create(
-          { organizationId: "org-1", name: "TOO_LARGE", value, createdBy: "user-1" },
-          auditCtx
-        )
+          {
+            organizationId: "org-1",
+            name: "TOO_LARGE",
+            value,
+            createdBy: "user-1",
+          },
+          auditCtx,
+        ),
       ).rejects.toThrow("exceeds maximum size");
     });
 
@@ -483,7 +513,7 @@ describe("SecretsService Input Validation", () => {
       } as never);
 
       await expect(
-        service.update("s1", "org-1", { value }, auditCtx)
+        service.update("s1", "org-1", { value }, auditCtx),
       ).rejects.toThrow("exceeds maximum size");
     });
 
@@ -491,7 +521,7 @@ describe("SecretsService Input Validation", () => {
       const value = "x".repeat(65537);
 
       await expect(
-        service.rotate("s1", "org-1", value, auditCtx)
+        service.rotate("s1", "org-1", value, auditCtx),
       ).rejects.toThrow("exceeds maximum size");
     });
   });
@@ -515,7 +545,7 @@ describe("SecretsService Input Validation", () => {
           value: "test",
           createdBy: "user-1",
         },
-        auditCtx
+        auditCtx,
       );
 
       expect(result.name).toBe("API_KEY_V2_123");
@@ -539,7 +569,7 @@ describe("SecretsService Input Validation", () => {
           value: "test",
           createdBy: "user-1",
         },
-        auditCtx
+        auditCtx,
       );
 
       expect(result.name).toBe("MyMixedCaseKey");
@@ -574,7 +604,7 @@ describe("SecretsService Input Validation", () => {
             scope,
             createdBy: "user-1",
           },
-          auditCtx
+          auditCtx,
         );
 
         expect(result.scope).toBe(scope);
@@ -591,7 +621,7 @@ describe("SecretsService Input Validation", () => {
       } as never);
 
       await expect(
-        service.update("s1", "org-mine", { value: "new" }, auditCtx)
+        service.update("s1", "org-mine", { value: "new" }, auditCtx),
       ).rejects.toThrow("Secret not found");
     });
 
@@ -601,9 +631,9 @@ describe("SecretsService Input Validation", () => {
         organization_id: "org-other",
       } as never);
 
-      await expect(
-        service.delete("s1", "org-mine", auditCtx)
-      ).rejects.toThrow("Secret not found");
+      await expect(service.delete("s1", "org-mine", auditCtx)).rejects.toThrow(
+        "Secret not found",
+      );
     });
 
     it("rotate rejects secret from different org", async () => {
@@ -613,7 +643,7 @@ describe("SecretsService Input Validation", () => {
       } as never);
 
       await expect(
-        service.rotate("s1", "org-mine", "newval", auditCtx)
+        service.rotate("s1", "org-mine", "newval", auditCtx),
       ).rejects.toThrow("Secret not found");
     });
 
@@ -624,7 +654,7 @@ describe("SecretsService Input Validation", () => {
       } as never);
 
       await expect(
-        service.getDecryptedValue("s1", "org-mine", auditCtx)
+        service.getDecryptedValue("s1", "org-mine", auditCtx),
       ).rejects.toThrow("Secret not found");
     });
   });
@@ -769,7 +799,7 @@ describe("SecretsService OAuth Edge Cases", () => {
       } as never);
 
       await expect(
-        service.revokeOAuthConnection("oauth-1", "org-mine", "test")
+        service.revokeOAuthConnection("oauth-1", "org-mine", "test"),
       ).rejects.toThrow("OAuth session not found");
     });
 
@@ -780,7 +810,11 @@ describe("SecretsService OAuth Edge Cases", () => {
       } as never);
       mockOauthRevoke.mockResolvedValue({} as never);
 
-      await service.revokeOAuthConnection("oauth-1", "org-mine", "user request");
+      await service.revokeOAuthConnection(
+        "oauth-1",
+        "org-mine",
+        "user request",
+      );
 
       expect(mockOauthRevoke).toHaveBeenCalledWith("oauth-1", "user request");
     });
@@ -803,10 +837,15 @@ describe("SecretsService OAuth Edge Cases", () => {
       });
 
       expect(mockOauthCreate).toHaveBeenCalled();
-      const createCall = mockOauthCreate.mock.calls[0][0] as Record<string, unknown>;
+      const createCall = mockOauthCreate.mock.calls[0][0] as Record<
+        string,
+        unknown
+      >;
       // Provider data should be encrypted (not plaintext)
       expect(createCall.encrypted_provider_data).toBeDefined();
-      expect(createCall.encrypted_provider_data).not.toContain("user@example.com");
+      expect(createCall.encrypted_provider_data).not.toContain(
+        "user@example.com",
+      );
     });
   });
 });
@@ -844,7 +883,7 @@ describe("SecretsService Audit Logging", () => {
 
       await service.create(
         { organizationId: "org-1", name: "TEST", value: "v", createdBy: "u" },
-        fullContext
+        fullContext,
       );
 
       expect(mockAuditCreate).toHaveBeenCalledWith(
@@ -858,7 +897,7 @@ describe("SecretsService Audit Logging", () => {
           source: "cli",
           request_id: "req-xyz",
           endpoint: "/api/v1/secrets",
-        })
+        }),
       );
     });
 
@@ -880,7 +919,7 @@ describe("SecretsService Audit Logging", () => {
 
       await service.create(
         { organizationId: "org-1", name: "TEST", value: "v", createdBy: "u" },
-        minimalContext
+        minimalContext,
       );
 
       expect(mockAuditCreate).toHaveBeenCalledWith(
@@ -888,7 +927,7 @@ describe("SecretsService Audit Logging", () => {
           action: "created",
           actor_type: "system",
           actor_id: "system",
-        })
+        }),
       );
     });
 
@@ -907,7 +946,7 @@ describe("SecretsService Audit Logging", () => {
       await service.get("org-1", "READTEST", undefined, undefined, auditCtx);
 
       expect(mockAuditCreate).toHaveBeenCalledWith(
-        expect.objectContaining({ action: "read", secret_name: "READTEST" })
+        expect.objectContaining({ action: "read", secret_name: "READTEST" }),
       );
     });
 
@@ -963,13 +1002,18 @@ describe("SecretsService Version Management", () => {
         updated_at: new Date(),
       } as never);
 
-      const result = await service.update("s1", "org-1", { value: "new" }, auditCtx);
+      const result = await service.update(
+        "s1",
+        "org-1",
+        { value: "new" },
+        auditCtx,
+      );
       expect(result.version).toBe(6);
 
       // Verify update was called with incremented version
       expect(mockUpdate).toHaveBeenCalledWith(
         "s1",
-        expect.objectContaining({ version: 6 })
+        expect.objectContaining({ version: 6 }),
       );
     });
 
@@ -995,7 +1039,7 @@ describe("SecretsService Version Management", () => {
         "s1",
         "org-1",
         { description: "new desc" },
-        auditCtx
+        auditCtx,
       );
       expect(result.version).toBe(3);
 
@@ -1027,7 +1071,12 @@ describe("SecretsService Version Management", () => {
         updated_at: new Date(),
       } as never);
 
-      const result = await service.rotate("s1", "org-1", "rotated-value", auditCtx);
+      const result = await service.rotate(
+        "s1",
+        "org-1",
+        "rotated-value",
+        auditCtx,
+      );
       expect(result.version).toBe(11);
       expect(result.lastRotatedAt).toBeDefined();
     });
@@ -1069,4 +1118,3 @@ describe("Encryption Rotation", () => {
     expect(await encryption.decrypt(enc2)).toBe(original);
   });
 });
-

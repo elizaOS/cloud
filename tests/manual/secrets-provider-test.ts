@@ -20,7 +20,11 @@ if (!API_KEY) {
   process.exit(1);
 }
 
-async function testProvider(provider: string, key: string | undefined, label: string) {
+async function testProvider(
+  provider: string,
+  key: string | undefined,
+  label: string,
+) {
   if (!key) {
     console.log(`⏭️  Skipping ${label} (no key provided)`);
     return;
@@ -57,14 +61,21 @@ async function main() {
   await testProvider("openai", process.env.TEST_OPENAI_KEY, "OpenAI");
   await testProvider("anthropic", process.env.TEST_ANTHROPIC_KEY, "Anthropic");
   await testProvider("google", process.env.TEST_GOOGLE_KEY, "Google AI");
-  await testProvider("elevenlabs", process.env.TEST_ELEVENLABS_KEY, "ElevenLabs");
+  await testProvider(
+    "elevenlabs",
+    process.env.TEST_ELEVENLABS_KEY,
+    "ElevenLabs",
+  );
   await testProvider("stripe", process.env.TEST_STRIPE_KEY, "Stripe");
   await testProvider("discord", process.env.TEST_DISCORD_TOKEN, "Discord Bot");
-  await testProvider("telegram", process.env.TEST_TELEGRAM_TOKEN, "Telegram Bot");
+  await testProvider(
+    "telegram",
+    process.env.TEST_TELEGRAM_TOKEN,
+    "Telegram Bot",
+  );
   await testProvider("github", process.env.TEST_GITHUB_TOKEN, "GitHub");
 
   console.log(`\n---\nDone\n`);
 }
 
 main().catch(console.error);
-

@@ -1,15 +1,16 @@
 /**
  * IPFS Pinning Service
- * 
+ *
  * Integrates with the Jeju IPFS pinning API for decentralized storage.
  * Supports x402 micropayments for permissionless pinning.
- * 
+ *
  * @see apps/ipfs/pinning-api
  */
 
 import { logger } from "@/lib/utils/logger";
 
-const IPFS_API_URL = process.env.IPFS_PINNING_API_URL || "http://localhost:3100";
+const IPFS_API_URL =
+  process.env.IPFS_PINNING_API_URL || "http://localhost:3100";
 
 interface PinResult {
   id: string;
@@ -46,7 +47,7 @@ export const ipfsService = {
     }
     return response.json();
   },
-  
+
   /**
    * Pin content by CID
    */
@@ -54,32 +55,35 @@ export const ipfsService = {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
-    
+
     if (paymentHeader) {
       headers["X-PAYMENT"] = paymentHeader;
     }
-    
-    logger.info("[IPFS] Pinning content", { name: request.name, cid: request.cid });
-    
+
+    logger.info("[IPFS] Pinning content", {
+      name: request.name,
+      cid: request.cid,
+    });
+
     const response = await fetch(`${IPFS_API_URL}/pins`, {
       method: "POST",
       headers,
       body: JSON.stringify(request),
     });
-    
+
     if (response.status === 402) {
       const paymentInfo = await response.json();
       throw new IPFSPaymentRequiredError(paymentInfo);
     }
-    
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || `Pin failed: ${response.statusText}`);
     }
-    
+
     return response.json();
   },
-  
+
   /**
    * Upload and pin a file
    */
@@ -88,55 +92,55 @@ export const ipfsService = {
     options: {
       filename: string;
       paymentHeader?: string;
-    }
+    },
   ): Promise<PinResult> {
     const formData = new FormData();
-    
+
     if (content instanceof Buffer) {
       formData.append("file", new Blob([content]), options.filename);
     } else {
       formData.append("file", content, options.filename);
     }
-    
+
     const headers: Record<string, string> = {};
     if (options.paymentHeader) {
       headers["X-PAYMENT"] = options.paymentHeader;
     }
-    
+
     logger.info("[IPFS] Uploading file", { filename: options.filename });
-    
+
     const response = await fetch(`${IPFS_API_URL}/api/v0/add`, {
       method: "POST",
       headers,
       body: formData,
     });
-    
+
     if (response.status === 402) {
       const paymentInfo = await response.json();
       throw new IPFSPaymentRequiredError(paymentInfo);
     }
-    
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || `Upload failed: ${response.statusText}`);
     }
-    
+
     return response.json();
   },
-  
+
   /**
    * Get pin status by request ID
    */
   async getPin(id: string): Promise<PinResult> {
     const response = await fetch(`${IPFS_API_URL}/pins/${id}`);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to get pin: ${response.statusText}`);
     }
-    
+
     return response.json();
   },
-  
+
   /**
    * List pins with filters
    */
@@ -153,16 +157,16 @@ export const ipfsService = {
     if (options?.status) params.set("status", options.status);
     if (options?.limit) params.set("limit", options.limit.toString());
     if (options?.offset) params.set("offset", options.offset.toString());
-    
+
     const response = await fetch(`${IPFS_API_URL}/pins?${params}`);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to list pins: ${response.statusText}`);
     }
-    
+
     return response.json();
   },
-  
+
   /**
    * Unpin content
    */
@@ -170,14 +174,14 @@ export const ipfsService = {
     const response = await fetch(`${IPFS_API_URL}/pins/${id}`, {
       method: "DELETE",
     });
-    
+
     if (!response.ok) {
       throw new Error(`Failed to unpin: ${response.statusText}`);
     }
-    
+
     logger.info("[IPFS] Unpinned content", { id });
   },
-  
+
   /**
    * Get IPFS gateway URL for a CID
    */
@@ -185,13 +189,13 @@ export const ipfsService = {
     const gateway = process.env.IPFS_GATEWAY_URL || "https://ipfs.io";
     return `${gateway}/ipfs/${cid}`;
   },
-  
+
   /**
    * Calculate cost for pinning
    */
   calculatePinCost(sizeBytes: number, durationMonths: number = 1): number {
-    const sizeGB = sizeBytes / (1024 ** 3);
-    const pricePerGBMonth = 0.10; // $0.10/GB/month
+    const sizeGB = sizeBytes / 1024 ** 3;
+    const pricePerGBMonth = 0.1; // $0.10/GB/month
     return sizeGB * pricePerGBMonth * durationMonths;
   },
 };
@@ -212,7 +216,7 @@ export class IPFSPaymentRequiredError extends Error {
       description: string;
     }>;
   };
-  
+
   constructor(paymentInfo: IPFSPaymentRequiredError["paymentRequirement"]) {
     super("IPFS payment required");
     this.name = "IPFSPaymentRequiredError";
@@ -221,5 +225,3 @@ export class IPFSPaymentRequiredError extends Error {
 }
 
 export default ipfsService;
-
-

@@ -81,13 +81,17 @@ describe("Org Character Configurations", () => {
         servers: { "org-tools": { url: string } };
       };
       expect(mcpSettings?.servers?.["org-tools"]).toBeDefined();
-      expect(mcpSettings?.servers?.["org-tools"]?.url).toContain("/api/mcp/org/sse");
+      expect(mcpSettings?.servers?.["org-tools"]?.url).toContain(
+        "/api/mcp/org/sse",
+      );
     });
 
     test("should have project management topics", () => {
       expect(projectManagerCharacter.topics).toContain("project management");
       expect(projectManagerCharacter.topics).toContain("team coordination");
-      expect(projectManagerCharacter.topics).toContain("check-ins and standups");
+      expect(projectManagerCharacter.topics).toContain(
+        "check-ins and standups",
+      );
     });
 
     test("should have avatar configured", () => {
@@ -102,17 +106,21 @@ describe("Org Character Configurations", () => {
     });
 
     test("should include MCP plugin", () => {
-      expect(communityManagerCharacter.plugins).toContain("@elizaos/plugin-mcp");
+      expect(communityManagerCharacter.plugins).toContain(
+        "@elizaos/plugin-mcp",
+      );
     });
 
     test("should have community management topics", () => {
-      expect(communityManagerCharacter.topics).toContain("community moderation");
+      expect(communityManagerCharacter.topics).toContain(
+        "community moderation",
+      );
       expect(communityManagerCharacter.topics).toContain("role management");
     });
 
     test("should have friendly style", () => {
       expect(communityManagerCharacter.style?.all).toContainEqual(
-        expect.stringMatching(/friendly|cheerful|positive/i)
+        expect.stringMatching(/friendly|cheerful|positive/i),
       );
     });
   });
@@ -149,7 +157,9 @@ describe("Org Character Configurations", () => {
     });
 
     test("should have cross-platform topics", () => {
-      expect(liaisonCharacter.topics).toContain("cross-platform community management");
+      expect(liaisonCharacter.topics).toContain(
+        "cross-platform community management",
+      );
       expect(liaisonCharacter.topics).toContain("Discord activities");
       expect(liaisonCharacter.topics).toContain("Telegram discussions");
     });
@@ -162,20 +172,30 @@ describe("Org Character Configurations", () => {
     });
 
     test("should include MCP plugin", () => {
-      expect(socialMediaManagerCharacter.plugins).toContain("@elizaos/plugin-mcp");
+      expect(socialMediaManagerCharacter.plugins).toContain(
+        "@elizaos/plugin-mcp",
+      );
     });
 
     test("should have Twitter post generation disabled by default", () => {
-      expect(socialMediaManagerCharacter.settings?.TWITTER_ENABLE_POST_GENERATION).toBe(false);
+      expect(
+        socialMediaManagerCharacter.settings?.TWITTER_ENABLE_POST_GENERATION,
+      ).toBe(false);
     });
 
     test("should have marketing topics", () => {
-      expect(socialMediaManagerCharacter.topics).toContain("impactful messaging");
-      expect(socialMediaManagerCharacter.topics).toContain("anti-hype marketing");
+      expect(socialMediaManagerCharacter.topics).toContain(
+        "impactful messaging",
+      );
+      expect(socialMediaManagerCharacter.topics).toContain(
+        "anti-hype marketing",
+      );
     });
 
     test("should have post examples", () => {
-      expect(socialMediaManagerCharacter.postExamples?.length).toBeGreaterThan(0);
+      expect(socialMediaManagerCharacter.postExamples?.length).toBeGreaterThan(
+        0,
+      );
     });
   });
 });
@@ -247,4 +267,3 @@ describe("Org Character MCP Integration", () => {
     }
   });
 });
-

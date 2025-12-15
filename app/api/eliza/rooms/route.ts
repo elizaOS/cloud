@@ -33,7 +33,9 @@ export async function GET(request: NextRequest) {
   } catch {
     // Fallback to anonymous user - don't create session for GET
     try {
-      const sessionUser = await getOrCreateSessionUser(request, { createIfMissing: false });
+      const sessionUser = await getOrCreateSessionUser(request, {
+        createIfMissing: false,
+      });
       userId = sessionUser.userId;
       logger.debug("[Eliza Rooms API GET] Anonymous user:", userId);
     } catch {
@@ -159,10 +161,9 @@ export async function POST(request: NextRequest) {
   }
 
   // Create room via service (pure DB operation)
-  // NOTE: We only create a minimal room record here
-  // The full setup (worldId, serverId, entities, participants) happens
-  // when the first message is sent via message-handler.ensureConnection()
-  // This keeps room creation fast and lightweight
+  // NOTE: We create a minimal room record AND add the user as a participant
+  // This ensures the room shows up in their room list and they have access
+  // The full setup (worldId, serverId, etc.) happens when first message is sent
   const roomId = uuidv4();
   const createdAt = Date.now();
 
@@ -179,6 +180,10 @@ export async function POST(request: NextRequest) {
     },
   });
 
+  // Add user as participant so the room shows up in their room list
+  // and hasAccess check works via participant lookup
+  await roomsService.addParticipant(roomId, userId, agentId);
+
   logger.info(
     "[Eliza Rooms API POST] ✓ Room created:",
     roomId,
@@ -186,6 +191,7 @@ export async function POST(request: NextRequest) {
     agentId,
     "| user:",
     userId,
+    "| participant added",
   );
 
   return NextResponse.json({

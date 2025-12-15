@@ -55,7 +55,9 @@ test.describe("Authenticated API Tests (API Key)", () => {
   });
 
   test.describe("Agents API - CRUD", () => {
-    test("POST /agents creates new agent with source=app", async ({ request }) => {
+    test("POST /agents creates new agent with source=app", async ({
+      request,
+    }) => {
       const response = await request.post(`${CLOUD_URL}/api/v1/app/agents`, {
         headers: apiKeyHeaders(),
         data: {
@@ -75,30 +77,38 @@ test.describe("Authenticated API Tests (API Key)", () => {
       expect(data.agent).toHaveProperty("createdAt");
 
       // Cleanup
-      await request.delete(
-        `${CLOUD_URL}/api/v1/app/agents/${data.agent.id}`,
-        {
-          headers: apiKeyHeaders(),
-        },
-      );
+      await request.delete(`${CLOUD_URL}/api/v1/app/agents/${data.agent.id}`, {
+        headers: apiKeyHeaders(),
+      });
     });
 
     test("app agents are isolated from cloud agents", async ({ request }) => {
       // Create agent via app API (source=app)
-      const createResponse = await request.post(`${CLOUD_URL}/api/v1/app/agents`, {
-        headers: apiKeyHeaders(),
-        data: { name: "App Source Test Agent", bio: "Should have source=app" },
-      });
+      const createResponse = await request.post(
+        `${CLOUD_URL}/api/v1/app/agents`,
+        {
+          headers: apiKeyHeaders(),
+          data: {
+            name: "App Source Test Agent",
+            bio: "Should have source=app",
+          },
+        },
+      );
       expect(createResponse.status()).toBe(201);
       const { agent: appAgent } = await createResponse.json();
 
       // Verify agent appears in app agent list
-      const appListResponse = await request.get(`${CLOUD_URL}/api/v1/app/agents`, {
-        headers: apiKeyHeaders(),
-      });
+      const appListResponse = await request.get(
+        `${CLOUD_URL}/api/v1/app/agents`,
+        {
+          headers: apiKeyHeaders(),
+        },
+      );
       expect(appListResponse.status()).toBe(200);
       const appData = await appListResponse.json();
-      const foundInApp = appData.agents.some((a: { id: string }) => a.id === appAgent.id);
+      const foundInApp = appData.agents.some(
+        (a: { id: string }) => a.id === appAgent.id,
+      );
       expect(foundInApp).toBe(true);
 
       // Verify agent does NOT appear in cloud My Agents (which filters by source=cloud)
@@ -252,12 +262,9 @@ test.describe("Authenticated API Tests (API Key)", () => {
     test("GET /billing returns credit balance and usage", async ({
       request,
     }) => {
-      const response = await request.get(
-        `${CLOUD_URL}/api/v1/app/billing`,
-        {
-          headers: apiKeyHeaders(),
-        },
-      );
+      const response = await request.get(`${CLOUD_URL}/api/v1/app/billing`, {
+        headers: apiKeyHeaders(),
+      });
 
       expect(response.status()).toBe(200);
 
@@ -279,10 +286,7 @@ test.describe("Authenticated API Tests (API Key)", () => {
 
 test.describe("Authenticated API Tests (App Token)", () => {
   // Skip all if no app token
-  test.skip(
-    () => !APP_TOKEN,
-    "TEST_APP_TOKEN environment variable required",
-  );
+  test.skip(() => !APP_TOKEN, "TEST_APP_TOKEN environment variable required");
 
   test("GET /user with app token", async ({ request }) => {
     const response = await request.get(`${CLOUD_URL}/api/v1/app/user`, {
@@ -481,13 +485,10 @@ test.describe("Chats API", () => {
 
   test("full chat lifecycle", async ({ request }) => {
     // 1. Create an agent
-    const agentResponse = await request.post(
-      `${CLOUD_URL}/api/v1/app/agents`,
-      {
-        headers: apiKeyHeaders(),
-        data: { name: "Chat Test Agent", bio: "For chat testing" },
-      },
-    );
+    const agentResponse = await request.post(`${CLOUD_URL}/api/v1/app/agents`, {
+      headers: apiKeyHeaders(),
+      data: { name: "Chat Test Agent", bio: "For chat testing" },
+    });
     expect(agentResponse.status()).toBe(201);
     const { agent } = await agentResponse.json();
 

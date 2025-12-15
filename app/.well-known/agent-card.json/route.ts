@@ -75,8 +75,22 @@ interface AgentCard {
     schemes: SecurityScheme[];
     credentials?: string;
   };
-  defaultInputModes?: ("text" | "image" | "audio" | "video" | "file" | "data")[];
-  defaultOutputModes?: ("text" | "image" | "audio" | "video" | "file" | "data")[];
+  defaultInputModes?: (
+    | "text"
+    | "image"
+    | "audio"
+    | "video"
+    | "file"
+    | "data"
+  )[];
+  defaultOutputModes?: (
+    | "text"
+    | "image"
+    | "audio"
+    | "video"
+    | "file"
+    | "data"
+  )[];
   skills: AgentSkill[];
 }
 
@@ -98,9 +112,7 @@ export async function GET() {
       "Supports OpenAI-compatible API, MCP protocol, A2A protocol, and x402 micropayments.",
     url: `${baseUrl}/api/a2a`,
     preferredTransport: "JSONRPC",
-    additionalInterfaces: [
-      { url: `${baseUrl}/api/a2a`, transport: "JSONRPC" },
-    ],
+    additionalInterfaces: [{ url: `${baseUrl}/api/a2a`, transport: "JSONRPC" }],
     provider: {
       organization: "Eliza Cloud",
       url: baseUrl,
@@ -113,31 +125,39 @@ export async function GET() {
       pushNotifications: false, // Planned: Webhook push notifications require endpoint verification and retry logic
       stateTransitionHistory: true,
       extensions: [
-        ...(X402_ENABLED ? [{
-          uri: "https://x402.org/extension/payment",
-          description: "x402 pay-per-request payment protocol support",
-          required: false,
-          params: {
-            networks: [X402_DEFAULT_NETWORK],
-            assets: ["USDC"],
-            topupEndpoint: "/api/v1/credits/topup",
-          },
-        }] : []),
+        ...(X402_ENABLED
+          ? [
+              {
+                uri: "https://x402.org/extension/payment",
+                description: "x402 pay-per-request payment protocol support",
+                required: false,
+                params: {
+                  networks: [X402_DEFAULT_NETWORK],
+                  assets: ["USDC"],
+                  topupEndpoint: "/api/v1/credits/topup",
+                },
+              },
+            ]
+          : []),
         // ERC-8004 On-Chain Agent Registry
-        ...(isERC8004Configured() ? [{
-          uri: "https://eips.ethereum.org/EIPS/eip-8004",
-          description: "ERC-8004 on-chain agent identity and discovery",
-          required: false,
-          params: {
-            registered: isAgentRegistered(),
-            network: getDefaultNetwork(),
-            chainId: CHAIN_IDS[getDefaultNetwork()],
-            agentId: ELIZA_CLOUD_AGENT_ID[getDefaultNetwork()],
-            discoverEndpoint: "/api/v1/erc8004/discover",
-            tagsEndpoint: "/api/v1/erc8004/tags",
-            statusEndpoint: "/api/v1/erc8004/status",
-          },
-        }] : []),
+        ...(isERC8004Configured()
+          ? [
+              {
+                uri: "https://eips.ethereum.org/EIPS/eip-8004",
+                description: "ERC-8004 on-chain agent identity and discovery",
+                required: false,
+                params: {
+                  registered: isAgentRegistered(),
+                  network: getDefaultNetwork(),
+                  chainId: CHAIN_IDS[getDefaultNetwork()],
+                  agentId: ELIZA_CLOUD_AGENT_ID[getDefaultNetwork()],
+                  discoverEndpoint: "/api/v1/erc8004/discover",
+                  tagsEndpoint: "/api/v1/erc8004/tags",
+                  statusEndpoint: "/api/v1/erc8004/status",
+                },
+              },
+            ]
+          : []),
       ],
     },
 
@@ -145,7 +165,8 @@ export async function GET() {
       schemes: [
         {
           scheme: "bearer",
-          description: "API Key authentication via Authorization: Bearer <api_key>",
+          description:
+            "API Key authentication via Authorization: Bearer <api_key>",
         },
         {
           scheme: "apiKey",
@@ -294,7 +315,8 @@ export async function GET() {
       {
         id: "storage_upload",
         name: "Storage Upload",
-        description: "Upload files to decentralized storage (Vercel Blob + IPFS pinning). Supports x402 micropayments.",
+        description:
+          "Upload files to decentralized storage (Vercel Blob + IPFS pinning). Supports x402 micropayments.",
         tags: ["storage", "ipfs", "upload", "x402"],
         inputModes: ["file", "data"],
         outputModes: ["data"],
@@ -326,7 +348,8 @@ export async function GET() {
       {
         id: "storage_pin",
         name: "Pin to IPFS",
-        description: "Pin an existing CID to IPFS for decentralized persistence.",
+        description:
+          "Pin an existing CID to IPFS for decentralized persistence.",
         tags: ["storage", "ipfs", "pinning"],
         inputModes: ["data"],
         outputModes: ["data"],

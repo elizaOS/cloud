@@ -17,7 +17,9 @@ const PLATFORM_NAMES: Record<string, string> = {
 function SuccessContent() {
   const searchParams = useSearchParams();
   const platform = searchParams.get("platform");
-  const platformName = platform ? PLATFORM_NAMES[platform] || platform : "Platform";
+  const platformName = platform
+    ? PLATFORM_NAMES[platform] || platform
+    : "Platform";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-950 p-6">
@@ -68,4 +70,3 @@ export default function PlatformLinkSuccessPage() {
     </Suspense>
   );
 }
-

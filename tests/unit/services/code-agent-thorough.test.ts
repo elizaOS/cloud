@@ -96,7 +96,10 @@ describe("Interpreter - Boundary Conditions", () => {
 
     test("long but finite operation completes", () => {
       // Sum numbers - takes time but finishes
-      const result = executeJS("let s=0; for(let i=0;i<100000;i++)s+=i; s", 5000);
+      const result = executeJS(
+        "let s=0; for(let i=0;i<100000;i++)s+=i; s",
+        5000,
+      );
       expect(result.exitCode).toBe(0);
       expect(result.output).toBe("4999950000");
     });
@@ -240,13 +243,29 @@ describe("Interpreter - Error Handling", () => {
 
 describe("Shell Security - Comprehensive Patterns", () => {
   const DANGEROUS = [
-    /rm\s+-rf\s+\//, /sudo/, /chmod\s+777/, /mkfs/, /dd\s+if=/, />\s*\/dev\//,
-    /curl.*\|\s*sh/, /wget.*\|\s*sh/, /curl.*\|\s*bash/, /wget.*\|\s*bash/,
-    /\|\s*bash/, /bash\s+-c/, /eval\s*\(/, /\$\([^)]*\)/, /`[^`]*`/,
-    /\/etc\/passwd/, /\/etc\/shadow/, /chown\s+root/, /nc\s+-[el]/, /ncat\s+-[el]/,
+    /rm\s+-rf\s+\//,
+    /sudo/,
+    /chmod\s+777/,
+    /mkfs/,
+    /dd\s+if=/,
+    />\s*\/dev\//,
+    /curl.*\|\s*sh/,
+    /wget.*\|\s*sh/,
+    /curl.*\|\s*bash/,
+    /wget.*\|\s*bash/,
+    /\|\s*bash/,
+    /bash\s+-c/,
+    /eval\s*\(/,
+    /\$\([^)]*\)/,
+    /`[^`]*`/,
+    /\/etc\/passwd/,
+    /\/etc\/shadow/,
+    /chown\s+root/,
+    /nc\s+-[el]/,
+    /ncat\s+-[el]/,
   ];
 
-  const isDangerous = (cmd: string) => DANGEROUS.some(p => p.test(cmd));
+  const isDangerous = (cmd: string) => DANGEROUS.some((p) => p.test(cmd));
 
   describe("Filesystem Destruction", () => {
     test("rm -rf / variations", () => {
@@ -404,7 +423,9 @@ describe("Concurrent Execution", () => {
       "var sharedVar = 3; sharedVar",
     ];
 
-    const results = await Promise.all(codes.map(c => Promise.resolve(executeJS(c))));
+    const results = await Promise.all(
+      codes.map((c) => Promise.resolve(executeJS(c))),
+    );
 
     // Each should have its own isolated value
     expect(results[0].output).toBe("1");
@@ -414,7 +435,9 @@ describe("Concurrent Execution", () => {
 
   test("mutations don't leak between contexts", async () => {
     // First execution mutates Array prototype (this should fail in sandbox)
-    const result1 = executeJS("Array.prototype.myMethod = () => 'hacked'; [].myMethod()");
+    const result1 = executeJS(
+      "Array.prototype.myMethod = () => 'hacked'; [].myMethod()",
+    );
     // Even if it succeeded, second execution shouldn't see it
     const result2 = executeJS("typeof [].myMethod");
 
@@ -426,12 +449,14 @@ describe("Concurrent Execution", () => {
     const count = 50;
     const codes = Array.from({ length: count }, (_, i) => `${i} * 2`);
 
-    const results = await Promise.all(codes.map(c => Promise.resolve(executeJS(c))));
+    const results = await Promise.all(
+      codes.map((c) => Promise.resolve(executeJS(c))),
+    );
 
     expect(results.length).toBe(count);
-    expect(results.every(r => r.exitCode === 0)).toBe(true);
-    expect(results.map(r => parseInt(r.output))).toEqual(
-      Array.from({ length: count }, (_, i) => i * 2)
+    expect(results.every((r) => r.exitCode === 0)).toBe(true);
+    expect(results.map((r) => parseInt(r.output))).toEqual(
+      Array.from({ length: count }, (_, i) => i * 2),
     );
   });
 
@@ -567,7 +592,13 @@ describe("Data Structure Verification", () => {
 
   describe("Command Result Structure", () => {
     test("success result has correct shape", () => {
-      const result = { success: true, exitCode: 0, stdout: "output", stderr: "", durationMs: 100 };
+      const result = {
+        success: true,
+        exitCode: 0,
+        stdout: "output",
+        stderr: "",
+        durationMs: 100,
+      };
 
       expect(result.success).toBe(true);
       expect(result.exitCode).toBe(0);
@@ -577,7 +608,13 @@ describe("Data Structure Verification", () => {
     });
 
     test("error result has correct shape", () => {
-      const result = { success: false, exitCode: 1, stdout: "", stderr: "error", durationMs: 50 };
+      const result = {
+        success: false,
+        exitCode: 1,
+        stdout: "",
+        stderr: "error",
+        durationMs: 50,
+      };
 
       expect(result.success).toBe(false);
       expect(result.exitCode).not.toBe(0);
@@ -608,7 +645,9 @@ describe("Data Structure Verification", () => {
       const stats = createMockStats();
 
       expect(typeof stats.interpreter.byLanguage).toBe("object");
-      for (const [lang, count] of Object.entries(stats.interpreter.byLanguage)) {
+      for (const [lang, count] of Object.entries(
+        stats.interpreter.byLanguage,
+      )) {
         expect(typeof lang).toBe("string");
         expect(typeof count).toBe("number");
         expect(count).toBeGreaterThanOrEqual(0);
@@ -621,16 +660,40 @@ describe("Data Structure Verification", () => {
 // HELPER FUNCTIONS
 // =============================================================================
 
-function executeJS(code: string, timeout = 5000): { output: string; error: string | null; exitCode: number } {
+function executeJS(
+  code: string,
+  timeout = 5000,
+): { output: string; error: string | null; exitCode: number } {
   let output = "";
-  const log = (...args: unknown[]) => { output += args.map(String).join(" ") + "\n"; };
+  const log = (...args: unknown[]) => {
+    output += args.map(String).join(" ") + "\n";
+  };
 
   const context = vm.createContext({
     console: { log, error: log, warn: log, info: log },
-    setTimeout, setInterval, clearTimeout, clearInterval,
-    Buffer, JSON, Math, Date, Array, Object, String, Number, Boolean, RegExp, Error, Map, Set, Promise, Symbol,
+    setTimeout,
+    setInterval,
+    clearTimeout,
+    clearInterval,
+    Buffer,
+    JSON,
+    Math,
+    Date,
+    Array,
+    Object,
+    String,
+    Number,
+    Boolean,
+    RegExp,
+    Error,
+    Map,
+    Set,
+    Promise,
+    Symbol,
     // Explicitly add globalThis reference to itself for introspection
-    get globalThis() { return context; },
+    get globalThis() {
+      return context;
+    },
   });
 
   try {
@@ -640,9 +703,12 @@ function executeJS(code: string, timeout = 5000): { output: string; error: strin
     }
     return { output: output.trim(), error: null, exitCode: 0 };
   } catch (err) {
-    const msg = err instanceof Error && err.message.includes("timed out")
-      ? "Timed out"
-      : (err instanceof Error ? err.message : String(err));
+    const msg =
+      err instanceof Error && err.message.includes("timed out")
+        ? "Timed out"
+        : err instanceof Error
+          ? err.message
+          : String(err);
     return { output: output.trim(), error: msg, exitCode: 1 };
   }
 }
@@ -702,4 +768,3 @@ function createMockStats() {
     },
   };
 }
-

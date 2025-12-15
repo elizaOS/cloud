@@ -49,7 +49,7 @@ const UpdateAgentSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ agentType: string }> }
+  { params }: { params: Promise<{ agentType: string }> },
 ) {
   const auth = await requireAppAuth(request);
   if ("error" in auth) {
@@ -62,19 +62,19 @@ export async function GET(
   if (!user.organization_id) {
     return NextResponse.json(
       { success: false, error: "Organization required" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
   const instance = await agentLifecycleService.getInstance(
     user.organization_id,
-    agentType
+    agentType,
   );
 
   if (!instance) {
     return NextResponse.json(
       { success: false, error: "Agent not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -98,7 +98,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ agentType: string }> }
+  { params }: { params: Promise<{ agentType: string }> },
 ) {
   const auth = await requireAppAuth(request);
   if ("error" in auth) {
@@ -111,7 +111,7 @@ export async function PUT(
   if (!user.organization_id) {
     return NextResponse.json(
       { success: false, error: "Organization required" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -125,7 +125,7 @@ export async function PUT(
         error: "Invalid request",
         details: validation.error.format(),
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -138,7 +138,7 @@ export async function PUT(
 
   let instance = await agentLifecycleService.getInstance(
     user.organization_id,
-    agentType
+    agentType,
   );
 
   // Create instance if it doesn't exist
@@ -168,7 +168,7 @@ export async function PUT(
   // Refetch updated instance
   instance = await agentLifecycleService.getInstance(
     user.organization_id,
-    agentType
+    agentType,
   );
 
   const config = await agentLifecycleService.getConfig(instance!.id);
@@ -188,7 +188,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ agentType: string }> }
+  { params }: { params: Promise<{ agentType: string }> },
 ) {
   const auth = await requireAppAuth(request);
   if ("error" in auth) {
@@ -201,19 +201,19 @@ export async function DELETE(
   if (!user.organization_id) {
     return NextResponse.json(
       { success: false, error: "Organization required" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
   const instance = await agentLifecycleService.getInstance(
     user.organization_id,
-    agentType
+    agentType,
   );
 
   if (!instance) {
     return NextResponse.json(
       { success: false, error: "Agent not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 

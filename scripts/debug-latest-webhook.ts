@@ -54,7 +54,9 @@ async function debugLatestWebhook() {
       }
     }
   } catch (error) {
-    console.error(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(
+      `❌ Error: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
   console.log("\n\n🔔 Latest Events:");
@@ -89,7 +91,9 @@ async function debugLatestWebhook() {
           );
 
           console.log(`   📦 Metadata in Event:`);
-          const metadata = session.metadata as Record<string, unknown> | undefined;
+          const metadata = session.metadata as
+            | Record<string, unknown>
+            | undefined;
           if (metadata && Object.keys(metadata).length > 0) {
             Object.entries(metadata).forEach(([key, value]) => {
               console.log(`      ${key}: ${value}`);
@@ -101,7 +105,9 @@ async function debugLatestWebhook() {
       }
     }
   } catch (error) {
-    console.error(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(
+      `❌ Error: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
   console.log("\n\n" + "=".repeat(70));

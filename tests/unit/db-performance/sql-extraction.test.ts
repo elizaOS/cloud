@@ -20,7 +20,7 @@ describe("drizzle SQL object structure", () => {
     const id = 123;
     const name = "alice";
     const query = sql`SELECT * FROM users WHERE id = ${id} AND name = ${name}`;
-    
+
     const chunks = (query as unknown as { queryChunks: unknown[] }).queryChunks;
     expect(chunks.length).toBeGreaterThan(1);
   });
@@ -53,7 +53,7 @@ describe("drizzle SQL object structure", () => {
 
     // Should be a valid SQL object
     expect(query).toBeDefined();
-    
+
     // queryChunks should exist and have data
     const chunks = (query as unknown as { queryChunks: unknown[] }).queryChunks;
     expect(Array.isArray(chunks)).toBe(true);
@@ -66,12 +66,8 @@ describe("drizzle SQL object structure", () => {
   });
 
   it("sql.join combines multiple SQL fragments", () => {
-    const conditions = [
-      sql`id = 1`,
-      sql`name = 'alice'`,
-      sql`active = true`,
-    ];
-    
+    const conditions = [sql`id = 1`, sql`name = 'alice'`, sql`active = true`];
+
     const joined = sql.join(conditions, sql` AND `);
     expect(joined).toBeDefined();
   });
@@ -85,7 +81,7 @@ describe("SQL text extraction scenarios", () => {
     }
 
     const obj = sqlArg as Record<string, unknown>;
-    
+
     // 1. toSQL() method - query builders
     if (typeof obj.toSQL === "function") {
       try {
@@ -186,7 +182,7 @@ describe("SQL text extraction scenarios", () => {
   });
 
   it("handles object with null values in queryChunks", () => {
-    const obj = { 
+    const obj = {
       queryChunks: [
         null,
         undefined,
@@ -200,7 +196,7 @@ describe("SQL text extraction scenarios", () => {
   });
 
   it("handles chunks without value property", () => {
-    const obj = { 
+    const obj = {
       queryChunks: [
         { notValue: "test" },
         { value: ["SELECT"] },
@@ -238,27 +234,30 @@ describe("SQL text extraction scenarios", () => {
       ],
     };
     const text = extractSqlText(obj);
-    expect(text).toBe("INSERT INTO users (id, name, active) VALUES (?, bob, ?)");
+    expect(text).toBe(
+      "INSERT INTO users (id, name, active) VALUES (?, bob, ?)",
+    );
   });
 });
 
 describe("performance considerations", () => {
   it("extraction completes quickly for large queries", () => {
-    const largeSql = "SELECT " + Array(1000).fill("col").join(", ") + " FROM big_table";
+    const largeSql =
+      "SELECT " + Array(1000).fill("col").join(", ") + " FROM big_table";
     const query = sql.raw(largeSql);
-    
+
     const start = performance.now();
     for (let i = 0; i < 1000; i++) {
       // Access queryChunks to simulate extraction
-      const chunks = (query as unknown as { queryChunks: unknown[] }).queryChunks;
+      const chunks = (query as unknown as { queryChunks: unknown[] })
+        .queryChunks;
       if (chunks) {
         chunks.length; // Force evaluation
       }
     }
     const duration = performance.now() - start;
-    
+
     // Should complete 1000 iterations in under 100ms
     expect(duration).toBeLessThan(100);
   });
 });
-

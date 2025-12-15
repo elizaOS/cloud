@@ -2,10 +2,10 @@ import { describe, expect, it, beforeAll, afterAll } from "bun:test";
 
 /**
  * Real Integration Tests
- * 
+ *
  * These tests run against real Discord API when credentials are available.
  * Set DISCORD_TEST_TOKEN and DISCORD_TEST_CHANNEL_ID to enable.
- * 
+ *
  * Skip in CI unless explicitly enabled with ENABLE_DISCORD_INTEGRATION=true
  */
 
@@ -15,7 +15,8 @@ const ENABLE_INTEGRATION = process.env.ENABLE_DISCORD_INTEGRATION === "true";
 
 const DISCORD_API_BASE = "https://discord.com/api/v10";
 
-const shouldRun = ENABLE_INTEGRATION && DISCORD_TEST_TOKEN && DISCORD_TEST_CHANNEL_ID;
+const shouldRun =
+  ENABLE_INTEGRATION && DISCORD_TEST_TOKEN && DISCORD_TEST_CHANNEL_ID;
 
 describe.skipIf(!shouldRun)("Real Discord API Integration", () => {
   describe("Bot Authentication", () => {
@@ -27,7 +28,7 @@ describe.skipIf(!shouldRun)("Real Discord API Integration", () => {
       });
 
       expect(response.ok).toBe(true);
-      
+
       const user = await response.json();
       expect(user.id).toBeDefined();
       expect(user.username).toBeDefined();
@@ -48,24 +49,30 @@ describe.skipIf(!shouldRun)("Real Discord API Integration", () => {
 
   describe("Channel Access", () => {
     it("should fetch channel information", async () => {
-      const response = await fetch(`${DISCORD_API_BASE}/channels/${DISCORD_TEST_CHANNEL_ID}`, {
-        headers: {
-          Authorization: `Bot ${DISCORD_TEST_TOKEN}`,
+      const response = await fetch(
+        `${DISCORD_API_BASE}/channels/${DISCORD_TEST_CHANNEL_ID}`,
+        {
+          headers: {
+            Authorization: `Bot ${DISCORD_TEST_TOKEN}`,
+          },
         },
-      });
+      );
 
       expect(response.ok).toBe(true);
-      
+
       const channel = await response.json();
       expect(channel.id).toBe(DISCORD_TEST_CHANNEL_ID);
     });
 
     it("should handle non-existent channel", async () => {
-      const response = await fetch(`${DISCORD_API_BASE}/channels/000000000000000000`, {
-        headers: {
-          Authorization: `Bot ${DISCORD_TEST_TOKEN}`,
+      const response = await fetch(
+        `${DISCORD_API_BASE}/channels/000000000000000000`,
+        {
+          headers: {
+            Authorization: `Bot ${DISCORD_TEST_TOKEN}`,
+          },
         },
-      });
+      );
 
       expect(response.ok).toBe(false);
       expect([403, 404]).toContain(response.status);
@@ -75,73 +82,90 @@ describe.skipIf(!shouldRun)("Real Discord API Integration", () => {
   describe("Message Sending", () => {
     it("should send a message to channel", async () => {
       const testContent = `Integration test message - ${Date.now()}`;
-      
-      const response = await fetch(`${DISCORD_API_BASE}/channels/${DISCORD_TEST_CHANNEL_ID}/messages`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bot ${DISCORD_TEST_TOKEN}`,
-          "Content-Type": "application/json",
+
+      const response = await fetch(
+        `${DISCORD_API_BASE}/channels/${DISCORD_TEST_CHANNEL_ID}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bot ${DISCORD_TEST_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ content: testContent }),
         },
-        body: JSON.stringify({ content: testContent }),
-      });
+      );
 
       expect(response.ok).toBe(true);
-      
+
       const message = await response.json();
       expect(message.id).toBeDefined();
       expect(message.content).toBe(testContent);
-      
+
       // Clean up test message
-      await fetch(`${DISCORD_API_BASE}/channels/${DISCORD_TEST_CHANNEL_ID}/messages/${message.id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bot ${DISCORD_TEST_TOKEN}`,
+      await fetch(
+        `${DISCORD_API_BASE}/channels/${DISCORD_TEST_CHANNEL_ID}/messages/${message.id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bot ${DISCORD_TEST_TOKEN}`,
+          },
         },
-      });
+      );
     });
 
     it("should send message with embed", async () => {
-      const response = await fetch(`${DISCORD_API_BASE}/channels/${DISCORD_TEST_CHANNEL_ID}/messages`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bot ${DISCORD_TEST_TOKEN}`,
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `${DISCORD_API_BASE}/channels/${DISCORD_TEST_CHANNEL_ID}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bot ${DISCORD_TEST_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            embeds: [
+              {
+                title: "Integration Test Embed",
+                description: `Test at ${new Date().toISOString()}`,
+                color: 0x00ff00,
+              },
+            ],
+          }),
         },
-        body: JSON.stringify({
-          embeds: [{
-            title: "Integration Test Embed",
-            description: `Test at ${new Date().toISOString()}`,
-            color: 0x00ff00,
-          }],
-        }),
-      });
+      );
 
       expect(response.ok).toBe(true);
-      
+
       const message = await response.json();
       expect(message.embeds).toHaveLength(1);
       expect(message.embeds[0].title).toBe("Integration Test Embed");
-      
+
       // Clean up
-      await fetch(`${DISCORD_API_BASE}/channels/${DISCORD_TEST_CHANNEL_ID}/messages/${message.id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bot ${DISCORD_TEST_TOKEN}`,
+      await fetch(
+        `${DISCORD_API_BASE}/channels/${DISCORD_TEST_CHANNEL_ID}/messages/${message.id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bot ${DISCORD_TEST_TOKEN}`,
+          },
         },
-      });
+      );
     });
 
     it("should reject message over 2000 characters", async () => {
       const longContent = "a".repeat(2001);
-      
-      const response = await fetch(`${DISCORD_API_BASE}/channels/${DISCORD_TEST_CHANNEL_ID}/messages`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bot ${DISCORD_TEST_TOKEN}`,
-          "Content-Type": "application/json",
+
+      const response = await fetch(
+        `${DISCORD_API_BASE}/channels/${DISCORD_TEST_CHANNEL_ID}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bot ${DISCORD_TEST_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ content: longContent }),
         },
-        body: JSON.stringify({ content: longContent }),
-      });
+      );
 
       expect(response.ok).toBe(false);
       expect(response.status).toBe(400);
@@ -157,11 +181,11 @@ describe.skipIf(!shouldRun)("Real Discord API Integration", () => {
       });
 
       expect(response.ok).toBe(true);
-      
+
       // Discord returns rate limit headers
       const remaining = response.headers.get("x-ratelimit-remaining");
       const limit = response.headers.get("x-ratelimit-limit");
-      
+
       // These may or may not be present depending on the endpoint
       if (remaining !== null) {
         expect(parseInt(remaining, 10)).toBeGreaterThanOrEqual(0);
@@ -179,8 +203,11 @@ describe("Integration Test Configuration", () => {
       willRun: shouldRun,
     };
 
-    console.log("Integration test configuration:", JSON.stringify(status, null, 2));
-    
+    console.log(
+      "Integration test configuration:",
+      JSON.stringify(status, null, 2),
+    );
+
     // This test always passes - it's for logging purposes
     expect(true).toBe(true);
   });
@@ -201,7 +228,7 @@ To enable real Discord integration tests:
    bun test integration-real
 `);
     }
-    
+
     expect(true).toBe(true);
   });
 });

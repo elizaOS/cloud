@@ -73,7 +73,22 @@ export interface BirdeyeOHLCVItem {
  */
 export interface BirdeyeOHLCVParams {
   address: string;
-  type: "1m" | "3m" | "5m" | "15m" | "30m" | "1H" | "2H" | "4H" | "6H" | "8H" | "12H" | "1D" | "3D" | "1W" | "1M";
+  type:
+    | "1m"
+    | "3m"
+    | "5m"
+    | "15m"
+    | "30m"
+    | "1H"
+    | "2H"
+    | "4H"
+    | "6H"
+    | "8H"
+    | "12H"
+    | "1D"
+    | "3D"
+    | "1W"
+    | "1M";
   time_from?: number;
   time_to?: number;
 }
@@ -277,5 +292,14 @@ export interface BirdeyeMarketData {
 /**
  * Supported chain for Birdeye
  */
-export type BirdeyeChain = "solana" | "ethereum" | "arbitrum" | "avalanche" | "bsc" | "optimism" | "polygon" | "base" | "zksync" | "sui";
-
+export type BirdeyeChain =
+  | "solana"
+  | "ethereum"
+  | "arbitrum"
+  | "avalanche"
+  | "bsc"
+  | "optimism"
+  | "polygon"
+  | "base"
+  | "zksync"
+  | "sui";

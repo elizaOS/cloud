@@ -1,5 +1,8 @@
 import { secretsService } from "./secrets";
-import type { SecretProjectType, SecretEnvironment } from "@/db/schemas/secrets";
+import type {
+  SecretProjectType,
+  SecretEnvironment,
+} from "@/db/schemas/secrets";
 
 export interface SecretContext {
   organizationId: string;
@@ -33,7 +36,9 @@ export interface SandboxSecretContext {
   appId?: string;
 }
 
-export async function loadSecrets(ctx: SecretContext): Promise<Record<string, string>> {
+export async function loadSecrets(
+  ctx: SecretContext,
+): Promise<Record<string, string>> {
   assertSecretsConfigured();
 
   const orgSecrets = await secretsService.getDecrypted({
@@ -54,15 +59,27 @@ export async function loadSecrets(ctx: SecretContext): Promise<Record<string, st
 }
 
 export function loadAgentSecrets(ctx: AgentSecretContext) {
-  return loadSecrets({ organizationId: ctx.organizationId, projectId: ctx.characterId, projectType: "character" });
+  return loadSecrets({
+    organizationId: ctx.organizationId,
+    projectId: ctx.characterId,
+    projectType: "character",
+  });
 }
 
 export function loadMcpSecrets(ctx: McpSecretContext) {
-  return loadSecrets({ organizationId: ctx.organizationId, projectId: ctx.mcpId, projectType: "mcp" });
+  return loadSecrets({
+    organizationId: ctx.organizationId,
+    projectId: ctx.mcpId,
+    projectType: "mcp",
+  });
 }
 
 export function loadWorkflowSecrets(ctx: WorkflowSecretContext) {
-  return loadSecrets({ organizationId: ctx.organizationId, projectId: ctx.workflowId, projectType: "workflow" });
+  return loadSecrets({
+    organizationId: ctx.organizationId,
+    projectId: ctx.workflowId,
+    projectType: "workflow",
+  });
 }
 
 export function loadContainerSecrets(ctx: ContainerSecretContext) {
@@ -95,7 +112,9 @@ export function assertSecretsConfigured(): void {
 
 export class SecretsNotConfiguredError extends Error {
   constructor() {
-    super("Secrets service is not configured. Set SECRETS_MASTER_KEY or configure AWS KMS.");
+    super(
+      "Secrets service is not configured. Set SECRETS_MASTER_KEY or configure AWS KMS.",
+    );
     this.name = "SecretsNotConfiguredError";
   }
 }

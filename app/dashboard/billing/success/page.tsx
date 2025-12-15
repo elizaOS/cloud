@@ -166,7 +166,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
 
   if (existingTransaction) {
     logger.info(
-      `[BillingSuccess] Session already processed via webhook (transaction: ${existingTransaction.id})`
+      `[BillingSuccess] Session already processed via webhook (transaction: ${existingTransaction.id})`,
     );
     return {
       success: true,
@@ -177,7 +177,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
 
   // Add credits (with built-in idempotency)
   logger.info(
-    `[BillingSuccess] Adding ${credits} credits to org ${organizationId}`
+    `[BillingSuccess] Adding ${credits} credits to org ${organizationId}`,
   );
 
   await creditsService.addCredits({
@@ -195,12 +195,12 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
   });
 
   logger.info(
-    `[BillingSuccess] ✓ Credits added for session ${sessionId} (fallback)`
+    `[BillingSuccess] ✓ Credits added for session ${sessionId} (fallback)`,
   );
 
   // Create invoice record
   const existingInvoice = await invoicesService.getByStripeInvoiceId(
-    `cs_${sessionId}`
+    `cs_${sessionId}`,
   );
 
   if (!existingInvoice) {
@@ -230,9 +230,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
       paid_at: new Date(),
     });
 
-    logger.info(
-      `[BillingSuccess] ✓ Invoice created for session ${sessionId}`
-    );
+    logger.info(`[BillingSuccess] ✓ Invoice created for session ${sessionId}`);
   }
 
   return {

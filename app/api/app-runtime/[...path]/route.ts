@@ -1,13 +1,13 @@
 /**
  * App Runtime
- * 
+ *
  * This route serves app content from Vercel Blob storage.
  * It handles:
  * - Subdomain-based routing
  * - Custom domain support
  * - Runtime injection (auth, storage, API proxy)
  * - Static asset serving with CDN caching
- * 
+ *
  * In production, this should be deployed as a separate Vercel project
  * with wildcard domain *.apps.elizacloud.ai pointing to it.
  */
@@ -24,21 +24,21 @@ const API_BASE = process.env.NEXT_PUBLIC_APP_URL || "https://api.elizacloud.ai";
  */
 function extractSubdomain(host: string | null): string | null {
   if (!host) return null;
-  
+
   // Remove port if present
   const hostname = host.split(":")[0];
-  
+
   // Check if it's our app domain
   if (hostname.endsWith(`.${APP_DOMAIN}`)) {
     return hostname.replace(`.${APP_DOMAIN}`, "");
   }
-  
+
   // For local development
   if (hostname.includes("localhost") || hostname.includes("127.0.0.1")) {
     // Try to get subdomain from query param for local testing
     return null;
   }
-  
+
   // Could be a custom domain - return the full hostname
   return hostname;
 }
@@ -50,7 +50,7 @@ function injectRuntime(
   html: string,
   config: AppRuntimeConfig,
   appId: string,
-  subdomain: string
+  subdomain: string,
 ): string {
   const runtimeScript = `
 <script>
@@ -114,22 +114,19 @@ ${config.customHead || ""}
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
+  { params }: { params: Promise<{ path: string[] }> },
 ) {
   const { path } = await params;
   const host = request.headers.get("host");
-  
+
   // For local development, allow subdomain query param
   let subdomain = extractSubdomain(host);
   if (!subdomain) {
     subdomain = request.nextUrl.searchParams.get("subdomain");
   }
-  
+
   if (!subdomain) {
-    return NextResponse.json(
-      { error: "Invalid app URL" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Invalid app URL" }, { status: 400 });
   }
 
   // Look up domain (subdomain or custom domain)
@@ -137,27 +134,21 @@ export async function GET(
   if (!domain) {
     domain = await appDeployService.getDomainByCustomDomain(subdomain);
   }
-  
+
   if (!domain) {
-    return new NextResponse(
-      generateNotFoundPage(subdomain),
-      {
-        status: 404,
-        headers: { "Content-Type": "text/html" },
-      }
-    );
+    return new NextResponse(generateNotFoundPage(subdomain), {
+      status: 404,
+      headers: { "Content-Type": "text/html" },
+    });
   }
 
   // Get active bundle
   const bundle = await appDeployService.getActiveBundle(domain.app_id);
   if (!bundle) {
-    return new NextResponse(
-      generateNotFoundPage(subdomain),
-      {
-        status: 404,
-        headers: { "Content-Type": "text/html" },
-      }
-    );
+    return new NextResponse(generateNotFoundPage(subdomain), {
+      status: 404,
+      headers: { "Content-Type": "text/html" },
+    });
   }
 
   // Determine requested file
@@ -166,22 +157,22 @@ export async function GET(
 
   // Fetch from Blob storage
   const response = await fetch(fileUrl);
-  
+
   if (!response.ok) {
     // For SPA routing, serve index.html for non-file paths
     if (!requestedPath.includes(".")) {
       const indexUrl = `${bundle.bundle_url}/${bundle.entry_file}`;
       const indexResponse = await fetch(indexUrl);
-      
+
       if (indexResponse.ok) {
         const html = await indexResponse.text();
         const injectedHtml = injectRuntime(
           html,
           bundle.runtime_config,
           domain.app_id,
-          domain.subdomain
+          domain.subdomain,
         );
-        
+
         return new NextResponse(injectedHtml, {
           headers: {
             "Content-Type": "text/html; charset=utf-8",
@@ -190,25 +181,23 @@ export async function GET(
         });
       }
     }
-    
-    return NextResponse.json(
-      { error: "File not found" },
-      { status: 404 }
-    );
+
+    return NextResponse.json({ error: "File not found" }, { status: 404 });
   }
 
   // For HTML files, inject runtime
-  const contentType = response.headers.get("content-type") || "application/octet-stream";
-  
+  const contentType =
+    response.headers.get("content-type") || "application/octet-stream";
+
   if (contentType.includes("text/html")) {
     const html = await response.text();
     const injectedHtml = injectRuntime(
       html,
       bundle.runtime_config,
       domain.app_id,
-      domain.subdomain
+      domain.subdomain,
     );
-    
+
     return new NextResponse(injectedHtml, {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
@@ -266,5 +255,3 @@ function generateNotFoundPage(subdomain: string): string {
 </body>
 </html>`;
 }
-
-

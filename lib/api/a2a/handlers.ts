@@ -4,7 +4,10 @@
 
 import { v4 as uuidv4 } from "uuid";
 import { contentModerationService } from "@/lib/services/content-moderation";
-import { a2aTaskStoreService, type TaskStoreEntry } from "@/lib/services/a2a-task-store";
+import {
+  a2aTaskStoreService,
+  type TaskStoreEntry,
+} from "@/lib/services/a2a-task-store";
 import { logger } from "@/lib/utils/logger";
 import {
   type A2AContext,
@@ -28,7 +31,7 @@ import * as defiSkills from "./skills/defi";
 type SkillHandler = (
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ) => Promise<unknown>;
 
 type SkillEntry = {
@@ -53,15 +56,38 @@ const SKILL_REGISTRY: Record<string, SkillEntry> = {
     formatResult: (r) => {
       const result = r as { image: string; mimeType: string };
       return createMessage("agent", [
-        { type: "file", file: { bytes: result.image.split(",")[1], mimeType: result.mimeType } },
+        {
+          type: "file",
+          file: {
+            bytes: result.image.split(",")[1],
+            mimeType: result.mimeType,
+          },
+        },
       ]);
     },
   },
-  video_generation: { handler: skills.executeSkillVideoGeneration, description: "Generate videos (async)", aliases: ["generate_video"] },
-  get_x402_topup_requirements: { handler: skills.executeSkillGetX402TopupRequirements, description: "Get x402 payment requirements", aliases: ["x402_topup_requirements"] },
-  check_balance: { handler: (_, __, ctx) => skills.executeSkillCheckBalance(ctx), description: "Check credit balance" },
-  get_usage: { handler: (_, data, ctx) => skills.executeSkillGetUsage(data, ctx), description: "Get usage statistics" },
-  list_agents: { handler: (_, data, ctx) => skills.executeSkillListAgents(data, ctx), description: "List available agents" },
+  video_generation: {
+    handler: skills.executeSkillVideoGeneration,
+    description: "Generate videos (async)",
+    aliases: ["generate_video"],
+  },
+  get_x402_topup_requirements: {
+    handler: skills.executeSkillGetX402TopupRequirements,
+    description: "Get x402 payment requirements",
+    aliases: ["x402_topup_requirements"],
+  },
+  check_balance: {
+    handler: (_, __, ctx) => skills.executeSkillCheckBalance(ctx),
+    description: "Check credit balance",
+  },
+  get_usage: {
+    handler: (_, data, ctx) => skills.executeSkillGetUsage(data, ctx),
+    description: "Get usage statistics",
+  },
+  list_agents: {
+    handler: (_, data, ctx) => skills.executeSkillListAgents(data, ctx),
+    description: "List available agents",
+  },
   chat_with_agent: {
     handler: skills.executeSkillChatWithAgent,
     description: "Chat with agent",
@@ -70,157 +96,693 @@ const SKILL_REGISTRY: Record<string, SkillEntry> = {
       return createMessage("agent", [createTextPart(result.response)]);
     },
   },
-  save_memory: { handler: skills.executeSkillSaveMemory, description: "Save a memory" },
-  retrieve_memories: { handler: skills.executeSkillRetrieveMemories, description: "Retrieve memories by query" },
-  delete_memory: { handler: (_, data, ctx) => skills.executeSkillDeleteMemory(data, ctx), description: "Delete a memory" },
-  create_conversation: { handler: (_, data, ctx) => skills.executeSkillCreateConversation(data, ctx), description: "Create a new conversation" },
-  get_conversation_context: { handler: (_, data, ctx) => skills.executeSkillGetConversationContext(data, ctx), description: "Get conversation details" },
-  list_containers: { handler: (_, data, ctx) => skills.executeSkillListContainers(data, ctx), description: "List deployed containers" },
-  get_user_profile: { handler: (_, __, ctx) => skills.executeSkillGetUserProfile(ctx), description: "Get current user profile", aliases: ["profile"] },
-  storage_upload: { handler: (_, data, ctx) => skills.executeSkillStorageUpload(data, ctx), description: "Upload file to storage", aliases: ["upload_file"] },
-  storage_list: { handler: (_, data, ctx) => skills.executeSkillStorageList(data, ctx), description: "List stored files", aliases: ["list_files"] },
-  storage_stats: { handler: (_, __, ctx) => skills.executeSkillStorageStats(ctx), description: "Get storage statistics" },
-  storage_cost: { handler: (_, data) => skills.executeSkillStorageCalculateCost(data), description: "Calculate storage cost", aliases: ["calculate_storage_cost"] },
-  storage_pin: { handler: (_, data, ctx) => skills.executeSkillStoragePin(data, ctx), description: "Pin to IPFS", aliases: ["pin_to_ipfs"] },
-  n8n_create_workflow: { handler: skills.executeSkillN8nCreateWorkflow, description: "Create n8n workflow", aliases: ["create_n8n_workflow"] },
-  n8n_list_workflows: { handler: (_, data, ctx) => skills.executeSkillN8nListWorkflows(data, ctx), description: "List n8n workflows", aliases: ["list_n8n_workflows"] },
-  n8n_generate_workflow: { handler: skills.executeSkillN8nGenerateWorkflow, description: "AI-generate n8n workflow", aliases: ["generate_n8n_workflow"] },
-  n8n_trigger_workflow: { handler: skills.executeSkillN8nTriggerWorkflow, description: "Execute n8n workflow via trigger", aliases: ["trigger_n8n_workflow", "execute_workflow_trigger"] },
-  n8n_list_triggers: { handler: (_, data, ctx) => skills.executeSkillN8nListTriggers(data, ctx), description: "List n8n workflow triggers", aliases: ["list_n8n_triggers", "list_workflow_triggers"] },
-  n8n_create_trigger: { handler: skills.executeSkillN8nCreateTrigger, description: "Create n8n workflow trigger", aliases: ["create_n8n_trigger", "create_workflow_trigger"] },
+  save_memory: {
+    handler: skills.executeSkillSaveMemory,
+    description: "Save a memory",
+  },
+  retrieve_memories: {
+    handler: skills.executeSkillRetrieveMemories,
+    description: "Retrieve memories by query",
+  },
+  delete_memory: {
+    handler: (_, data, ctx) => skills.executeSkillDeleteMemory(data, ctx),
+    description: "Delete a memory",
+  },
+  create_conversation: {
+    handler: (_, data, ctx) => skills.executeSkillCreateConversation(data, ctx),
+    description: "Create a new conversation",
+  },
+  get_conversation_context: {
+    handler: (_, data, ctx) =>
+      skills.executeSkillGetConversationContext(data, ctx),
+    description: "Get conversation details",
+  },
+  list_containers: {
+    handler: (_, data, ctx) => skills.executeSkillListContainers(data, ctx),
+    description: "List deployed containers",
+  },
+  get_user_profile: {
+    handler: (_, __, ctx) => skills.executeSkillGetUserProfile(ctx),
+    description: "Get current user profile",
+    aliases: ["profile"],
+  },
+  storage_upload: {
+    handler: (_, data, ctx) => skills.executeSkillStorageUpload(data, ctx),
+    description: "Upload file to storage",
+    aliases: ["upload_file"],
+  },
+  storage_list: {
+    handler: (_, data, ctx) => skills.executeSkillStorageList(data, ctx),
+    description: "List stored files",
+    aliases: ["list_files"],
+  },
+  storage_stats: {
+    handler: (_, __, ctx) => skills.executeSkillStorageStats(ctx),
+    description: "Get storage statistics",
+  },
+  storage_cost: {
+    handler: (_, data) => skills.executeSkillStorageCalculateCost(data),
+    description: "Calculate storage cost",
+    aliases: ["calculate_storage_cost"],
+  },
+  storage_pin: {
+    handler: (_, data, ctx) => skills.executeSkillStoragePin(data, ctx),
+    description: "Pin to IPFS",
+    aliases: ["pin_to_ipfs"],
+  },
+  n8n_create_workflow: {
+    handler: skills.executeSkillN8nCreateWorkflow,
+    description: "Create n8n workflow",
+    aliases: ["create_n8n_workflow"],
+  },
+  n8n_list_workflows: {
+    handler: (_, data, ctx) => skills.executeSkillN8nListWorkflows(data, ctx),
+    description: "List n8n workflows",
+    aliases: ["list_n8n_workflows"],
+  },
+  n8n_generate_workflow: {
+    handler: skills.executeSkillN8nGenerateWorkflow,
+    description: "AI-generate n8n workflow",
+    aliases: ["generate_n8n_workflow"],
+  },
+  n8n_trigger_workflow: {
+    handler: skills.executeSkillN8nTriggerWorkflow,
+    description: "Execute n8n workflow via trigger",
+    aliases: ["trigger_n8n_workflow", "execute_workflow_trigger"],
+  },
+  n8n_list_triggers: {
+    handler: (_, data, ctx) => skills.executeSkillN8nListTriggers(data, ctx),
+    description: "List n8n workflow triggers",
+    aliases: ["list_n8n_triggers", "list_workflow_triggers"],
+  },
+  n8n_create_trigger: {
+    handler: skills.executeSkillN8nCreateTrigger,
+    description: "Create n8n workflow trigger",
+    aliases: ["create_n8n_trigger", "create_workflow_trigger"],
+  },
   // Application triggers (apps, agents, MCPs)
-  create_app_trigger: { handler: skills.executeSkillCreateAppTrigger, description: "Create trigger for an app, agent, or MCP", aliases: ["create_trigger", "add_trigger"] },
-  list_app_triggers: { handler: (_, data, ctx) => skills.executeSkillListAppTriggers(data, ctx), description: "List triggers for apps, agents, or MCPs", aliases: ["list_triggers", "get_triggers"] },
-  execute_app_trigger: { handler: skills.executeSkillExecuteAppTrigger, description: "Execute a trigger manually", aliases: ["run_trigger", "trigger"] },
-  generate_fragment: { handler: skills.executeSkillFragmentGenerate, description: "Generate code fragment", aliases: ["fragment_generate"] },
-  execute_fragment: { handler: skills.executeSkillFragmentExecute, description: "Execute fragment in sandbox", aliases: ["fragment_execute"] },
-  list_fragment_projects: { handler: skills.executeSkillFragmentListProjects, description: "List fragment projects", aliases: ["fragment_list_projects"] },
-  create_fragment_project: { handler: skills.executeSkillFragmentCreateProject, description: "Create fragment project", aliases: ["fragment_create_project"] },
-  get_fragment_project: { handler: skills.executeSkillFragmentGetProject, description: "Get fragment project", aliases: ["fragment_get_project"] },
-  update_fragment_project: { handler: skills.executeSkillFragmentUpdateProject, description: "Update fragment project", aliases: ["fragment_update_project"] },
-  delete_fragment_project: { handler: skills.executeSkillFragmentDeleteProject, description: "Delete fragment project", aliases: ["fragment_delete_project"] },
-  deploy_fragment_project: { handler: skills.executeSkillFragmentDeployProject, description: "Deploy fragment project", aliases: ["fragment_deploy_project"] },
+  create_app_trigger: {
+    handler: skills.executeSkillCreateAppTrigger,
+    description: "Create trigger for an app, agent, or MCP",
+    aliases: ["create_trigger", "add_trigger"],
+  },
+  list_app_triggers: {
+    handler: (_, data, ctx) => skills.executeSkillListAppTriggers(data, ctx),
+    description: "List triggers for apps, agents, or MCPs",
+    aliases: ["list_triggers", "get_triggers"],
+  },
+  execute_app_trigger: {
+    handler: skills.executeSkillExecuteAppTrigger,
+    description: "Execute a trigger manually",
+    aliases: ["run_trigger", "trigger"],
+  },
+  generate_fragment: {
+    handler: skills.executeSkillFragmentGenerate,
+    description: "Generate code fragment",
+    aliases: ["fragment_generate"],
+  },
+  execute_fragment: {
+    handler: skills.executeSkillFragmentExecute,
+    description: "Execute fragment in sandbox",
+    aliases: ["fragment_execute"],
+  },
+  list_fragment_projects: {
+    handler: skills.executeSkillFragmentListProjects,
+    description: "List fragment projects",
+    aliases: ["fragment_list_projects"],
+  },
+  create_fragment_project: {
+    handler: skills.executeSkillFragmentCreateProject,
+    description: "Create fragment project",
+    aliases: ["fragment_create_project"],
+  },
+  get_fragment_project: {
+    handler: skills.executeSkillFragmentGetProject,
+    description: "Get fragment project",
+    aliases: ["fragment_get_project"],
+  },
+  update_fragment_project: {
+    handler: skills.executeSkillFragmentUpdateProject,
+    description: "Update fragment project",
+    aliases: ["fragment_update_project"],
+  },
+  delete_fragment_project: {
+    handler: skills.executeSkillFragmentDeleteProject,
+    description: "Delete fragment project",
+    aliases: ["fragment_delete_project"],
+  },
+  deploy_fragment_project: {
+    handler: skills.executeSkillFragmentDeployProject,
+    description: "Deploy fragment project",
+    aliases: ["fragment_deploy_project"],
+  },
   // ERC-8004 Marketplace Discovery
-  marketplace_discover: { handler: skills.executeSkillMarketplaceDiscover, description: "Search ERC-8004 marketplace for agents/MCPs", aliases: ["discover_agents", "search_marketplace", "erc8004_discover"] },
-  marketplace_get_tags: { handler: () => skills.executeSkillMarketplaceGetTags(), description: "Get available marketplace tags for search", aliases: ["get_tags", "list_tags", "erc8004_tags"] },
-  marketplace_find_by_tags: { handler: skills.executeSkillMarketplaceFindByTags, description: "Find agents/MCPs by tags", aliases: ["find_by_tags"] },
-  marketplace_find_by_mcp_tools: { handler: skills.executeSkillMarketplaceFindByMCPTools, description: "Find MCPs with specific tools", aliases: ["find_mcp_tools", "find_by_tools"] },
-  marketplace_find_payable: { handler: skills.executeSkillMarketplaceFindPayable, description: "Find x402-enabled services", aliases: ["find_x402", "find_payable_agents"] },
+  marketplace_discover: {
+    handler: skills.executeSkillMarketplaceDiscover,
+    description: "Search ERC-8004 marketplace for agents/MCPs",
+    aliases: ["discover_agents", "search_marketplace", "erc8004_discover"],
+  },
+  marketplace_get_tags: {
+    handler: () => skills.executeSkillMarketplaceGetTags(),
+    description: "Get available marketplace tags for search",
+    aliases: ["get_tags", "list_tags", "erc8004_tags"],
+  },
+  marketplace_find_by_tags: {
+    handler: skills.executeSkillMarketplaceFindByTags,
+    description: "Find agents/MCPs by tags",
+    aliases: ["find_by_tags"],
+  },
+  marketplace_find_by_mcp_tools: {
+    handler: skills.executeSkillMarketplaceFindByMCPTools,
+    description: "Find MCPs with specific tools",
+    aliases: ["find_mcp_tools", "find_by_tools"],
+  },
+  marketplace_find_payable: {
+    handler: skills.executeSkillMarketplaceFindPayable,
+    description: "Find x402-enabled services",
+    aliases: ["find_x402", "find_payable_agents"],
+  },
   // Full App Builder - Multi-file complete app generation
-  full_app_builder_start: { handler: skills.executeSkillFullAppBuilderStart, description: "Start full app builder session with Vercel sandbox", aliases: ["start_app_builder", "create_app_session"] },
-  full_app_builder_prompt: { handler: skills.executeSkillFullAppBuilderPrompt, description: "Send prompt to app builder to generate/modify files", aliases: ["app_builder_prompt", "build_app"] },
-  full_app_builder_status: { handler: skills.executeSkillFullAppBuilderStatus, description: "Get app builder session status and files", aliases: ["app_builder_status", "get_app_session"] },
-  full_app_builder_stop: { handler: skills.executeSkillFullAppBuilderStop, description: "Stop app builder session and release resources", aliases: ["stop_app_builder", "end_app_session"] },
-  full_app_builder_extend: { handler: skills.executeSkillFullAppBuilderExtend, description: "Extend app builder session timeout", aliases: ["extend_app_session"] },
-  full_app_builder_list: { handler: (_, data, ctx) => skills.executeSkillFullAppBuilderListSessions(data, ctx), description: "List app builder sessions", aliases: ["list_app_sessions"] },
+  full_app_builder_start: {
+    handler: skills.executeSkillFullAppBuilderStart,
+    description: "Start full app builder session with Vercel sandbox",
+    aliases: ["start_app_builder", "create_app_session"],
+  },
+  full_app_builder_prompt: {
+    handler: skills.executeSkillFullAppBuilderPrompt,
+    description: "Send prompt to app builder to generate/modify files",
+    aliases: ["app_builder_prompt", "build_app"],
+  },
+  full_app_builder_status: {
+    handler: skills.executeSkillFullAppBuilderStatus,
+    description: "Get app builder session status and files",
+    aliases: ["app_builder_status", "get_app_session"],
+  },
+  full_app_builder_stop: {
+    handler: skills.executeSkillFullAppBuilderStop,
+    description: "Stop app builder session and release resources",
+    aliases: ["stop_app_builder", "end_app_session"],
+  },
+  full_app_builder_extend: {
+    handler: skills.executeSkillFullAppBuilderExtend,
+    description: "Extend app builder session timeout",
+    aliases: ["extend_app_session"],
+  },
+  full_app_builder_list: {
+    handler: (_, data, ctx) =>
+      skills.executeSkillFullAppBuilderListSessions(data, ctx),
+    description: "List app builder sessions",
+    aliases: ["list_app_sessions"],
+  },
   // Telegram skills
-  telegram_send_message: { handler: skills.executeSkillTelegramSendMessage, description: "Send a Telegram message", aliases: ["send_telegram", "telegram_message"] },
-  telegram_list_chats: { handler: (_, data, ctx) => skills.executeSkillTelegramListChats(data, ctx), description: "List Telegram chats", aliases: ["list_telegram_chats"] },
-  telegram_list_bots: { handler: (_, __, ctx) => skills.executeSkillTelegramListBots(ctx), description: "List connected Telegram bots", aliases: ["list_telegram_bots"] },
+  telegram_send_message: {
+    handler: skills.executeSkillTelegramSendMessage,
+    description: "Send a Telegram message",
+    aliases: ["send_telegram", "telegram_message"],
+  },
+  telegram_list_chats: {
+    handler: (_, data, ctx) => skills.executeSkillTelegramListChats(data, ctx),
+    description: "List Telegram chats",
+    aliases: ["list_telegram_chats"],
+  },
+  telegram_list_bots: {
+    handler: (_, __, ctx) => skills.executeSkillTelegramListBots(ctx),
+    description: "List connected Telegram bots",
+    aliases: ["list_telegram_bots"],
+  },
   // Org tools skills - Task management
-  create_task: { handler: skills.executeSkillCreateTask, description: "Create a new task", aliases: ["create_todo", "add_task"] },
-  list_tasks: { handler: (_, data, ctx) => skills.executeSkillListTasks(data, ctx), description: "List tasks with optional filters", aliases: ["list_todos", "get_tasks"] },
-  update_task: { handler: skills.executeSkillUpdateTask, description: "Update an existing task", aliases: ["update_todo", "modify_task"] },
-  complete_task: { handler: skills.executeSkillCompleteTask, description: "Mark a task as completed", aliases: ["complete_todo", "finish_task"] },
-  get_task_stats: { handler: (_, __, ctx) => skills.executeSkillGetTaskStats(ctx), description: "Get task statistics", aliases: ["task_stats", "todo_stats"] },
+  create_task: {
+    handler: skills.executeSkillCreateTask,
+    description: "Create a new task",
+    aliases: ["create_todo", "add_task"],
+  },
+  list_tasks: {
+    handler: (_, data, ctx) => skills.executeSkillListTasks(data, ctx),
+    description: "List tasks with optional filters",
+    aliases: ["list_todos", "get_tasks"],
+  },
+  update_task: {
+    handler: skills.executeSkillUpdateTask,
+    description: "Update an existing task",
+    aliases: ["update_todo", "modify_task"],
+  },
+  complete_task: {
+    handler: skills.executeSkillCompleteTask,
+    description: "Mark a task as completed",
+    aliases: ["complete_todo", "finish_task"],
+  },
+  get_task_stats: {
+    handler: (_, __, ctx) => skills.executeSkillGetTaskStats(ctx),
+    description: "Get task statistics",
+    aliases: ["task_stats", "todo_stats"],
+  },
   // Org tools skills - Check-in management
-  create_checkin_schedule: { handler: skills.executeSkillCreateCheckinSchedule, description: "Create a team check-in schedule", aliases: ["create_checkin", "schedule_standup"] },
-  list_checkin_schedules: { handler: (_, data, ctx) => skills.executeSkillListCheckinSchedules(data, ctx), description: "List check-in schedules", aliases: ["list_checkins", "get_schedules"] },
-  record_checkin_response: { handler: skills.executeSkillRecordCheckinResponse, description: "Record a check-in response", aliases: ["record_checkin", "submit_checkin"] },
-  generate_checkin_report: { handler: skills.executeSkillGenerateCheckinReport, description: "Generate a check-in report", aliases: ["checkin_report", "standup_report"] },
+  create_checkin_schedule: {
+    handler: skills.executeSkillCreateCheckinSchedule,
+    description: "Create a team check-in schedule",
+    aliases: ["create_checkin", "schedule_standup"],
+  },
+  list_checkin_schedules: {
+    handler: (_, data, ctx) =>
+      skills.executeSkillListCheckinSchedules(data, ctx),
+    description: "List check-in schedules",
+    aliases: ["list_checkins", "get_schedules"],
+  },
+  record_checkin_response: {
+    handler: skills.executeSkillRecordCheckinResponse,
+    description: "Record a check-in response",
+    aliases: ["record_checkin", "submit_checkin"],
+  },
+  generate_checkin_report: {
+    handler: skills.executeSkillGenerateCheckinReport,
+    description: "Generate a check-in report",
+    aliases: ["checkin_report", "standup_report"],
+  },
   // Org tools skills - Team management
-  add_team_member: { handler: skills.executeSkillAddTeamMember, description: "Add a team member to a server", aliases: ["add_member", "register_member"] },
-  list_team_members: { handler: (_, data, ctx) => skills.executeSkillListTeamMembers(data, ctx), description: "List team members", aliases: ["get_team", "list_members"] },
-  get_platform_status: { handler: (_, __, ctx) => skills.executeSkillGetPlatformStatus(ctx), description: "Get platform connection status", aliases: ["platform_status", "bot_status"] },
+  add_team_member: {
+    handler: skills.executeSkillAddTeamMember,
+    description: "Add a team member to a server",
+    aliases: ["add_member", "register_member"],
+  },
+  list_team_members: {
+    handler: (_, data, ctx) => skills.executeSkillListTeamMembers(data, ctx),
+    description: "List team members",
+    aliases: ["get_team", "list_members"],
+  },
+  get_platform_status: {
+    handler: (_, __, ctx) => skills.executeSkillGetPlatformStatus(ctx),
+    description: "Get platform connection status",
+    aliases: ["platform_status", "bot_status"],
+  },
   // Advertising skills
-  ads_list_accounts: { handler: (_, data, ctx) => skills.executeSkillAdsListAccounts(data, ctx), description: "List connected ad accounts", aliases: ["list_ad_accounts"] },
-  ads_list_campaigns: { handler: (_, data, ctx) => skills.executeSkillAdsListCampaigns(data, ctx), description: "List ad campaigns", aliases: ["list_campaigns", "get_campaigns"] },
-  ads_create_campaign: { handler: skills.executeSkillAdsCreateCampaign, description: "Create an ad campaign", aliases: ["create_campaign", "new_campaign"] },
-  ads_start_campaign: { handler: (_, data, ctx) => skills.executeSkillAdsStartCampaign(data, ctx), description: "Start/activate an ad campaign", aliases: ["start_campaign", "activate_campaign"] },
-  ads_pause_campaign: { handler: (_, data, ctx) => skills.executeSkillAdsPauseCampaign(data, ctx), description: "Pause an ad campaign", aliases: ["pause_campaign", "stop_campaign"] },
-  ads_delete_campaign: { handler: (_, data, ctx) => skills.executeSkillAdsDeleteCampaign(data, ctx), description: "Delete an ad campaign", aliases: ["delete_campaign", "remove_campaign"] },
-  ads_get_campaign_analytics: { handler: (_, data, ctx) => skills.executeSkillAdsGetCampaignAnalytics(data, ctx), description: "Get campaign analytics", aliases: ["campaign_analytics", "campaign_metrics"] },
-  ads_get_stats: { handler: (_, data, ctx) => skills.executeSkillAdsGetStats(data, ctx), description: "Get advertising statistics", aliases: ["ad_stats", "advertising_stats"] },
-  ads_create_creative: { handler: skills.executeSkillAdsCreateCreative, description: "Create an ad creative", aliases: ["create_creative", "new_creative"] },
+  ads_list_accounts: {
+    handler: (_, data, ctx) => skills.executeSkillAdsListAccounts(data, ctx),
+    description: "List connected ad accounts",
+    aliases: ["list_ad_accounts"],
+  },
+  ads_list_campaigns: {
+    handler: (_, data, ctx) => skills.executeSkillAdsListCampaigns(data, ctx),
+    description: "List ad campaigns",
+    aliases: ["list_campaigns", "get_campaigns"],
+  },
+  ads_create_campaign: {
+    handler: skills.executeSkillAdsCreateCampaign,
+    description: "Create an ad campaign",
+    aliases: ["create_campaign", "new_campaign"],
+  },
+  ads_start_campaign: {
+    handler: (_, data, ctx) => skills.executeSkillAdsStartCampaign(data, ctx),
+    description: "Start/activate an ad campaign",
+    aliases: ["start_campaign", "activate_campaign"],
+  },
+  ads_pause_campaign: {
+    handler: (_, data, ctx) => skills.executeSkillAdsPauseCampaign(data, ctx),
+    description: "Pause an ad campaign",
+    aliases: ["pause_campaign", "stop_campaign"],
+  },
+  ads_delete_campaign: {
+    handler: (_, data, ctx) => skills.executeSkillAdsDeleteCampaign(data, ctx),
+    description: "Delete an ad campaign",
+    aliases: ["delete_campaign", "remove_campaign"],
+  },
+  ads_get_campaign_analytics: {
+    handler: (_, data, ctx) =>
+      skills.executeSkillAdsGetCampaignAnalytics(data, ctx),
+    description: "Get campaign analytics",
+    aliases: ["campaign_analytics", "campaign_metrics"],
+  },
+  ads_get_stats: {
+    handler: (_, data, ctx) => skills.executeSkillAdsGetStats(data, ctx),
+    description: "Get advertising statistics",
+    aliases: ["ad_stats", "advertising_stats"],
+  },
+  ads_create_creative: {
+    handler: skills.executeSkillAdsCreateCreative,
+    description: "Create an ad creative",
+    aliases: ["create_creative", "new_creative"],
+  },
   // Media collections skills
-  collections_list: { handler: (_, data, ctx) => skills.executeSkillCollectionsList(data, ctx), description: "List media collections", aliases: ["list_collections", "get_collections"] },
-  collections_create: { handler: skills.executeSkillCollectionsCreate, description: "Create a media collection", aliases: ["create_collection", "new_collection"] },
-  collections_get: { handler: (_, data, ctx) => skills.executeSkillCollectionsGet(data, ctx), description: "Get collection with items", aliases: ["get_collection"] },
-  collections_add_items: { handler: (_, data, ctx) => skills.executeSkillCollectionsAddItems(data, ctx), description: "Add items to collection", aliases: ["add_to_collection"] },
-  collections_remove_items: { handler: (_, data, ctx) => skills.executeSkillCollectionsRemoveItems(data, ctx), description: "Remove items from collection", aliases: ["remove_from_collection"] },
+  collections_list: {
+    handler: (_, data, ctx) => skills.executeSkillCollectionsList(data, ctx),
+    description: "List media collections",
+    aliases: ["list_collections", "get_collections"],
+  },
+  collections_create: {
+    handler: skills.executeSkillCollectionsCreate,
+    description: "Create a media collection",
+    aliases: ["create_collection", "new_collection"],
+  },
+  collections_get: {
+    handler: (_, data, ctx) => skills.executeSkillCollectionsGet(data, ctx),
+    description: "Get collection with items",
+    aliases: ["get_collection"],
+  },
+  collections_add_items: {
+    handler: (_, data, ctx) =>
+      skills.executeSkillCollectionsAddItems(data, ctx),
+    description: "Add items to collection",
+    aliases: ["add_to_collection"],
+  },
+  collections_remove_items: {
+    handler: (_, data, ctx) =>
+      skills.executeSkillCollectionsRemoveItems(data, ctx),
+    description: "Remove items from collection",
+    aliases: ["remove_from_collection"],
+  },
   // Discord gateway skills
-  discord_gateway_list_connections: { handler: (_, data, ctx) => skills.executeSkillDiscordGatewayListConnections(data, ctx), description: "List Discord bot connections", aliases: ["list_discord_connections"] },
-  discord_gateway_list_routes: { handler: (_, data, ctx) => skills.executeSkillDiscordGatewayListRoutes(data, ctx), description: "List Discord event routes", aliases: ["list_discord_routes"] },
-  discord_gateway_create_route: { handler: skills.executeSkillDiscordGatewayCreateRoute, description: "Create Discord event route", aliases: ["create_discord_route"] },
-  discord_gateway_update_route: { handler: (_, data, ctx) => skills.executeSkillDiscordGatewayUpdateRoute(data, ctx), description: "Update Discord event route", aliases: ["update_discord_route"] },
-  discord_gateway_delete_route: { handler: (_, data, ctx) => skills.executeSkillDiscordGatewayDeleteRoute(data, ctx), description: "Delete Discord event route", aliases: ["delete_discord_route"] },
-  discord_gateway_get_stats: { handler: (_, data, ctx) => skills.executeSkillDiscordGatewayGetStats(data, ctx), description: "Get Discord gateway stats", aliases: ["discord_stats"] },
+  discord_gateway_list_connections: {
+    handler: (_, data, ctx) =>
+      skills.executeSkillDiscordGatewayListConnections(data, ctx),
+    description: "List Discord bot connections",
+    aliases: ["list_discord_connections"],
+  },
+  discord_gateway_list_routes: {
+    handler: (_, data, ctx) =>
+      skills.executeSkillDiscordGatewayListRoutes(data, ctx),
+    description: "List Discord event routes",
+    aliases: ["list_discord_routes"],
+  },
+  discord_gateway_create_route: {
+    handler: skills.executeSkillDiscordGatewayCreateRoute,
+    description: "Create Discord event route",
+    aliases: ["create_discord_route"],
+  },
+  discord_gateway_update_route: {
+    handler: (_, data, ctx) =>
+      skills.executeSkillDiscordGatewayUpdateRoute(data, ctx),
+    description: "Update Discord event route",
+    aliases: ["update_discord_route"],
+  },
+  discord_gateway_delete_route: {
+    handler: (_, data, ctx) =>
+      skills.executeSkillDiscordGatewayDeleteRoute(data, ctx),
+    description: "Delete Discord event route",
+    aliases: ["delete_discord_route"],
+  },
+  discord_gateway_get_stats: {
+    handler: (_, data, ctx) =>
+      skills.executeSkillDiscordGatewayGetStats(data, ctx),
+    description: "Get Discord gateway stats",
+    aliases: ["discord_stats"],
+  },
   // Social Feed skills - Bidirectional social media integration
-  create_feed_config: { handler: skills.executeSkillCreateFeedConfig, description: "Create a feed config to monitor social accounts", aliases: ["social_feed_create", "monitor_account"] },
-  list_feed_configs: { handler: (_, data, ctx) => skills.executeSkillListFeedConfigs(data, ctx), description: "List social feed configurations", aliases: ["social_feed_list", "list_feeds"] },
-  list_engagements: { handler: (_, data, ctx) => skills.executeSkillListEngagements(data, ctx), description: "List engagement events from monitored feeds", aliases: ["social_engagements", "get_engagements"] },
-  list_pending_replies: { handler: (_, data, ctx) => skills.executeSkillListPendingReplies(data, ctx), description: "List pending reply confirmations", aliases: ["pending_replies", "list_reply_confirmations"] },
-  confirm_reply: { handler: (_, data, ctx) => skills.executeSkillConfirmReply(data, ctx), description: "Confirm and send a pending reply", aliases: ["approve_reply", "send_reply"] },
-  reject_reply: { handler: (_, data, ctx) => skills.executeSkillRejectReply(data, ctx), description: "Reject a pending reply", aliases: ["decline_reply", "cancel_reply"] },
-  poll_feeds: { handler: (_, data, ctx) => skills.executeSkillPollFeeds(data, ctx), description: "Poll feeds for new engagements", aliases: ["social_poll", "check_feeds"] },
-  process_notifications: { handler: (_, data, ctx) => skills.executeSkillProcessNotifications(data, ctx), description: "Process unnotified engagement events", aliases: ["send_notifications", "notify_engagements"] },
+  create_feed_config: {
+    handler: skills.executeSkillCreateFeedConfig,
+    description: "Create a feed config to monitor social accounts",
+    aliases: ["social_feed_create", "monitor_account"],
+  },
+  list_feed_configs: {
+    handler: (_, data, ctx) => skills.executeSkillListFeedConfigs(data, ctx),
+    description: "List social feed configurations",
+    aliases: ["social_feed_list", "list_feeds"],
+  },
+  list_engagements: {
+    handler: (_, data, ctx) => skills.executeSkillListEngagements(data, ctx),
+    description: "List engagement events from monitored feeds",
+    aliases: ["social_engagements", "get_engagements"],
+  },
+  list_pending_replies: {
+    handler: (_, data, ctx) => skills.executeSkillListPendingReplies(data, ctx),
+    description: "List pending reply confirmations",
+    aliases: ["pending_replies", "list_reply_confirmations"],
+  },
+  confirm_reply: {
+    handler: (_, data, ctx) => skills.executeSkillConfirmReply(data, ctx),
+    description: "Confirm and send a pending reply",
+    aliases: ["approve_reply", "send_reply"],
+  },
+  reject_reply: {
+    handler: (_, data, ctx) => skills.executeSkillRejectReply(data, ctx),
+    description: "Reject a pending reply",
+    aliases: ["decline_reply", "cancel_reply"],
+  },
+  poll_feeds: {
+    handler: (_, data, ctx) => skills.executeSkillPollFeeds(data, ctx),
+    description: "Poll feeds for new engagements",
+    aliases: ["social_poll", "check_feeds"],
+  },
+  process_notifications: {
+    handler: (_, data, ctx) =>
+      skills.executeSkillProcessNotifications(data, ctx),
+    description: "Process unnotified engagement events",
+    aliases: ["send_notifications", "notify_engagements"],
+  },
   // SEO skills
-  seo_create_request: { handler: skills.executeSkillSeoCreateRequest, description: "Create SEO request (DataForSEO, SerpApi, Claude, IndexNow)" },
-  seo_get_request: { handler: (_, data, ctx) => skills.executeSkillSeoGetRequest(data, ctx), description: "Get SEO request status and artifacts", aliases: ["seo_status"] },
+  seo_create_request: {
+    handler: skills.executeSkillSeoCreateRequest,
+    description: "Create SEO request (DataForSEO, SerpApi, Claude, IndexNow)",
+  },
+  seo_get_request: {
+    handler: (_, data, ctx) => skills.executeSkillSeoGetRequest(data, ctx),
+    description: "Get SEO request status and artifacts",
+    aliases: ["seo_status"],
+  },
   // Social media posting skills - Cross-platform content publishing
-  social_media_post: { handler: skills.executeSkillSocialMediaPost, description: "Post to multiple social platforms", aliases: ["post_social", "create_social_post"] },
-  social_media_post_to_platform: { handler: skills.executeSkillSocialMediaPostToPlatform, description: "Post to a single platform", aliases: ["post_to_twitter", "post_to_bluesky"] },
-  social_media_delete_post: { handler: skills.executeSkillSocialMediaDeletePost, description: "Delete a post from a platform", aliases: ["delete_social_post"] },
-  social_media_reply: { handler: skills.executeSkillSocialMediaReply, description: "Reply to a social media post", aliases: ["reply_to_post", "social_reply"] },
-  social_media_like: { handler: skills.executeSkillSocialMediaLike, description: "Like a social media post", aliases: ["like_post", "social_like"] },
-  social_media_repost: { handler: skills.executeSkillSocialMediaRepost, description: "Repost/retweet a post", aliases: ["retweet", "repost"] },
-  social_media_get_post_analytics: { handler: skills.executeSkillSocialMediaGetPostAnalytics, description: "Get analytics for a post", aliases: ["post_analytics", "social_analytics"] },
-  social_media_get_account_analytics: { handler: skills.executeSkillSocialMediaGetAccountAnalytics, description: "Get account-level analytics", aliases: ["account_analytics"] },
-  social_media_get_platforms: { handler: () => skills.executeSkillSocialMediaGetPlatforms(), description: "List supported platforms", aliases: ["list_social_platforms", "get_social_platforms"] },
-  social_media_store_credentials: { handler: skills.executeSkillSocialMediaStoreCredentials, description: "Store credentials for a platform", aliases: ["save_social_credentials"] },
-  social_media_validate_credentials: { handler: skills.executeSkillSocialMediaValidateCredentials, description: "Validate stored credentials", aliases: ["check_social_credentials"] },
+  social_media_post: {
+    handler: skills.executeSkillSocialMediaPost,
+    description: "Post to multiple social platforms",
+    aliases: ["post_social", "create_social_post"],
+  },
+  social_media_post_to_platform: {
+    handler: skills.executeSkillSocialMediaPostToPlatform,
+    description: "Post to a single platform",
+    aliases: ["post_to_twitter", "post_to_bluesky"],
+  },
+  social_media_delete_post: {
+    handler: skills.executeSkillSocialMediaDeletePost,
+    description: "Delete a post from a platform",
+    aliases: ["delete_social_post"],
+  },
+  social_media_reply: {
+    handler: skills.executeSkillSocialMediaReply,
+    description: "Reply to a social media post",
+    aliases: ["reply_to_post", "social_reply"],
+  },
+  social_media_like: {
+    handler: skills.executeSkillSocialMediaLike,
+    description: "Like a social media post",
+    aliases: ["like_post", "social_like"],
+  },
+  social_media_repost: {
+    handler: skills.executeSkillSocialMediaRepost,
+    description: "Repost/retweet a post",
+    aliases: ["retweet", "repost"],
+  },
+  social_media_get_post_analytics: {
+    handler: skills.executeSkillSocialMediaGetPostAnalytics,
+    description: "Get analytics for a post",
+    aliases: ["post_analytics", "social_analytics"],
+  },
+  social_media_get_account_analytics: {
+    handler: skills.executeSkillSocialMediaGetAccountAnalytics,
+    description: "Get account-level analytics",
+    aliases: ["account_analytics"],
+  },
+  social_media_get_platforms: {
+    handler: () => skills.executeSkillSocialMediaGetPlatforms(),
+    description: "List supported platforms",
+    aliases: ["list_social_platforms", "get_social_platforms"],
+  },
+  social_media_store_credentials: {
+    handler: skills.executeSkillSocialMediaStoreCredentials,
+    description: "Store credentials for a platform",
+    aliases: ["save_social_credentials"],
+  },
+  social_media_validate_credentials: {
+    handler: skills.executeSkillSocialMediaValidateCredentials,
+    description: "Validate stored credentials",
+    aliases: ["check_social_credentials"],
+  },
   // Secrets management skills
-  secrets_list: { handler: (_, data, ctx) => skills.executeSkillSecretsList(data, ctx), description: "List secrets (metadata only)", aliases: ["list_secrets", "get_secrets"] },
-  secrets_get: { handler: (_, data, ctx) => skills.executeSkillSecretsGet(data, ctx), description: "Get a secret value by name", aliases: ["get_secret"] },
-  secrets_get_bulk: { handler: (_, data, ctx) => skills.executeSkillSecretsGetBulk(data, ctx), description: "Get multiple secrets by names", aliases: ["get_secrets_bulk"] },
-  secrets_create: { handler: (_, data, ctx) => skills.executeSkillSecretsCreate(data, ctx), description: "Create a new secret", aliases: ["create_secret", "store_secret"] },
-  secrets_update: { handler: (_, data, ctx) => skills.executeSkillSecretsUpdate(data, ctx), description: "Update an existing secret", aliases: ["update_secret"] },
-  secrets_delete: { handler: (_, data, ctx) => skills.executeSkillSecretsDelete(data, ctx), description: "Delete a secret", aliases: ["delete_secret", "remove_secret"] },
-  secrets_bind: { handler: (_, data, ctx) => skills.executeSkillSecretsBind(data, ctx), description: "Bind a secret to a project", aliases: ["bind_secret", "attach_secret"] },
-  secrets_unbind: { handler: (_, data, ctx) => skills.executeSkillSecretsUnbind(data, ctx), description: "Unbind a secret from a project", aliases: ["unbind_secret", "detach_secret"] },
+  secrets_list: {
+    handler: (_, data, ctx) => skills.executeSkillSecretsList(data, ctx),
+    description: "List secrets (metadata only)",
+    aliases: ["list_secrets", "get_secrets"],
+  },
+  secrets_get: {
+    handler: (_, data, ctx) => skills.executeSkillSecretsGet(data, ctx),
+    description: "Get a secret value by name",
+    aliases: ["get_secret"],
+  },
+  secrets_get_bulk: {
+    handler: (_, data, ctx) => skills.executeSkillSecretsGetBulk(data, ctx),
+    description: "Get multiple secrets by names",
+    aliases: ["get_secrets_bulk"],
+  },
+  secrets_create: {
+    handler: (_, data, ctx) => skills.executeSkillSecretsCreate(data, ctx),
+    description: "Create a new secret",
+    aliases: ["create_secret", "store_secret"],
+  },
+  secrets_update: {
+    handler: (_, data, ctx) => skills.executeSkillSecretsUpdate(data, ctx),
+    description: "Update an existing secret",
+    aliases: ["update_secret"],
+  },
+  secrets_delete: {
+    handler: (_, data, ctx) => skills.executeSkillSecretsDelete(data, ctx),
+    description: "Delete a secret",
+    aliases: ["delete_secret", "remove_secret"],
+  },
+  secrets_bind: {
+    handler: (_, data, ctx) => skills.executeSkillSecretsBind(data, ctx),
+    description: "Bind a secret to a project",
+    aliases: ["bind_secret", "attach_secret"],
+  },
+  secrets_unbind: {
+    handler: (_, data, ctx) => skills.executeSkillSecretsUnbind(data, ctx),
+    description: "Unbind a secret from a project",
+    aliases: ["unbind_secret", "detach_secret"],
+  },
   // Domain management skills
-  domains_search: { handler: (_, data, ctx) => skills.executeSkillDomainsSearch(data, ctx), description: "Search for available domains", aliases: ["search_domains", "find_domains"] },
-  domains_check: { handler: (_, data, ctx) => skills.executeSkillDomainsCheck(data, ctx), description: "Check domain availability and pricing", aliases: ["check_domain", "domain_availability"] },
-  domains_list: { handler: (_, data, ctx) => skills.executeSkillDomainsList(data, ctx), description: "List your domains", aliases: ["list_domains", "my_domains"] },
-  domains_register: { handler: (_, data, ctx) => skills.executeSkillDomainsRegister(data, ctx), description: "Register an external domain", aliases: ["register_domain", "add_domain"] },
-  domains_verify: { handler: (_, data, ctx) => skills.executeSkillDomainsVerify(data, ctx), description: "Verify domain ownership", aliases: ["verify_domain"] },
-  domains_assign: { handler: (_, data, ctx) => skills.executeSkillDomainsAssign(data, ctx), description: "Assign domain to resource", aliases: ["assign_domain"] },
-  domains_unassign: { handler: (_, data, ctx) => skills.executeSkillDomainsUnassign(data, ctx), description: "Unassign domain from resource", aliases: ["unassign_domain"] },
+  domains_search: {
+    handler: (_, data, ctx) => skills.executeSkillDomainsSearch(data, ctx),
+    description: "Search for available domains",
+    aliases: ["search_domains", "find_domains"],
+  },
+  domains_check: {
+    handler: (_, data, ctx) => skills.executeSkillDomainsCheck(data, ctx),
+    description: "Check domain availability and pricing",
+    aliases: ["check_domain", "domain_availability"],
+  },
+  domains_list: {
+    handler: (_, data, ctx) => skills.executeSkillDomainsList(data, ctx),
+    description: "List your domains",
+    aliases: ["list_domains", "my_domains"],
+  },
+  domains_register: {
+    handler: (_, data, ctx) => skills.executeSkillDomainsRegister(data, ctx),
+    description: "Register an external domain",
+    aliases: ["register_domain", "add_domain"],
+  },
+  domains_verify: {
+    handler: (_, data, ctx) => skills.executeSkillDomainsVerify(data, ctx),
+    description: "Verify domain ownership",
+    aliases: ["verify_domain"],
+  },
+  domains_assign: {
+    handler: (_, data, ctx) => skills.executeSkillDomainsAssign(data, ctx),
+    description: "Assign domain to resource",
+    aliases: ["assign_domain"],
+  },
+  domains_unassign: {
+    handler: (_, data, ctx) => skills.executeSkillDomainsUnassign(data, ctx),
+    description: "Unassign domain from resource",
+    aliases: ["unassign_domain"],
+  },
   // DeFi skills - Token prices, swaps, analytics
-  defi_get_token_price: { handler: defiSkills.executeSkillGetTokenPrice, description: "Get token price from multiple sources", aliases: ["get_token_price", "token_price", "crypto_price"] },
-  defi_get_trending: { handler: defiSkills.executeSkillGetTrendingTokens, description: "Get trending tokens", aliases: ["trending_tokens", "hot_tokens"] },
-  defi_get_market_overview: { handler: defiSkills.executeSkillGetMarketOverview, description: "Get global market overview", aliases: ["market_overview", "crypto_market"] },
-  defi_solana_token_overview: { handler: defiSkills.executeSkillSolanaTokenOverview, description: "Get detailed Solana token overview", aliases: ["solana_token", "sol_token_info"] },
-  defi_solana_wallet_portfolio: { handler: defiSkills.executeSkillSolanaWalletPortfolio, description: "Get Solana wallet portfolio", aliases: ["solana_wallet", "sol_portfolio"] },
-  defi_jupiter_quote: { handler: defiSkills.executeSkillJupiterQuote, description: "Get Jupiter swap quote on Solana", aliases: ["jupiter_quote", "sol_swap_quote"] },
-  defi_helius_transactions: { handler: defiSkills.executeSkillHeliusTransactions, description: "Get Solana transaction history", aliases: ["solana_transactions", "sol_txs"] },
-  defi_0x_quote: { handler: defiSkills.executeSkillZeroExQuote, description: "Get 0x swap quote for EVM chains", aliases: ["zeroex_quote", "evm_swap_quote", "0x_quote"] },
-  defi_search_tokens: { handler: defiSkills.executeSkillSearchTokens, description: "Search tokens across chains", aliases: ["search_tokens", "find_token"] },
-  defi_get_token_holders: { handler: defiSkills.executeSkillGetTokenHolders, description: "Get token holders", aliases: ["token_holders", "holder_analysis"] },
-  defi_get_ohlcv: { handler: defiSkills.executeSkillGetOHLCV, description: "Get OHLCV candlestick data", aliases: ["get_ohlcv", "candles", "price_history"] },
-  defi_health_check: { handler: defiSkills.executeSkillDeFiHealthCheck, description: "Check DeFi service health", aliases: ["defi_health", "check_defi_services"] },
+  defi_get_token_price: {
+    handler: defiSkills.executeSkillGetTokenPrice,
+    description: "Get token price from multiple sources",
+    aliases: ["get_token_price", "token_price", "crypto_price"],
+  },
+  defi_get_trending: {
+    handler: defiSkills.executeSkillGetTrendingTokens,
+    description: "Get trending tokens",
+    aliases: ["trending_tokens", "hot_tokens"],
+  },
+  defi_get_market_overview: {
+    handler: defiSkills.executeSkillGetMarketOverview,
+    description: "Get global market overview",
+    aliases: ["market_overview", "crypto_market"],
+  },
+  defi_solana_token_overview: {
+    handler: defiSkills.executeSkillSolanaTokenOverview,
+    description: "Get detailed Solana token overview",
+    aliases: ["solana_token", "sol_token_info"],
+  },
+  defi_solana_wallet_portfolio: {
+    handler: defiSkills.executeSkillSolanaWalletPortfolio,
+    description: "Get Solana wallet portfolio",
+    aliases: ["solana_wallet", "sol_portfolio"],
+  },
+  defi_jupiter_quote: {
+    handler: defiSkills.executeSkillJupiterQuote,
+    description: "Get Jupiter swap quote on Solana",
+    aliases: ["jupiter_quote", "sol_swap_quote"],
+  },
+  defi_helius_transactions: {
+    handler: defiSkills.executeSkillHeliusTransactions,
+    description: "Get Solana transaction history",
+    aliases: ["solana_transactions", "sol_txs"],
+  },
+  defi_0x_quote: {
+    handler: defiSkills.executeSkillZeroExQuote,
+    description: "Get 0x swap quote for EVM chains",
+    aliases: ["zeroex_quote", "evm_swap_quote", "0x_quote"],
+  },
+  defi_search_tokens: {
+    handler: defiSkills.executeSkillSearchTokens,
+    description: "Search tokens across chains",
+    aliases: ["search_tokens", "find_token"],
+  },
+  defi_get_token_holders: {
+    handler: defiSkills.executeSkillGetTokenHolders,
+    description: "Get token holders",
+    aliases: ["token_holders", "holder_analysis"],
+  },
+  defi_get_ohlcv: {
+    handler: defiSkills.executeSkillGetOHLCV,
+    description: "Get OHLCV candlestick data",
+    aliases: ["get_ohlcv", "candles", "price_history"],
+  },
+  defi_health_check: {
+    handler: defiSkills.executeSkillDeFiHealthCheck,
+    description: "Check DeFi service health",
+    aliases: ["defi_health", "check_defi_services"],
+  },
   // Code Agent skills - Full sandbox code execution
-  code_agent_create_session: { handler: skills.executeSkillCodeAgentCreateSession, description: "Create code agent session for writing/executing code", aliases: ["create_code_session", "start_sandbox"] },
-  code_agent_execute: { handler: skills.executeSkillCodeAgentExecute, description: "Execute code or commands in session", aliases: ["run_code", "execute_code"] },
-  code_agent_read_file: { handler: skills.executeSkillCodeAgentReadFile, description: "Read file from session", aliases: ["read_sandbox_file"] },
-  code_agent_write_file: { handler: skills.executeSkillCodeAgentWriteFile, description: "Write file to session", aliases: ["write_sandbox_file"] },
-  code_agent_list_files: { handler: skills.executeSkillCodeAgentListFiles, description: "List files in session", aliases: ["list_sandbox_files"] },
-  code_agent_git_clone: { handler: skills.executeSkillCodeAgentGitClone, description: "Clone git repo in session", aliases: ["sandbox_git_clone"] },
-  code_agent_install_packages: { handler: skills.executeSkillCodeAgentInstallPackages, description: "Install packages in session", aliases: ["sandbox_install"] },
-  code_agent_snapshot: { handler: skills.executeSkillCodeAgentSnapshot, description: "Create session snapshot", aliases: ["save_sandbox"] },
-  code_agent_terminate: { handler: skills.executeSkillCodeAgentTerminate, description: "Terminate session", aliases: ["end_code_session", "stop_sandbox"] },
+  code_agent_create_session: {
+    handler: skills.executeSkillCodeAgentCreateSession,
+    description: "Create code agent session for writing/executing code",
+    aliases: ["create_code_session", "start_sandbox"],
+  },
+  code_agent_execute: {
+    handler: skills.executeSkillCodeAgentExecute,
+    description: "Execute code or commands in session",
+    aliases: ["run_code", "execute_code"],
+  },
+  code_agent_read_file: {
+    handler: skills.executeSkillCodeAgentReadFile,
+    description: "Read file from session",
+    aliases: ["read_sandbox_file"],
+  },
+  code_agent_write_file: {
+    handler: skills.executeSkillCodeAgentWriteFile,
+    description: "Write file to session",
+    aliases: ["write_sandbox_file"],
+  },
+  code_agent_list_files: {
+    handler: skills.executeSkillCodeAgentListFiles,
+    description: "List files in session",
+    aliases: ["list_sandbox_files"],
+  },
+  code_agent_git_clone: {
+    handler: skills.executeSkillCodeAgentGitClone,
+    description: "Clone git repo in session",
+    aliases: ["sandbox_git_clone"],
+  },
+  code_agent_install_packages: {
+    handler: skills.executeSkillCodeAgentInstallPackages,
+    description: "Install packages in session",
+    aliases: ["sandbox_install"],
+  },
+  code_agent_snapshot: {
+    handler: skills.executeSkillCodeAgentSnapshot,
+    description: "Create session snapshot",
+    aliases: ["save_sandbox"],
+  },
+  code_agent_terminate: {
+    handler: skills.executeSkillCodeAgentTerminate,
+    description: "Terminate session",
+    aliases: ["end_code_session", "stop_sandbox"],
+  },
   // Quick code interpreter (stateless)
-  code_interpreter: { handler: skills.executeSkillCodeInterpreter, description: "Quick stateless code execution", aliases: ["run_python", "run_javascript", "run_shell", "eval"] },
+  code_interpreter: {
+    handler: skills.executeSkillCodeInterpreter,
+    description: "Quick stateless code execution",
+    aliases: ["run_python", "run_javascript", "run_shell", "eval"],
+  },
 };
 
 // Build alias lookup
@@ -231,7 +793,10 @@ for (const [id, entry] of Object.entries(SKILL_REGISTRY)) {
 }
 
 // Task store helpers
-async function getTaskStore(taskId: string, organizationId: string): Promise<TaskStoreEntry | null> {
+async function getTaskStore(
+  taskId: string,
+  organizationId: string,
+): Promise<TaskStoreEntry | null> {
   return a2aTaskStoreService.get(taskId, organizationId);
 }
 
@@ -239,15 +804,20 @@ async function updateTaskState(
   taskId: string,
   organizationId: string,
   state: TaskState,
-  message?: Message
+  message?: Message,
 ): Promise<Task | null> {
-  return a2aTaskStoreService.updateTaskState(taskId, organizationId, state, message);
+  return a2aTaskStoreService.updateTaskState(
+    taskId,
+    organizationId,
+    state,
+    message,
+  );
 }
 
 async function addArtifactToTask(
   taskId: string,
   organizationId: string,
-  artifact: Artifact
+  artifact: Artifact,
 ): Promise<Task | null> {
   return a2aTaskStoreService.addArtifact(taskId, organizationId, artifact);
 }
@@ -255,16 +825,20 @@ async function addArtifactToTask(
 async function addMessageToHistory(
   taskId: string,
   organizationId: string,
-  message: Message
+  message: Message,
 ): Promise<void> {
-  await a2aTaskStoreService.addMessageToHistory(taskId, organizationId, message);
+  await a2aTaskStoreService.addMessageToHistory(
+    taskId,
+    organizationId,
+    message,
+  );
 }
 
 async function storeTask(
   taskId: string,
   task: Task,
   userId: string,
-  organizationId: string
+  organizationId: string,
 ): Promise<void> {
   await a2aTaskStoreService.set(taskId, {
     task,
@@ -281,7 +855,7 @@ async function storeTask(
  */
 export async function handleMessageSend(
   params: MessageSendParams,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<Task | Message> {
   const { message, configuration, metadata } = params;
 
@@ -312,7 +886,7 @@ export async function handleMessageSend(
           categories: result.flaggedCategories,
           action: result.action,
         });
-      }
+      },
     );
   }
 
@@ -341,18 +915,27 @@ async function processA2AMessage(
   task: Task,
   message: Message,
   ctx: A2AContext,
-  _configuration?: MessageSendParams["configuration"]
+  _configuration?: MessageSendParams["configuration"],
 ): Promise<Task> {
-  const textParts = message.parts.filter((p): p is { type: "text"; text: string } => p.type === "text");
-  const dataParts = message.parts.filter((p): p is { type: "data"; data: Record<string, unknown> } => p.type === "data");
+  const textParts = message.parts.filter(
+    (p): p is { type: "text"; text: string } => p.type === "text",
+  );
+  const dataParts = message.parts.filter(
+    (p): p is { type: "data"; data: Record<string, unknown> } =>
+      p.type === "data",
+  );
 
   const textContent = textParts.map((p) => p.text).join("\n");
   const dataContent = dataParts.length > 0 ? dataParts[0].data : {};
   const requestedSkill = dataContent.skill as string | undefined;
 
   // Resolve skill from registry (use chat_completion as default)
-  const resolvedSkillId = requestedSkill ? SKILL_ALIAS_MAP.get(requestedSkill) : undefined;
-  const skillId = resolvedSkillId || (textContent && !requestedSkill ? "chat_completion" : resolvedSkillId);
+  const resolvedSkillId = requestedSkill
+    ? SKILL_ALIAS_MAP.get(requestedSkill)
+    : undefined;
+  const skillId =
+    resolvedSkillId ||
+    (textContent && !requestedSkill ? "chat_completion" : resolvedSkillId);
   const skillEntry = skillId ? SKILL_REGISTRY[skillId] : undefined;
 
   let responseMessage: Message;
@@ -362,19 +945,37 @@ async function processA2AMessage(
     const result = await skillEntry.handler(textContent, dataContent, ctx);
     responseMessage = skillEntry.formatResult
       ? skillEntry.formatResult(result)
-      : createMessage("agent", [createDataPart(result as Record<string, unknown>)]);
+      : createMessage("agent", [
+          createDataPart(result as Record<string, unknown>),
+        ]);
 
     // Add cost artifacts for certain skills
     if (skillId === "chat_completion") {
       const r = result as { model: string; usage: unknown; cost: number };
-      artifacts.push(createArtifact([createDataPart({ model: r.model, usage: r.usage, cost: r.cost })], "usage", "Token usage and cost"));
+      artifacts.push(
+        createArtifact(
+          [createDataPart({ model: r.model, usage: r.usage, cost: r.cost })],
+          "usage",
+          "Token usage and cost",
+        ),
+      );
     } else if (skillId === "image_generation") {
       const r = result as { cost: number };
-      artifacts.push(createArtifact([createDataPart({ cost: r.cost })], "cost", "Generation cost"));
+      artifacts.push(
+        createArtifact(
+          [createDataPart({ cost: r.cost })],
+          "cost",
+          "Generation cost",
+        ),
+      );
     }
   } else {
     // Fallback to chat completion
-    const result = await skills.executeSkillChatCompletion(textContent, dataContent, ctx);
+    const result = await skills.executeSkillChatCompletion(
+      textContent,
+      dataContent,
+      ctx,
+    );
     responseMessage = createMessage("agent", [createTextPart(result.content)]);
   }
 
@@ -383,7 +984,12 @@ async function processA2AMessage(
     await addArtifactToTask(task.id, ctx.user.organization_id, artifact);
   }
 
-  const updatedTask = await updateTaskState(task.id, ctx.user.organization_id, "completed", responseMessage);
+  const updatedTask = await updateTaskState(
+    task.id,
+    ctx.user.organization_id,
+    "completed",
+    responseMessage,
+  );
   if (updatedTask) return updatedTask;
 
   task.status = createTaskStatus("completed", responseMessage);
@@ -393,7 +999,10 @@ async function processA2AMessage(
 /**
  * tasks/get - Get task status and history
  */
-export async function handleTasksGet(params: TaskGetParams, ctx: A2AContext): Promise<Task> {
+export async function handleTasksGet(
+  params: TaskGetParams,
+  ctx: A2AContext,
+): Promise<Task> {
   const { id, historyLength } = params;
 
   const store = await getTaskStore(id, ctx.user.organization_id);
@@ -413,7 +1022,10 @@ export async function handleTasksGet(params: TaskGetParams, ctx: A2AContext): Pr
 /**
  * tasks/cancel - Cancel a running task
  */
-export async function handleTasksCancel(params: TaskCancelParams, ctx: A2AContext): Promise<Task> {
+export async function handleTasksCancel(
+  params: TaskCancelParams,
+  ctx: A2AContext,
+): Promise<Task> {
   const { id } = params;
 
   const store = await getTaskStore(id, ctx.user.organization_id);
@@ -421,9 +1033,16 @@ export async function handleTasksCancel(params: TaskCancelParams, ctx: A2AContex
     throw new Error(`Task not found: ${id}`);
   }
 
-  const terminalStates: TaskState[] = ["completed", "canceled", "failed", "rejected"];
+  const terminalStates: TaskState[] = [
+    "completed",
+    "canceled",
+    "failed",
+    "rejected",
+  ];
   if (terminalStates.includes(store.task.status.state)) {
-    throw new Error(`Task ${id} is already in terminal state: ${store.task.status.state}`);
+    throw new Error(
+      `Task ${id} is already in terminal state: ${store.task.status.state}`,
+    );
   }
 
   const task = await updateTaskState(id, ctx.user.organization_id, "canceled");
@@ -437,8 +1056,9 @@ export async function handleTasksCancel(params: TaskCancelParams, ctx: A2AContex
 /**
  * Available skills for service discovery (generated from registry)
  */
-export const AVAILABLE_SKILLS = Object.entries(SKILL_REGISTRY).map(([id, entry]) => ({
-  id,
-  description: entry.description,
-}));
-
+export const AVAILABLE_SKILLS = Object.entries(SKILL_REGISTRY).map(
+  ([id, entry]) => ({
+    id,
+    description: entry.description,
+  }),
+);

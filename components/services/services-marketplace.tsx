@@ -99,7 +99,7 @@ export function ServicesMarketplace({
   // Get unique values for filters
   const categories = useMemo(
     () => ["all", ...new Set(services.map((s) => s.category))],
-    [services]
+    [services],
   );
 
   const protocols = ["all", "mcp", "a2a", "rest"];
@@ -107,14 +107,17 @@ export function ServicesMarketplace({
 
   const filteredServices = services.filter((s) => {
     if (categoryFilter !== "all" && s.category !== categoryFilter) return false;
-    if (protocolFilter !== "all" && !s.protocols.includes(protocolFilter as "mcp" | "a2a" | "rest")) return false;
+    if (
+      protocolFilter !== "all" &&
+      !s.protocols.includes(protocolFilter as "mcp" | "a2a" | "rest")
+    )
+      return false;
     if (sourceFilter !== "all" && s.source !== sourceFilter) return false;
     return true;
   });
 
   const copyEndpoint = async (endpoint: string, serviceId: string) => {
-    const baseUrl =
-      typeof window !== "undefined" ? window.location.origin : "";
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
     const fullUrl = endpoint.startsWith("http")
       ? endpoint
       : `${baseUrl}${endpoint}`;
@@ -174,7 +177,8 @@ export function ServicesMarketplace({
                 >
                   {protocol === "all"
                     ? "All"
-                    : protocolLabels[protocol]?.label ?? protocol.toUpperCase()}
+                    : (protocolLabels[protocol]?.label ??
+                      protocol.toUpperCase())}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -204,7 +208,7 @@ export function ServicesMarketplace({
                 >
                   {source === "all"
                     ? "All"
-                    : sourceLabels[source]?.label ?? source}
+                    : (sourceLabels[source]?.label ?? source)}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -222,7 +226,7 @@ export function ServicesMarketplace({
               "px-4 py-2 text-sm border transition-all duration-200",
               categoryFilter === category
                 ? "bg-cyan-500/20 border-cyan-500/50 text-white"
-                : "bg-black/40 border-white/10 text-white/60 hover:border-white/30 hover:text-white"
+                : "bg-black/40 border-white/10 text-white/60 hover:border-white/30 hover:text-white",
             )}
             style={{ fontFamily: "var(--font-roboto-mono)" }}
           >
@@ -257,11 +261,11 @@ export function ServicesMarketplace({
                   className={cn(
                     "cursor-pointer transition-all duration-300 group",
                     selectedService?.id === service.id &&
-                      "border-cyan-500/50 shadow-lg shadow-cyan-500/10"
+                      "border-cyan-500/50 shadow-lg shadow-cyan-500/10",
                   )}
                   onClick={() =>
                     setSelectedService(
-                      selectedService?.id === service.id ? null : service
+                      selectedService?.id === service.id ? null : service,
                     )
                   }
                 >
@@ -325,7 +329,7 @@ export function ServicesMarketplace({
                                 ? "bg-green-400"
                                 : service.status === "coming_soon"
                                   ? "bg-yellow-400"
-                                  : "bg-white/40"
+                                  : "bg-white/40",
                             )}
                           />
                           <span
@@ -397,7 +401,7 @@ export function ServicesMarketplace({
                       <ChevronRight
                         className={cn(
                           "h-4 w-4 text-white/30 transition-transform group-hover:text-white/60",
-                          selectedService?.id === service.id && "rotate-90"
+                          selectedService?.id === service.id && "rotate-90",
                         )}
                       />
                     </div>
@@ -533,7 +537,7 @@ export function ServicesMarketplace({
                         onClick={() =>
                           copyEndpoint(
                             selectedService.endpoint,
-                            selectedService.id
+                            selectedService.id,
                           )
                         }
                         className="p-3 bg-black/60 border border-white/10 hover:border-cyan-500/50 transition-colors"
@@ -573,7 +577,7 @@ export function ServicesMarketplace({
                             },
                           },
                           null,
-                          2
+                          2,
                         )}
                       </pre>
                     </div>
@@ -613,7 +617,7 @@ export function ServicesMarketplace({
                     onClick={() =>
                       window.open(
                         "https://modelcontextprotocol.io/introduction",
-                        "_blank"
+                        "_blank",
                       )
                     }
                   >
@@ -695,5 +699,3 @@ export function ServicesMarketplace({
     </div>
   );
 }
-
-

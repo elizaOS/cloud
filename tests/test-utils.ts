@@ -60,7 +60,7 @@ export async function requireDatabase(): Promise<boolean> {
   try {
     // Dynamic import to avoid errors if DATABASE_URL not set
     const { db } = await import("@/db/client");
-    
+
     // Try a simple query to verify connection
     if (!db || !db.query) {
       logWarning("Database client not properly initialized");
@@ -100,9 +100,12 @@ export async function requireSchema(schemaName: string): Promise<boolean> {
 
   try {
     const { db } = await import("@/db/client");
-    
+
     // Check if the schema exists on db.query
-    const queryObj = db.query as Record<string, { findFirst?: () => Promise<unknown> }>;
+    const queryObj = db.query as Record<
+      string,
+      { findFirst?: () => Promise<unknown> }
+    >;
     if (!queryObj[schemaName]) {
       logWarning(`Schema '${schemaName}' not exported in db client`);
       return false;
@@ -115,9 +118,13 @@ export async function requireSchema(schemaName: string): Promise<boolean> {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (message.includes("does not exist") || message.includes("relation")) {
-      logWarning(`Table for '${schemaName}' not migrated - run: bun run db:migrate`);
+      logWarning(
+        `Table for '${schemaName}' not migrated - run: bun run db:migrate`,
+      );
     } else {
-      logWarning(`Schema '${schemaName}' not available: ${message.slice(0, 50)}`);
+      logWarning(
+        `Schema '${schemaName}' not available: ${message.slice(0, 50)}`,
+      );
     }
     return false;
   }
@@ -126,7 +133,9 @@ export async function requireSchema(schemaName: string): Promise<boolean> {
 /**
  * Check multiple schemas at once, returns true only if all are available.
  */
-export async function requireSchemas(...schemaNames: string[]): Promise<boolean> {
+export async function requireSchemas(
+  ...schemaNames: string[]
+): Promise<boolean> {
   const results = await Promise.all(schemaNames.map(requireSchema));
   return results.every(Boolean);
 }
@@ -140,14 +149,14 @@ export async function requireSchemas(...schemaNames: string[]): Promise<boolean>
  */
 export async function requireServer(url?: string): Promise<boolean> {
   const testUrl = url || testContext.serverUrl;
-  
+
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3000);
-    
+
     // Try health endpoint first, fall back to root
     const endpoints = ["/api/health", "/api/v1/storage", "/"];
-    
+
     for (const endpoint of endpoints) {
       try {
         const response = await fetch(testUrl + endpoint, {
@@ -155,7 +164,7 @@ export async function requireServer(url?: string): Promise<boolean> {
           method: "GET",
         });
         clearTimeout(timeoutId);
-        
+
         // Any response means server is running
         if (response) {
           testContext.serverAvailable = true;
@@ -166,7 +175,7 @@ export async function requireServer(url?: string): Promise<boolean> {
         // Continue to next endpoint
       }
     }
-    
+
     clearTimeout(timeoutId);
   } catch {
     // Fall through to warning
@@ -247,7 +256,7 @@ export function printTestBanner(suiteName: string): void {
 export function printWarnings(): void {
   if (testContext.warnings.length > 0) {
     console.log("\n⚠️ Test Setup Warnings:");
-    testContext.warnings.forEach(w => console.log(`   ${w}`));
+    testContext.warnings.forEach((w) => console.log(`   ${w}`));
     console.log("");
   }
 }
@@ -272,12 +281,18 @@ export function resetTestContext(): void {
  * Standard setup for integration tests.
  * Call in beforeAll to check database and optionally server.
  */
-export async function setupIntegrationTest(options: {
-  requireDb?: boolean;
-  requireServer?: boolean;
-  requiredSchemas?: string[];
-} = {}): Promise<boolean> {
-  const { requireDb = true, requireServer: needServer = false, requiredSchemas = [] } = options;
+export async function setupIntegrationTest(
+  options: {
+    requireDb?: boolean;
+    requireServer?: boolean;
+    requiredSchemas?: string[];
+  } = {},
+): Promise<boolean> {
+  const {
+    requireDb = true,
+    requireServer: needServer = false,
+    requiredSchemas = [],
+  } = options;
 
   let success = true;
 

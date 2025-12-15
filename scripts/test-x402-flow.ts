@@ -1,13 +1,13 @@
 #!/usr/bin/env bun
 /**
  * Test x402 Payment Flow with Deployed Contracts
- * 
+ *
  * This tests the complete payment flow:
  * 1. Get test USDC from faucet
  * 2. Approve USDC for x402 payment
  * 3. Create and verify payment signature
  * 4. Settle payment on-chain
- * 
+ *
  * Usage:
  *   PRIVATE_KEY=0x... bun run scripts/test-x402-flow.ts
  */
@@ -35,12 +35,51 @@ const CONTRACTS = {
 };
 
 const ERC20_ABI = [
-  { name: "approve", type: "function", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ type: "bool" }], stateMutability: "nonpayable" },
-  { name: "balanceOf", type: "function", inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }], stateMutability: "view" },
-  { name: "faucet", type: "function", inputs: [], outputs: [], stateMutability: "nonpayable" },
-  { name: "name", type: "function", inputs: [], outputs: [{ type: "string" }], stateMutability: "view" },
-  { name: "nonces", type: "function", inputs: [{ name: "owner", type: "address" }], outputs: [{ type: "uint256" }], stateMutability: "view" },
-  { name: "DOMAIN_SEPARATOR", type: "function", inputs: [], outputs: [{ type: "bytes32" }], stateMutability: "view" },
+  {
+    name: "approve",
+    type: "function",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ type: "bool" }],
+    stateMutability: "nonpayable",
+  },
+  {
+    name: "balanceOf",
+    type: "function",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    name: "faucet",
+    type: "function",
+    inputs: [],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    name: "name",
+    type: "function",
+    inputs: [],
+    outputs: [{ type: "string" }],
+    stateMutability: "view",
+  },
+  {
+    name: "nonces",
+    type: "function",
+    inputs: [{ name: "owner", type: "address" }],
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    name: "DOMAIN_SEPARATOR",
+    type: "function",
+    inputs: [],
+    outputs: [{ type: "bytes32" }],
+    stateMutability: "view",
+  },
 ] as const;
 
 // EIP-3009 TransferWithAuthorization types (used by USDC)
@@ -56,19 +95,20 @@ const EIP3009_TYPES = {
 } as const;
 
 async function main() {
-  const PRIVATE_KEY = (process.env.PRIVATE_KEY || process.env.MAINNET_PRIVATE_KEY) as `0x${string}`;
+  const PRIVATE_KEY = (process.env.PRIVATE_KEY ||
+    process.env.MAINNET_PRIVATE_KEY) as `0x${string}`;
   if (!PRIVATE_KEY) {
     console.error("❌ PRIVATE_KEY required");
     process.exit(1);
   }
 
   const account = privateKeyToAccount(PRIVATE_KEY);
-  
+
   const publicClient = createPublicClient({
     chain: baseSepolia,
     transport: http("https://sepolia.base.org"),
   });
-  
+
   const walletClient = createWalletClient({
     account,
     chain: baseSepolia,
@@ -89,9 +129,9 @@ async function main() {
     functionName: "balanceOf",
     args: [account.address],
   });
-  
+
   console.log(`   Balance: ${formatUnits(usdcBalance, 6)} USDC`);
-  
+
   if (usdcBalance < parseUnits("100", 6)) {
     console.log("   Getting more from faucet...");
     const tx = await walletClient.writeContract({
@@ -102,7 +142,7 @@ async function main() {
     });
     await publicClient.waitForTransactionReceipt({ hash: tx });
     console.log(`   ✅ Faucet tx: ${tx}`);
-    
+
     usdcBalance = await publicClient.readContract({
       address: CONTRACTS.MockJejuUSDC,
       abi: ERC20_ABI,
@@ -114,17 +154,19 @@ async function main() {
 
   // 2. Create x402 payment authorization
   console.log("\n2️⃣ Creating x402 payment authorization...");
-  
+
   const paymentAmount = parseUnits("1", 6); // $1 USDC
   const recipient = account.address; // Self-payment for testing
   const validAfter = 0n;
   const validBefore = BigInt(Math.floor(Date.now() / 1000) + 3600); // 1 hour
   const nonce = keccak256(toBytes(Date.now().toString())); // Random nonce
-  
+
   console.log(`   Amount: ${formatUnits(paymentAmount, 6)} USDC`);
   console.log(`   Recipient: ${recipient}`);
-  console.log(`   Valid until: ${new Date(Number(validBefore) * 1000).toISOString()}`);
-  
+  console.log(
+    `   Valid until: ${new Date(Number(validBefore) * 1000).toISOString()}`,
+  );
+
   // Sign EIP-3009 authorization
   const domain = {
     name: "USD Coin",
@@ -132,7 +174,7 @@ async function main() {
     chainId: 84532,
     verifyingContract: CONTRACTS.MockJejuUSDC,
   };
-  
+
   const message = {
     from: account.address,
     to: recipient,
@@ -141,7 +183,7 @@ async function main() {
     validBefore,
     nonce,
   };
-  
+
   console.log("\n3️⃣ Signing authorization...");
   const signature = await account.signTypedData({
     domain,
@@ -149,12 +191,12 @@ async function main() {
     primaryType: "TransferWithAuthorization",
     message,
   });
-  
+
   console.log(`   ✅ Signature: ${signature.slice(0, 20)}...`);
-  
+
   // 4. Create x402 payment payload
   console.log("\n4️⃣ Creating x402 payment payload...");
-  
+
   const x402Payload = {
     x402Version: 1,
     scheme: "exact",
@@ -171,16 +213,18 @@ async function main() {
       },
     },
   };
-  
-  const encodedPayload = Buffer.from(JSON.stringify(x402Payload)).toString("base64");
+
+  const encodedPayload = Buffer.from(JSON.stringify(x402Payload)).toString(
+    "base64",
+  );
   console.log(`   ✅ Encoded payload: ${encodedPayload.slice(0, 40)}...`);
-  
+
   // 5. Simulate payment verification
   console.log("\n5️⃣ Verifying payment (simulated)...");
   console.log(`   ✅ Payment signature valid`);
   console.log(`   ✅ Amount sufficient for $1.00 request`);
   console.log(`   ✅ Authorization not expired`);
-  
+
   // 6. Summary
   console.log("\n" + "=".repeat(60));
   console.log("✅ x402 Payment Flow Test Complete");
@@ -210,4 +254,3 @@ async function main() {
 }
 
 main().catch(console.error);
-

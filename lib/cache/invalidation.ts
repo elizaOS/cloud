@@ -143,7 +143,10 @@ export class CacheInvalidation {
     await memoryCache.invalidateConversation(conversationId);
   }
 
-  static async onCodeAgentSessionMutation(sessionId: string, organizationId: string): Promise<void> {
+  static async onCodeAgentSessionMutation(
+    sessionId: string,
+    organizationId: string,
+  ): Promise<void> {
     logger.debug(`[Cache] Code agent mutation: ${sessionId}`);
     await Promise.all([
       cache.del(CacheKeys.codeAgent.session(sessionId)),

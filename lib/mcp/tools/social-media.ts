@@ -64,65 +64,127 @@ function ok(data: unknown): ToolResponse {
 
 function err(error: unknown): ToolResponse {
   return {
-    content: [{ type: "text", text: JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }, null, 2) }],
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          { error: error instanceof Error ? error.message : "Unknown error" },
+          null,
+          2,
+        ),
+      },
+    ],
     isError: true,
   };
 }
 
-export async function handleCreatePost(params: z.infer<typeof CreatePostSchema>, auth: AuthResultWithOrg): Promise<ToolResponse> {
+export async function handleCreatePost(
+  params: z.infer<typeof CreatePostSchema>,
+  auth: AuthResultWithOrg,
+): Promise<ToolResponse> {
   const result = await socialMediaService.createPost({
     organizationId: auth.user.organization_id,
     userId: auth.user.id,
     content: params.content as PostContent,
     platforms: params.platforms as SocialPlatform[],
     platformOptions: params.platformOptions as PlatformPostOptions,
-    credentialIds: params.credentialIds as Partial<Record<SocialPlatform, string>>,
+    credentialIds: params.credentialIds as Partial<
+      Record<SocialPlatform, string>
+    >,
   });
 
   return ok({
     success: result.successCount > 0,
     results: result.results,
-    summary: { totalPlatforms: result.totalPlatforms, successCount: result.successCount, failureCount: result.failureCount },
+    summary: {
+      totalPlatforms: result.totalPlatforms,
+      successCount: result.successCount,
+      failureCount: result.failureCount,
+    },
   });
 }
 
-export async function handlePostToPlatform(params: z.infer<typeof SinglePlatformPostSchema>, auth: AuthResultWithOrg): Promise<ToolResponse> {
+export async function handlePostToPlatform(
+  params: z.infer<typeof SinglePlatformPostSchema>,
+  auth: AuthResultWithOrg,
+): Promise<ToolResponse> {
   const result = await socialMediaService.createPost({
     organizationId: auth.user.organization_id,
     userId: auth.user.id,
     content: params.content as PostContent,
     platforms: [params.platform as SocialPlatform],
     platformOptions: params.platformOptions as PlatformPostOptions,
-    credentialIds: params.credentialId ? { [params.platform]: params.credentialId } : undefined,
+    credentialIds: params.credentialId
+      ? { [params.platform]: params.credentialId }
+      : undefined,
   });
   return ok(result.results[0]);
 }
 
-export async function handleDeletePost(params: z.infer<typeof PostActionSchema>, auth: AuthResultWithOrg): Promise<ToolResponse> {
-  return ok(await socialMediaService.deletePost(auth.user.organization_id, params.platform as SocialPlatform, params.postId, params.credentialId));
+export async function handleDeletePost(
+  params: z.infer<typeof PostActionSchema>,
+  auth: AuthResultWithOrg,
+): Promise<ToolResponse> {
+  return ok(
+    await socialMediaService.deletePost(
+      auth.user.organization_id,
+      params.platform as SocialPlatform,
+      params.postId,
+      params.credentialId,
+    ),
+  );
 }
 
-export async function handleReplyToPost(params: z.infer<typeof ReplySchema>, auth: AuthResultWithOrg): Promise<ToolResponse> {
-  return ok(await socialMediaService.replyToPost(
-    auth.user.organization_id,
-    params.platform as SocialPlatform,
-    params.postId,
-    params.content as PostContent,
-    params.platformOptions as PlatformPostOptions,
-    params.credentialId
-  ));
+export async function handleReplyToPost(
+  params: z.infer<typeof ReplySchema>,
+  auth: AuthResultWithOrg,
+): Promise<ToolResponse> {
+  return ok(
+    await socialMediaService.replyToPost(
+      auth.user.organization_id,
+      params.platform as SocialPlatform,
+      params.postId,
+      params.content as PostContent,
+      params.platformOptions as PlatformPostOptions,
+      params.credentialId,
+    ),
+  );
 }
 
-export async function handleLikePost(params: z.infer<typeof PostActionSchema>, auth: AuthResultWithOrg): Promise<ToolResponse> {
-  return ok(await socialMediaService.likePost(auth.user.organization_id, params.platform as SocialPlatform, params.postId, params.credentialId));
+export async function handleLikePost(
+  params: z.infer<typeof PostActionSchema>,
+  auth: AuthResultWithOrg,
+): Promise<ToolResponse> {
+  return ok(
+    await socialMediaService.likePost(
+      auth.user.organization_id,
+      params.platform as SocialPlatform,
+      params.postId,
+      params.credentialId,
+    ),
+  );
 }
 
-export async function handleRepost(params: z.infer<typeof PostActionSchema>, auth: AuthResultWithOrg): Promise<ToolResponse> {
-  return ok(await socialMediaService.repost(auth.user.organization_id, params.platform as SocialPlatform, params.postId, params.credentialId));
+export async function handleRepost(
+  params: z.infer<typeof PostActionSchema>,
+  auth: AuthResultWithOrg,
+): Promise<ToolResponse> {
+  return ok(
+    await socialMediaService.repost(
+      auth.user.organization_id,
+      params.platform as SocialPlatform,
+      params.postId,
+      params.credentialId,
+    ),
+  );
 }
 
-export async function handleGetPostAnalytics(params: z.infer<typeof AnalyticsSchema>, auth: AuthResultWithOrg): Promise<ToolResponse> {
-  if (!params.postId) return err(new Error("postId required for post analytics"));
+export async function handleGetPostAnalytics(
+  params: z.infer<typeof AnalyticsSchema>,
+  auth: AuthResultWithOrg,
+): Promise<ToolResponse> {
+  if (!params.postId)
+    return err(new Error("postId required for post analytics"));
 
   const result = await socialMediaService.getPostAnalytics({
     organizationId: auth.user.organization_id,
@@ -134,7 +196,10 @@ export async function handleGetPostAnalytics(params: z.infer<typeof AnalyticsSch
   return ok(result ? { analytics: result } : { analytics: null });
 }
 
-export async function handleGetAccountAnalytics(params: z.infer<typeof AnalyticsSchema>, auth: AuthResultWithOrg): Promise<ToolResponse> {
+export async function handleGetAccountAnalytics(
+  params: z.infer<typeof AnalyticsSchema>,
+  auth: AuthResultWithOrg,
+): Promise<ToolResponse> {
   const result = await socialMediaService.getAccountAnalytics({
     organizationId: auth.user.organization_id,
     platform: params.platform as SocialPlatform,
@@ -144,12 +209,29 @@ export async function handleGetAccountAnalytics(params: z.infer<typeof Analytics
   return ok(result ? { analytics: result } : { analytics: null });
 }
 
-export async function handleValidateCredentials(params: { platform: string; credentialId?: string }, auth: AuthResultWithOrg): Promise<ToolResponse> {
-  return ok(await socialMediaService.validateCredentials(auth.user.organization_id, params.platform as SocialPlatform, params.credentialId));
+export async function handleValidateCredentials(
+  params: { platform: string; credentialId?: string },
+  auth: AuthResultWithOrg,
+): Promise<ToolResponse> {
+  return ok(
+    await socialMediaService.validateCredentials(
+      auth.user.organization_id,
+      params.platform as SocialPlatform,
+      params.credentialId,
+    ),
+  );
 }
 
-export async function handleStoreCredentials(params: z.infer<typeof StoreCredentialsSchema>, auth: AuthResultWithOrg): Promise<ToolResponse> {
-  await socialMediaService.storeCredentials(auth.user.organization_id, auth.user.id, params.platform as SocialPlatform, params.credentials);
+export async function handleStoreCredentials(
+  params: z.infer<typeof StoreCredentialsSchema>,
+  auth: AuthResultWithOrg,
+): Promise<ToolResponse> {
+  await socialMediaService.storeCredentials(
+    auth.user.organization_id,
+    auth.user.id,
+    params.platform as SocialPlatform,
+    params.credentials,
+  );
   return ok({ success: true, platform: params.platform });
 }
 
@@ -158,15 +240,40 @@ export function handleGetSupportedPlatforms(): ToolResponse {
   return ok({
     platforms,
     count: platforms.length,
-    capabilities: platforms.map(p => ({
+    capabilities: platforms.map((p) => ({
       platform: p,
       features: {
         post: true,
         delete: true,
-        reply: ["twitter", "bluesky", "reddit", "facebook", "linkedin", "discord", "mastodon"].includes(p),
-        like: ["twitter", "bluesky", "reddit", "facebook", "linkedin", "discord", "mastodon"].includes(p),
+        reply: [
+          "twitter",
+          "bluesky",
+          "reddit",
+          "facebook",
+          "linkedin",
+          "discord",
+          "mastodon",
+        ].includes(p),
+        like: [
+          "twitter",
+          "bluesky",
+          "reddit",
+          "facebook",
+          "linkedin",
+          "discord",
+          "mastodon",
+        ].includes(p),
         repost: ["twitter", "bluesky", "mastodon"].includes(p),
-        analytics: ["twitter", "bluesky", "reddit", "facebook", "instagram", "tiktok", "linkedin", "mastodon"].includes(p),
+        analytics: [
+          "twitter",
+          "bluesky",
+          "reddit",
+          "facebook",
+          "instagram",
+          "tiktok",
+          "linkedin",
+          "mastodon",
+        ].includes(p),
       },
     })),
   });
@@ -175,13 +282,15 @@ export function handleGetSupportedPlatforms(): ToolResponse {
 export const socialMediaTools = [
   {
     name: "social_media_create_post",
-    description: "Create a post across multiple social media platforms. Supports text, images, videos, links.",
+    description:
+      "Create a post across multiple social media platforms. Supports text, images, videos, links.",
     inputSchema: CreatePostSchema,
     handler: handleCreatePost,
   },
   {
     name: "social_media_post_to_platform",
-    description: "Create a post on a single platform with platform-specific options.",
+    description:
+      "Create a post on a single platform with platform-specific options.",
     inputSchema: SinglePlatformPostSchema,
     handler: handlePostToPlatform,
   },
@@ -193,13 +302,15 @@ export const socialMediaTools = [
   },
   {
     name: "social_media_reply",
-    description: "Reply to a post. Supported: Twitter, Bluesky, Reddit, Facebook, LinkedIn, Discord.",
+    description:
+      "Reply to a post. Supported: Twitter, Bluesky, Reddit, Facebook, LinkedIn, Discord.",
     inputSchema: ReplySchema,
     handler: handleReplyToPost,
   },
   {
     name: "social_media_like",
-    description: "Like/upvote a post. Supported: Twitter, Bluesky, Reddit, Facebook, LinkedIn, Discord.",
+    description:
+      "Like/upvote a post. Supported: Twitter, Bluesky, Reddit, Facebook, LinkedIn, Discord.",
     inputSchema: PostActionSchema,
     handler: handleLikePost,
   },
@@ -211,7 +322,8 @@ export const socialMediaTools = [
   },
   {
     name: "social_media_get_post_analytics",
-    description: "Get analytics for a post (likes, comments, shares, impressions).",
+    description:
+      "Get analytics for a post (likes, comments, shares, impressions).",
     inputSchema: AnalyticsSchema,
     handler: handleGetPostAnalytics,
   },
@@ -224,12 +336,16 @@ export const socialMediaTools = [
   {
     name: "social_media_validate_credentials",
     description: "Validate stored credentials and get account info.",
-    inputSchema: z.object({ platform: SocialPlatformSchema, credentialId: z.string().optional() }),
+    inputSchema: z.object({
+      platform: SocialPlatformSchema,
+      credentialId: z.string().optional(),
+    }),
     handler: handleValidateCredentials,
   },
   {
     name: "social_media_store_credentials",
-    description: "Store credentials for a platform. Required fields vary by platform.",
+    description:
+      "Store credentials for a platform. Required fields vary by platform.",
     inputSchema: StoreCredentialsSchema,
     handler: handleStoreCredentials,
   },

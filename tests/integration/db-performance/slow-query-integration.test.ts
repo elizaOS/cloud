@@ -30,9 +30,13 @@ describeWithDb("slow query integration", () => {
   afterAll(async () => {
     // Clean up test data
     clearMemoryStore();
-    await db.execute(sql`
+    await db
+      .execute(
+        sql`
       DELETE FROM slow_query_log WHERE query_hash LIKE 'test_%'
-    `).catch(() => {});
+    `,
+      )
+      .catch(() => {});
   });
 
   describe("database connectivity", () => {
@@ -46,7 +50,7 @@ describeWithDb("slow query integration", () => {
         SELECT column_name FROM information_schema.columns 
         WHERE table_name = 'slow_query_log'
       `);
-      
+
       const columns = result.rows.map((r) => r.column_name);
       expect(columns).toContain("query_hash");
       expect(columns).toContain("sql_text");
@@ -56,7 +60,7 @@ describeWithDb("slow query integration", () => {
 
     it("can insert and query slow_query_log", async () => {
       const uniqueHash = `test_insert_${Date.now()}`;
-      
+
       // Insert
       await db.execute(sql`
         INSERT INTO slow_query_log (query_hash, sql_text, duration_ms)
@@ -67,7 +71,7 @@ describeWithDb("slow query integration", () => {
       const result = await db.execute(sql`
         SELECT * FROM slow_query_log WHERE query_hash = ${uniqueHash}
       `);
-      
+
       expect(result.rows.length).toBe(1);
       expect(result.rows[0].query_hash).toBe(uniqueHash);
       expect(result.rows[0].sql_text).toBe("SELECT 1");
@@ -82,9 +86,9 @@ describeWithDb("slow query integration", () => {
   describe("memory to postgres flow", () => {
     it("records slow query to memory first", async () => {
       clearMemoryStore();
-      
+
       await recordSlowQuery("SELECT * FROM test_table", 150);
-      
+
       const memoryQueries = getSlowQueriesFromMemory();
       expect(memoryQueries.length).toBe(1);
       expect(memoryQueries[0].sqlText).toBe("SELECT * FROM test_table");
@@ -95,12 +99,14 @@ describeWithDb("slow query integration", () => {
       clearMemoryStore();
       const uniqueSql = `SELECT * FROM flush_test_${Date.now()}`;
       const queryHash = hashQuery(uniqueSql);
-      
+
       await recordSlowQuery(uniqueSql, 200);
-      
+
       await Promise.race([
         forceFlush(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("flush timeout")), 3000)),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("flush timeout")), 3000),
+        ),
       ]).catch(() => {});
 
       const memoryQueries = getSlowQueriesFromMemory();
@@ -108,16 +114,20 @@ describeWithDb("slow query integration", () => {
       expect(memEntry).toBeDefined();
       expect(memEntry!.durationMs).toBe(200);
 
-      await db.execute(sql`
+      await db
+        .execute(
+          sql`
         DELETE FROM slow_query_log WHERE query_hash = ${queryHash}
-      `).catch(() => {});
+      `,
+        )
+        .catch(() => {});
     });
 
     it("aggregates multiple calls via upsert", async () => {
       clearMemoryStore();
       const uniqueSql = `SELECT * FROM aggregate_test_${Date.now()}`;
       const queryHash = hashQuery(uniqueSql);
-      
+
       // Record multiple times
       await recordSlowQuery(uniqueSql, 100);
       await recordSlowQuery(uniqueSql, 200);
@@ -147,7 +157,7 @@ describeWithDb("slow query integration", () => {
 
     it("captures slow queries above threshold", async () => {
       clearMemoryStore();
-      
+
       await recordSlowQuery("SELECT pg_sleep(0.1)", 100);
 
       const queries = getSlowQueriesFromMemory();
@@ -160,9 +170,9 @@ describeWithDb("slow query integration", () => {
     it("handles very long SQL text", async () => {
       clearMemoryStore();
       const longSql = "SELECT " + "a".repeat(15000) + " FROM test";
-      
+
       await recordSlowQuery(longSql, 100);
-      
+
       const queries = getSlowQueriesFromMemory();
       expect(queries.length).toBe(1);
       expect(queries[0].sqlText.length).toBeLessThanOrEqual(10000);
@@ -170,10 +180,11 @@ describeWithDb("slow query integration", () => {
 
     it("handles special characters in SQL", async () => {
       clearMemoryStore();
-      const specialSql = "SELECT * FROM users WHERE name = 'O''Brien' AND data->>'key' = 'value'";
-      
+      const specialSql =
+        "SELECT * FROM users WHERE name = 'O''Brien' AND data->>'key' = 'value'";
+
       await recordSlowQuery(specialSql, 100);
-      
+
       const queries = getSlowQueriesFromMemory();
       expect(queries.length).toBe(1);
       expect(queries[0].sqlText).toBe(specialSql);
@@ -182,9 +193,9 @@ describeWithDb("slow query integration", () => {
     it("handles unicode in SQL", async () => {
       clearMemoryStore();
       const unicodeSql = "SELECT * FROM users WHERE name = '日本語'";
-      
+
       await recordSlowQuery(unicodeSql, 100);
-      
+
       const queries = getSlowQueriesFromMemory();
       expect(queries.length).toBe(1);
       expect(queries[0].sqlText).toBe(unicodeSql);
@@ -201,9 +212,9 @@ describeWithDb("slow query integration", () => {
         WHERE active = true
         ORDER BY created_at DESC
       `;
-      
+
       await recordSlowQuery(formattedSql, 100);
-      
+
       const queries = getSlowQueriesFromMemory();
       expect(queries.length).toBe(1);
       expect(queries[0].sqlText).toBe(formattedSql);
@@ -214,8 +225,8 @@ describeWithDb("slow query integration", () => {
     it("handles parallel slow query recordings with distinct queries", async () => {
       clearMemoryStore();
       const tables = ["users", "orders", "products", "customers", "invoices"];
-      const promises = tables.map((table) => 
-        recordSlowQuery(`SELECT * FROM ${table}_table_distinct`, 100)
+      const promises = tables.map((table) =>
+        recordSlowQuery(`SELECT * FROM ${table}_table_distinct`, 100),
       );
       await Promise.all(promises);
       expect(getSlowQueriesFromMemory().length).toBe(5);
@@ -223,11 +234,11 @@ describeWithDb("slow query integration", () => {
 
     it("handles parallel recordings of same query", async () => {
       clearMemoryStore();
-      const promises = Array.from({ length: 20 }, () => 
-        recordSlowQuery("SELECT * FROM same_query_test", 100)
+      const promises = Array.from({ length: 20 }, () =>
+        recordSlowQuery("SELECT * FROM same_query_test", 100),
       );
       await Promise.all(promises);
-      
+
       const queries = getSlowQueriesFromMemory();
       expect(queries.length).toBe(1);
       expect(queries[0].callCount).toBe(20);
@@ -240,22 +251,21 @@ describe("slow query store (no db)", () => {
   it("hashQuery is deterministic", () => {
     const sql1 = "SELECT * FROM users WHERE id = 1";
     const sql2 = "SELECT * FROM users WHERE id = 1";
-    
+
     expect(hashQuery(sql1)).toBe(hashQuery(sql2));
   });
 
   it("similar queries produce same hash", () => {
     const sql1 = "SELECT * FROM users WHERE id = 1";
     const sql2 = "SELECT * FROM users WHERE id = 999";
-    
+
     expect(hashQuery(sql1)).toBe(hashQuery(sql2));
   });
 
   it("different queries produce different hashes", () => {
     const sql1 = "SELECT * FROM users";
     const sql2 = "SELECT * FROM orders";
-    
+
     expect(hashQuery(sql1)).not.toBe(hashQuery(sql2));
   });
 });
-

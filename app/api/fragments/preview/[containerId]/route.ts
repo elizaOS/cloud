@@ -1,6 +1,6 @@
 /**
  * Fragment Preview API
- * 
+ *
  * Serves stored fragments as executable web pages.
  * Uses the sandbox store to retrieve fragment data and renders it.
  */
@@ -15,10 +15,10 @@ import { getTemplateId } from "@/lib/fragments/templates";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ containerId: string }> }
+  { params }: { params: Promise<{ containerId: string }> },
 ) {
   const { containerId } = await params;
-  
+
   const entry = fragmentSandboxStore.get(containerId);
   if (!entry) {
     return new NextResponse(
@@ -52,7 +52,7 @@ export async function GET(
       {
         status: 404,
         headers: { "Content-Type": "text/html" },
-      }
+      },
     );
   }
 
@@ -60,7 +60,11 @@ export async function GET(
   const templateId = getTemplateId(fragment.template);
 
   // Generate appropriate HTML based on template
-  const html = generatePreviewHtml(fragment.code, fragment.template, templateId);
+  const html = generatePreviewHtml(
+    fragment.code,
+    fragment.template,
+    templateId,
+  );
 
   return new NextResponse(html, {
     headers: {
@@ -73,7 +77,7 @@ export async function GET(
 function generatePreviewHtml(
   code: string,
   template: string,
-  templateId: string
+  templateId: string,
 ): string {
   // For React/Next.js templates, create a live preview using Babel + React
   if (templateId === "nextjs-developer" || template.includes("react")) {
@@ -86,7 +90,10 @@ function generatePreviewHtml(
   }
 
   // For Streamlit/Gradio (Python), show code with message
-  if (templateId === "streamlit-developer" || templateId === "gradio-developer") {
+  if (
+    templateId === "streamlit-developer" ||
+    templateId === "gradio-developer"
+  ) {
     return generatePythonPreview(code, template);
   }
 
@@ -320,5 +327,3 @@ function generateCodePreview(code: string, template: string): string {
 </body>
 </html>`;
 }
-
-

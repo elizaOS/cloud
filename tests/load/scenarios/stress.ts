@@ -17,16 +17,35 @@ export const options: Options = {
 };
 
 export function setup() {
-  console.log(`\n⚡ STRESS TEST | ${config.name} | Max VUs: ${Math.floor(config.maxVUs * 1.5)}\n`);
+  console.log(
+    `\n⚡ STRESS TEST | ${config.name} | Max VUs: ${Math.floor(config.maxVUs * 1.5)}\n`,
+  );
 }
 
 export default function () {
   const op = __ITER % 5;
   switch (op) {
-    case 0: group("Balance Stress", () => { for (let i = 0; i < 10; i++) getBalance(); }); break;
-    case 1: group("List Stress", () => { listAgents(); listTransactions(20); }); break;
-    case 2: group("MCP Stress", () => { for (let i = 0; i < 5; i++) checkCredits(); }); break;
-    case 3: group("A2A Stress", () => { for (let i = 0; i < 3; i++) sendMessage("ping"); }); break;
+    case 0:
+      group("Balance Stress", () => {
+        for (let i = 0; i < 10; i++) getBalance();
+      });
+      break;
+    case 1:
+      group("List Stress", () => {
+        listAgents();
+        listTransactions(20);
+      });
+      break;
+    case 2:
+      group("MCP Stress", () => {
+        for (let i = 0; i < 5; i++) checkCredits();
+      });
+      break;
+    case 3:
+      group("A2A Stress", () => {
+        for (let i = 0; i < 3; i++) sendMessage("ping");
+      });
+      break;
     case 4:
       if (!config.safeMode) {
         group("CRUD Stress", () => {

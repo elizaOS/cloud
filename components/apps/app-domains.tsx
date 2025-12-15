@@ -1,6 +1,6 @@
 /**
  * App Domains Component
- * 
+ *
  * Premium DNS management interface with exceptional UX.
  * Inspired by Vercel & Cloudflare's domain management.
  */
@@ -111,31 +111,34 @@ export function AppDomains({ appId }: AppDomainsProps) {
     setIsLoading(false);
   }, [appId]);
 
-  const checkDomainStatus = useCallback(async (domain: string, silent = false) => {
-    if (!silent) setIsChecking(true);
-    const response = await fetch(`/api/v1/apps/${appId}/domains/status`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ domain }),
-    });
+  const checkDomainStatus = useCallback(
+    async (domain: string, silent = false) => {
+      if (!silent) setIsChecking(true);
+      const response = await fetch(`/api/v1/apps/${appId}/domains/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain }),
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (data.success) {
-      setDomainStatus(data);
-      setLastChecked(new Date());
-      if (data.verified) {
-        if (!silent) {
-          toast.success("Domain verified!", {
-            description: "SSL certificate is now being provisioned",
-            icon: <CheckCircle2 className="h-4 w-4 text-emerald-400" />,
-          });
+      if (data.success) {
+        setDomainStatus(data);
+        setLastChecked(new Date());
+        if (data.verified) {
+          if (!silent) {
+            toast.success("Domain verified!", {
+              description: "SSL certificate is now being provisioned",
+              icon: <CheckCircle2 className="h-4 w-4 text-emerald-400" />,
+            });
+          }
+          await fetchDomains();
         }
-        await fetchDomains();
       }
-    }
-    if (!silent) setIsChecking(false);
-  }, [appId, fetchDomains]);
+      if (!silent) setIsChecking(false);
+    },
+    [appId, fetchDomains],
+  );
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching on mount is valid
@@ -180,7 +183,8 @@ export function AppDomains({ appId }: AppDomainsProps) {
     const domainRegex = /^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/;
     if (!domainRegex.test(domain)) {
       toast.error("Invalid domain", {
-        description: "Please enter a valid domain like example.com or app.example.com",
+        description:
+          "Please enter a valid domain like example.com or app.example.com",
       });
       return;
     }
@@ -195,11 +199,14 @@ export function AppDomains({ appId }: AppDomainsProps) {
     const data = await response.json();
 
     if (data.success) {
-      toast.success(data.verified ? "Domain verified!" : "Domain added successfully", {
-        description: data.verified
-          ? "SSL certificate is being provisioned automatically"
-          : "Configure your DNS records to complete setup",
-      });
+      toast.success(
+        data.verified ? "Domain verified!" : "Domain added successfully",
+        {
+          description: data.verified
+            ? "SSL certificate is being provisioned automatically"
+            : "Configure your DNS records to complete setup",
+        },
+      );
       setDomainStatus({
         domain: data.domain,
         status: data.verified ? "valid" : "pending",
@@ -242,7 +249,8 @@ export function AppDomains({ appId }: AppDomainsProps) {
 
   const primaryDomain = domains.find((d) => d.isPrimary);
   const hasCustomDomain = !!primaryDomain?.customDomain;
-  const needsVerification = hasCustomDomain && !primaryDomain?.customDomainVerified;
+  const needsVerification =
+    hasCustomDomain && !primaryDomain?.customDomainVerified;
 
   return (
     <TooltipProvider>
@@ -261,20 +269,23 @@ export function AppDomains({ appId }: AppDomainsProps) {
                   Connect custom domains to your app
                 </p>
               </div>
-              {primaryDomain && !hasCustomDomain && !showAddForm && !isLoading && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                >
-                  <Button
-                    onClick={() => setShowAddForm(true)}
-                    className="w-full sm:w-auto bg-gradient-to-r from-[#FF5800] to-[#FF7A33] hover:from-[#FF6A1A] hover:to-[#FF8844] text-white border-0 shadow-lg shadow-[#FF5800]/20"
+              {primaryDomain &&
+                !hasCustomDomain &&
+                !showAddForm &&
+                !isLoading && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
                   >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Custom Domain
-                  </Button>
-                </motion.div>
-              )}
+                    <Button
+                      onClick={() => setShowAddForm(true)}
+                      className="w-full sm:w-auto bg-gradient-to-r from-[#FF5800] to-[#FF7A33] hover:from-[#FF6A1A] hover:to-[#FF8844] text-white border-0 shadow-lg shadow-[#FF5800]/20"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Custom Domain
+                    </Button>
+                  </motion.div>
+                )}
             </div>
 
             {/* Loading Skeleton */}
@@ -294,8 +305,8 @@ export function AppDomains({ appId }: AppDomainsProps) {
                     No App Deployed
                   </h3>
                   <p className="text-sm text-white/50 max-w-md mb-4">
-                    Deploy your app as a app first to get a subdomain. Once deployed, 
-                    you can add custom domains here.
+                    Deploy your app as a app first to get a subdomain. Once
+                    deployed, you can add custom domains here.
                   </p>
                   <p className="text-xs text-amber-400/80">
                     Go to the Build tab to deploy your app
@@ -332,10 +343,18 @@ export function AppDomains({ appId }: AppDomainsProps) {
                       domain={primaryDomain.customDomain}
                       url={primaryDomain.customDomainUrl}
                       type="custom"
-                      status={primaryDomain.customDomainVerified ? "verified" : "pending"}
+                      status={
+                        primaryDomain.customDomainVerified
+                          ? "verified"
+                          : "pending"
+                      }
                       sslStatus={primaryDomain.sslStatus}
-                      onRefresh={() => checkDomainStatus(primaryDomain.customDomain!)}
-                      onRemove={() => handleRemoveDomain(primaryDomain.customDomain!)}
+                      onRefresh={() =>
+                        checkDomainStatus(primaryDomain.customDomain!)
+                      }
+                      onRemove={() =>
+                        handleRemoveDomain(primaryDomain.customDomain!)
+                      }
                       isChecking={isChecking}
                       isRemoving={isRemoving}
                       copyToClipboard={copyToClipboard}
@@ -358,7 +377,9 @@ export function AppDomains({ appId }: AppDomainsProps) {
                         <div className="relative space-y-4">
                           <div className="flex items-center gap-2 text-[#FF5800]">
                             <Globe className="h-4 w-4" />
-                            <span className="text-sm font-medium">Add Custom Domain</span>
+                            <span className="text-sm font-medium">
+                              Add Custom Domain
+                            </span>
                           </div>
                           <div className="flex flex-col sm:flex-row gap-3">
                             <Input
@@ -406,7 +427,8 @@ export function AppDomains({ appId }: AppDomainsProps) {
                             </div>
                           </div>
                           <p className="text-xs text-white/40">
-                            Enter your domain (e.g., myapp.com or app.mycompany.com)
+                            Enter your domain (e.g., myapp.com or
+                            app.mycompany.com)
                           </p>
                         </div>
                       </div>
@@ -430,7 +452,8 @@ export function AppDomains({ appId }: AppDomainsProps) {
                         Use Your Own Domain
                       </h3>
                       <p className="text-sm text-white/50 max-w-sm mb-4">
-                        Connect a custom domain to make your app accessible at your own branded URL
+                        Connect a custom domain to make your app accessible at
+                        your own branded URL
                       </p>
                       <Button
                         variant="outline"
@@ -460,7 +483,9 @@ export function AppDomains({ appId }: AppDomainsProps) {
               <DnsConfigPanel
                 domain={primaryDomain?.customDomain || ""}
                 domainStatus={domainStatus}
-                onRefresh={() => checkDomainStatus(primaryDomain?.customDomain || "")}
+                onRefresh={() =>
+                  checkDomainStatus(primaryDomain?.customDomain || "")
+                }
                 isChecking={isChecking}
                 lastChecked={lastChecked}
                 copyToClipboard={copyToClipboard}
@@ -538,9 +563,10 @@ function DomainCard({
     <div
       className={`
         relative overflow-hidden rounded-xl border transition-all duration-200
-        ${isVerified 
-          ? "bg-white/[0.02] border-white/10 hover:border-white/20" 
-          : "bg-amber-500/5 border-amber-500/20 hover:border-amber-500/30"
+        ${
+          isVerified
+            ? "bg-white/[0.02] border-white/10 hover:border-white/20"
+            : "bg-amber-500/5 border-amber-500/20 hover:border-amber-500/30"
         }
       `}
     >
@@ -630,7 +656,9 @@ function DomainCard({
                     disabled={isChecking}
                     className="h-9 w-9 p-0 text-white/50 hover:text-white hover:bg-white/10"
                   >
-                    <RefreshCw className={`h-4 w-4 ${isChecking ? "animate-spin" : ""}`} />
+                    <RefreshCw
+                      className={`h-4 w-4 ${isChecking ? "animate-spin" : ""}`}
+                    />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Check DNS status</TooltipContent>
@@ -670,12 +698,15 @@ function DomainCard({
                         ?
                       </span>
                       <span className="block text-white/50">
-                        Users will no longer be able to access your app via this domain.
+                        Users will no longer be able to access your app via this
+                        domain.
                       </span>
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter className="gap-2 sm:gap-0">
-                    <AlertDialogCancel className="border-white/20">Cancel</AlertDialogCancel>
+                    <AlertDialogCancel className="border-white/20">
+                      Cancel
+                    </AlertDialogCancel>
                     <AlertDialogAction
                       onClick={onRemove}
                       className="bg-red-600 hover:bg-red-700 text-white"
@@ -694,7 +725,13 @@ function DomainCard({
 }
 
 // Domain Status Badge
-function DomainStatusBadge({ status, sslStatus }: { status: string; sslStatus: string }) {
+function DomainStatusBadge({
+  status,
+  sslStatus,
+}: {
+  status: string;
+  sslStatus: string;
+}) {
   if (status === "verified" && sslStatus === "active") {
     return (
       <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 gap-1.5">
@@ -748,10 +785,15 @@ function DnsConfigPanel({
   const dnsRecords: DnsInstruction[] = domainStatus?.dnsInstructions || [
     isApex
       ? { type: "A", name: "@", value: "76.76.21.21" }
-      : { type: "CNAME", name: domain.split(".")[0], value: "cname.vercel-dns.com" },
+      : {
+          type: "CNAME",
+          name: domain.split(".")[0],
+          value: "cname.vercel-dns.com",
+        },
   ];
 
-  const txtRecords = domainStatus?.records?.filter((r) => r.type === "TXT") || [];
+  const txtRecords =
+    domainStatus?.records?.filter((r) => r.type === "TXT") || [];
 
   return (
     <BrandCard>
@@ -826,24 +868,36 @@ function DnsConfigPanel({
             <>
               <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
               <div>
-                <p className="text-emerald-300 font-medium">DNS Verified Successfully</p>
-                <p className="text-emerald-300/70 text-sm">SSL certificate is being provisioned automatically</p>
+                <p className="text-emerald-300 font-medium">
+                  DNS Verified Successfully
+                </p>
+                <p className="text-emerald-300/70 text-sm">
+                  SSL certificate is being provisioned automatically
+                </p>
               </div>
             </>
           ) : currentStatus === "invalid" ? (
             <>
               <AlertTriangle className="h-5 w-5 text-red-400 shrink-0" />
               <div>
-                <p className="text-red-300 font-medium">DNS Configuration Issue</p>
-                <p className="text-red-300/70 text-sm">Please check your records match exactly</p>
+                <p className="text-red-300 font-medium">
+                  DNS Configuration Issue
+                </p>
+                <p className="text-red-300/70 text-sm">
+                  Please check your records match exactly
+                </p>
               </div>
             </>
           ) : (
             <>
               <Loader2 className="h-5 w-5 text-amber-400 animate-spin shrink-0" />
               <div>
-                <p className="text-amber-300 font-medium">Waiting for DNS Propagation</p>
-                <p className="text-amber-300/70 text-sm">This may take a few minutes. We&apos;ll check automatically.</p>
+                <p className="text-amber-300 font-medium">
+                  Waiting for DNS Propagation
+                </p>
+                <p className="text-amber-300/70 text-sm">
+                  This may take a few minutes. We&apos;ll check automatically.
+                </p>
               </div>
             </>
           )}
@@ -913,7 +967,10 @@ function DnsRecordRow({
       {/* Desktop */}
       <div className="hidden sm:grid sm:grid-cols-[100px_minmax(100px,1fr)_minmax(200px,2fr)_48px] gap-4 p-4 items-center">
         <div>
-          <Badge variant="outline" className="font-mono text-xs border-white/20 text-white/70 bg-white/5">
+          <Badge
+            variant="outline"
+            className="font-mono text-xs border-white/20 text-white/70 bg-white/5"
+          >
             {type}
           </Badge>
         </div>
@@ -945,7 +1002,10 @@ function DnsRecordRow({
       {/* Mobile */}
       <div className="sm:hidden p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <Badge variant="outline" className="font-mono text-xs border-white/20 text-white/70 bg-white/5">
+          <Badge
+            variant="outline"
+            className="font-mono text-xs border-white/20 text-white/70 bg-white/5"
+          >
             {type}
           </Badge>
           <Button
@@ -964,11 +1024,15 @@ function DnsRecordRow({
         </div>
         <div className="space-y-2">
           <div>
-            <p className="text-[10px] text-white/40 uppercase font-medium mb-1">Name / Host</p>
+            <p className="text-[10px] text-white/40 uppercase font-medium mb-1">
+              Name / Host
+            </p>
             <p className="font-mono text-sm text-white break-all">{name}</p>
           </div>
           <div>
-            <p className="text-[10px] text-white/40 uppercase font-medium mb-1">Value / Target</p>
+            <p className="text-[10px] text-white/40 uppercase font-medium mb-1">
+              Value / Target
+            </p>
             <p className="font-mono text-sm text-white/60 break-all">{value}</p>
           </div>
         </div>

@@ -9,7 +9,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { socialMediaService } from "@/lib/services/social-media";
-import type { SocialPlatform, SocialCredentials } from "@/lib/types/social-media";
+import type {
+  SocialPlatform,
+  SocialCredentials,
+} from "@/lib/types/social-media";
 
 const SocialPlatformSchema = z.enum([
   "twitter",
@@ -54,7 +57,7 @@ export async function POST(request: NextRequest) {
     user.organization_id,
     user.id,
     validated.platform as SocialPlatform,
-    validated.credentials as Partial<SocialCredentials>
+    validated.credentials as Partial<SocialCredentials>,
   );
 
   return NextResponse.json({
@@ -63,4 +66,3 @@ export async function POST(request: NextRequest) {
     message: "Credentials stored successfully",
   });
 }
-

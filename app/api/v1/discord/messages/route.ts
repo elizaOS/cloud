@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { discordMessageSender, discordGatewayService } from "@/lib/services/discord-gateway";
+import {
+  discordMessageSender,
+  discordGatewayService,
+} from "@/lib/services/discord-gateway";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -10,17 +13,26 @@ const SendMessageSchema = z.object({
   connection_id: z.string().uuid(),
   channel_id: z.string(),
   content: z.string().max(2000).optional(),
-  embeds: z.array(z.object({
-    title: z.string().optional(),
-    description: z.string().optional(),
-    url: z.string().url().optional(),
-    color: z.number().int().optional(),
-    fields: z.array(z.object({
-      name: z.string(),
-      value: z.string(),
-      inline: z.boolean().optional(),
-    })).optional(),
-  })).max(10).optional(),
+  embeds: z
+    .array(
+      z.object({
+        title: z.string().optional(),
+        description: z.string().optional(),
+        url: z.string().url().optional(),
+        color: z.number().int().optional(),
+        fields: z
+          .array(
+            z.object({
+              name: z.string(),
+              value: z.string(),
+              inline: z.boolean().optional(),
+            }),
+          )
+          .optional(),
+      }),
+    )
+    .max(10)
+    .optional(),
   reply_to: z.string().optional(),
 });
 
@@ -29,12 +41,17 @@ const EditMessageSchema = z.object({
   channel_id: z.string(),
   message_id: z.string(),
   content: z.string().max(2000).optional(),
-  embeds: z.array(z.object({
-    title: z.string().optional(),
-    description: z.string().optional(),
-    url: z.string().url().optional(),
-    color: z.number().int().optional(),
-  })).max(10).optional(),
+  embeds: z
+    .array(
+      z.object({
+        title: z.string().optional(),
+        description: z.string().optional(),
+        url: z.string().url().optional(),
+        color: z.number().int().optional(),
+      }),
+    )
+    .max(10)
+    .optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -44,8 +61,12 @@ export async function POST(request: NextRequest) {
   const parsed = SendMessageSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { success: false, error: "Invalid request", details: parsed.error.issues },
-      { status: 400 }
+      {
+        success: false,
+        error: "Invalid request",
+        details: parsed.error.issues,
+      },
+      { status: 400 },
     );
   }
 
@@ -56,7 +77,7 @@ export async function POST(request: NextRequest) {
   if (!connection || connection.organization_id !== user.organization_id) {
     return NextResponse.json(
       { success: false, error: "Connection not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -64,7 +85,7 @@ export async function POST(request: NextRequest) {
   if (!content && (!embeds || embeds.length === 0)) {
     return NextResponse.json(
       { success: false, error: "Message must have content or embeds" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -84,7 +105,7 @@ export async function POST(request: NextRequest) {
   if (!result.success) {
     return NextResponse.json(
       { success: false, error: result.error },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -104,19 +125,24 @@ export async function PATCH(request: NextRequest) {
   const parsed = EditMessageSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { success: false, error: "Invalid request", details: parsed.error.issues },
-      { status: 400 }
+      {
+        success: false,
+        error: "Invalid request",
+        details: parsed.error.issues,
+      },
+      { status: 400 },
     );
   }
 
-  const { connection_id, channel_id, message_id, content, embeds } = parsed.data;
+  const { connection_id, channel_id, message_id, content, embeds } =
+    parsed.data;
 
   // Verify connection belongs to organization
   const connection = await discordGatewayService.getConnection(connection_id);
   if (!connection || connection.organization_id !== user.organization_id) {
     return NextResponse.json(
       { success: false, error: "Connection not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -132,13 +158,13 @@ export async function PATCH(request: NextRequest) {
     channel_id,
     message_id,
     content,
-    embeds
+    embeds,
   );
 
   if (!result.success) {
     return NextResponse.json(
       { success: false, error: result.error },
-      { status: 400 }
+      { status: 400 },
     );
   }
 

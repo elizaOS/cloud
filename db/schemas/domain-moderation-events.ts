@@ -106,9 +106,9 @@ export const domainModerationEvents = pgTable(
     severityIdx: index("domain_mod_events_severity_idx").on(table.severity),
     createdIdx: index("domain_mod_events_created_idx").on(table.createdAt),
     unresolvedIdx: index("domain_mod_events_unresolved_idx").on(
-      table.resolvedAt
+      table.resolvedAt,
     ),
-  })
+  }),
 );
 
 export type DomainModerationEvent = InferSelectModel<
@@ -117,4 +117,3 @@ export type DomainModerationEvent = InferSelectModel<
 export type NewDomainModerationEvent = InferInsertModel<
   typeof domainModerationEvents
 >;
-

@@ -9,7 +9,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { secretsService, isSecretsConfigured, type AuditContext } from "@/lib/services/secrets";
+import {
+  secretsService,
+  isSecretsConfigured,
+  type AuditContext,
+} from "@/lib/services/secrets";
 import { secretsRepository } from "@/db/repositories/secrets";
 import { userMcpsService } from "@/lib/services/user-mcps";
 
@@ -25,13 +29,16 @@ function buildAuditContext(
   request: NextRequest,
   authResult: Awaited<ReturnType<typeof requireAuthOrApiKeyWithOrg>>,
   mcpId: string,
-  secretId: string
+  secretId: string,
 ): AuditContext {
   return {
     actorType: authResult.apiKey ? "api_key" : "user",
     actorId: authResult.apiKey?.id || authResult.user.id,
     actorEmail: authResult.user.email,
-    ipAddress: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || undefined,
+    ipAddress:
+      request.headers.get("x-forwarded-for") ||
+      request.headers.get("x-real-ip") ||
+      undefined,
     userAgent: request.headers.get("user-agent") || undefined,
     source: authResult.apiKey ? "api" : "dashboard",
     endpoint: `/api/v1/mcps/${mcpId}/secrets/${secretId}`,
@@ -44,7 +51,7 @@ function buildAuditContext(
  */
 export async function GET(
   request: NextRequest,
-  ctx: { params: Promise<{ mcpId: string; secretId: string }> }
+  ctx: { params: Promise<{ mcpId: string; secretId: string }> },
 ) {
   const authResult = await requireAuthOrApiKeyWithOrg(request);
   const { mcpId, secretId } = await ctx.params;
@@ -54,14 +61,14 @@ export async function GET(
   if (!mcp || mcp.organization_id !== authResult.user.organization_id) {
     return NextResponse.json(
       { success: false, error: "MCP not found or access denied" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
   if (!isSecretsConfigured()) {
     return NextResponse.json(
       { success: false, error: "Secrets service is not configured" },
-      { status: 503 }
+      { status: 503 },
     );
   }
 
@@ -74,7 +81,7 @@ export async function GET(
   ) {
     return NextResponse.json(
       { success: false, error: "Secret not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -84,14 +91,18 @@ export async function GET(
     authResult.user.organization_id,
     secretMeta.name,
     mcpId,
-    secretMeta.environment as "development" | "preview" | "production" | undefined,
-    auditContext
+    secretMeta.environment as
+      | "development"
+      | "preview"
+      | "production"
+      | undefined,
+    auditContext,
   );
 
   if (value === null) {
     return NextResponse.json(
       { success: false, error: "Secret not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -113,7 +124,7 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  ctx: { params: Promise<{ mcpId: string; secretId: string }> }
+  ctx: { params: Promise<{ mcpId: string; secretId: string }> },
 ) {
   const authResult = await requireAuthOrApiKeyWithOrg(request);
   const { mcpId, secretId } = await ctx.params;
@@ -123,14 +134,14 @@ export async function PATCH(
   if (!mcp || mcp.organization_id !== authResult.user.organization_id) {
     return NextResponse.json(
       { success: false, error: "MCP not found or access denied" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
   if (!isSecretsConfigured()) {
     return NextResponse.json(
       { success: false, error: "Secrets service is not configured" },
-      { status: 503 }
+      { status: 503 },
     );
   }
 
@@ -143,7 +154,7 @@ export async function PATCH(
   ) {
     return NextResponse.json(
       { success: false, error: "Secret not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -152,8 +163,12 @@ export async function PATCH(
 
   if (!validation.success) {
     return NextResponse.json(
-      { success: false, error: "Invalid request", details: validation.error.flatten() },
-      { status: 400 }
+      {
+        success: false,
+        error: "Invalid request",
+        details: validation.error.flatten(),
+      },
+      { status: 400 },
     );
   }
 
@@ -167,7 +182,7 @@ export async function PATCH(
       value: data.value,
       description: data.description,
     },
-    auditContext
+    auditContext,
   );
 
   return NextResponse.json({
@@ -187,7 +202,7 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  ctx: { params: Promise<{ mcpId: string; secretId: string }> }
+  ctx: { params: Promise<{ mcpId: string; secretId: string }> },
 ) {
   const authResult = await requireAuthOrApiKeyWithOrg(request);
   const { mcpId, secretId } = await ctx.params;
@@ -197,14 +212,14 @@ export async function DELETE(
   if (!mcp || mcp.organization_id !== authResult.user.organization_id) {
     return NextResponse.json(
       { success: false, error: "MCP not found or access denied" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
   if (!isSecretsConfigured()) {
     return NextResponse.json(
       { success: false, error: "Secrets service is not configured" },
-      { status: 503 }
+      { status: 503 },
     );
   }
 
@@ -217,14 +232,17 @@ export async function DELETE(
   ) {
     return NextResponse.json(
       { success: false, error: "Secret not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
   const auditContext = buildAuditContext(request, authResult, mcpId, secretId);
 
-  await secretsService.delete(secretId, authResult.user.organization_id, auditContext);
+  await secretsService.delete(
+    secretId,
+    authResult.user.organization_id,
+    auditContext,
+  );
 
   return NextResponse.json({ success: true });
 }
-

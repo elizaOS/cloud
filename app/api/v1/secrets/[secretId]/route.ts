@@ -26,7 +26,10 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   assertConfigured();
 
   const secretMeta = await secretsRepository.findById(secretId);
-  if (!secretMeta || secretMeta.organization_id !== authResult.user.organization_id) {
+  if (
+    !secretMeta ||
+    secretMeta.organization_id !== authResult.user.organization_id
+  ) {
     return NextResponse.json({ error: "Secret not found" }, { status: 404 });
   }
 
@@ -34,8 +37,12 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     authResult.user.organization_id,
     secretMeta.name,
     secretMeta.project_id ?? undefined,
-    secretMeta.environment as "development" | "preview" | "production" | undefined,
-    buildDetailedAudit(request, authResult)
+    secretMeta.environment as
+      | "development"
+      | "preview"
+      | "production"
+      | undefined,
+    buildDetailedAudit(request, authResult),
   );
 
   if (value === null) {
@@ -64,7 +71,10 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 
   const parsed = UpdateSchema.safeParse(await request.json());
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid request", details: parsed.error.flatten() }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request", details: parsed.error.flatten() },
+      { status: 400 },
+    );
   }
 
   const updated = await secretsService.update(
@@ -73,9 +83,14 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     {
       value: parsed.data.value,
       description: parsed.data.description,
-      expiresAt: parsed.data.expiresAt === null ? null : parsed.data.expiresAt ? new Date(parsed.data.expiresAt) : undefined,
+      expiresAt:
+        parsed.data.expiresAt === null
+          ? null
+          : parsed.data.expiresAt
+            ? new Date(parsed.data.expiresAt)
+            : undefined,
     },
-    buildDetailedAudit(request, authResult)
+    buildDetailedAudit(request, authResult),
   );
 
   return NextResponse.json({
@@ -96,6 +111,10 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
 
   assertConfigured();
 
-  await secretsService.delete(secretId, authResult.user.organization_id, buildAuditContext(request, authResult));
+  await secretsService.delete(
+    secretId,
+    authResult.user.organization_id,
+    buildAuditContext(request, authResult),
+  );
   return NextResponse.json({ success: true });
 }

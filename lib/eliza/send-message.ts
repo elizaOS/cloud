@@ -119,9 +119,13 @@ export async function sendMessageWithSideEffects(
 
         await runtime.createMemory(responseMemory, "messages");
         responseMessageId = responseMemory.id as UUID;
-        elizaLogger.info(`[sendMessage] Stored response memory: ${responseMemory.id}`);
+        elizaLogger.info(
+          `[sendMessage] Stored response memory: ${responseMemory.id}`,
+        );
       } else {
-        elizaLogger.warn("[sendMessage] Callback received but no text in content");
+        elizaLogger.warn(
+          "[sendMessage] Callback received but no text in content",
+        );
       }
 
       return [];
@@ -165,7 +169,9 @@ function createUserMessage(
     content: {
       text: content.text || "",
       source: content.source || "user",
-      ...(content.attachments && Array.isArray(content.attachments) && content.attachments.length > 0
+      ...(content.attachments &&
+      Array.isArray(content.attachments) &&
+      content.attachments.length > 0
         ? {
             attachments: content.attachments.filter(
               (att): att is Media =>

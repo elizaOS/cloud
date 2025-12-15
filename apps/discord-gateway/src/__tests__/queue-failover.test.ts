@@ -35,7 +35,13 @@ describe("Event Queue Processing", () => {
     });
 
     it("should support all queue statuses", () => {
-      const statuses = ["pending", "processing", "completed", "failed", "dead_letter"];
+      const statuses = [
+        "pending",
+        "processing",
+        "completed",
+        "failed",
+        "dead_letter",
+      ];
 
       statuses.forEach((status) => {
         const item = { status };
@@ -47,7 +53,8 @@ describe("Event Queue Processing", () => {
   describe("Retry Logic", () => {
     it("should calculate exponential backoff correctly", () => {
       // 2^1 * 1000 = 2000ms, 2^2 * 1000 = 4000ms, 2^3 * 1000 = 8000ms
-      const calculateBackoff = (attempts: number): number => Math.pow(2, attempts) * 1000;
+      const calculateBackoff = (attempts: number): number =>
+        Math.pow(2, attempts) * 1000;
 
       expect(calculateBackoff(1)).toBe(2000);
       expect(calculateBackoff(2)).toBe(4000);
@@ -106,7 +113,10 @@ describe("Event Queue Processing", () => {
       };
 
       expect(routableEvent.eventType).toBe("MESSAGE_CREATE");
-      expect(routableEvent.data.raw).toEqual({ content: "test", author: { id: "user-1" } });
+      expect(routableEvent.data.raw).toEqual({
+        content: "test",
+        author: { id: "user-1" },
+      });
     });
   });
 
@@ -169,7 +179,7 @@ describe("Pod Failover", () => {
     it("should skip checking own pod in failover loop", () => {
       const currentPod = "pod-self";
       const activePods = ["pod-1", "pod-self", "pod-2"];
-      const podsToCheck = activePods.filter(id => id !== currentPod);
+      const podsToCheck = activePods.filter((id) => id !== currentPod);
 
       expect(podsToCheck).not.toContain("pod-self");
       expect(podsToCheck).toHaveLength(2);
@@ -251,13 +261,17 @@ describe("Pod Failover", () => {
       const pods = [
         { id: "pod-1", lastHeartbeat: Date.now() },
         { id: "pod-2", lastHeartbeat: Date.now() - 600000 }, // 10 min ago - dead
-        { id: "pod-3", lastHeartbeat: Date.now() - 60000 },  // 1 min ago - alive
+        { id: "pod-3", lastHeartbeat: Date.now() - 60000 }, // 1 min ago - alive
       ];
 
       const HEARTBEAT_TTL = 300000; // 5 minutes
 
-      const deadPods = pods.filter((p) => Date.now() - p.lastHeartbeat >= HEARTBEAT_TTL);
-      const alivePods = pods.filter((p) => Date.now() - p.lastHeartbeat < HEARTBEAT_TTL);
+      const deadPods = pods.filter(
+        (p) => Date.now() - p.lastHeartbeat >= HEARTBEAT_TTL,
+      );
+      const alivePods = pods.filter(
+        (p) => Date.now() - p.lastHeartbeat < HEARTBEAT_TTL,
+      );
 
       expect(deadPods.length).toBe(1);
       expect(deadPods[0].id).toBe("pod-2");
@@ -353,7 +367,11 @@ describe("Rate Limiting", () => {
       const redisAvailable = false;
 
       if (!redisAvailable) {
-        const result = { allowed: true, remaining: 60, resetAt: Date.now() + 60000 };
+        const result = {
+          allowed: true,
+          remaining: 60,
+          resetAt: Date.now() + 60000,
+        };
         expect(result.allowed).toBe(true);
       }
     });
@@ -378,12 +396,8 @@ describe("GatewayManager Failover Behavior", () => {
 
   it("should clean up Redis state on shutdown", () => {
     const podName = "shutdown-test";
-    const keysToDelete = [
-      `discord:pod:${podName}`,
-    ];
-    const setsToRemoveFrom = [
-      { set: "discord:active_pods", member: podName },
-    ];
+    const keysToDelete = [`discord:pod:${podName}`];
+    const setsToRemoveFrom = [{ set: "discord:active_pods", member: podName }];
 
     expect(keysToDelete[0]).toBe("discord:pod:shutdown-test");
     expect(setsToRemoveFrom[0].member).toBe("shutdown-test");
@@ -472,4 +486,3 @@ describe("Connection State Persistence", () => {
     });
   });
 });
-

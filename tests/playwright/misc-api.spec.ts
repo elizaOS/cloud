@@ -30,7 +30,9 @@ function authHeaders() {
 test.describe("Video Proxy API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("POST /api/fal/proxy forwards video generation requests", async ({ request }) => {
+  test("POST /api/fal/proxy forwards video generation requests", async ({
+    request,
+  }) => {
     const response = await request.post(`${CLOUD_URL}/api/fal/proxy`, {
       headers: authHeaders(),
       data: {

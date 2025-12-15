@@ -18,7 +18,13 @@ import type {
   CoinGeckoExchange,
   CoinGeckoCurrency,
 } from "./types";
-import type { TokenPrice, OHLCVDataPoint, TrendingToken, MarketOverview, TokenInfo } from "../types";
+import type {
+  TokenPrice,
+  OHLCVDataPoint,
+  TrendingToken,
+  MarketOverview,
+  TokenInfo,
+} from "../types";
 
 export * from "./types";
 export * from "./schemas";
@@ -46,19 +52,29 @@ export class CoinGeckoService {
   private readonly COIN_CACHE_TTL = 3600000; // 1 hour
 
   constructor(config: CoinGeckoConfig = {}) {
-    this.client = new CoinGeckoClient({ apiKey: config.apiKey, timeout: config.timeout });
+    this.client = new CoinGeckoClient({
+      apiKey: config.apiKey,
+      timeout: config.timeout,
+    });
   }
 
   static fromEnv(): CoinGeckoService {
     return new CoinGeckoService({
       apiKey: process.env.COINGECKO_API_KEY,
-      timeout: process.env.COINGECKO_TIMEOUT ? parseInt(process.env.COINGECKO_TIMEOUT, 10) : undefined,
+      timeout: process.env.COINGECKO_TIMEOUT
+        ? parseInt(process.env.COINGECKO_TIMEOUT, 10)
+        : undefined,
     });
   }
 
   async getSimplePrice(
     coinIds: string[],
-    options: { vsCurrencies?: CoinGeckoCurrency[]; includeMarketCap?: boolean; include24hVol?: boolean; include24hChange?: boolean } = {}
+    options: {
+      vsCurrencies?: CoinGeckoCurrency[];
+      includeMarketCap?: boolean;
+      include24hVol?: boolean;
+      include24hChange?: boolean;
+    } = {},
   ): Promise<CoinGeckoSimplePrice> {
     logger.info(`[CoinGecko] Getting prices for ${coinIds.length} coins`);
 
@@ -74,12 +90,19 @@ export class CoinGeckoService {
   async getTokenPrice(
     platform: string,
     contractAddresses: string[],
-    options: { vsCurrencies?: CoinGeckoCurrency[]; includeMarketCap?: boolean; include24hVol?: boolean; include24hChange?: boolean } = {}
+    options: {
+      vsCurrencies?: CoinGeckoCurrency[];
+      includeMarketCap?: boolean;
+      include24hVol?: boolean;
+      include24hChange?: boolean;
+    } = {},
   ): Promise<Map<string, TokenPrice>> {
     const platformId = PLATFORM_IDS[platform] ?? platform;
     logger.info(`[CoinGecko] Getting token prices on ${platformId}`);
 
-    const response = await this.client.get<Record<string, Record<string, number>>>(`/simple/token_price/${platformId}`, {
+    const response = await this.client.get<
+      Record<string, Record<string, number>>
+    >(`/simple/token_price/${platformId}`, {
       contract_addresses: contractAddresses.join(","),
       vs_currencies: (options.vsCurrencies ?? ["usd"]).join(","),
       include_market_cap: options.includeMarketCap,
@@ -107,12 +130,24 @@ export class CoinGeckoService {
       vsCurrency?: CoinGeckoCurrency;
       ids?: string[];
       category?: string;
-      order?: "market_cap_desc" | "market_cap_asc" | "volume_desc" | "volume_asc";
+      order?:
+        | "market_cap_desc"
+        | "market_cap_asc"
+        | "volume_desc"
+        | "volume_asc";
       perPage?: number;
       page?: number;
       sparkline?: boolean;
-      priceChangePercentage?: ("1h" | "24h" | "7d" | "14d" | "30d" | "200d" | "1y")[];
-    } = {}
+      priceChangePercentage?: (
+        | "1h"
+        | "24h"
+        | "7d"
+        | "14d"
+        | "30d"
+        | "200d"
+        | "1y"
+      )[];
+    } = {},
   ): Promise<CoinGeckoMarketCoin[]> {
     logger.info("[CoinGecko] Getting market data");
 
@@ -130,7 +165,14 @@ export class CoinGeckoService {
 
   async getCoinDetail(
     coinId: string,
-    options: { localization?: boolean; tickers?: boolean; marketData?: boolean; communityData?: boolean; developerData?: boolean; sparkline?: boolean } = {}
+    options: {
+      localization?: boolean;
+      tickers?: boolean;
+      marketData?: boolean;
+      communityData?: boolean;
+      developerData?: boolean;
+      sparkline?: boolean;
+    } = {},
   ): Promise<CoinGeckoCoinDetail> {
     logger.info(`[CoinGecko] Getting detail for ${coinId}`);
 
@@ -144,33 +186,58 @@ export class CoinGeckoService {
     });
   }
 
-  async getMarketChart(coinId: string, options: { vsCurrency?: CoinGeckoCurrency; days: number | "max"; interval?: "daily" | "hourly" }): Promise<CoinGeckoMarketChart> {
+  async getMarketChart(
+    coinId: string,
+    options: {
+      vsCurrency?: CoinGeckoCurrency;
+      days: number | "max";
+      interval?: "daily" | "hourly";
+    },
+  ): Promise<CoinGeckoMarketChart> {
     logger.info(`[CoinGecko] Getting market chart for ${coinId}`);
 
-    return this.client.get<CoinGeckoMarketChart>(`/coins/${coinId}/market_chart`, {
-      vs_currency: options.vsCurrency ?? "usd",
-      days: options.days,
-      interval: options.interval,
-    });
+    return this.client.get<CoinGeckoMarketChart>(
+      `/coins/${coinId}/market_chart`,
+      {
+        vs_currency: options.vsCurrency ?? "usd",
+        days: options.days,
+        interval: options.interval,
+      },
+    );
   }
 
-  async getOHLC(coinId: string, options: { vsCurrency?: CoinGeckoCurrency; days: "1" | "7" | "14" | "30" | "90" | "180" | "365" | "max" }): Promise<OHLCVDataPoint[]> {
+  async getOHLC(
+    coinId: string,
+    options: {
+      vsCurrency?: CoinGeckoCurrency;
+      days: "1" | "7" | "14" | "30" | "90" | "180" | "365" | "max";
+    },
+  ): Promise<OHLCVDataPoint[]> {
     logger.info(`[CoinGecko] Getting OHLC for ${coinId}`);
 
-    const response = await this.client.get<CoinGeckoOHLC[]>(`/coins/${coinId}/ohlc`, {
-      vs_currency: options.vsCurrency ?? "usd",
-      days: options.days,
-    });
+    const response = await this.client.get<CoinGeckoOHLC[]>(
+      `/coins/${coinId}/ohlc`,
+      {
+        vs_currency: options.vsCurrency ?? "usd",
+        days: options.days,
+      },
+    );
 
     return response.map(([timestamp, open, high, low, close]) => ({
-      timestamp, open, high, low, close, volume: 0, // CoinGecko OHLC doesn't include volume
+      timestamp,
+      open,
+      high,
+      low,
+      close,
+      volume: 0, // CoinGecko OHLC doesn't include volume
     }));
   }
 
   async getTrending(): Promise<TrendingToken[]> {
     logger.info("[CoinGecko] Getting trending coins");
 
-    const response = await this.client.get<CoinGeckoTrendingResponse>("/search/trending");
+    const response =
+      await this.client.get<CoinGeckoTrendingResponse>("/search/trending");
 
     return response.coins.map((item, index) => ({
       token: {
@@ -220,13 +287,21 @@ export class CoinGeckoService {
     }));
   }
 
-  async getCoinList(includePlatform: boolean = false): Promise<CoinGeckoCoinListItem[]> {
-    if (this.coinListCache && Date.now() - this.coinListCacheTime < this.COIN_CACHE_TTL) {
+  async getCoinList(
+    includePlatform: boolean = false,
+  ): Promise<CoinGeckoCoinListItem[]> {
+    if (
+      this.coinListCache &&
+      Date.now() - this.coinListCacheTime < this.COIN_CACHE_TTL
+    ) {
       return this.coinListCache;
     }
 
     logger.info("[CoinGecko] Fetching coin list");
-    const coins = await this.client.get<CoinGeckoCoinListItem[]>("/coins/list", { include_platform: includePlatform });
+    const coins = await this.client.get<CoinGeckoCoinListItem[]>(
+      "/coins/list",
+      { include_platform: includePlatform },
+    );
     this.coinListCache = coins;
     this.coinListCacheTime = Date.now();
     return coins;
@@ -234,20 +309,32 @@ export class CoinGeckoService {
 
   async findCoinIdBySymbol(symbol: string): Promise<string | null> {
     const coins = await this.getCoinList();
-    const coin = coins.find((c) => c.symbol.toLowerCase() === symbol.toLowerCase());
+    const coin = coins.find(
+      (c) => c.symbol.toLowerCase() === symbol.toLowerCase(),
+    );
     return coin?.id ?? null;
   }
 
-  async findCoinIdByAddress(platform: string, address: string): Promise<string | null> {
+  async findCoinIdByAddress(
+    platform: string,
+    address: string,
+  ): Promise<string | null> {
     const coins = await this.getCoinList(true);
     const platformId = PLATFORM_IDS[platform] ?? platform;
-    const coin = coins.find((c) => c.platforms?.[platformId]?.toLowerCase() === address.toLowerCase());
+    const coin = coins.find(
+      (c) => c.platforms?.[platformId]?.toLowerCase() === address.toLowerCase(),
+    );
     return coin?.id ?? null;
   }
 
-  async getExchanges(options: { perPage?: number; page?: number } = {}): Promise<CoinGeckoExchange[]> {
+  async getExchanges(
+    options: { perPage?: number; page?: number } = {},
+  ): Promise<CoinGeckoExchange[]> {
     logger.info("[CoinGecko] Getting exchanges list");
-    return this.client.get<CoinGeckoExchange[]>("/exchanges", { per_page: options.perPage ?? 100, page: options.page ?? 1 });
+    return this.client.get<CoinGeckoExchange[]>("/exchanges", {
+      per_page: options.perPage ?? 100,
+      page: options.page ?? 1,
+    });
   }
 
   async getSupportedCurrencies(): Promise<string[]> {
@@ -255,7 +342,11 @@ export class CoinGeckoService {
   }
 
   async getCoinPrice(coinId: string): Promise<TokenPrice> {
-    const data = await this.getSimplePrice([coinId], { include24hChange: true, include24hVol: true, includeMarketCap: true });
+    const data = await this.getSimplePrice([coinId], {
+      include24hChange: true,
+      include24hVol: true,
+      includeMarketCap: true,
+    });
     const coinData = data[coinId];
     if (!coinData) throw new Error(`Coin not found: ${coinId}`);
 
@@ -266,7 +357,9 @@ export class CoinGeckoService {
       priceChange24h: coinData.usd_24h_change,
       volume24h: coinData.usd_24h_vol,
       marketCap: coinData.usd_market_cap,
-      lastUpdated: new Date(coinData.last_updated_at ? coinData.last_updated_at * 1000 : Date.now()),
+      lastUpdated: new Date(
+        coinData.last_updated_at ? coinData.last_updated_at * 1000 : Date.now(),
+      ),
     };
   }
 

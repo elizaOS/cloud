@@ -1,10 +1,14 @@
 import { describe, it, expect } from "bun:test";
-import { parseUTMParams, generateCampaignUrl } from "@/lib/services/conversion-tracking";
+import {
+  parseUTMParams,
+  generateCampaignUrl,
+} from "@/lib/services/conversion-tracking";
 
 describe("Conversion Tracking", () => {
   describe("parseUTMParams", () => {
     it("parses UTM params from full URL", () => {
-      const url = "https://example.com?utm_source=google&utm_medium=cpc&utm_campaign=summer2024";
+      const url =
+        "https://example.com?utm_source=google&utm_medium=cpc&utm_campaign=summer2024";
       const params = parseUTMParams(url);
 
       expect(params.utm_source).toBe("google");
@@ -22,7 +26,9 @@ describe("Conversion Tracking", () => {
     });
 
     it("parses UTM params from URLSearchParams", () => {
-      const searchParams = new URLSearchParams("utm_source=twitter&utm_term=ai+tools");
+      const searchParams = new URLSearchParams(
+        "utm_source=twitter&utm_term=ai+tools",
+      );
       const params = parseUTMParams(searchParams);
 
       expect(params.utm_source).toBe("twitter");
@@ -48,7 +54,11 @@ describe("Conversion Tracking", () => {
 
   describe("generateCampaignUrl", () => {
     it("generates URL with required UTM params", () => {
-      const url = generateCampaignUrl("https://app.example.com", "camp-123", "meta");
+      const url = generateCampaignUrl(
+        "https://app.example.com",
+        "camp-123",
+        "meta",
+      );
 
       expect(url).toContain("utm_source=meta");
       expect(url).toContain("utm_medium=cpc");
@@ -56,35 +66,53 @@ describe("Conversion Tracking", () => {
     });
 
     it("includes optional content param", () => {
-      const url = generateCampaignUrl("https://app.example.com", "camp-123", "google", {
-        content: "creative-456",
-      });
+      const url = generateCampaignUrl(
+        "https://app.example.com",
+        "camp-123",
+        "google",
+        {
+          content: "creative-456",
+        },
+      );
 
       expect(url).toContain("utm_content=creative-456");
     });
 
     it("includes optional term param", () => {
-      const url = generateCampaignUrl("https://app.example.com", "camp-123", "google", {
-        term: "ai assistant",
-      });
+      const url = generateCampaignUrl(
+        "https://app.example.com",
+        "camp-123",
+        "google",
+        {
+          term: "ai assistant",
+        },
+      );
 
       expect(url).toContain("utm_term=ai+assistant");
     });
 
     it("allows custom medium", () => {
-      const url = generateCampaignUrl("https://app.example.com", "camp-123", "email", {
-        medium: "newsletter",
-      });
+      const url = generateCampaignUrl(
+        "https://app.example.com",
+        "camp-123",
+        "email",
+        {
+          medium: "newsletter",
+        },
+      );
 
       expect(url).toContain("utm_medium=newsletter");
     });
 
     it("preserves existing query params", () => {
-      const url = generateCampaignUrl("https://app.example.com?ref=homepage", "camp-123", "meta");
+      const url = generateCampaignUrl(
+        "https://app.example.com?ref=homepage",
+        "camp-123",
+        "meta",
+      );
 
       expect(url).toContain("ref=homepage");
       expect(url).toContain("utm_source=meta");
     });
   });
 });
-

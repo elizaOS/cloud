@@ -10,9 +10,30 @@ export interface EnvironmentConfig {
 }
 
 export const environments: Record<Environment, EnvironmentConfig> = {
-  local: { name: "Local", baseUrl: "http://localhost:3000", maxVUs: 100, rampUpDuration: "30s", testDuration: "5m", safeMode: false },
-  staging: { name: "Staging", baseUrl: "https://staging.elizacloud.ai", maxVUs: 50, rampUpDuration: "1m", testDuration: "10m", safeMode: true },
-  production: { name: "Production", baseUrl: "https://elizacloud.ai", maxVUs: 10, rampUpDuration: "30s", testDuration: "2m", safeMode: true },
+  local: {
+    name: "Local",
+    baseUrl: "http://localhost:3000",
+    maxVUs: 100,
+    rampUpDuration: "30s",
+    testDuration: "5m",
+    safeMode: false,
+  },
+  staging: {
+    name: "Staging",
+    baseUrl: "https://staging.elizacloud.ai",
+    maxVUs: 50,
+    rampUpDuration: "1m",
+    testDuration: "10m",
+    safeMode: true,
+  },
+  production: {
+    name: "Production",
+    baseUrl: "https://elizacloud.ai",
+    maxVUs: 10,
+    rampUpDuration: "30s",
+    testDuration: "2m",
+    safeMode: true,
+  },
 };
 
 export function getEnvironment(): Environment {

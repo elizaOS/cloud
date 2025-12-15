@@ -3,15 +3,37 @@ import { describe, test, expect, beforeEach } from "bun:test";
 const mockEnv: Record<string, string> = {};
 globalThis.__ENV = new Proxy(mockEnv, {
   get: (target, prop) => target[prop as string],
-  set: (target, prop, value) => { target[prop as string] = value; return true; },
+  set: (target, prop, value) => {
+    target[prop as string] = value;
+    return true;
+  },
 });
 
-import { environments, getEnvironment, getConfig, getBaseUrl } from "../config/environments";
-import { thresholds, relaxedThresholds, getThresholds } from "../config/thresholds";
-import { rampUpScenario, spikeScenario, soakScenario, throughputScenario, smokeScenario, stressScenario } from "../config/scenarios";
+import {
+  environments,
+  getEnvironment,
+  getConfig,
+  getBaseUrl,
+} from "../config/environments";
+import {
+  thresholds,
+  relaxedThresholds,
+  getThresholds,
+} from "../config/thresholds";
+import {
+  rampUpScenario,
+  spikeScenario,
+  soakScenario,
+  throughputScenario,
+  smokeScenario,
+  stressScenario,
+} from "../config/scenarios";
 
 describe("Environment Configuration", () => {
-  beforeEach(() => { mockEnv.LOAD_TEST_ENV = ""; mockEnv.BASE_URL = ""; });
+  beforeEach(() => {
+    mockEnv.LOAD_TEST_ENV = "";
+    mockEnv.BASE_URL = "";
+  });
 
   test("has all environments", () => {
     expect(environments.local).toBeDefined();
@@ -30,7 +52,9 @@ describe("Environment Configuration", () => {
 
   test("production has safeMode and lowest maxVUs", () => {
     expect(environments.production.safeMode).toBe(true);
-    expect(environments.production.maxVUs).toBeLessThan(environments.staging.maxVUs);
+    expect(environments.production.maxVUs).toBeLessThan(
+      environments.staging.maxVUs,
+    );
   });
 
   test("getEnvironment defaults to local", () => {
@@ -53,13 +77,19 @@ describe("Environment Configuration", () => {
 
 describe("Thresholds", () => {
   test("default has percentile checks", () => {
-    expect(thresholds.http_req_duration.some(t => t.includes("p(95)"))).toBe(true);
-    expect(thresholds.http_req_failed.some(t => t.includes("rate"))).toBe(true);
+    expect(thresholds.http_req_duration.some((t) => t.includes("p(95)"))).toBe(
+      true,
+    );
+    expect(thresholds.http_req_failed.some((t) => t.includes("rate"))).toBe(
+      true,
+    );
   });
 
   test("relaxed thresholds are more permissive", () => {
     const defaultP99 = parseInt(thresholds.http_req_duration[2].split("<")[1]);
-    const relaxedP99 = parseInt(relaxedThresholds.http_req_duration[2].split("<")[1]);
+    const relaxedP99 = parseInt(
+      relaxedThresholds.http_req_duration[2].split("<")[1],
+    );
     expect(relaxedP99).toBeGreaterThan(defaultP99);
   });
 
@@ -70,7 +100,9 @@ describe("Thresholds", () => {
 });
 
 describe("Scenarios", () => {
-  beforeEach(() => { mockEnv.LOAD_TEST_ENV = "local"; });
+  beforeEach(() => {
+    mockEnv.LOAD_TEST_ENV = "local";
+  });
 
   test("smokeScenario is minimal", () => {
     const s = smokeScenario();
@@ -86,7 +118,7 @@ describe("Scenarios", () => {
 
   test("stressScenario exceeds maxVUs", () => {
     const s = stressScenario();
-    const peak = Math.max(...s.stages.map(x => x.target));
+    const peak = Math.max(...s.stages.map((x) => x.target));
     expect(peak).toBeGreaterThan(environments.local.maxVUs);
   });
 
@@ -99,13 +131,17 @@ describe("Scenarios", () => {
 
 describe("Source Files", () => {
   test("agents.ts uses /api/v1/app/agents", async () => {
-    const src = await Bun.file("/Users/shawwalters/jeju/vendor/cloud/tests/load/scenarios/api-v1/agents.ts").text();
+    const src = await Bun.file(
+      "/Users/shawwalters/jeju/vendor/cloud/tests/load/scenarios/api-v1/agents.ts",
+    ).text();
     expect(src).toContain("/api/v1/app/agents");
     expect(src).toContain("expectedStatus: 201");
   });
 
   test("a2a/methods.ts uses real A2A methods", async () => {
-    const src = await Bun.file("/Users/shawwalters/jeju/vendor/cloud/tests/load/scenarios/a2a/methods.ts").text();
+    const src = await Bun.file(
+      "/Users/shawwalters/jeju/vendor/cloud/tests/load/scenarios/a2a/methods.ts",
+    ).text();
     expect(src).toContain("message/send");
     expect(src).toContain("tasks/get");
     expect(src).toContain("tasks/cancel");
@@ -113,14 +149,18 @@ describe("Source Files", () => {
   });
 
   test("mcp/tools.ts calls real tools", async () => {
-    const src = await Bun.file("/Users/shawwalters/jeju/vendor/cloud/tests/load/scenarios/mcp/tools.ts").text();
+    const src = await Bun.file(
+      "/Users/shawwalters/jeju/vendor/cloud/tests/load/scenarios/mcp/tools.ts",
+    ).text();
     expect(src).toContain("check_credits");
     expect(src).toContain("list_agents");
     expect(src).toContain("list_models");
   });
 
   test("smoke.ts uses http helpers", async () => {
-    const src = await Bun.file("/Users/shawwalters/jeju/vendor/cloud/tests/load/scenarios/smoke.ts").text();
+    const src = await Bun.file(
+      "/Users/shawwalters/jeju/vendor/cloud/tests/load/scenarios/smoke.ts",
+    ).text();
     expect(src).toContain("httpGet");
     expect(src).toContain("httpPost");
   });
@@ -128,20 +168,26 @@ describe("Source Files", () => {
 
 describe("Shell Scripts", () => {
   test("run-local.sh checks k6 and server", async () => {
-    const src = await Bun.file("/Users/shawwalters/jeju/vendor/cloud/tests/load/scripts/run-local.sh").text();
+    const src = await Bun.file(
+      "/Users/shawwalters/jeju/vendor/cloud/tests/load/scripts/run-local.sh",
+    ).text();
     expect(src).toContain("command -v k6");
     expect(src).toContain("curl");
   });
 
   test("run-production.sh requires confirmation", async () => {
-    const src = await Bun.file("/Users/shawwalters/jeju/vendor/cloud/tests/load/scripts/run-production.sh").text();
+    const src = await Bun.file(
+      "/Users/shawwalters/jeju/vendor/cloud/tests/load/scripts/run-production.sh",
+    ).text();
     expect(src).toContain("PROD_API_KEY");
   });
 });
 
 describe("CI Workflow", () => {
   test("load-tests.yml exists and has correct structure", async () => {
-    const src = await Bun.file("/Users/shawwalters/jeju/vendor/cloud/.github/workflows/load-tests.yml").text();
+    const src = await Bun.file(
+      "/Users/shawwalters/jeju/vendor/cloud/.github/workflows/load-tests.yml",
+    ).text();
     expect(src).toContain("k6 run");
     expect(src).toContain("upload-artifact");
     expect(src).toContain("schedule");

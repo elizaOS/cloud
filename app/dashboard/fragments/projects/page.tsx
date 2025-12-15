@@ -1,6 +1,6 @@
 /**
  * Fragment Projects Management Page
- * 
+ *
  * Lists all saved fragment projects with options to view, edit, and deploy
  */
 
@@ -20,7 +20,9 @@ export const dynamic = "force-dynamic";
  */
 export default async function FragmentProjectsPage() {
   const user = await requireAuthWithOrg();
-  const projects = await fragmentProjectsService.listByOrganization(user.organization_id!);
+  const projects = await fragmentProjectsService.listByOrganization(
+    user.organization_id!,
+  );
 
   // Calculate stats
   const stats = {
@@ -124,7 +126,9 @@ export default async function FragmentProjectsPage() {
         <CornerBrackets className="opacity-20" />
         <div className="relative z-10">
           <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <h2 className="text-lg sm:text-xl font-semibold text-white">Your Projects</h2>
+            <h2 className="text-lg sm:text-xl font-semibold text-white">
+              Your Projects
+            </h2>
           </div>
 
           <Suspense fallback={<FragmentProjectsSkeleton />}>
@@ -135,4 +139,3 @@ export default async function FragmentProjectsPage() {
     </div>
   );
 }
-

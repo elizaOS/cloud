@@ -68,7 +68,7 @@ export interface AppCreditDeductionResult {
 export class AppCreditsService {
   async getBalance(
     appId: string,
-    userId: string
+    userId: string,
   ): Promise<{
     balance: number;
     totalPurchased: number;
@@ -76,7 +76,7 @@ export class AppCreditsService {
   } | null> {
     const creditBalance = await appCreditBalancesRepository.findByAppAndUser(
       appId,
-      userId
+      userId,
     );
 
     if (!creditBalance) {
@@ -93,12 +93,12 @@ export class AppCreditsService {
   async getOrCreateBalance(
     appId: string,
     userId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<AppCreditBalance> {
     return await appCreditBalancesRepository.getOrCreate(
       appId,
       userId,
-      organizationId
+      organizationId,
     );
   }
 
@@ -110,11 +110,11 @@ export class AppCreditsService {
     appId: string,
     userId: string,
     amount: number,
-    description: string
+    description: string,
   ): Promise<{ newBalance: number }> {
     // Get user's organization ID to ensure balance exists
     const user = await usersRepository.findById(userId);
-    
+
     if (!user?.organization_id) {
       throw new Error(`User not found or has no organization: ${userId}`);
     }
@@ -123,7 +123,7 @@ export class AppCreditsService {
       appId,
       userId,
       user.organization_id,
-      amount
+      amount,
     );
 
     logger.info("[AppCredits] Added credits (reward/bonus)", {
@@ -138,9 +138,15 @@ export class AppCreditsService {
   }
 
   async processPurchase(
-    params: AppCreditPurchaseParams
+    params: AppCreditPurchaseParams,
   ): Promise<AppCreditPurchaseResult> {
-    const { appId, userId, organizationId, purchaseAmount, stripePaymentIntentId } = params;
+    const {
+      appId,
+      userId,
+      organizationId,
+      purchaseAmount,
+      stripePaymentIntentId,
+    } = params;
 
     const app = await appsRepository.findById(appId);
     if (!app) {
@@ -149,16 +155,23 @@ export class AppCreditsService {
 
     // Deduplication check for Stripe webhook retries
     if (stripePaymentIntentId) {
-      const existingTransaction = await appEarningsRepository.findTransactionByPaymentIntent(
-        appId,
-        stripePaymentIntentId
-      );
+      const existingTransaction =
+        await appEarningsRepository.findTransactionByPaymentIntent(
+          appId,
+          stripePaymentIntentId,
+        );
       if (existingTransaction) {
         logger.info("[AppCredits] Duplicate purchase detected, skipping", {
-          appId, userId, stripePaymentIntentId,
+          appId,
+          userId,
+          stripePaymentIntentId,
         });
         // Return existing balance info - get or create to ensure we always have a balance record
-        const balance = await appCreditBalancesRepository.getOrCreate(appId, userId, organizationId);
+        const balance = await appCreditBalancesRepository.getOrCreate(
+          appId,
+          userId,
+          organizationId,
+        );
         return {
           success: true,
           creditsAdded: 0, // Already processed
@@ -172,23 +185,32 @@ export class AppCreditsService {
 
     // Only apply platform offset and creator share if monetization is enabled
     // Users always get full credits for their purchase
-    const platformOffset = app.monetization_enabled 
-      ? Math.min(Number(app.platform_offset_amount), purchaseAmount) 
+    const platformOffset = app.monetization_enabled
+      ? Math.min(Number(app.platform_offset_amount), purchaseAmount)
       : 0;
     const amountAfterOffset = purchaseAmount - platformOffset;
-    const creatorSharePercentage = app.monetization_enabled 
-      ? Number(app.purchase_share_percentage) / 100 
+    const creatorSharePercentage = app.monetization_enabled
+      ? Number(app.purchase_share_percentage) / 100
       : 0;
     const creatorEarnings = amountAfterOffset * creatorSharePercentage;
     const creditsToAdd = purchaseAmount;
 
     logger.info("[AppCredits] Processing purchase", {
-      appId, userId, purchaseAmount, platformOffset, creatorEarnings, creditsToAdd,
+      appId,
+      userId,
+      purchaseAmount,
+      platformOffset,
+      creatorEarnings,
+      creditsToAdd,
     });
 
-    const { balance, newBalance } = await appCreditBalancesRepository.addCredits(
-      appId, userId, organizationId, creditsToAdd
-    );
+    const { balance, newBalance } =
+      await appCreditBalancesRepository.addCredits(
+        appId,
+        userId,
+        organizationId,
+        creditsToAdd,
+      );
 
     // Track app user activity for purchase (this will create app_users record if new user)
     await this.trackAppUserActivity(app, userId, "0.00", {
@@ -201,10 +223,18 @@ export class AppCreditsService {
     // CRITICAL: Always create a transaction record for deduplication purposes
     // Even when monetization is disabled, we need to track the purchase
     if (app.monetization_enabled && creatorEarnings > 0) {
-      await this.recordCreatorEarnings(appId, userId, "purchase_share", creatorEarnings, {
-        purchaseAmount, platformOffset, creatorSharePercentage: Number(app.purchase_share_percentage),
-        ...(stripePaymentIntentId && { stripePaymentIntentId }),
-      });
+      await this.recordCreatorEarnings(
+        appId,
+        userId,
+        "purchase_share",
+        creatorEarnings,
+        {
+          purchaseAmount,
+          platformOffset,
+          creatorSharePercentage: Number(app.purchase_share_percentage),
+          ...(stripePaymentIntentId && { stripePaymentIntentId }),
+        },
+      );
 
       await db
         .update(apps)
@@ -222,41 +252,65 @@ export class AppCreditsService {
         type: "credit_purchase",
         amount: "0", // No earnings when monetization disabled
         description: "Credit purchase (monetization disabled)",
-        metadata: { 
-          purchaseAmount, 
-          creditsAdded: creditsToAdd, 
+        metadata: {
+          purchaseAmount,
+          creditsAdded: creditsToAdd,
           stripePaymentIntentId,
           monetizationDisabled: true,
         },
       });
     }
 
-    return { success: true, creditsAdded: creditsToAdd, platformOffset, creatorEarnings, newBalance, balance };
+    return {
+      success: true,
+      creditsAdded: creditsToAdd,
+      platformOffset,
+      creatorEarnings,
+      newBalance,
+      balance,
+    };
   }
 
   async deductCredits(
-    params: AppCreditDeductionParams
+    params: AppCreditDeductionParams,
   ): Promise<AppCreditDeductionResult> {
     const { appId, userId, baseCost, description, metadata } = params;
 
     const app = await appsRepository.findById(appId);
     if (!app) {
-      return { success: false, baseCost, creatorMarkup: 0, totalCost: baseCost, creatorEarnings: 0, newBalance: 0, message: `App not found: ${appId}` };
+      return {
+        success: false,
+        baseCost,
+        creatorMarkup: 0,
+        totalCost: baseCost,
+        creatorEarnings: 0,
+        newBalance: 0,
+        message: `App not found: ${appId}`,
+      };
     }
 
     // Only apply markup if monetization is enabled
     // Otherwise, users pay base cost only and creator earns nothing
-    const markupPercentage = app.monetization_enabled 
-      ? Number(app.inference_markup_percentage) 
+    const markupPercentage = app.monetization_enabled
+      ? Number(app.inference_markup_percentage)
       : 0;
     const creatorMarkup = baseCost * (markupPercentage / 100);
     const totalCost = baseCost + creatorMarkup;
 
-    const result = await appCreditBalancesRepository.deductCredits(appId, userId, totalCost);
+    const result = await appCreditBalancesRepository.deductCredits(
+      appId,
+      userId,
+      totalCost,
+    );
 
     if (!result.success) {
       return {
-        success: false, baseCost, creatorMarkup, totalCost, creatorEarnings: 0, newBalance: result.newBalance,
+        success: false,
+        baseCost,
+        creatorMarkup,
+        totalCost,
+        creatorEarnings: 0,
+        newBalance: result.newBalance,
         message: result.balance
           ? `Insufficient balance. Required: $${totalCost.toFixed(2)}, Available: $${result.newBalance.toFixed(2)}`
           : "No credit balance found for this app",
@@ -264,12 +318,27 @@ export class AppCreditsService {
     }
 
     // Track app user activity (creates/updates app_users record)
-    await this.trackAppUserActivity(app, userId, totalCost.toFixed(4), metadata);
+    await this.trackAppUserActivity(
+      app,
+      userId,
+      totalCost.toFixed(4),
+      metadata,
+    );
 
     if (app.monetization_enabled && creatorMarkup > 0) {
-      await this.recordCreatorEarnings(appId, userId, "inference_markup", creatorMarkup, {
-        baseCost, markupPercentage, totalCost, description, ...metadata,
-      });
+      await this.recordCreatorEarnings(
+        appId,
+        userId,
+        "inference_markup",
+        creatorMarkup,
+        {
+          baseCost,
+          markupPercentage,
+          totalCost,
+          description,
+          ...metadata,
+        },
+      );
 
       await db
         .update(apps)
@@ -281,14 +350,28 @@ export class AppCreditsService {
         .where(eq(apps.id, appId));
     }
 
-    logger.info("[AppCredits] Deducted credits", { appId, userId, baseCost, creatorMarkup, totalCost, newBalance: result.newBalance });
+    logger.info("[AppCredits] Deducted credits", {
+      appId,
+      userId,
+      baseCost,
+      creatorMarkup,
+      totalCost,
+      newBalance: result.newBalance,
+    });
 
-    return { success: true, baseCost, creatorMarkup, totalCost, creatorEarnings: creatorMarkup, newBalance: result.newBalance };
+    return {
+      success: true,
+      baseCost,
+      creatorMarkup,
+      totalCost,
+      creatorEarnings: creatorMarkup,
+      newBalance: result.newBalance,
+    };
   }
 
   async calculateCostWithMarkup(
     appId: string,
-    baseCost: number
+    baseCost: number,
   ): Promise<{
     baseCost: number;
     creatorMarkup: number;
@@ -307,8 +390,8 @@ export class AppCreditsService {
     }
 
     // Only apply markup if monetization is enabled
-    const markupPercentage = app.monetization_enabled 
-      ? Number(app.inference_markup_percentage) 
+    const markupPercentage = app.monetization_enabled
+      ? Number(app.inference_markup_percentage)
       : 0;
     const creatorMarkup = baseCost * (markupPercentage / 100);
     const totalCost = baseCost + creatorMarkup;
@@ -324,7 +407,7 @@ export class AppCreditsService {
   async checkBalance(
     appId: string,
     userId: string,
-    requiredAmount: number
+    requiredAmount: number,
   ): Promise<{
     sufficient: boolean;
     balance: number;
@@ -344,7 +427,7 @@ export class AppCreditsService {
     userId: string,
     type: "inference_markup" | "purchase_share",
     amount: number,
-    metadata: Record<string, unknown>
+    metadata: Record<string, unknown>,
   ): Promise<void> {
     // Update app-level earnings tracking
     if (type === "inference_markup") {
@@ -359,7 +442,10 @@ export class AppCreditsService {
       user_id: userId,
       type,
       amount: String(amount),
-      description: type === "inference_markup" ? "Inference markup earnings" : "Credit purchase share",
+      description:
+        type === "inference_markup"
+          ? "Inference markup earnings"
+          : "Credit purchase share",
       metadata,
     });
 
@@ -372,9 +458,10 @@ export class AppCreditsService {
         amount,
         source: "app",
         sourceId: appId,
-        description: type === "inference_markup" 
-          ? `Inference markup from app: ${app.name || appId}`
-          : `Purchase share from app: ${app.name || appId}`,
+        description:
+          type === "inference_markup"
+            ? `Inference markup from app: ${app.name || appId}`
+            : `Purchase share from app: ${app.name || appId}`,
         metadata: {
           appId,
           earningsType: type,
@@ -409,13 +496,13 @@ export class AppCreditsService {
     app: App,
     userId: string,
     creditsUsed: string,
-    metadata?: Record<string, unknown>
+    metadata?: Record<string, unknown>,
   ): Promise<void> {
     await appsRepository.trackAppUserActivity(
       app.id,
       userId,
       creditsUsed,
-      metadata
+      metadata,
     );
   }
 
@@ -444,28 +531,42 @@ export class AppCreditsService {
       monetizationEnabled?: boolean;
       inferenceMarkupPercentage?: number;
       purchaseSharePercentage?: number;
-    }
+    },
   ): Promise<void> {
-    if (settings.inferenceMarkupPercentage !== undefined &&
-        (settings.inferenceMarkupPercentage < 0 || settings.inferenceMarkupPercentage > 1000)) {
+    if (
+      settings.inferenceMarkupPercentage !== undefined &&
+      (settings.inferenceMarkupPercentage < 0 ||
+        settings.inferenceMarkupPercentage > 1000)
+    ) {
       throw new Error("Inference markup must be between 0% and 1000%");
     }
 
-    if (settings.purchaseSharePercentage !== undefined &&
-        (settings.purchaseSharePercentage < 0 || settings.purchaseSharePercentage > 100)) {
+    if (
+      settings.purchaseSharePercentage !== undefined &&
+      (settings.purchaseSharePercentage < 0 ||
+        settings.purchaseSharePercentage > 100)
+    ) {
       throw new Error("Purchase share must be between 0% and 100%");
     }
 
     await appsRepository.update(appId, {
-      ...(settings.monetizationEnabled !== undefined && { monetization_enabled: settings.monetizationEnabled }),
-      ...(settings.inferenceMarkupPercentage !== undefined && { inference_markup_percentage: String(settings.inferenceMarkupPercentage) }),
-      ...(settings.purchaseSharePercentage !== undefined && { purchase_share_percentage: String(settings.purchaseSharePercentage) }),
+      ...(settings.monetizationEnabled !== undefined && {
+        monetization_enabled: settings.monetizationEnabled,
+      }),
+      ...(settings.inferenceMarkupPercentage !== undefined && {
+        inference_markup_percentage: String(settings.inferenceMarkupPercentage),
+      }),
+      ...(settings.purchaseSharePercentage !== undefined && {
+        purchase_share_percentage: String(settings.purchaseSharePercentage),
+      }),
     });
 
-    logger.info("[AppCredits] Updated monetization settings", { appId, settings });
+    logger.info("[AppCredits] Updated monetization settings", {
+      appId,
+      settings,
+    });
   }
 }
 
 // Export singleton instance
 export const appCreditsService = new AppCreditsService();
-

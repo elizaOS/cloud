@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
             error: "Invalid request",
             details: validation.error.format(),
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
             error: "Invalid request",
             details: validation.error.format(),
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
           limit: validation.data.limit,
           startPosition: validation.data.startPosition,
           spacing: validation.data.spacing,
-        }
+        },
       );
 
       return NextResponse.json({
@@ -98,14 +98,15 @@ export async function POST(request: NextRequest) {
             error: "Invalid request",
             details: validation.error.format(),
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
-      const workflow = await n8nNodeGeneratorService.generateWorkflowFromEndpoints(
-        validation.data.endpointIds,
-        validation.data.workflowName
-      );
+      const workflow =
+        await n8nNodeGeneratorService.generateWorkflowFromEndpoints(
+          validation.data.endpointIds,
+          validation.data.workflowName,
+        );
 
       return NextResponse.json({
         success: true,
@@ -115,9 +116,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "Invalid request: must include endpointId, query, or endpointIds",
+          error:
+            "Invalid request: must include endpointId, query, or endpointIds",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
   } catch (error) {
@@ -125,11 +127,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to generate nodes",
+        error:
+          error instanceof Error ? error.message : "Failed to generate nodes",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-
-

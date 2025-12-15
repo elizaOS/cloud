@@ -12,7 +12,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { socialMediaService } from "@/lib/services/social-media";
-import type { SocialPlatform, PostContent, PlatformPostOptions } from "@/lib/types/social-media";
+import type {
+  SocialPlatform,
+  PostContent,
+  PlatformPostOptions,
+} from "@/lib/types/social-media";
 
 // =============================================================================
 // SCHEMAS
@@ -75,8 +79,12 @@ export async function POST(request: NextRequest) {
     content: validated.content as PostContent,
     platforms: validated.platforms as SocialPlatform[],
     platformOptions: validated.platformOptions as PlatformPostOptions,
-    credentialIds: validated.credentialIds as Partial<Record<SocialPlatform, string>>,
-    scheduledAt: validated.scheduledAt ? new Date(validated.scheduledAt) : undefined,
+    credentialIds: validated.credentialIds as Partial<
+      Record<SocialPlatform, string>
+    >,
+    scheduledAt: validated.scheduledAt
+      ? new Date(validated.scheduledAt)
+      : undefined,
   });
 
   return NextResponse.json({
@@ -96,7 +104,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   await requireAuthOrApiKeyWithOrg(request);
-  
+
   const platforms = socialMediaService.getSupportedPlatforms();
 
   return NextResponse.json({
@@ -107,13 +115,38 @@ export async function GET(request: NextRequest) {
       features: {
         post: true,
         delete: true,
-        reply: ["twitter", "bluesky", "reddit", "facebook", "linkedin", "discord", "mastodon", "slack"].includes(p),
-        like: ["twitter", "bluesky", "reddit", "facebook", "linkedin", "discord", "mastodon"].includes(p),
+        reply: [
+          "twitter",
+          "bluesky",
+          "reddit",
+          "facebook",
+          "linkedin",
+          "discord",
+          "mastodon",
+          "slack",
+        ].includes(p),
+        like: [
+          "twitter",
+          "bluesky",
+          "reddit",
+          "facebook",
+          "linkedin",
+          "discord",
+          "mastodon",
+        ].includes(p),
         repost: ["twitter", "bluesky", "mastodon"].includes(p),
-        analytics: ["twitter", "bluesky", "reddit", "facebook", "instagram", "tiktok", "linkedin", "mastodon"].includes(p),
+        analytics: [
+          "twitter",
+          "bluesky",
+          "reddit",
+          "facebook",
+          "instagram",
+          "tiktok",
+          "linkedin",
+          "mastodon",
+        ].includes(p),
         mediaUpload: true,
       },
     })),
   });
 }
-

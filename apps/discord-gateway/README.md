@@ -46,27 +46,27 @@ Multi-tenant Discord gateway for Eliza Cloud. Maintains persistent WebSocket con
 
 ## Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `ELIZA_CLOUD_URL` | Yes | Backend URL (e.g., `https://elizacloud.ai`) |
-| `INTERNAL_API_KEY` | Yes | Internal API key for authentication |
-| `REDIS_URL` | No | Upstash Redis REST URL |
-| `KV_REST_API_TOKEN` | No | Upstash Redis token |
-| `POD_NAME` | No | Pod identifier (auto-set by K8s) |
-| `PORT` | No | HTTP port (default: 3000) |
-| `MAX_BOTS_PER_POD` | No | Max bots per pod (default: 100) |
-| `MAX_BOTS_PER_POLL` | No | Max bots assigned per poll (default: 50) |
-| `FAILOVER_CHECK_INTERVAL_MS` | No | Failover check interval (default: 60000) |
-| `DEAD_POD_THRESHOLD_MS` | No | Dead pod threshold (default: 120000) |
+| Variable                     | Required | Description                                 |
+| ---------------------------- | -------- | ------------------------------------------- |
+| `ELIZA_CLOUD_URL`            | Yes      | Backend URL (e.g., `https://elizacloud.ai`) |
+| `INTERNAL_API_KEY`           | Yes      | Internal API key for authentication         |
+| `REDIS_URL`                  | No       | Upstash Redis REST URL                      |
+| `KV_REST_API_TOKEN`          | No       | Upstash Redis token                         |
+| `POD_NAME`                   | No       | Pod identifier (auto-set by K8s)            |
+| `PORT`                       | No       | HTTP port (default: 3000)                   |
+| `MAX_BOTS_PER_POD`           | No       | Max bots per pod (default: 100)             |
+| `MAX_BOTS_PER_POLL`          | No       | Max bots assigned per poll (default: 50)    |
+| `FAILOVER_CHECK_INTERVAL_MS` | No       | Failover check interval (default: 60000)    |
+| `DEAD_POD_THRESHOLD_MS`      | No       | Dead pod threshold (default: 120000)        |
 
 ## Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check (K8s liveness) |
-| `/ready` | GET | Readiness check (K8s readiness) |
-| `/metrics` | GET | Prometheus metrics |
-| `/status` | GET | Detailed status with connection info |
+| Endpoint   | Method | Description                          |
+| ---------- | ------ | ------------------------------------ |
+| `/health`  | GET    | Health check (K8s liveness)          |
+| `/ready`   | GET    | Readiness check (K8s readiness)      |
+| `/metrics` | GET    | Prometheus metrics                   |
+| `/status`  | GET    | Detailed status with connection info |
 
 ## Development
 
@@ -120,11 +120,11 @@ bun run docker:run
 
 The Discord Gateway automatically deploys when changes are pushed:
 
-| Branch | Environment | Trigger |
-|--------|-------------|---------|
-| `dev` | Staging | Push to `dev` branch |
-| `main` | Production | Push to `main` branch |
-| Manual | Either | GitHub Actions "Run workflow" button |
+| Branch | Environment | Trigger                              |
+| ------ | ----------- | ------------------------------------ |
+| `dev`  | Staging     | Push to `dev` branch                 |
+| `main` | Production  | Push to `main` branch                |
+| Manual | Either      | GitHub Actions "Run workflow" button |
 
 ### Workflow: `.github/workflows/discord-gateway.yml`
 
@@ -143,9 +143,9 @@ You can also trigger a deployment manually from the GitHub Actions tab:
 
 ### Required GitHub Secrets
 
-| Secret | Description |
-|--------|-------------|
-| `STAGING_KUBECONFIG` | Kubeconfig content for staging cluster |
+| Secret                  | Description                               |
+| ----------------------- | ----------------------------------------- |
+| `STAGING_KUBECONFIG`    | Kubeconfig content for staging cluster    |
 | `PRODUCTION_KUBECONFIG` | Kubeconfig content for production cluster |
 
 To set up the secrets:

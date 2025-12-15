@@ -66,7 +66,9 @@ test.describe("Todo App - Wallet Login Flow", () => {
     await expect(heading).toContainText(/Eliza Todo/i, { timeout: 15000 });
 
     // Verify Get Started button
-    const ctaButton = page.getByRole("button", { name: /get started/i }).first();
+    const ctaButton = page
+      .getByRole("button", { name: /get started/i })
+      .first();
     await expect(ctaButton).toBeVisible();
 
     console.log("✅ Landing page loaded with CTA");
@@ -85,7 +87,9 @@ test.describe("Todo App - Wallet Login Flow", () => {
     await waitForPageLoad(page);
 
     // Click Get Started
-    const ctaButton = page.getByRole("button", { name: /get started/i }).first();
+    const ctaButton = page
+      .getByRole("button", { name: /get started/i })
+      .first();
     await expect(ctaButton).toBeVisible({ timeout: 15000 });
     await ctaButton.click();
 
@@ -111,7 +115,9 @@ test.describe("Todo App - Wallet Login Flow", () => {
     await waitForPageLoad(page);
 
     // Click Get Started
-    const ctaButton = page.getByRole("button", { name: /get started/i }).first();
+    const ctaButton = page
+      .getByRole("button", { name: /get started/i })
+      .first();
     await ctaButton.click();
 
     // Wait for Cloud login page
@@ -120,10 +126,14 @@ test.describe("Todo App - Wallet Login Flow", () => {
 
     // Find and click Connect Wallet button
     const walletButton = page.locator('button:has-text("Connect Wallet")');
-    const isVisible = await walletButton.isVisible({ timeout: 10000 }).catch(() => false);
+    const isVisible = await walletButton
+      .isVisible({ timeout: 10000 })
+      .catch(() => false);
 
     if (!isVisible) {
-      console.log("ℹ️ Wallet connect button not visible - Privy may use different UI");
+      console.log(
+        "ℹ️ Wallet connect button not visible - Privy may use different UI",
+      );
       return;
     }
 
@@ -159,7 +169,9 @@ test.describe("Todo App - Wallet Login Flow", () => {
 
     // Perform login
     await page.goto(TODOAPP_URL);
-    const ctaButton = page.getByRole("button", { name: /get started/i }).first();
+    const ctaButton = page
+      .getByRole("button", { name: /get started/i })
+      .first();
     await ctaButton.click();
     await page.waitForURL(/auth/, { timeout: 15000 });
 
@@ -185,9 +197,13 @@ test.describe("Todo App - Wallet Login Flow", () => {
 
     // Check for task sections
     const taskSection = page.getByText(/daily habits|tasks|goals/i).first();
-    const hasTaskSection = await taskSection.isVisible({ timeout: 5000 }).catch(() => false);
+    const hasTaskSection = await taskSection
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
 
-    console.log(`✅ Dashboard loaded, task sections visible: ${hasTaskSection}`);
+    console.log(
+      `✅ Dashboard loaded, task sections visible: ${hasTaskSection}`,
+    );
   });
 });
 
@@ -216,7 +232,7 @@ test.describe("Todo App - Authenticated Task Management", () => {
           completed: false,
           metadata: { streak: 0, description: "30 min workout" },
         },
-      }
+      },
     );
     expect([200, 201]).toContain(dailyResponse.status());
 
@@ -233,7 +249,7 @@ test.describe("Todo App - Authenticated Task Management", () => {
           completed: false,
           metadata: { dueDate: new Date(Date.now() + 86400000).toISOString() },
         },
-      }
+      },
     );
     expect([200, 201]).toContain(oneoffResponse.status());
 
@@ -248,7 +264,7 @@ test.describe("Todo App - Authenticated Task Management", () => {
           completed: false,
           metadata: { description: "Master basic scales" },
         },
-      }
+      },
     );
     expect([200, 201]).toContain(goalResponse.status());
 
@@ -259,15 +275,15 @@ test.describe("Todo App - Authenticated Task Management", () => {
 
     await request.delete(
       `${CLOUD_URL}/api/v1/app/storage/tasks/${dailyData.document.id}`,
-      { headers: authHeaders() }
+      { headers: authHeaders() },
     );
     await request.delete(
       `${CLOUD_URL}/api/v1/app/storage/tasks/${oneoffData.document.id}`,
-      { headers: authHeaders() }
+      { headers: authHeaders() },
     );
     await request.delete(
       `${CLOUD_URL}/api/v1/app/storage/tasks/${goalData.document.id}`,
-      { headers: authHeaders() }
+      { headers: authHeaders() },
     );
 
     console.log("✅ Created and cleaned up all task types");
@@ -286,24 +302,27 @@ test.describe("Todo App - Authenticated Task Management", () => {
           completed: false,
           metadata: {},
         },
-      }
+      },
     );
     const taskData = await createResponse.json();
     const taskId = taskData.document.id;
 
     // Complete via MCP
-    const completeResponse = await request.post(`${CLOUD_URL}/api/mcp/todoapp`, {
-      headers: authHeaders(),
-      data: {
-        jsonrpc: "2.0",
-        method: "tools/call",
-        params: {
-          name: "complete_task",
-          arguments: { id: taskId },
+    const completeResponse = await request.post(
+      `${CLOUD_URL}/api/mcp/todoapp`,
+      {
+        headers: authHeaders(),
+        data: {
+          jsonrpc: "2.0",
+          method: "tools/call",
+          params: {
+            name: "complete_task",
+            arguments: { id: taskId },
+          },
+          id: 1,
         },
-        id: 1,
       },
-    });
+    );
 
     expect(completeResponse.status()).toBe(200);
     const completeData = await completeResponse.json();
@@ -329,24 +348,27 @@ test.describe("Todo App - Authenticated Task Management", () => {
           completed: false,
           metadata: { streak: 5 }, // Start with existing streak
         },
-      }
+      },
     );
     const taskData = await createResponse.json();
     const taskId = taskData.document.id;
 
     // Complete to increment streak
-    const completeResponse = await request.post(`${CLOUD_URL}/api/mcp/todoapp`, {
-      headers: authHeaders(),
-      data: {
-        jsonrpc: "2.0",
-        method: "tools/call",
-        params: {
-          name: "complete_task",
-          arguments: { id: taskId },
+    const completeResponse = await request.post(
+      `${CLOUD_URL}/api/mcp/todoapp`,
+      {
+        headers: authHeaders(),
+        data: {
+          jsonrpc: "2.0",
+          method: "tools/call",
+          params: {
+            name: "complete_task",
+            arguments: { id: taskId },
+          },
+          id: 1,
         },
-        id: 1,
       },
-    });
+    );
 
     expect(completeResponse.status()).toBe(200);
     const result = (await completeResponse.json()).result.content[0].text;
@@ -373,7 +395,7 @@ test.describe("Todo App - Authenticated Task Management", () => {
           completed: false,
           metadata: {},
         },
-      }
+      },
     );
     const p1Task = (await p1Response.json()).document;
 
@@ -389,7 +411,7 @@ test.describe("Todo App - Authenticated Task Management", () => {
           completed: false,
           metadata: {},
         },
-      }
+      },
     );
     const p4Task = (await p4Response.json()).document;
 
@@ -459,10 +481,9 @@ test.describe("Todo App - Chat Integration", () => {
 
   test("can create and use chat session", async ({ request }) => {
     // Get agents
-    const agentsResponse = await request.get(
-      `${CLOUD_URL}/api/v1/app/agents`,
-      { headers: authHeaders() }
-    );
+    const agentsResponse = await request.get(`${CLOUD_URL}/api/v1/app/agents`, {
+      headers: authHeaders(),
+    });
     const agents = (await agentsResponse.json()).agents;
 
     if (agents.length === 0) {
@@ -475,7 +496,7 @@ test.describe("Todo App - Chat Integration", () => {
     // Create chat
     const createChatResponse = await request.post(
       `${CLOUD_URL}/api/v1/app/agents/${agentId}/chats`,
-      { headers: authHeaders() }
+      { headers: authHeaders() },
     );
 
     expect([200, 201]).toContain(createChatResponse.status());
@@ -485,7 +506,7 @@ test.describe("Todo App - Chat Integration", () => {
     // Cleanup
     await request.delete(
       `${CLOUD_URL}/api/v1/app/agents/${agentId}/chats/${chatId}`,
-      { headers: authHeaders() }
+      { headers: authHeaders() },
     );
 
     console.log("✅ Chat session created and cleaned up");
@@ -607,13 +628,15 @@ test.describe("Todo App - Error Handling", () => {
   test("returns 404 for non-existent task", async ({ request }) => {
     const response = await request.get(
       `${CLOUD_URL}/api/v1/app/storage/tasks/non-existent-uuid-here`,
-      { headers: authHeaders() }
+      { headers: authHeaders() },
     );
 
     expect(response.status()).toBe(404);
   });
 
-  test("MCP complete_task returns error for invalid ID", async ({ request }) => {
+  test("MCP complete_task returns error for invalid ID", async ({
+    request,
+  }) => {
     const response = await request.post(`${CLOUD_URL}/api/mcp/todoapp`, {
       headers: authHeaders(),
       data: {
@@ -653,9 +676,7 @@ test.describe("Todo App - Error Handling", () => {
   });
 
   test("storage returns 401 without auth", async ({ request }) => {
-    const response = await request.get(
-      `${CLOUD_URL}/api/v1/app/storage/tasks`
-    );
+    const response = await request.get(`${CLOUD_URL}/api/v1/app/storage/tasks`);
 
     expect([401, 403]).toContain(response.status());
   });
@@ -706,4 +727,3 @@ test.describe("Todo App - Performance", () => {
     console.log(`✅ MCP metadata in ${responseTime}ms`);
   });
 });
-
