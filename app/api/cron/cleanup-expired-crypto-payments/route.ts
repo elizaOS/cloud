@@ -8,6 +8,7 @@ import { logger } from "@/lib/utils/logger";
  * Should be scheduled to run every 5-10 minutes.
  *
  * Vercel Cron: schedule "0/10 * * * *" at path "/api/cron/cleanup-expired-crypto-payments"
+ * 
  */
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
