@@ -1,50 +1,67 @@
 import { NextResponse } from "next/server";
-import { isOxaPayConfigured, oxaPayService } from "@/lib/services/oxapay";
-import { logger } from "@/lib/utils/logger";
+import { X402_ENABLED, getDefaultNetwork, getNetworkConfig } from "@/lib/config/x402";
 
-export async function GET() {
-  const configured = isOxaPayConfigured();
+/**
+ * Supported tokens for crypto payments
+ * These are the tokens that can be used to purchase credits
+ */
+const SUPPORTED_TOKENS = [
+  {
+    symbol: "USDC",
+    name: "USD Coin",
+    networks: ["base", "base-sepolia"],
+    enabled: true,
+  },
+  {
+    symbol: "USDT",
+    name: "Tether USD",
+    networks: ["base"],
+    enabled: false, // Not yet supported
+  },
+  {
+    symbol: "ETH",
+    name: "Ethereum",
+    networks: ["base", "base-sepolia"],
+    enabled: false, // Not yet supported
+  },
+] as const;
 
-  const networks = [
-    { id: "ERC20", name: "Ethereum", chainId: 1 },
-    { id: "TRC20", name: "Tron", chainId: null },
-    { id: "BEP20", name: "BNB Smart Chain", chainId: 56 },
-    { id: "POLYGON", name: "Polygon", chainId: 137 },
-    { id: "SOL", name: "Solana", chainId: null },
-    { id: "BASE", name: "Base", chainId: 8453 },
-    { id: "ARB", name: "Arbitrum", chainId: 42161 },
-    { id: "OP", name: "Optimism", chainId: 10 },
-  ];
+export interface CryptoStatusResponse {
+  enabled: boolean;
+  supportedTokens: string[];
+  allTokens: Array<{
+    symbol: string;
+    name: string;
+    networks: readonly string[];
+    enabled: boolean;
+  }>;
+  network: string;
+  networkName: string;
+  isTestnet: boolean;
+}
 
-  if (!configured) {
-    return NextResponse.json({
-      enabled: false,
-      networks: [],
-      supportedTokens: [],
-      limits: { min: 1, max: 10000 },
-    });
-  }
+/**
+ * GET /api/crypto/status
+ * Returns the status of crypto payments and the list of supported tokens.
+ *
+ * @returns Crypto payment configuration including supported tokens.
+ */
+export async function GET(): Promise<NextResponse<CryptoStatusResponse>> {
+  const network = getDefaultNetwork();
+  const networkConfig = getNetworkConfig(network);
 
-  let supportedTokens: string[] = ["USDT", "USDC", "BTC", "ETH", "LTC", "TRX"];
-  let currencies: Array<{ symbol: string; name: string }> = [];
-
-  try {
-    const fetchedCurrencies = await oxaPayService.getSupportedCurrencies();
-    supportedTokens = fetchedCurrencies.map((c) => c.symbol);
-    currencies = fetchedCurrencies.slice(0, 20);
-  } catch (error) {
-    logger.warn("[Crypto Status API] Could not fetch currencies, using defaults:", error);
-  }
+  // Filter to only enabled tokens that support the current network
+  const enabledTokens = SUPPORTED_TOKENS.filter(
+    (token) => token.enabled && token.networks.includes(network)
+  );
 
   return NextResponse.json({
-    enabled: true,
-    networks,
-    supportedTokens,
-    currencies,
-    limits: {
-      min: 1,
-      max: 10000,
-    },
-    provider: "oxapay",
+    enabled: X402_ENABLED,
+    supportedTokens: enabledTokens.map((t) => t.symbol),
+    allTokens: [...SUPPORTED_TOKENS],
+    network,
+    networkName: networkConfig.name,
+    isTestnet: networkConfig.isTestnet,
   });
 }
+
