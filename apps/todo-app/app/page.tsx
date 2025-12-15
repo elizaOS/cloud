@@ -153,7 +153,7 @@ export default function LandingPage() {
               Smart task management with gamification and AI.
             </p>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
             {features.map((feature) => (
               <div
                 key={feature.title}

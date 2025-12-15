@@ -253,7 +253,6 @@ export class CacheClient {
     await this.redis.setex(key, ttlSeconds, serialized);
 
     this.resetFailures();
-    logger.debug(`[Cache] SET: ${key} (TTL: ${ttlSeconds}s)`);
     this.logMetric(key, "set", Date.now() - start);
   }
 
