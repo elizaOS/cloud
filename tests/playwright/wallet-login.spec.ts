@@ -1,4 +1,4 @@
-import { test, expect } from "../fixtures/test-fixtures";
+import { test, expect } from "./fixtures/test-fixtures";
 import {
   goToLogin,
   waitForDashboardRedirect,
@@ -7,7 +7,7 @@ import {
   LoginSelectors,
   DashboardSelectors,
   waitForPageLoad,
-} from "../fixtures/test-fixtures";
+} from "./fixtures/test-fixtures";
 
 /**
  * E2E Tests: Wallet Login Flow

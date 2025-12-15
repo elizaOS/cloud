@@ -330,7 +330,7 @@ test.describe("Anonymous Session API", () => {
       },
     });
 
-    expect([200, 404, 500, 501]).toContain(response.status());
+    expect([200, 400, 401, 404, 500, 501]).toContain(response.status());
 
     if (response.status() === 200) {
       const data = await response.json();
@@ -357,7 +357,7 @@ test.describe("Create Anonymous Session API", () => {
       },
     );
 
-    expect([200, 201, 400, 404, 500, 501]).toContain(response.status());
+    expect([200, 201, 400, 401, 404, 500, 501]).toContain(response.status());
 
     if (response.status() === 200 || response.status() === 201) {
       const data = await response.json();

@@ -272,13 +272,53 @@ jobs:
         with:
           name: nextjs-build
           path: .next
+      - name: Install and build miniapp
+        run: |
+          cd miniapp
+          bun install --frozen-lockfile
+          bun run build
       - uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ hashFiles('bun.lockb') }}
           restore-keys: playwright-
       - run: bunx playwright install chromium --with-deps
-      - run: bun run test:playwright:miniapp
+      - name: Start servers and run tests
+        run: |
+          # Start main app on port 3000
+          bun run start &
+          MAIN_PID=$!
+
+          # Start miniapp on port 3001
+          cd miniapp && bun run start -p 3001 &
+          MINIAPP_PID=$!
+          cd ..
+
+          # Wait for servers to be ready
+          echo "Waiting for servers to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:3000 > /dev/null 2>&1; then
+              echo "Main app is ready"
+              break
+            fi
+            sleep 2
+          done
+
+          for i in {1..30}; do
+            if curl -s http://localhost:3001 > /dev/null 2>&1; then
+              echo "Miniapp is ready"
+              break
+            fi
+            sleep 2
+          done
+
+          # Run tests
+          bun run test:playwright:miniapp || TEST_EXIT=$?
+
+          # Cleanup
+          kill $MAIN_PID $MINIAPP_PID 2>/dev/null || true
+
+          exit ${TEST_EXIT:-0}
         env:
           CI: "true"
           NODE_ENV: production

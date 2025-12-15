@@ -4,7 +4,7 @@ import {
   goToLogin,
   LoginSelectors,
   waitForPageLoad,
-} from "../fixtures/test-fixtures";
+} from "./fixtures/test-fixtures";
 
 /**
  * E2E Tests: Social Login (OAuth) Flow
