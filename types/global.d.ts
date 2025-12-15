@@ -36,4 +36,3 @@ declare module "@elizaos/plugin-sql/node" {
     agentId: UUID,
   ): IDatabaseAdapter;
 }
-

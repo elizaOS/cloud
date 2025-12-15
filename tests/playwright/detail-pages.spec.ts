@@ -2,12 +2,12 @@ import { test, expect } from "@playwright/test";
 
 /**
  * Detail Pages Tests
- * 
+ *
  * Tests detail pages that require IDs:
  * - Container detail page
  * - Invoice detail page
  * - Marketplace character detail page
- * 
+ *
  * Prerequisites:
  * - Cloud running on port 3000
  */
@@ -28,9 +28,12 @@ test.describe("Container Detail Page", () => {
 
   test("container detail page loads", async ({ page, request }) => {
     // First get a container ID
-    const containersResponse = await request.get(`${CLOUD_URL}/api/v1/containers`, {
-      headers: authHeaders(),
-    });
+    const containersResponse = await request.get(
+      `${CLOUD_URL}/api/v1/containers`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     if (containersResponse.status() !== 200) {
       console.log("ℹ️ Cannot list containers for detail page test");
@@ -65,9 +68,12 @@ test.describe("Invoice Detail Page", () => {
 
   test("invoice detail page loads", async ({ page, request }) => {
     // First get an invoice ID
-    const invoicesResponse = await request.get(`${CLOUD_URL}/api/invoices/list`, {
-      headers: authHeaders(),
-    });
+    const invoicesResponse = await request.get(
+      `${CLOUD_URL}/api/invoices/list`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     if (invoicesResponse.status() !== 200) {
       console.log("ℹ️ Cannot list invoices for detail page test");
@@ -100,7 +106,9 @@ test.describe("Invoice Detail Page", () => {
 test.describe("Marketplace Character Detail Page", () => {
   test("marketplace character detail page loads", async ({ page, request }) => {
     // First get a character ID
-    const charactersResponse = await request.get(`${CLOUD_URL}/api/marketplace/characters`);
+    const charactersResponse = await request.get(
+      `${CLOUD_URL}/api/marketplace/characters`,
+    );
 
     if (charactersResponse.status() !== 200) {
       console.log("ℹ️ Cannot list characters for detail page test");
@@ -108,7 +116,8 @@ test.describe("Marketplace Character Detail Page", () => {
     }
 
     const charactersData = await charactersResponse.json();
-    const characters = charactersData.characters || charactersData.data || charactersData;
+    const characters =
+      charactersData.characters || charactersData.data || charactersData;
 
     if (!Array.isArray(characters) || characters.length === 0) {
       console.log("ℹ️ No characters available for detail page test");
@@ -126,7 +135,8 @@ test.describe("Marketplace Character Detail Page", () => {
     const hasContent = await page.locator("body").textContent();
 
     expect(hasContent?.length).toBeGreaterThan(0);
-    console.log(`✅ Marketplace character detail page loaded for character ${characterId}`);
+    console.log(
+      `✅ Marketplace character detail page loaded for character ${characterId}`,
+    );
   });
 });
-

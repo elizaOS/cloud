@@ -12,10 +12,10 @@ import { users } from "./users";
 
 /**
  * Anonymous sessions table schema.
- * 
+ *
  * Tracks anonymous/free user sessions for rate limiting and usage tracking.
  * Each anonymous user gets their own session with individual limits.
- * 
+ *
  * Features:
  * - Session-based tracking (not org-based)
  * - Individual message limits per session

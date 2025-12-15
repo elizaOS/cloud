@@ -1,11 +1,11 @@
 /**
  * REAL MCP & A2A Integration Test
- * 
+ *
  * This script tests the MCP and A2A endpoints against a real running server
  * with actual credit deduction and earnings.
- * 
+ *
  * Run: bun run scripts/test-mcp-a2a-real.ts
- * 
+ *
  * Prerequisites:
  * - Server running at localhost:3000 or TEST_API_URL
  * - Valid API key in TEST_API_KEY env var
@@ -24,7 +24,7 @@ interface TestResult {
 
 async function fetchWithAuth(
   url: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<Response> {
   const headers = new Headers(options.headers);
   if (API_KEY) {
@@ -59,7 +59,7 @@ async function runTests(): Promise<TestResult[]> {
   // 1. Check credit balance before tests
   // ============================================================================
   console.log("1. Checking initial credit balance...");
-  
+
   let initialBalance = 0;
   try {
     const resp = await fetchWithAuth(`${API_URL}/api/v1/credits/balance`);
@@ -67,7 +67,11 @@ async function runTests(): Promise<TestResult[]> {
       const data = await resp.json();
       initialBalance = data.balance || 0;
       console.log(`   Initial balance: $${initialBalance.toFixed(4)}`);
-      results.push({ name: "Check balance", passed: true, data: { balance: initialBalance } });
+      results.push({
+        name: "Check balance",
+        passed: true,
+        data: { balance: initialBalance },
+      });
     } else {
       const error = await resp.text();
       console.log(`   ❌ Failed: ${error}`);
@@ -106,11 +110,21 @@ async function runTests(): Promise<TestResult[]> {
     if (resp.ok) {
       const data = await resp.json();
       if (data.result) {
-        console.log(`   ✅ MCP check_credits: balance = ${JSON.stringify(data.result.content?.[0]?.text || data.result)}`);
-        results.push({ name: "MCP check_credits", passed: true, data: data.result });
+        console.log(
+          `   ✅ MCP check_credits: balance = ${JSON.stringify(data.result.content?.[0]?.text || data.result)}`,
+        );
+        results.push({
+          name: "MCP check_credits",
+          passed: true,
+          data: data.result,
+        });
       } else if (data.error) {
         console.log(`   ⚠️ MCP error: ${data.error.message}`);
-        results.push({ name: "MCP check_credits", passed: false, error: data.error.message });
+        results.push({
+          name: "MCP check_credits",
+          passed: false,
+          error: data.error.message,
+        });
       }
     } else {
       const error = await resp.text();
@@ -126,7 +140,7 @@ async function runTests(): Promise<TestResult[]> {
   // Test MCP generate_text tool (costs real credits)
   console.log("");
   console.log("   Testing MCP generate_text (costs real credits)...");
-  
+
   try {
     const mcpRequest = {
       jsonrpc: "2.0",
@@ -150,12 +164,21 @@ async function runTests(): Promise<TestResult[]> {
     if (resp.ok) {
       const data = await resp.json();
       if (data.result) {
-        const content = data.result.content?.[0]?.text || JSON.stringify(data.result);
+        const content =
+          data.result.content?.[0]?.text || JSON.stringify(data.result);
         console.log(`   ✅ MCP generate_text: "${content.slice(0, 50)}..."`);
-        results.push({ name: "MCP generate_text", passed: true, data: { response: content } });
+        results.push({
+          name: "MCP generate_text",
+          passed: true,
+          data: { response: content },
+        });
       } else if (data.error) {
         console.log(`   ⚠️ MCP error: ${data.error.message}`);
-        results.push({ name: "MCP generate_text", passed: false, error: data.error.message });
+        results.push({
+          name: "MCP generate_text",
+          passed: false,
+          error: data.error.message,
+        });
       }
     } else {
       const error = await resp.text();
@@ -193,10 +216,18 @@ async function runTests(): Promise<TestResult[]> {
       const data = await resp.json();
       if (data.result) {
         console.log(`   ✅ A2A getAgentCard: name = "${data.result.name}"`);
-        results.push({ name: "A2A getAgentCard", passed: true, data: { name: data.result.name } });
+        results.push({
+          name: "A2A getAgentCard",
+          passed: true,
+          data: { name: data.result.name },
+        });
       } else if (data.error) {
         console.log(`   ⚠️ A2A error: ${data.error.message}`);
-        results.push({ name: "A2A getAgentCard", passed: false, error: data.error.message });
+        results.push({
+          name: "A2A getAgentCard",
+          passed: false,
+          error: data.error.message,
+        });
       }
     } else {
       // Try GET for agent card
@@ -204,7 +235,11 @@ async function runTests(): Promise<TestResult[]> {
       if (getResp.ok) {
         const data = await getResp.json();
         console.log(`   ✅ A2A Agent Card (GET): name = "${data.name}"`);
-        results.push({ name: "A2A getAgentCard", passed: true, data: { name: data.name } });
+        results.push({
+          name: "A2A getAgentCard",
+          passed: true,
+          data: { name: data.name },
+        });
       } else {
         const error = await resp.text();
         console.log(`   ❌ A2A failed (${resp.status}): ${error}`);
@@ -220,14 +255,19 @@ async function runTests(): Promise<TestResult[]> {
   // Test A2A chatCompletion method (costs real credits)
   console.log("");
   console.log("   Testing A2A chatCompletion (costs real credits)...");
-  
+
   try {
     const a2aRequest = {
       jsonrpc: "2.0",
       method: "a2a.chatCompletion",
       params: {
         model: "gpt-4o-mini",
-        messages: [{ role: "user", content: "Say 'A2A test successful' in exactly three words." }],
+        messages: [
+          {
+            role: "user",
+            content: "Say 'A2A test successful' in exactly three words.",
+          },
+        ],
         max_tokens: 10,
       },
       id: "a2a-test-2",
@@ -241,12 +281,25 @@ async function runTests(): Promise<TestResult[]> {
     if (resp.ok) {
       const data = await resp.json();
       if (data.result) {
-        const content = data.result.content || data.result.message?.content || JSON.stringify(data.result);
-        console.log(`   ✅ A2A chatCompletion: "${String(content).slice(0, 50)}..."`);
-        results.push({ name: "A2A chatCompletion", passed: true, data: { response: content } });
+        const content =
+          data.result.content ||
+          data.result.message?.content ||
+          JSON.stringify(data.result);
+        console.log(
+          `   ✅ A2A chatCompletion: "${String(content).slice(0, 50)}..."`,
+        );
+        results.push({
+          name: "A2A chatCompletion",
+          passed: true,
+          data: { response: content },
+        });
       } else if (data.error) {
         console.log(`   ⚠️ A2A error: ${data.error.message}`);
-        results.push({ name: "A2A chatCompletion", passed: false, error: data.error.message });
+        results.push({
+          name: "A2A chatCompletion",
+          passed: false,
+          error: data.error.message,
+        });
       }
     } else {
       const error = await resp.text();
@@ -265,7 +318,7 @@ async function runTests(): Promise<TestResult[]> {
   // 4. Check credit balance after tests
   // ============================================================================
   console.log("4. Checking final credit balance...");
-  
+
   let finalBalance = 0;
   try {
     const resp = await fetchWithAuth(`${API_URL}/api/v1/credits/balance`);
@@ -275,7 +328,11 @@ async function runTests(): Promise<TestResult[]> {
       const spent = initialBalance - finalBalance;
       console.log(`   Final balance: $${finalBalance.toFixed(4)}`);
       console.log(`   Credits spent: $${spent.toFixed(4)}`);
-      results.push({ name: "Final balance", passed: true, data: { balance: finalBalance, spent } });
+      results.push({
+        name: "Final balance",
+        passed: true,
+        data: { balance: finalBalance, spent },
+      });
     }
   } catch (e) {
     const error = e instanceof Error ? e.message : String(e);
@@ -292,8 +349,8 @@ async function runTests(): Promise<TestResult[]> {
   console.log("═".repeat(70));
   console.log("");
 
-  const passed = results.filter(r => r.passed).length;
-  const failed = results.filter(r => !r.passed).length;
+  const passed = results.filter((r) => r.passed).length;
+  const failed = results.filter((r) => !r.passed).length;
 
   for (const result of results) {
     const status = result.passed ? "✅" : "❌";
@@ -319,4 +376,3 @@ async function runTests(): Promise<TestResult[]> {
 }
 
 runTests().catch(console.error);
-

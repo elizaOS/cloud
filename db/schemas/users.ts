@@ -11,7 +11,7 @@ import { organizations } from "./organizations";
 
 /**
  * Users table schema.
- * 
+ *
  * Stores user accounts with support for both authenticated (Privy) and anonymous users.
  * Anonymous users are tracked via session cookies and have limited functionality.
  */

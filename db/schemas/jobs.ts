@@ -15,7 +15,7 @@ import { generations } from "./generations";
 
 /**
  * Jobs table schema.
- * 
+ *
  * Tracks background job execution with retry logic and webhook support.
  */
 export const jobs = pgTable(

@@ -330,9 +330,7 @@ export function VideoPageClient({
 
       replaceVideoEntry(draft.id, completed);
       updateUsageAfterCompletion(completed.durationSeconds);
-      setStatusMessage(
-        "Video ready — open it in a new tab or copy the link.",
-      );
+      setStatusMessage("Video ready — open it in a new tab or copy the link.");
       setReferenceUrl("");
 
       if (payload.isFallback) {
@@ -344,7 +342,7 @@ export function VideoPageClient({
           description: `Your video is ready. Duration: ${completed.durationSeconds || "N/A"}s`,
         });
       }
-      
+
       setIsGenerating(false);
     },
     [

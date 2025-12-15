@@ -21,7 +21,7 @@ export async function GET(
   if (!character) {
     return NextResponse.json(
       { success: false, error: "Character not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -49,7 +49,7 @@ export async function DELETE(
   if (!deleted) {
     return NextResponse.json(
       { success: false, error: "Character not found or access denied" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -58,4 +58,3 @@ export async function DELETE(
     data: { message: "Character deleted successfully" },
   });
 }
-

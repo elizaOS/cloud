@@ -30,7 +30,9 @@ function authHeaders() {
 test.describe("Miniapp Photo Generation API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("POST /api/generate-photo generates character photo", async ({ request }) => {
+  test("POST /api/generate-photo generates character photo", async ({
+    request,
+  }) => {
     const response = await request.post(`${MINIAPP_URL}/api/generate-photo`, {
       headers: authHeaders(),
       data: {
@@ -79,7 +81,9 @@ test.describe("Miniapp Photo Generation API", () => {
 test.describe("Miniapp Field Generation API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("POST /api/generate-field generates character field", async ({ request }) => {
+  test("POST /api/generate-field generates character field", async ({
+    request,
+  }) => {
     const response = await request.post(`${MINIAPP_URL}/api/generate-field`, {
       headers: authHeaders(),
       data: {
@@ -106,7 +110,9 @@ test.describe("Miniapp Field Generation API", () => {
     }
   });
 
-  test("field generation supports different field types", async ({ request }) => {
+  test("field generation supports different field types", async ({
+    request,
+  }) => {
     const fields = ["bio", "personality", "backstory", "topics", "adjectives"];
 
     for (const field of fields) {
@@ -146,7 +152,9 @@ test.describe("Miniapp Image Upload API", () => {
       },
     });
 
-    expect([200, 201, 400, 404, 422, 500, 501, 502]).toContain(response.status());
+    expect([200, 201, 400, 404, 422, 500, 501, 502]).toContain(
+      response.status(),
+    );
 
     if (response.status() === 200 || response.status() === 201) {
       const data = await response.json();
@@ -214,9 +222,12 @@ test.describe("Miniapp Proxy API", () => {
 
       // Cleanup if agent was created
       if (data.agent?.id) {
-        await request.delete(`${MINIAPP_URL}/api/proxy/agents/${data.agent.id}`, {
-          headers: authHeaders(),
-        });
+        await request.delete(
+          `${MINIAPP_URL}/api/proxy/agents/${data.agent.id}`,
+          {
+            headers: authHeaders(),
+          },
+        );
       }
     } else {
       console.log(`ℹ️ Proxy POST returned ${response.status()}`);
@@ -227,10 +238,15 @@ test.describe("Miniapp Proxy API", () => {
 test.describe("Miniapp Billing API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /api/v1/miniapp/billing/credit-packs returns packs", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing/credit-packs`, {
-      headers: authHeaders(),
-    });
+  test("GET /api/v1/miniapp/billing/credit-packs returns packs", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      `${CLOUD_URL}/api/v1/miniapp/billing/credit-packs`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 404, 500, 501]).toContain(response.status());
 
@@ -244,14 +260,19 @@ test.describe("Miniapp Billing API", () => {
     }
   });
 
-  test("POST /api/v1/miniapp/billing/checkout creates checkout", async ({ request }) => {
-    const response = await request.post(`${CLOUD_URL}/api/v1/miniapp/billing/checkout`, {
-      headers: authHeaders(),
-      data: {
-        packId: "basic",
-        returnUrl: "http://localhost:3001/billing/success",
+  test("POST /api/v1/miniapp/billing/checkout creates checkout", async ({
+    request,
+  }) => {
+    const response = await request.post(
+      `${CLOUD_URL}/api/v1/miniapp/billing/checkout`,
+      {
+        headers: authHeaders(),
+        data: {
+          packId: "basic",
+          returnUrl: "http://localhost:3001/billing/success",
+        },
       },
-    });
+    );
 
     expect([200, 201, 400, 404, 500, 501]).toContain(response.status());
 
@@ -272,10 +293,15 @@ test.describe("Miniapp Billing API", () => {
 test.describe("Miniapp Referral API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /api/v1/miniapp/referral/qualify checks qualification", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/v1/miniapp/referral/qualify`, {
-      headers: authHeaders(),
-    });
+  test("GET /api/v1/miniapp/referral/qualify checks qualification", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      `${CLOUD_URL}/api/v1/miniapp/referral/qualify`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 404, 500, 501]).toContain(response.status());
 
@@ -296,7 +322,9 @@ test.describe("Miniapp Referral API", () => {
 test.describe("Miniapp Rewards API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /api/v1/miniapp/rewards returns rewards info", async ({ request }) => {
+  test("GET /api/v1/miniapp/rewards returns rewards info", async ({
+    request,
+  }) => {
     const response = await request.get(`${CLOUD_URL}/api/v1/miniapp/rewards`, {
       headers: authHeaders(),
     });
@@ -309,7 +337,7 @@ test.describe("Miniapp Rewards API", () => {
       console.log("✅ Rewards endpoint works");
 
       if (data.rewards) {
-        console.log(`   Available rewards: ${data.rewards.length || 'N/A'}`);
+        console.log(`   Available rewards: ${data.rewards.length || "N/A"}`);
       }
     } else {
       console.log(`ℹ️ Rewards returned ${response.status()}`);
@@ -377,7 +405,7 @@ test.describe("Miniapp Character Creator UI", () => {
 
     // Look for character creator elements
     const creatorSection = page.locator(
-      '[class*="creator"], [class*="character"], form, [class*="form"]'
+      '[class*="creator"], [class*="character"], form, [class*="form"]',
     );
     const hasCreator = await creatorSection.isVisible().catch(() => false);
 
@@ -389,9 +417,11 @@ test.describe("Miniapp Character Creator UI", () => {
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(2000);
 
-    const nameInput = page.locator(
-      'input[name="name"], input[placeholder*="name" i], input[type="text"]'
-    ).first();
+    const nameInput = page
+      .locator(
+        'input[name="name"], input[placeholder*="name" i], input[type="text"]',
+      )
+      .first();
     const hasInput = await nameInput.isVisible().catch(() => false);
 
     if (hasInput) {
@@ -411,7 +441,7 @@ test.describe("Miniapp Character Creator UI", () => {
 
     // Look for generate/create buttons
     const generateButtons = page.locator(
-      'button:has-text("Generate"), button:has-text("Create"), button:has-text("Build")'
+      'button:has-text("Generate"), button:has-text("Create"), button:has-text("Build")',
     );
     const buttonCount = await generateButtons.count();
 
@@ -446,5 +476,3 @@ test.describe("Miniapp Chat Flow", () => {
     console.log(`✅ Chat list items: ${chatCount}`);
   });
 });
-
-

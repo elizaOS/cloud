@@ -30,23 +30,23 @@ import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
 // Agent reputation status enum
 export const agentReputationStatusEnum = pgEnum("agent_reputation_status", [
-  "new",           // Just registered, no activity
-  "trusted",       // Good standing
-  "warned",        // Has violations but not banned
-  "restricted",    // Limited access due to violations
-  "banned",        // Permanently banned
+  "new", // Just registered, no activity
+  "trusted", // Good standing
+  "warned", // Has violations but not banned
+  "restricted", // Limited access due to violations
+  "banned", // Permanently banned
 ]);
 
 // Agent flag type enum
 export const agentFlagTypeEnum = pgEnum("agent_flag_type", [
-  "csam",          // Child sexual abuse material
-  "self_harm",     // Self-harm content
-  "spam",          // Spam/abuse
-  "scam",          // Scam/fraud
-  "harassment",    // Harassment/threats
-  "copyright",     // Copyright infringement
-  "malware",       // Malware/security threat
-  "other",         // Other violation
+  "csam", // Child sexual abuse material
+  "self_harm", // Self-harm content
+  "spam", // Spam/abuse
+  "scam", // Scam/fraud
+  "harassment", // Harassment/threats
+  "copyright", // Copyright infringement
+  "malware", // Malware/security threat
+  "other", // Other violation
 ]);
 
 /**
@@ -78,8 +78,8 @@ export const agentReputation = pgTable(
     // ===== POSITIVE REPUTATION FACTORS =====
 
     // Financial reputation (money deposited = trust)
-    totalDeposited: real("total_deposited").notNull().default(0),       // USD value
-    totalSpent: real("total_spent").notNull().default(0),               // USD value
+    totalDeposited: real("total_deposited").notNull().default(0), // USD value
+    totalSpent: real("total_spent").notNull().default(0), // USD value
     paymentCount: integer("payment_count").notNull().default(0),
     lastPaymentAt: timestamp("last_payment_at"),
 
@@ -93,7 +93,7 @@ export const agentReputation = pgTable(
 
     // Moderation violations
     totalViolations: integer("total_violations").notNull().default(0),
-    csamViolations: integer("csam_violations").notNull().default(0),     // Most severe
+    csamViolations: integer("csam_violations").notNull().default(0), // Most severe
     selfHarmViolations: integer("self_harm_violations").notNull().default(0),
     otherViolations: integer("other_violations").notNull().default(0),
     lastViolationAt: timestamp("last_violation_at"),
@@ -111,7 +111,7 @@ export const agentReputation = pgTable(
     reputationScore: real("reputation_score").notNull().default(50),
 
     // Trust level based on score
-    trustLevel: text("trust_level").notNull().default("neutral"),  // untrusted, low, neutral, trusted, verified
+    trustLevel: text("trust_level").notNull().default("neutral"), // untrusted, low, neutral, trusted, verified
 
     // Confidence in the score (more data = higher confidence)
     confidenceScore: real("confidence_score").notNull().default(0),
@@ -121,7 +121,7 @@ export const agentReputation = pgTable(
     bannedAt: timestamp("banned_at"),
     bannedBy: uuid("banned_by"),
     banReason: text("ban_reason"),
-    banExpiresAt: timestamp("ban_expires_at"),  // null = permanent
+    banExpiresAt: timestamp("ban_expires_at"), // null = permanent
 
     // ===== LIFECYCLE =====
 
@@ -130,14 +130,25 @@ export const agentReputation = pgTable(
     firstSeenAt: timestamp("first_seen_at").notNull().defaultNow(),
   },
   (table) => ({
-    agentIdentifierIdx: uniqueIndex("agent_reputation_identifier_idx").on(table.agentIdentifier),
-    chainTokenIdx: index("agent_reputation_chain_token_idx").on(table.chainId, table.tokenId),
-    walletAddressIdx: index("agent_reputation_wallet_address_idx").on(table.walletAddress),
-    organizationIdIdx: index("agent_reputation_organization_id_idx").on(table.organizationId),
+    agentIdentifierIdx: uniqueIndex("agent_reputation_identifier_idx").on(
+      table.agentIdentifier,
+    ),
+    chainTokenIdx: index("agent_reputation_chain_token_idx").on(
+      table.chainId,
+      table.tokenId,
+    ),
+    walletAddressIdx: index("agent_reputation_wallet_address_idx").on(
+      table.walletAddress,
+    ),
+    organizationIdIdx: index("agent_reputation_organization_id_idx").on(
+      table.organizationId,
+    ),
     statusIdx: index("agent_reputation_status_idx").on(table.status),
-    reputationScoreIdx: index("agent_reputation_score_idx").on(table.reputationScore),
+    reputationScoreIdx: index("agent_reputation_score_idx").on(
+      table.reputationScore,
+    ),
     bannedAtIdx: index("agent_reputation_banned_at_idx").on(table.bannedAt),
-  })
+  }),
 );
 
 /**
@@ -162,15 +173,16 @@ export const agentModerationEvents = pgTable(
     flagType: agentFlagTypeEnum("flag_type"),
 
     // Details
-    severity: text("severity").notNull().default("medium"),  // low, medium, high, critical
+    severity: text("severity").notNull().default("medium"), // low, medium, high, critical
     description: text("description"),
-    evidence: text("evidence"),  // Message text or content reference
+    evidence: text("evidence"), // Message text or content reference
 
     // Detection method
-    detectedBy: text("detected_by").notNull().default("auto"),  // auto, admin, report
+    detectedBy: text("detected_by").notNull().default("auto"), // auto, admin, report
 
     // Scores at time of event
-    moderationScores: jsonb("moderation_scores").$type<Record<string, number>>(),
+    moderationScores:
+      jsonb("moderation_scores").$type<Record<string, number>>(),
 
     // Admin action
     adminUserId: uuid("admin_user_id"),
@@ -189,12 +201,14 @@ export const agentModerationEvents = pgTable(
     resolutionNotes: text("resolution_notes"),
   },
   (table) => ({
-    agentReputationIdIdx: index("agent_mod_events_reputation_id_idx").on(table.agentReputationId),
+    agentReputationIdIdx: index("agent_mod_events_reputation_id_idx").on(
+      table.agentReputationId,
+    ),
     eventTypeIdx: index("agent_mod_events_event_type_idx").on(table.eventType),
     flagTypeIdx: index("agent_mod_events_flag_type_idx").on(table.flagType),
     severityIdx: index("agent_mod_events_severity_idx").on(table.severity),
     createdAtIdx: index("agent_mod_events_created_at_idx").on(table.createdAt),
-  })
+  }),
 );
 
 /**
@@ -212,7 +226,7 @@ export const agentActivityLog = pgTable(
       .references(() => agentReputation.id, { onDelete: "cascade" }),
 
     // Activity type
-    activityType: text("activity_type").notNull(),  // payment, request, violation, etc.
+    activityType: text("activity_type").notNull(), // payment, request, violation, etc.
 
     // Value for payments
     amountUsd: real("amount_usd"),
@@ -226,19 +240,24 @@ export const agentActivityLog = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => ({
-    agentReputationIdIdx: index("agent_activity_reputation_id_idx").on(table.agentReputationId),
+    agentReputationIdIdx: index("agent_activity_reputation_id_idx").on(
+      table.agentReputationId,
+    ),
     activityTypeIdx: index("agent_activity_type_idx").on(table.activityType),
     createdAtIdx: index("agent_activity_created_at_idx").on(table.createdAt),
-  })
+  }),
 );
 
 // Type exports
 export type AgentReputation = InferSelectModel<typeof agentReputation>;
 export type NewAgentReputation = InferInsertModel<typeof agentReputation>;
 
-export type AgentModerationEvent = InferSelectModel<typeof agentModerationEvents>;
-export type NewAgentModerationEvent = InferInsertModel<typeof agentModerationEvents>;
+export type AgentModerationEvent = InferSelectModel<
+  typeof agentModerationEvents
+>;
+export type NewAgentModerationEvent = InferInsertModel<
+  typeof agentModerationEvents
+>;
 
 export type AgentActivityLog = InferSelectModel<typeof agentActivityLog>;
 export type NewAgentActivityLog = InferInsertModel<typeof agentActivityLog>;
-

@@ -82,7 +82,8 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
                   typeof (t as { amount: unknown }).amount === "number"),
             )
           : [];
-        const burn = transactions.filter((t) => Number(t.amount) < 0)
+        const burn = transactions
+          .filter((t) => Number(t.amount) < 0)
           .reduce(
             (sum: number, t: Transaction) => sum + Math.abs(Number(t.amount)),
             0,

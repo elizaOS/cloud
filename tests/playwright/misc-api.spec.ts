@@ -41,7 +41,9 @@ test.describe("Fal Proxy API", () => {
       },
     });
 
-    expect([200, 201, 400, 401, 404, 500, 501, 502]).toContain(response.status());
+    expect([200, 201, 400, 401, 404, 500, 501, 502]).toContain(
+      response.status(),
+    );
 
     if (response.status() === 200 || response.status() === 201) {
       const data = await response.json();
@@ -137,7 +139,9 @@ test.describe("X402 Payment Test API", () => {
 
 test.describe("OG Image API", () => {
   test("GET /api/og generates OG image", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/og?title=Test&description=E2E+Test`);
+    const response = await request.get(
+      `${CLOUD_URL}/api/og?title=Test&description=E2E+Test`,
+    );
 
     expect([200, 400, 404, 500, 501]).toContain(response.status());
 
@@ -159,7 +163,7 @@ test.describe("OG Image API", () => {
 
   test("OG image with character ID", async ({ request }) => {
     const response = await request.get(
-      `${CLOUD_URL}/api/og?characterId=test-id&title=Character`
+      `${CLOUD_URL}/api/og?characterId=test-id&title=Character`,
     );
 
     expect([200, 400, 404, 500, 501]).toContain(response.status());
@@ -191,8 +195,12 @@ test.describe("Cron Endpoints", () => {
     }
   });
 
-  test("GET /api/cron/cleanup-anonymous-sessions endpoint exists", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/cron/cleanup-anonymous-sessions`);
+  test("GET /api/cron/cleanup-anonymous-sessions endpoint exists", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      `${CLOUD_URL}/api/cron/cleanup-anonymous-sessions`,
+    );
 
     expect([200, 401, 403, 404, 500, 501]).toContain(response.status());
 
@@ -203,8 +211,12 @@ test.describe("Cron Endpoints", () => {
     }
   });
 
-  test("GET /api/cron/cleanup-cli-sessions endpoint exists", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/cron/cleanup-cli-sessions`);
+  test("GET /api/cron/cleanup-cli-sessions endpoint exists", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      `${CLOUD_URL}/api/cron/cleanup-cli-sessions`,
+    );
 
     expect([200, 401, 403, 404, 500, 501]).toContain(response.status());
 
@@ -215,8 +227,12 @@ test.describe("Cron Endpoints", () => {
     }
   });
 
-  test("GET /api/cron/cleanup-priorities endpoint exists", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/cron/cleanup-priorities`);
+  test("GET /api/cron/cleanup-priorities endpoint exists", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      `${CLOUD_URL}/api/cron/cleanup-priorities`,
+    );
 
     expect([200, 401, 403, 404, 500, 501]).toContain(response.status());
 
@@ -227,8 +243,12 @@ test.describe("Cron Endpoints", () => {
     }
   });
 
-  test("GET /api/v1/cron/deployment-monitor endpoint exists", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/api/v1/cron/deployment-monitor`);
+  test("GET /api/v1/cron/deployment-monitor endpoint exists", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      `${CLOUD_URL}/api/v1/cron/deployment-monitor`,
+    );
 
     expect([200, 401, 403, 404, 500, 501]).toContain(response.status());
 
@@ -302,10 +322,15 @@ test.describe("Webhook Endpoints", () => {
 test.describe("Seed Endpoint", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("POST /api/seed/marketplace-characters seeds data", async ({ request }) => {
-    const response = await request.post(`${CLOUD_URL}/api/seed/marketplace-characters`, {
-      headers: authHeaders(),
-    });
+  test("POST /api/seed/marketplace-characters seeds data", async ({
+    request,
+  }) => {
+    const response = await request.post(
+      `${CLOUD_URL}/api/seed/marketplace-characters`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect([200, 201, 400, 403, 404, 500, 501]).toContain(response.status());
 
@@ -322,8 +347,12 @@ test.describe("Seed Endpoint", () => {
 });
 
 test.describe(".well-known Endpoints", () => {
-  test("GET /.well-known/agent-card.json returns agent card", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/.well-known/agent-card.json`);
+  test("GET /.well-known/agent-card.json returns agent card", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      `${CLOUD_URL}/.well-known/agent-card.json`,
+    );
 
     expect([200, 404]).toContain(response.status());
 
@@ -336,8 +365,12 @@ test.describe(".well-known Endpoints", () => {
     }
   });
 
-  test("GET /.well-known/erc8004-registration.json returns ERC8004 info", async ({ request }) => {
-    const response = await request.get(`${CLOUD_URL}/.well-known/erc8004-registration.json`);
+  test("GET /.well-known/erc8004-registration.json returns ERC8004 info", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      `${CLOUD_URL}/.well-known/erc8004-registration.json`,
+    );
 
     expect([200, 404]).toContain(response.status());
 
@@ -380,5 +413,3 @@ test.describe("Sitemap and Robots", () => {
     }
   });
 });
-
-

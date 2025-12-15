@@ -55,7 +55,7 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const corsResult = await validateOrigin(request);
   const { id: agentId } = await params;
@@ -63,12 +63,12 @@ export async function GET(
   // Rate limiting
   const rateLimitResult = await checkMiniappRateLimit(
     request,
-    MINIAPP_RATE_LIMITS
+    MINIAPP_RATE_LIMITS,
   );
   if (!rateLimitResult.allowed) {
     return createRateLimitErrorResponse(
       rateLimitResult,
-      corsResult.origin ?? undefined
+      corsResult.origin ?? undefined,
     );
   }
 
@@ -79,7 +79,7 @@ export async function GET(
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const limit = Math.min(
       50,
-      Math.max(1, parseInt(searchParams.get("limit") || "20", 10))
+      Math.max(1, parseInt(searchParams.get("limit") || "20", 10)),
     );
     const offset = (page - 1) * limit;
 
@@ -89,7 +89,7 @@ export async function GET(
     if (!character) {
       const response = NextResponse.json(
         { success: false, error: "Agent not found" },
-        { status: 404 }
+        { status: 404 },
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -98,7 +98,7 @@ export async function GET(
     if (character.source !== "miniapp") {
       const response = NextResponse.json(
         { success: false, error: "Agent not found" },
-        { status: 404 }
+        { status: 404 },
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -109,7 +109,7 @@ export async function GET(
     ) {
       const response = NextResponse.json(
         { success: false, error: "Access denied" },
-        { status: 403 }
+        { status: 403 },
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -130,8 +130,8 @@ export async function GET(
         and(
           eq(participantTable.entityId, user.id as UUID),
           eq(roomTable.agentId, agentId as UUID),
-          inArray(roomTable.type, ["DM", "DIRECT"])
-        )
+          inArray(roomTable.type, ["DM", "DIRECT"]),
+        ),
       )
       .orderBy(desc(roomTable.createdAt))
       .limit(limit)
@@ -146,8 +146,8 @@ export async function GET(
         and(
           eq(roomTable.agentId, agentId as UUID),
           inArray(roomTable.type, ["DM", "DIRECT"]),
-          sql`${roomTable.metadata}->>'creatorUserId' = ${user.id}`
-        )
+          sql`${roomTable.metadata}->>'creatorUserId' = ${user.id}`,
+        ),
       )
       .orderBy(desc(roomTable.createdAt))
       .limit(limit)
@@ -175,8 +175,8 @@ export async function GET(
           .where(
             and(
               eq(memoryTable.roomId, room.id),
-              eq(memoryTable.type, "messages")
-            )
+              eq(memoryTable.type, "messages"),
+            ),
           )
           .orderBy(desc(memoryTable.createdAt))
           .limit(1);
@@ -188,8 +188,8 @@ export async function GET(
           .where(
             and(
               eq(memoryTable.roomId, room.id),
-              eq(memoryTable.type, "messages")
-            )
+              eq(memoryTable.type, "messages"),
+            ),
           );
 
         const lastMessageContent = lastMessage
@@ -212,7 +212,7 @@ export async function GET(
               : null,
           messageCount: messageCount.length,
         };
-      })
+      }),
     );
 
     const chats = chatsWithMessages;
@@ -242,7 +242,7 @@ export async function GET(
         success: false,
         error: error instanceof Error ? error.message : "Failed to list chats",
       },
-      { status }
+      { status },
     );
 
     return addCorsHeaders(response, corsResult.origin);
@@ -261,7 +261,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const corsResult = await validateOrigin(request);
   const { id: agentId } = await params;
@@ -269,12 +269,12 @@ export async function POST(
   // Rate limiting (stricter for write operations)
   const rateLimitResult = await checkMiniappRateLimit(
     request,
-    MINIAPP_WRITE_LIMITS
+    MINIAPP_WRITE_LIMITS,
   );
   if (!rateLimitResult.allowed) {
     return createRateLimitErrorResponse(
       rateLimitResult,
-      corsResult.origin ?? undefined
+      corsResult.origin ?? undefined,
     );
   }
 
@@ -287,7 +287,7 @@ export async function POST(
     if (!character) {
       const response = NextResponse.json(
         { success: false, error: "Agent not found" },
-        { status: 404 }
+        { status: 404 },
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -296,7 +296,7 @@ export async function POST(
     if (character.source !== "miniapp") {
       const response = NextResponse.json(
         { success: false, error: "Agent not found" },
-        { status: 404 }
+        { status: 404 },
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -308,7 +308,7 @@ export async function POST(
     ) {
       const response = NextResponse.json(
         { success: false, error: "Access denied" },
-        { status: 403 }
+        { status: 403 },
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -346,7 +346,7 @@ export async function POST(
           updatedAt: safeToISOString(room.createdAt),
         },
       },
-      { status: 201 }
+      { status: 201 },
     );
 
     return addCorsHeaders(response, corsResult.origin);
@@ -362,7 +362,7 @@ export async function POST(
         success: false,
         error: error instanceof Error ? error.message : "Failed to create chat",
       },
-      { status }
+      { status },
     );
 
     return addCorsHeaders(response, corsResult.origin);

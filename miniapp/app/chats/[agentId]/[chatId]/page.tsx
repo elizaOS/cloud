@@ -27,6 +27,100 @@ const generateId = () => {
     : `id_${Math.random().toString(36).substring(2, 15)}`;
 };
 
+// Image validation constants
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_COMPRESSED_SIZE = 1 * 1024 * 1024; // 1MB target after compression
+const VALID_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+];
+const MAX_IMAGE_DIMENSION = 2048; // Max width/height after resize
+
+/**
+ * Compress and resize image for optimal upload
+ * Returns a base64 data URL
+ */
+async function compressImage(
+  file: File,
+  maxSize: number = MAX_COMPRESSED_SIZE,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    if (!ctx) {
+      reject(new Error("Canvas context not available"));
+      return;
+    }
+
+    img.onload = () => {
+      let { width, height } = img;
+
+      // Calculate new dimensions while maintaining aspect ratio
+      if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
+        if (width > height) {
+          height = Math.round((height * MAX_IMAGE_DIMENSION) / width);
+          width = MAX_IMAGE_DIMENSION;
+        } else {
+          width = Math.round((width * MAX_IMAGE_DIMENSION) / height);
+          height = MAX_IMAGE_DIMENSION;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Try different quality levels to meet size target
+      let quality = 0.9;
+      let result = canvas.toDataURL("image/jpeg", quality);
+
+      // Reduce quality until under maxSize or minimum quality reached
+      while (result.length > maxSize * 1.37 && quality > 0.3) {
+        // 1.37 accounts for base64 overhead
+        quality -= 0.1;
+        result = canvas.toDataURL("image/jpeg", quality);
+      }
+
+      resolve(result);
+    };
+
+    img.onerror = () => reject(new Error("Failed to load image"));
+
+    // Read file as data URL for the Image element
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Validate image file
+ * Returns error message or null if valid
+ */
+function validateImageFile(file: File): string | null {
+  if (!file.type.startsWith("image/")) {
+    return "Please select an image file";
+  }
+
+  if (!VALID_IMAGE_TYPES.includes(file.type)) {
+    return `Unsupported format. Please use: ${VALID_IMAGE_TYPES.map((t) => t.split("/")[1].toUpperCase()).join(", ")}`;
+  }
+
+  if (file.size > MAX_IMAGE_SIZE) {
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+    return `Image too large (${sizeMB}MB). Maximum size is 5MB`;
+  }
+
+  return null;
+}
+
 import { OutOfCreditsPrompt } from "@/components/out-of-credits-prompt";
 import {
   type AgentDetails,
@@ -67,6 +161,8 @@ function ChatPage() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [imageModalUrl, setImageModalUrl] = useState<string | null>(null);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [showLowCredits, setShowLowCredits] = useState(false);
 
@@ -100,15 +196,18 @@ function ChatPage() {
       listChats(agentId, { limit: 20 }),
       getBilling().catch(() => null),
     ]);
-    
+
     setAgent(agentData);
     setMessages(chatData.messages);
     setChatHistory(historyData.chats);
-    
+
     if (billingData) {
       // Use app-specific credits if monetization is enabled, otherwise use org credits
       let balance: number;
-      if (billingData.appBilling?.monetizationEnabled && billingData.appBilling.creditBalance !== undefined) {
+      if (
+        billingData.appBilling?.monetizationEnabled &&
+        billingData.appBilling.creditBalance !== undefined
+      ) {
         balance = billingData.appBilling.creditBalance;
       } else {
         balance = parseFloat(billingData.billing.creditBalance);
@@ -143,7 +242,7 @@ function ChatPage() {
 
     const messageText = input.trim();
     const imageToSend = selectedImage;
-    
+
     setInput("");
     clearSelectedImage();
     setSending(true);
@@ -157,10 +256,11 @@ function ChatPage() {
     const createdAt = new Date().toISOString();
 
     // Add user message optimistically (with image if selected)
-    const userAttachments: MessageAttachment[] = imageToSend && attachmentId
-      ? [{ id: attachmentId, url: imageToSend, contentType: "image" }]
-      : [];
-    
+    const userAttachments: MessageAttachment[] =
+      imageToSend && attachmentId
+        ? [{ id: attachmentId, url: imageToSend, contentType: "image" }]
+        : [];
+
     const userMessage: Message = {
       id: messageId,
       content: messageText || (imageToSend ? "[Image]" : ""),
@@ -172,58 +272,68 @@ function ChatPage() {
 
     // Pass attachments to the streaming endpoint for image uploads
     await sendMessage(
-      chatId, 
-      messageText || "What do you see in this image?", 
+      chatId,
+      messageText || "What do you see in this image?",
       {
-      onStart: () => {
-        // Connection established - show thinking indicator
-        setIsThinking(true);
+        onStart: () => {
+          // Connection established - show thinking indicator
+          setIsThinking(true);
+        },
+        onUserMessage: (msg) => {
+          // Update user message with actual ID, but preserve local attachments
+          // (server may not include attachments in confirmation)
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === userMessage.id
+                ? {
+                    ...msg,
+                    attachments: msg.attachments || m.attachments,
+                  }
+                : m,
+            ),
+          );
+        },
+        onThinking: () => {
+          // Agent is thinking/processing
+          setIsThinking(true);
+          setStreamingContent("");
+        },
+        onChunk: (chunk) => {
+          // Receiving streamed content
+          setIsThinking(false);
+          setStreamingContent((prev) => prev + chunk);
+        },
+        onComplete: (msg) => {
+          setIsThinking(false);
+          setStreamingContent("");
+          setMessages((prev) => [...prev, msg]);
+          // Refresh chat history to show updated title (generated after 4+ messages)
+          listChats(agentId, { limit: 20 })
+            .then((historyData) => {
+              setChatHistory(historyData.chats);
+            })
+            .catch(() => {
+              // Non-critical, ignore errors
+            });
+        },
+        onError: (err) => {
+          setError(err);
+          setIsThinking(false);
+          setStreamingContent("");
+          // Check if error is credit-related
+          if (
+            err.toLowerCase().includes("credit") ||
+            err.toLowerCase().includes("insufficient") ||
+            err.toLowerCase().includes("balance")
+          ) {
+            setShowLowCredits(true);
+            setCreditBalance(0);
+          }
+        },
       },
-      onUserMessage: (msg) => {
-        // Update user message with actual ID, but preserve local attachments
-        // (server may not include attachments in confirmation)
-        setMessages((prev) =>
-          prev.map((m) => (m.id === userMessage.id ? { 
-            ...msg, 
-            attachments: msg.attachments || m.attachments,
-          } : m))
-        );
-      },
-      onThinking: () => {
-        // Agent is thinking/processing
-        setIsThinking(true);
-        setStreamingContent("");
-      },
-      onChunk: (chunk) => {
-        // Receiving streamed content
-        setIsThinking(false);
-        setStreamingContent((prev) => prev + chunk);
-      },
-      onComplete: (msg) => {
-        setIsThinking(false);
-        setStreamingContent("");
-        setMessages((prev) => [...prev, msg]);
-        // Refresh chat history to show updated title (generated after 4+ messages)
-        listChats(agentId, { limit: 20 }).then((historyData) => {
-          setChatHistory(historyData.chats);
-        }).catch(() => {
-          // Non-critical, ignore errors
-        });
-      },
-      onError: (err) => {
-        setError(err);
-        setIsThinking(false);
-        setStreamingContent("");
-        // Check if error is credit-related
-        if (err.toLowerCase().includes("credit") || err.toLowerCase().includes("insufficient") || err.toLowerCase().includes("balance")) {
-          setShowLowCredits(true);
-          setCreditBalance(0);
-        }
-      },
-    },
-    undefined, // model
-    userAttachments.length > 0 ? userAttachments : undefined // attachments
-  );
+      undefined, // model
+      userAttachments.length > 0 ? userAttachments : undefined, // attachments
+    );
     setSending(false);
     inputRef.current?.focus();
   };
@@ -236,30 +346,117 @@ function ChatPage() {
     }
   };
 
-  // Handle image selection
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Check file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setError("Image must be less than 5MB");
-        return;
-      }
-      
-      // Check file type
-      if (!file.type.startsWith("image/")) {
-        setError("Please select an image file");
-        return;
+  // Handle image selection with compression
+  const handleImageSelect = useCallback(async (file: File) => {
+    // Validate file
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setIsProcessingImage(true);
+    setError(null);
+
+    try {
+      // Compress image if it's larger than target size
+      let imageDataUrl: string;
+      if (file.size > MAX_COMPRESSED_SIZE || !file.type.includes("jpeg")) {
+        imageDataUrl = await compressImage(file);
+      } else {
+        // Small JPEG files can be used directly
+        imageDataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.onerror = () => reject(new Error("Failed to read file"));
+          reader.readAsDataURL(file);
+        });
       }
 
       setSelectedImageFile(file);
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setSelectedImage(event.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+      setSelectedImage(imageDataUrl);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to process image");
+    } finally {
+      setIsProcessingImage(false);
+    }
+  }, []);
+
+  // Handle file input change
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleImageSelect(file);
     }
   };
+
+  // Handle drag and drop
+  const handleDragOver = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!sending) {
+        setIsDraggingOver(true);
+      }
+    },
+    [sending],
+  );
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingOver(false);
+
+      if (sending) return;
+
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        const file = files[0];
+        if (file.type.startsWith("image/")) {
+          handleImageSelect(file);
+        } else {
+          setError("Please drop an image file");
+        }
+      }
+    },
+    [sending, handleImageSelect],
+  );
+
+  // Handle paste from clipboard
+  const handlePaste = useCallback(
+    (e: ClipboardEvent) => {
+      if (sending) return;
+
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.startsWith("image/")) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) {
+            handleImageSelect(file);
+          }
+          break;
+        }
+      }
+    },
+    [sending, handleImageSelect],
+  );
+
+  // Set up paste listener
+  useEffect(() => {
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, [handlePaste]);
 
   // Clear selected image
   const clearSelectedImage = () => {
@@ -295,7 +492,9 @@ function ChatPage() {
   };
 
   // Format relative time with safe date handling
-  const formatRelativeTime = (dateValue: string | number | Date | null | undefined) => {
+  const formatRelativeTime = (
+    dateValue: string | number | Date | null | undefined,
+  ) => {
     if (!dateValue) return "Just now";
 
     try {
@@ -321,7 +520,7 @@ function ChatPage() {
   if (!ready || !authenticated) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-brand" />
+        <Loader2 className="text-brand h-8 w-8 animate-spin" />
       </div>
     );
   }
@@ -329,7 +528,7 @@ function ChatPage() {
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-brand" />
+        <Loader2 className="text-brand h-8 w-8 animate-spin" />
       </div>
     );
   }
@@ -346,7 +545,7 @@ function ChatPage() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 top-14 z-50 w-72 transform border-r border-white/10 bg-[#0a0512] transition-transform lg:static lg:z-auto lg:translate-x-0 ${
+        className={`fixed inset-y-0 top-14 left-0 z-50 w-72 transform border-r border-white/10 bg-[#0a0512] transition-transform lg:static lg:z-auto lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -354,17 +553,26 @@ function ChatPage() {
           {/* Sidebar Header */}
           <div className="flex items-center justify-between border-b border-white/10 p-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-brand/20">
+              <div className="bg-brand/20 flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg">
                 {agent?.avatarUrl ? (
-                  <Image
-                    src={agent.avatarUrl}
-                    alt={agent.name}
-                    width={40}
-                    height={40}
-                    className="h-10 w-10 rounded-lg object-cover"
-                  />
+                  agent.avatarUrl.startsWith("data:") ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={agent.avatarUrl}
+                      alt={agent.name}
+                      className="h-10 w-10 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <Image
+                      src={agent.avatarUrl}
+                      alt={agent.name}
+                      width={40}
+                      height={40}
+                      className="h-10 w-10 rounded-lg object-cover"
+                    />
+                  )
                 ) : (
-                  <Bot className="h-5 w-5 text-brand-400" />
+                  <Bot className="text-brand-400 h-5 w-5" />
                 )}
               </div>
               <div className="min-w-0 flex-1">
@@ -386,7 +594,7 @@ function ChatPage() {
             <button
               onClick={handleNewChat}
               disabled={creatingChat}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-600 disabled:opacity-50"
+              className="bg-brand hover:bg-brand-600 flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium text-white transition-colors disabled:opacity-50"
             >
               {creatingChat ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -400,7 +608,7 @@ function ChatPage() {
           {/* Chat History */}
           <div className="flex-1 overflow-y-auto">
             <div className="px-3 py-2">
-              <h3 className="px-2 text-xs font-medium uppercase tracking-wider text-white/40">
+              <h3 className="px-2 text-xs font-medium tracking-wider text-white/40 uppercase">
                 Chat History
               </h3>
             </div>
@@ -418,7 +626,9 @@ function ChatPage() {
                 >
                   <MessageSquare className="mt-0.5 h-4 w-4 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{formatChatTitle(chat)}</p>
+                    <p className="truncate text-sm font-medium">
+                      {formatChatTitle(chat)}
+                    </p>
                     <p className="mt-0.5 text-xs text-white/40">
                       {formatRelativeTime(chat.updatedAt)}
                     </p>
@@ -432,7 +642,7 @@ function ChatPage() {
           </div>
 
           {/* Sidebar Footer - Edit Character & Back */}
-          <div className="border-t border-white/10 p-3 space-y-2">
+          <div className="space-y-2 border-t border-white/10 p-3">
             <Link
               href={`/agents/${agentId}`}
               className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 py-2.5 text-sm font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
@@ -462,17 +672,26 @@ function ChatPage() {
             <Menu className="h-4 w-4" />
           </button>
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-brand/20">
+            <div className="bg-brand/20 flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg">
               {agent?.avatarUrl ? (
-                <Image
-                  src={agent.avatarUrl}
-                  alt={agent.name}
-                  width={32}
-                  height={32}
-                  className="h-8 w-8 rounded-lg object-cover"
-                />
+                agent.avatarUrl.startsWith("data:") ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={agent.avatarUrl}
+                    alt={agent.name}
+                    className="h-8 w-8 rounded-lg object-cover"
+                  />
+                ) : (
+                  <Image
+                    src={agent.avatarUrl}
+                    alt={agent.name}
+                    width={32}
+                    height={32}
+                    className="h-8 w-8 rounded-lg object-cover"
+                  />
+                )
               ) : (
-                <Bot className="h-4 w-4 text-brand-400" />
+                <Bot className="text-brand-400 h-4 w-4" />
               )}
             </div>
             <span className="font-medium text-white">{agent?.name}</span>
@@ -492,17 +711,26 @@ function ChatPage() {
           <div className="mx-auto max-w-2xl space-y-4">
             {messages.length === 0 && !streamingContent && !isThinking && (
               <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-brand/20">
+                <div className="bg-brand/20 flex h-16 w-16 items-center justify-center overflow-hidden rounded-full">
                   {agent?.avatarUrl ? (
-                    <Image
-                      src={agent.avatarUrl}
-                      alt={agent.name}
-                      width={64}
-                      height={64}
-                      className="h-16 w-16 rounded-full object-cover"
-                    />
+                    agent.avatarUrl.startsWith("data:") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={agent.avatarUrl}
+                        alt={agent.name}
+                        className="h-16 w-16 rounded-full object-cover"
+                      />
+                    ) : (
+                      <Image
+                        src={agent.avatarUrl}
+                        alt={agent.name}
+                        width={64}
+                        height={64}
+                        className="h-16 w-16 rounded-full object-cover"
+                      />
+                    )
                   ) : (
-                    <Bot className="h-8 w-8 text-brand-400" />
+                    <Bot className="text-brand-400 h-8 w-8" />
                   )}
                 </div>
                 <p className="mt-4 text-sm text-white/60">
@@ -511,16 +739,137 @@ function ChatPage() {
               </div>
             )}
 
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex gap-3 ${
-                  message.role === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
-                {message.role === "assistant" && (
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand/20">
-                    {agent?.avatarUrl ? (
+            {messages.map((message) => {
+              const hasAttachments =
+                message.attachments && message.attachments.length > 0;
+              const hasText = message.content && message.content !== "[Image]";
+              const isAgentWithImage =
+                message.role === "assistant" && hasAttachments;
+
+              return (
+                <div
+                  key={message.id}
+                  className={`flex gap-3 ${
+                    message.role === "user" ? "justify-end" : "justify-start"
+                  }`}
+                >
+                  {message.role === "assistant" && (
+                    <div className="bg-brand/20 flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg">
+                      {agent?.avatarUrl ? (
+                        agent.avatarUrl.startsWith("data:") ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={agent.avatarUrl}
+                            alt={agent.name}
+                            className="h-8 w-8 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <Image
+                            src={agent.avatarUrl}
+                            alt={agent.name}
+                            width={32}
+                            height={32}
+                            className="h-8 w-8 rounded-lg object-cover"
+                          />
+                        )
+                      ) : (
+                        <Bot className="text-brand-400 h-4 w-4" />
+                      )}
+                    </div>
+                  )}
+                  <div
+                    className={`${
+                      isAgentWithImage ? "max-w-xs sm:max-w-sm" : "max-w-[80%]"
+                    } ${
+                      message.role === "user"
+                        ? "bg-brand rounded-2xl rounded-br-md px-4 py-2.5 text-white"
+                        : isAgentWithImage
+                          ? "overflow-hidden rounded-2xl rounded-bl-md bg-white/[0.08] backdrop-blur-sm"
+                          : "rounded-2xl rounded-bl-md bg-white/10 px-4 py-2.5 text-white"
+                    }`}
+                  >
+                    {/* Agent message with image - card layout */}
+                    {isAgentWithImage ? (
+                      <>
+                        <div className="relative">
+                          {message.attachments!.map((attachment, idx) => (
+                            <button
+                              key={attachment.id}
+                              onClick={() => openImageModal(attachment.url)}
+                              className={`focus:ring-brand block w-full focus:ring-2 focus:outline-none focus:ring-inset ${
+                                idx > 0 ? "mt-1" : ""
+                              }`}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={attachment.url}
+                                alt={attachment.title || "Image"}
+                                className="w-full object-cover transition-opacity hover:opacity-95"
+                                style={{ maxHeight: "280px" }}
+                              />
+                            </button>
+                          ))}
+                        </div>
+                        {hasText && (
+                          <div className="px-3.5 py-2.5">
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap text-white">
+                              {message.content}
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {/* User message with image */}
+                        {hasAttachments && (
+                          <div className="mb-2 flex flex-wrap gap-1.5">
+                            {message.attachments!.map((attachment) => (
+                              <button
+                                key={attachment.id}
+                                onClick={() => openImageModal(attachment.url)}
+                                className="relative overflow-hidden rounded-lg focus:ring-2 focus:ring-white/50 focus:outline-none"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={attachment.url}
+                                  alt={attachment.title || "Image"}
+                                  className="h-32 w-32 rounded-lg object-cover transition-opacity hover:opacity-90"
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {/* Display text content */}
+                        {hasText && (
+                          <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                            {message.content}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  {message.role === "user" && (
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white/10">
+                      <User className="h-4 w-4 text-white/60" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Thinking indicator - shown when waiting for response */}
+            {isThinking && !streamingContent && (
+              <div className="animate-in fade-in flex gap-3 duration-300">
+                <div className="bg-brand/20 relative flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg">
+                  {agent?.avatarUrl ? (
+                    agent.avatarUrl.startsWith("data:") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={agent.avatarUrl}
+                        alt={agent.name}
+                        className="h-8 w-8 rounded-lg object-cover"
+                      />
+                    ) : (
                       <Image
                         src={agent.avatarUrl}
                         alt={agent.name}
@@ -528,78 +877,23 @@ function ChatPage() {
                         height={32}
                         className="h-8 w-8 rounded-lg object-cover"
                       />
-                    ) : (
-                      <Bot className="h-4 w-4 text-brand-400" />
-                    )}
-                  </div>
-                )}
-                <div
-                  className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                    message.role === "user"
-                      ? "bg-brand text-white"
-                      : "bg-white/10 text-white"
-                  }`}
-                >
-                  {/* Display attachments (images) */}
-                  {message.attachments && message.attachments.length > 0 && (
-                    <div className="mb-2 flex flex-wrap gap-2">
-                      {message.attachments.map((attachment) => (
-                        <button
-                          key={attachment.id}
-                          onClick={() => openImageModal(attachment.url)}
-                          className="relative overflow-hidden rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={attachment.url}
-                            alt={attachment.title || "Image"}
-                            className="max-h-48 max-w-full rounded-lg object-cover hover:opacity-90 transition-opacity"
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {/* Display text content */}
-                  {message.content && message.content !== "[Image]" && (
-                  <p className="whitespace-pre-wrap text-sm">{message.content}</p>
-                  )}
-                </div>
-                {message.role === "user" && (
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white/10">
-                    <User className="h-4 w-4 text-white/60" />
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {/* Thinking indicator - shown when waiting for response */}
-            {isThinking && !streamingContent && (
-              <div className="flex gap-3 animate-in fade-in duration-300">
-                <div className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand/20">
-                  {agent?.avatarUrl ? (
-                    <Image
-                      src={agent.avatarUrl}
-                      alt={agent.name}
-                      width={32}
-                      height={32}
-                      className="h-8 w-8 rounded-lg object-cover"
-                    />
+                    )
                   ) : (
-                    <Bot className="h-4 w-4 text-brand-400" />
+                    <Bot className="text-brand-400 h-4 w-4" />
                   )}
                   {/* Subtle pulsing glow */}
-                  <span className="absolute inset-0 animate-pulse rounded-lg bg-brand/30" />
+                  <span className="bg-brand/30 absolute inset-0 animate-pulse rounded-lg" />
                 </div>
-                <div className="rounded-lg bg-gradient-to-r from-brand/10 to-accent-brand/10 px-4 py-3 text-white border border-brand/20">
+                <div className="from-brand/10 to-accent-brand/10 border-brand/20 rounded-lg border bg-gradient-to-r px-4 py-3 text-white">
                   <div className="flex items-center gap-2.5">
-                    <Sparkles className="h-4 w-4 animate-pulse text-brand-400" />
+                    <Sparkles className="text-brand-400 h-4 w-4 animate-pulse" />
                     <span className="text-sm text-white/70">
                       {agent?.name} is thinking
                     </span>
-                    <span className="flex gap-1 ml-1">
-                      <span className="animate-thinking-dot h-1.5 w-1.5 rounded-full bg-brand-400" />
-                      <span className="animate-thinking-dot h-1.5 w-1.5 rounded-full bg-brand-400" />
-                      <span className="animate-thinking-dot h-1.5 w-1.5 rounded-full bg-brand-400" />
+                    <span className="ml-1 flex gap-1">
+                      <span className="animate-thinking-dot bg-brand-400 h-1.5 w-1.5 rounded-full" />
+                      <span className="animate-thinking-dot bg-brand-400 h-1.5 w-1.5 rounded-full" />
+                      <span className="animate-thinking-dot bg-brand-400 h-1.5 w-1.5 rounded-full" />
                     </span>
                   </div>
                 </div>
@@ -608,25 +902,34 @@ function ChatPage() {
 
             {/* Streaming message - shown when receiving response content */}
             {streamingContent && (
-              <div className="flex gap-3 animate-in fade-in duration-200">
-                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand/20">
+              <div className="animate-in fade-in flex gap-3 duration-200">
+                <div className="bg-brand/20 flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg">
                   {agent?.avatarUrl ? (
-                    <Image
-                      src={agent.avatarUrl}
-                      alt={agent.name}
-                      width={32}
-                      height={32}
-                      className="h-8 w-8 rounded-lg object-cover"
-                    />
+                    agent.avatarUrl.startsWith("data:") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={agent.avatarUrl}
+                        alt={agent.name}
+                        className="h-8 w-8 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <Image
+                        src={agent.avatarUrl}
+                        alt={agent.name}
+                        width={32}
+                        height={32}
+                        className="h-8 w-8 rounded-lg object-cover"
+                      />
+                    )
                   ) : (
-                    <Bot className="h-4 w-4 text-brand-400" />
+                    <Bot className="text-brand-400 h-4 w-4" />
                   )}
                 </div>
                 <div className="max-w-[80%] rounded-lg bg-white/10 px-4 py-2 text-white">
-                  <p className="whitespace-pre-wrap text-sm">
+                  <p className="text-sm whitespace-pre-wrap">
                     {streamingContent}
                     {/* Typing cursor */}
-                    <span className="animate-typing-cursor ml-0.5 inline-block h-4 w-0.5 bg-brand-400 align-middle" />
+                    <span className="animate-typing-cursor bg-brand-400 ml-0.5 inline-block h-4 w-0.5 align-middle" />
                   </p>
                 </div>
               </div>
@@ -640,83 +943,124 @@ function ChatPage() {
         {showLowCredits && (
           <div className="border-t border-white/5 px-4 py-3">
             <div className="mx-auto max-w-2xl">
-              <OutOfCreditsPrompt
-                currentBalance={creditBalance ?? 0}
-              />
+              <OutOfCreditsPrompt currentBalance={creditBalance ?? 0} />
             </div>
           </div>
         )}
 
         {/* Input */}
-        <div className="border-t border-white/5 px-4 py-3">
+        <div
+          className={`border-t px-4 py-3 transition-colors ${
+            isDraggingOver ? "border-brand bg-brand/5" : "border-white/5"
+          }`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          {/* Drag overlay hint */}
+          {isDraggingOver && (
+            <div className="border-brand bg-brand/10 pointer-events-none absolute inset-x-4 -mt-1 mb-2 flex items-center justify-center rounded-lg border-2 border-dashed py-4">
+              <span className="text-brand text-sm font-medium">
+                Drop image here
+              </span>
+            </div>
+          )}
           <div className="mx-auto max-w-2xl">
             {/* Selected image preview */}
             {selectedImage && (
-              <div className="mb-2 flex items-start gap-2">
-                <div className="relative">
+              <div className="animate-in fade-in slide-in-from-bottom-2 mb-2 flex items-start gap-2 duration-200">
+                <div className="group relative">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={selectedImage}
                     alt="Selected"
-                    className="h-20 w-20 rounded-lg object-cover"
+                    className="ring-brand/30 h-20 w-20 rounded-lg object-cover ring-2"
+                    onClick={() => openImageModal(selectedImage)}
                   />
                   <button
                     onClick={clearSelectedImage}
-                    className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600"
+                    disabled={sending}
+                    className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white shadow-lg hover:bg-red-600 disabled:opacity-50"
                   >
                     <X className="h-3 w-3" />
                   </button>
+                  {/* Click to preview hint */}
+                  <div className="absolute inset-0 flex cursor-pointer items-center justify-center rounded-lg bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
+                    <span className="text-xs text-white">Preview</span>
+                  </div>
                 </div>
-                <span className="text-xs text-white/40">
-                  {selectedImageFile?.name}
-                </span>
+                <div className="flex flex-col gap-1">
+                  <span className="max-w-[150px] truncate text-xs text-white/60">
+                    {selectedImageFile?.name}
+                  </span>
+                  <span className="text-xs text-white/40">
+                    {selectedImageFile &&
+                      `${(selectedImageFile.size / 1024).toFixed(0)}KB`}
+                  </span>
+                </div>
               </div>
             )}
-            
+
+            {/* Processing indicator */}
+            {isProcessingImage && (
+              <div className="animate-in fade-in mb-2 flex items-center gap-2 text-sm text-white/60 duration-200">
+                <Loader2 className="text-brand h-4 w-4 animate-spin" />
+                <span>Processing image...</span>
+              </div>
+            )}
+
             <div className="flex gap-2">
               {/* Hidden file input */}
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
-                onChange={handleImageSelect}
+                accept={VALID_IMAGE_TYPES.join(",")}
+                onChange={handleFileInputChange}
                 className="hidden"
               />
-              
+
               {/* Image upload button */}
               <button
                 onClick={() => fileInputRef.current?.click()}
-                disabled={sending}
-                className="flex items-center justify-center rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
-                title="Upload image"
+                disabled={sending || isProcessingImage}
+                className={`flex items-center justify-center rounded-lg border px-3 py-2 transition-colors disabled:opacity-50 ${
+                  isDraggingOver
+                    ? "border-brand bg-brand/20 text-brand"
+                    : "border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
+                }`}
+                title="Upload image (or paste/drag & drop)"
               >
-                <ImageIcon className="h-4 w-4" />
+                {isProcessingImage ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ImageIcon className="h-4 w-4" />
+                )}
               </button>
-              
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyPress}
-              placeholder="Type a message..."
-              rows={1}
-              disabled={sending}
-              className="flex-1 resize-none rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-white placeholder-white/40 focus:border-brand focus:outline-none disabled:opacity-50"
-            />
-            <button
-              onClick={handleSend}
+
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyPress}
+                placeholder="Type a message..."
+                rows={1}
+                disabled={sending}
+                className="focus:border-brand flex-1 resize-none rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-white placeholder-white/40 focus:outline-none disabled:opacity-50"
+              />
+              <button
+                onClick={handleSend}
                 disabled={(!input.trim() && !selectedImage) || sending}
-              className="flex items-center justify-center rounded-lg bg-brand px-4 py-2 text-white transition-colors hover:bg-brand-600 disabled:opacity-50"
-            >
-              {sending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </button>
+                className="bg-brand hover:bg-brand-600 flex items-center justify-center rounded-lg px-4 py-2 text-white transition-colors disabled:opacity-50"
+              >
+                {sending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
       </div>
 
       {/* Image modal for viewing full-size images */}
@@ -727,7 +1071,7 @@ function ChatPage() {
         >
           <button
             onClick={closeImageModal}
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+            className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
           >
             <X className="h-6 w-6" />
           </button>

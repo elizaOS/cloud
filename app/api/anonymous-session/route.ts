@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 /**
  * Simple in-memory rate limiter for polling endpoint.
  * Limits requests per token to prevent abuse.
- * 
+ *
  * Note: This is per-instance in serverless, which is acceptable
  * for a polling endpoint - stricter limits use Redis.
  */
@@ -15,7 +15,10 @@ const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
 const RATE_LIMIT_MAX_REQUESTS = 30; // 30 requests per minute per token
 
-function checkRateLimit(token: string): { allowed: boolean; remaining: number } {
+function checkRateLimit(token: string): {
+  allowed: boolean;
+  remaining: number;
+} {
   const now = Date.now();
   const entry = rateLimitMap.get(token);
 

@@ -23,9 +23,7 @@ export function SidebarNavigationItem({ item }: SidebarNavigationItemProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { authenticated } = usePrivy();
-
-  const isActive =
-    pathname === item.href || pathname.startsWith(`${item.href}/`);
+  const isActive = pathname === item.href;
   const Icon = item.icon;
 
   // Check if this item is locked for anonymous users

@@ -13,7 +13,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import type { AppBilling,Billing, CreditPack } from "@/lib/cloud-api";
+import type { AppBilling, Billing, CreditPack } from "@/lib/cloud-api";
 import {
   createCheckoutSession,
   getBilling,
@@ -99,7 +99,7 @@ export default function SettingsPage() {
       }
       setCheckoutLoading(null);
     },
-    []
+    [],
   );
 
   const handleCustomCreditsCheckout = useCallback(() => {
@@ -115,7 +115,7 @@ export default function SettingsPage() {
   if (!ready || !authenticated) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-brand" />
+        <Loader2 className="text-brand h-8 w-8 animate-spin" />
       </div>
     );
   }
@@ -126,7 +126,10 @@ export default function SettingsPage() {
   // Convert dollar values to credits for display
   // Use app-specific credits if monetization is enabled, otherwise org credits
   let creditBalance = 0;
-  if (appBilling?.monetizationEnabled && appBilling.creditBalance !== undefined) {
+  if (
+    appBilling?.monetizationEnabled &&
+    appBilling.creditBalance !== undefined
+  ) {
     creditBalance = dollarsToCredits(appBilling.creditBalance);
   } else if (billing) {
     creditBalance = dollarsToCredits(billing.creditBalance);
@@ -156,7 +159,7 @@ export default function SettingsPage() {
       {/* Account Section */}
       <section className="mb-8">
         <h2 className="mb-4 flex items-center gap-2 text-lg font-medium text-white">
-          <User className="h-5 w-5 text-brand-400" />
+          <User className="text-brand-400 h-5 w-5" />
           Account
         </h2>
         <div className="space-y-4 rounded-lg border border-white/10 bg-white/5 p-4">
@@ -184,13 +187,13 @@ export default function SettingsPage() {
       {/* Credits Section */}
       <section className="mb-8">
         <h2 className="mb-4 flex items-center gap-2 text-lg font-medium text-white">
-          <Coins className="h-5 w-5 text-brand-400" />
+          <Coins className="text-brand-400 h-5 w-5" />
           Credits
         </h2>
 
         {loading ? (
           <div className="flex items-center justify-center rounded-lg border border-white/10 bg-white/5 py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-brand" />
+            <Loader2 className="text-brand h-6 w-6 animate-spin" />
           </div>
         ) : billing ? (
           <div className="rounded-lg border border-white/10 bg-white/5 p-4">
@@ -204,7 +207,7 @@ export default function SettingsPage() {
               </div>
               <button
                 onClick={handleOpenCreditPacks}
-                className="flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-600"
+                className="bg-brand hover:bg-brand-600 flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white"
               >
                 <Plus className="h-4 w-4" />
                 Add Credits
@@ -240,7 +243,7 @@ export default function SettingsPage() {
 
             {loadingPacks ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-brand" />
+                <Loader2 className="text-brand h-8 w-8 animate-spin" />
               </div>
             ) : (
               <>
@@ -263,19 +266,21 @@ export default function SettingsPage() {
                         } ${checkoutLoading !== null ? "opacity-50" : ""}`}
                       >
                         {pack.isPopular && (
-                          <span className="absolute -top-2 right-3 flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 text-xs font-medium text-white">
+                          <span className="bg-brand absolute -top-2 right-3 flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-white">
                             <Sparkles className="h-3 w-3" /> Popular
                           </span>
                         )}
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="font-medium text-white">{pack.name}</p>
+                            <p className="font-medium text-white">
+                              {pack.name}
+                            </p>
                             {pack.description && (
                               <p className="text-xs text-white/60">
                                 {pack.description}
                               </p>
                             )}
-                            <p className="mt-1 text-lg font-bold text-brand-400">
+                            <p className="text-brand-400 mt-1 text-lg font-bold">
                               {packCredits.toLocaleString()} credits
                             </p>
                             {bonusCredits > 0 && (
@@ -289,7 +294,7 @@ export default function SettingsPage() {
                               ${parseFloat(pack.price).toFixed(2)}
                             </p>
                             {checkoutLoading === pack.id && (
-                              <Loader2 className="mt-1 h-4 w-4 animate-spin text-brand-400" />
+                              <Loader2 className="text-brand-400 mt-1 h-4 w-4 animate-spin" />
                             )}
                           </div>
                         </div>
@@ -309,16 +314,16 @@ export default function SettingsPage() {
                         placeholder="500 - 100,000"
                         min="500"
                         max="100000"
-                        className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white placeholder:text-white/30 focus:border-brand focus:outline-none"
+                        className="focus:border-brand w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white placeholder:text-white/30 focus:outline-none"
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/40">
+                      <span className="absolute top-1/2 right-3 -translate-y-1/2 text-xs text-white/40">
                         credits
                       </span>
                     </div>
                     <button
                       onClick={handleCustomCreditsCheckout}
                       disabled={checkoutLoading !== null || !customCredits}
-                      className="flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
+                      className="bg-brand hover:bg-brand-600 flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
                     >
                       {checkoutLoading === "custom" ? (
                         <Loader2 className="h-4 w-4 animate-spin" />

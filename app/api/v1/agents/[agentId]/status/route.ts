@@ -16,7 +16,7 @@ interface StatusApiResponse {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ agentId: string }> }
+  { params }: { params: Promise<{ agentId: string }> },
 ): Promise<NextResponse<StatusApiResponse>> {
   try {
     const { agentId } = await params;
@@ -25,7 +25,7 @@ export async function GET(
 
     const status = await agentMonitoringService.getAgentStatus(
       agentId,
-      organizationId
+      organizationId,
     );
 
     return NextResponse.json(
@@ -37,7 +37,7 @@ export async function GET(
         headers: {
           "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
         },
-      }
+      },
     );
   } catch (error) {
     logger.error("[Agent Status API] Error:", error);
@@ -51,7 +51,7 @@ export async function GET(
         success: false,
         error: message,
       },
-      { status }
+      { status },
     );
   }
 }

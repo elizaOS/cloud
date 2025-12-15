@@ -194,7 +194,6 @@ export async function getOrCreateAnonymousUser(): Promise<{
   };
 }
 
-
 /**
  * Check if user has reached their free message limit
  */

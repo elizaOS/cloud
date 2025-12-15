@@ -92,7 +92,6 @@ export class DatabasePriorityManager {
    * Sets expiry timestamp for cleanup (1 hour grace period for audit)
    */
   async releasePriority(userId: string): Promise<void> {
-
     // Set expiry date (1 hour from now for audit trail)
     const expiryDate = new Date(Date.now() + 60 * 60 * 1000);
 
@@ -115,7 +114,6 @@ export class DatabasePriorityManager {
    * Get priority for a user (without allocating if doesn't exist)
    */
   async getPriority(userId: string): Promise<number | undefined> {
-
     const result = await db.query.albPriorities.findFirst({
       where: eq(albPriorities.userId, userId),
     });
@@ -133,7 +131,6 @@ export class DatabasePriorityManager {
    * Permanently deletes priorities that have expired
    */
   async cleanupExpiredPriorities(): Promise<number> {
-
     const now = new Date();
     const deleted = await db
       .delete(albPriorities)
@@ -160,7 +157,6 @@ export class DatabasePriorityManager {
   async getAllActivePriorities(): Promise<
     Array<{ userId: string; priority: number; createdAt: Date }>
   > {
-
     const results = await db.query.albPriorities.findMany({
       where: isNull(albPriorities.expiresAt),
       columns: {
@@ -187,7 +183,6 @@ export class DatabasePriorityManager {
     highestPriority: number;
     availableSlots: number;
   }> {
-
     const [activeCount] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(albPriorities)

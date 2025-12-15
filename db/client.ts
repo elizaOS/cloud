@@ -16,7 +16,7 @@ let _db: Database | null = null;
 
 /**
  * Checks if a database URL is for Neon serverless.
- * 
+ *
  * @param url - Database connection URL.
  * @returns True if URL contains neon.tech or neon.database domain.
  */
@@ -26,11 +26,11 @@ function isNeonDatabase(url: string): boolean {
 
 /**
  * Gets or creates the database connection instance.
- * 
+ *
  * Automatically selects the appropriate driver based on DATABASE_URL:
  * - Neon serverless driver for production (neon.tech domains)
  * - Node PostgreSQL driver for local development
- * 
+ *
  * @returns Initialized database instance.
  * @throws Error if DATABASE_URL is not set.
  */
@@ -64,7 +64,7 @@ function getDb() {
 
 /**
  * Database proxy that lazily initializes the connection on first access.
- * 
+ *
  * This ensures the database is only initialized when actually used,
  * preventing connection errors during module import.
  */

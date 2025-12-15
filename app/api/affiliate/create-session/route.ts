@@ -70,7 +70,8 @@ export async function POST(request: NextRequest) {
     // Extract client info
     const realIp = request.headers.get("x-real-ip")?.trim();
     const forwardedFor = request.headers.get("x-forwarded-for");
-    const ipAddress = realIp || forwardedFor?.split(",")[0]?.trim() || undefined;
+    const ipAddress =
+      realIp || forwardedFor?.split(",")[0]?.trim() || undefined;
     const userAgent = request.headers.get("user-agent") || undefined;
 
     // Check for IP-based abuse (max 5 sessions per IP in production)
@@ -84,7 +85,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            error: "Too many sessions from this IP. Please sign up for continued access.",
+            error:
+              "Too many sessions from this IP. Please sign up for continued access.",
             code: "RATE_LIMIT_EXCEEDED",
           },
           { status: 429 },

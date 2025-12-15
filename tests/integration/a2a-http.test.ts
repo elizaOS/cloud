@@ -24,14 +24,18 @@ function authHeaders(): HeadersInit {
   };
 }
 
-function jsonRpc(method: string, params: Record<string, unknown> = {}, id: string | number = 1) {
+function jsonRpc(
+  method: string,
+  params: Record<string, unknown> = {},
+  id: string | number = 1,
+) {
   return { jsonrpc: "2.0", method, params, id };
 }
 
 async function fetchWithTimeout(
   url: string,
   options: RequestInit = {},
-  timeoutMs = 10000
+  timeoutMs = 10000,
 ): Promise<Response | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -44,7 +48,9 @@ async function fetchWithTimeout(
   }
 }
 
-async function a2aPost(body: object): Promise<{ status: number; data: Record<string, unknown> } | null> {
+async function a2aPost(
+  body: object,
+): Promise<{ status: number; data: Record<string, unknown> } | null> {
   const response = await fetchWithTimeout(`${BASE_URL}/api/a2a`, {
     method: "POST",
     headers: authHeaders(),
@@ -55,11 +61,19 @@ async function a2aPost(body: object): Promise<{ status: number; data: Record<str
 }
 
 // Helper to call a skill via message/send
-function skillMessage(skill: string, text?: string, extraData?: Record<string, unknown>) {
-  const parts: Array<{ type: string; text?: string; data?: Record<string, unknown> }> = [];
+function skillMessage(
+  skill: string,
+  text?: string,
+  extraData?: Record<string, unknown>,
+) {
+  const parts: Array<{
+    type: string;
+    text?: string;
+    data?: Record<string, unknown>;
+  }> = [];
   if (text) parts.push({ type: "text", text });
   parts.push({ type: "data", data: { skill, ...extraData } });
-  
+
   return jsonRpc("message/send", {
     message: { role: "user", parts },
   });
@@ -72,38 +86,46 @@ const skipHttp = !API_KEY;
 // ============================================================================
 
 describe("A2A Service Discovery", () => {
-  test.skipIf(skipHttp)("GET /api/a2a returns service info with 3 methods", async () => {
-    const response = await fetchWithTimeout(`${BASE_URL}/api/a2a`);
-    if (!response) return;
+  test.skipIf(skipHttp)(
+    "GET /api/a2a returns service info with 3 methods",
+    async () => {
+      const response = await fetchWithTimeout(`${BASE_URL}/api/a2a`);
+      if (!response) return;
 
-    expect(response.status).toBe(200);
-    const data = await response.json();
-    
-    expect(data.name).toBe("Eliza Cloud A2A");
-    expect(data.protocolVersion).toBe("0.3.0");
-    expect(Array.isArray(data.methods)).toBe(true);
-    
-    // Should have exactly 3 standard methods
-    const methodNames = data.methods.map((m: { name: string }) => m.name);
-    expect(methodNames).toContain("message/send");
-    expect(methodNames).toContain("tasks/get");
-    expect(methodNames).toContain("tasks/cancel");
-    
-    // Should list available skills
-    expect(Array.isArray(data.skills)).toBe(true);
-    expect(data.skills.length).toBeGreaterThan(10);
-  });
+      expect(response.status).toBe(200);
+      const data = await response.json();
 
-  test.skipIf(skipHttp)("GET /.well-known/agent-card.json returns agent card", async () => {
-    const response = await fetchWithTimeout(`${BASE_URL}/.well-known/agent-card.json`);
-    if (!response) return;
+      expect(data.name).toBe("Eliza Cloud A2A");
+      expect(data.protocolVersion).toBe("0.3.0");
+      expect(Array.isArray(data.methods)).toBe(true);
 
-    expect(response.status).toBe(200);
-    const card = await response.json();
-    expect(card.name).toBeDefined();
-    expect(card.skills).toBeDefined();
-    expect(card.authentication).toBeDefined();
-  });
+      // Should have exactly 3 standard methods
+      const methodNames = data.methods.map((m: { name: string }) => m.name);
+      expect(methodNames).toContain("message/send");
+      expect(methodNames).toContain("tasks/get");
+      expect(methodNames).toContain("tasks/cancel");
+
+      // Should list available skills
+      expect(Array.isArray(data.skills)).toBe(true);
+      expect(data.skills.length).toBeGreaterThan(10);
+    },
+  );
+
+  test.skipIf(skipHttp)(
+    "GET /.well-known/agent-card.json returns agent card",
+    async () => {
+      const response = await fetchWithTimeout(
+        `${BASE_URL}/.well-known/agent-card.json`,
+      );
+      if (!response) return;
+
+      expect(response.status).toBe(200);
+      const card = await response.json();
+      expect(card.name).toBeDefined();
+      expect(card.skills).toBeDefined();
+      expect(card.authentication).toBeDefined();
+    },
+  );
 });
 
 // ============================================================================
@@ -147,14 +169,21 @@ describe("Skill: check_balance", () => {
 
     expect(result.status).toBe(200);
     expect(result.data.result).toBeDefined();
-    
+
     // Task should be completed
-    const task = result.data.result as { status: { state: string }; history?: Array<{ parts: Array<{ type: string; data?: { credits?: number } }> }> };
+    const task = result.data.result as {
+      status: { state: string };
+      history?: Array<{
+        parts: Array<{ type: string; data?: { credits?: number } }>;
+      }>;
+    };
     expect(task.status.state).toBe("completed");
-    
+
     // Should have agent response in history with balance data
     expect(task.history).toBeDefined();
-    const agentMessage = task.history?.find((m: { role?: string }) => m.role === "agent");
+    const agentMessage = task.history?.find(
+      (m: { role?: string }) => m.role === "agent",
+    );
     expect(agentMessage).toBeDefined();
   });
 });
@@ -165,7 +194,9 @@ describe("Skill: check_balance", () => {
 
 describe("Skill: list_agents", () => {
   test.skipIf(skipHttp)("returns agents array", async () => {
-    const result = await a2aPost(skillMessage("list_agents", undefined, { limit: 5 }));
+    const result = await a2aPost(
+      skillMessage("list_agents", undefined, { limit: 5 }),
+    );
     if (!result) return;
 
     expect(result.status).toBe(200);
@@ -180,19 +211,28 @@ describe("Skill: list_agents", () => {
 
 describe("Skill: chat_completion", () => {
   test.skipIf(skipHttp)("generates real text response", async () => {
-    const result = await a2aPost(skillMessage(
-      "chat_completion",
-      "What is 2+2? Reply with just the number.",
-      { model: "gpt-4o-mini", maxTokens: 10 }
-    ));
+    const result = await a2aPost(
+      skillMessage(
+        "chat_completion",
+        "What is 2+2? Reply with just the number.",
+        { model: "gpt-4o-mini", maxTokens: 10 },
+      ),
+    );
     if (!result) return;
 
     expect(result.status).toBe(200);
-    const task = result.data.result as { status: { state: string; message?: { parts: Array<{ type: string; text?: string }> } } };
+    const task = result.data.result as {
+      status: {
+        state: string;
+        message?: { parts: Array<{ type: string; text?: string }> };
+      };
+    };
     expect(task.status.state).toBe("completed");
-    
+
     // Should have text response
-    const textPart = task.status.message?.parts?.find((p: { type: string }) => p.type === "text");
+    const textPart = task.status.message?.parts?.find(
+      (p: { type: string }) => p.type === "text",
+    );
     expect(textPart?.text).toBeDefined();
     expect(textPart?.text?.length).toBeGreaterThan(0);
   });
@@ -235,39 +275,54 @@ describe("Skill: list_containers", () => {
 describe("Task Lifecycle", () => {
   let createdTaskId: string | null = null;
 
-  test.skipIf(skipHttp)("message/send creates task and returns it", async () => {
-    const result = await a2aPost(skillMessage("check_balance"));
-    if (!result) return;
+  test.skipIf(skipHttp)(
+    "message/send creates task and returns it",
+    async () => {
+      const result = await a2aPost(skillMessage("check_balance"));
+      if (!result) return;
 
-    expect(result.status).toBe(200);
-    const task = result.data.result as { id: string; status: { state: string }; contextId: string };
-    
-    expect(task.id).toBeDefined();
-    expect(task.contextId).toBeDefined();
-    expect(task.status.state).toBe("completed");
-    
-    createdTaskId = task.id;
-  });
+      expect(result.status).toBe(200);
+      const task = result.data.result as {
+        id: string;
+        status: { state: string };
+        contextId: string;
+      };
+
+      expect(task.id).toBeDefined();
+      expect(task.contextId).toBeDefined();
+      expect(task.status.state).toBe("completed");
+
+      createdTaskId = task.id;
+    },
+  );
 
   test.skipIf(skipHttp)("tasks/get retrieves the created task", async () => {
     if (!createdTaskId) return;
-    
+
     const result = await a2aPost(jsonRpc("tasks/get", { id: createdTaskId }));
     if (!result) return;
 
     expect(result.status).toBe(200);
-    const task = result.data.result as { id: string; status: { state: string } };
+    const task = result.data.result as {
+      id: string;
+      status: { state: string };
+    };
     expect(task.id).toBe(createdTaskId);
     expect(task.status.state).toBe("completed");
   });
 
-  test.skipIf(skipHttp)("tasks/get for nonexistent task returns error", async () => {
-    const result = await a2aPost(jsonRpc("tasks/get", { id: "nonexistent-task-id" }));
-    if (!result) return;
+  test.skipIf(skipHttp)(
+    "tasks/get for nonexistent task returns error",
+    async () => {
+      const result = await a2aPost(
+        jsonRpc("tasks/get", { id: "nonexistent-task-id" }),
+      );
+      if (!result) return;
 
-    expect(result.status).toBe(404);
-    expect(result.data.error).toBeDefined();
-  });
+      expect(result.status).toBe(404);
+      expect(result.data.error).toBeDefined();
+    },
+  );
 });
 
 // ============================================================================
@@ -277,11 +332,9 @@ describe("Task Lifecycle", () => {
 
 describe("Memory Skills", () => {
   test.skipIf(skipHttp)("retrieve_memories reads from database", async () => {
-    const result = await a2aPost(skillMessage(
-      "retrieve_memories",
-      "test query",
-      { limit: 5 }
-    ));
+    const result = await a2aPost(
+      skillMessage("retrieve_memories", "test query", { limit: 5 }),
+    );
     if (!result) return;
 
     expect(result.status).toBe(200);
@@ -296,11 +349,15 @@ describe("Memory Skills", () => {
 
 describe("CORS", () => {
   test.skipIf(skipHttp)("OPTIONS returns CORS headers", async () => {
-    const response = await fetchWithTimeout(`${BASE_URL}/api/a2a`, { method: "OPTIONS" });
+    const response = await fetchWithTimeout(`${BASE_URL}/api/a2a`, {
+      method: "OPTIONS",
+    });
     if (!response) return;
 
     expect(response.status).toBe(204);
     expect(response.headers.get("access-control-allow-origin")).toBe("*");
-    expect(response.headers.get("access-control-allow-methods")).toContain("POST");
+    expect(response.headers.get("access-control-allow-methods")).toContain(
+      "POST",
+    );
   });
 });

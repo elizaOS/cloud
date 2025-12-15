@@ -42,13 +42,20 @@ export const maxDuration = 60;
 async function topupHandler(request: NextRequest): Promise<NextResponse> {
   // Authenticate user - required to know which org to credit
   // If auth fails, return 401 - withX402 will NOT settle payment (status >= 400)
-  const authResult = await requireAuthOrApiKeyWithOrg(request).catch(() => null);
+  const authResult = await requireAuthOrApiKeyWithOrg(request).catch(
+    () => null,
+  );
 
   if (!authResult) {
-    logger.warn("[Credits TopUp] Auth failed after payment verification - payment NOT settled");
+    logger.warn(
+      "[Credits TopUp] Auth failed after payment verification - payment NOT settled",
+    );
     return NextResponse.json(
-      { error: "Authentication required for credit top-up. Payment was NOT charged." },
-      { status: 401 }
+      {
+        error:
+          "Authentication required for credit top-up. Payment was NOT charged.",
+      },
+      { status: 401 },
     );
   }
 
@@ -61,7 +68,9 @@ async function topupHandler(request: NextRequest): Promise<NextResponse> {
   const paymentHeader = request.headers.get("X-PAYMENT");
   if (paymentHeader) {
     try {
-      const decoded = JSON.parse(Buffer.from(paymentHeader, "base64").toString());
+      const decoded = JSON.parse(
+        Buffer.from(paymentHeader, "base64").toString(),
+      );
       payerAddress = decoded.payload?.authorization?.from || "unknown";
     } catch {
       // Ignore decode errors - payer address is just for logging
@@ -80,7 +89,9 @@ async function topupHandler(request: NextRequest): Promise<NextResponse> {
       payer_address: payerAddress,
       network: getDefaultNetwork(),
       // Store payment header hash for potential reconciliation
-      payment_header_hash: paymentHeader ? Buffer.from(paymentHeader).toString("base64").slice(0, 32) : null,
+      payment_header_hash: paymentHeader
+        ? Buffer.from(paymentHeader).toString("base64").slice(0, 32)
+        : null,
     },
   });
 
@@ -94,16 +105,22 @@ async function topupHandler(request: NextRequest): Promise<NextResponse> {
 
   // Track payment in agent reputation system (fire and forget)
   const agentIdentifier = `org:${authResult.user.organization_id}`;
-  agentReputationService.recordPayment({
-    agentIdentifier,
-    amountUsd: priceValue,
-    paymentType: "x402",
-    transactionId: result.transaction.id,
-  }).catch((err) => {
-    logger.error("[Credits TopUp] Failed to record payment for reputation", { error: err });
-  });
+  agentReputationService
+    .recordPayment({
+      agentIdentifier,
+      amountUsd: priceValue,
+      paymentType: "x402",
+      transactionId: result.transaction.id,
+    })
+    .catch((err) => {
+      logger.error("[Credits TopUp] Failed to record payment for reputation", {
+        error: err,
+      });
+    });
 
-  const org = await organizationsService.getById(authResult.user.organization_id);
+  const org = await organizationsService.getById(
+    authResult.user.organization_id,
+  );
 
   // Return success - withX402 wrapper will settle payment after this
   // If settlement fails, client gets 402 but credits are already added (manual reconciliation needed)
@@ -124,30 +141,41 @@ export const POST =
         topupHandler,
         X402_RECIPIENT_ADDRESS,
         { price: TOPUP_PRICE, network: getDefaultNetwork() },
-        getFacilitator()
+        getFacilitator(),
       )
     : async () => {
         return NextResponse.json(
           {
             error: "x402 payments not configured",
-            message: "Set X402_RECIPIENT_ADDRESS to your wallet address in .env.local",
+            message:
+              "Set X402_RECIPIENT_ADDRESS to your wallet address in .env.local",
             docs: "https://x402.org",
           },
-          { status: 501 }
+          { status: 501 },
         );
       };
 
 export async function GET(request: NextRequest) {
   // Return current balance and pricing info
-  const authResult = await requireAuthOrApiKeyWithOrg(request).catch(() => null);
+  const authResult = await requireAuthOrApiKeyWithOrg(request).catch(
+    () => null,
+  );
 
   if (!authResult) {
-    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Authentication required" },
+      { status: 401 },
+    );
   }
 
-  const org = await organizationsService.getById(authResult.user.organization_id);
+  const org = await organizationsService.getById(
+    authResult.user.organization_id,
+  );
   if (!org) {
-    return NextResponse.json({ error: "Organization not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Organization not found" },
+      { status: 404 },
+    );
   }
 
   return NextResponse.json({
@@ -168,7 +196,8 @@ export async function OPTIONS() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-PAYMENT",
+      "Access-Control-Allow-Headers":
+        "Content-Type, Authorization, X-API-Key, X-PAYMENT",
     },
   });
 }

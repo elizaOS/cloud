@@ -201,73 +201,72 @@ export class PurchasesService {
               ? invoiceIdOrObject
               : invoiceIdOrObject.id;
 
-              const existingInvoice =
-                await invoicesService.getByStripeInvoiceId(invoiceId);
+          const existingInvoice =
+            await invoicesService.getByStripeInvoiceId(invoiceId);
 
-              if (!existingInvoice) {
-                const stripeInvoice = await stripe.invoices.retrieve(invoiceId);
+          if (!existingInvoice) {
+            const stripeInvoice = await stripe.invoices.retrieve(invoiceId);
 
-                await invoicesService.create({
-                  organization_id: organizationId,
-                  stripe_invoice_id: stripeInvoice.id,
-                  stripe_customer_id: stripeInvoice.customer as string,
-                  stripe_payment_intent_id: paymentIntent.id,
-                  amount_due: (stripeInvoice.amount_due / 100).toString(),
-                  amount_paid: (stripeInvoice.amount_paid / 100).toString(),
-                  currency: stripeInvoice.currency,
-                  status: stripeInvoice.status || "draft",
-                  invoice_type: "one_time_purchase",
-                  invoice_number: stripeInvoice.number || undefined,
-                  invoice_pdf: stripeInvoice.invoice_pdf || undefined,
-                  hosted_invoice_url:
-                    stripeInvoice.hosted_invoice_url || undefined,
-                  credits_added: amount.toString(),
-                  metadata: {
-                    type: "one_time_purchase",
-                  },
-                  paid_at: stripeInvoice.status_transitions?.paid_at
-                    ? new Date(stripeInvoice.status_transitions.paid_at * 1000)
-                    : undefined,
-                });
+            await invoicesService.create({
+              organization_id: organizationId,
+              stripe_invoice_id: stripeInvoice.id,
+              stripe_customer_id: stripeInvoice.customer as string,
+              stripe_payment_intent_id: paymentIntent.id,
+              amount_due: (stripeInvoice.amount_due / 100).toString(),
+              amount_paid: (stripeInvoice.amount_paid / 100).toString(),
+              currency: stripeInvoice.currency,
+              status: stripeInvoice.status || "draft",
+              invoice_type: "one_time_purchase",
+              invoice_number: stripeInvoice.number || undefined,
+              invoice_pdf: stripeInvoice.invoice_pdf || undefined,
+              hosted_invoice_url: stripeInvoice.hosted_invoice_url || undefined,
+              credits_added: amount.toString(),
+              metadata: {
+                type: "one_time_purchase",
+              },
+              paid_at: stripeInvoice.status_transitions?.paid_at
+                ? new Date(stripeInvoice.status_transitions.paid_at * 1000)
+                : undefined,
+            });
 
-                logger.info(
-                  `[PurchasesService] ✓ Created invoice record for payment ${paymentIntent.id}`,
-                );
-              }
-            } else {
-              // No Stripe invoice, create a simple invoice record
-              await invoicesService.create({
-                organization_id: organizationId,
-                stripe_invoice_id: `pi_${paymentIntent.id}`,
-                stripe_customer_id: paymentIntent.customer as string,
-                stripe_payment_intent_id: paymentIntent.id,
-                amount_due: (paymentIntent.amount / 100).toString(),
-                amount_paid: (paymentIntent.amount_received / 100).toString(),
-                currency: paymentIntent.currency,
-                status: "paid",
-                invoice_type: "one_time_purchase",
-                invoice_number: undefined,
-                invoice_pdf: undefined,
-                hosted_invoice_url: undefined,
-                credits_added: amount.toString(),
-                metadata: {
-                  type: "one_time_purchase",
-                },
-                paid_at: new Date(),
-              });
+            logger.info(
+              `[PurchasesService] ✓ Created invoice record for payment ${paymentIntent.id}`,
+            );
+          }
+        } else {
+          // No Stripe invoice, create a simple invoice record
+          await invoicesService.create({
+            organization_id: organizationId,
+            stripe_invoice_id: `pi_${paymentIntent.id}`,
+            stripe_customer_id: paymentIntent.customer as string,
+            stripe_payment_intent_id: paymentIntent.id,
+            amount_due: (paymentIntent.amount / 100).toString(),
+            amount_paid: (paymentIntent.amount_received / 100).toString(),
+            currency: paymentIntent.currency,
+            status: "paid",
+            invoice_type: "one_time_purchase",
+            invoice_number: undefined,
+            invoice_pdf: undefined,
+            hosted_invoice_url: undefined,
+            credits_added: amount.toString(),
+            metadata: {
+              type: "one_time_purchase",
+            },
+            paid_at: new Date(),
+          });
 
-              logger.info(
-                `[PurchasesService] ✓ Created invoice record for direct payment ${paymentIntent.id}`,
-              );
-            }
-
-          // Send purchase confirmation email
-          this.sendPurchaseConfirmationEmail(
-            organizationId,
-            amount,
-            paymentIntent.id,
-            paymentMethodId,
+          logger.info(
+            `[PurchasesService] ✓ Created invoice record for direct payment ${paymentIntent.id}`,
           );
+        }
+
+        // Send purchase confirmation email
+        this.sendPurchaseConfirmationEmail(
+          organizationId,
+          amount,
+          paymentIntent.id,
+          paymentMethodId,
+        );
       }
 
       return {
@@ -310,8 +309,7 @@ export class PurchasesService {
     paymentIntentId: string,
     organizationId: string,
   ): Promise<Stripe.PaymentIntent | null> {
-    const paymentIntent =
-      await stripe.paymentIntents.retrieve(paymentIntentId);
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
     // Verify the payment intent belongs to this organization
     if (paymentIntent.metadata?.organization_id !== organizationId) {
@@ -402,8 +400,7 @@ export class PurchasesService {
       return existingPaymentIntent;
     }
 
-    const cancelledIntent =
-      await stripe.paymentIntents.cancel(paymentIntentId);
+    const cancelledIntent = await stripe.paymentIntents.cancel(paymentIntentId);
     return cancelledIntent;
   }
 
@@ -426,9 +423,7 @@ export class PurchasesService {
     }
     logger.info(`[PurchasesService] Organization found: ${org.name}`);
 
-    logger.info(
-      `[PurchasesService] Fetching users for org ${organizationId}`,
-    );
+    logger.info(`[PurchasesService] Fetching users for org ${organizationId}`);
     const users = await usersRepository.listByOrganization(organizationId);
     logger.info(`[PurchasesService] Found ${users.length} users`);
 
@@ -458,45 +453,45 @@ export class PurchasesService {
       }
     }
 
-      const currentBalance = Number(org.credit_balance);
-      const previousBalance = currentBalance - amount;
-      const transactionDate = new Date().toLocaleString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: "UTC",
-      });
+    const currentBalance = Number(org.credit_balance);
+    const previousBalance = currentBalance - amount;
+    const transactionDate = new Date().toLocaleString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "UTC",
+    });
 
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://eliza.cloud";
-      const dashboardUrl = `${appUrl}/dashboard/billing`;
-      const invoiceUrl = `${appUrl}/dashboard/invoices/${paymentIntentId}`;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://eliza.cloud";
+    const dashboardUrl = `${appUrl}/dashboard/billing`;
+    const invoiceUrl = `${appUrl}/dashboard/invoices/${paymentIntentId}`;
 
-      const emailData = {
-        email: userEmail,
-        organizationName: org.name,
-        purchaseAmount: amount,
-        creditsAdded: amount,
-        previousBalance,
-        newBalance: currentBalance,
-        paymentMethod: paymentMethodDisplay,
-        transactionDate,
-        invoiceNumber: paymentIntentId,
-        invoiceUrl,
-        dashboardUrl,
-      };
+    const emailData = {
+      email: userEmail,
+      organizationName: org.name,
+      purchaseAmount: amount,
+      creditsAdded: amount,
+      previousBalance,
+      newBalance: currentBalance,
+      paymentMethod: paymentMethodDisplay,
+      transactionDate,
+      invoiceNumber: paymentIntentId,
+      invoiceUrl,
+      dashboardUrl,
+    };
 
-      logger.info(
-        `[PurchasesService] Calling emailService.sendPurchaseConfirmationEmail with:`,
-      );
-      logger.info(JSON.stringify(emailData, null, 2));
+    logger.info(
+      `[PurchasesService] Calling emailService.sendPurchaseConfirmationEmail with:`,
+    );
+    logger.info(JSON.stringify(emailData, null, 2));
 
-      await emailService.sendPurchaseConfirmationEmail(emailData);
+    await emailService.sendPurchaseConfirmationEmail(emailData);
 
-      logger.info(
-        `[PurchasesService] ✓ Purchase confirmation email sent to ${userEmail}`,
-      );
+    logger.info(
+      `[PurchasesService] ✓ Purchase confirmation email sent to ${userEmail}`,
+    );
   }
 }
 

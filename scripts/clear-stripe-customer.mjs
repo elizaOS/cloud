@@ -151,7 +151,9 @@ async function main() {
         console.log(
           `✅ Successfully cleared Stripe data for ${result.rows.length} organization(s)!`,
         );
-        console.log("\n   New customers will be created when they make purchases");
+        console.log(
+          "\n   New customers will be created when they make purchases",
+        );
         console.log("   with your new Stripe account.");
       }
     } else if (orgId) {

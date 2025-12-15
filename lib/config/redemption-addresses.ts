@@ -78,18 +78,18 @@ export const KNOWN_EXCHANGE_ADDRESSES: Record<
   },
   solana: {
     // Coinbase
-    "GJRs4FwHtemZ5ZE9x3FNvJ8TMwitKTh21yxdRPqn7npE": "Coinbase",
-    "H8sMJSCQxfKiFTCfDR3DUMLPwcRbM61LGFJ8N4dK3WjS": "Coinbase",
+    GJRs4FwHtemZ5ZE9x3FNvJ8TMwitKTh21yxdRPqn7npE: "Coinbase",
+    H8sMJSCQxfKiFTCfDR3DUMLPwcRbM61LGFJ8N4dK3WjS: "Coinbase",
     // Binance
     "5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9": "Binance",
     "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM": "Binance",
     "2ojv9BAiHUrvsm9gxDe7fJSzbNZSJcxZvf8dqmWGHG8S": "Binance",
     // Kraken
-    "FWznbcNXWQuHTawe9RxvQ2LdCENssh12dsznf4RiouN5": "Kraken",
+    FWznbcNXWQuHTawe9RxvQ2LdCENssh12dsznf4RiouN5: "Kraken",
     // OKX
     "5VCwKtCXgCJ6kit5FybXjvriW3xELsFDhYrPSqtJNmcD": "OKX",
     // Bybit
-    "AC5RDfQFmDS1deWZos921JfqscXdByf8BKHs5ACWjtW2": "Bybit",
+    AC5RDfQFmDS1deWZos921JfqscXdByf8BKHs5ACWjtW2: "Bybit",
   },
 };
 
@@ -126,7 +126,7 @@ export interface AddressCheckResult {
  */
 export function checkKnownAddress(
   address: string,
-  network: SupportedNetwork
+  network: SupportedNetwork,
 ): AddressCheckResult {
   const normalizedAddress = address.toLowerCase();
   const networkAddresses = KNOWN_EXCHANGE_ADDRESSES[network];
@@ -160,7 +160,7 @@ export function getWalletRecommendation(network: SupportedNetwork): string {
       "Exchange deposit addresses may not credit unexpected tokens properly."
     );
   }
-  
+
   if (network === "base") {
     return (
       "We recommend using a personal wallet like Coinbase Wallet (self-custody), " +
@@ -180,7 +180,7 @@ export function getWalletRecommendation(network: SupportedNetwork): string {
 export function getNonEOAWarning(
   network: SupportedNetwork,
   isContract: boolean,
-  exchangeInfo?: { name: string }
+  exchangeInfo?: { name: string },
 ): string {
   if (exchangeInfo) {
     return (
@@ -266,4 +266,3 @@ export const FRAUD_THRESHOLDS = {
   PRICE_DROP_WINDOW_MINUTES: 30,
   PRICE_DROP_THRESHOLD: 0.05, // 5%
 };
-

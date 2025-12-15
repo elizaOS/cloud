@@ -1,8 +1,8 @@
 /**
  * Payout Alerting Service
- * 
+ *
  * Sends alerts for critical payout events to Slack/PagerDuty.
- * 
+ *
  * ALERT TYPES:
  * - CRITICAL: System paused, security breach suspected
  * - HIGH: Hot wallet low, repeated failures
@@ -44,9 +44,9 @@ interface SlackMessage {
 
 const SEVERITY_COLORS: Record<AlertSeverity, string> = {
   critical: "#FF0000", // Red
-  high: "#FF8C00",     // Orange
-  medium: "#FFD700",   // Gold
-  low: "#00CED1",      // Cyan
+  high: "#FF8C00", // Orange
+  medium: "#FFD700", // Gold
+  low: "#00CED1", // Cyan
 };
 
 const SEVERITY_EMOJIS: Record<AlertSeverity, string> = {
@@ -77,7 +77,13 @@ export class PayoutAlertsService {
    * Send an alert to configured channels
    */
   async sendAlert(payload: AlertPayload): Promise<void> {
-    const { severity, title, message, details, timestamp = new Date() } = payload;
+    const {
+      severity,
+      title,
+      message,
+      details,
+      timestamp = new Date(),
+    } = payload;
 
     logger.info(`[PayoutAlerts] ${severity.toUpperCase()}: ${title}`, {
       message,
@@ -103,7 +109,7 @@ export class PayoutAlertsService {
     title: string,
     message: string,
     details?: Record<string, unknown>,
-    timestamp?: Date
+    timestamp?: Date,
   ): Promise<void> {
     const emoji = SEVERITY_EMOJIS[severity];
     const color = SEVERITY_COLORS[severity];
@@ -151,7 +157,7 @@ export class PayoutAlertsService {
     severity: AlertSeverity,
     title: string,
     message: string,
-    details?: Record<string, unknown>
+    details?: Record<string, unknown>,
   ): Promise<void> {
     const pagerDutyPayload = {
       routing_key: this.pagerDutyKey,
@@ -195,7 +201,7 @@ export class PayoutAlertsService {
   async alertLowBalance(
     network: string,
     balance: number,
-    threshold: number
+    threshold: number,
   ): Promise<void> {
     await this.sendAlert({
       severity: "high",
@@ -215,7 +221,7 @@ export class PayoutAlertsService {
    */
   async alertVelocityLimit(
     redemptionCount: number,
-    windowMinutes: number
+    windowMinutes: number,
   ): Promise<void> {
     await this.sendAlert({
       severity: "critical",
@@ -235,7 +241,7 @@ export class PayoutAlertsService {
   async alertVolatilityBreaker(
     network: string,
     volatility: number,
-    threshold: number
+    threshold: number,
   ): Promise<void> {
     await this.sendAlert({
       severity: "high",
@@ -255,7 +261,7 @@ export class PayoutAlertsService {
    */
   async alertConsecutiveFailures(
     failureCount: number,
-    lastError: string
+    lastError: string,
   ): Promise<void> {
     await this.sendAlert({
       severity: "high",
@@ -275,7 +281,7 @@ export class PayoutAlertsService {
   async alertHighVolume(
     currentVolumeUsd: number,
     limitUsd: number,
-    period: "hourly" | "daily"
+    period: "hourly" | "daily",
   ): Promise<void> {
     await this.sendAlert({
       severity: "medium",
@@ -296,7 +302,7 @@ export class PayoutAlertsService {
     redemptionId: string,
     userId: string,
     usdValue: number,
-    network: string
+    network: string,
   ): Promise<void> {
     await this.sendAlert({
       severity: "medium",
@@ -317,7 +323,7 @@ export class PayoutAlertsService {
    */
   async alertEmergencyPause(
     reason: string,
-    activatedBy?: string
+    activatedBy?: string,
   ): Promise<void> {
     await this.sendAlert({
       severity: "critical",
@@ -338,7 +344,7 @@ export class PayoutAlertsService {
     redemptionId: string,
     usdValue: number,
     network: string,
-    txHash: string
+    txHash: string,
   ): Promise<void> {
     if (usdValue >= 100) {
       // Only alert for significant payouts
@@ -359,4 +365,3 @@ export class PayoutAlertsService {
 
 // Export singleton
 export const payoutAlertsService = new PayoutAlertsService();
-

@@ -1,6 +1,6 @@
 /**
  * Database relations definitions.
- * 
+ *
  * Defines relationships between tables for Drizzle ORM query building.
  */
 import { relations } from "drizzle-orm";
@@ -151,20 +151,23 @@ export const appAnalyticsRelations = relations(appAnalytics, ({ one }) => ({
 /**
  * App credit balances table relations.
  */
-export const appCreditBalancesRelations = relations(appCreditBalances, ({ one }) => ({
-  app: one(apps, {
-    fields: [appCreditBalances.app_id],
-    references: [apps.id],
+export const appCreditBalancesRelations = relations(
+  appCreditBalances,
+  ({ one }) => ({
+    app: one(apps, {
+      fields: [appCreditBalances.app_id],
+      references: [apps.id],
+    }),
+    user: one(users, {
+      fields: [appCreditBalances.user_id],
+      references: [users.id],
+    }),
+    organization: one(organizations, {
+      fields: [appCreditBalances.organization_id],
+      references: [organizations.id],
+    }),
   }),
-  user: one(users, {
-    fields: [appCreditBalances.user_id],
-    references: [users.id],
-  }),
-  organization: one(organizations, {
-    fields: [appCreditBalances.organization_id],
-    references: [organizations.id],
-  }),
-}));
+);
 
 /**
  * App earnings table relations.
@@ -179,44 +182,53 @@ export const appEarningsRelations = relations(appEarnings, ({ one }) => ({
 /**
  * App earnings transactions table relations.
  */
-export const appEarningsTransactionsRelations = relations(appEarningsTransactions, ({ one }) => ({
-  app: one(apps, {
-    fields: [appEarningsTransactions.app_id],
-    references: [apps.id],
+export const appEarningsTransactionsRelations = relations(
+  appEarningsTransactions,
+  ({ one }) => ({
+    app: one(apps, {
+      fields: [appEarningsTransactions.app_id],
+      references: [apps.id],
+    }),
+    user: one(users, {
+      fields: [appEarningsTransactions.user_id],
+      references: [users.id],
+    }),
   }),
-  user: one(users, {
-    fields: [appEarningsTransactions.user_id],
-    references: [users.id],
-  }),
-}));
+);
 
 /**
  * Token redemptions table relations.
  */
-export const tokenRedemptionsRelations = relations(tokenRedemptions, ({ one }) => ({
-  user: one(users, {
-    fields: [tokenRedemptions.user_id],
-    references: [users.id],
+export const tokenRedemptionsRelations = relations(
+  tokenRedemptions,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [tokenRedemptions.user_id],
+      references: [users.id],
+    }),
+    app: one(apps, {
+      fields: [tokenRedemptions.app_id],
+      references: [apps.id],
+    }),
+    reviewer: one(users, {
+      fields: [tokenRedemptions.reviewed_by],
+      references: [users.id],
+    }),
   }),
-  app: one(apps, {
-    fields: [tokenRedemptions.app_id],
-    references: [apps.id],
-  }),
-  reviewer: one(users, {
-    fields: [tokenRedemptions.reviewed_by],
-    references: [users.id],
-  }),
-}));
+);
 
 /**
  * Redemption limits table relations.
  */
-export const redemptionLimitsRelations = relations(redemptionLimits, ({ one }) => ({
-  user: one(users, {
-    fields: [redemptionLimits.user_id],
-    references: [users.id],
+export const redemptionLimitsRelations = relations(
+  redemptionLimits,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [redemptionLimits.user_id],
+      references: [users.id],
+    }),
   }),
-}));
+);
 
 /**
  * Crypto payments table relations.

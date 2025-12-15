@@ -1,14 +1,14 @@
 #!/usr/bin/env bun
 /**
  * Deploy ERC-8004 contracts to Base Mainnet
- * 
+ *
  * This script deploys the Identity, Reputation, and Validation registries
  * to Base mainnet, then configures the SDK to use these addresses.
- * 
+ *
  * Requirements:
  * - AGENT0_PRIVATE_KEY in .env.local (wallet with ETH on Base mainnet)
  * - Sufficient ETH for gas (~0.01 ETH recommended)
- * 
+ *
  * Usage:
  *   bun run scripts/deploy-erc8004-base-mainnet.ts
  */
@@ -31,7 +31,7 @@ import { join } from "path";
 // Contract bytecodes will be loaded from compiled contracts
 const CONTRACTS_DIR = join(
   process.cwd(),
-  "docs/docs/erc-8004-contracts/contracts"
+  "docs/docs/erc-8004-contracts/contracts",
 );
 
 // Minimal ABIs for deployment
@@ -96,7 +96,7 @@ async function main() {
   // For now, we'll use pre-compiled bytecodes
   // In production, you'd compile these from Solidity
   console.log(
-    "⚠️  Note: Full deployment requires compiled contract bytecodes."
+    "⚠️  Note: Full deployment requires compiled contract bytecodes.",
   );
   console.log("   The ERC-8004 contracts need to be compiled first.\n");
 
@@ -104,14 +104,18 @@ async function main() {
   console.log("1. cd docs/docs/erc-8004-contracts");
   console.log("2. npm install");
   console.log("3. Add Base mainnet to hardhat.config.ts:");
-  console.log('   base: { type: "http", chainType: "op", url: "https://mainnet.base.org", accounts: [process.env.DEPLOYER_PRIVATE_KEY] }');
+  console.log(
+    '   base: { type: "http", chainType: "op", url: "https://mainnet.base.org", accounts: [process.env.DEPLOYER_PRIVATE_KEY] }',
+  );
   console.log("4. npm run deploy:upgradeable:base");
-  console.log("\nThen update lib/config/erc8004.ts with the deployed addresses.");
+  console.log(
+    "\nThen update lib/config/erc8004.ts with the deployed addresses.",
+  );
 
   // Alternative: Check if we have compiled artifacts
   const artifactsPath = join(
     process.cwd(),
-    "docs/docs/erc-8004-contracts/artifacts/contracts"
+    "docs/docs/erc-8004-contracts/artifacts/contracts",
   );
 
   if (existsSync(artifactsPath)) {
@@ -181,4 +185,3 @@ export const VALIDATION_REGISTRY_ADDRESSES: Record<ERC8004Network, Address> = {
 }
 
 main().catch(console.error);
-

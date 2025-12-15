@@ -1022,7 +1022,8 @@ export function ApiTester({
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle>Response Body</CardTitle>
-                      {(response.data as AudioResponseData)?._type !== "audio" && (
+                      {(response.data as AudioResponseData)?._type !==
+                        "audio" && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -1047,61 +1048,62 @@ export function ApiTester({
                     {(() => {
                       const audioData = response.data as AudioResponseData;
                       return audioData?._type === "audio" ? (
-                      <div className="space-y-4">
-                        <div className="rounded-none border border-border/60 bg-muted/30 p-4">
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="text-xs">
-                                Audio Response
-                              </Badge>
-                              <Badge variant="secondary" className="text-xs">
-                                {((audioData?._size || 0) / 1024).toFixed(2)} KB
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              {audioData?.message}
-                            </p>
-                            <audio
-                              controls
-                              className="w-full mt-4"
-                              src={audioData?._audioUrl}
-                            >
-                              <track kind="captions" />
-                            </audio>
-                            <div className="flex gap-2 mt-4">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  const audioUrl = audioData?._audioUrl;
-                                  if (audioUrl) {
-                                    const a = document.createElement("a");
-                                    a.href = audioUrl;
-                                    a.download = "audio.mp3";
-                                    document.body.appendChild(a);
-                                    a.click();
-                                    document.body.removeChild(a);
-                                    toast({
-                                      message: "Audio downloaded",
-                                      mode: "success",
-                                    });
-                                  }
-                                }}
+                        <div className="space-y-4">
+                          <div className="rounded-none border border-border/60 bg-muted/30 p-4">
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-xs">
+                                  Audio Response
+                                </Badge>
+                                <Badge variant="secondary" className="text-xs">
+                                  {((audioData?._size || 0) / 1024).toFixed(2)}{" "}
+                                  KB
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                {audioData?.message}
+                              </p>
+                              <audio
+                                controls
+                                className="w-full mt-4"
+                                src={audioData?._audioUrl}
                               >
-                                Download Audio
-                              </Button>
+                                <track kind="captions" />
+                              </audio>
+                              <div className="flex gap-2 mt-4">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    const audioUrl = audioData?._audioUrl;
+                                    if (audioUrl) {
+                                      const a = document.createElement("a");
+                                      a.href = audioUrl;
+                                      a.download = "audio.mp3";
+                                      document.body.appendChild(a);
+                                      a.click();
+                                      document.body.removeChild(a);
+                                      toast({
+                                        message: "Audio downloaded",
+                                        mode: "success",
+                                      });
+                                    }
+                                  }}
+                                >
+                                  Download Audio
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ) : (
-                      <ScrollArea className="h-[400px] w-full">
-                        <CodeDisplay
-                          code={formatResponseData(response.data)}
-                          language="json"
-                        />
-                      </ScrollArea>
-                    );
+                      ) : (
+                        <ScrollArea className="h-[400px] w-full">
+                          <CodeDisplay
+                            code={formatResponseData(response.data)}
+                            language="json"
+                          />
+                        </ScrollArea>
+                      );
                     })()}
                   </CardContent>
                 </Card>

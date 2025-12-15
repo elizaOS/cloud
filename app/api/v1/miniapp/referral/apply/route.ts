@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { referralsService } from "@/lib/services/referrals";
-import { addCorsHeaders, validateOrigin, createPreflightResponse } from "@/lib/middleware/cors-apps";
+import {
+  addCorsHeaders,
+  validateOrigin,
+  createPreflightResponse,
+} from "@/lib/middleware/cors-apps";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
@@ -45,7 +49,7 @@ export async function POST(request: NextRequest) {
     if (!validationResult.success) {
       const response = NextResponse.json(
         { success: false, error: "Invalid referral code format" },
-        { status: 400 }
+        { status: 400 },
       );
       return addCorsHeaders(response, corsResult.origin);
     }
@@ -59,7 +63,7 @@ export async function POST(request: NextRequest) {
       user.id,
       user.organization_id,
       code,
-      appId ? { appId } : undefined
+      appId ? { appId } : undefined,
     );
 
     const response = NextResponse.json({
@@ -70,24 +74,39 @@ export async function POST(request: NextRequest) {
 
     if (!result.success) {
       return addCorsHeaders(
-        NextResponse.json({ success: false, error: result.message }, { status: 400 }),
-        corsResult.origin
+        NextResponse.json(
+          { success: false, error: result.message },
+          { status: 400 },
+        ),
+        corsResult.origin,
       );
     }
 
-    logger.info("[Miniapp Referral] Code applied", { userId: user.id, code, appId });
+    logger.info("[Miniapp Referral] Code applied", {
+      userId: user.id,
+      code,
+      appId,
+    });
 
     return addCorsHeaders(response, corsResult.origin);
   } catch (error) {
     logger.error("[Miniapp Referral] Error applying referral code", { error });
 
-    const status = error instanceof Error && error.message.includes("Unauthorized") ? 401 : 500;
+    const status =
+      error instanceof Error && error.message.includes("Unauthorized")
+        ? 401
+        : 500;
     const response = NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Failed to apply referral code" },
-      { status }
+      {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to apply referral code",
+      },
+      { status },
     );
 
     return addCorsHeaders(response, corsResult.origin);
   }
 }
-

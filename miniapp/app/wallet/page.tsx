@@ -1,25 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowUpRight,
-  Coins,
-  Wallet,
   CheckCircle2,
-  AlertCircle,
   Clock,
-  Loader2,
   ExternalLink,
-  Copy,
-  Check,
   Info,
+  Loader2,
+  Wallet,
 } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 
-import { useAuth } from "@/lib/use-auth";
 import { fetchApi } from "@/lib/cloud-api";
+import { useAuth } from "@/lib/use-auth";
 
 interface RedemptionBalance {
   summary: {
@@ -135,7 +132,6 @@ export default function WalletPage() {
   const [redeemLoading, setRedeemLoading] = useState(false);
   const [redeemError, setRedeemError] = useState<string | null>(null);
   const [redeemSuccess, setRedeemSuccess] = useState(false);
-  const [copiedAddress, setCopiedAddress] = useState(false);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -150,8 +146,14 @@ export default function WalletPage() {
     setError(null);
 
     const [balanceRes, redemptionsRes] = await Promise.all([
-      fetchApi("/api/v1/redemptions/balance"),
-      fetchApi("/api/v1/redemptions?limit=10"),
+      fetchApi<RedemptionBalance & { success: boolean; error?: string }>(
+        "/api/v1/redemptions/balance",
+      ),
+      fetchApi<{
+        success: boolean;
+        redemptions?: Redemption[];
+        error?: string;
+      }>("/api/v1/redemptions?limit=10"),
     ]);
 
     if (balanceRes.success) {
@@ -184,8 +186,12 @@ export default function WalletPage() {
     }
 
     setQuoteLoading(true);
-    const res = await fetchApi(
-      `/api/v1/redemptions/quote?network=${selectedNetwork}&pointsAmount=${pointsAmount}`
+    const res = await fetchApi<{
+      success: boolean;
+      quote?: Quote;
+      error?: string;
+    }>(
+      `/api/v1/redemptions/quote?network=${selectedNetwork}&pointsAmount=${pointsAmount}`,
     );
 
     if (res.success && res.quote) {
@@ -214,15 +220,18 @@ export default function WalletPage() {
     setRedeemLoading(true);
     setRedeemError(null);
 
-    const res = await fetchApi("/api/v1/redemptions", {
-      method: "POST",
-      body: JSON.stringify({
-        appId: selectedApp,
-        pointsAmount,
-        network: selectedNetwork,
-        payoutAddress,
-      }),
-    });
+    const res = await fetchApi<{ success: boolean; error?: string }>(
+      "/api/v1/redemptions",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          appId: selectedApp,
+          pointsAmount,
+          network: selectedNetwork,
+          payoutAddress,
+        }),
+      },
+    );
 
     if (res.success) {
       setRedeemSuccess(true);
@@ -235,16 +244,10 @@ export default function WalletPage() {
     setRedeemLoading(false);
   };
 
-  const copyAddress = (address: string) => {
-    navigator.clipboard.writeText(address);
-    setCopiedAddress(true);
-    setTimeout(() => setCopiedAddress(false), 2000);
-  };
-
   if (!ready || !authenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-brand" />
+        <Loader2 className="text-brand h-8 w-8 animate-spin" />
       </div>
     );
   }
@@ -256,30 +259,30 @@ export default function WalletPage() {
         <div className="mb-8 flex items-center gap-4">
           <Link
             href="/settings"
-            className="rounded-full p-2 hover:bg-white/5 transition-colors"
+            className="rounded-full p-2 transition-colors hover:bg-white/5"
           >
             <ArrowLeft className="h-5 w-5 text-white/60" />
           </Link>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Wallet className="h-6 w-6 text-brand" />
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-white">
+            <Wallet className="text-brand h-6 w-6" />
             Wallet & Earnings
           </h1>
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-brand" />
+            <Loader2 className="text-brand h-8 w-8 animate-spin" />
           </div>
         ) : error ? (
           <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-center">
-            <AlertCircle className="mx-auto h-8 w-8 text-red-400 mb-2" />
+            <AlertCircle className="mx-auto mb-2 h-8 w-8 text-red-400" />
             <p className="text-red-400">{error}</p>
           </div>
         ) : balance ? (
           <>
             {/* Balance Overview */}
             <div className="mb-6 rounded-xl border border-white/10 bg-white/5 p-6">
-              <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="mb-6 grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-white/40">Available to Redeem</p>
                   <p className="text-3xl font-bold text-emerald-400">
@@ -297,16 +300,20 @@ export default function WalletPage() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-white/40">Total Earned: </span>
-                  <span className="text-white">${formatNumber(balance.summary.totalEarned)}</span>
+                  <span className="text-white">
+                    ${formatNumber(balance.summary.totalEarned)}
+                  </span>
                 </div>
                 <div>
                   <span className="text-white/40">Total Redeemed: </span>
-                  <span className="text-white">${formatNumber(balance.summary.totalRedeemed)}</span>
+                  <span className="text-white">
+                    ${formatNumber(balance.summary.totalRedeemed)}
+                  </span>
                 </div>
               </div>
 
               {/* Eligibility Status */}
-              <div className="mt-4 pt-4 border-t border-white/10">
+              <div className="mt-4 border-t border-white/10 pt-4">
                 {balance.eligibility.canRedeem ? (
                   <div className="flex items-center gap-2 text-emerald-400">
                     <CheckCircle2 className="h-4 w-4" />
@@ -315,7 +322,9 @@ export default function WalletPage() {
                 ) : (
                   <div className="flex items-center gap-2 text-yellow-400">
                     <Clock className="h-4 w-4" />
-                    <span className="text-sm">{balance.eligibility.reason}</span>
+                    <span className="text-sm">
+                      {balance.eligibility.reason}
+                    </span>
                   </div>
                 )}
               </div>
@@ -324,10 +333,10 @@ export default function WalletPage() {
               <button
                 onClick={() => setShowRedeemForm(true)}
                 disabled={!balance.eligibility.canRedeem}
-                className={`mt-4 w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-medium transition-all ${
+                className={`mt-4 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 font-medium transition-all ${
                   balance.eligibility.canRedeem
-                    ? "bg-brand text-white hover:bg-brand-600"
-                    : "bg-white/10 text-white/40 cursor-not-allowed"
+                    ? "bg-brand hover:bg-brand-600 text-white"
+                    : "cursor-not-allowed bg-white/10 text-white/40"
                 }`}
               >
                 <ArrowUpRight className="h-4 w-4" />
@@ -338,14 +347,22 @@ export default function WalletPage() {
             {/* Info Box */}
             <div className="mb-6 rounded-xl border border-blue-500/30 bg-blue-500/10 p-4">
               <div className="flex gap-3">
-                <Info className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                <Info className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-400" />
                 <div className="text-sm text-blue-200">
-                  <p className="font-medium mb-1">How Redemption Works</p>
-                  <ul className="text-blue-300/80 space-y-1">
+                  <p className="mb-1 font-medium">How Redemption Works</p>
+                  <ul className="space-y-1 text-blue-300/80">
                     <li>• 1 point = $0.01 USD value</li>
-                    <li>• Points convert to elizaOS tokens at current TWAP price</li>
-                    <li>• Earned points vest for {balance.limits.vestingPeriodDays} days before redemption</li>
-                    <li>• Min: ${balance.limits.minRedemptionUsd}, Max: ${balance.limits.maxSingleRedemptionUsd}</li>
+                    <li>
+                      • Points convert to elizaOS tokens at current TWAP price
+                    </li>
+                    <li>
+                      • Earned points vest for{" "}
+                      {balance.limits.vestingPeriodDays} days before redemption
+                    </li>
+                    <li>
+                      • Min: ${balance.limits.minRedemptionUsd}, Max: $
+                      {balance.limits.maxSingleRedemptionUsd}
+                    </li>
                   </ul>
                 </div>
               </div>
@@ -354,21 +371,27 @@ export default function WalletPage() {
             {/* App Balances */}
             {balance.apps.length > 0 && (
               <div className="mb-6">
-                <h2 className="text-lg font-semibold text-white mb-3">Earnings by App</h2>
+                <h2 className="mb-3 text-lg font-semibold text-white">
+                  Earnings by App
+                </h2>
                 <div className="space-y-2">
                   {balance.apps.map((app) => (
                     <div
                       key={app.appId}
                       className="rounded-lg border border-white/10 bg-white/5 p-4"
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium text-white">{app.appName}</span>
-                        <span className="text-emerald-400 font-semibold">
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="font-medium text-white">
+                          {app.appName}
+                        </span>
+                        <span className="font-semibold text-emerald-400">
                           ${formatNumber(app.withdrawableBalance)}
                         </span>
                       </div>
                       <div className="flex items-center gap-4 text-xs text-white/40">
-                        <span>Pending: ${formatNumber(app.pendingBalance)}</span>
+                        <span>
+                          Pending: ${formatNumber(app.pendingBalance)}
+                        </span>
                         <span>Earned: ${formatNumber(app.totalEarned)}</span>
                       </div>
                     </div>
@@ -380,20 +403,25 @@ export default function WalletPage() {
             {/* Recent Redemptions */}
             {redemptions.length > 0 && (
               <div>
-                <h2 className="text-lg font-semibold text-white mb-3">Recent Redemptions</h2>
+                <h2 className="mb-3 text-lg font-semibold text-white">
+                  Recent Redemptions
+                </h2>
                 <div className="space-y-2">
                   {redemptions.map((r) => (
                     <div
                       key={r.id}
                       className="rounded-lg border border-white/10 bg-white/5 p-4"
                     >
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="mb-2 flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[r.status]}`}>
+                          <span
+                            className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[r.status]}`}
+                          >
                             {r.status}
                           </span>
-                          <span className="text-white font-medium">
-                            ${formatNumber(r.usdValue)} → {formatNumber(r.elizaAmount, 4)} ELIZA
+                          <span className="font-medium text-white">
+                            ${formatNumber(r.usdValue)} →{" "}
+                            {formatNumber(r.elizaAmount, 4)} ELIZA
                           </span>
                         </div>
                         <span className="text-xs text-white/40">
@@ -401,13 +429,15 @@ export default function WalletPage() {
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-xs text-white/40">
-                        <span>{r.network} • {formatAddress(r.payoutAddress)}</span>
+                        <span>
+                          {r.network} • {formatAddress(r.payoutAddress)}
+                        </span>
                         {r.txHash && (
                           <a
                             href={`https://basescan.org/tx/${r.txHash}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-brand hover:text-brand-400"
+                            className="text-brand hover:text-brand-400 flex items-center gap-1"
                           >
                             View TX <ExternalLink className="h-3 w-3" />
                           </a>
@@ -425,15 +455,17 @@ export default function WalletPage() {
         {showRedeemForm && balance && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
             <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0512] p-6">
-              <h2 className="text-xl font-bold text-white mb-6">
+              <h2 className="mb-6 text-xl font-bold text-white">
                 Redeem Points to elizaOS
               </h2>
 
               {redeemSuccess ? (
-                <div className="text-center py-8">
-                  <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-400 mb-4" />
-                  <p className="text-white font-medium mb-2">Redemption Submitted!</p>
-                  <p className="text-white/60 text-sm mb-4">
+                <div className="py-8 text-center">
+                  <CheckCircle2 className="mx-auto mb-4 h-12 w-12 text-emerald-400" />
+                  <p className="mb-2 font-medium text-white">
+                    Redemption Submitted!
+                  </p>
+                  <p className="mb-4 text-sm text-white/60">
                     Your tokens will be sent within 24 hours.
                   </p>
                   <button
@@ -441,7 +473,7 @@ export default function WalletPage() {
                       setShowRedeemForm(false);
                       setRedeemSuccess(false);
                     }}
-                    className="px-6 py-2 rounded-lg bg-brand text-white font-medium"
+                    className="bg-brand rounded-lg px-6 py-2 font-medium text-white"
                   >
                     Close
                   </button>
@@ -450,7 +482,7 @@ export default function WalletPage() {
                 <>
                   {/* App Selection */}
                   <div className="mb-4">
-                    <label className="block text-sm text-white/60 mb-2">
+                    <label className="mb-2 block text-sm text-white/60">
                       Select App
                     </label>
                     <select
@@ -463,7 +495,8 @@ export default function WalletPage() {
                         .filter((a) => a.canRedeem)
                         .map((app) => (
                           <option key={app.appId} value={app.appId}>
-                            {app.appName} (${formatNumber(app.withdrawableBalance)})
+                            {app.appName} ($
+                            {formatNumber(app.withdrawableBalance)})
                           </option>
                         ))}
                     </select>
@@ -471,7 +504,7 @@ export default function WalletPage() {
 
                   {/* Network Selection */}
                   <div className="mb-4">
-                    <label className="block text-sm text-white/60 mb-2">
+                    <label className="mb-2 block text-sm text-white/60">
                       Network
                     </label>
                     <div className="grid grid-cols-2 gap-2">
@@ -494,13 +527,15 @@ export default function WalletPage() {
 
                   {/* Amount */}
                   <div className="mb-4">
-                    <label className="block text-sm text-white/60 mb-2">
+                    <label className="mb-2 block text-sm text-white/60">
                       Points to Redeem
                     </label>
                     <input
                       type="number"
                       value={pointsAmount || ""}
-                      onChange={(e) => setPointsAmount(parseInt(e.target.value) || 0)}
+                      onChange={(e) =>
+                        setPointsAmount(parseInt(e.target.value) || 0)
+                      }
                       min={100}
                       max={100000}
                       placeholder="Min 100 ($1.00)"
@@ -513,38 +548,51 @@ export default function WalletPage() {
 
                   {/* Payout Address */}
                   <div className="mb-4">
-                    <label className="block text-sm text-white/60 mb-2">
-                      {selectedNetwork === "solana" ? "Solana" : "EVM"} Wallet Address
+                    <label className="mb-2 block text-sm text-white/60">
+                      {selectedNetwork === "solana" ? "Solana" : "EVM"} Wallet
+                      Address
                     </label>
                     <input
                       type="text"
                       value={payoutAddress}
                       onChange={(e) => setPayoutAddress(e.target.value)}
-                      placeholder={selectedNetwork === "solana" ? "Your Phantom address..." : "0x..."}
-                      className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white font-mono text-sm"
+                      placeholder={
+                        selectedNetwork === "solana"
+                          ? "Your Phantom address..."
+                          : "0x..."
+                      }
+                      className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 font-mono text-sm text-white"
                     />
                     <p className="mt-1 text-xs text-yellow-400">
-                      ⚠️ Use a personal wallet (MetaMask, Phantom). Exchange addresses may lose funds.
+                      ⚠️ Use a personal wallet (MetaMask, Phantom). Exchange
+                      addresses may lose funds.
                     </p>
                   </div>
 
                   {/* Quote */}
                   {quoteLoading ? (
                     <div className="flex items-center justify-center py-4">
-                      <Loader2 className="h-5 w-5 animate-spin text-brand" />
+                      <Loader2 className="text-brand h-5 w-5 animate-spin" />
                     </div>
                   ) : quote ? (
                     <div className="mb-4 rounded-lg border border-white/10 bg-white/5 p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-white/60">You&apos;ll receive</span>
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-white/60">
+                          You&apos;ll receive
+                        </span>
                         <span className="text-xl font-bold text-emerald-400">
                           {formatNumber(quote.elizaAmount, 4)} ELIZA
                         </span>
                       </div>
-                      <div className="text-xs text-white/40 space-y-1">
-                        <div>TWAP Price: ${formatNumber(quote.twapPriceUsd, 6)}</div>
+                      <div className="space-y-1 text-xs text-white/40">
+                        <div>
+                          TWAP Price: ${formatNumber(quote.twapPriceUsd, 6)}
+                        </div>
                         <div>Safety spread: {quote.safetySpreadPercent}%</div>
-                        <div>Valid until: {new Date(quote.validUntil).toLocaleTimeString()}</div>
+                        <div>
+                          Valid until:{" "}
+                          {new Date(quote.validUntil).toLocaleTimeString()}
+                        </div>
                       </div>
                     </div>
                   ) : null}
@@ -566,8 +614,13 @@ export default function WalletPage() {
                     </button>
                     <button
                       onClick={handleRedeem}
-                      disabled={redeemLoading || !quote || !selectedApp || !payoutAddress}
-                      className="flex-1 rounded-lg bg-brand px-4 py-3 font-medium text-white hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      disabled={
+                        redeemLoading ||
+                        !quote ||
+                        !selectedApp ||
+                        !payoutAddress
+                      }
+                      className="bg-brand hover:bg-brand-600 flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {redeemLoading ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -588,4 +641,3 @@ export default function WalletPage() {
     </div>
   );
 }
-

@@ -22,6 +22,7 @@ bun run db:miniapp:seed
 ```
 
 This creates:
+
 - A test organization with $100 credits
 - A test user with a known wallet address
 - A miniapp registration with localhost origins allowed
@@ -59,6 +60,7 @@ bun run dev
 ### Test Wallet
 
 For development and testing, use the standard hardhat/foundry test wallet:
+
 - **Address**: `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266`
 - **Mnemonic**: `test test test test test test test test test test test junk`
 
@@ -92,23 +94,27 @@ For development and testing, use the standard hardhat/foundry test wallet:
 ## ✨ Features
 
 ### Authentication
+
 - Privy-based authentication (wallet, email, social)
 - Session management
 - Protected routes
 
 ### Agent Management
+
 - Create new AI characters
 - Edit agent properties (name, bio, avatar)
 - Advanced editing (topics, adjectives, style, settings)
 - Delete agents
 
 ### Chat
+
 - Real-time chat with AI agents
 - Streaming responses
 - Chat history
 - Multiple conversations per agent
 
 ### Billing
+
 - Credit balance display
 - Usage statistics
 - Auto top-up status
@@ -117,16 +123,17 @@ For development and testing, use the standard hardhat/foundry test wallet:
 
 The miniapp uses a proxy layer (`/api/proxy/*`) to communicate with Eliza Cloud:
 
-| Miniapp Route | Cloud Route |
-|---------------|-------------|
-| `/api/proxy/user` | `/api/v1/miniapp/user` |
-| `/api/proxy/agents` | `/api/v1/miniapp/agents` |
-| `/api/proxy/agents/:id` | `/api/v1/miniapp/agents/:id` |
-| `/api/proxy/agents/:id/chats` | `/api/v1/miniapp/agents/:id/chats` |
-| `/api/proxy/billing` | `/api/v1/miniapp/billing` |
-| `/api/proxy/stream/:roomId` | `/api/eliza/rooms/:roomId/messages/stream` |
+| Miniapp Route                 | Cloud Route                                |
+| ----------------------------- | ------------------------------------------ |
+| `/api/proxy/user`             | `/api/v1/miniapp/user`                     |
+| `/api/proxy/agents`           | `/api/v1/miniapp/agents`                   |
+| `/api/proxy/agents/:id`       | `/api/v1/miniapp/agents/:id`               |
+| `/api/proxy/agents/:id/chats` | `/api/v1/miniapp/agents/:id/chats`         |
+| `/api/proxy/billing`          | `/api/v1/miniapp/billing`                  |
+| `/api/proxy/stream/:roomId`   | `/api/eliza/rooms/:roomId/messages/stream` |
 
 The proxy automatically:
+
 - Adds the API key from `ELIZA_CLOUD_API_KEY`
 - Forwards cookies for Privy session auth
 - Handles CORS
@@ -143,6 +150,7 @@ bun run test
 ```
 
 Tests cover:
+
 - Page loading
 - Auth redirects
 - API proxy functionality
@@ -177,7 +185,7 @@ await appsService.create({
   name: "Production Miniapp",
   allowed_origins: [
     "https://your-miniapp.vercel.app",
-    "https://your-domain.com"
+    "https://your-domain.com",
   ],
   // ...
 });

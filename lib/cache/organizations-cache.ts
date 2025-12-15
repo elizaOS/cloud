@@ -105,9 +105,7 @@ export async function warmOrganizationCache(
       cache.set(buildCacheKey(org.id), org, CACHE_TTL_SECONDS),
     ),
   );
-  logger.debug(
-    `[OrgCache] Pre-warmed cache for ${organizations.length} orgs`,
-  );
+  logger.debug(`[OrgCache] Pre-warmed cache for ${organizations.length} orgs`);
 }
 
 /**

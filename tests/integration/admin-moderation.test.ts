@@ -16,7 +16,14 @@
  *   NODE_ENV - Should be "development" for devnet admin access
  */
 
-import { describe, test, expect, beforeAll, afterAll, setDefaultTimeout } from "bun:test";
+import {
+  describe,
+  test,
+  expect,
+  beforeAll,
+  afterAll,
+  setDefaultTimeout,
+} from "bun:test";
 import { config } from "dotenv";
 
 // Ensure environment is loaded before any database access
@@ -24,7 +31,13 @@ config({ path: ".env" });
 config({ path: ".env.local", override: true });
 
 import { db } from "@/db/client";
-import { users, adminUsers, moderationViolations, userModerationStatus, organizations } from "@/db/schemas";
+import {
+  users,
+  adminUsers,
+  moderationViolations,
+  userModerationStatus,
+  organizations,
+} from "@/db/schemas";
 import { eq, and } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 
@@ -44,7 +57,8 @@ let testRegularUserId: string;
 let testOrgId: string;
 
 // Helper to check if database is available (including moderation tables)
-const isDatabaseAvailable = () => Boolean(db.query?.users && db.query?.userModerationStatus);
+const isDatabaseAvailable = () =>
+  Boolean(db.query?.users && db.query?.userModerationStatus);
 
 // Check moderation tables at runtime (in beforeAll) not at module load time
 let moderationTablesExist = false;
@@ -54,7 +68,7 @@ let moderationTablesExist = false;
 async function requireModerationTables(): Promise<boolean> {
   // If already checked and available, return true
   if (moderationTablesExist) return true;
-  
+
   // Double-check tables exist (in case beforeAll hasn't run yet)
   try {
     await db.query.userModerationStatus?.findFirst();
@@ -70,20 +84,24 @@ async function requireModerationTables(): Promise<boolean> {
 
 const SAFE_CONTENT = "Hello, how are you doing today? I'm having a great day!";
 
-const MILDLY_OFFENSIVE_CONTENT = "This damn thing is so annoying, what the hell!";
+const MILDLY_OFFENSIVE_CONTENT =
+  "This damn thing is so annoying, what the hell!";
 
-const SEVERELY_OFFENSIVE_SELF_HARM = "I want to end my life and need instructions on how to do it";
+const SEVERELY_OFFENSIVE_SELF_HARM =
+  "I want to end my life and need instructions on how to do it";
 
-const SEVERELY_OFFENSIVE_CSAM = "I'm looking for content involving minors in sexual situations";
+const SEVERELY_OFFENSIVE_CSAM =
+  "I'm looking for content involving minors in sexual situations";
 
-const BORDERLINE_CONTENT = "I'm feeling really down and don't know what to do with my life";
+const BORDERLINE_CONTENT =
+  "I'm feeling really down and don't know what to do with my life";
 
 // ===== Helper Functions =====
 
 async function createTestUsers() {
   const timestamp = Date.now();
   const random = Math.random().toString(36).slice(2, 8);
-  
+
   // Check if anvil wallet user already exists
   const existingAnvilUser = await db.query.users.findFirst({
     where: eq(users.wallet_address, ANVIL_WALLET),
@@ -92,61 +110,77 @@ async function createTestUsers() {
   if (existingAnvilUser) {
     testAdminUserId = existingAnvilUser.id;
     testOrgId = existingAnvilUser.organization_id!;
-    
+
     // Create regular test user in the same org
     const regularId = uuidv4();
     const random2 = Math.random().toString(36).slice(2, 8);
-    const [regularUser] = await db.insert(users).values({
-      id: regularId,
-      privy_id: `test-regular-${timestamp}-${random2}`,
-      email: `regular-test-${timestamp}-${random2}@test.local`,
-      wallet_address: `0x${random2}${"0".repeat(40 - random2.length)}`,
-      role: "user",
-      is_active: true,
-      organization_id: testOrgId,
-    }).returning();
+    const [regularUser] = await db
+      .insert(users)
+      .values({
+        id: regularId,
+        privy_id: `test-regular-${timestamp}-${random2}`,
+        email: `regular-test-${timestamp}-${random2}@test.local`,
+        wallet_address: `0x${random2}${"0".repeat(40 - random2.length)}`,
+        role: "user",
+        is_active: true,
+        organization_id: testOrgId,
+      })
+      .returning();
 
     testRegularUserId = regularUser.id;
-    return { adminId: testAdminUserId, regularId: regularUser.id, orgId: testOrgId };
+    return {
+      adminId: testAdminUserId,
+      regularId: regularUser.id,
+      orgId: testOrgId,
+    };
   }
 
   // Create organization if we need to create new users
   const orgId = uuidv4();
-  const [org] = await db.insert(organizations).values({
-    id: orgId,
-    name: `Test Org ${timestamp}-${random}`,
-    slug: `test-org-${timestamp}-${random}`,
-    is_active: true,
-  }).returning();
-  
+  const [org] = await db
+    .insert(organizations)
+    .values({
+      id: orgId,
+      name: `Test Org ${timestamp}-${random}`,
+      slug: `test-org-${timestamp}-${random}`,
+      is_active: true,
+    })
+    .returning();
+
   testOrgId = org.id;
 
   // Create admin user with anvil wallet
   const adminId = uuidv4();
-  const [adminUser] = await db.insert(users).values({
-    id: adminId,
-    privy_id: `test-admin-${timestamp}-${random}`,
-    email: `admin-test-${timestamp}-${random}@test.local`,
-    wallet_address: ANVIL_WALLET,
-    role: "user",
-    is_active: true,
-    organization_id: org.id,
-  }).returning();
+  const [adminUser] = await db
+    .insert(users)
+    .values({
+      id: adminId,
+      privy_id: `test-admin-${timestamp}-${random}`,
+      email: `admin-test-${timestamp}-${random}@test.local`,
+      wallet_address: ANVIL_WALLET,
+      role: "user",
+      is_active: true,
+      organization_id: org.id,
+    })
+    .returning();
 
   testAdminUserId = adminUser.id;
 
   // Create regular test user
   const regularId = uuidv4();
   const random2 = Math.random().toString(36).slice(2, 8);
-  const [regularUser] = await db.insert(users).values({
-    id: regularId,
-    privy_id: `test-regular-${timestamp}-${random2}`,
-    email: `regular-test-${timestamp}-${random2}@test.local`,
-    wallet_address: `0x${random2}${"0".repeat(40 - random2.length)}`,
-    role: "user",
-    is_active: true,
-    organization_id: org.id,
-  }).returning();
+  const [regularUser] = await db
+    .insert(users)
+    .values({
+      id: regularId,
+      privy_id: `test-regular-${timestamp}-${random2}`,
+      email: `regular-test-${timestamp}-${random2}@test.local`,
+      wallet_address: `0x${random2}${"0".repeat(40 - random2.length)}`,
+      role: "user",
+      is_active: true,
+      organization_id: org.id,
+    })
+    .returning();
 
   testRegularUserId = regularUser.id;
 
@@ -157,13 +191,17 @@ async function cleanupTestData() {
   // Clean up test violations (only if tables exist)
   if (testRegularUserId && moderationTablesExist) {
     try {
-      await db.delete(moderationViolations).where(eq(moderationViolations.userId, testRegularUserId));
-      await db.delete(userModerationStatus).where(eq(userModerationStatus.userId, testRegularUserId));
+      await db
+        .delete(moderationViolations)
+        .where(eq(moderationViolations.userId, testRegularUserId));
+      await db
+        .delete(userModerationStatus)
+        .where(eq(userModerationStatus.userId, testRegularUserId));
     } catch {
       // Tables don't exist, skip
     }
   }
-  
+
   // Clean up test users (must be before org due to FK)
   if (testAdminUserId) {
     try {
@@ -179,7 +217,7 @@ async function cleanupTestData() {
       // Skip if fails
     }
   }
-  
+
   // Clean up test organization
   if (testOrgId) {
     try {
@@ -196,7 +234,7 @@ beforeAll(async () => {
   console.log("\n🔧 Setting up admin moderation tests...");
   console.log(`   API URL: ${TEST_API_URL}`);
   console.log(`   Anvil Wallet: ${ANVIL_WALLET}`);
-  
+
   // Check if database is available
   if (!db.query?.users) {
     console.log("   ⚠️  Database not available - tests will use mocked data");
@@ -205,7 +243,7 @@ beforeAll(async () => {
     testOrgId = "mock-org-id";
     return;
   }
-  
+
   // Check and set moderation table status (must happen in beforeAll, not at module load)
   try {
     await db.query.userModerationStatus?.findFirst();
@@ -213,9 +251,11 @@ beforeAll(async () => {
     console.log("   ✅ Moderation tables available");
   } catch {
     moderationTablesExist = false;
-    console.log("   ⚠️  Moderation tables not available - some tests will be skipped");
+    console.log(
+      "   ⚠️  Moderation tables not available - some tests will be skipped",
+    );
   }
-  
+
   await createTestUsers();
   console.log(`   Admin User ID: ${testAdminUserId}`);
   console.log(`   Regular User ID: ${testRegularUserId}`);
@@ -235,39 +275,50 @@ afterAll(async () => {
 
 describe("Content Moderation Service", () => {
   test("imports correctly", async () => {
-    const { contentModerationService } = await import("@/lib/services/content-moderation");
+    const { contentModerationService } =
+      await import("@/lib/services/content-moderation");
     expect(contentModerationService).toBeDefined();
-    expect(typeof contentModerationService.needsAsyncModeration).toBe("function");
+    expect(typeof contentModerationService.needsAsyncModeration).toBe(
+      "function",
+    );
     expect(typeof contentModerationService.moderateAsync).toBe("function");
     expect(typeof contentModerationService.shouldBlockUser).toBe("function");
   });
 
   describe("needsAsyncModeration", () => {
     test("returns boolean for any content", async () => {
-      const { contentModerationService } = await import("@/lib/services/content-moderation");
+      const { contentModerationService } =
+        await import("@/lib/services/content-moderation");
       // The keyword detection is liberal - we just verify it returns a boolean
-      const result1 = contentModerationService.needsAsyncModeration(SAFE_CONTENT);
-      const result2 = contentModerationService.needsAsyncModeration(MILDLY_OFFENSIVE_CONTENT);
-      
+      const result1 =
+        contentModerationService.needsAsyncModeration(SAFE_CONTENT);
+      const result2 = contentModerationService.needsAsyncModeration(
+        MILDLY_OFFENSIVE_CONTENT,
+      );
+
       expect(typeof result1).toBe("boolean");
       expect(typeof result2).toBe("boolean");
     });
 
     test("definitely triggers for content with explicit bad words", async () => {
-      const { contentModerationService } = await import("@/lib/services/content-moderation");
+      const { contentModerationService } =
+        await import("@/lib/services/content-moderation");
       // Use explicit profanity that's definitely in the list
       const explicitContent = "This is fucking bullshit";
-      expect(contentModerationService.needsAsyncModeration(explicitContent)).toBe(true);
+      expect(
+        contentModerationService.needsAsyncModeration(explicitContent),
+      ).toBe(true);
     });
   });
 
   describe("moderateAsync", () => {
     test("returns not flagged for safe content", async () => {
       if (!(await requireModerationTables())) return;
-      const { contentModerationService } = await import("@/lib/services/content-moderation");
+      const { contentModerationService } =
+        await import("@/lib/services/content-moderation");
       const result = await contentModerationService.moderateAsync(
         SAFE_CONTENT,
-        testRegularUserId
+        testRegularUserId,
       );
       expect(result.flagged).toBe(false);
       expect(result.flaggedCategories).toEqual([]);
@@ -275,10 +326,11 @@ describe("Content Moderation Service", () => {
 
     test("returns not flagged for borderline content", async () => {
       if (!(await requireModerationTables())) return;
-      const { contentModerationService } = await import("@/lib/services/content-moderation");
+      const { contentModerationService } =
+        await import("@/lib/services/content-moderation");
       const result = await contentModerationService.moderateAsync(
         BORDERLINE_CONTENT,
-        testRegularUserId
+        testRegularUserId,
       );
       // Borderline content should generally pass - we're being liberal
       expect(result.flagged).toBe(false);
@@ -286,26 +338,30 @@ describe("Content Moderation Service", () => {
 
     test("flags self-harm content", async () => {
       if (!(await requireModerationTables())) return;
-      const { contentModerationService } = await import("@/lib/services/content-moderation");
+      const { contentModerationService } =
+        await import("@/lib/services/content-moderation");
       const result = await contentModerationService.moderateAsync(
         SEVERELY_OFFENSIVE_SELF_HARM,
-        testRegularUserId
+        testRegularUserId,
       );
-      
+
       // Self-harm content should be flagged
       expect(result.flagged).toBe(true);
-      expect(result.flaggedCategories.some(c => c.includes("self-harm"))).toBe(true);
+      expect(
+        result.flaggedCategories.some((c) => c.includes("self-harm")),
+      ).toBe(true);
       expect(result.action).toBeDefined();
     });
 
     test("flags CSAM-related content", async () => {
       if (!(await requireModerationTables())) return;
-      const { contentModerationService } = await import("@/lib/services/content-moderation");
+      const { contentModerationService } =
+        await import("@/lib/services/content-moderation");
       const result = await contentModerationService.moderateAsync(
         SEVERELY_OFFENSIVE_CSAM,
-        testRegularUserId
+        testRegularUserId,
       );
-      
+
       // CSAM content should be flagged
       expect(result.flagged).toBe(true);
       expect(result.flaggedCategories).toContain("sexual/minors");
@@ -316,17 +372,22 @@ describe("Content Moderation Service", () => {
   describe("escalation logic", () => {
     test("first violation returns refused action", async () => {
       if (!(await requireModerationTables())) return;
-      const { contentModerationService } = await import("@/lib/services/content-moderation");
-      
+      const { contentModerationService } =
+        await import("@/lib/services/content-moderation");
+
       // Reset violations first
-      await db.delete(moderationViolations).where(eq(moderationViolations.userId, testRegularUserId));
-      await db.delete(userModerationStatus).where(eq(userModerationStatus.userId, testRegularUserId));
-      
+      await db
+        .delete(moderationViolations)
+        .where(eq(moderationViolations.userId, testRegularUserId));
+      await db
+        .delete(userModerationStatus)
+        .where(eq(userModerationStatus.userId, testRegularUserId));
+
       const result = await contentModerationService.moderateAsync(
         SEVERELY_OFFENSIVE_SELF_HARM,
-        testRegularUserId
+        testRegularUserId,
       );
-      
+
       if (result.flagged) {
         expect(result.action).toBe("refused");
       }
@@ -334,21 +395,22 @@ describe("Content Moderation Service", () => {
 
     test("repeated violations escalate to warned", async () => {
       if (!(await requireModerationTables())) return;
-      const { contentModerationService } = await import("@/lib/services/content-moderation");
-      
+      const { contentModerationService } =
+        await import("@/lib/services/content-moderation");
+
       // Simulate 2 previous violations
       for (let i = 0; i < 2; i++) {
         await contentModerationService.moderateAsync(
           SEVERELY_OFFENSIVE_SELF_HARM,
-          testRegularUserId
+          testRegularUserId,
         );
       }
-      
+
       const result = await contentModerationService.moderateAsync(
         SEVERELY_OFFENSIVE_SELF_HARM,
-        testRegularUserId
+        testRegularUserId,
       );
-      
+
       if (result.flagged) {
         expect(["warned", "flagged_for_ban"]).toContain(result.action);
       }
@@ -356,21 +418,22 @@ describe("Content Moderation Service", () => {
 
     test("many violations escalate to flagged_for_ban", async () => {
       if (!(await requireModerationTables())) return;
-      const { contentModerationService } = await import("@/lib/services/content-moderation");
-      
+      const { contentModerationService } =
+        await import("@/lib/services/content-moderation");
+
       // Simulate 5 previous violations (total should be > 5)
       for (let i = 0; i < 3; i++) {
         await contentModerationService.moderateAsync(
           SEVERELY_OFFENSIVE_SELF_HARM,
-          testRegularUserId
+          testRegularUserId,
         );
       }
-      
+
       const result = await contentModerationService.moderateAsync(
         SEVERELY_OFFENSIVE_SELF_HARM,
-        testRegularUserId
+        testRegularUserId,
       );
-      
+
       if (result.flagged) {
         expect(result.action).toBe("flagged_for_ban");
       }
@@ -378,8 +441,10 @@ describe("Content Moderation Service", () => {
 
     test("shouldBlockUser returns true for users with many violations", async () => {
       if (!(await requireModerationTables())) return;
-      const { contentModerationService } = await import("@/lib/services/content-moderation");
-      const shouldBlock = await contentModerationService.shouldBlockUser(testRegularUserId);
+      const { contentModerationService } =
+        await import("@/lib/services/content-moderation");
+      const shouldBlock =
+        await contentModerationService.shouldBlockUser(testRegularUserId);
       expect(shouldBlock).toBe(true);
     });
   });
@@ -397,13 +462,14 @@ describe("Admin Service", () => {
   });
 
   describe("isAdmin", () => {
-    const isDevnet = process.env.NODE_ENV === "development" || process.env.DEVNET === "true";
-    
+    const isDevnet =
+      process.env.NODE_ENV === "development" || process.env.DEVNET === "true";
+
     test("returns correct value for anvil wallet based on environment", async () => {
       if (!(await requireModerationTables())) return;
       const { adminService } = await import("@/lib/services/admin");
       const isAdmin = await adminService.isAdmin(ANVIL_WALLET);
-      
+
       if (isDevnet) {
         expect(isAdmin).toBe(true);
       } else {
@@ -416,19 +482,26 @@ describe("Admin Service", () => {
       if (!(await requireModerationTables())) return;
       const { adminService } = await import("@/lib/services/admin");
       const role = await adminService.getAdminRole(ANVIL_WALLET);
-      
+
       if (isDevnet) {
         expect(role).toBe("super_admin");
       } else {
         // In non-devnet, role is null unless explicitly promoted
-        expect(role === null || role === "super_admin" || role === "moderator" || role === "viewer").toBe(true);
+        expect(
+          role === null ||
+            role === "super_admin" ||
+            role === "moderator" ||
+            role === "viewer",
+        ).toBe(true);
       }
     });
 
     test("returns false for non-admin wallet", async () => {
       if (!(await requireModerationTables())) return;
       const { adminService } = await import("@/lib/services/admin");
-      const isAdmin = await adminService.isAdmin("0x1234567890123456789012345678901234567890");
+      const isAdmin = await adminService.isAdmin(
+        "0x1234567890123456789012345678901234567890",
+      );
       expect(isAdmin).toBe(false);
     });
   });
@@ -437,7 +510,8 @@ describe("Admin Service", () => {
     test("can get user moderation status", async () => {
       if (!(await requireModerationTables())) return;
       const { adminService } = await import("@/lib/services/admin");
-      const status = await adminService.getUserModerationStatus(testRegularUserId);
+      const status =
+        await adminService.getUserModerationStatus(testRegularUserId);
       expect(status).toBeDefined();
       expect(status?.totalViolations).toBeGreaterThan(0);
     });
@@ -452,7 +526,8 @@ describe("Admin Service", () => {
     test("can get user violations", async () => {
       if (!(await requireModerationTables())) return;
       const { adminService } = await import("@/lib/services/admin");
-      const violations = await adminService.getUserViolations(testRegularUserId);
+      const violations =
+        await adminService.getUserViolations(testRegularUserId);
       expect(Array.isArray(violations)).toBe(true);
       expect(violations.length).toBeGreaterThan(0);
     });
@@ -489,7 +564,8 @@ describe("Admin Service", () => {
         reason: "Test mark as spammer",
       });
 
-      const status = await adminService.getUserModerationStatus(testRegularUserId);
+      const status =
+        await adminService.getUserModerationStatus(testRegularUserId);
       expect(status?.status).toBe("spammer");
     });
 
@@ -503,7 +579,8 @@ describe("Admin Service", () => {
         reason: "Test mark as scammer",
       });
 
-      const status = await adminService.getUserModerationStatus(testRegularUserId);
+      const status =
+        await adminService.getUserModerationStatus(testRegularUserId);
       expect(status?.status).toBe("scammer");
     });
   });
@@ -531,11 +608,14 @@ describe("Admin Service", () => {
       const { adminService } = await import("@/lib/services/admin");
       const admins = await adminService.listAdmins();
       expect(Array.isArray(admins)).toBe(true);
-      
+
       // In devnet, should include anvil wallet; otherwise just verify structure
-      const isDevnet = process.env.NODE_ENV === "development" || process.env.DEVNET === "true";
+      const isDevnet =
+        process.env.NODE_ENV === "development" || process.env.DEVNET === "true";
       if (isDevnet) {
-        const hasAnvil = admins.some(a => a.walletAddress.toLowerCase() === ANVIL_WALLET);
+        const hasAnvil = admins.some(
+          (a) => a.walletAddress.toLowerCase() === ANVIL_WALLET,
+        );
         expect(hasAnvil).toBe(true);
       }
     });
@@ -569,7 +649,9 @@ describe("Admin API Endpoints", () => {
 
   describe("GET /api/v1/admin/moderation", () => {
     test("returns 401/403 without authentication", async () => {
-      const response = await fetch(`${TEST_API_URL}/api/v1/admin/moderation?view=overview`);
+      const response = await fetch(
+        `${TEST_API_URL}/api/v1/admin/moderation?view=overview`,
+      );
       expect([401, 403]).toContain(response.status);
     });
   });
@@ -643,28 +725,33 @@ describe("Database Schemas", () => {
 describe("Integration", () => {
   test("content moderation and admin service work together", async () => {
     if (!(await requireModerationTables())) return;
-    const { contentModerationService } = await import("@/lib/services/content-moderation");
+    const { contentModerationService } =
+      await import("@/lib/services/content-moderation");
     const { adminService } = await import("@/lib/services/admin");
-    
+
     // Create a fresh test user for this test
     const freshUserId = uuidv4();
-    await db.insert(users).values({
-      id: freshUserId,
-      privy_id: `test-fresh-${Date.now()}`,
-      email: `fresh-test-${Date.now()}@test.local`,
-      role: "user",
-      is_active: true,
-    }).onConflictDoNothing();
+    await db
+      .insert(users)
+      .values({
+        id: freshUserId,
+        privy_id: `test-fresh-${Date.now()}`,
+        email: `fresh-test-${Date.now()}@test.local`,
+        role: "user",
+        is_active: true,
+      })
+      .onConflictDoNothing();
 
     // User starts with no violations
-    let shouldBlock = await contentModerationService.shouldBlockUser(freshUserId);
+    let shouldBlock =
+      await contentModerationService.shouldBlockUser(freshUserId);
     expect(shouldBlock).toBe(false);
 
     // Simulate multiple violations
     for (let i = 0; i < 6; i++) {
       await contentModerationService.moderateAsync(
         SEVERELY_OFFENSIVE_SELF_HARM,
-        freshUserId
+        freshUserId,
       );
     }
 
@@ -680,8 +767,12 @@ describe("Integration", () => {
     expect(shouldBlock).toBe(false);
 
     // Cleanup
-    await db.delete(moderationViolations).where(eq(moderationViolations.userId, freshUserId));
-    await db.delete(userModerationStatus).where(eq(userModerationStatus.userId, freshUserId));
+    await db
+      .delete(moderationViolations)
+      .where(eq(moderationViolations.userId, freshUserId));
+    await db
+      .delete(userModerationStatus)
+      .where(eq(userModerationStatus.userId, freshUserId));
     await db.delete(users).where(eq(users.id, freshUserId));
   });
 
@@ -689,15 +780,16 @@ describe("Integration", () => {
     if (!(await requireModerationTables())) return;
     const { adminService } = await import("@/lib/services/admin");
     const admins = await adminService.listAdmins();
-    
+
     // Verify structure
     expect(Array.isArray(admins)).toBe(true);
-    
+
     // In devnet, should include anvil wallet
-    const isDevnet = process.env.NODE_ENV === "development" || process.env.DEVNET === "true";
+    const isDevnet =
+      process.env.NODE_ENV === "development" || process.env.DEVNET === "true";
     if (isDevnet) {
-      const anvilAdmin = admins.find(a => 
-        a.walletAddress.toLowerCase() === ANVIL_WALLET
+      const anvilAdmin = admins.find(
+        (a) => a.walletAddress.toLowerCase() === ANVIL_WALLET,
       );
       expect(anvilAdmin).toBeDefined();
       expect(anvilAdmin?.role).toBe("super_admin");
@@ -712,13 +804,13 @@ describe("Error Handling", () => {
     // Temporarily unset the API key
     const originalKey = process.env.OPENAI_API_KEY;
     const originalGatewayKey = process.env.AI_GATEWAY_API_KEY;
-    
+
     delete process.env.OPENAI_API_KEY;
     delete process.env.AI_GATEWAY_API_KEY;
 
     // Re-import to get fresh module state
     // Note: This may not work due to module caching - for full isolation, use separate test files
-    
+
     // Restore keys
     if (originalKey) process.env.OPENAI_API_KEY = originalKey;
     if (originalGatewayKey) process.env.AI_GATEWAY_API_KEY = originalGatewayKey;
@@ -734,7 +826,7 @@ describe("Error Handling", () => {
         // Missing reason
       }),
     });
-    
+
     // Should fail with 400 or auth error
     expect([400, 401, 403]).toContain(response.status);
   });
@@ -761,10 +853,9 @@ describe("Test Summary", () => {
       "Integration - moderation + admin work together",
       "Anvil wallet - auto-admin in devnet",
     ];
-    
+
     expect(coveredPaths.length).toBeGreaterThan(10);
     console.log("\n✅ Covered test paths:");
-    coveredPaths.forEach(path => console.log(`   • ${path}`));
+    coveredPaths.forEach((path) => console.log(`   • ${path}`));
   });
 });
-

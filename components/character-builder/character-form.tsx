@@ -65,7 +65,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
       : [];
     updateField(
       type,
-      currentArray.filter((_, i) => i !== index)
+      currentArray.filter((_, i) => i !== index),
     );
   };
 
@@ -90,7 +90,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
     const currentExamples = character.messageExamples || [];
     updateField(
       "messageExamples",
-      currentExamples.filter((_, i) => i !== index)
+      currentExamples.filter((_, i) => i !== index),
     );
   };
 
@@ -266,7 +266,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                 </div>
                 <BrandButton
                   type="button"
-                  variant="secondary"
+                  variant="outline"
                   size="sm"
                   onClick={addMessageExample}
                   disabled={!newUserMessage.trim() || !newAgentMessage.trim()}
@@ -298,9 +298,9 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     {conversation.map((message, msgIndex) => (
                       <div key={msgIndex} className="space-y-1">
                         <span className="text-xs font-medium text-[#FF5800]">
-                          {message.name === "user"
+                          {message.name === "user" || message.name === "{{user1}}"
                             ? "User"
-                            : character.name || "Agent"}
+                            : message.name || "Agent"}
                           :
                         </span>
                         <p className="text-sm text-white pl-2 border-l border-white/10">

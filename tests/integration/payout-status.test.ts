@@ -1,8 +1,8 @@
 /**
  * Payout Status Service Tests
- * 
+ *
  * Tests for the payout system status and graceful fallback behavior.
- * 
+ *
  * Run: bun test tests/integration/payout-status.test.ts
  */
 
@@ -99,7 +99,8 @@ describe("Payout Status Service", () => {
         hasBalance: true,
       };
 
-      const isOperational = status.configured && status.balance >= status.threshold;
+      const isOperational =
+        status.configured && status.balance >= status.threshold;
       expect(isOperational).toBe(true);
       console.log("✅ Operational status correctly identified");
     });
@@ -112,7 +113,10 @@ describe("Payout Status Service", () => {
         hasBalance: true,
       };
 
-      const isLowBalance = status.configured && status.hasBalance && status.balance < status.threshold;
+      const isLowBalance =
+        status.configured &&
+        status.hasBalance &&
+        status.balance < status.threshold;
       expect(isLowBalance).toBe(true);
       console.log("✅ Low balance status correctly identified");
     });
@@ -143,10 +147,11 @@ describe("Payout Status Service", () => {
   describe("3. User-Friendly Messages", () => {
     it("provides helpful message when no wallets configured", () => {
       const configured = { evm: false, solana: false };
-      
-      const message = !configured.evm && !configured.solana
-        ? "Token redemption is temporarily unavailable. We're setting up our payout infrastructure. Please check back soon!"
-        : null;
+
+      const message =
+        !configured.evm && !configured.solana
+          ? "Token redemption is temporarily unavailable. We're setting up our payout infrastructure. Please check back soon!"
+          : null;
 
       expect(message).toContain("temporarily unavailable");
       console.log("✅ No wallets message is user-friendly");
@@ -156,9 +161,10 @@ describe("Payout Status Service", () => {
       const unavailableNetwork = "solana";
       const availableNetworks = ["ethereum", "base"];
 
-      const suggestion = availableNetworks.length > 0
-        ? `Try one of these networks instead: ${availableNetworks.join(", ")}`
-        : "Please check back later.";
+      const suggestion =
+        availableNetworks.length > 0
+          ? `Try one of these networks instead: ${availableNetworks.join(", ")}`
+          : "Please check back later.";
 
       expect(suggestion).toContain("ethereum");
       expect(suggestion).toContain("base");
@@ -186,8 +192,10 @@ describe("Payout Status Service", () => {
         { network: "solana", available: false },
       ];
 
-      const canRedeem = networks.some(n => n.available);
-      const availableNetworks = networks.filter(n => n.available).map(n => n.network);
+      const canRedeem = networks.some((n) => n.available);
+      const availableNetworks = networks
+        .filter((n) => n.available)
+        .map((n) => n.network);
 
       expect(canRedeem).toBe(true);
       expect(availableNetworks).toHaveLength(2);
@@ -221,8 +229,9 @@ describe("Payout Status Service", () => {
         { network: "solana", available: false },
       ];
 
-      const canRedeem = networks.some(n => n.available);
-      const message = "Token redemption is temporarily unavailable. Please check back later.";
+      const canRedeem = networks.some((n) => n.available);
+      const message =
+        "Token redemption is temporarily unavailable. Please check back later.";
 
       expect(canRedeem).toBe(false);
       expect(message).toContain("temporarily unavailable");
@@ -360,4 +369,3 @@ PAYOUT STATUS SYSTEM - GRACEFUL FALLBACK
     expect(summary).toContain("GRACEFUL FALLBACK");
   });
 });
-

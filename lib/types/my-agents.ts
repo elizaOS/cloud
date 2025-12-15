@@ -32,7 +32,6 @@ export interface MyAgentsSearchResult {
   cached: boolean;
 }
 
-
 /**
  * State for my agents UI component.
  */
@@ -48,4 +47,3 @@ export interface MyAgentsState {
   isLoading: boolean;
   isLoadingStats: boolean;
 }
-

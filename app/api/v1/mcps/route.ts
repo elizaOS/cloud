@@ -53,7 +53,7 @@ const createMcpSchema = z.object({
         description: z.string().min(1).max(500),
         inputSchema: z.record(z.unknown()).optional(),
         cost: z.string().max(20).optional(),
-      })
+      }),
     )
     .max(50)
     .optional(),
@@ -73,7 +73,9 @@ const createMcpSchema = z.object({
 const listMcpsSchema = z.object({
   category: z.string().max(30).optional(),
   search: z.string().max(100).optional(),
-  status: z.enum(["draft", "pending_review", "live", "suspended", "deprecated"]).optional(),
+  status: z
+    .enum(["draft", "pending_review", "live", "suspended", "deprecated"])
+    .optional(),
   scope: z.enum(["own", "public", "all"]).optional().default("own"),
   limit: z.coerce.number().int().min(1).max(100).optional().default(50),
   offset: z.coerce.number().int().min(0).optional().default(0),
@@ -102,7 +104,7 @@ export async function POST(request: NextRequest) {
           message: i.message,
         })),
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -112,13 +114,13 @@ export async function POST(request: NextRequest) {
   if (data.endpointType === "container" && !data.containerId) {
     return NextResponse.json(
       { error: "containerId is required for container MCPs" },
-      { status: 400 }
+      { status: 400 },
     );
   }
   if (data.endpointType === "external" && !data.externalEndpoint) {
     return NextResponse.json(
       { error: "externalEndpoint is required for external MCPs" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -156,7 +158,7 @@ export async function GET(request: NextRequest) {
           message: i.message,
         })),
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -176,7 +178,7 @@ export async function GET(request: NextRequest) {
     // List user's own MCPs
     mcps = await userMcpsService.listByOrganization(
       authResult.user.organization_id,
-      { status, limit, offset }
+      { status, limit, offset },
     );
   } else {
     // List all (own + public)
@@ -221,4 +223,3 @@ export async function OPTIONS() {
     },
   });
 }
-

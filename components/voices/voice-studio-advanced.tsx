@@ -181,7 +181,10 @@ export function VoiceStudioAdvanced({
       const errorMsg = errorData.error || "Failed to generate preview";
       // Check for service unavailable
       if (errorMsg.includes("temporarily unavailable")) {
-        toast.error("Voice service is temporarily unavailable. Please try again in a few minutes.", { duration: 6000 });
+        toast.error(
+          "Voice service is temporarily unavailable. Please try again in a few minutes.",
+          { duration: 6000 },
+        );
       } else {
         toast.error(errorMsg);
       }
